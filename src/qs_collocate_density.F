@@ -48,8 +48,8 @@ MODULE qs_collocate_density
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
-  USE qs_blacs,               ONLY: blacs_get_element,blacs_matrix_type
-  USE qs_mo_types,            ONLY: mo_set_type, get_mo_set
+  USE qs_blacs,               ONLY: blacs_get_element,blacs_matrix_type, &
+                                    get_blacs_matrix_info
   USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
                                     rs_grid_deallocate, &
                                     rs_grid_setup, rs_pw_transfer, rs_grid_zero
@@ -646,11 +646,11 @@ CONTAINS
 ! especially in parrallel things are not efficient. 
 ! Currently it's only meant to provide a way to plot an MO
 ! *****************************************************************************
-  SUBROUTINE calculate_wavefunction(mo_set,ivector,rho,rho_gspace,&
+  SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace,&
                                     gridlevel_info,cube_info,l_info,&
                                     qs_env,globenv)
 
-    TYPE(mo_set_type), POINTER :: mo_set
+    TYPE(blacs_matrix_type), POINTER :: mo_vectors
     INTEGER :: ivector
 
     TYPE(coeff_type), DIMENSION(:), POINTER     :: rho,rho_gspace
@@ -667,7 +667,6 @@ CONTAINS
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:), POINTER   :: eigenvector   
-    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(cell_type), POINTER          :: cell
@@ -699,19 +698,20 @@ CONTAINS
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
     INTEGER, DIMENSION(3)             :: nsmax
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
-    INTEGER :: offset,natom,nao
+    INTEGER :: offset,natom,nao,ncol_global
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_wavefunction","I","",handle)
 
-    CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors,nao=nao)
+    CALL get_blacs_matrix_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
+
     allocate(eigenvector(nao))
     ! only some processors have non-zero elements. The sum of eigenvector on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
     eigenvector(:)=0.0_wp
     DO i=1,nao 
-       CALL blacs_get_element(mo_eigenvectors,i,ivector,eigenvector(i))
+       CALL blacs_get_element(mo_vectors,i,ivector,eigenvector(i))
     ENDDO
 
     allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)

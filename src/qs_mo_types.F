@@ -106,7 +106,7 @@ MODULE qs_mo_types
             read_mo_set,&
             set_mo_occupation,&
             write_mo_set, &
-            calculate_occupied_eigenvalues
+            calculate_subspace_eigenvalues
 
 ! *****************************************************************************
 
@@ -358,15 +358,15 @@ CONTAINS
 
   END SUBROUTINE calculate_w_matrix_sparse
 ! *****************************************************************************
-  SUBROUTINE calculate_occupied_eigenvalues(mo_set,ks_matrix,globenv)
+  SUBROUTINE calculate_subspace_eigenvalues(orbitals,ks_matrix,globenv)
 
 !   Purpose: Calculates the eigenvalues for a set of orbitals spanning the 
 !            ground state of ks_matrix
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
+    TYPE(real_matrix_type), POINTER           :: ks_matrix
+    TYPE(blacs_matrix_type), POINTER          :: orbitals
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(blacs_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
     REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
 
@@ -376,10 +376,10 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_occupied_eigenvalues","I","",handle)
+    CALL timeset("calculate_subspace_eigenvalues","I","",handle)
 
     NULLIFY(weighted_vectors,h_block,e_vectors)
-    CALL get_blacs_matrix_info(matrix=mo_set%eigenvectors, &
+    CALL get_blacs_matrix_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global, &
                                  nrow_block=nrow_block, &
@@ -411,18 +411,16 @@ CONTAINS
                                  name="e_vectors", &
                                  globenv=globenv)
 
-    CALL sparse_times_blacs(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                                       mo_set%homo,para_env=globenv%para_env)
+    CALL sparse_times_blacs(ks_matrix,orbitals,weighted_vectors, &
+                                       ncol_global,para_env=globenv%para_env)
 
 
     CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
+                    orbitals,weighted_vectors,0.0_wp,h_block)
 
     CALL blacs_syevd(h_block,e_vectors,evals)
 
     if (globenv%ionode) then
-       write(globenv%scr,fmt="(a)") " "
-       write(globenv%scr,fmt="(a)") " eigenvalues of the occupied subspace"
        do i=1,ncol_global,4
           j=MIN(3,ncol_global-i)
           select case (j)
@@ -445,7 +443,7 @@ CONTAINS
     deallocate(evals)
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE calculate_occupied_eigenvalues
+  END SUBROUTINE calculate_subspace_eigenvalues
 ! *****************************************************************************
 
 ! *****************************************************************************

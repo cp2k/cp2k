@@ -2110,16 +2110,21 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
   call timestop(0.0_wp,handle)     
   end subroutine blacs_triangular_multiply
 !***************************************************************************
-! ****
-  SUBROUTINE blacs_column_copy(msource,mtarget,ncol)
+  SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
     TYPE(blacs_matrix_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
+    INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b
     integer                                   :: nprow,npcol,&
                                                  myprow,mypcol,i,n
     INTEGER, DIMENSION(9)                     :: desca,descb
     type(cp_blacs_env_type), pointer          :: context
+    integer ss,ts
+    ss=1
+    ts=1
+    IF (present(source_start)) ss=source_start
+    IF (present(target_start)) ts=target_start
 
     context => msource%matrix_struct%context
     myprow=context%mepos(1)
@@ -2132,11 +2137,11 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 #if defined(__SCALAPACK)
     desca(:) = msource%matrix_struct%descriptor(:)
     descb(:) = mtarget%matrix_struct%descriptor(:)
-    do i=1,ncol
-      CALL pdcopy(n,a(1,1),1,i,desca,1,b(1,1),1,i,descb,1)
+    do i=0,ncol-1
+      CALL pdcopy(n,a(1,1),1,ss+i,desca,1,b(1,1),1,ts+i,descb,1)
     enddo
 #else
-    CALL dcopy(ncol*n,a(1,1),1,b(1,1),1)
+    CALL dcopy(ncol*n,a(1,ss),1,b(1,ts),1)
 #endif
 
   END SUBROUTINE blacs_column_copy

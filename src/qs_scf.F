@@ -127,7 +127,7 @@ MODULE qs_scf
                                       read_mo_set,&
                                       set_mo_occupation,&
                                       write_mo_set, &
-                                      calculate_occupied_eigenvalues
+                                      calculate_subspace_eigenvalues
   USE qs_overlap,               ONLY: write_blacs_matrix,&
                                       write_sparse_matrix
   USE qs_parser,                ONLY: finish_parser,&
@@ -195,6 +195,7 @@ MODULE qs_scf
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p,               &
                                       qs_ot_mini
+  USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
   use cp_para_env, only: cp_para_env_type
@@ -278,6 +279,7 @@ CONTAINS
     type(real_matrix_type), POINTER :: pfull
     type(qs_energy_type), pointer :: energy
     logical :: energy_only
+    type(blacs_matrix_type), pointer :: unoccupied_orbs
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
@@ -392,6 +394,7 @@ CONTAINS
 
        qs_ot_env%settings%n=n 
        qs_ot_env%settings%k=k 
+       qs_ot_env%settings%ortho_k=k
        qs_ot_env%settings%nrow_block=nrow_block
        qs_ot_env%settings%ncol_block=ncol_block
 
@@ -675,6 +678,7 @@ CONTAINS
 
 !   *** temporary ***
 
+    if (.false.) then
     ! write the electron density
     if (globenv%ionode) open(UNIT=21,FILE="E_DENSITY.cube")
     call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
@@ -685,24 +689,55 @@ CONTAINS
     call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
     if (globenv%ionode) close(21)
 
+    CALL get_mo_set(mo_set=mo_set,eigenvectors=mo_eigenvectors,homo=ivector)
+    if (globenv%ionode) write(globenv%scr,*) " "
+    if (globenv%ionode) write(globenv%scr,*) " Eigenvalues of the occupied subspace"
+    if (globenv%ionode) write(globenv%scr,*) " ------------------------------------"
+    CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv)
 
-    Call  Calculate_occupied_eigenvalues(Mo_set,Ks%matrix,Globenv)
+    ! overwrites rho_rspace with a wavefunction !
+    CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace, &
+                                ks_env%rho_gspace,&
+                                ks_env%gridlevel_info,ks_env%cube_info, &
+                                ks_env%l_info,&
+                                qs_env,globenv)
 
-    ! Overwrites Rho_rspace With A Wavefunction !
-    Call Get_mo_set(Mo_set=Mo_set,Homo=Ivector)
-    Call Calculate_wavefunction(Mo_set,Ivector,Ks_env%rho_elec_rspace,Ks_env%rho_gspace,&
-                                 Ks_env%gridlevel_info,Ks_env%cube_info,Ks_env%l_info,&
-                                 Qs_env,Globenv)
+    write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
+    if (globenv%ionode) open(UNIT=21,FILE=filename)
+    write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO"
+    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,filename)
+    if (globenv%ionode) close(21)
 
-    Write(Filename,'(A13,I5.5,A5)') "Wavefunction_",Ivector,".Cube"
-    If (Globenv%ionode) Open(Unit=21,File=Filename)
-    Write(Filename,*) "Wavefunction ",Ivector," I.E. Homo"
-    Call Rs_pw_to_cube(Ks_env%v_hartree_rspace%pw,21,Globenv%ionode,Filename)
-    If (Globenv%ionode) Close(21)
+    CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
+                                               ncol_block=ncol_block, &
+                                               nrow_global=n, &
+                                               ncol_global=k)
+    CALL allocate_blacs_matrix(new_matrix=unoccupied_orbs, &
+                                          nrow_block=nrow_block, &
+                                          ncol_block=ncol_block, &
+                                          nrow_global=n, &
+                                          ncol_global=3, &
+                                          name="unoccupied_orbs", &
+                                          globenv=globenv)
+    CALL blacs_init_random(unoccupied_orbs,3)
 
-    If (Globenv%print%density_matrix) Then
-      Call Write_sparse_matrix(P%matrix,4,6,Qs_env,Globenv)
-    End If
+    CALL ot_eigensolver(matrix_h=ks%matrix,matrix_s=s(1)%matrix, &
+                        matrix_c=unoccupied_orbs, &
+                        matrix_orthogonal_space=mo_eigenvectors, &
+                        eps_gradient=1.0E-5_wp, &
+                        iter_max=1000,globenv=globenv)
+
+    if (globenv%ionode) write(globenv%scr,*) " "
+    if (globenv%ionode) write(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace"
+    if (globenv%ionode) write(globenv%scr,*) " ---------------------------------------------"
+    CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv)
+
+
+    endif
+
+    IF (globenv%print%density_matrix) THEN
+      CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
+    END IF
 
     If (Globenv%print%density_matrix_magnitude) Then
         If (Globenv%num_pe > 1) Then
@@ -743,35 +778,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE scf
-
-! *****************************************************************************
-  SUBROUTINE sparse_times_blacs_old(m_a,m_b,m_c,globenv)
-
-    TYPE(real_matrix_type), POINTER :: m_a
-    TYPE(blacs_matrix_type), POINTER :: m_b,m_c
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(blacs_matrix_type), POINTER :: dum
-    INTEGER  :: handle,n,k,nrow_block,ncol_block,i
-
-    CALL timeset("sparse_times_blacs","I","",handle)
-
-    CALL get_matrix_info(m_a,nrow=n)
-    CALL get_blacs_matrix_info(m_b,ncol_global=k, & 
-                  nrow_block=nrow_block,ncol_block=ncol_block)
-    CALL allocate_blacs_matrix(new_matrix=dum,&
-                               nrow_global=n,&
-                               ncol_global=n,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="DUM SPARSE MATRIX",&
-                               globenv=globenv)
-    CALL copy_sparse_to_blacs_matrix(m_a,dum)
-    CALL blacs_symm('L','U',n,k,1.0_wp,dum,m_b,0.0_wp,m_c)
-    CALL deallocate_blacs_matrix(dum)
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE sparse_times_blacs_old
 
 ! *****************************************************************************
 

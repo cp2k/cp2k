@@ -61,6 +61,7 @@ MODULE qs_ot
        real(wp)          :: ds_min
        integer           :: lbfgs_m,diis_m
        integer           :: n,k,nrow_block,ncol_block
+       integer           :: ortho_k
   END TYPE qs_ot_settings_type
 
   TYPE qs_ot_type
@@ -78,6 +79,8 @@ MODULE qs_ot
      TYPE(blacs_matrix_type), POINTER :: matrix_buf2
      TYPE(blacs_matrix_type), POINTER :: matrix_buf3
      TYPE(blacs_matrix_type), POINTER :: matrix_os
+     TYPE(blacs_matrix_type), POINTER :: matrix_buf1_ortho
+     TYPE(blacs_matrix_type), POINTER :: matrix_buf2_ortho
 
      REAL(wp),  DIMENSION(:), POINTER :: evals
      REAL(wp),  DIMENSION(:), POINTER :: dum
@@ -98,6 +101,7 @@ MODULE qs_ot
                                          matrix_gx
      TYPE(blacs_matrix_type), POINTER :: matrix_dx,matrix_dx_old,&
                                          matrix_gx_old,matrix_x_old
+
 
      LOGICAL :: use_dx_old, use_gx_old, use_x_old, use_dx
 
@@ -293,6 +297,7 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
          fc=qs_ot_env%OT_energy(3)
          nom  =(xb-xa)**2*(fb-fc) -  (xb-xc)**2*(fb-fa) 
          denom=(xb-xa)*(fb-fc) -  (xb-xc)*(fb-fa) 
+         !write(6,*) "start",xa,xb,xc,nom,denom
          pos = xb-0.5_wp*nom/denom ! position of the stationary point
          val = (pos-xa)*(pos-xb)*fc/((xc-xa)*(xc-xb))+ &
                (pos-xb)*(pos-xc)*fa/((xa-xb)*(xa-xc))+ &
@@ -387,12 +392,13 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    TYPE(qs_ot_type)                          :: qs_ot_env 
    TYPE(global_environment_type), INTENT(IN) :: globenv
 
-   INTEGER i,n,k,m_diis,m_bfgs,nrow_block,ncol_block
+   INTEGER i,n,k,m_diis,m_bfgs,nrow_block,ncol_block,ortho_k
 
-   n=qs_ot_env%settings%n
-   k=qs_ot_env%settings%k
-   m_bfgs=qs_ot_env%settings%lbfgs_m
-   m_diis=qs_ot_env%settings%diis_m
+   n      =qs_ot_env%settings%n
+   k      =qs_ot_env%settings%k
+   ortho_k=qs_ot_env%settings%ortho_k
+   m_bfgs =qs_ot_env%settings%lbfgs_m
+   m_diis =qs_ot_env%settings%diis_m
    nrow_block=qs_ot_env%settings%nrow_block
    ncol_block=qs_ot_env%settings%ncol_block
 
@@ -449,11 +455,27 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
    allocate(qs_ot_env%dum(k))
 
    CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_os,&
-                              nrow_global=k,&
-                              ncol_global=k,&
+                              nrow_global=ortho_k,&
+                              ncol_global=ortho_k,&
                               nrow_block=nrow_block,&
                               ncol_block=ncol_block,&
                               name="matrix_os",&
+                              globenv=globenv)
+
+   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_buf1_ortho,&
+                              nrow_global=ortho_k,&
+                              ncol_global=k,&
+                              nrow_block=nrow_block,&
+                              ncol_block=ncol_block,&
+                              name="matrix_buf1_ortho",&
+                              globenv=globenv)
+
+   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_buf2_ortho,&
+                              nrow_global=ortho_k,&
+                              ncol_global=k,&
+                              nrow_block=nrow_block,&
+                              ncol_block=ncol_block,&
+                              name="matrix_buf2_ortho",&
                               globenv=globenv)
 
    CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_p,&
@@ -538,7 +560,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
 
   CALL allocate_blacs_matrix(new_matrix=qs_ot_env%matrix_sc0,&
                              nrow_global=n,&
-                             ncol_global=k,&
+                             ncol_global=ortho_k,&
                              nrow_block=nrow_block,&
                              ncol_block=ncol_block,&
                              name="matrix_sc0",&
@@ -671,12 +693,14 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    TYPE(qs_ot_type)                          :: qs_ot_env 
    TYPE(global_environment_type), INTENT(IN) :: globenv
    REAL(wp), PARAMETER :: rone=1.0_wp, rzero=0.0_wp
-   integer :: n,k
-   n=qs_ot_env%settings%n
-   k=qs_ot_env%settings%k
+   integer :: n, ortho_k
 
-   CALL blacs_gemm('T','N',k,k,n,rone,qs_ot_env%matrix_sc0,qs_ot_env%matrix_sc0, &
-                                 rzero,qs_ot_env%matrix_os)
+   n=qs_ot_env%settings%n
+   ortho_k=qs_ot_env%settings%ortho_k
+
+   CALL blacs_gemm('T','N',ortho_k,ortho_k,n,rone,&
+                   qs_ot_env%matrix_sc0,qs_ot_env%matrix_sc0, &
+                   rzero,qs_ot_env%matrix_os)
    CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
    CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
 
@@ -725,6 +749,8 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
    call deallocate_blacs_matrix(qs_ot_env%matrix_buf1)
    call deallocate_blacs_matrix(qs_ot_env%matrix_buf2)
    call deallocate_blacs_matrix(qs_ot_env%matrix_buf3)
+   CALL deallocate_blacs_matrix(qs_ot_env%matrix_buf1_ortho)
+   CALL deallocate_blacs_matrix(qs_ot_env%matrix_buf2_ortho)
 
    call deallocate_blacs_matrix(qs_ot_env%matrix_c0)
    call deallocate_blacs_matrix(qs_ot_env%matrix_sc0)
@@ -766,6 +792,7 @@ SUBROUTINE qs_ot_destroy(qs_ot_env,globenv)
       deallocate(qs_ot_env%c_diis)
       deallocate(qs_ot_env%ipivot)
    endif
+
 
 END SUBROUTINE qs_ot_destroy
 
@@ -809,20 +836,23 @@ SUBROUTINE qs_ot_ortho_to_sc0(matrix_x,qs_ot_env,globenv)
   TYPE(qs_ot_type)                          :: qs_ot_env
 
   REAL(wp) , PARAMETER            :: rone=1.0_wp , rzero=0.0_wp
-  INTEGER                         :: n,k,handle
+  INTEGER                         :: n,handle,ortho_k,k
 
   CALL timeset("qs_ot_ortho","I","",handle)
 
   n=qs_ot_env%settings%n
+  ortho_k=qs_ot_env%settings%ortho_k
   k=qs_ot_env%settings%k
 
-  CALL blacs_gemm('T','N',k,k,n,rone,qs_ot_env%matrix_sc0,matrix_x, &
-                      rzero,qs_ot_env%matrix_buf1)
+  CALL blacs_gemm('T','N',ortho_k,k,n,rone,qs_ot_env%matrix_sc0,matrix_x, &
+                      rzero,qs_ot_env%matrix_buf1_ortho)
 
-  CALL blacs_symm('L','U',k,k,rone,qs_ot_env%matrix_os,qs_ot_env%matrix_buf1, &
-                      rzero,qs_ot_env%matrix_buf2)
+  CALL blacs_symm('L','U',ortho_k,k,rone,qs_ot_env%matrix_os,&
+                      qs_ot_env%matrix_buf1_ortho, &
+                      rzero,qs_ot_env%matrix_buf2_ortho)
 
-  CALL blacs_gemm('N','N',n,k,k,-rone,qs_ot_env%matrix_sc0,qs_ot_env%matrix_buf2, &
+  CALL blacs_gemm('N','N',n,k,ortho_k,-rone,qs_ot_env%matrix_sc0, &
+                     qs_ot_env%matrix_buf2_ortho, &
                       rone,matrix_x)
 
   CALL timestop(0.0_wp,handle)
@@ -929,7 +959,6 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
  
   ! and make it orthogonal
   CALL qs_ot_ortho_to_sc0(matrix_gx,qs_ot_env,globenv)
-
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE qs_ot_get_derivative
