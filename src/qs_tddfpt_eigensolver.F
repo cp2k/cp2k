@@ -60,7 +60,9 @@ MODULE qs_tddfpt_eigensolver
                                              p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types
-  USE qs_tddfpt_utils
+  USE qs_tddfpt_utils,                 ONLY: calc_initial_guess, &
+                                             calc_norm, &
+                                             reorthogonalize
   USE sparse_matrix_types,             ONLY: set_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -93,7 +95,7 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
-    ! L0CALS
+    ! LOCALS
     INTEGER                                              :: spin, n_spins, &
                                                             n_ev, max_krylovspace_dim, &
                                                             n_kv, max_krylovvec, &
@@ -113,10 +115,10 @@ CONTAINS
                                                             temp_orbitals
     REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: sum_temp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER       :: ao_mo_fm_pools
-    TYPE(cp_fm_p_type)                          :: T, Tev           
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER   :: X, R
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: kv, opkv
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: residues
+    TYPE(cp_fm_p_type)                                   :: T, Tev           
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER            :: X, R
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER          :: kv, opkv
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER          :: residues
     TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
                                                             Tev_fm_struct

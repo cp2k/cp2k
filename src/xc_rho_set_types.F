@@ -224,20 +224,11 @@ CONTAINS
 !!   FUNCTION
 !!     sets all the flags to the given value
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - cflags: the flags to set
-!!     - value: the value to set (defaults to false)
+!!     - value: the value to set
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_setall(cflags, value, error)
@@ -277,22 +268,13 @@ CONTAINS
 !!     End Subroutine xc_rho_cflags_or
 !!
 !!   FUNCTION
-!!     performs an or on all the flags (cflags1=cflag1.or.cflags2)
-!!
-!!   NOTES
-!!     -
+!!     performs an OR on all the flags (cflags1=cflag1.or.cflags2)
 !!
 !!   ARGUMENTS
 !!     - cflags1: the flags to change
-!!     - cflags2: the flags to or with
+!!     - cflags2: the flags to OR with
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_or(cflags1, cflags2, error)
@@ -334,22 +316,13 @@ CONTAINS
 !!     End Subroutine xc_rho_cflags_and
 !!
 !!   FUNCTION
-!!     performs an and on all the flags (cflags1=cflag1.and.cflags2)
-!!
-!!   NOTES
-!!     -
+!!     performs an AND on all the flags (cflags1=cflag1.and.cflags2)
 !!
 !!   ARGUMENTS
 !!     - cflags1: the flags to change
 !!     - cflags2: the flags to and with
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_cflags_and(cflags1, cflags2, error)
