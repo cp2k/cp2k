@@ -238,9 +238,11 @@ CONTAINS
        ELSE
           ! we can quit n_kv=j
           n_kv = j
-          WRITE (*,*)
-          WRITE (*,*) "Converged with ", n_kv," krylov vectors!"
-          WRITE (*,*)
+          IF (glob_env%ionode) THEN
+             WRITE (*,*)
+             WRITE (*,*) "Converged with ", n_kv," krylov vectors!"
+             WRITE (*,*)
+          END IF
           EXIT krylov
        END IF
 
@@ -256,18 +258,47 @@ CONTAINS
 
     END DO krylov
 
-
+#if 0
     !--------------------------------!
     ! print the krylov space vectors !
     !--------------------------------!
+    IF (glob_env%ionode) THEN
+       DO i=1, n_kv
+          DO spin=1, n_spins
+             index = n_spins*(i-1)+spin
+             CALL print_fm_matrix(kv(index)%matrix, & 
+                  p_env%n_ao(spin), p_env%n_mo(spin), &
+                  "kv-"//TRIM(ADJUSTL(cp_to_string(index)))//".dat")
+          END DO
+       END DO
+    END IF
+#endif
+
+#if 0
+    !-------------------------------------!
+    ! check if the vectors are orthogonal !
+    !-------------------------------------!
     DO i=1, n_kv
        DO spin=1, n_spins
-          index = n_spins*(i-1)+spin
-          CALL print_fm_matrix(kv(index)%matrix, & 
-               p_env%n_ao(spin), p_env%n_mo(spin), &
-               "kv-"//TRIM(ADJUSTL(cp_to_string(index)))//".dat")
+          index=n_spins*(i-1)+spin
+          CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
+                  kv(i)%matrix, &
+                  R(spin)%matrix, &
+                  p_env%n_mo(spin), &
+                  glob_env%para_env, 1.0_dbl, 0.0_dbl)
+          END DO
+          DO j=1, i-1
+             dot_product = 0.0_dbl
+             DO spin=1, n_spins
+                index=n_spins*(j-1)+spin
+                CALL cp_fm_trace(kv(index)%matrix, R(spin)%matrix, tmp)
+                dot_product = dot_product + tmp
+             END DO
+             IF (dot_product > 1.0e-9_dbl) &
+                  WRITE (*,*) "vectors ",i," and ",j," are not orthogonal:", dot_product
        END DO
     END DO
+#endif
 
 
     !-----------------------------------------!
@@ -394,7 +425,7 @@ CONTAINS
     !------------!
     CALL p_op_l1(p_env, qs_env, X, R)  ! acts on both spins
 
-#if 0
+#if 1
     !-----------------!
     ! calc P1 and     !
     ! R = R + K(P1)*C !
