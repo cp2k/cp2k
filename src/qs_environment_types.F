@@ -627,7 +627,7 @@ CONTAINS
        qs_env%dft_control => dft_control
     END IF
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
-    IF ( PRESENT ( use_ref_cell ) ) qs_env%qmmm = qmmm
+    IF ( PRESENT ( qmmm ) ) qs_env%qmmm = qmmm
     IF (PRESENT(c)) qs_env%c => c
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
