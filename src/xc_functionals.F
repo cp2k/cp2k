@@ -132,10 +132,15 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_get_order ( lsd, gc, ct, gc_all, ct_all, order, index )
+   SUBROUTINE xc_get_order ( lsd, gc, ct, gc_all, ct_all, order, index )
+
+     IMPLICIT NONE
+
      LOGICAL, INTENT ( IN ) :: lsd, gc, ct, gc_all, ct_all
      INTEGER, INTENT ( IN ) :: order
      INTEGER, DIMENSION (:), INTENT ( OUT ) :: index
+    
+     INTEGER :: i
 
      IF ( .NOT. LSD ) THEN
         IF ( gc_all .AND. .NOT. gc ) THEN

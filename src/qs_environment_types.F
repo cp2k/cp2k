@@ -260,7 +260,8 @@ CONTAINS
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => qs_env%ao_mo_fm_pools
     IF (PRESENT(ao_maxmo_fm_pool)) THEN
        IF (ASSOCIATED(qs_env%ao_mo_fm_pools)) THEN
-          ao_maxmo_fm_pool => ao_mo_fm_pools(1)%pool
+          !TC what is this hardcoded 1??
+          ao_maxmo_fm_pool => qs_env%ao_mo_fm_pools(1)%pool
        ELSE
           NULLIFY(ao_maxmo_fm_pool) ! raise an error?
        END IF

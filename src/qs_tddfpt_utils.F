@@ -20,6 +20,7 @@
 !!****
 
 MODULE qs_tddfpt_utils
+
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
                                              cp_sp_create
@@ -43,6 +44,7 @@ MODULE qs_tddfpt_utils
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
                                              tddfpt_env_init,&
                                              tddfpt_env_type
+  USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
 
   CHARACTER(len=*), PARAMETER :: moduleN="qs_tddfpt_utils"
@@ -97,7 +99,7 @@ CONTAINS
     TYPE(qs_K_P_P1_env_type), pointer         :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
-    INTEGER                                   :: n_spins, spin
+    INTEGER                                   :: n_spins, spin, stat
     CHARACTER(len=*), PARAMETER               :: routineN = "tddfpt_init", &
                                                  routineP = moduleN//"/"//routineN
     
@@ -105,8 +107,10 @@ CONTAINS
 
     CALL kpp1_create(kpp1_env, qs_env=qs_env)
 
-    n_spins = SIZE(qs_env%k)
-    ALLOCATE(psi0d(n_spins))
+    n_spins = qs_env%dft_control%nspins
+
+    ALLOCATE(psi0d(n_spins), stat=stat)
+    if (stat /= 0) call stop_memory(routineP, "psi0d", n_spins)
 
     DO spin=1, n_spins
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=eigenvectors)

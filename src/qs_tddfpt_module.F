@@ -176,6 +176,8 @@ CONTAINS
     DEALLOCATE(v, stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v')
 
+    CALL cleanup(t_env, p_env, glob_env)
+
   END SUBROUTINE tddfpt_calculation
 
 ! *****************************************************************************
@@ -228,8 +230,8 @@ CONTAINS
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(tddfpt_env_type), POINTER            :: t_env
+    TYPE(qs_p_env_type), intent(inout)        :: p_env
+    TYPE(tddfpt_env_type), intent(inout)      :: t_env
     TYPE(global_environment_type), INTENT(IN) :: glob_env
 
     ! locals
@@ -241,7 +243,7 @@ CONTAINS
 
     CALL tddfpt_env_deallocate(t_env, glob_env)
 
-    IF (glob_env%ionode) WRITE (glob_env%scr,'(1X,A)') routineP//': free p_env also?'
+    IF (glob_env%ionode) WRITE (glob_env%scr,'(1X,A)') routineP//': free p_env also!'
     
     IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
 
