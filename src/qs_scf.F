@@ -200,7 +200,7 @@ MODULE qs_scf
   CHARACTER(LEN=10) :: density_guess
   REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
        work_syevx
-  INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
+  INTEGER           :: max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
                        rebuild,use_cholesky,use_arpack,use_ot
@@ -298,7 +298,7 @@ CONTAINS
                              maxl=maxl,&
                              nelectron=nelectron)
 
-    nelectron = nelectron - charge
+    nelectron = nelectron - dft_control%charge
 
     CALL get_cell(cell=cell)
 
@@ -1306,7 +1306,6 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    charge = 0
     density_guess = "ATOMIC"
     eps_eigval = 1.0E-5_wp
     eps_scf = 1.0E-5_wp
@@ -1333,8 +1332,6 @@ CONTAINS
       SELECT CASE (TRIM(keyword))
       CASE ("OT")
         use_ot = .true.
-      CASE ("CHARGE")
-        CALL read_object(charge)
       CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")
         CALL read_object(density_guess,lower_to_upper=.TRUE.)
       CASE ("DENSITY_MIXING","MIXING")
@@ -1398,9 +1395,8 @@ CONTAINS
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
       WRITE (UNIT=output_unit,&
-             FMT="(T3,A,/,4(/,T3,A,I5),3(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
+             FMT="(T3,A,/,3(/,T3,A,I5),3(/,T3,A,ES9.2),4(/,T3,A,F5.2))")&
         "Density guess: "//TRIM(density_guess),&
-        "charge:            ",charge,&
         "nrebuild:          ",nrebuild,&
         "max_scf:           ",max_scf,&
         "max_diis:          ",max_diis,&

@@ -136,6 +136,7 @@ CONTAINS
 !!  spin             nspins                                                   !
 !!  lsd                                                                       !
 !!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
+!!  charge           charge
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
@@ -176,6 +177,7 @@ CONTAINS
     dft_control % integration_grid % pw_cutoff  = -1._wp
     dft_control % integration_grid % pw_mesh    = -1_wp
     dft_control % forces = .FALSE.
+    dft_control % charge = 0
 
 !   *** Read the input section ***
 
@@ -231,6 +233,8 @@ CONTAINS
         dft_control%nspins = 2
       CASE ("FORCES")
         dft_control%forces = .TRUE.
+      CASE ("CHARGE")
+         CALL read_object(dft_control%charge)
       END SELECT
     END DO
 
@@ -488,6 +492,11 @@ CONTAINS
       ELSE
          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
             dft_control % nspins
+      END IF
+
+      IF ( dft_control % charge /= 0 ) then
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
+              dft_control % charge
       END IF
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
