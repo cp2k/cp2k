@@ -291,12 +291,12 @@ SUBROUTINE timeprint(iw,global_print_level)
 
          IF (LEN_TRIM(perf_unit(j)) == 0) THEN
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T30,I7,T39,F3.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
+                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T60,A,T68,F13.2)")&
              TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
              ct(clock_type(j)),"---",wallclock_accu(j)
          ELSE
            WRITE (UNIT=iw,&
-                  FMT="(T2,A,T30,I7,T39,F3.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
+                  FMT="(T2,A,T30,I7,T38,F4.1,T42,F9.2,T52,A,T54,F5.1,T60,A,T68,F13.2)")&
              TRIM(clock_name(j)),routine_calls(j),ASD,clock_accu(i),&
              ct(clock_type(j)),perf,TRIM(perf_unit(j)),wallclock_accu(j)
          END IF
