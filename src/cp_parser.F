@@ -41,7 +41,8 @@ MODULE cp_parser
                                              cp_warning_level,&
                                              open_file
   USE cp_para_env,                     ONLY: cp_para_env_create,&
-                                             cp_para_env_retain
+                                             cp_para_env_retain,&
+                                             cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -237,6 +238,7 @@ END SUBROUTINE parser_retain
           IF (parser%input_unit >= 0) THEN
              CALL close_file(unit_number=parser%input_unit)
           END IF
+          CALL cp_para_env_release(parser%para_env)
           DEALLOCATE(parser,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
