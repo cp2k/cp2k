@@ -45,7 +45,7 @@ module pao_unitary_t
   implicit none
   private
 
-  logical, private, parameter :: debug_this_module=.true.
+  logical, private, parameter :: debug_this_module=.false.
 
   public :: pao_calc_u_du_type
 
@@ -515,10 +515,11 @@ contains
           call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
           if (cp_debug .and. debug_this_module) then
-             call pao_l_ang_get(c_env%local_angles,angles=ang)
-             call cp_1d_r_output(logger=cp_error_get_logger(error),&
-               outputName='udu_angles',fromWhere=routineP, iter=iter,&
-               array=ang,error=error)
+!!FM             nullify(ang)
+!!FM             call pao_l_ang_get(c_env%local_angles,angles=ang)
+!!FM             call cp_1d_r_output(logger=cp_error_get_logger(error),&
+!!FM               outputName='udu_angles',fromWhere=routineP, iter=iter,&
+!!FM               array=ang,error=error)
              call cp_2d_r_output(logger=cp_error_get_logger(error),&
                outputName='udu_L',fromWhere=routineP, iter=iter,&
                array=c_env%L,comment=" min_bas="//&
