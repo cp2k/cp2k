@@ -118,13 +118,10 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_blacs,                        ONLY: cp_fm_create2,&
-                                             cp_fm_gemm,&
+  USE qs_blacs,                        ONLY: cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_scale_and_add,&
-                                             cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&
                                              cp_sm_fm_multiply,&

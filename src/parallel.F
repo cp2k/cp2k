@@ -54,7 +54,7 @@ SUBROUTINE start_parallel ( globenv )
   CALL mp_world_setup ( globenv % num_pe, globenv % mepos, globenv % group )
   globenv % source = 0
   globenv % ionode = (globenv % mepos==globenv % source)
-  nullify(globenv%para_env, globenv%blacs_env)
+  nullify(globenv%para_env)
   call cp_para_env_create (globenv%para_env, group=globenv%group,&
       owns_group=.false.,source=globenv%source)
   globenv%print%ref_count=1 ! ugly

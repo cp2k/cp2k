@@ -32,7 +32,6 @@ MODULE qs_environment
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -82,8 +81,6 @@ MODULE qs_environment
                                              read_particle_set,&
                                              write_particle_coordinates,&
                                              write_particle_distances
-  USE qs_blacs,                        ONLY: end_blacs,&
-                                             start_blacs
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
@@ -422,7 +419,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_finalize(qs_env,globenv)
+  SUBROUTINE qs_finalize(qs_env)
 
 !   Purpose: Finalize a QUICKSTEP run.
 
@@ -430,7 +427,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
 
 !   *** Local variables ***
@@ -439,9 +435,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-!   *** Release BLACS environment ***
-
-    CALL end_blacs(globenv)
+    ! pretty empty right now, guess this is a bug...
 
   END SUBROUTINE qs_finalize
 

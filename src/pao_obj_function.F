@@ -92,12 +92,15 @@ MODULE pao_obj_function
                                              cp_next,&
                                              pao_calc_u_du_get,&
                                              pao_calc_u_du_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             cp_fm_struct_release
+  USE cp_fm_types,                     ONLY: cp_fm_create
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
@@ -288,8 +291,9 @@ CONTAINS
     TYPE(pao_env_type), POINTER :: pao_env
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(qs_matrix_pools_type), POINTER :: mpools
+    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     NULLIFY(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
-         atomic_kind_set,mpools)
+         atomic_kind_set,mpools,fm_struct_tmp)
     failure=.FALSE.
 
     gf_env%qs_env => qs_env
@@ -304,27 +308,14 @@ CONTAINS
             pao_min_bas_m_struct=min_bas_m_struct,&
             pao_full_bas_diag_m_struct=full_bas_m_struct, n_atoms=n_atoms,&
             error=error)
-       CALL cp_fm_create2(gf_env%min_blacs_1,&
-            nrow_global=ntot_min_bas,&
-            ncol_global=ntot_min_bas,&
-            nrow_block=cp_optimal_blacs_block_size,&
-            ncol_block=cp_optimal_blacs_block_size,&
-            name='min blacs 1',&
-            globenv=global_env)
-       CALL cp_fm_create2(gf_env%min_blacs_2,&
-            nrow_global=ntot_min_bas,&
-            ncol_global=ntot_min_bas,&
-            nrow_block=cp_optimal_blacs_block_size,&
-            ncol_block=cp_optimal_blacs_block_size,&
-            name='min blacs 2',&
-            globenv=global_env)
-       CALL cp_fm_create2(gf_env%min_blacs_3,&
-            nrow_global=ntot_min_bas,&
-            ncol_global=ntot_min_bas,&
-            nrow_block=cp_optimal_blacs_block_size,&
-            ncol_block=cp_optimal_blacs_block_size,&
-            name='min blacs 3',&
-            globenv=global_env)
+       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ntot_min_bas, &
+                                ncol_global=ntot_min_bas,  &
+                                para_env=scf_work1%matrix_struct%para_env, &
+                                context=scf_work1%matrix_struct%context)
+       CALL cp_fm_create(gf_env%min_blacs_1,fm_struct_tmp,name='min blacs 1')
+       CALL cp_fm_create(gf_env%min_blacs_3,fm_struct_tmp,name='min blacs 3')
+       CALL cp_fm_create(gf_env%min_blacs_3,fm_struct_tmp,name='min blacs 3')
+       CALL cp_fm_struct_release(fm_struct_tmp)
        gf_env%scf_work1 => scf_work1
        gf_env%scf_work2 => scf_work2
        gf_env%scf_work3 => scf_work3

@@ -18,12 +18,15 @@
 
 MODULE preconditioner
 ! *****************************************************************************
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
-                                             cp_blacs_env_release,&
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_fm_types,                     ONLY: cp_fm_init_random
-  USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size, &
-                                             optimal_blacs_row_block_size
+  
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             cp_fm_struct_release
+  
+  USE cp_fm_types,                     ONLY: cp_fm_init_random, &
+                                             cp_fm_create
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -49,7 +52,6 @@ MODULE preconditioner
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
@@ -89,7 +91,7 @@ MODULE preconditioner
   PUBLIC  :: apply_preconditioner
 
   INTERFACE make_preconditioner
-    MODULE PROCEDURE make_preconditioner_single ! ,make_preconditioner_all
+    MODULE PROCEDURE make_preconditioner_single 
   END INTERFACE
 
   PRIVATE :: make_sparse_diag, make_full_single, make_local_block
@@ -101,7 +103,6 @@ MODULE preconditioner
        TYPE(cp_para_env_type),  POINTER   :: para_env
        TYPE(cp_blacs_env_type), POINTER   :: ctxt
        INTEGER :: in_use
-       REAL(wp), DIMENSION(:), POINTER :: all_evals
        REAL(wp), DIMENSION(:), POINTER :: subspace_evals
        REAL(wp) :: energy_gap
   END TYPE preconditioner_type
@@ -126,7 +127,6 @@ SUBROUTINE init_preconditioner(preconditioner_env,para_env,blacs_env)
 
    NULLIFY(preconditioner_env%sparse_matrix)
    NULLIFY(preconditioner_env%full_matrix)
-   NULLIFY(preconditioner_env%all_evals)
    NULLIFY(preconditioner_env%subspace_evals)
    preconditioner_env%in_use=0
    preconditioner_env%para_env => para_env
@@ -147,9 +147,6 @@ SUBROUTINE destroy_preconditioner(preconditioner_env)
 
    IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
       CALL cp_fm_release(preconditioner_env%full_matrix)
-   ENDIF
-   IF (ASSOCIATED(preconditioner_env%all_evals)) THEN
-      DEALLOCATE(preconditioner_env%all_evals)
    ENDIF
    IF (ASSOCIATED(preconditioner_env%subspace_evals)) THEN
       DEALLOCATE(preconditioner_env%subspace_evals)
@@ -212,10 +209,6 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
     preconditioner_env%in_use=4
     CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
                                                  energy_homo, energy_gap )
-  CASE ("FULL_S_HALF")
-    preconditioner_env%in_use=5
-    CALL make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
-                                             energy_homo, energy_gap )
   CASE ("FULL_KINETIC")
     preconditioner_env%in_use=6
     CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
@@ -228,41 +221,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, USE, matrix_h, matrix_
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE make_preconditioner_single
-!********************************************************************************
-! is a bit more complicated. for OT the preconditioner it must be such
-! that matrix_c0 is the same one a the one from the constraints,
-! additionally, we have to rotate it so that diagonalizes it's subspace of h
-! and the evecs part of the preconditioner should be such that
-! V=[UC0 UX] (otherwise the computation of the lagrangian multipliers gets more
-! difficult than one would like
-!********************************************************************************
-!SUBROUTINE make_preconditioner_all(preconditioner_env, use, matrix_h, matrix_s, &
-!                                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
-!
-!  TYPE(preconditioner_type)                  :: preconditioner_env
-!  CHARACTER(LEN=*)                           :: use
-!  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-!  REAL(wp)                                   :: energy_gap
-!  TYPE(cp_full_matrix_type), POINTER         :: matrix_c0,matrix_sc0,matrix_hc0
-!!----
-!  integer handle
-!
-!  CALL timeset("make_preconditioner","I","",handle)
-!
-!  SELECT CASE (use)
-!  CASE ("FULL_ALL")
-!    preconditioner_env%in_use=103
-!    CALL make_full_all(preconditioner_env, matrix_h, matrix_s, &
-!                   matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
-!
-!  CASE DEFAULT
-!    CALL stop_program("make preconditioner","Type not implemented")
-!  END SELECT
-!
-!  CALL timestop(0.0_wp,handle)
-!
-!END SUBROUTINE make_preconditioner_all
-!
+
+
 !*******************************************************************************
 ! applies a previously created preconditioner to a full matrix
 !*******************************************************************************
@@ -284,10 +244,6 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
   CASE (3,6)
     CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
-  CASE (5)
-    CALL apply_full_s_half(preconditioner_env, matrix_in, matrix_out)
-  CASE (103)
-    CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
   CASE DEFAULT
     CALL stop_program("apply preconditioner","implemented")
   END SELECT
@@ -537,7 +493,6 @@ SUBROUTINE make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
   ! first we get the all blocks of the block diagonal preconditioner replicated
   ! on every CPU (store in block_buffer)
 
-
   CALL get_matrix_info(matrix_s,nblock_row=nblocks,first_row=first_row,last_row=last_row)
 
   ALLOCATE(offset(nblocks+1))
@@ -654,48 +609,25 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
 
 ! ---
   TYPE(cp_full_matrix_type), POINTER :: fm_h,fm_s
-  ! there are defaults in cp_fm_create
-  INTEGER :: nrow_block 
-  INTEGER :: ncol_block 
+  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
   REAL(wp), DIMENSION(:), POINTER :: evals
   INTEGER :: i,n
 ! ---
-  nrow_block = optimal_blacs_row_block_size
-  ncol_block = optimal_blacs_col_block_size
+  NULLIFY(fm_h,fm_s,fm_struct_tmp,evals)
+
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN 
      CALL cp_fm_release(preconditioner_env%full_matrix)
   ENDIF
   CALL get_matrix_info(matrix_h,nrow=n)
-
-  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-
   ALLOCATE(evals(n))
-  NULLIFY(fm_h,fm_s)
-  CALL cp_fm_create2(new_matrix=fm_h,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&                             
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
 
-  CALL cp_fm_create2(new_matrix=fm_s,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_s",&
+  CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
+  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_create(fm_h,fm_struct_tmp, name="fm_h")
+  CALL cp_fm_create(fm_s,fm_struct_tmp, name="fm_s")
+  CALL cp_fm_struct_release(fm_struct_tmp)
 
   CALL copy_real_matrix_to_full_matrix(matrix_h,fm_h)
   CALL copy_real_matrix_to_full_matrix(matrix_s,fm_s)
@@ -742,33 +674,30 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap
 
 ! ---
-  INTEGER:: nrow_block 
-  INTEGER:: ncol_block 
   INTEGER :: i,n
+  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
 ! ---
-  nrow_block = optimal_blacs_row_block_size
-  ncol_block = optimal_blacs_col_block_size
+  NULLIFY(fm_struct_tmp)
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
      CALL cp_fm_release(preconditioner_env%full_matrix)
   ENDIF
   CALL get_matrix_info(matrix_h,nrow=n)
 
-  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&
+  CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
-
+  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_struct_release(fm_struct_tmp)
 
   CALL copy_real_matrix_to_full_matrix(matrix_s,preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
 END SUBROUTINE make_full_s_inverse
+
+
+
 SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
                                energy_homo, energy_gap )
 
@@ -777,26 +706,21 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   REAL(wp)                                   :: energy_homo,energy_gap,shift
 
 ! ---
-  INTEGER:: nrow_block 
-  INTEGER:: ncol_block 
   INTEGER :: i,n
+  TYPE(cp_fm_struct_type), POINTER        :: fm_struct_tmp
 ! ---
-  nrow_block = optimal_blacs_row_block_size
-  ncol_block = optimal_blacs_col_block_size
+  NULLIFY(fm_struct_tmp)
 
   IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
      CALL cp_fm_release(preconditioner_env%full_matrix)
   ENDIF
   CALL get_matrix_info(matrix_t,nrow=n)
 
-  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&
+  CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
+  CALL cp_fm_create(preconditioner_env%full_matrix,fm_struct_tmp, name="preconditioner")
+  CALL cp_fm_struct_release(fm_struct_tmp)
 
   shift=MAX(-energy_homo,energy_gap)
   CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
@@ -806,412 +730,6 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
 END SUBROUTINE make_full_kinetic
-
-
-SUBROUTINE apply_full_s_half(preconditioner_env, matrix_in, matrix_out)
-
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
-!----
-  INTEGER n,k
-  TYPE(cp_full_matrix_type), POINTER :: new_matrix
-  NULLIFY(new_matrix)
-
-  CALL cp_fm_get_info(matrix_in,nrow_global=n,ncol_global=k)
-  CALL replicate_blacs_matrix(matrix_in,new_matrix,"apply prec dummy")
-
-  CALL cp_fm_symm('L','U',n,k,1.0_wp,preconditioner_env%full_matrix, &
-                        matrix_in, &
-                        0.0_wp,new_matrix)
-
-  CALL cp_sm_fm_multiply(preconditioner_env%sparse_matrix,new_matrix, &
-                         matrix_out,k, para_env=preconditioner_env%para_env)
-
-  ! CALL copy_blacs_to_blacs_matrix(new_matrix,matrix_out)
-
-  CALL cp_fm_symm('L','U',n,k,1.0_wp,preconditioner_env%full_matrix, &
-                        matrix_out, &
-                        0.0_wp,new_matrix)
-
-  CALL copy_blacs_to_blacs_matrix(new_matrix,matrix_out)
-
-  CALL cp_fm_release(new_matrix)
-
-END SUBROUTINE apply_full_s_half
-
-SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
-                               energy_homo, energy_gap )
-
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_homo,energy_gap
-
-! ---
-  INTEGER:: nrow_block 
-  INTEGER:: ncol_block 
-  INTEGER :: i,n
-  TYPE(cp_full_matrix_type), POINTER :: fm_y,fm_yi,fm_z,fm_zi
-
-  INTEGER :: iblock_row,iblock_col_s,iblock_col_h,nblocks
-
-  TYPE(real_block_node_type), POINTER :: block_node_s
-  TYPE(real_block_node_type), POINTER :: block_node_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_h
-  REAL(wp), DIMENSION(:,:), POINTER :: block_s
-  REAL(wp), DIMENSION(:,:), POINTER :: block_pre
-! ---
-  nrow_block = optimal_blacs_row_block_size
-  ncol_block = optimal_blacs_col_block_size
-
-  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN
-     CALL cp_fm_release(preconditioner_env%full_matrix)
-  ENDIF
-  CALL get_matrix_info(matrix_h,nrow=n)
-
-
-  CALL cp_fm_create2(new_matrix=fm_y, &
-                             nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_y",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_z, &
-                             nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_z",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_yi, &
-                             nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_yn",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_zi, &
-                             nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_zn",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_y)
-  CALL copy_blacs_to_blacs_matrix(fm_y,fm_z)
-  CALL cp_fm_cholesky_decompose(fm_z)
-  CALL cp_fm_cholesky_invert(fm_z)
-  CALL blacs_scale_and_d(fm_z,0.5_wp,0.5_wp)
-  CALL blacs_scale_and_d(fm_y,0.5_wp,0.5_wp)
-  
-
-  DO i=1,4
-     CALL copy_blacs_to_blacs_matrix(fm_z,fm_zi)
-     CALL cp_fm_cholesky_decompose(fm_zi)
-     CALL cp_fm_cholesky_invert(fm_zi)
-
-     CALL copy_blacs_to_blacs_matrix(fm_y,fm_yi)
-     CALL cp_fm_cholesky_decompose(fm_yi)
-     CALL cp_fm_cholesky_invert(fm_yi)
-
-     CALL cp_fm_scale_and_add(0.5_wp,fm_y,0.5_wp,fm_zi)
-     CALL cp_fm_scale_and_add(0.5_wp,fm_z,0.5_wp,fm_yi)
-  ENDDO
-
-
-  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-  CALL copy_blacs_to_blacs_matrix(fm_z,preconditioner_env%full_matrix)
-
-  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_y)
-  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_zi)
-  CALL cp_fm_scale_and_add(1.0_wp,fm_y,-energy_homo,fm_zi) ! fm_y = H-eS
-  CALL blacs_scale_and_d(fm_zi,0.0_wp,1.0_wp) ! ugly way to get the full matrix
-  CALL cp_fm_symm('L','U',n,n,1.0_wp,fm_y, &
-                        fm_zi, &
-                        0.0_wp,fm_yi)
-  CALL cp_fm_symm('L','U',n,n,1.0_wp,fm_z, &
-                        fm_yi, &
-                        0.0_wp,fm_zi)
-  CALL cp_fm_symm('R','U',n,n,1.0_wp,fm_z, &
-                        fm_zi, &
-                        0.0_wp,fm_yi)
-  CALL copy_full_matrix_to_real_matrix(fm_yi,matrix_h)
-
-  CALL cp_fm_release(fm_zi)
-  CALL cp_fm_release(fm_yi)
-  CALL cp_fm_release(fm_z)
-  CALL cp_fm_release(fm_y)
-
-  ! and add a diagonal approximation for inv(Shalf)Hinv(Shalf)
-
-  IF (ASSOCIATED(preconditioner_env%sparse_matrix)) THEN
-     CALL deallocate_matrix(preconditioner_env%sparse_matrix)
-     NULLIFY(preconditioner_env%sparse_matrix)
-  ENDIF
-
-  CALL Replicate_matrix(matrix_s,preconditioner_env%sparse_matrix,"PRECONDITIONER",.FALSE.)
-  CALL get_matrix_info(matrix_s,nblock_row=nblocks)
-  DO iblock_row=1,nblocks
-     block_node_s => first_block_node(matrix_s,iblock_row)
-     block_node_h => first_block_node(matrix_h,iblock_row)
-     DO WHILE (ASSOCIATED(block_node_s) .OR. ASSOCIATED(block_node_h))
-        IF (.NOT.ASSOCIATED(block_node_s) .OR. .NOT.ASSOCIATED(block_node_h)) &
-            CALL stop_program("qs preconditioner", ".NOT.ASSOCIATED")
-
-        CALL get_block_node(block_node=block_node_s,&
-                            block_col=iblock_col_s,&
-                            BLOCK=block_s)
-
-        CALL get_block_node(block_node=block_node_h,&
-                            block_col=iblock_col_h,&
-                            BLOCK=block_h)
-
-        IF (iblock_col_h .NE. iblock_col_s) &
-           CALL stop_program("qs preconditioner","iblock_col_h .ne. iblock_col_s")
-
-        IF (iblock_col_s .EQ. iblock_row) THEN
-           n=SIZE(block_s,1)
-           ALLOCATE(block_pre(n,n))
-
-           CALL make_local_block(block_h,block_s,block_pre,  &
-                                                  energy_homo,energy_gap,6)
-
-           CALL add_block_node(matrix=preconditioner_env%sparse_matrix,&
-                                 block_row=iblock_row,&
-                                 block_col=iblock_col_s,&
-                                 BLOCK=block_pre)
-
-           DEALLOCATE(block_pre)
-
-        ENDIF
-        block_node_s => next_block_node(block_node_s)
-        block_node_h => next_block_node(block_node_h)
-     END DO
-  ENDDO
-
-END SUBROUTINE make_full_s_half
-
-
-!***************************************************************************
-! different types of preconditioner come here
-!***************************************************************************
-! a full matrix preconditioner
-SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
-
-  TYPE(preconditioner_type)               :: preconditioner_env
-  TYPE(cp_full_matrix_type), POINTER            :: matrix_in,matrix_out
-!----
-  TYPE(cp_full_matrix_type), POINTER            :: new_matrix
-  INTEGER n,k,ln,lk,i,j
-  REAL(wp) :: dum
-  REAL(wp), DIMENSION(:,:), POINTER :: local_data
-  INTEGER, DIMENSION(:), POINTER :: row_indices,col_indices
-  ! ok need an extra buff here, we don't want to destroy matrix_in
-  NULLIFY(new_matrix)
-  CALL replicate_blacs_matrix(matrix_in,new_matrix,"apply prec dummy")
-
-  CALL cp_fm_get_info(new_matrix,nrow_global=n,ncol_global=k, &
-                      nrow_local=ln,ncol_local=lk,local_data=local_data, &
-                      row_indices=row_indices,col_indices=col_indices)
-
-  ! first mult by (inv(U)K)^T
-  CALL cp_fm_gemm('T','N',n,k,n,1.0_wp,preconditioner_env%full_matrix, &
-                  matrix_in,0.0_wp,new_matrix)
-  ! do the right scaling
-  DO j=1,lk
-  DO i=1,ln
-     dum=1.0_wp/MAX(preconditioner_env%energy_gap, &
-             preconditioner_env%all_evals(row_indices(i))- &
-             preconditioner_env%subspace_evals(col_indices(j))  )
-     local_data(i,j)=local_data(i,j)*dum
-  ENDDO
-  ENDDO
-  ! mult back
-  CALL cp_fm_gemm('N','N',n,k,n,1.0_wp,preconditioner_env%full_matrix, &
-                  new_matrix,0.0_wp,matrix_out)
-  CALL cp_fm_release(new_matrix)
-
-END SUBROUTINE apply_full_all
-
-SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
-                         matrix_c0,matrix_sc0,matrix_hc0, energy_gap )
-
-  TYPE(preconditioner_type)                  :: preconditioner_env
-  TYPE(real_matrix_type), POINTER            :: matrix_h,matrix_s
-  REAL(wp)                                   :: energy_gap
-  TYPE(cp_full_matrix_type), POINTER         :: matrix_c0,matrix_sc0,matrix_hc0
-
-! ---
-  TYPE(cp_full_matrix_type), POINTER :: fm_h,fm_s, fm_wvec, fm_evec, fm_xvec, fm_wxvec, fm_block
-  INTEGER:: nrow_block 
-  INTEGER:: ncol_block 
-  REAL(wp), DIMENSION(:), POINTER :: evals
-  INTEGER :: i,n,k,x
-! ---
-  nrow_block = optimal_blacs_row_block_size
-  ncol_block = optimal_blacs_col_block_size
-
-  IF (ASSOCIATED(preconditioner_env%full_matrix)) THEN 
-     CALL cp_fm_release(preconditioner_env%full_matrix)
-  ENDIF
-  IF (ASSOCIATED(preconditioner_env%all_evals)) THEN 
-     DEALLOCATE(preconditioner_env%all_evals)
-  ENDIF
-  IF (ASSOCIATED(preconditioner_env%subspace_evals)) THEN 
-     DEALLOCATE(preconditioner_env%subspace_evals)
-  ENDIF
-  CALL get_matrix_info(matrix_h,nrow=n)
-  CALL cp_fm_get_info(matrix_c0,ncol_global=k)
-
-  ALLOCATE(preconditioner_env%all_evals(n))
-  ALLOCATE(preconditioner_env%subspace_evals(k))
-  preconditioner_env%energy_gap=energy_gap
-  CALL cp_fm_create2(new_matrix=preconditioner_env%full_matrix,&
-                             nrow_global=n,&
-                             ncol_global=n,&
-                             nrow_block=nrow_block,&
-                             ncol_block=ncol_block,&
-                             name="matrix_h",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  ! first step, make c0,sc0,hc0 ritz vectors
-  NULLIFY(fm_wvec,fm_evec,fm_block)
-  CALL cp_fm_create2(new_matrix=fm_wvec, nrow_global=n, ncol_global=k,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="make full all prec matrix wvec",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_evec, nrow_global=k, ncol_global=k,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="make full all prec matrix evec",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_block, nrow_global=k, ncol_global=k,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="make full all prec matrix evec",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_gemm('T','N',k,k,n,1.0_wp, &
-                    matrix_c0,matrix_hc0,0.0_wp,fm_block)
- 
-  CALL blacs_syevd(fm_block,fm_evec,preconditioner_env%subspace_evals)
-
-  CALL cp_fm_gemm('N','N',n,k,k,1.0_wp, &
-                      matrix_c0,fm_evec,0.0_wp,fm_wvec)
-  CALL copy_blacs_to_blacs_matrix(fm_wvec,matrix_c0)
-
-  CALL cp_fm_gemm('N','N',n,k,k,1.0_wp, &
-                      matrix_sc0,fm_evec,0.0_wp,fm_wvec)
-  CALL copy_blacs_to_blacs_matrix(fm_wvec,matrix_sc0)
-
-  CALL cp_fm_gemm('N','N',n,k,k,1.0_wp, &
-                      matrix_hc0,fm_evec,0.0_wp,fm_wvec)
-  CALL copy_blacs_to_blacs_matrix(fm_wvec,matrix_hc0)
-
-  CALL cp_fm_release(fm_block) ! fm_wvec still needed
-  CALL cp_fm_release(fm_evec)
-
-  ! now lets get things in an orthogonal basis and seperate the c0 space from the other space
-  NULLIFY(fm_h,fm_s)
-  CALL cp_fm_create2(new_matrix=fm_h, nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="matrix_h",&                             
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_s, nrow_global=n, ncol_global=n,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="matrix_s",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_h)
-  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_s)
-  CALL cp_fm_cholesky_decompose(fm_s)
-  CALL cp_fm_cholesky_reduce(fm_h,fm_s)
-  ! let's find a space of orbitals orthogonal to Uc0
-  CALL cp_fm_cholesky_restore(matrix_c0,k,fm_s,fm_wvec,"MULTIPLY") ! orthogonal c0
-  x=n-k ! size of the excited subspace
-  NULLIFY(fm_xvec,fm_wxvec)
-
-  CALL cp_fm_create2(new_matrix=fm_xvec, nrow_global=n, ncol_global=x,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="matrix_fm_xvec",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_wxvec, nrow_global=n, ncol_global=x,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="matrix_fm_wxvec",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-
-  CALL cp_fm_create2(new_matrix=fm_block, nrow_global=x, ncol_global=k,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_block",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-  ! orthogonal to uc0
-  CALL cp_fm_init_random(fm_xvec,x)
-  CALL cp_fm_gemm('T','N',x,k,n,1.0_wp,fm_xvec,fm_wvec,0.0_wp,fm_block)
-  CALL cp_fm_gemm('N','T',n,x,k,-1.0_wp,fm_wvec,fm_block,1.0_wp,fm_xvec)
-  CALL cp_fm_release(fm_block)
-  ! orthonormalise them
-  CALL cp_fm_create2(new_matrix=fm_block, nrow_global=x, ncol_global=x,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_block",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-  CALL cp_fm_gemm('T','N',x,x,n,1.0_wp,fm_xvec,fm_xvec,0.0_wp,fm_block)
-  CALL cp_fm_cholesky_decompose(fm_block)
-  CALL cp_fm_cholesky_restore(fm_xvec,x,fm_block,fm_wxvec,"SOLVE","RIGHT") 
-  CALL copy_blacs_to_blacs_matrix(fm_wxvec,fm_xvec)
-  ! get their H matrix subspace
-  CALL cp_fm_gemm('N','N',n,x,n,1.0_wp,fm_h,fm_xvec,0.0_wp,fm_wxvec)
-  CALL cp_fm_gemm('T','N',x,x,n,1.0_wp,fm_wxvec,fm_xvec,0.0_wp,fm_block)
-  ALLOCATE(evals(x))
-  CALL cp_fm_create2(new_matrix=fm_evec, nrow_global=x, ncol_global=x,&
-                             nrow_block=nrow_block, ncol_block=ncol_block,&
-                             name="fm_block",&
-                             context=preconditioner_env%ctxt, &
-                             para_env=preconditioner_env%para_env)
-  CALL blacs_syevd(fm_block,fm_evec,evals)
-  ! and make them ritz vectors
-  CALL cp_fm_gemm('N','N',n,x,x,1.0_wp, &
-                      fm_xvec,fm_evec,0.0_wp,fm_wxvec)
-
-  ! now assemble c0 and xvec
-  CALL blacs_column_copy(fm_wvec,fm_h,k,1,1)
-  CALL blacs_column_copy(fm_wxvec,fm_h,x,1,k+1)
-
-  CALL cp_fm_gemm('T','N',n,n,n,1.0_wp,fm_h,fm_h,0.0_wp,preconditioner_env%full_matrix)
-  ! and get inv(U)V
-  CALL cp_fm_cholesky_restore(fm_h,n,fm_s,preconditioner_env%full_matrix,"SOLVE")
-  preconditioner_env%all_evals(1:k)=preconditioner_env%subspace_evals(1:k)
-  preconditioner_env%all_evals(k+1:n)=evals(1:x)
-  DEALLOCATE(evals)
-
-  CALL cp_fm_release(fm_block)
-  CALL cp_fm_release(fm_xvec)
-  CALL cp_fm_release(fm_wxvec)
-  CALL cp_fm_release(fm_evec)
-  CALL cp_fm_release(fm_wvec)
-  CALL cp_fm_release(fm_h)
-  CALL cp_fm_release(fm_s)
-
-END SUBROUTINE make_full_all
-
 
 END MODULE preconditioner
 

@@ -177,7 +177,7 @@ CONTAINS
     DO spin=1, n_spins
 
        DO ev=1, n_ev
-          CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
+          CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
                                    p_env%n_ao(spin), p_env%n_mo(spin), &
                                    optimal_blacs_row_block_size, &
                                    optimal_blacs_col_block_size)
@@ -193,7 +193,7 @@ CONTAINS
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS", n_spins)
     DO spin=1, n_spins
        NULLIFY(fm_struct)
-       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
+       CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
                                 p_env%n_ao(spin), p_env%n_ao(spin), &
                                 optimal_blacs_row_block_size, optimal_blacs_col_block_size)
        CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")

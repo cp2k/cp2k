@@ -12,8 +12,7 @@
 !!          Wannier functions
 !!
 !!   AUTHORS
-!!     Leonardo Bernasconi (01.2003)
-!!     Joost VandeVondele (01.2003)
+!!     Joost VandeVondele with some help of Leonardo Bernasconi (01.2003)
 !!     CJM (04.2003)
 !!
 !!   MODIFICATION HISTORY
@@ -368,6 +367,7 @@ SUBROUTINE centers_and_spreads ( ionode, iunit, qs_loc_env, zij )
                                                 angstrom*spread( 1 : 3 )
   ENDDO
 !
+  
   ! now, find the spread of the orbitals
   DO i=1,3
      complexresult%local_data ( :, : ) = CMPLX (ZIJ(1,i)%matrix%local_data(:,:), &

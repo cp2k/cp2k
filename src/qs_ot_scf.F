@@ -286,11 +286,10 @@ END SUBROUTINE
 ! initialises qs_ot_env so that mo_eigenvectors is the current point
 ! and that the mimizization can be started.
 !
-SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
+SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: mo_array
     TYPE(real_matrix_type), POINTER                 :: matrix_s
-    TYPE(global_environment_type), INTENT(IN)       :: globenv
     TYPE(qs_ot_type), POINTER, DIMENSION(:)         :: qs_ot_env
 
     ! locals 
@@ -316,13 +315,14 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env,globenv)
        qs_ot_env(ispin)%settings%ncol_block=ncol_block
 
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),globenv%para_env,globenv%blacs_env)
+       CALL qs_ot_allocate(qs_ot_env(ispin),mo_eigenvectors%matrix_struct%para_env, &
+                                            mo_eigenvectors%matrix_struct%context)
    
        ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
                               qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k, &
-                                                para_env=globenv%para_env)
+                                                para_env=mo_eigenvectors%matrix_struct%para_env)
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin))

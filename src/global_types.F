@@ -23,8 +23,7 @@
 
 MODULE global_types
 
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   IMPLICIT NONE
 
   PRIVATE
@@ -112,7 +111,6 @@ MODULE global_types
 
   TYPE global_environment_type
      TYPE(cp_para_env_type), POINTER  :: para_env
-     TYPE(cp_blacs_env_type), POINTER :: blacs_env
      TYPE(print_key_type)             :: PRINT
      CHARACTER(LEN=200)               :: basis_set_file_name,&
                                          default_fft_library,&

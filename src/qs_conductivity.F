@@ -99,8 +99,8 @@ SUBROUTINE optical_conductivity(matrix_s,occupied_orbs,occupied_evals, &
 
    occ_min=MINVAL(occupied_evals)
    occ_max=MAXVAL(occupied_evals)
-   unocc_max=MAXVAL(unoccupied_evals)
    unocc_min=MINVAL(unoccupied_evals)
+   unocc_max=MAXVAL(unoccupied_evals)
    emin=(unocc_min-occ_max-1.0E-3)
    ! old strategy ....
    ! we retain only these transitions that have an energy in the range

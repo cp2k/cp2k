@@ -67,11 +67,56 @@ MODULE cp_blacs_env
 
   PUBLIC :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   PUBLIC :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
-  PUBLIC :: start_blacs, end_blacs, cp_blacs_env_write,&
-       cp_blacs_env_from_globenv
+  PUBLIC :: start_blacs, end_blacs, cp_blacs_env_write, get_blacs_info
 !***
 !****************************************************************************
 CONTAINS
+
+! *****************************************************************************
+
+  SUBROUTINE get_blacs_info(blacs_env,my_process_row,my_process_column,&
+                            my_process_number,number_of_process_rows,&
+                            number_of_process_columns,number_of_processes)
+
+!   Purpose: Return informations about the specified BLACS context.
+
+!   History: - Creation (19.06.2001, Matthias Krack)
+!   moved here from qs_blacs (Joost VandeVondele)
+
+!   ***************************************************************************
+
+    TYPE(cp_blacs_env_type), POINTER          :: blacs_env
+    INTEGER, OPTIONAL, INTENT(OUT)            :: my_process_column,&
+                                                 my_process_number,&
+                                                 my_process_row,&
+                                                 number_of_process_columns,&
+                                                 number_of_process_rows,&
+                                                 number_of_processes
+!   *** Local variables ***
+
+    INTEGER :: mypcol,mype,myprow,npcol,npe,nprow
+    TYPE(cp_blacs_env_type), POINTER :: context
+
+!   ---------------------------------------------------------------------------
+
+    context => blacs_env
+    IF (.NOT.ASSOCIATED(context)) CALL stop_program("get_blacs_info","no blacs environment")
+
+    mype=context%my_pid
+    npe=context%n_pid
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+
+    IF (PRESENT(my_process_row)) my_process_row = myprow
+    IF (PRESENT(my_process_column)) my_process_column = mypcol
+    IF (PRESENT(my_process_number)) my_process_number = mype
+    IF (PRESENT(number_of_process_rows)) number_of_process_rows = nprow
+    IF (PRESENT(number_of_process_columns)) number_of_process_columns = npcol
+    IF (PRESENT(number_of_processes)) number_of_processes = npe
+
+  END SUBROUTINE get_blacs_info
 
 !!****f* qs_blacs/cp_blacs_env_create [1.0] *
 !!
@@ -329,63 +374,20 @@ SUBROUTINE cp_blacs_env_write(blacs_env, unit_nr, error)
 END SUBROUTINE cp_blacs_env_write
 !***************************************************************************
 
-!!****f* cp_blacs_env/cp_blacs_env_from_globenv [1.0] *
-!!
-!!   NAME
-!!     cp_blacs_env_from_globenv
-!!
-!!   SYNOPSIS
-!!     Function cp_blacs_env_from_globenv(global_env, error) Result(res)
-!!       Type(cp_blacs_env_type), Pointer:: res
-!!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function cp_blacs_env_from_globenv
-!!
-!!   FUNCTION
-!!     returns the blacs environment stored in the given global_env.
-!!     if null issues a warning and initializes it
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - global_env: the global environment
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-FUNCTION cp_blacs_env_from_globenv(global_env,error) RESULT(res)
-  TYPE(cp_blacs_env_type), POINTER :: res
-  TYPE(global_environment_type), INTENT(in),TARGET :: global_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_from_globenv',&
-        routineP=moduleN//':'//routineN
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(global_env%blacs_env),cp_failure_level,routineP,error,failure)
-  !if (failure) then
-  !   call start_blacs(global_env) ! needs intent inout
-  !end if
-  res => global_env%blacs_env
-END FUNCTION cp_blacs_env_from_globenv
 !***************************************************************************
 
-  SUBROUTINE start_blacs(globenv)
+  SUBROUTINE start_blacs(blacs_env,globenv)
+
+    ! here we will need improvement, we want a blacs context for the given MPI group, which might be a subset
+    ! of all the processes. Here, we get a grid for MPI_WORLD by default (I think).
+    ! blacs_gridmap and related might be the way to go.
 
 !   Purpose: Initialize a BLACS process grid. The BLACS context is returned.
 
 !   History: - Creation (22.05.2001, Matthias Krack)
 
 !   ***************************************************************************
-
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
 !   *** Local parameters ***
@@ -427,7 +429,9 @@ END FUNCTION cp_blacs_env_from_globenv
     npcol = 0
     nprow = 0
 #if defined(__BLACS)
-
+    ! here we will need improvement, we want a blacs context for the given MPI group, which might be a subset
+    ! of all the processes. Here, we get a grid for MPI_WORLD by default (I think).
+    ! blacs_gridmap and related might be the way to go.
     CALL blacs_pinfo(mype,npe)
     CALL blacs_get(-1,0,context)
 
@@ -495,13 +499,13 @@ END FUNCTION cp_blacs_env_from_globenv
     END IF
 
 #endif
-    CALL cp_blacs_env_create(globenv%blacs_env,group = context)
+    CALL cp_blacs_env_create(blacs_env,group = context)
 
   END SUBROUTINE start_blacs
 
 ! *****************************************************************************
 
-  SUBROUTINE end_blacs(globenv)
+  SUBROUTINE end_blacs(blacs_env,globenv)
 
 !   Purpose: Release the resources of a BLACS context.
 
@@ -510,6 +514,7 @@ END FUNCTION cp_blacs_env_from_globenv
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
 
 !   *** Local parameters ***
 
@@ -529,7 +534,7 @@ END FUNCTION cp_blacs_env_from_globenv
     group = globenv%group
     ionode = globenv%ionode
     output_unit = globenv%scr
-    context => globenv%blacs_env
+    context => blacs_env
 #if defined(__BLACS)
 
     IF (globenv%print%blacs_info) THEN
@@ -561,7 +566,7 @@ END FUNCTION cp_blacs_env_from_globenv
 
     CALL mp_sync(group)
 
-    CALL cp_blacs_env_release(globenv%blacs_env)
+    CALL cp_blacs_env_release(blacs_env)
     !    CALL blacs_gridexit(context)
 
     !globenv%context = 0

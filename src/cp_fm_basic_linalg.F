@@ -25,9 +25,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_basic_linalg
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -45,7 +42,6 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_create2,&
                                              cp_fm_get_element,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -68,9 +64,6 @@ MODULE cp_fm_basic_linalg
                                              cp_init,&
                                              cp_matrix_block_iterator,&
                                              cp_next
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
-                                             cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE global_types,                    ONLY: global_environment_type

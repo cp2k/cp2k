@@ -82,7 +82,6 @@ MODULE qs_mo_types
                                              blacs_syevd,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_full_matrix,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
@@ -92,7 +91,6 @@ MODULE qs_mo_types
                                              cp_full_matrix_type,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t,&
-                                             get_blacs_info,&
                                              read_blacs_matrix,&
                                              replicate_blacs_matrix,&
                                              write_blacs_matrix
@@ -464,6 +462,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors,h_block
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
 
 !   *** Local variables ***
 
@@ -473,7 +472,7 @@ CONTAINS
 
     CALL timeset("calculate_w_matrix_2","I","",handle)
 
-    NULLIFY(weighted_vectors,h_block)
+    NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
 
     CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
                         ncol_global=ncol_global,&
@@ -481,21 +480,12 @@ CONTAINS
                         nrow_block=nrow_block,&
                         ncol_block=ncol_block)
 
-    CALL cp_fm_create2(new_matrix=weighted_vectors,&
-                       nrow_global=nrow_global,&
-                       ncol_global=ncol_global,&
-                       nrow_block=nrow_block,&
-                       ncol_block=ncol_block,&
-                       name="h block",&
-                       globenv=globenv)
-
-    CALL cp_fm_create2(new_matrix=h_block,&
-                       nrow_global=ncol_global, &
-                       ncol_global=ncol_global, &
-                       nrow_block=nrow_block, &
-                       ncol_block=ncol_block, &
-                       name="h block", &
-                       globenv=globenv)
+    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
+                                            para_env=mo_set%eigenvectors%matrix_struct%para_env, &
+                                            context=mo_set%eigenvectors%matrix_struct%context)
+    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+    CALL cp_fm_struct_release(fm_struct_tmp)
 
 !   CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues,&
 !                           globenv,mo_set%homo)
@@ -552,12 +542,13 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
     REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
     INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
+    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_subspace_eigenvalues","I","",handle)
 
-    NULLIFY(weighted_vectors,h_block,e_vectors)
+    NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
     CALL cp_fm_get_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global, &
@@ -566,29 +557,13 @@ CONTAINS
 
     ALLOCATE(evals(ncol_global))
 
-    CALL cp_fm_create2(new_matrix=weighted_vectors,&
-                                 nrow_global=nrow_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="weighted_vectors", &
-                                 context=ctxt, para_env=para_env)
-
-    CALL cp_fm_create2(new_matrix=h_block,&
-                                 nrow_global=ncol_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="h block", &
-                                 context=ctxt, para_env=para_env)
-
-    CALL cp_fm_create2(new_matrix=e_vectors,&
-                                 nrow_global=ncol_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="e_vectors", &
-                                 context=ctxt, para_env=para_env)
+    CALL cp_fm_create(weighted_vectors,orbitals%matrix_struct,"weighted_vectors")
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
+                                            para_env=orbitals%matrix_struct%para_env, &
+                                            context=orbitals%matrix_struct%context)
+    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+    CALL cp_fm_create(e_vectors,fm_struct_tmp, name="e vectors")
+    CALL cp_fm_struct_release(fm_struct_tmp)
 
     ! h subblock and diag
     CALL cp_sm_fm_multiply(ks_matrix,orbitals,weighted_vectors, &

@@ -26,9 +26,6 @@
 MODULE cp_cfm_types
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -82,7 +79,7 @@ MODULE cp_cfm_types
 
 
   PUBLIC :: cp_complex_full_matrix_type, cp_complex_full_matrix_p_type
-  PUBLIC :: cp_cfm_create, cp_cfm_create2, cp_cfm_retain, cp_cfm_release,&
+  PUBLIC :: cp_cfm_create, cp_cfm_retain, cp_cfm_release,&
        cp_cfm_init_random, cp_cfm_set_element, cp_cfm_set_all,&
        cp_cfm_get_info, cp_cfm_get_element
 !***
@@ -146,53 +143,6 @@ MODULE cp_cfm_types
   !****************************************************************************
 
 CONTAINS
-
-  SUBROUTINE cp_cfm_create2(new_matrix,nrow_global,ncol_global,&
-       nrow_block,ncol_block,name,globenv,&
-       context,para_env,error)
-
-!   ***************************************************************************
-
-    TYPE(cp_complex_full_matrix_type), POINTER        :: new_matrix
-    CHARACTER(LEN=*), INTENT(IN)              :: name
-    INTEGER, INTENT(IN)                       :: ncol_block,&
-         ncol_global,nrow_block,&
-         nrow_global
-    TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
-    TYPE(cp_blacs_env_type), POINTER, OPTIONAL          :: context
-    TYPE(cp_para_env_type), POINTER, OPTIONAL           :: para_env
-    TYPE(cp_error_type), INTENT(inout),OPTIONAL         :: error
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routineN ="cp_cfm_create2",&
-         routineP=moduleN//':'//routineN
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=40) :: message
-    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
-    TYPE(cp_blacs_env_type), POINTER       :: ctxt
-    TYPE(cp_para_env_type), POINTER        :: para_e
-    LOGICAL :: failure
-    failure=.FALSE.
-
-    NULLIFY(ctxt,para_e)
-    IF (PRESENT(globenv)) THEN
-       ctxt => cp_blacs_env_from_globenv(globenv)
-       para_e => cp_para_env_from_globenv(globenv)
-    END IF
-    IF (PRESENT(context)) ctxt => context
-    IF (PRESENT(para_env)) para_e => para_env
-    CPPrecondition(ASSOCIATED(ctxt),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(para_e),cp_failure_level,routineP,error,failure)
-    CALL cp_fm_struct_create(matrix_struct,nrow_global=nrow_global,&
-         ncol_global=ncol_global,nrow_block=nrow_block,&
-         ncol_block=ncol_block, context=ctxt,&
-         para_env=para_e)
-    CALL cp_cfm_create(new_matrix,matrix_struct=matrix_struct)
-    CALL cp_fm_struct_release(matrix_struct)
-  END SUBROUTINE cp_cfm_create2
 
 !!****f* cp_fm_types/cp_cfm_create [1.0] *
 !!

@@ -27,7 +27,8 @@
 
 MODULE qs_main
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_blacs_env,                    ONLY: start_blacs
+  USE cp_blacs_env,                    ONLY: start_blacs,end_blacs
+  USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_energy,                       ONLY: qs_energies
@@ -41,8 +42,7 @@ MODULE qs_main
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             trace_debug
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -83,21 +83,22 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER              :: handle
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
 
 !   ---------------------------------------------------------------------------
-
-    ! CALL trace_debug("START",handle)
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
 
+    NULLIFY(blacs_env)
+
 !   *** Initialize the BLACS environment ***
 
-    CALL start_blacs(globenv)
+    CALL start_blacs(blacs_env,globenv)
 
     CALL qs_env_create(qs_env,para_env=globenv%para_env,&
-         blacs_env=globenv%blacs_env)
+         blacs_env=blacs_env)
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
@@ -122,7 +123,11 @@ CONTAINS
                                 TRIM(globenv%program_name),globenv)
     END SELECT
 
-    CALL qs_finalize(qs_env,globenv)
+    CALL qs_finalize(qs_env)
+
+    !   *** Release BLACS environment ***
+    CALL end_blacs(blacs_env,globenv)
+
 
     CALL timestop(0.0_dp,handle)
 

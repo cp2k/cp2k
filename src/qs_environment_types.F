@@ -162,7 +162,7 @@ MODULE qs_environment_types
 !!     qs_environment_type
 !!
 !!   FUNCTION
-!!     contains all the info nedeed by quickstep to do dft scf
+!!     contains all the info needed by quickstep to do dft scf
 !!
 !!   NOTES
 !!     -
@@ -178,7 +178,7 @@ MODULE qs_environment_types
 !!     - c: the molecular orbitals, in LSD array with the different spins
 !!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
-!!     - pao_env: things nedeed by the pao method
+!!     - pao_env: things needed by the pao method
 !!     - particle_set: info on the atoms you simulate, pos,...
 !!     - energy: place where the energies calculated are stored
 !!     - h: core hamiltonian (h(1)), if needed by the calculation also

@@ -52,10 +52,6 @@ MODULE qs_kpp1_env_types
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
                                              cp_full_matrix_type
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
-                                             cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc,&
-                                             cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&

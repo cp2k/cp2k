@@ -424,7 +424,7 @@ SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_write',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_write',&
         routineP=moduleN//':'//routineN
   INTEGER :: iostat
   failure=.FALSE.

@@ -33,7 +33,6 @@ MODULE qs_tddfpt_eigensolver
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_create2, &
                                              cp_fm_get_element,&
                                              cp_fm_init_random, &
                                              cp_fm_release,&
@@ -187,11 +186,9 @@ CONTAINS
                                      glob_env)
     DO spin=1, n_spins
        NULLIFY (kv_fm_struct(spin)%struct)
-       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, glob_env%para_env, &
-                                glob_env%blacs_env, &
-                                p_env%n_ao(spin), p_env%n_mo(spin), &
-                                optimal_blacs_row_block_size, &
-                                optimal_blacs_col_block_size)
+       CALL cp_fm_struct_create(kv_fm_struct(spin)%struct, qs_env%para_env, &
+                                qs_env%blacs_env, &
+                                p_env%n_ao(spin), p_env%n_mo(spin))
     END DO
     CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
 
@@ -291,8 +288,8 @@ CONTAINS
        END IF
        NULLIFY(T_fm_struct)
        CALL cp_fm_struct_create(T_fm_struct, &
-                                glob_env%para_env, &
-                                glob_env%blacs_env, &
+                                qs_env%para_env, &
+                                qs_env%blacs_env, &
                                 index, index, &
                                 optimal_blacs_row_block_size, &
                                 optimal_blacs_col_block_size)
@@ -304,8 +301,8 @@ CONTAINS
        END IF
        NULLIFY(Tev_fm_struct)
        CALL cp_fm_struct_create(Tev_fm_struct, &
-                                glob_env%para_env, &
-                                glob_env%blacs_env, &
+                                qs_env%para_env, &
+                                qs_env%blacs_env, &
                                 index, index, &
                                 optimal_blacs_row_block_size, &
                                 optimal_blacs_col_block_size)
@@ -323,7 +320,7 @@ CONTAINS
                                     opkv(col,spin)%matrix, &
                                     R(spin)%matrix, &
                                     p_env%n_mo(spin), &
-                                    glob_env%para_env, 1.0_dbl, 0.0_dbl)
+                                    qs_env%para_env, 1.0_dbl, 0.0_dbl)
           END DO
           DO row=1, index
              dot_product = 0.0_dbl

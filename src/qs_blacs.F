@@ -26,11 +26,6 @@
 
 MODULE qs_blacs
 ! *****************************************************************************
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
-                                             cp_blacs_env_release,&
-                                             cp_blacs_env_retain,&
-                                             end_blacs,&
-                                             start_blacs
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -55,11 +50,10 @@ MODULE qs_blacs
                                              cp_fm_struct_equivalent,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type,&
+                                             cp_fm_struct_type, &
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_create2,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
@@ -71,8 +65,6 @@ MODULE qs_blacs
                                              cp_fm_set_submatrix,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_unit_nr,&
@@ -130,8 +122,7 @@ MODULE qs_blacs
 
 ! *** Public subroutines ***
 ! at most 39 continuation lines :-)
-  PUBLIC :: cp_fm_create2,&
-       cp_fm_release,cp_fm_vect_dealloc,&
+  PUBLIC :: cp_fm_release, &
        cp_fm_init_random,&
        copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
        copy_full_matrix_to_real_matrix, copy_real_matrix_to_full_matrix,&
@@ -144,11 +135,8 @@ MODULE qs_blacs
        copy_vector_to_blacs, &
        copy_blacs_to_vector, blacs_find_vector_distribution,&
        read_blacs_matrix, replicate_blacs_matrix,&
-       blacs_set_local_block, cp_fm_vect_create2,&
+       blacs_set_local_block, &
        blacs_daxpy,  blacs_get_element
-
-  PUBLIC :: start_blacs,&
-       end_blacs, get_blacs_info
 
   PUBLIC ::  cp_fm_scale_and_add,&
             blacs_add_to_element, &
@@ -162,7 +150,7 @@ MODULE qs_blacs
             symmetrise_blacs_matrix,&
             add_blacs_to_block_diag_sm,  cp_fm_cholesky_decompose, &
             cp_fm_cholesky_invert,  cp_fm_cholesky_reduce, &
-            cp_fm_cholesky_restore,  blacs_jacobi_davidson, &
+            cp_fm_cholesky_restore,  &
             blacs_make_basis, &
             cp_fm_schur_product, &
             blacs_transpose,  blacs_scale_matrix, &
@@ -580,11 +568,12 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER           :: overlap_vv
     LOGICAL :: found_type,use_pmatrix,use_cholesky,use_sv,use_simple
     TYPE(cp_blacs_env_type), POINTER :: context
-
+    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_make_basis","I","",handle)
+    NULLIFY(fm_struct_tmp)
 
 ! check input ...
 
@@ -629,14 +618,10 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block)
 
-    CALL cp_fm_create2(new_matrix=overlap_vv,&
-                               nrow_global=ncol,&
-                               ncol_global=ncol,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="overlap_vv",&
-                               context=context,&
-                               para_env=vmatrix%matrix_struct%para_env)
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
+                             para_env=vmatrix%matrix_struct%para_env, context=context)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
+    CALL cp_fm_struct_release(fm_struct_tmp)
 
     a => vmatrix%local_data
     vv => overlap_vv%local_data
@@ -1788,52 +1773,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_blacs_info(globenv,my_process_row,my_process_column,&
-                            my_process_number,number_of_process_rows,&
-                            number_of_process_columns,number_of_processes)
-
-!   Purpose: Return informations about the specified BLACS context.
-
-!   History: - Creation (19.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, OPTIONAL, INTENT(OUT)            :: my_process_column,&
-                                                 my_process_number,&
-                                                 my_process_row,&
-                                                 number_of_process_columns,&
-                                                 number_of_process_rows,&
-                                                 number_of_processes
-
-!   *** Local variables ***
-
-    INTEGER :: mypcol,mype,myprow,npcol,npe,nprow
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    context => cp_blacs_env_from_globenv(globenv)
-    IF (.NOT.ASSOCIATED(context)) CALL stop_program("get_blacs_info","no blacs environment")
-
-    mype=context%my_pid
-    npe=context%n_pid
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-
-    IF (PRESENT(my_process_row)) my_process_row = myprow
-    IF (PRESENT(my_process_column)) my_process_column = mypcol
-    IF (PRESENT(my_process_number)) my_process_number = mype
-    IF (PRESENT(number_of_process_rows)) number_of_process_rows = nprow
-    IF (PRESENT(number_of_process_columns)) number_of_process_columns = npcol
-    IF (PRESENT(number_of_processes)) number_of_processes = npe
-
-  END SUBROUTINE get_blacs_info
-
-! *****************************************************************************
-
 
   SUBROUTINE power_blacs_matrix(matrix,work,exponent,threshold,n_dependent,&
                                 work_syevx)
@@ -2425,512 +2364,6 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE add_blacs_to_block_diag_sm
 !***************************************************************************
-
-!***************************************************************************
-!
-! this is a jacobi-davidson method.
-! diagonalises matrix_a, using matrix_v as an initial guess
-! tol is the final tol for the eigenvalues
-!
-! the method expands the subspace by selecting a bunch of vectors
-! and computing (A-shift*I)^-1*V  where shift is fixed somewhere in the spectrum
-!
-! for the 32 water, doesn't outperform dsyevx if more than 1/6 of the vectors are needed
-!
-! hence has not been parallellised. Kept here for later use. might need some
-! cleaning.
-! additionally, the method used to expand the subspace might be not optimal,
-! experimenting (or reading literature) might help.
-! (mai 2002 JVdV)
-!***************************************************************************
-
-  SUBROUTINE blacs_jacobi_davidson(matrix_a,matrix_v,evals,neig,tol, &
-                                                 matrix_work,globenv)
-
-! **************************************************************************
-
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a, matrix_v, matrix_work
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    REAL(wp), DIMENSION(:)                    :: evals
-    INTEGER, INTENT(IN)                       :: neig
-    REAL(wp), INTENT(IN)                      :: tol
-
-
-!   *** Local variables ***
-
-    INTEGER :: mypcol,myprow,npcol,nprow,source,n
-    INTEGER :: nrow_block,ncol_block,ncol
-
-    INTEGER, DIMENSION(9) :: desca,descv,descwork,descvecbuf,deschh,descvh,descvv
-    INTEGER, DIMENSION(:), POINTER :: ipivot,iwork
-    INTEGER :: lipivot, istat, info, i
-
-    TYPE(cp_full_matrix_type), POINTER          ::  vecbuffer,matrix_overlap_hh
-    TYPE(cp_full_matrix_type), POINTER          ::  matrix_overlap_vh,matrix_overlap_vv
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a,v,work,vecbuf,overlap_hh,overlap_vh
-    REAL(wp), DIMENSION(:,:), POINTER :: overlap_vv
-    REAL(wp), DIMENSION(:), POINTER :: evwork,evalsl,evalslold
-    REAL(wp) :: rone,rzero,dum,dum2,ddot,dnrm2,shift,gap,gapnow
-    INTEGER  :: nhigh,nvec,nlow,levwork,liwork,iter,ksteps,kblock,iter_getrs
-    INTEGER  :: handle,handle2,handle3,this_one,count,j,igap,idamax,split
-    INTEGER  :: context
-    INTEGER, DIMENSION(:), POINTER :: to_be_used,to_be_used_old
-    REAL(wp) :: time_init_start,time_init_end,time_init_total
-    REAL(wp) :: time_full_start,time_full_end,time_full_total
-    REAL(wp) :: time_diag_start,time_diag_end,time_diag_total
-    REAL(wp) :: time_getrf_start,time_getrf_end,time_getrf_total
-    REAL(wp) :: time_av_start,time_av_end,time_av_total
-    REAL(wp) :: time_extend_start,time_extend_end,time_extend_total
-    REAL(wp) :: time_getrs_start,time_getrs_end,time_getrs_total
-    REAL(wp) :: time_ortho_start,time_ortho_end,time_ortho_total
-    REAL(wp) :: time_suba_start,time_suba_end,time_suba_total
-    REAL(wp) :: time_rot_start,time_rot_end,time_rot_total
-    INTEGER :: count_av,count_getrs
-    TYPE(cp_blacs_env_type), POINTER :: ctxt
-
-!   ---------------------------------------------------------------------------
-    CALL timeset("blacs_jacobi_davidson","I","",handle)
-
-    context = matrix_a%matrix_struct%context%group
-
-    time_init_total=0.0_wp
-    time_full_total=0.0_wp
-    time_diag_total=0.0_wp
-    time_getrf_total=0.0_wp
-    time_av_total=0.0_wp
-    time_extend_total=0.0_wp
-    time_getrs_total=0.0_wp
-    time_ortho_total=0.0_wp
-    time_suba_total=0.0_wp
-    time_rot_total=0.0_wp
-
-    count_av=0
-    count_getrs=0
-
-    time_init_start=m_cputime()
-    time_full_start=m_cputime()
-
-    rone=1.0_wp
-    rzero=0.0_wp
-
-    source = matrix_a%matrix_struct%para_env%source
-    n = matrix_a%matrix_struct%nrow_global ! matrix dimension
-    ksteps=5
-    nhigh=MAX(ksteps*((neig/3)/ksteps),ksteps)  ! the upper part of the spectrum
-    kblock=nhigh/ksteps
-    nlow=neig-nhigh          ! the lower part of the spectrum
-    nvec=neig+nhigh          ! the number of vectors used is subspace diag
-    IF (nhigh.LT.1 .OR. nlow.LT.1 ) CALL stop_program("jacobi_davidson","nhigh, nlow, too small")
-    IF (nhigh.GE.neig/2 ) CALL stop_program("jacobi_davidson","nhigh, too large")
-
-    levwork=1+6*nvec+2*nvec**2
-    liwork=5*nvec+3
-    ALLOCATE(evwork(levwork))
-    ALLOCATE(iwork(liwork))
-    ALLOCATE(evalsl(nvec))
-    ALLOCATE(evalslold(nvec))
-    ALLOCATE(to_be_used(nhigh))
-    ALLOCATE(to_be_used_old(nhigh))
-    evalslold=0.0_wp
-
-    CALL cp_fm_get_info(matrix=matrix_a,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block)
-    ncol = 2*nvec
-    ! some buffer space
-    CALL cp_fm_create2(new_matrix=vecbuffer,&
-                               nrow_global=n,&
-                               ncol_global=ncol,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="VEC BUFFER",&
-                               globenv=globenv)
-    CALL cp_fm_create2(new_matrix=matrix_overlap_vh,&
-                               nrow_global=neig,&
-                               ncol_global=nhigh,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="overlap_vh",&
-                               globenv=globenv)
-    CALL cp_fm_create2(new_matrix=matrix_overlap_hh,&
-                               nrow_global=nhigh,&
-                               ncol_global=nhigh,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="overlap_hh",&
-                               globenv=globenv)
-    CALL cp_fm_create2(new_matrix=matrix_overlap_vv,&
-                               nrow_global=nvec,&
-                               ncol_global=nvec,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block,&
-                               name="overlap_vv",&
-                               globenv=globenv)
-
-! put the right pointers in place
-
-    ctxt => matrix_a%matrix_struct%context
-    myprow=ctxt%mepos(1)
-    mypcol=ctxt%mepos(2)
-    nprow=ctxt%num_pe(1)
-    npcol=ctxt%num_pe(2)
-
-#if defined(__SCALAPACK)
-    CALL stop_program("blacs_jacobi_davidson","is not parallel")
-
-    a => matrix_a%local_data
-    desca(:) = matrix_a%matrix_struct%descriptor(:)
-
-    v => matrix_v%local_data
-    descv(:) = matrix_v%matrix_struct%descriptor(:)
-
-    work => matrix_work%local_data
-    descwork(:) = matrix_work%matrix_struct%descriptor(:)
-
-    vecbuf => vecbuffer%local_data
-    descvecbuf(:) = vecbuffer%matrix_struct%descriptor(:)
-
-    overlap_vh => matrix_overlap_vh%local_data
-    descvh(:) = matrix_overlap_vh%matrix_struct%descriptor(:)
-
-    overlap_hh => matrix_overlap_hh%local_data
-    deschh(:) = matrix_overlap_hh%matrix_struct%descriptor(:)
-
-    overlap_vv => matrix_overlap_vv%local_data
-    descvv(:) = matrix_overlap_vv%matrix_struct%descriptor(:)
-#else
-    a => matrix_a%local_data
-    v => matrix_v%local_data
-    work => matrix_work%local_data
-    vecbuf => vecbuffer%local_data
-    overlap_vh => matrix_overlap_vh%local_data
-    overlap_hh => matrix_overlap_hh%local_data
-    overlap_vv => matrix_overlap_vv%local_data
-#endif
-
-! ****************************************************************************
-! make the input symmetrical
-! ****************************************************************************
-
-    CALL symmetrise_blacs_matrix(matrix_a,matrix_work)
-
-
-! ****************************************************************************
-! get the A*V for the occupied orbitals
-! ****************************************************************************
-
-#if defined(__SCALAPACK)
-
-#else
-    CALL dcopy(n*neig,v,1,vecbuf,1)
-#endif
-
-    time_av_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-    count_av=count_av+neig
-    CALL dgemm('N','N',n,neig,n,rone,a,n,vecbuf(1,1),n,rzero,vecbuf(1,nvec+1),n)
-#endif
-    time_av_end=m_cputime()
-    time_av_total=time_av_total+(time_av_end-time_av_start)
-
-! ****************************************************************************
-! get the V^T*A*V for the occupied orbitals
-! ****************************************************************************
-    time_suba_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-    CALL DGEMM('T','N',neig,neig,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n,rzero,overlap_vv,nvec)
-#endif
-    time_suba_end=m_cputime()
-    time_suba_total=time_suba_total+(time_suba_end-time_suba_start)
-
-! ****************************************************************************
-! diag subblock
-! ****************************************************************************
-    time_diag_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-    CALL DSYEVD('V','U',neig,overlap_vv,nvec,evalslold,evwork,levwork,iwork,liwork,info)
-#endif
-    IF (info.NE.0) CALL stop_program("jacobi_davidson","dsyevd overlap_vv 1")
-    time_diag_end=m_cputime()
-    time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
-
-! ****************************************************************************
-! rotate vectors
-! ****************************************************************************
-    time_rot_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-    CALL DGEMM('N','N',n,neig,neig,rone,vecbuf(1,     1),n,overlap_vv,nvec,rzero,v,n)
-    CALL DCOPY(neig*n,v,1,vecbuf(1,1),1)
-#endif
-    time_rot_end=m_cputime()
-    time_rot_total=time_rot_total+(time_rot_end-time_rot_start)
-
-    ! start with the upper part of the spectrum
-    DO i=1,nhigh
-        to_be_used(i)=neig-nhigh+i
-    ENDDO
-    to_be_used_old=to_be_used
-
-! ****************************************************************************
-! we LU decompose the matrix a-shift*I
-! ****************************************************************************
-    time_getrf_start=m_cputime()
-    CALL copy_blacs_to_blacs_matrix(matrix_a,matrix_work)
-    lipivot = MAX(n,128) ! somehow too long ...
-    ALLOCATE (ipivot(lipivot),stat=istat)
-    IF (istat.NE.0) CALL stop_memory("blacs_jacobi_davidson","ipivot")
-    ! find some gap in the lower half of the spectrum
-    gap=0.0_wp
-    igap=-1
-    DO i=1,neig/2
-       gapnow=evalslold(i+1)-evalslold(i)
-       IF (gapnow.GE.gap) THEN
-          gap=gapnow
-          igap=i
-       ENDIF
-    ENDDO
-    shift=0.5_wp*(evalslold(igap+1)+evalslold(igap))
-    ! shift=1.1*evalslold(1)
-#if defined(__SCALAPACK)
-    CALL pdgetrf(n,n,work,1,1,descwork,ipivot,info)
-#else
-    ! put the singularity in the middle of the spectrum
-    DO i=1,n
-       work(i,i)=work(i,i)-shift
-    ENDDO
-    CALL dgetrf(n,n,work,n,ipivot,info)
-#endif
-    IF (info.NE.0) CALL stop_program("blacs_jacobi_davidson","problems in getrf")
-    time_getrf_end=m_cputime()
-    time_getrf_total=time_getrf_total+(time_getrf_end-time_getrf_start)
-
-    time_init_end=m_cputime()
-    time_init_total=time_init_total+(time_init_end-time_init_start)
-
-! ****************************************************************************
-! start main iteration
-! ****************************************************************************
-    DO iter=1,30
-
-       ! ************************************************************************
-       !  extension of the basis
-       ! ************************************************************************
-       time_extend_start=m_cputime()
-       ! copy the needed vectors in place
-#if defined(__SCALAPACK)
-#else
-       DO i=1,nhigh
-          CALL DCOPY(n,vecbuf(1,to_be_used(i)),1,vecbuf(1,neig+i),1)
-       ENDDO
-#endif
-       ! *********************************************************************
-       ! get (LU)^-1 * vectors
-       ! *********************************************************************
-       time_getrs_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-          DO i=1,ksteps-1
-            CALL DAXPY(n*kblock,rone,vecbuf(1,neig+i*kblock+1),1,vecbuf(1,neig+1),1)
-          ENDDO
-          CALL DGETRS('N',n,kblock,work,n,ipivot,vecbuf(1,neig+1),n,info)
-          DO i=1,ksteps-1
-            CALL DCOPY(n*kblock,vecbuf(1,neig+1),1,vecbuf(1,neig+1+i*kblock),1)
-            CALL DGETRS('N',n,kblock,work,n,ipivot,vecbuf(1,neig+1),n,info)
-          ENDDO
-          count_getrs=count_getrs+nhigh
-#endif
-          IF (info.NE.0) CALL stop_program("jacobi_davidson","Dgetrs")
-       time_getrs_end=m_cputime()
-       time_getrs_total=time_getrs_total+(time_getrs_end-time_getrs_start)
-
-
-       ! *********************************************************************
-       ! keep the new vectors orthogonal, is numerically rather hard, it seems
-       ! *********************************************************************
-#if defined(__SCALAPACK)
-
-#else
-       time_ortho_start=m_cputime()
-
-       ! ortho to the existing basis vectors
-       CALL DGEMM('T','N',neig,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,neig+1),n,rzero,overlap_vh,neig)
-       CALL DGEMM('N','N',n,nhigh,neig,-rone,vecbuf(1,1),n,overlap_vh,neig,rone,vecbuf(1,neig+1),n)
-       ! and ortho again within the new set
-       CALL DSYRK('U','T',nhigh,n,rone,vecbuf(1,neig+1),n,rzero,overlap_hh,nhigh)
-       CALL DPOTRF('U',nhigh,overlap_hh,nhigh,info)
-       IF (info.NE.0) CALL stop_program("jacobi_davidson","DPOTRF overlap_hh")
-       CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
-       ! ortho to the existing basis vectors
-       CALL DGEMM('T','N',neig,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,neig+1),n,rzero,overlap_vh,neig)
-       CALL DGEMM('N','N',n,nhigh,neig,-rone,vecbuf(1,1),n,overlap_vh,neig,rone,vecbuf(1,neig+1),n)
-       ! and ortho again within the new set
-       CALL DSYRK('U','T',nhigh,n,rone,vecbuf(1,neig+1),n,rzero,overlap_hh,nhigh)
-       CALL DPOTRF('U',nhigh,overlap_hh,nhigh,info)
-       IF (info.NE.0) CALL stop_program("jacobi_davidson","DPOTRF overlap_hh")
-       CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
-
-       time_ortho_end=m_cputime()
-       time_ortho_total=time_ortho_total+(time_ortho_end-time_ortho_start)
-#endif
-
-       ! *********************************************************************
-       ! compute A*vectors for the new set
-       ! *********************************************************************
-       time_av_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-       CALL dgemm('N','N',n,nhigh,n,rone,a,n,vecbuf(1,neig+1),n,rzero,vecbuf(1,nvec+neig+1),n)
-       count_av=count_av+nhigh
-#endif
-       time_av_end=m_cputime()
-       time_av_total=time_av_total+(time_av_end-time_av_start)
-
-       time_extend_end=m_cputime()
-       time_extend_total=time_extend_total+(time_extend_end-time_extend_start)
-
-       ! *********************************************************************
-       ! get v^T*(A*v)
-       ! *********************************************************************
-       time_suba_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-       CALL DCOPY(nvec*nvec,rzero,0,overlap_vv,1)
-       DO i=1,neig
-          overlap_vv(i,i)=evalslold(i)
-       ENDDO
-       CALL DGEMM('T','N',nvec,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+neig+1),n, &
-                                                    rzero,overlap_vv(1,neig+1),nvec)
-       !CALL DGEMM('T','N',nvec,nvec,n,rone,vecbuf(1,1),n,vecbuf(1,nvec+1),n, &
-       !                                                  rzero,overlap_vv,nvec)
-#endif
-       time_suba_end=m_cputime()
-       time_suba_total=time_suba_total+(time_suba_end-time_suba_start)
-
-       ! *********************************************************************
-       ! diagonalise the matrix v^T*(A*v)
-       ! *********************************************************************
-       time_diag_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-       CALL DSYEVD('V','U',nvec,overlap_vv,nvec,evalsl,evwork,levwork,iwork,liwork,info)
-#endif
-       IF (info.NE.0) CALL stop_program("jacobi_davidson","dsyevd overlap_vv")
-       time_diag_end=m_cputime()
-       time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
-
-       ! *********************************************************************
-       ! here we select the eigenvectors with the largest change
-       ! they will be used in the next iteration
-       ! *********************************************************************
-       ! write(6,*) "evalsl",NINT(-log(abs(evalsl(1:neig)-evalslold(1:neig))+1E-20)/log(10.0_wp))
-       evwork(1:neig)=ABS(evalsl(1:neig)-evalslold(1:neig))
-       CALL sort(evwork,neig,iwork)
-       WRITE(6,*) "changes",iwork(neig),evwork(neig)
-       ! use split of the part that changed most, half new
-       count=neig
-       split=nhigh/4
-       DO i=1,split
-          to_be_used(i)=iwork(count)
-          count=count-1
-       ENDDO
-       DO i=split+1,nhigh
-          DO
-           this_one=iwork(count)
-           count=count-1
-           DO j=1,neig
-             IF (this_one.EQ.to_be_used_old(j)) this_one=0
-           ENDDO
-           IF (this_one.NE.0) EXIT
-          ENDDO
-          to_be_used(i)=this_one
-       ENDDO
-       to_be_used_old=to_be_used
-       evalslold=evalsl
-
-       ! *********************************************************************
-       ! rotate V, and AV so that the lowest neig are first
-       ! *********************************************************************
-       time_rot_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-       CALL DGEMM('N','N',n,neig,nvec,rone,vecbuf(1,     1),n,overlap_vv,nvec,rzero,v,n)
-       CALL DCOPY(neig*n,v,1,vecbuf(1,1),1)
-#endif
-       time_rot_end=m_cputime()
-       time_rot_total=time_rot_total+(time_rot_end-time_rot_start)
-
-       IF (evwork(neig).LE.tol) EXIT
-
-    ENDDO
-
-    ! *********************************************************************
-    ! make the final vectors exactly ortho
-    ! *********************************************************************
-    time_ortho_start=m_cputime()
-#if defined(__SCALAPACK)
-
-#else
-      CALL DSYRK('U','T',neig,n,rone,v(1,1),n,rzero,overlap_vv,nvec)
-      CALL DPOTRF('U',neig,overlap_vv,nvec,info)
-      ! in this case the vectors are exactly degenerate
-      IF (info.NE.0) CALL stop_program("jacobi_davidson","DPOTRF final wave functions")
-      CALL DTRSM('R','U','N','N',n,neig,rone,overlap_vv,nvec,v(1,1),n)
-#endif
-    time_ortho_end=m_cputime()
-    time_ortho_total=time_ortho_total+(time_ortho_end-time_ortho_start)
-
-    evals(1:neig)=evalsl(1:neig)
-
-    CALL cp_fm_release(vecbuffer)
-    CALL cp_fm_release(matrix_overlap_vh)
-    CALL cp_fm_release(matrix_overlap_hh)
-    CALL cp_fm_release(matrix_overlap_vv)
-    DEALLOCATE(ipivot)
-    DEALLOCATE(evwork)
-    DEALLOCATE(iwork)
-    DEALLOCATE(evalsl)
-    DEALLOCATE(evalslold)
-    DEALLOCATE(to_be_used)
-    DEALLOCATE(to_be_used_old)
-
-    time_full_end=m_cputime()
-    time_full_total=time_full_total+(time_full_end-time_full_start)
-    WRITE(6,*) "time full    : ", time_full_total
-    WRITE(6,*) "time init    : ", time_init_total
-    WRITE(6,*) "time extend  : ", time_extend_total
-    WRITE(6,*) "---------------"
-    WRITE(6,*) "time getrf   : ", time_getrf_total
-    WRITE(6,*) "time getrs   : ", time_getrs_total
-    WRITE(6,*) "time av      : ", time_av_total
-    WRITE(6,*) "time diag    : ", time_diag_total
-    WRITE(6,*) "time rot     : ", time_rot_total
-    WRITE(6,*) "time suba    : ", time_suba_total
-    WRITE(6,*) "time ortho   : ", time_ortho_total
-    WRITE(6,*) "---------------"
-    WRITE(6,*) "# neig/nhigh/n ", neig, "/",nhigh,"/",n
-    WRITE(6,*) "# A*V /t       ", count_av,"/",time_av_total/count_av
-    WRITE(6,*) "# (L*U)^-1*V/t ", count_getrs,"/",time_getrs_total/count_getrs
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE blacs_jacobi_davidson
-
-! *****************************************************************************
-
 
 !!****f* qs_blacs/blacs_scale_and_d [1.0] *
 !!

@@ -42,7 +42,6 @@ MODULE cp_cfm_basic_linalg
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type
   USE cp_cfm_types,                     ONLY: cp_cfm_create,&
-                                             cp_cfm_create2,&
                                              cp_cfm_get_info,&
                                              cp_cfm_init_random,&
                                              cp_cfm_release,&

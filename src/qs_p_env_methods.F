@@ -61,12 +61,10 @@ MODULE qs_p_env_methods
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_create2,&
                                              cp_fm_get_info,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
-                                             cp_fm_vect_create2,&
                                              cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&

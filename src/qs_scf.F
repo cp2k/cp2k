@@ -176,7 +176,6 @@ MODULE qs_scf
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
@@ -1079,7 +1078,7 @@ CONTAINS
                   mo_eigenvectors,0.2_wp) 
           ENDIF
           
-          CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env,globenv)
+          CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env)
           
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              DO ispin=1,dft_control%nspins
@@ -1946,6 +1945,7 @@ CONTAINS
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
     TYPE(scf_control_type), POINTER :: scf_control
     TYPE(cp_full_matrix_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
+    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
     TYPE evals_p_type
          REAL(wp), DIMENSION(:), POINTER :: evals
     END TYPE
@@ -1962,7 +1962,7 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
          mgrid_rspace,c,atomic_kind_set,particle_set,rho, mo_eigenvectors,&
          ks_rmpv,qs_loc_env, scf_control,unoccupied_orbs,pfull,mo_eigenvalues, &
-          unoccupied_evals)
+          unoccupied_evals,fm_struct_tmp)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -2074,7 +2074,7 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
              CALL calculate_subspace_eigenvalues(mo_eigenvectors,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
-                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                  para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
                   ionode=globenv%ionode)
 
              IF (globenv%print%cubes) THEN
@@ -2114,7 +2114,7 @@ CONTAINS
                 IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
-                     para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                     para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
                      ionode=globenv%ionode)
              ENDIF
 ! do localization computation
@@ -2161,13 +2161,10 @@ CONTAINS
              CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n)
              nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
-             CALL cp_fm_create2(new_matrix=unoccupied_orbs(ispin)%matrix, &
-                  nrow_block=scf_control%nrow_block, &
-                  ncol_block=scf_control%ncol_block, &
-                  nrow_global=n, &
-                  ncol_global=nlumos, &
-                  name="unoccupied_orbs", &
-                  globenv=globenv)
+             CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
+                                                    nrow_global=n,ncol_global=nlumos)
+             CALL cp_fm_create(unoccupied_orbs(ispin)%matrix, fm_struct_tmp,name="lumos")
+             CALL cp_fm_struct_release(fm_struct_tmp)
              CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos)
 
              CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=s(1)%matrix, &
@@ -2179,7 +2176,7 @@ CONTAINS
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
                   unoccupied_evals(ispin)%evals, &
-                  para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
+                  para_env=qs_env%para_env,ctxt=qs_env%blacs_env,scr=globenv%scr, &
                   ionode=globenv%ionode)
 
              IF (globenv%print%localization) THEN

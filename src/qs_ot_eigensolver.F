@@ -25,16 +25,19 @@ MODULE qs_ot_eigensolver
   USE kinds,                           ONLY: wp => dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             cp_fm_struct_release
+  USE cp_fm_types,                     ONLY: cp_fm_create, &
+                                             cp_fm_release
   USE qs_blacs,                        ONLY: blacs_column_copy,&
                                              blacs_make_basis,&
                                              copy_blacs_to_blacs_matrix,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
-                                             cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
-                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_symm,&
                                              cp_fm_trace,&
@@ -98,12 +101,14 @@ CONTAINS
                                                  matrix_os_ortho, &
                                                  matrix_buf1_ortho, &
                                                  matrix_buf2_ortho
+    TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
 
     
 !   ---------------------------------------------------------------------------
 
     CALL timeset("ot_eigensolver","I","",handle)
-    NULLIFY(qs_ot_env)
+    NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
+                      matrix_buf1_ortho,matrix_buf2_ortho)
     ALLOCATE(qs_ot_env(1))
 
     CALL cp_fm_get_info(matrix_c,nrow_block=nrow_block, &
@@ -132,41 +137,25 @@ CONTAINS
     qs_ot_env(1)%settings%ncol_block=ncol_block
 
     ! allocate
-    CALL qs_ot_allocate(qs_ot_env(1),globenv%para_env,globenv%blacs_env)
+    CALL qs_ot_allocate(qs_ot_env(1),matrix_c%matrix_struct%para_env,matrix_c%matrix_struct%context)
 
     IF (ortho) THEN
         ! construct an initial guess that is orthogonal to matrix_orthogonal_space
-        CALL cp_fm_create2(matrix_s_ortho, &
-                                   nrow_block=nrow_block, &
-                                   ncol_block=ncol_block, &
-                                   nrow_global=n, &
-                                   ncol_global=ortho_space_k, &
-                                   name="matrix_s_ortho", &
-                                   globenv=globenv)
+        CALL cp_fm_create(matrix_s_ortho,matrix_orthogonal_space%matrix_struct,"matrix_s_ortho")
 
-        CALL cp_fm_create2(matrix_os_ortho, &
-                                   nrow_block=nrow_block, &
-                                   ncol_block=ncol_block, &
-                                   nrow_global=ortho_space_k, &
-                                   ncol_global=ortho_space_k, &
-                                   name="matrix_os_ortho", &
-                                   globenv=globenv)
+        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=ortho_space_k, &
+                                 para_env=matrix_orthogonal_space%matrix_struct%para_env, &
+                                 context=matrix_orthogonal_space%matrix_struct%context)
+        CALL cp_fm_create(matrix_os_ortho, fm_struct_tmp,"matrix_os_ortho") 
+        CALL cp_fm_struct_release(fm_struct_tmp)
 
-        CALL cp_fm_create2(matrix_buf1_ortho, &
-                                   nrow_block=nrow_block, &
-                                   ncol_block=ncol_block, &
-                                   nrow_global=ortho_space_k, &
-                                   ncol_global=k, &
-                                   name="matrix_buf1_ortho", &
-                                   globenv=globenv)
+        CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ortho_space_k, ncol_global=k, &
+                                 para_env=matrix_orthogonal_space%matrix_struct%para_env, &
+                                 context=matrix_orthogonal_space%matrix_struct%context)
+        CALL cp_fm_create(matrix_buf1_ortho, fm_struct_tmp,"matrix_buf1_ortho")
+        CALL cp_fm_create(matrix_buf2_ortho, fm_struct_tmp,"matrix_buf2_ortho")
+        CALL cp_fm_struct_release(fm_struct_tmp)
 
-        CALL cp_fm_create2(matrix_buf2_ortho, &
-                                   nrow_block=nrow_block, &
-                                   ncol_block=ncol_block, &
-                                   nrow_global=ortho_space_k, &
-                                   ncol_global=k, &
-                                   name="matrix_buf2_ortho", &
-                                   globenv=globenv)
         CALL cp_sm_fm_multiply(matrix_s,matrix_orthogonal_space, &
                                 matrix_s_ortho,ortho_space_k,para_env=globenv%para_env)
 
