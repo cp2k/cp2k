@@ -68,7 +68,7 @@ CPPFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
 LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o mltfftsg_tools.o\
-               mltfftsg.o
+               mltfftsg.o grid_fast.o
 
 DEPENDENCIES = $(OBJECTS:.o=.dep)
 
