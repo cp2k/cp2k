@@ -135,3 +135,6 @@ H2O-debug-3.inp    1
 # test mulliken constraints
 C2H4-init.inp      1
 C2H4.inp           1
+# Martyna-Tuckerman 3D
+H+.inp             1
+H+.TI.inp          1
