@@ -46,7 +46,6 @@ MODULE cp_linked_list_3d_r
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
   USE kinds, only: dp
 USE cp_array_r_utils, only: cp_3d_r_p_type, cp_3d_r_write
