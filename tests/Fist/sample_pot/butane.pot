@@ -11,6 +11,7 @@ HAL3 CTL3 HAL3   35.500    108.40    5.40   1.80200 ! alkane, 3/92
 HAL3 CTL3 HAL3   35.500    108.40    5.40   1.80200 ! alkane, 3/92
 HAL2 CTL2 CTL3   34.600    110.10   22.53   2.179  ! alkane, 4/98
 CTL2 CTL2 CTL3   58.000    115.00    8.00   2.561  ! alkane, 3/92
+CTL2 CTL2 CTL2   58.000    115.00    8.00   2.561  ! alkane, 3/92
 HAL3 CTL3 CTL2   34.600    110.10   22.53   2.179  ! alkane, 4/98
 HAL2 CTL2 CTL2   26.500    110.10   22.53   2.179  ! alkane, 4/98
 

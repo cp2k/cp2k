@@ -27,7 +27,7 @@
 &END
 
 &FORCE_FIELD
- PARMFILE CHM butane.pot
+ PARMFILE CHM sample_pot/butane.pot
 &END
  PARMFILE CHM charmm.pot
 
