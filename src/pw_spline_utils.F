@@ -2523,7 +2523,7 @@ END SUBROUTINE pw_nn_compose_r
                            wj*w_border1(2)*vv1+ww0(2)*vv2
                       coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)+&
                            wj*w_border1(3)*vv1+ww0(3)*vv2
-                      DO i=coarse_bo(1,1)+3,coarse_bo(2,1)-4,4
+                      DO i=coarse_bo(1,1)+3,coarse_bo(2,1)-3,4
                          fi=fi+1
                          vv0=fine_values(fi,fj,fk)
                          fi=fi+1
@@ -2557,7 +2557,9 @@ END SUBROUTINE pw_nn_compose_r
                       END DO
                       CPPrecondition(coarse_bo(2,1)-coarse_bo(1,1)>=4,cp_failure_level,routineP,error,failure)
                       rest_b=MODULO(coarse_bo(2,1)-coarse_bo(1,1)-6,4)
+                      !PRINT *,"old i=",i
                       i=coarse_bo(2,1)-3-rest_b+4
+                      !PRINT *, "i=",i,"rest_b=",rest_b,"fi=",fi
                       CPPrecondition(fi==(i-2)*2,cp_failure_level,routineP,error,failure)
                       IF (rest_b>0) THEN
                          fi=fi+1
