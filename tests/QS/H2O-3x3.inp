@@ -5,13 +5,9 @@
  RUN_TYPE     MD
 &END
 
-&FORCE_FIELD
-  constraints
+&CONSTRAINTS
     g3x3 add 1 1 2 3 1.88 1.88 3.08
-  end constraints
 &END
-
-
 
 &MD
  ensemble:     nve                     (nve,nvt,npt_i,npt_f)
