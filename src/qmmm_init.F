@@ -117,6 +117,7 @@ MODULE qmmm_init
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
        section_vals_get_subs_vals, section_vals_get, section_vals_val_get
+  USE input_cp2k, ONLY: RADIUS_QMMM_DEFAULT
 
   IMPLICIT NONE
   PRIVATE
@@ -622,13 +623,13 @@ CONTAINS
     LOGICAL :: is_mm
     INTEGER                                  :: num_qm_atom_tot, qm_subsys_type
     LOGICAL                                  :: failure
-    CHARACTER(len=default_string_length)     :: qm_atom_kind
+    CHARACTER(len=default_string_length)     :: qm_atom_kind, mm_atom_kind
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type),POINTER           :: atomic_kind
     CHARACTER(LEN=default_string_length)     :: atmname
     REAL(KIND=dp)                                :: tmp_radius
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(section_vals_type), pointer         :: qm_kinds
+    TYPE(section_vals_type), POINTER         :: qm_kinds, mm_kinds
     LOGICAL :: explicit
     INTEGER , DIMENSION(:), POINTER :: mm_indexes
     REAL(KIND=dp), DIMENSION(:), POINTER :: cell_par
@@ -654,6 +655,9 @@ CONTAINS
                                elp_potential=elp_potential)
        END DO
        num_qm_atom_tot = 0
+       !
+       ! QM_KINDS
+       !
        qm_kinds => section_vals_get_subs_vals(qmmm_section,"QM_KIND",error=error)
        CALL section_vals_get(qm_kinds,n_repetition=nkind,error=error)
        DO ikind=1,nkind
@@ -670,26 +674,57 @@ CONTAINS
           CALL section_vals_val_get(qm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
                c_val=qm_atom_kind,error=error)
           CALL section_vals_val_get(qm_kinds,"MM_INDEX",i_rep_section=ikind,i_vals=mm_indexes,error=error)
-          CALL section_vals_val_get(qm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
           CALL section_vals_val_get(qm_kinds,"SUBSYS",i_rep_section=ikind,i_val=qm_subsys_type,error=error)
-          tmp_radius = tmp_radius * qm_cell_small%unit_of_length
-          Set_Radius_Pot: DO IkindR = 1, SIZE(atomic_kinds%els)
-             atomic_kind => atomic_kinds%els(IkindR)
-             CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
-             IF (TRIM(qm_atom_kind)==atmname) THEN
-                CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                     elp_potential=elp_potential)
-                CALL set_potential  (potential=elp_potential,&
-                                     core_charge_radius=tmp_radius)
-                CALL set_atomic_kind(atomic_kind=atomic_kind,&
-                                     elp_potential=elp_potential)
-             END IF
-          END DO Set_Radius_Pot
           qm_atom_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = mm_indexes(:)
           qm_atom_type (num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1)   = qm_atom_kind
           qm_subsys_index(num_qm_atom_tot:num_qm_atom_tot + SIZE(mm_indexes)-1) = qm_subsys_type
           num_qm_atom_tot = num_qm_atom_tot + SIZE(mm_indexes)
        END DO
+       !
+       ! MM_KINDS
+       !
+       mm_kinds => section_vals_get_subs_vals(qmmm_section,"MM_KIND",error=error)
+       CALL section_vals_get(mm_kinds,explicit=explicit,n_repetition=nkind,error=error)
+       !
+       ! Default
+       !
+       tmp_radius = RADIUS_QMMM_DEFAULT * qm_cell_small%unit_of_length
+       Set_Radius_Pot_0: DO IkindR = 1, SIZE(atomic_kinds%els)
+          atomic_kind => atomic_kinds%els(IkindR)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+               elp_potential=elp_potential)
+          CALL set_potential  (potential=elp_potential,&
+               core_charge_radius=tmp_radius)
+          CALL set_atomic_kind(atomic_kind=atomic_kind,&
+               elp_potential=elp_potential)
+       END DO Set_Radius_Pot_0
+       !
+       ! If present overwrite the kind specified in input file...
+       !
+       IF (explicit) THEN
+          DO ikind=1,nkind
+             CALL section_vals_val_get(mm_kinds,"_SECTION_PARAMETERS_",i_rep_section=ikind,&
+                  c_val=mm_atom_kind,error=error)
+             CALL section_vals_val_get(mm_kinds,"RADIUS",i_rep_section=ikind,r_val=tmp_radius,error=error)
+             tmp_radius = tmp_radius * qm_cell_small%unit_of_length
+             Set_Radius_Pot_1: DO IkindR = 1, SIZE(atomic_kinds%els)
+                atomic_kind => atomic_kinds%els(IkindR)
+                CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+                IF (TRIM(mm_atom_kind)==atmname) THEN
+                   CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                        elp_potential=elp_potential)
+                   CALL set_potential  (potential=elp_potential,&
+                        core_charge_radius=tmp_radius)
+                   CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                        elp_potential=elp_potential)
+                END IF
+             END DO Set_Radius_Pot_1
+          END DO
+       END IF
+       !
+       ! QM Cell Info
+       !
        CALL section_vals_val_get(qmmm_section,"A_QM",n_rep_val=n_rep,error=error)
        IF (n_rep /= 0) THEN
            CALL section_vals_val_get(qmmm_section,"A_QM",r_vals=cell_par,error=error)

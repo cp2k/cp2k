@@ -72,6 +72,7 @@ MODULE input_cp2k
 
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
        do_farming=6,do_test=8
+  REAL(KIND=dp), PARAMETER, public :: RADIUS_QMMM_DEFAULT = 0.8_dp
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
@@ -1869,7 +1870,7 @@ END SUBROUTINE create_ewald_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="qmmm",&
             description="Input for QM/MM calculations.",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=6, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword, subsection)
@@ -1929,8 +1930,8 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword,error=error)    
 
        CALL section_create(subsection,name="QM_KIND",&
-            description="Information about the kind qm that some atom have",&
-            n_keywords=4, n_subsections=0, repeats=.true., required=.true.,&
+            description="Information about the qm kind in the qm/mm scheme",&
+            n_keywords=3, n_subsections=0, repeats=.true., required=.true.,&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
@@ -1947,17 +1948,32 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RADIUS",&
-            description="Specifies the radius of the atomic kinds [angstrom]",&
-            usage="RADIUS ",n_var=1,type_of_var=real_t,&
-            default_r_val=0.8_dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="SUBSYS",&
             description="Specifies which subsystem the qm atom belongs to.",&
             usage="SUBSYS ",n_var=1,type_of_var=integer_t,&
             default_i_val=1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)    
+
+       CALL section_create(subsection,name="MM_KIND",&
+            description="Information about the mm kind in the qm/mm scheme",&
+            n_keywords=2, n_subsections=0, repeats=.true., required=.false.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The mm kind",&
+            usage="O",&
+            n_var=1,type_of_var=char_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies the radius of the atomic kinds [angstrom]",&
+            usage="RADIUS ",n_var=1,type_of_var=real_t,&
+            default_r_val=RADIUS_QMMM_DEFAULT,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
