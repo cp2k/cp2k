@@ -47,6 +47,7 @@ MODULE topology_util
                                              bond_type,&
                                              dist_constraint_type,&
                                              g3x3_constraint_type,&
+                                             g4x6_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type,&
                                              set_molecule_kind,&
@@ -56,6 +57,7 @@ MODULE topology_util
                                              local_constraint_type,&
                                              local_dist_constraint_type,&
                                              local_g3x3_constraint_type,&
+                                             local_g4x6_constraint_type,&
                                              local_molecule_type,&
                                              molecule_type,&
                                              set_molecule,&
@@ -2040,7 +2042,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   INTEGER                                  :: istat, iw, i, j, k, natom
   INTEGER                                  :: counter,nmolecule,ndist,nbond
-  INTEGER                                  :: ng3x3
+  INTEGER                                  :: ng3x3,ng4x6
   INTEGER                                  :: first, last,search1,search2
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
@@ -2052,11 +2054,13 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
   TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
+  TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
   TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
   TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
   TYPE(local_constraint_type), POINTER       :: lci
   TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
   TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
+  TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -2089,6 +2093,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
     IF(istat/=0) CALL stop_memory('constraint_pack','lci',1)
     NULLIFY(lci%ldist)
     NULLIFY(lci%lg3x3)
+    NULLIFY(lci%lg4x6)
     CALL set_molecule(molecule,lci=lci)
   END DO
 
@@ -2294,6 +2299,76 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
       END DO
       CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
+    END DO
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. Set the group 4x6 constraint g4x6_list
+  !-----------------------------------------------------------------------------
+  IF(topology%const_46) THEN
+    DO i=1,cons_info%nconst_g46
+      j = cons_info%const_g46_mol(i)
+      molecule_kind => molecule_kind_set(j)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             nmolecule=nmolecule,molecule_list=molecule_list)
+      CALL find_boundary(cons_info%const_g46_mol,cons_info%nconst_g46,&
+                         first,last,i)
+      ng4x6 = last-first+1
+      ALLOCATE(g4x6_list(ng4x6),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('topology_constraint_pack','g4x6_list')
+      DO j=1,nmolecule
+        molecule => molecule_set(molecule_list(j))
+        ALLOCATE(lg4x6(ng4x6),STAT=istat)
+        IF (istat /= 0) CALL stop_memory('topology_constraint_pack','lg4x6')
+        DO k=1,ng4x6
+          lg4x6(k)%scale = 0.0_dbl
+          lg4x6(k)%scale_old = 0.0_dbl
+          lg4x6(k)%fa = 0.0_dbl
+          lg4x6(k)%fb = 0.0_dbl
+          lg4x6(k)%fc = 0.0_dbl
+          lg4x6(k)%fd = 0.0_dbl
+          lg4x6(k)%fe = 0.0_dbl
+          lg4x6(k)%ff = 0.0_dbl
+          lg4x6(k)%ra_old = 0.0_dbl
+          lg4x6(k)%rb_old = 0.0_dbl
+          lg4x6(k)%rc_old = 0.0_dbl
+          lg4x6(k)%rd_old = 0.0_dbl
+          lg4x6(k)%re_old = 0.0_dbl
+          lg4x6(k)%rf_old = 0.0_dbl
+          lg4x6(k)%va = 0.0_dbl
+          lg4x6(k)%vb = 0.0_dbl
+          lg4x6(k)%vc = 0.0_dbl
+          lg4x6(k)%vd = 0.0_dbl
+          lg4x6(k)%ve = 0.0_dbl
+          lg4x6(k)%vf = 0.0_dbl
+          lg4x6(k)%va_old = 0.0_dbl
+          lg4x6(k)%vb_old = 0.0_dbl
+          lg4x6(k)%vc_old = 0.0_dbl
+          lg4x6(k)%vd_old = 0.0_dbl
+          lg4x6(k)%ve_old = 0.0_dbl
+          lg4x6(k)%vf_old = 0.0_dbl
+          lg4x6(k)%del_lam = 0.0_dbl
+          lg4x6(k)%lambda = 0.0_dbl
+        END DO
+        CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
+      END DO
+      ng4x6 = 0
+      DO j=1,SIZE(cons_info%const_g46_a)
+        ng4x6 = ng4x6 + 1
+        g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
+        g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
+        g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
+        g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
+        g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
+        g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
+        g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
+        g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
+        g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
+        g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
+      END DO
+      CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,g4x6_list=g4x6_list)
     END DO
   END IF
 

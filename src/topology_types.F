@@ -67,6 +67,18 @@ MODULE topology_types
     REAL (dbl), POINTER :: const_g33_dab(:)
     REAL (dbl), POINTER :: const_g33_dac(:)
     REAL (dbl), POINTER :: const_g33_dbc(:)
+    INTEGER          :: nconst_g46
+    INTEGER, POINTER :: const_g46_mol(:)
+    INTEGER, POINTER :: const_g46_a(:)
+    INTEGER, POINTER :: const_g46_b(:)
+    INTEGER, POINTER :: const_g46_c(:)
+    INTEGER, POINTER :: const_g46_d(:)
+    REAL (dbl), POINTER :: const_g46_dab(:)
+    REAL (dbl), POINTER :: const_g46_dac(:)
+    REAL (dbl), POINTER :: const_g46_dbc(:)
+    REAL (dbl), POINTER :: const_g46_dad(:)
+    REAL (dbl), POINTER :: const_g46_dbd(:)
+    REAL (dbl), POINTER :: const_g46_dcd(:)
   END TYPE constraint_info_type
 
   TYPE force_field_input_info_type
@@ -156,6 +168,7 @@ MODULE topology_types
     LOGICAL                                   :: const_hydr
     LOGICAL                                   :: const_dist
     LOGICAL                                   :: const_33
+    LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
     LOGICAL                                   :: charge_beta
   END TYPE topology_parameters_type
@@ -255,6 +268,7 @@ SUBROUTINE init_topology (topology)
   topology%const_hydr=.FALSE.
   topology%const_dist=.FALSE.
   topology%const_33=.FALSE.
+  topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
   topology%charge_beta=.FALSE.
 
@@ -309,6 +323,18 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%cons_info%const_g33_dab)
   NULLIFY(topology%cons_info%const_g33_dac)
   NULLIFY(topology%cons_info%const_g33_dbc)
+  topology%cons_info%nconst_g46 = 0
+  NULLIFY(topology%cons_info%const_g46_mol)
+  NULLIFY(topology%cons_info%const_g46_a)
+  NULLIFY(topology%cons_info%const_g46_b)
+  NULLIFY(topology%cons_info%const_g46_c)
+  NULLIFY(topology%cons_info%const_g46_d)
+  NULLIFY(topology%cons_info%const_g46_dab)
+  NULLIFY(topology%cons_info%const_g46_dac)
+  NULLIFY(topology%cons_info%const_g46_dbc)
+  NULLIFY(topology%cons_info%const_g46_dad)
+  NULLIFY(topology%cons_info%const_g46_dbd)
+  NULLIFY(topology%cons_info%const_g46_dcd)
 
 
   !-----------------------------------------------------------------------------

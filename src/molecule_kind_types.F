@@ -76,6 +76,11 @@ MODULE molecule_kind_types
     REAL(KIND = dp)        :: dab,dac,dbc
   END TYPE g3x3_constraint_type
 
+  TYPE g4x6_constraint_type
+    INTEGER                :: a,b,c,d
+    REAL(KIND = dp)        :: dab,dac,dbc,dad,dbd,dcd
+  END TYPE g4x6_constraint_type
+
   TYPE torsion_type
     TYPE(torsion_kind_type), POINTER :: torsion_kind
     INTEGER :: a,b,c,d
@@ -90,6 +95,7 @@ MODULE molecule_kind_types
     TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
     TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
+    TYPE(g4x6_constraint_type), DIMENSION(:), POINTER :: g4x6_list
     TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
     TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
     CHARACTER(LEN=default_string_length)                    :: name,&
@@ -102,6 +108,7 @@ MODULE molecule_kind_types
                                                          nbond,&
                                                          ndist,&
                                                          ng3x3,&
+                                                         ng4x6,&
                                                          nmolecule,&
                                                          ntorsion
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
@@ -126,6 +133,7 @@ MODULE molecule_kind_types
             bond_type,&
             dist_constraint_type,&
             g3x3_constraint_type,&
+            g4x6_constraint_type,&
             molecule_kind_type,&
             torsion_type
 
@@ -169,6 +177,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%dist_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%bond_kind_set)
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_kind_set)
@@ -183,6 +192,7 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%nbond = 0
       molecule_kind_set(imolecule_kind)%ndist = 0
       molecule_kind_set(imolecule_kind)%ng3x3 = 0
+      molecule_kind_set(imolecule_kind)%ng4x6 = 0
       molecule_kind_set(imolecule_kind)%nmolecule = 0
       molecule_kind_set(imolecule_kind)%ntorsion = 0
       NULLIFY (molecule_kind_set(imolecule_kind)%molecule_list)
@@ -266,6 +276,13 @@ CONTAINS
                               "molecule_kind_set(imolecule_kind)%g3x3_list")
            END IF
         END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%g4x6_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%g4x6_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%g4x6_list")
+           END IF
+        END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%torsion_kind_set)) THEN
            DEALLOCATE (molecule_kind_set(imolecule_kind)%torsion_kind_set,STAT=istat)
            IF (istat /= 0) THEN
@@ -306,9 +323,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_molecule_kind(molecule_kind,atom_list,bond_list,bend_list,&
-                               dist_list,g3x3_list,torsion_list,name,nhcopt,&
+                               dist_list,g3x3_list,g4x6_list,torsion_list,&
+                               name,nhcopt,&
                                mass,charge,kind_number,natom,nbend,nbond,nconstraint,&
-                               ndist,ng3x3,nmolecule,nsgf,ntorsion,&
+                               ndist,ng3x3,ng4x6,nmolecule,nsgf,ntorsion,&
                                molecule_list,&
                                bond_kind_set,bend_kind_set,torsion_kind_set)
 
@@ -332,6 +350,8 @@ CONTAINS
       DIMENSION(:), OPTIONAL, POINTER        :: dist_list
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
+    TYPE(g4x6_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
     TYPE(torsion_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_list
     CHARACTER(LEN=default_string_length), &
@@ -340,7 +360,7 @@ CONTAINS
       POINTER                                :: mass, charge
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
                                                 nbond, nconstraint, ndist, &
-                                                ng3x3, nmolecule, nsgf, &
+                                                ng3x3, ng4x6, nmolecule, nsgf, &
                                                 ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
 
@@ -361,6 +381,7 @@ CONTAINS
       IF (PRESENT(torsion_kind_set)) torsion_kind_set => molecule_kind%torsion_kind_set
       IF (PRESENT(dist_list)) dist_list => molecule_kind%dist_list
       IF (PRESENT(g3x3_list)) g3x3_list => molecule_kind%g3x3_list
+      IF (PRESENT(g4x6_list)) g4x6_list => molecule_kind%g4x6_list
       IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
       IF (PRESENT(name)) name = molecule_kind%name
       IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
@@ -371,9 +392,11 @@ CONTAINS
       IF (PRESENT(nbend)) nbend = molecule_kind%nbend
       IF (PRESENT(nbond)) nbond = molecule_kind%nbond
       IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ndist +&
-                                              3*molecule_kind%ng3x3
+                                              3*molecule_kind%ng3x3 +&
+                                              6*molecule_kind%ng4x6
       IF (PRESENT(ndist)) ndist = molecule_kind%ndist
       IF (PRESENT(ng3x3)) ng3x3= molecule_kind%ng3x3
+      IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
       IF (PRESENT(nsgf)) THEN
@@ -669,7 +692,7 @@ CONTAINS
   SUBROUTINE set_molecule_kind(molecule_kind,name,mass,charge,kind_number,&
                                molecule_list,atom_list,nhcopt,nbond,bond_list,&
                                nbend,bend_list,ntorsion,torsion_list,&
-                               ndist,dist_list,ng3x3,g3x3_list,&
+                               ndist,dist_list,ng3x3,g3x3_list,ng4x6,g4x6_list,&
                                bond_kind_set,bend_kind_set,torsion_kind_set)
 
 !   Purpose: Set the components of a molecule kind.
@@ -707,6 +730,9 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
+    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6
+    TYPE(g4x6_constraint_type), &
+      DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
 
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_kind"
@@ -763,6 +789,8 @@ CONTAINS
       IF (PRESENT(ntorsion)) molecule_kind%ntorsion = ntorsion
       IF (PRESENT(ng3x3)) molecule_kind%ng3x3 = ng3x3
       IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
+      IF (PRESENT(ng4x6)) molecule_kind%ng4x6 = ng4x6
+      IF (PRESENT(g4x6_list)) molecule_kind%g4x6_list => g4x6_list
       IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set
       IF (PRESENT(bend_kind_set)) molecule_kind%bend_kind_set => bend_kind_set
       IF (PRESENT(torsion_kind_set)) molecule_kind%torsion_kind_set => torsion_kind_set

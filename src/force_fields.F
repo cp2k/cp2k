@@ -751,6 +751,7 @@ END SUBROUTINE input_torsions
 !!I   ATOM ??????                                                             I
 !!I   DIST MOLKIND ATM_A ATM_B D_AB                                           I
 !!I   G3x3 MOLKIND ATM_A ATM_B ATM_C D_AB D_AC D_BC                           I
+!!I   G4x6 MOLKIND ATM_A ATM_B ATM_C ATM_D D_AB D_AC D_BC D_AD D_BD D_CD      I
 !!I                                                                           I
 !!I end constraints                                                           I
 !!I                                                                           I
@@ -849,6 +850,36 @@ SUBROUTINE input_constraints(topology,globenv)
            CALL get_next(cons_info%const_g33_dac(i))
            CALL get_next(cons_info%const_g33_dbc(i))
            cons_info%nconst_g33 = i
+        ELSE IF ( INDEX ( string, 'G4X6' ) /= 0 ) THEN
+           topology%constraint=.TRUE.
+           topology%const_46=.TRUE.
+           ilen = 40
+           CALL get_next(string,ilen)
+           CALL uppercase(string)
+           i=cons_info%nconst_g46 + 1
+           CALL reallocate(cons_info%const_g46_mol,1,i)
+           CALL reallocate(cons_info%const_g46_a,1,i)
+           CALL reallocate(cons_info%const_g46_b,1,i)
+           CALL reallocate(cons_info%const_g46_c,1,i)
+           CALL reallocate(cons_info%const_g46_d,1,i)
+           CALL reallocate(cons_info%const_g46_dab,1,i)
+           CALL reallocate(cons_info%const_g46_dac,1,i)
+           CALL reallocate(cons_info%const_g46_dbc,1,i)
+           CALL reallocate(cons_info%const_g46_dad,1,i)
+           CALL reallocate(cons_info%const_g46_dbd,1,i)
+           CALL reallocate(cons_info%const_g46_dcd,1,i)
+           CALL get_next(cons_info%const_g46_mol(i))
+           CALL get_next(cons_info%const_g46_a(i))
+           CALL get_next(cons_info%const_g46_b(i))
+           CALL get_next(cons_info%const_g46_c(i))
+           CALL get_next(cons_info%const_g46_d(i))
+           CALL get_next(cons_info%const_g46_dab(i))
+           CALL get_next(cons_info%const_g46_dac(i))
+           CALL get_next(cons_info%const_g46_dbc(i))
+           CALL get_next(cons_info%const_g46_dad(i))
+           CALL get_next(cons_info%const_g46_dbd(i))
+           CALL get_next(cons_info%const_g46_dcd(i))
+           cons_info%nconst_g46 = i
         END IF
         CALL read_line
      END DO
