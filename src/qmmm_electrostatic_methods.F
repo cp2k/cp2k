@@ -101,6 +101,7 @@ MODULE qmmm_electrostatic_methods
   USE pw_types,                        ONLY: pw_type,&
                                              pw_zero,&
                                              pw_prolongate_NoPBC
+  USE pw_spline_utils,                 ONLY: pw_inject_s3
   IMPLICIT NONE
   PRIVATE
 
