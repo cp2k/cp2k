@@ -4370,7 +4370,7 @@ END FUNCTION xc_exc_calc
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_calc_2nd_deriv_new(v_xc, &
-       deriv_set, rho_set, rho1_set, pw_pool, dft_control, error)
+       deriv_set, rho_set, rho1_set, pw_pool, dft_control, gapw, vxg, ir, error)
 
     ! ARGUMENTS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
@@ -4378,6 +4378,10 @@ END FUNCTION xc_exc_calc
     TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(dft_control_type), POINTER          :: dft_control
+    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
+    REAL(kind=dp), DIMENSION(:,:,:,:), &
+         POINTER, OPTIONAL                   :: vxg
+    INTEGER, INTENT(IN), OPTIONAL            :: ir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -4390,7 +4394,7 @@ END FUNCTION xc_exc_calc
                                                 nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL                                  :: failure, gradient_f, lsd
+    LOGICAL                                  :: failure, gradient_f, lsd, my_gapw
     REAL(KIND=dp)                            :: dr1dr, fac
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, e_drhoa, e_drhob, &
@@ -4410,10 +4414,17 @@ END FUNCTION xc_exc_calc
     failure=.FALSE.
     NULLIFY(tmp_r, tmp_r2, tmp_a, tmp_b, e_drhoa, e_drhob, e_norm_drho)
 
+    my_gapw = .FALSE.
+    IF (PRESENT(gapw)) my_gapw = gapw
+
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+    IF (my_gapw) THEN
+       CPPrecondition(PRESENT(vxg),cp_failure_level,routineP,error,failure)
+       CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
+    END IF
 
     IF (.NOT. failure) THEN
 
@@ -5042,96 +5053,140 @@ END FUNCTION xc_exc_calc
 
        IF (gradient_f) THEN
 
-          ! partial integration
-          DO idir=1, 3
-
-             !$omp parallel do private(k,j,i,dr1dr)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-
-                      DO ispin=1, nspins
-                         tmp_r(ispin)%pw%cr3d(i,j,k) = &
-                              tmp_a(ispin)%pw%cr3d(i,j,k) * drhoa(idir)%array(i,j,k) + &
-                              tmp_b(ispin)%pw%cr3d(i,j,k) * drhob(idir)%array(i,j,k)
-                      END DO
-                      IF (ASSOCIATED(e_drhoa)) THEN
-                         IF (nspins /= 1) THEN
-                            tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                 e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
-                         ELSE
-                            tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                 2.0_dp * e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
-                         END IF
-                      END IF
-                      IF (ASSOCIATED(e_drhob)) THEN
-                         tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                              e_drhob(i,j,k) * drho1b(idir)%array(i,j,k)
-                      END IF
-                      IF (ASSOCIATED(e_norm_drho)) THEN
-                         IF (nspins /= 1) THEN
-                            tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                 e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)
-                            tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
-                                 e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
-                         ELSE
-                            fac = 2.0_dp
-                            IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
-                            tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                 fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
-                         END IF
-                      END IF
+          IF (my_gapw) THEN
+             !$omp parallel do private(i,dr1dr)
+             DO idir=1, 3
+                DO i = bo(1,1), bo(2,1)
+                   DO ispin=1, nspins
+                      vxg(idir,i,ir,ispin) = &
+                           tmp_a(ispin)%pw%cr3d(i,1,1) * drhoa(idir)%array(i,1,1) + &
+                           tmp_b(ispin)%pw%cr3d(i,1,1) * drhob(idir)%array(i,1,1)
                    END DO
+                   IF (ASSOCIATED(e_drhoa)) THEN
+                      IF (nspins /= 1) THEN
+                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                              e_drhoa(i,j,k) * drho1a(idir)%array(i,1,1)
+                      ELSE
+                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                              2.0_dp * e_drhoa(i,1,1) * drho1a(idir)%array(i,1,1)
+                      END IF
+                   END IF
+                   IF (ASSOCIATED(e_drhob)) THEN
+                      vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
+                           e_drhob(i,1,1) * drho1b(idir)%array(i,1,1)
+                   END IF
+                   IF (ASSOCIATED(e_norm_drho)) THEN
+                      IF (nspins /= 1) THEN
+                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                              e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)
+                         vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
+                              e_norm_drho(i,1,1) * drho1a(idir)%array(i,1,1)
+                      ELSE
+                         fac = 2.0_dp
+                         IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                              fac * e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)                         
+                      END IF
+                   END IF
                 END DO
              END DO
 
-             DO ispin=1, nspins
-                SELECT CASE(dft_control%xc_deriv_method_id)
-                CASE (xc_deriv_spline2_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                        pw_out=v_xc(ispin)%pw,coeffs=spline2_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_spline3_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                        pw_out=v_xc(ispin)%pw,coeffs=spline3_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_nn10_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                        pw_out=v_xc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_nn50_smooth)
-                   CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
-                        pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
-                        idir=idir, error=error )
-                CASE (xc_deriv_fd)
-                   IF (ASSOCIATED(pw_pool)) THEN
-                      CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
-                           use_data=REALDATA3D, in_space=REALSPACE,&
-                           error=error)
-                   ELSE
-                      ALLOCATE(tmp_t%pw, stat=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                           stat=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                   CALL pw_derive_fd(tmp_r(ispin)%pw,&
-                        tmp_t%pw,nd(:,idir))
-                   CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
-                   IF (ASSOCIATED(pw_pool)) THEN
-                      CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
-                   ELSE
-                      DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                      DEALLOCATE(tmp_t%pw, stat=stat)
-                      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   END IF
-                CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
-             END DO ! ispin
 
-          END DO ! idir
+          ELSE
+
+
+             ! partial integration
+             DO idir=1, 3
+
+                !$omp parallel do private(k,j,i,dr1dr)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+
+                         DO ispin=1, nspins
+                            tmp_r(ispin)%pw%cr3d(i,j,k) = &
+                                 tmp_a(ispin)%pw%cr3d(i,j,k) * drhoa(idir)%array(i,j,k) + &
+                                 tmp_b(ispin)%pw%cr3d(i,j,k) * drhob(idir)%array(i,j,k)
+                         END DO
+                         IF (ASSOCIATED(e_drhoa)) THEN
+                            IF (nspins /= 1) THEN
+                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                    e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
+                            ELSE
+                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                    2.0_dp * e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
+                            END IF
+                         END IF
+                         IF (ASSOCIATED(e_drhob)) THEN
+                            tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
+                                 e_drhob(i,j,k) * drho1b(idir)%array(i,j,k)
+                         END IF
+                         IF (ASSOCIATED(e_norm_drho)) THEN
+                            IF (nspins /= 1) THEN
+                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                    e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)
+                               tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
+                                    e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
+                            ELSE
+                               fac = 2.0_dp
+                               IF (dft_control%tddfpt_control%res_etype /= "SINGLET") fac = -2.0_dp
+                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
+                                    fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
+                            END IF
+                         END IF
+                      END DO
+                   END DO
+                END DO
+
+                DO ispin=1, nspins
+                   SELECT CASE(dft_control%xc_deriv_method_id)
+                   CASE (xc_deriv_spline2_smooth)
+                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                           pw_out=v_xc(ispin)%pw,coeffs=spline2_deriv_coeffs,&
+                           idir=idir, error=error )
+                   CASE (xc_deriv_spline3_smooth)
+                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                           pw_out=v_xc(ispin)%pw,coeffs=spline3_deriv_coeffs,&
+                           idir=idir, error=error )
+                   CASE (xc_deriv_nn10_smooth)
+                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                           pw_out=v_xc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
+                           idir=idir, error=error )
+                   CASE (xc_deriv_nn50_smooth)
+                      CALL pw_nn_deriv_r ( pw_in=tmp_r(ispin)%pw,&
+                           pw_out=v_xc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
+                           idir=idir, error=error )
+                   CASE (xc_deriv_fd)
+                      IF (ASSOCIATED(pw_pool)) THEN
+                         CALL pw_pool_create_pw(pw_pool, tmp_t%pw,&
+                              use_data=REALDATA3D, in_space=REALSPACE,&
+                              error=error)
+                      ELSE
+                         ALLOCATE(tmp_t%pw, stat=stat)
+                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                         ALLOCATE(tmp_t%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                              stat=stat)
+                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      END IF
+                      CALL pw_derive_fd(tmp_r(ispin)%pw,&
+                           tmp_t%pw,nd(:,idir))
+                      CALL pw_sumup(tmp_t%pw,v_xc(ispin)%pw)
+                      IF (ASSOCIATED(pw_pool)) THEN
+                         CALL pw_pool_give_back_pw(pw_pool,tmp_t%pw,error=error)
+                      ELSE
+                         DEALLOCATE(tmp_t%pw%cr3d, stat=stat)
+                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                         DEALLOCATE(tmp_t%pw, stat=stat)
+                         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                      END IF
+                   CASE default
+                      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                   END SELECT
+                END DO ! ispin
+
+             END DO ! idir
+
+          END IF
 
           DO ispin=1, nspins
              IF (ASSOCIATED(pw_pool)) THEN
@@ -5251,70 +5306,88 @@ END FUNCTION xc_exc_calc
              END DO
           END DO
 
-          ! partial integration
 
-          ! this does not work with non orthorombic cells 
-          ! (you will have to use a vector of pw with 3 components)
-          IF (ASSOCIATED(pw_pool)) THEN
-             CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-          ELSE
-             ALLOCATE(tmp_r(1)%pw, stat=stat)
-             ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
-                  stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
-
-          DO idir=1,3
-             !$omp parallel do private(k,j,i)
-             DO k = bo(1,3), bo(2,3)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
-                      tmp_r(1)%pw%cr3d(i,j,k)=drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
-                           drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
-                   END DO
+          IF (my_gapw) THEN
+             DO idir=1,3
+                !$omp parallel do private(i)
+                DO i = bo(1,1), bo(2,1)
+                   vxg(idir,i,ir,1) = drho(idir)%array(i,1,1)*v_drho%pw%cr3d(i,1,1)-&
+                        drho1(idir)%array(i,1,1)*deriv_data(i,1,1)
                 END DO
              END DO
+             
+          ELSE
+             ! partial integration
 
-             SELECT CASE(dft_control%xc_deriv_method_id)
-             CASE (xc_deriv_spline2_smooth)
-                CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                     pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
-                     idir=idir, error=error )
-             CASE (xc_deriv_spline3_smooth)
-                CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                     pw_out=v_xc(1)%pw,coeffs=spline3_deriv_coeffs,&
-                     idir=idir, error=error )
-             CASE (xc_deriv_nn10_smooth)
-                CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                     pw_out=v_xc(1)%pw,coeffs=nn10_deriv_coeffs,&
-                     idir=idir, error=error )
-             CASE (xc_deriv_nn50_smooth)
-                CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
-                     pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
-                     idir=idir, error=error )
-             CASE (xc_deriv_fd)
-                CALL pw_pool_create_pw(pw_pool, tmp_r2(1)%pw,&
-                     use_data=REALDATA3D, in_space=REALSPACE,&
-                     error=error)
-                CALL pw_derive_fd(tmp_r(1)%pw,&
-                     tmp_r2(1)%pw,nd(:,idir))
-                CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
-                CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
-             CASE default
-                CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-             END SELECT
+             ! this does not work with non orthorombic cells 
+             ! (you will have to use a vector of pw with 3 components)
+             IF (ASSOCIATED(pw_pool)) THEN
+                CALL pw_pool_create_pw(pw_pool,tmp_r(1)%pw,&
+                     use_data = REALDATA3D,&
+                     in_space = REALSPACE, error=error)
+             ELSE
+                ALLOCATE(tmp_r(1)%pw, stat=stat)
+                ALLOCATE(tmp_r(1)%pw%cr3d(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)), &
+                     stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
 
-          END DO
+             DO idir=1,3
+                !$omp parallel do private(k,j,i)
+                DO k = bo(1,3), bo(2,3)
+                   DO j = bo(1,2), bo(2,2)
+                      DO i = bo(1,1), bo(2,1)
+                         tmp_r(1)%pw%cr3d(i,j,k) = drho(idir)%array(i,j,k)*v_drho%pw%cr3d(i,j,k)-&
+                              drho1(idir)%array(i,j,k)*deriv_data(i,j,k)
+                      END DO
+                   END DO
+                END DO
 
+                SELECT CASE(dft_control%xc_deriv_method_id)
+                CASE (xc_deriv_spline2_smooth)
+                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                        pw_out=v_xc(1)%pw,coeffs=spline2_deriv_coeffs,&
+                        idir=idir, error=error )
+                CASE (xc_deriv_spline3_smooth)
+                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                        pw_out=v_xc(1)%pw,coeffs=spline3_deriv_coeffs,&
+                        idir=idir, error=error )
+                CASE (xc_deriv_nn10_smooth)
+                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                        pw_out=v_xc(1)%pw,coeffs=nn10_deriv_coeffs,&
+                        idir=idir, error=error )
+                CASE (xc_deriv_nn50_smooth)
+                   CALL pw_nn_deriv_r ( pw_in=tmp_r(1)%pw,&
+                        pw_out=v_xc(1)%pw,coeffs=nn50_deriv_coeffs,&
+                        idir=idir, error=error )
+                CASE (xc_deriv_fd)
+                   CALL pw_pool_create_pw(pw_pool, tmp_r2(1)%pw,&
+                        use_data=REALDATA3D, in_space=REALSPACE,&
+                        error=error)
+                   CALL pw_derive_fd(tmp_r(1)%pw,&
+                        tmp_r2(1)%pw,nd(:,idir))
+                   CALL pw_sumup(tmp_r2(1)%pw,v_xc(1)%pw)
+                   CALL pw_pool_give_back_pw(pw_pool,tmp_r2(1)%pw,error=error)
+                CASE default
+                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+                END SELECT
+
+             END DO
+             IF (ASSOCIATED(pw_pool)) THEN
+                CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
+             ELSE
+                DEALLOCATE(tmp_r(1)%pw%cr3d, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                DEALLOCATE(tmp_r(1)%pw, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             END IF
+          END IF
           IF (ASSOCIATED(pw_pool)) THEN
-             CALL pw_pool_give_back_pw(pw_pool,tmp_r(1)%pw,error=error)
              CALL pw_pool_give_back_pw(pw_pool,v_drho%pw,error=error)
           ELSE
-             DEALLOCATE(tmp_r(1)%pw%cr3d, v_drho%pw%cr3d, stat=stat)
+             DEALLOCATE(v_drho%pw%cr3d, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DEALLOCATE(tmp_r(1)%pw, v_drho%pw, stat=stat)
+             DEALLOCATE(v_drho%pw, stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           END IF
 

@@ -135,13 +135,12 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), &
                               POINTER   :: oodrho_h,oodrho_s
     REAL(dp), DIMENSION(:,:,:), &
-                              POINTER   :: vxc_h,vxc_s,&
-                                           vxg_h,vxg_s
-    REAL(dp), DIMENSION(:,:), POINTER   :: vxgc_h,vxgc_s
+                              POINTER   :: vxc_h,vxc_s
+    REAL(dp), DIMENSION(:,:,:,:), &
+                              POINTER   :: vxg_h,vxg_s
     REAL(dp), DIMENSION(:,:,:,:), &
                               POINTER   :: drho_h,drho_s
-    LOGICAL                             :: cross_term,&
-                                           gradient_f,lsd,paw_atom
+    LOGICAL                             :: gradient_f,lsd,paw_atom
     REAL(dp)                            :: exc_h,exc_s,rad,urad,usin_ia,rtot
     INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
                                            ifunc,ikind,ipot,ir,iso,ispin,&
@@ -183,7 +182,7 @@ CONTAINS
 
 !  Nullify some pointers fro work-arrays
    NULLIFY(rho_h,drho_h,rho_s,drho_s,weight,oodrho_h,oodrho_s)
-   NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s,vxgc_h,vxgc_s)
+   NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s)
 
 !  Here starts the loop over all the atoms
    DO ikind = 1,nkind
@@ -221,11 +220,6 @@ CONTAINS
      ! allocate the required 3d arrays where to store rho and drho
      CALL xc_rho_set_atom_update(rho_set,needs,nspins,bounds)
      
-     cross_term = .FALSE.
-     IF(lsd) THEN
-       cross_term = needs%norm_drho .OR. needs%drhoa_drhob
-     END IF
-
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
      CALL reallocate(weight,1,na)
@@ -237,12 +231,8 @@ CONTAINS
         CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
         CALL reallocate(oodrho_h,1,na,1,nspins)
         CALL reallocate(oodrho_s,1,na,1,nspins)
-        CALL reallocate(vxg_h,1,na,1,nr,1,nspins)
-        CALL reallocate(vxg_s,1,na,1,nr,1,nspins)
-        IF(cross_term) THEN
-          CALL reallocate(vxgc_h,1,na,1,nr)
-          CALL reallocate(vxgc_s,1,na,1,nr)
-        END IF
+        CALL reallocate(vxg_h,1,3,1,na,1,nr,1,nspins)
+        CALL reallocate(vxg_s,1,3,1,na,1,nr,1,nspins)
      END IF
 
 !    Distribute the atoms of this kind
@@ -299,7 +289,7 @@ CONTAINS
                            rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
                            rho=rho_h,drho=drho_h,oodrho=oodrho_h,w=weight,&
                            lsd=lsd,na=na,ir_pnt=ir,&
-                           exc=exc_h,vxc=vxc_h,vxg=vxg_h,vxg_cross=vxgc_h,error=error)
+                           exc=exc_h,vxc=vxc_h,vxg=vxg_h,error=error)
 
 !        *** Sum up the exc contribution  to exc_h ***
          rho_atom%exc_h = rho_atom%exc_h + exc_h
@@ -311,7 +301,7 @@ CONTAINS
                            rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
                            rho=rho_s,drho=drho_s,oodrho=oodrho_s,w=weight,&
                            lsd=lsd,na=na,ir_pnt=ir,&
-                           exc=exc_s,vxc=vxc_s,vxg=vxg_s,vxg_cross=vxgc_s,error=error)
+                           exc=exc_s,vxc=vxc_s,vxg=vxg_s, error=error)
 
 !        *** Sum up the exc contribution  to exc_s ***
          rho_atom%exc_s = rho_atom%exc_s + exc_s
@@ -329,11 +319,7 @@ CONTAINS
 !      *** internal transformation to get the integral in cartesian Gaussians ***
 
        atom_kind => atomic_kind_set(ikind)
-       IF(cross_term) THEN
-         CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                                    rho_atom,drho_h,drho_s,nspins,&
-                                        vxgc_h=vxgc_h,vxgc_s=vxgc_s)
-       ELSE IF(gradient_f) THEN
+       IF(gradient_f) THEN
          CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
                                       rho_atom,drho_h,drho_s,nspins)
        ELSE
@@ -367,11 +353,6 @@ CONTAINS
       DEALLOCATE(drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s,STAT=istat)
       IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
            "drho_h,drho_s,oodrho_h,oodrho_s,vxg_h,vxg_s")
-      IF(cross_term) THEN
-         DEALLOCATE(vxgc_h,vxgc_s,STAT=istat)
-         IF (istat /= 0)   CALL stop_memory(routine_name,module_name,__LINE__,&
-              "vxgc_h,vxgc_s")
-      END IF
    END IF
 
    CALL timestop(0.0_dp,handle)
@@ -606,7 +587,7 @@ CONTAINS
                                    rho=rho_h, drho=drho_h, oodrho=oodrho_h, &
                                    rho1=rho1_h, drho1=drho1_h, oodrho1=oodrho1_h, &
                                    w=weight, ir=ir, &
-                                   exc=exc, vxc=vxc_h, vxg=vxg_h, vxg_cross=vxgc_h, error=error)
+                                   exc=exc, vxc=vxc_h, vxg=vxg_h, error=error)
 
             ! Sum up the exc contribution  to exc_h
             rho_atom%exc_h = rho_atom%exc_h + exc
@@ -618,7 +599,7 @@ CONTAINS
                                    rho=rho_s, drho=drho_s, oodrho=oodrho_s, &
                                    rho1=rho1_s, drho1=drho1_s, oodrho1=oodrho1_s, &
                                    w=weight, ir=ir,&
-                                   exc=exc, vxc=vxc_s, vxg=vxg_s, vxg_cross=vxgc_s, error=error)
+                                   exc=exc, vxc=vxc_s, vxg=vxg_s, error=error)
 
             ! Sum up the exc contribution  to exc_s
             rho_atom%exc_s = rho_atom%exc_s + exc
@@ -1007,19 +988,17 @@ CONTAINS
 ! *****************************************************************************
 
  SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,&
-                        drho_s,nspins,vxgc_h,vxgc_s)
+                        drho_s,nspins)
 
 
     TYPE(atomic_kind_type), POINTER       :: atom_kind
     TYPE(rho_atom_type),  POINTER         :: rho_atom
 
-    REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s,&
-                                             vxg_h,vxg_s
+    REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s
+    REAL(dp), DIMENSION(:,:,:,:),POINTER  :: vxg_h,vxg_s
     REAL(dp), DIMENSION(:,:,:,:), &
                                 POINTER   :: drho_h,drho_s
     INTEGER, INTENT(IN)                   :: nspins
-    REAL(dp), DIMENSION(:,:), POINTER,&
-              OPTIONAL                    :: vxgc_h, vxgc_s
 
     CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_GC"
 
@@ -1050,7 +1029,6 @@ CONTAINS
                                              lmin12,lmax12,maxso, maxl, m1,&
                                              m2,n1,n2,na, ngau1, ngau2, nngau1, nr, nset,&
                                              size1
-    LOGICAL                               :: cross_term
 
 ! -----------------------------------------------------------------------------
 
@@ -1068,9 +1046,6 @@ CONTAINS
     na = grid_atom%ng_sphere 
     my_CG => harmonics%my_CG
     my_CG_dxyz => harmonics%my_CG_dxyz
-
-    cross_term = .FALSE.
-    IF(PRESENT(vxgc_h)) cross_term = .TRUE.
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -1142,7 +1117,7 @@ CONTAINS
               gVXGg_h = 0.0_dp
               gVXGg_s = 0.0_dp
 
-              IF(cross_term) THEN
+!              IF(cross_term) THEN
 
 !             Cross Term
               DO l = lmin12,lmax12
@@ -1150,110 +1125,95 @@ CONTAINS
                   DO ir = 1,nr
                      gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
                             gg(ir,l) * vxc_h(ia,ir,ispin)+&
-                            dgg(ir,l)*vxg_h(ia,ir,ispin)*&
-                           (drho_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-                            drho_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-                            drho_h(3,ia,ir,ispin)*harmonics%a(3,ia))+&
-                            dgg(ir,l)*vxgc_h(ia,ir)*&
-                           ((drho_h(1,ia,ir,1)+drho_h(1,ia,ir,2))*harmonics%a(1,ia)+&
-                            (drho_h(2,ia,ir,1)+drho_h(2,ia,ir,2))*harmonics%a(2,ia)+&
-                            (drho_h(3,ia,ir,1)+drho_h(3,ia,ir,2))*harmonics%a(3,ia))
+                            dgg(ir,l)*&
+                           (vxg_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            vxg_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+                            vxg_h(3,ia,ir,ispin)*harmonics%a(3,ia))
 
                      gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
                             gg(ir,l) * vxc_s(ia,ir,ispin)+&
-                            dgg(ir,l)*vxg_s(ia,ir,ispin)*&
-                           (drho_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-                            drho_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-                            drho_s(3,ia,ir,ispin)*harmonics%a(3,ia))+&
-                            dgg(ir,l)*vxgc_s(ia,ir)*&
-                           ((drho_s(1,ia,ir,1)+drho_s(1,ia,ir,2))*harmonics%a(1,ia)+&
-                            (drho_s(2,ia,ir,1)+drho_s(2,ia,ir,2))*harmonics%a(2,ia)+&
-                            (drho_s(3,ia,ir,1)+drho_s(3,ia,ir,2))*harmonics%a(3,ia))
+                            dgg(ir,l)*&
+                           (vxg_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            vxg_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+                            vxg_s(3,ia,ir,ispin)*harmonics%a(3,ia))
 
                      urad = grid_atom%oorad2l(ir,1)
 
 
                      gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
-                                    drho_h(1,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_h(1,ia,ir,1)+drho_h(1,ia,ir,2))*&
-                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+                                    vxg_h(1,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
+
                      gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
-                                    drho_h(2,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_h(2,ia,ir,1)+drho_h(2,ia,ir,2))*&
-                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+                                    vxg_h(2,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
+
                      gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
-                                    drho_h(3,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_h(3,ia,ir,1)+drho_h(3,ia,ir,2))*&
-                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+                                    vxg_h(3,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
 
                      gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
-                                    drho_s(1,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_s(1,ia,ir,1)+drho_s(1,ia,ir,2))*&
-                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                                    vxg_s(1,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
+
                      gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &
-                                    drho_s(2,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_s(2,ia,ir,1)+drho_s(2,ia,ir,2))*&
-                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                                    vxg_s(2,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
+
                      gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &
-                                    drho_s(3,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad + &
-                                    (drho_s(3,ia,ir,1)+drho_s(3,ia,ir,2))*&
-                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                                    vxg_s(3,ia,ir,ispin)*&
+                                    gg(ir,l)*urad
+
                   ENDDO ! ir
                 ENDDO ! ia
               ENDDO  ! l
 
-              ELSE
+!              ELSE
 
 !             Without Cross Term
-              DO l = lmin12,lmax12
-                DO ia = 1,na
-                  DO ir = 1,nr
-                     gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
-                                    gg(ir,l) * vxc_h(ia,ir,ispin)+&
-                                    dgg(ir,l)*vxg_h(ia,ir,ispin)*&
-                                   (drho_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-                                    drho_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-                                    drho_h(3,ia,ir,ispin)*harmonics%a(3,ia))
-
-                     gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
-                                    gg(ir,l) * vxc_s(ia,ir,ispin)+&
-                                    dgg(ir,l)*vxg_s(ia,ir,ispin)*&
-                                   (drho_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-                                    drho_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-                                    drho_s(3,ia,ir,ispin)*harmonics%a(3,ia))
-
-                     urad = grid_atom%oorad2l(ir,1)
-
-
-                     gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
-                                    drho_h(1,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-                     gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
-                                    drho_h(2,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-                     gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
-                                    drho_h(3,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-
-                     gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
-                                    drho_s(1,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-                     gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &
-                                    drho_s(2,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-                     gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &
-                                    drho_s(3,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
-                                    gg(ir,l)*urad
-                  ENDDO ! ir
-                ENDDO ! ia
-              ENDDO  ! l
-              END IF
+!              DO l = lmin12,lmax12
+!                DO ia = 1,na
+!                  DO ir = 1,nr
+!                     gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
+!                                    gg(ir,l) * vxc_h(ia,ir,ispin)+&
+!                                    dgg(ir,l)*&
+!                                   (vxg_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+!                                    vxg_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+!                                    vxg_h(3,ia,ir,ispin)*harmonics%a(3,ia))
+!
+!                     gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
+!                                    gg(ir,l) * vxc_s(ia,ir,ispin)+&
+!                                    dgg(ir,l)*&
+!                                   (vxg_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+!                                    vxg_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+!                                    vxg_s(3,ia,ir,ispin)*harmonics%a(3,ia))
+!
+!                     urad = grid_atom%oorad2l(ir,1)
+!
+!
+!                     gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
+!                                    vxg_h(1,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad
+!                     gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
+!                                    vxg_h(2,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad
+!                     gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
+!                                    vxg_h(3,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad
+!
+!                     gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
+!                                    vxg_s(1,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad                                
+!                     gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &              
+!                                    vxg_s(2,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad                                
+!                     gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &              
+!                                    vxg_s(3,ia,ir,ispin)*&
+!                                    gg(ir,l)*urad
+!                  ENDDO ! ir
+!                ENDDO ! ia
+!              ENDDO  ! l
+!              END IF
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp

@@ -54,7 +54,8 @@ MODULE xc_atom
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: divide_by_norm_drho
+  USE xc,                              ONLY: divide_by_norm_drho,&
+                                             xc_calc_2nd_deriv_new
   USE xc_functionals,                  ONLY: xc_calculate_lda,&
                                              xc_calculate_lsd,&
                                              xc_get_pot_size,&
@@ -205,7 +206,7 @@ CONTAINS
 
 
   SUBROUTINE vxc_of_r_new(xc_control,rho_set,deriv_set,deriv_order,needs,rho,drho,oodrho,w,&
-                          lsd,na,ir_pnt,exc,vxc,vxg,vxg_cross,error)
+                          lsd,na,ir_pnt,exc,vxc,vxg,error)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -229,8 +230,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                           :: lsd
     INTEGER, INTENT(IN)                           :: na,ir_pnt
     REAL(dp)                                      :: exc
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc,vxg
-    REAL(dp), DIMENSION(:,:), POINTER             :: vxg_cross
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
+    REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                    :: error
 
@@ -327,7 +328,7 @@ CONTAINS
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
           DO ia = 1,na
-            vxg(ia,ir_pnt,ispin) = deriv_data(ia,1,1)*w(ia)*oodrho(ia,ispin)
+            vxg(1:3,ia,ir_pnt,ispin) = drho(1:3,ia,ir_pnt,ispin)*deriv_data(ia,1,1)*w(ia)*oodrho(ia,ispin)
           END DO
           NULLIFY (deriv_data)
        END IF
@@ -337,7 +338,7 @@ CONTAINS
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
        DO ia = 1,na
-         vxg(ia,ir_pnt,1) = deriv_data(ia,1,1)*w(ia)*oodrho(ia,1)
+         vxg(1:3,ia,ir_pnt,1) = drho(1:3,ia,ir_pnt,ispin)*deriv_data(ia,1,1)*w(ia)*oodrho(ia,1)
        END DO
        NULLIFY (deriv_data)
      END IF
@@ -349,9 +350,14 @@ CONTAINS
      CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
      CALL xc_rho_set_get(rho_set=rho_set,norm_drho=norm_drho,drho_cutoff=drho_cutoff)
      CPPrecondition(ASSOCIATED(norm_drho),cp_failure_level,routineP,error,failure)
-     CPPrecondition(ASSOCIATED(vxg_cross),cp_failure_level,routineP,error,failure)
+
      DO ia = 1,na
-      vxg_cross(ia,ir_pnt) = deriv_data(ia,1,1)*w(ia)/MAX(norm_drho(ia,1,1),drho_cutoff)
+      vxg(1:3,ia,ir_pnt,1) = vxg(1:3,ia,ir_pnt,1) +&
+           (drho(1:3,ia,ir_pnt,1)+drho(1:3,ia,ir_pnt,2))* &
+           deriv_data(ia,1,1)*w(ia)/MAX(norm_drho(ia,1,1),drho_cutoff)
+      vxg(1:3,ia,ir_pnt,2) = vxg(1:3,ia,ir_pnt,2) +&
+           (drho(1:3,ia,ir_pnt,1)+drho(1:3,ia,ir_pnt,2))* &
+           deriv_data(ia,1,1)*w(ia)/MAX(norm_drho(ia,1,1),drho_cutoff)
      END DO
      NULLIFY (deriv_data)
    END IF
@@ -393,7 +399,7 @@ CONTAINS
 
   SUBROUTINE xc_2nd_deriv_of_r(dft_control, rho_set, rho1_set, deriv_set, needs, &
                                rho, drho, oodrho, rho1, drho1, oodrho1, &
-                               w, ir, exc, vxc, vxg, vxg_cross, error)
+                               w, ir, exc, vxc, vxg, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid. 
 ! The grid is the angular grid corresponding to a given point ir on the radial grid.
@@ -414,8 +420,9 @@ CONTAINS
     REAL(dp), DIMENSION(:),  POINTER              :: w 
     INTEGER, INTENT(IN)                           :: ir
     REAL(dp)                                      :: exc
-    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc,vxg
-    REAL(dp), DIMENSION(:,:), POINTER             :: vxg_cross
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc
+    REAL(dp), DIMENSION(:,:,:,:), POINTER         :: vxg
+
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                 :: error
 
@@ -477,7 +484,7 @@ CONTAINS
        vxc_pw(ispin)%pw%cr3d => vxc(:,ir:ir,ispin:ispin)
     END DO
 
-!    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, bounds, error)
+    CALL xc_calc_2nd_deriv_new(vxc_pw, deriv_set, rho_set, rho1_set, pw_pool, dft_control, .TRUE., vxg, ir,error)
 
     DO ispin=1, nspins
        DEALLOCATE(vxc_pw(ispin)%pw, stat=stat)
