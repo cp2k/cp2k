@@ -238,6 +238,9 @@ SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 
     DO i = 1, nhc % num_nhc
       nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
+! dbg ISOTROPIC LIMIT
+!      nhc % nvt ( 1, i ) % nkt = simpar % temp_ext
+! dbg
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain

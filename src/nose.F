@@ -623,7 +623,6 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
   CASE ( 'NPT_I')
      npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
           * temp_ext * tau_cell ** 2
-
   CASE ( 'NPT_F')
      npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
           * temp_ext * tau_cell ** 2 / 3.0_dbl
@@ -663,9 +662,10 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
         npt(j,i) % v = temp * npt(j,i) % v
         npt(i,j) % v = npt(j,i) % v
 ! dbg ISOTROPIC LIMIT
-!         npt(j,i) % v = 0._dbl
+!       npt(j,i) % v = 0._dbl
+!       npt(i,j) % v = 0._dbl
 !       write (*, *) 'INTIAL v_eps', npt(j,i) % v
-! dbg ISOTROPIC LIMIT
+! dbg 
      END DO
   END DO
 
