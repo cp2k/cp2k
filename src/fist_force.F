@@ -49,7 +49,7 @@ MODULE fist_force
   USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type
+  PUBLIC :: force_control, debug_variables_type, get_ewald_grids
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
@@ -59,6 +59,9 @@ MODULE fist_force
           pv_bend, pv_torsion
   END TYPE debug_variables_type
 
+  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
+  TYPE ( pw_grid_type ), TARGET :: grid_s, grid_b, grid_ewald, grid_spme
+  TYPE ( dg_type ), TARGET :: dg
 !!*****
 !******************************************************************************
 
@@ -110,14 +113,11 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_bc
-  TYPE ( pw_grid_type ), SAVE :: grid_s, grid_b, grid_ewald, grid_spme
-  TYPE ( dg_type ), SAVE :: dg
   LOGICAL :: first_time
 
 !------------------------------------------------------------------------------
@@ -233,8 +233,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
           CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
-        CALL pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
-             grid_s, grid_b, ewald_param )
+        CALL pme_evaluate ( dg, part, box, grid_s, grid_b, ewald_param, &
+                            vg_coulomb, fg_coulomb, pv_g )
         
      CASE ( "SPME" )
         ! Parallelisation over grids --> allocate all atoms
@@ -386,6 +386,22 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   CALL timestop ( zero, handle )
 
 END SUBROUTINE force_control
+!******************************************************************************
+
+SUBROUTINE get_ewald_grids ( pw_big, pw_small, pw_ewald, pw_spme, dblgrd )
+  IMPLICIT NONE
+  TYPE ( pw_grid_type ), POINTER, OPTIONAL :: pw_big, pw_small, pw_ewald, pw_spme 
+  TYPE ( dg_type ), POINTER, OPTIONAL :: dblgrd
+
+  IF ( PRESENT ( pw_big ) ) pw_big => grid_b
+  IF ( PRESENT ( pw_small ) ) pw_small => grid_s
+  IF ( PRESENT ( pw_ewald ) ) pw_ewald => grid_ewald
+  IF ( PRESENT ( pw_spme ) ) pw_spme => grid_spme
+  IF ( PRESENT ( dblgrd ) ) dblgrd => dg
+
+END SUBROUTINE get_ewald_grids
+
+!******************************************************************************
 
 !!*****
 !******************************************************************************
