@@ -107,12 +107,13 @@ CONTAINS
 !!     08.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, error)
+  SUBROUTINE qmmm_pw_grid_init(qmmm_env, pw_env, cell, para_env, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_env_qm_type), INTENT(inout), &
          TARGET                               :: qmmm_env  
-    TYPE(pw_env_type), POINTER                :: pw_env    
+    TYPE(pw_env_type), POINTER                :: pw_env  
+    TYPE(cp_para_env_type), POINTER           :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                :: error
     ! Local Variables
@@ -148,10 +149,9 @@ CONTAINS
           NULLIFY(pool, qmmm_env%aug_pools(Ilevel)%pool)
           pool      => pw_pools(Ilevel)%pool
           nullify(el_struct)
-          CALL pw_grid_duplicate(pool%pw_grid,el_struct)
-                             
-          CALL qmmm_pw_grid_setup(el_struct,&
-                                  error=error)
+          CALL pw_grid_duplicate(pool%pw_grid,el_struct, para_env%group, &
+               augmented_grid=.TRUE., cell=cell, error=error)
+
           CALL pw_pool_create(qmmm_env%aug_pools(Ilevel)%pool,&
                pw_grid=el_struct,error=error)
 
@@ -166,54 +166,5 @@ CONTAINS
     END IF
 
   END SUBROUTINE qmmm_pw_grid_init
-
-!!****f* qmmm_pw_grid/qmmm_pw_grid_setup [1.0] *
-!!
-!!   NAME
-!!     qmmm_pw_grid_setup
-!!
-!!   FUNCTION
-!!     Modifyes the number of point according the boundary [0,L]
-!!     Increasing every direction of 1 point.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     08.2004 created [tlaino]
-!!
-!!*** **********************************************************************
-  SUBROUTINE qmmm_pw_grid_setup(pw_grid_out, error)
-    ! ugly, to be changed
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(pw_grid_type), POINTER :: pw_grid_out
-    TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                   :: error
-    ! Local Variables
-    INTEGER :: idir
-    LOGICAL :: failure
-
-    failure = .false.
-    IF (.NOT.failure) THEN
-
-       DO idir=1,3
-          IF (pw_grid_out%bounds_local(2,idir)==pw_grid_out%bounds(2,idir)) THEN
-             pw_grid_out%bounds_local(2,idir) =  pw_grid_out%bounds_local(2,idir)+1
-             pw_grid_out%npts_local(idir)     =  pw_grid_out%npts_local(idir)+1
-          END IF
-       END DO
-       pw_grid_out%bounds(2,:)     =  pw_grid_out%bounds(2,:) + 1
-       pw_grid_out%npts            =  pw_grid_out%npts  + 1
-       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
-    END IF
-  END SUBROUTINE qmmm_pw_grid_setup
 
 END MODULE qmmm_pw_grid

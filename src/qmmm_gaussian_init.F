@@ -35,7 +35,9 @@ MODULE qmmm_gaussian_init
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_type
+  USE cp_output_handling, ONLY: cp_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -52,6 +54,10 @@ MODULE qmmm_gaussian_init
   USE qmmm_types, only: qmmm_env_qm_type
   USE gaussian_gridlevels, ONLY: gaussian_gridlevel, gridlevel_info_type
   USE input_constants, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   IMPLICIT NONE
   PRIVATE
 
@@ -85,7 +91,7 @@ CONTAINS
 !!*** **********************************************************************  
   SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,       &
        qm_cell_small, mm_cell, mm_el_pot_radius, qmmm_coupl_type, eps_mm_rspace,&
-       maxradius, maxchrg, error)
+       maxradius, maxchrg, print_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(qmmm_gaussian_p_type), &
@@ -97,6 +103,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
@@ -109,93 +116,100 @@ CONTAINS
     REAL(KIND=dp) :: alpha, mymaxradius, Prefactor
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(section_vals_type), POINTER :: print_gen
     ! Statements
-    NULLIFY(mypgf, gridlevel_info, radius)
+    NULLIFY(mypgf, gridlevel_info, radius, print_gen, logger)
     failure = .FALSE.
-    SELECT CASE(qmmm_coupl_type)
-    CASE(do_qmmm_gauss)
-       !
-       ! Preprocessing...
-       !
-       ALLOCATE(radius(1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       Ndim = SIZE(radius)
-       Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
-          Found=.FALSE.
-          Loop_on_found_values: DO J = 1, SIZE(radius)-1
-             IF (mm_el_pot_radius(i).EQ.radius(j)) THEN
-                Found=.TRUE.
-                EXIT Loop_on_found_values
-             END IF
-          END DO Loop_on_found_values
-          IF (.NOT.Found) THEN
-             Ndim = SIZE(radius)
-             radius(Ndim) = mm_el_pot_radius(i)
-             Ndim = Ndim + 1
-             CALL REALLOCATE(radius,1,Ndim)
-          END IF
-       END DO Loop_on_all_values
-       !
-       IF (Ndim-1 > 0) THEN
-          CALL REALLOCATE(radius,1,Ndim-1)
-       ELSE IF (Ndim-1 == 0) THEN
-          DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)      
-       END IF
-       !
-       ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)       
-       DO I = 1, Ndim-1
-          NULLIFY(qmmm_gaussian_fns(I)%pgf)
-          ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-          NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
-          NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
-          NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
-          ! 
-          ! Default Values
+    IF (.NOT.failure) THEN
+       logger => cp_error_get_logger(error)
+       print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
+       SELECT CASE(qmmm_coupl_type)
+       CASE(do_qmmm_gauss)
           !
-          qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
-       END DO       
-       IF (ASSOCIATED(radius)) THEN 
-          DEALLOCATE(radius,stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
-       END IF
-       !
-       CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-                              error)
-       !
-       CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
-            error=error)
-       ALLOCATE(maxradius(size(pools)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       maxradius = 0.0_dp
-       DO J = 1, SIZE(qmmm_gaussian_fns)
-          mypgf => qmmm_gaussian_fns(J)%pgf
-          ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          mypgf%grid_level=0
-          mymaxradius = 0.0_dp
-          DO I = 1, mypgf%number_of_gaussians
-             IF ( mypgf%Gk(I) /= 0.0_dp) THEN
-                alpha = 1.0_dp / mypgf%Gk(I)
-                alpha = alpha*alpha
-                ilevel=gaussian_gridlevel(gridlevel_info,alpha)
-                Prefactor = mypgf%Ak(I)*maxchrg
-                mymaxradius=exp_radius( 0, alpha, eps_mm_rspace, Prefactor)
-                maxradius(ilevel)=MAX(maxradius(ilevel),mymaxradius)
-                mypgf%grid_level(i)=ilevel
+          ! Preprocessing...
+          !
+          ALLOCATE(radius(1),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          Ndim = SIZE(radius)
+          Loop_on_all_values: DO I = 1, SIZE(mm_el_pot_radius)
+             Found=.FALSE.
+             Loop_on_found_values: DO J = 1, SIZE(radius)-1
+                IF (mm_el_pot_radius(i).EQ.radius(j)) THEN
+                   Found=.TRUE.
+                   EXIT Loop_on_found_values
+                END IF
+             END DO Loop_on_found_values
+             IF (.NOT.Found) THEN
+                Ndim = SIZE(radius)
+                radius(Ndim) = mm_el_pot_radius(i)
+                Ndim = Ndim + 1
+                CALL REALLOCATE(radius,1,Ndim)
              END IF
+          END DO Loop_on_all_values
+          !
+          IF (Ndim-1 > 0) THEN
+             CALL REALLOCATE(radius,1,Ndim-1)
+          ELSE IF (Ndim-1 == 0) THEN
+             DEALLOCATE(radius,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+          ELSE
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,Failure)      
+          END IF
+          !
+          ALLOCATE(qmmm_gaussian_fns(Ndim-1),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)       
+          DO I = 1, Ndim-1
+             NULLIFY(qmmm_gaussian_fns(I)%pgf)
+             ALLOCATE(qmmm_gaussian_fns(I)%pgf, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+             NULLIFY(qmmm_gaussian_fns(I)%pgf%Ak)
+             NULLIFY(qmmm_gaussian_fns(I)%pgf%Gk)
+             NULLIFY(qmmm_gaussian_fns(I)%pgf%grid_level)
+             ! 
+             ! Default Values
+             !
+             qmmm_gaussian_fns(I)%pgf%Elp_Radius          = radius(I)
           END DO
-       END DO       
-       !
-       ! End of gaussian initialization...
-    CASE DEFAULT
-       WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
-    END SELECT
-
+          IF (ASSOCIATED(radius)) THEN 
+             DEALLOCATE(radius,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)      
+          END IF
+          !
+          CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
+               error)
+          !
+          CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&
+               error=error)
+          ALLOCATE(maxradius(SIZE(pools)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          maxradius = 0.0_dp
+          DO J = 1, SIZE(qmmm_gaussian_fns)
+             mypgf => qmmm_gaussian_fns(J)%pgf
+             ALLOCATE(mypgf%grid_level(SIZE(mypgf%Ak)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             mypgf%grid_level=0
+             mymaxradius = 0.0_dp
+             DO I = 1, mypgf%number_of_gaussians
+                IF ( mypgf%Gk(I) /= 0.0_dp) THEN
+                   alpha = 1.0_dp / mypgf%Gk(I)
+                   alpha = alpha*alpha
+                   ilevel=gaussian_gridlevel(gridlevel_info,alpha)
+                   Prefactor = mypgf%Ak(I)*maxchrg
+                   mymaxradius=exp_radius( 0, alpha, eps_mm_rspace, Prefactor)
+                   maxradius(ilevel)=MAX(maxradius(ilevel),mymaxradius)
+                   mypgf%grid_level(i)=ilevel
+                END IF
+             END DO
+          END DO
+          !
+          ! End of gaussian initialization...
+       CASE DEFAULT
+          IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
+               logger%para_env%mepos==logger%para_env%source) &
+          WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
+       END SELECT
+    END IF
   END SUBROUTINE qmmm_gaussian_initialize
 
 

@@ -5979,8 +5979,8 @@ END SUBROUTINE create_ewald_section
 
        CALL cp_print_key_section_create(print_key,"POTENTIAL",&
             description="Controls the printing of the QMMM  potential",&
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
+            print_level=high_print_level,each=(/1/),filename=" ",&
+            common_iter_levels=1,error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -5993,7 +5993,7 @@ END SUBROUTINE create_ewald_section
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
             description="Controls the printing of information regarding the run.",&
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)

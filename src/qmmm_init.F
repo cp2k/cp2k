@@ -189,13 +189,15 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
     INTEGER                                  :: qmmm_coupl_type
-    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section, poisson_section, print_section
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
     LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(greens_function_type), POINTER                   :: green
     REAL(KIND=dp), DIMENSION(3)              :: abc
+    TYPE(section_vals_type), POINTER :: print_gen
+    TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -204,15 +206,18 @@ CONTAINS
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
          qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
-         fist_scale_charge_link, green, poisson_section)
+         fist_scale_charge_link, green, poisson_section, print_section,  &
+         print_gen, logger)
     para_env => globenv%para_env
     iw = globenv%scr
+    logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
        ! Input section...
        force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
+       print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
        poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT",error=error)
-
+       print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO isubf=1,2
@@ -280,10 +285,13 @@ CONTAINS
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = size(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = size(mm_atom_index)
-       WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
-       WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
-       WRITE(iw,'(A)')" QM cell ::"
-       CALL write_cell(qm_cell_small, globenv)
+       IF (cp_should_output(logger%iter_info,print_gen,error=error).AND.&
+            logger%para_env%mepos==logger%para_env%source) THEN
+          WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
+          WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
+          WRITE(iw,'(A)')" QM cell ::"
+          CALL write_cell(qm_cell_small, globenv)
+       END IF
        CALL get_cell(qm_cell_small, abc=abc)
        CALL pw_green_setup ( green, poisson_section, abc, error )
        !
@@ -358,6 +366,7 @@ CONTAINS
                                      qs_env=qs_env,&
                                      mm_atom_chrg=mm_atom_chrg,&
                                      added_charges=qmmm_env_qm%added_charges,&
+                                     print_section=print_section,&
                                      error=error)
        !
        ! Initialize the MM potential stored on vector
@@ -375,8 +384,8 @@ CONTAINS
        CALL qmmm_pw_grid_init(qmmm_env=qmmm_env_qm,&
                               pw_env=qs_env%pw_env,&
                               cell=qm_cell_small,&
+                              para_env=para_env,&
                               error=error)
-
        !
        ! Preparing for PBC...
        !
@@ -829,7 +838,7 @@ CONTAINS
   !!
   !!*************************************************************************
  SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
-                                    mm_atom_chrg, qs_env, added_charges, error )
+                                    mm_atom_chrg, qs_env, added_charges, print_section, error )
    IMPLICIT NONE
    ! Arguments
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small
@@ -838,6 +847,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), POINTER, DIMENSION(:)     :: mm_atom_chrg
     TYPE(add_set_type), POINTER              :: added_charges
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
    ! Local Variables
@@ -864,6 +874,7 @@ CONTAINS
                                   eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                   maxradius=maxradius,&
                                   maxchrg=maxchrg,&
+                                  print_section=print_section,&
                                   error=error)
 
     IF (qmmm_env_qm%move_mm_charges.OR.qmmm_env_qm%add_mm_charges) THEN
@@ -877,6 +888,7 @@ CONTAINS
                                      eps_mm_rspace=qmmm_env_qm%eps_mm_rspace,&
                                      maxradius=maxradius2,&
                                      maxchrg=maxchrg,&
+                                     print_section=print_section,&
                                      error=error)
 
        IF (qmmm_env_qm%qmmm_coupl_type == do_qmmm_gauss) THEN

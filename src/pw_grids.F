@@ -2285,54 +2285,96 @@ END SUBROUTINE pw_grid_release
 !!     08.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_grid_duplicate(pw_grid_in, pw_grid_out, error)
-    ! ugly, to be changed
+  SUBROUTINE pw_grid_duplicate(pw_grid_in, pw_grid_out, pe_group, augmented_grid, cell, error)
+    IMPLICIT NONE
+    ! Arguments
     TYPE(pw_grid_type), POINTER              :: pw_grid_in, pw_grid_out
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    INTEGER, INTENT(IN), OPTIONAL            :: pe_group
+    LOGICAL, INTENT(IN), OPTIONAL            :: augmented_grid
+    TYPE(cell_type), POINTER                 :: cell
+    ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_duplicate', &
       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: stat
-    LOGICAL                                  :: failure
-
-!    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    INTEGER                                  :: stat, group_size, my_pos
+    LOGICAL                                  :: failure, my_augmented_grid
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
+    INTEGER, DIMENSION(3)                    :: n
 
     failure = .FALSE.
+    my_augmented_grid = .FALSE.
+    IF (PRESENT(augmented_grid)) my_augmented_grid = augmented_grid
     ALLOCATE(pw_grid_out,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        CALL pw_grid_construct(pw_grid_out)
-
-       pw_grid_out%bounds          =  pw_grid_in%bounds           
-       pw_grid_out%bounds_local    =  pw_grid_in%bounds_local
-       pw_grid_out%npts            =  pw_grid_in%npts
-       pw_grid_out%npts_local      =  pw_grid_out%npts 
-       pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )
-       pw_grid_out%ngpts_cut       =  pw_grid_in%ngpts_cut
-       pw_grid_out%ngpts_local     =  pw_grid_in%ngpts_local
-       pw_grid_out%ngpts_cut_local =  pw_grid_in%ngpts_cut_local
-       pw_grid_out%ndimension      =  pw_grid_in%ndimension       
-       pw_grid_out%dr              =  pw_grid_in%dr               
-       pw_grid_out%dvol            =  pw_grid_in%dvol             
-       pw_grid_out%vol             =  pw_grid_in%vol              
-       pw_grid_out%cutoff          =  pw_grid_in%cutoff           
-!!!    TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
-!!!    TYPE ( pw_para_type ) :: para                ! information on parallelisation
-!!!    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors
-!!!    REAL (KIND=dp), DIMENSION ( : ), POINTER :: gsq    ! squared vector lengths
-!!!    INTEGER, DIMENSION ( :, : ), POINTER :: g_hat    ! grid point indices (Miller)
-       pw_grid_out%grid_span       =  pw_grid_in%grid_span     
-       pw_grid_out%have_g0         =  pw_grid_in%have_g0      
-       pw_grid_out%first_gne0      =  pw_grid_in%first_gne0   
-       pw_grid_out%nglengths       =  pw_grid_in%nglengths
        grid_tag = grid_tag + 1
        pw_grid_out % identifier = grid_tag
        pw_grid_out % ref_count  = 1
        pw_grid_out % reference  = 0
-!!!    INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
-       pw_grid_out%spherical       =  pw_grid_in%spherical 
+       pw_grid_out%spherical    =  pw_grid_in%spherical 
+       IF (my_augmented_grid) THEN
+          ! First copy and then augment of one point in every direction
+          pw_grid_out%bounds          =  pw_grid_in%bounds           
+          pw_grid_out%npts            =  pw_grid_in%npts
+          !
+          pw_grid_out%bounds(2,:)     =  pw_grid_out%bounds(2,:) + 1
+          pw_grid_out%npts            =  pw_grid_out%npts  + 1
+          pw_grid_out%ngpts           =  PRODUCT ( pw_grid_out% npts )          
+       ELSE
+          pw_grid_out%bounds          =  pw_grid_in%bounds           
+          pw_grid_out%npts            =  pw_grid_in%npts
+       END IF
+       pw_grid_out%dr              =  pw_grid_in%dr               
+       pw_grid_out%dvol            =  pw_grid_in%dvol             
+       pw_grid_out%vol             =  pw_grid_in%vol              
+       pw_grid_out%cutoff          =  pw_grid_in%cutoff
+       ! parallel info
+       IF (PRESENT ( pe_group ) ) THEN
+          CALL mp_environ ( group_size, my_pos, pe_group )
+          IF ( group_size > 1 ) THEN
+             CALL mp_comm_dup ( pe_group, pw_grid_out % para % group )
+             CALL mp_environ ( pw_grid_out % para % group_size, &
+                               pw_grid_out % para % my_pos, &
+                               pw_grid_out % para % group )
+             pw_grid_out % para % group_head_id = 0
+             pw_grid_out % para % group_head = &
+                  ( pw_grid_out % para % group_head_id == pw_grid_out % para % my_pos )
+             pw_grid_out % para % mode = PW_MODE_DISTRIBUTED
+          ELSE
+             pw_grid_out % para % mode = PW_MODE_LOCAL
+             pw_grid_out % para % group_head = .TRUE.
+          END IF
+       ELSE
+          pw_grid_out % para % mode = PW_MODE_LOCAL
+          pw_grid_out % para % group_head = .TRUE.
+       END IF
+       !
+       ! Set-up of the rest of the pw_grid type
+       ! 
+       n ( : )  = pw_grid_out % npts ( : )
+       ALLOCATE ( yz_mask ( n(2), n(3) ), STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL pw_grid_count ( cell % h_inv, pw_grid_out, pw_grid_out%cutoff, yz_mask )
+
+       ! Distribute grid
+       CALL pw_grid_distribute ( pw_grid_out, yz_mask, blocking=.FALSE.)
+
+       ! Allocate the grid fields
+       CALL pw_grid_allocate ( pw_grid_out, pw_grid_out % ngpts_cut_local, &
+                               pw_grid_out % bounds )
+
+       ! Fill in the grid structure
+       CALL pw_grid_assign ( cell % h_inv, pw_grid_out, pw_grid_out%cutoff )
+  
+       ! Sort g vector wrt length (only local for each processor)
+       CALL pw_grid_sort ( pw_grid_out )
+  
+       CALL pw_grid_remap ( pw_grid_out, yz_mask )
+
+       DEALLOCATE ( yz_mask, STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     END IF
   END SUBROUTINE pw_grid_duplicate

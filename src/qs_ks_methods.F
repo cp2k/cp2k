@@ -34,6 +34,7 @@
 MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE cp_output_handling, ONLY: cp_should_output
   USE coefficient_types,               ONLY: coeff_add,&
                                              coeff_subtract,&
                                              coeff_init,&
@@ -140,6 +141,10 @@ MODULE qs_ks_methods
                                              qmmm_modify_hartree_pot
   USE qs_ks_qmmm_methods,              ONLY: qs_ks_qmmm_create
   USE green_types,                       ONLY: greens_function_type
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   IMPLICIT NONE
 
   PRIVATE
@@ -327,12 +332,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
     TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
     REAL(KIND=dp)                        :: ener, scaling, mulliken_order_p
-
+    TYPE(section_vals_type), POINTER     :: print_qmmm_gen
 ! shorter for output
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env, cell, logger, v_rspace_new, v_tau_rspace, green)
+         pw_env, cell, logger, v_rspace_new, v_tau_rspace, green,&
+         print_qmmm_gen)
 
     !   -----------------------------------------------------------------------
 
@@ -344,7 +350,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-
+    print_qmmm_gen => section_vals_get_subs_vals(qs_env%input,"QMMM%PRINT%PROGRAM_RUN_INFO",error=error)
     ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
@@ -470,7 +476,9 @@ CONTAINS
 
        ! *** Add the QM/MM potential ***
        If (qs_env%qmmm) Then
-          WRITE (UNIT=output_unit,FMT="(T3,A)")&
+          IF (cp_should_output(logger%iter_info,print_qmmm_gen,error=error).AND.&
+               logger%para_env%mepos==logger%para_env%source) &          
+               WRITE (UNIT=output_unit,FMT="(T3,A)")&
                "Adding QM/MM Electrostatic Potential to the Kohn-Sham Matrix.."
            CALL qmmm_calculate_energy (qs_env=qs_env,&
                                        rho=rho%rho_r,&
