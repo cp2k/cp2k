@@ -1680,14 +1680,15 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(I5,T10,I12)")&
           (ipe,pcon(ipe),ipe=0,npe-1)
       END IF
+
+      DEALLOCATE (pcon,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"pcon")
+
     END IF
 
     CALL mp_sync(group)
 
     CALL blacs_gridexit(context)
-
-    DEALLOCATE (pcon,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pcon")
 
 #endif
   END SUBROUTINE finish_blacs
