@@ -43,8 +43,7 @@ MODULE pw_env_types
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: destroy_l_info,&
-                                             l_info_release,&
+  USE l_utils,                         ONLY: l_info_release,&
                                              l_info_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
