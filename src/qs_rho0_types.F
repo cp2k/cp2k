@@ -564,14 +564,19 @@ CONTAINS
   END SUBROUTINE get_rho0_mpole
 
 ! ******************************************************************************
-  SUBROUTINE initialize_mpole_rho(mp_rho,nchan_s,nchan_c,zeff)
+  SUBROUTINE initialize_mpole_rho(mp_rho,nchan_s,nchan_c,zeff,tddft)
 
     TYPE(mpole_rho_atom)         :: mp_rho
     INTEGER , INTENT(IN)         :: nchan_c, nchan_s , zeff
+    LOGICAL, OPTIONAL            :: tddft
+    LOGICAL                      :: my_tddft
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "initialize_mpole_rho"
 
 !   ---------------------------------------------------------------------------
+
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
 
    CALL reallocate(mp_rho%Qlm_h,1,nchan_s)
    CALL reallocate(mp_rho%Qlm_s,1,nchan_s)
@@ -584,7 +589,11 @@ CONTAINS
    mp_rho%Qlm_tot = 0.0_dp
    mp_rho%Qlm_car_h = 0.0_dp
    mp_rho%Qlm_car_s = 0.0_dp
-   mp_rho%Qlm_z = -2._dp*ROOTPI*Zeff
+   IF (.NOT.my_tddft) THEN
+      mp_rho%Qlm_z = -2._dp*ROOTPI*Zeff
+   ELSE
+      mp_rho%Qlm_z = 0.0
+   END IF
 
 
   END SUBROUTINE initialize_mpole_rho
