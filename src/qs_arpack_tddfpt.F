@@ -99,12 +99,12 @@ CONTAINS
   
     IMPLICIT NONE
 
-  	! arguments
+  ! arguments
     TYPE(op_tddfpt_type), INTENT(inout)       :: op
     REAL(dbl), DIMENSION(:), POINTER          :: vin, vout
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
-  	! locals
+  ! locals
     LOGICAL                                   :: condition
     INTEGER                                   :: stat, row_global, col_global
     TYPE(cp_full_matrix_type), POINTER        :: v, res
@@ -175,7 +175,7 @@ CONTAINS
   
     IMPLICIT NONE
 
-  	! arguments
+  ! arguments
     TYPE(op_tddfpt_type), INTENT(inout)        :: op
     TYPE(qs_p_env_type), POINTER               :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
@@ -183,11 +183,11 @@ CONTAINS
     INTEGER, INTENT(IN)                        :: spin
     TYPE(global_environment_type), INTENT(in)  :: glob_env
 
-  	! locals
+  ! locals
     CHARACTER(len=*), PARAMETER               :: routineN='setup_op_tddfpt',&
                                                  routineP=moduleN//':'//routineN
   
-  	! code
+  ! code
     op%p_env => p_env
     op%qs_env => qs_env
     op%mode = mode
