@@ -204,7 +204,7 @@ MODULE qs_environment_types
 !!       stored (used during the md to extrapolate the new starting point)
 !!     - scf_env: place where temporary information used in the scf is stored
 !!     - mpools: all the pools of matrixes
-!!     - local_particles: lists with the indexes of the particles that are
+!!     - local_rows,local_cols: lists with the indexes of the matrix rows,cols that are
 !!       local to the actual processor (a list for each kind)
 !!     
 !!   AUTHOR
