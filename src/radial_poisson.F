@@ -24,7 +24,7 @@ MODULE radial_poisson
   USE kinds, ONLY : dbl
 
   USE radial_grids, ONLY : radial_grid_type
-  USE radial_solver, ONLY : numerov, diff5p
+  USE radial_solver, ONLY : numerov, diff6p
   USE radial_util, ONLY : radial_integrate
   USE termination, ONLY : stop_memory, stop_program
 
@@ -51,7 +51,9 @@ CONTAINS
 !!     JGH 17-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     TCH 09-OCT-2001: - changed the way f is passed to the solvers
+!!                        f is no longer multiplied by factors of h^2
+!!                      - changed the name of diff5p to diff6p
 !!
 !!   SOURCE
 !-----------------------------------------------------------------------------!
@@ -102,21 +104,12 @@ CONTAINS
     CASE DEFAULT
       CALL stop_program("radial_poisson","method <"//TRIM(method)//"> unknown")
     CASE ( "NUMEROV" )
-      h12 = rg % h**2 / 12._dbl
-      f = h12 * f
-      g = h12 * g
       CALL numerov ( f, g, rg % w, corr )
-    CASE ( "DIFF5P" )
-      h60 = 60._dbl * rg % h**2
-      f = h60 * f
-      g = h60 * g
-      CALL diff5p ( f, g, rg % w )
+    CASE ( "DIFF6P" )
+      CALL diff6p ( f, g, rg % w )
     END SELECT
   ELSE
 !..use Numerov
-    h12 = rg % h**2 / 12._dbl
-    f = h12 * f
-    g = h12 * g
     CALL numerov ( f, g, rg % w, corr )
   END IF
 

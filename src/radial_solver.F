@@ -27,7 +27,7 @@ MODULE radial_solver
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: numerov, diff5p
+  PUBLIC :: numerov, diff6p
 
 !!*****
 !-----------------------------------------------------------------------------!
@@ -54,98 +54,206 @@ CONTAINS
 
   SUBROUTINE numerov ( f, g, w, corr )
 
-!Arguments
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr
+    implicit none
 
-!Locals
-  INTEGER :: n, ierr, info, i
-  REAL ( dbl ) :: e, ww
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: ipiv
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ab
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: s
+    !Arguments
+    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f    ! the potential (in s-form)
+    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g ! first the inhomegenity (in s-form) 
+    ! then the solution
+    REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w    ! the weights W
+    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr  ! 
 
-!------------------------------------------------------------------------------
 
-  n = SIZE ( f ) - 2
-  ALLOCATE ( ab ( 1:4, 1:n ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "ab", 4*n )
-  ALLOCATE ( s ( 1:n ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "s", n )
-  ALLOCATE ( ipiv ( 1:n ), STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "ipiv", n )
+    !Locals
+    INTEGER :: n, ierr, info, i
+    REAL ( dbl ) :: e, ww
+    REAL (dbl) :: h212                                    ! square of stepsize divided by 12
 
-  ab = 0._dbl
-  DO i = 1, n
-    s ( i ) = g ( i - 1 ) + 10._dbl * g ( i ) + g ( i + 1 )
-    e = 1._dbl + f ( i )
-    ab ( 2, i ) = e
-    ab ( 3, i ) = 10._dbl * e - 12._dbl
-    ab ( 4, i ) = e
-  END DO
-  ab ( 3, 1 ) = ab ( 3, 1 ) + corr ( 1 )
-  ab ( 2, 2 ) = ab ( 2, 2 ) + corr ( 2 )
-  s ( n ) = s ( n ) - corr ( 3 ) * ( 1._dbl + f ( n+1 ) )
+    INTEGER, DIMENSION ( : ), ALLOCATABLE :: ipiv
+    REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ab   ! the coefficient matrix
+    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: s       ! solution
 
-  DO i = 1, n
-    ww = w ( i )
-    ab ( 2, i ) = ab ( 2, i ) * ww
-    ab ( 3, i ) = ab ( 3, i ) * ww
-    ab ( 4, i ) = ab ( 4, i ) * ww
-  END DO
+    !------------------------------------------------------------------------------
 
-  CALL dgbsv ( n, 1, 1, 1, ab, 4, ipiv, s, n, info )
-  IF ( info /= 0 ) call stop_program ( "numerov", "DGBSV: info /= 0" )
-  g ( 1:n ) = s ( 1:n )
+    n = SIZE ( f ) - 2
 
-  DEALLOCATE ( ab, STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "ab" )
-  DEALLOCATE ( s, STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "s" )
-  DEALLOCATE ( ipiv, STAT = ierr )
-  IF ( ierr /= 0 ) call stop_memory ( "numerov", "ipiv" )
+    ALLOCATE ( ab ( 1:4, 1:n ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "ab", 4*n )
+    ALLOCATE ( s ( 1:n ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "s", n )
+    ALLOCATE ( ipiv ( 1:n ), STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "ipiv", n )
+
+    ! the stepsize is 1/(n+2-1)
+    h212 = ((1._dbl/DBLE(n+1))**2)/12._dbl
+
+    ab = 0._dbl
+    DO i = 1, n
+
+       ! factor h^2/12 left out in original code. why?
+       ! because the functions f and g were externally
+       ! multiplied by this factor
+       !    s ( i ) = g(i-1) + 10._dbl*g(i) + g(i+1)
+       !    e = 1._dbl + f ( i )
+       
+       ! g(0) and g(n+1) must be 0 for this!
+       s ( i ) = (g(i-1) + 10._dbl*g(i) + g(i+1))*h212
+       e = 1._dbl + f(i)*h212
+
+       ! (i,j) -> (3+i-j,j)
+       ab ( 2, i ) = e
+       ab ( 3, i ) = 10._dbl * e - 12._dbl
+       ab ( 4, i ) = e
+
+    END DO
+
+    ! elements that do not exist
+    ab(2,1) = 0._dbl
+    ab(4,n) = 0._dbl
+
+    ! elements that need corrections
+    ab ( 3, 1 ) = ab ( 3, 1 ) + corr ( 1 )
+    ab ( 2, 2 ) = ab ( 2, 2 ) + corr ( 2 )
+    s(n) = s(n) + corr(3)*(1._dbl + f(n+1))
+
+    ! original code 
+    !s ( n ) = s ( n ) - corr ( 3 ) * ( 1._dbl + f ( n+1 ) )
+    ! mein code mit h^2/12 noch nicht drin.
+
+    ! finally multiply each column of a with the corresponding weight
+    DO i = 1, n
+       ww = w ( i )
+       ab ( 2, i ) = ab ( 2, i ) * ww
+       ab ( 3, i ) = ab ( 3, i ) * ww
+       ab ( 4, i ) = ab ( 4, i ) * ww
+    END DO
+
+    CALL dgbsv ( n, 1, 1, 1, ab, 4, ipiv, s, n, info )
+    IF ( info /= 0 ) CALL stop_program ( "numerov", "DGBSV: info /= 0" )
+    g ( 1:n ) = s ( 1:n )
+
+    DEALLOCATE ( ab, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "ab" )
+    DEALLOCATE ( s, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "s" )
+    DEALLOCATE ( ipiv, STAT = ierr )
+    IF ( ierr /= 0 ) CALL stop_memory ( "numerov", "ipiv" )
 
   END SUBROUTINE numerov
 
 !!*****
 !******************************************************************************
-!!****** radial_solver/diff5p [1.0] *
+!!****** radial_solver/diff6p [1.0] *
 !!
 !!   NAME
-!!     diff5p
+!!     diff6p
 !!
 !!   FUNCTION
-!!     Lagrange differentiation solver
+!!     6 point Lagrange differentiation solver
+!!     solves (in s-space)
+!!     [d^2/ds^2 + f]wP = g for P
 !!
 !!   AUTHOR
 !!     JGH 17-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     TCH 09-OCT-2001: - implemented the algo 
+!!                      - changed name from diff5p to diff6p
 !!
 !!   SOURCE
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE diff5p ( f, g, w )
+  SUBROUTINE diff6p ( f, g, w )
 
-!Arguments
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g
-  REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w
+    IMPLICIT NONE
 
-!Locals
-  INTEGER :: n, ierr, info, i
-  REAL ( dbl ) :: ww
-  INTEGER, DIMENSION ( : ), ALLOCATABLE :: ipiv
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: ab
+    !Arguments
+    REAL(DBL), DIMENSION(0:), INTENT(in) :: f    ! as in the equation above (in s-form)
+    REAL(DBL), DIMENSION(0:), INTENT(INOUT) :: g ! on input an inhomogenity on output
+                                                 ! the solution 
+    REAL(DBL), DIMENSION(0:), INTENT(IN) :: w    ! weights from the variable transformation
 
-!------------------------------------------------------------------------------
+    !Locals
+    INTEGER :: n, ierr, info
+    INTEGER :: i,j                               ! loop variables (i: row, j: column)
+    REAL(DBL) :: ww
+    REAL(DBL) :: h2_60                           ! factor needed in calc
 
-  n = SIZE ( f ) - 2
+    INTEGER, DIMENSION(:), ALLOCATABLE :: ipiv   ! vector of pivot elements for dgbsv
+    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: ab ! matrix to solve
 
-  END SUBROUTINE diff5p
+    !------------------------------------------------------------------------------
+
+    n = SIZE(f) - 2
+
+    IF (ALLOCATED(ab)) DEALLOCATE(ab, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab")
+    ALLOCATE(ab(1:7,1:n), stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab", 7*n)
+
+    IF (ALLOCATED(ipiv)) DEALLOCATE(ipiv, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv")
+    ALLOCATE(ipiv(1:n), stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv", n)
+    
+    ab = 0._dbl
+    ipiv = 0
+
+    ! in s-space the interval is from 0 to 1
+    h2_60 = ((1._dbl/DBLE(n+1))**2)*60._dbl
+
+    ! ab(11+i-j,j) <- a(i,j)
+    DO i=3, n-2
+       ab(7,i-2) = -5._dbl 
+       ab(6,i-1) = 80._dbl
+       ab(5,i)   = -150._dbl
+       ab(4,i+1) = 80._dbl
+       ab(3,i+2) = -5._dbl
+    END DO
+    
+    ab(6,1)=80._dbl; ab(5,2)=-150._dbl; ab(4,3)=80._dbl; ab(3,4)=-5._dbl 
+    ab(4,n)=80._dbl; ab(5,n-1)=-150._dbl; ab(6,n-2)=80._dbl; ab(7,n-3)=-5._dbl
+    
+    ! special treatment of first and last row to make the matrix banded 
+    ! with 2 lower and upper diagonals
+    ab(5,1) = 720._dbl
+    ab(4,2) = -1440._dbl + 10._dbl*h2_60*f(2)
+    ab(3,3) = 720._dbl + h2_60*f(3)
+
+    ab(5,n) = 720._dbl + h2_60*f(n)
+    ab(6,n-1) = -1440._dbl + 10._dbl*h2_60*f(n-1)
+    ab(7,n-2) = 720._dbl
+
+    g(1) = g(1) + 10._dbl*g(2) + g(3)
+    g(n) = g(n) + 10._dbl*g(n-1) + g(n-2)
+
+    ! add the function f to the diagonal element (i=j) and multiply by correct factor
+    DO j=1, n
+       ab(5,j) = ab(5,j) + h2_60*f(j)
+       g(j) = h2_60*g(j)
+    END DO
+
+    ! now multiply each column of the matrix a with the corresponding weight
+    DO j=1, n
+       ww = w(j)
+       DO i=j-2, j+2
+          ab(5+i-j,j) = ab(5+i-j,j) * ww
+       END DO
+    END DO
+
+    ! call LAPACK routine here
+    CALL dgbsv(n,2,2,1,ab,7,ipiv,g(1:n),n,info)
+    IF (info /= 0) CALL stop_program("radial_solver/diff6p", "DGBSV: info /= 0")
+
+    ! g(1:n) should now contain the solution to the problem
+
+    DEALLOCATE(ab, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab")
+
+    DEALLOCATE(ipiv, stat=ierr)
+    IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ipiv")
+
+  END SUBROUTINE diff6p
 
 !!*****
 !******************************************************************************

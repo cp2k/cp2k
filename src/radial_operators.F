@@ -55,7 +55,7 @@ CONTAINS
 
   SUBROUTINE rad_kinetic ( p1, p2, l, rg, result )
 
-! Kinetic energy integral < f1 T f2 > where p1 = r^(l+1) f1 and p2 = r^(l+1) f2
+! Kinetic energy integral < f1 T f2 > where p1 = r*f1(r) and p2 = r*f2(r)
 !Arguments
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: p1, p2
     INTEGER, INTENT ( IN ) :: l
