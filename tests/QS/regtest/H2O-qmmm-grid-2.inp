@@ -3,12 +3,15 @@
   PROJECT   water3
   IOLEVEL   1
   FFTLIB    FFTSG
-  RUN_TYPE   md
+  RUN_TYPE   DEBUG
+&END
+
+&PRINT MEDIUM
 &END
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        2                     total number of steps
+  steps:        0                     total number of steps
   timestep:     2.5 fs                 time step [fs]
   temperature:  298                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
@@ -19,7 +22,7 @@
 &FORCE_EVAL
         &QMMM
          ECOUPL GRID
-         ABC_QM  5.0 5.0 5.0
+         ABC_QM  6.0 6.0 6.0
          #
          # QM_KINDS
          #
@@ -79,9 +82,9 @@
 O     0.000000     0.000000     0.000000    H2O
 H     0.000000     0.000000     1.000000    H2O
 H     0.942809     0.000000    -0.333333    H2O
-O    -1.617979    -0.948062    -2.341650    F2O
-H    -2.529195    -1.296822    -2.122437    F2O
-H    -1.534288    -0.833088    -3.331486    F2O
+O    -1.617979    -0.948062    -2.341650    H2O
+H    -2.529195    -1.296822    -2.122437    H2O
+H    -1.534288    -0.833088    -3.331486    H2O
 O    -1.447990     2.117783     1.555094    H2O
 H    -1.501128     2.645178     2.403050    H2O
 H    -2.090603     1.352766     1.597519    H2O
@@ -97,8 +100,9 @@ H    -2.090603     1.352766     1.597519    H2O
 &END
 
 &QS
- CUTOFF       100
+ CUTOFF       50
  COMMENSURATE
+ EXTRAPOLATION USE_PREV_WF
 &END
 
 &SCF

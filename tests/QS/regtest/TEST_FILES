@@ -48,8 +48,11 @@ H2-3.inp           1
 H2O-meta.inp       1
 # QM/MM
 Ar-qmmm.inp        1
-H2O-qmmm.inp       1
-H2O-qmmm-gauss.inp 1
+H2O-qmmm-gauss-1.inp  1
+H2O-qmmm-gauss-2.inp  1
+H2O-qmmm-gauss-3.inp  1
+H2O-qmmm-grid-1.inp   1
+H2O-qmmm-grid-2.inp   1
 # tpss
 H2O-tpss.inp       1
 # farming
@@ -94,3 +97,7 @@ H2O-sic-ad-2.inp   1
 # running H LSD
 H-1.inp            1
 H-2.inp            1
+# test derivatives and keywords
+H2O-debug-1.inp    1
+H2O-debug-2.inp    1
+H2O-debug-3.inp    1

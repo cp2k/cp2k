@@ -2,37 +2,45 @@
   PROGRAM   QMMM
   PROJECT   water3
   IOLEVEL   1
-  FFTLIB    FFTW
-  RUN_TYPE   md
+  FFTLIB    FFTSG
+  RUN_TYPE   MD
 &END
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        0                     total number of steps
-  timestep:     2.5 fs                 time step [fs]
-  temperature:  298                    temperature [K]
+  steps:        100                     total number of steps
+  timestep:     1.0 fs                 time step [fs]
+  temperature:  300                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
-  print  files        100
+  print  files        1
   print  screen       1
 &END
 
-&PRINT
- V_QMMM_CUBE
-&END
-
-&QMMM
-QM_ATOMS 3
-H 2
-2 3
-O 1
-1 
-ECOUPL GRID
-ABC_QM  10.0 10.0 10.0
-RADIUS
-O 0.78
-H 0.44
-END
-&END
+&FORCE_EVAL
+        &QMMM
+         ECOUPL GAUSS
+         ABC_QM  8.0 8.0 8.0
+         #
+         # QM_KINDS
+         #
+         &QM_KIND H
+          mm_index 2 3
+         &END QM_KIND
+         &QM_KIND O
+          mm_index 1
+         &END QM_KIND
+         #
+         # MM_KINDS
+         #
+         &MM_KIND H
+          radius 0.44
+         &END MM_KIND
+         &MM_KIND O
+          radius 0.78
+         &END MM_KIND
+         #
+        &END QMMM
+&END FORCE_EVAL
 
 &TOPOLOGY
  FORCEFIELD ON
@@ -50,10 +58,10 @@ END
    H  0.4238
  end
  bonds
-  harmonic O H 0. 1.8
+  harmonic O H 0.02 1.89
  end
  bends
-  harmonic H O H 0. 1.8
+  harmonic H O H 0.002 1.823
  end
  nonbonded
   LENNARD-JONES O O 78.198 3.166 11.4
@@ -89,7 +97,7 @@ H    -2.090603     1.352766     1.597519    H2O
 &END
 
 &QS
- CUTOFF       200
+ CUTOFF       300
  COMMENSURATE
 &END
 
@@ -98,12 +106,12 @@ H    -2.090603     1.352766     1.597519    H2O
 &END
 
 &KIND H
- BASIS_SET    DZVP-GTH
+ BASIS_SET    SZV-GTH
  POTENTIAL    GTH-PADE-q1
 &END
 
 &KIND O
- BASIS_SET    DZVP-GTH
+ BASIS_SET    SZV-GTH
  POTENTIAL    GTH-PADE-q6
 &END
 
