@@ -27,15 +27,25 @@
 !****************************************************************************
 MODULE pw_spline_utils
   USE cp_array_r_utils,                ONLY: cp_3d_r_output
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_error_get_logger,&
-       cp_a_l, cp_error_check
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
   USE mathconstants,                   ONLY: twopi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare
@@ -64,23 +74,31 @@ MODULE pw_spline_utils
                                              pw_type,&
                                              pw_zero
   USE simulation_cell,                 ONLY: cell_type
-  implicit none
-  private
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pw_spline_utils'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
 
   PUBLIC :: pw_spline_interpolate_values_g, &
-       pw_spline_deriv_r, pw_spline_deriv_g, pw_spline_scale_deriv1,&
+       pw_spline_deriv_r, pw_spline_deriv_g, pw_spline_scale_deriv,&
        pw_spline_test_coeff
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* pw_spline_utils/pw_spline_interpolate_values_g [1.0] *
 !!
 !!   NAME
 !!     pw_spline_interpolate_values_g
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_interpolate_values_g(spline_g, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_interpolate_values_g
 !!
 !!   FUNCTION
 !!     calculates the FFT of the coefficents of the spline that interpolates
@@ -104,12 +122,12 @@ contains
 !!*** **********************************************************************
   SUBROUTINE pw_spline_interpolate_values_g(spline_g,error)
     TYPE(pw_type),POINTER :: spline_g
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
+    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_spline_interpolate_values_g',&
          routineP=moduleN//':'//routineN
-    REAL (kind=wp) :: c23, c_val, inv27,coeff, cosKVal
+    REAL (kind=wp) :: c23, c_val, coeff, cosKVal
     REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
     INTEGER, DIMENSION(3) :: n,n_tot
     INTEGER :: i, j, k, handle, stat
@@ -122,7 +140,6 @@ contains
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
-    inv27=1.0_wp/27.0_wp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
@@ -142,26 +159,26 @@ contains
        cosJVals(j)=COS(coeff*REAL(j+n_tot(2)/2,wp))
     END DO
 
-    !$omp parallel do private(k,j,i,cosVal,coeff,c12)
+    !$omp parallel do private(k,j,i,cosKVal,coeff,c23)
     DO k = bo(1,3), bo(2,3)
        cosKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
        DO j = bo(1,2), bo(2,2)
           DO i = bo(1,1), bo(2,1)
 
              ! no opt
-!FM                coeff=(cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
+!FM                coeff=1.0/((cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
 !FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
 !FM                     cosVal(2)*cosVal(3))*2.0_wp/27.0_wp+&
 !FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
-!FM                     8.0_wp/27.0_wp
+!FM                     8.0_wp/27.0_wp)
              ! opt
              c23=cosJVals(j)*cosKVal
-             coeff=(cosIVals(i)*c23+&
+             coeff=27.0_wp/(cosIVals(i)*c23+&
                   (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVal+c23)*2.0_wp+&
                   (cosIVals(i)+cosJVals(j)+cosKVal)*4.0_wp+&
-                  8.0_wp)*inv27
+                  8.0_wp)
 
-             spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)/coeff
+             spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*coeff
 
           END DO
        END DO
@@ -170,13 +187,21 @@ contains
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
 
     CALL timestop(0.0_wp,handle)
-  end subroutine pw_spline_interpolate_values_g
+  END SUBROUTINE pw_spline_interpolate_values_g
 !***************************************************************************
 
 !!****f* xc/pw_spline_deriv_r [1.0] *
 !!
 !!   NAME
 !!     pw_spline_deriv_r
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_deriv_r(spline_coeff_r, deriv_val_r, idir,&
+!!         error)
+!!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
+!!       Integer, Intent (IN):: idir
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_deriv_r
 !!
 !!   FUNCTION
 !!     puts the x,y,z derivatives of the given spline
@@ -213,8 +238,7 @@ contains
     REAL (kind=wp) :: c23, c_val, cosKVal
     REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals
     INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: ii, i, j, k, handle, stat, ispin,&
-         ij
+    INTEGER :: ii, i, j, k, handle, stat, ij
     INTEGER, DIMENSION (2,3) :: bo
     TYPE(cp_logger_type), POINTER :: logger
 
@@ -233,7 +257,7 @@ contains
     CPPrecondition(ASSOCIATED(deriv_val_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_val_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_val_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==1,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
 
     n(1:3) = spline_coeff_r%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_coeff_r%pw_grid%npts (1:3)
@@ -241,7 +265,7 @@ contains
 
 
     SELECT CASE(idir)
-    case(1)
+    CASE(1)
        ! x deriv
        !$omp parallel do private(k,j,i,ii,ij,c_val)
        DO k = 0,n(3)-1
@@ -301,7 +325,7 @@ contains
              END DO
           END DO
        END DO
-    case(3)
+    CASE(3)
        ! z deriv
        !$omp parallel do private(k,j,i,ii,ij,c_val)
        DO k = 0,n(3)-1
@@ -331,7 +355,7 @@ contains
              END DO
           END DO
        END DO
-    case default
+    CASE default
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
             routineP,"invalid idir="//cp_to_string(idir)//&
             CPSourceFileRef,&
@@ -343,10 +367,20 @@ contains
 !***************************************************************************
 
 
-!!****f* pw_spline_utils/pw_spline_scale_deriv1 [1.0] *
+!!****f* pw_spline_utils/pw_spline_scale_deriv [1.0] *
 !!
 !!   NAME
-!!     pw_spline_scale_deriv1
+!!     pw_spline_scale_deriv
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_scale_deriv(deriv_vals_r, cell, transpose,&
+!!         scale, error)
+!!       Type(pw_p_type), Dimension(3), Intent (IN):: deriv_vals_r
+!!       Type(cell_type), Pointer:: cell
+!!       Logical, Intent (IN), Optional:: transpose
+!!       Real(Kind=wp), Intent (IN), Optional:: scale
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_scale_deriv
 !!
 !!   FUNCTION
 !!     rescales the derivatives from gridspacing=1 to the real derivatives
@@ -355,8 +389,11 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     - deriv_vals_r: an array of x,y,z derivatives (deriv(idir=1:3,idim))
+!!     - deriv_vals_r: an array of x,y,z derivatives
 !!     - cell: the mapping to the real cell
+!!     - transpose: if true applies the transpose of the map (defaults to 
+!!       false)
+!!     - scale: a scaling factor (defaults to 1.0)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -367,69 +404,88 @@ contains
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_spline_scale_deriv1(deriv_vals_r,cell,error)
-    TYPE(pw_p_type), DIMENSION(:,:), pointer :: deriv_vals_r
-    TYPE(cell_type), POINTER                     :: cell
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pw_spline_scale_deriv(deriv_vals_r,cell,transpose,scale,error)
+    TYPE(pw_p_type), DIMENSION(3), INTENT(in) :: deriv_vals_r
+    TYPE(cell_type), POINTER :: cell
+    LOGICAL, INTENT(in), OPTIONAL :: transpose
+    REAL(kind=wp), INTENT(in), OPTIONAL :: scale
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_scale_deriv1',&
+    LOGICAL :: failure, my_transpose
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_scale_deriv',&
          routineP=moduleN//':'//routineN
     REAL (kind=wp), DIMENSION(3) :: derivVal
     REAL (kind=wp), DIMENSION(3,3) :: h_grid
+    REAL(kind=wp) :: my_scale
     INTEGER, DIMENSION(3) :: n,n_tot
-    INTEGER :: nspins, i, j, k, handle, stat, ispin,&
-         idir
+    INTEGER :: i, j, k, handle, stat, idir
     INTEGER, DIMENSION (2,3) :: bo
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    nspins=SIZE(deriv_vals_r,2)
-    n_tot(1:3) = deriv_vals_r(1,1)%pw%pw_grid%npts (1:3)
-    bo = deriv_vals_r(1,1)%pw%pw_grid%bounds_local
+    my_transpose=.FALSE.
+    IF (PRESENT(transpose)) my_transpose=transpose
+    my_scale=1.0_wp
+    IF (PRESENT(scale)) my_scale=scale
+    n_tot(1:3) = deriv_vals_r(1)%pw%pw_grid%npts (1:3)
+    bo = deriv_vals_r(1)%pw%pw_grid%bounds_local
 
     CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_vals_r),cp_failure_level,routineP,error,failure)
+!FM    CPPrecondition(ASSOCIATED(deriv_vals_r),cp_failure_level,routineP,error,failure)
 
     ! map grid to real derivative
-    DO j=1,3
-       DO i=1,3
-          h_grid(i,j)=REAL(n_tot(i),wp)*cell%h_inv(i,j)      
+    IF (my_transpose) THEN
+       DO j=1,3
+          DO i=1,3
+             h_grid(j,i)=my_scale*REAL(n_tot(i),wp)*cell%h_inv(i,j)      
+          END DO
        END DO
-    END DO
+    ELSE
+       DO j=1,3
+          DO i=1,3
+             h_grid(i,j)=my_scale*REAL(n_tot(i),wp)*cell%h_inv(i,j)      
+          END DO
+       END DO
+    END IF
+    !$omp parallel do private(k,j,i,idir,derivVal)
+    DO k = bo(1,3), bo(2,3)
+       DO j = bo(1,2), bo(2,2)
+          DO i = bo(1,1), bo(2,1)
 
-    DO ispin=1,nspins
-       !$omp parallel do private(k,j,i,idir,derivVal)
-       DO k = bo(1,3), bo(2,3)
-          DO j = bo(1,2), bo(2,2)
-             DO i = bo(1,1), bo(2,1)
-
-                DO idir=1,3
-                   derivVal(idir)= &
-                        h_grid(1,idir)*&
-                        deriv_vals_r(1,ispin)%pw%cr3d(i,j,k)&
-                        +h_grid(2,idir)*&
-                        deriv_vals_r(2,ispin)%pw%cr3d(i,j,k)&
-                        +h_grid(3,idir)*&
-                        deriv_vals_r(3,ispin)%pw%cr3d(i,j,k)
-                END DO
-                DO idir=1,3
-                   deriv_vals_r(idir,ispin)%pw%cr3d(i,j,k)=&
-                        derivVal(idir)
-                END DO
-
+             DO idir=1,3
+                derivVal(idir)= &
+                     h_grid(1,idir)*&
+                     deriv_vals_r(1)%pw%cr3d(i,j,k)&
+                     +h_grid(2,idir)*&
+                     deriv_vals_r(2)%pw%cr3d(i,j,k)&
+                     +h_grid(3,idir)*&
+                     deriv_vals_r(3)%pw%cr3d(i,j,k)
              END DO
+             DO idir=1,3
+                deriv_vals_r(idir)%pw%cr3d(i,j,k)=&
+                     derivVal(idir)
+             END DO
+
           END DO
        END DO
     END DO
-  END SUBROUTINE pw_spline_scale_deriv1
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_spline_scale_deriv
 !***************************************************************************
 
 !!****f* pw_spline_utils/pw_spline_deriv_g [1.0] *
 !!
 !!   NAME
 !!     pw_spline_deriv_g
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_deriv_g(spline_g, idir, error)
+!!       Type(pw_type), Pointer:: spline_g
+!!       Integer, Intent (IN):: idir
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_deriv_g
 !!
 !!   FUNCTION
 !!     calculates the FFT of the values of the x,y,z (idir=1,2,3)
@@ -455,12 +511,12 @@ contains
   SUBROUTINE pw_spline_deriv_g(spline_g,idir,error)
     TYPE(pw_type),POINTER :: spline_g
     INTEGER, INTENT(in) :: idir
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
+    LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='pw_spline_deriv_g',&
          routineP=moduleN//':'//routineN
-    REAL (kind=wp) :: tmp, c_val, coeff, csKVal
+    REAL (kind=wp) :: tmp, c_val, coeff, csKVal, inv9
     REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: csIVals,csJVals
     INTEGER, DIMENSION(3) :: n,n_tot
     INTEGER :: i, j, k, handle, stat
@@ -473,6 +529,7 @@ contains
     n(1:3) = spline_g%pw_grid%npts_local (1:3)
     n_tot(1:3) = spline_g%pw_grid%npts (1:3)
     bo = spline_g%pw_grid%bounds_local
+    inv9=1.0_wp/9.0_wp
 
     CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_g%in_use==COMPLEXDATA3D,cp_failure_level,routineP,error,failure)
@@ -521,9 +578,9 @@ contains
 !FM                     sinVal(1)*4.0_wp/9.0_wp
 
                 tmp=csIVals(i)*csJVals(j)
-                coeff=-9.0_wp/(tmp*csKVal+&
+                coeff=(tmp*csKVal+&
                      (tmp+csIVals(i)*csKVal)*2.0_wp+&
-                     csIVals(i)*4.0_wp)
+                     csIVals(i)*4.0_wp)*inv9
 
                 spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
                      CMPLX(0.0_wp,coeff,wp)
@@ -540,9 +597,9 @@ contains
              DO i = bo(1,1), bo(2,1)
 
                 tmp=csIVals(i)*csJVals(j)
-                coeff=-9.0_wp/(tmp*csKVal+&
+                coeff=(tmp*csKVal+&
                      (tmp+csJVals(j)*csKVal)*2.0_wp+&
-                     csJVals(j)*4.0_wp)
+                     csJVals(j)*4.0_wp)*inv9
 
                 spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
                      CMPLX(0.0_wp,coeff,wp)
@@ -559,9 +616,9 @@ contains
              DO i = bo(1,1), bo(2,1)
 
                 tmp=csIVals(i)*csKVal
-                coeff=-9.0_wp/(tmp*csJVals(j)+&
+                coeff=(tmp*csJVals(j)+&
                      (tmp+csJVals(j)*csKVal)*2.0_wp+&
-                     csKVal*4.0_wp)
+                     csKVal*4.0_wp)*inv9
 
                 spline_g%cc3d(i,j,k)=spline_g%cc3d(i,j,k)*&
                      CMPLX(0.0_wp,coeff,wp)
@@ -582,6 +639,13 @@ contains
 !!
 !!   NAME
 !!     pw_spline_test_coeff
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_spline_test_coeff(spline_coeff_r, spline_values_r,&
+!!         error)
+!!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_spline_test_coeff
 !!
 !!   FUNCTION
 !!     checks if the coefficents really interpolate the given values
@@ -605,16 +669,16 @@ contains
 !!*** **********************************************************************
   SUBROUTINE pw_spline_test_coeff(spline_coeff_r, spline_values_r,error)
     TYPE(pw_type), POINTER :: spline_coeff_r, spline_values_r
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pw_spline_test_coeff',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_test_coeff',&
          routineP=moduleN//':'//routineN
     REAL (kind=wp), DIMENSION(3,3,3) :: spline_coeff
     REAL(kind=wp) :: maxdiff,diff, c_val
     INTEGER :: i,j,k,ii,ij,ik
     INTEGER, DIMENSION(2,3) :: bo
-    INTEGER, dimension(3) :: n_tot
+    INTEGER, DIMENSION(3) :: n_tot
 
     failure=.FALSE.
     bo = spline_values_r%pw_grid%bounds_local
@@ -638,8 +702,8 @@ contains
     CPPrecondition(ASSOCIATED(spline_values_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_values_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
     CPPrecondition(spline_values_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==1,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
        maxdiff=0.0_wp
        DO k = 0,spline_values_r%pw_grid%npts_local(3)-1
           DO j = 0,spline_values_r%pw_grid%npts_local(2)-1
@@ -672,6 +736,5 @@ contains
     END IF
   END SUBROUTINE pw_spline_test_coeff
 !***************************************************************************
-
 
 END MODULE pw_spline_utils

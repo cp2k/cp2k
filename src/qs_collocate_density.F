@@ -295,7 +295,7 @@ CONTAINS
                 ineighbor,ipgf,iset,ishell,istat,j,jatom,jco,jkind,jpgf,jset,&
                 jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
                 nkind,nneighbor,nseta,nsetb,sgfa,sgfb
-    LOGICAL  :: skip_block, mrebuild
+    LOGICAL  :: skip_block
 
     REAL(wp), DIMENSION(3) :: ra,rab,rb
 
@@ -312,7 +312,6 @@ CONTAINS
          handle2
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
-mrebuild=.true.
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
@@ -365,7 +364,7 @@ mrebuild=.true.
 !$OMP PRIVATE(ithread,nthread) &
 !$OMP SHARED(gridlevel_info,ncoset,p_old,eps_rho_rspace,cube_info,l_info) &
 !$OMP SHARED(maxsgf_set,nkind,maxco,p,particle_set,cell) &
-!$OMP SHARED(atomic_kind_set,sab_orb,mrebuild,rs_rho,natom)
+!$OMP SHARED(atomic_kind_set,sab_orb,rebuild,rs_rho,natom)
       ithread=0
       nthread=1
 !$    nthread=omp_get_num_threads()
@@ -376,7 +375,7 @@ mrebuild=.true.
     ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*wp_size)
 
-    IF (.NOT.mrebuild) THEN
+    IF (.NOT.rebuild) THEN
       ALLOCATE (pab_old(maxco,maxco),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pab_old",maxco*maxco*wp_size)
     END IF
@@ -467,7 +466,7 @@ mrebuild=.true.
    
                skip_block = .TRUE.
    
-               IF (mrebuild) THEN
+               IF (rebuild) THEN
                  loop1: DO j=1,SIZE(p_block,2)
                    DO i=1,SIZE(p_block,1)
                      IF (100.0_wp*ABS(p_block(i,j)) > eps_rho_rspace) THEN
@@ -541,7 +540,7 @@ mrebuild=.true.
                                 1.0_wp,work(1,1),SIZE(work,1),&
                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                     IF (.NOT.mrebuild) THEN
+                     IF (.NOT.rebuild) THEN
                        CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                                   1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                   p_old_block(sgfa,sgfb),SIZE(p_old_block,1),&
@@ -565,7 +564,7 @@ mrebuild=.true.
                                 1.0_wp,work(1,1),SIZE(work,1),&
                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                     IF (.NOT.mrebuild) THEN
+                     IF (.NOT.rebuild) THEN
                        CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
                                   1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                                   p_old_block(sgfb,sgfa),SIZE(p_old_block,1),&
@@ -656,16 +655,18 @@ mrebuild=.true.
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
-    IF (.NOT.mrebuild) THEN
+    IF (.NOT.rebuild) THEN
       DEALLOCATE (pab_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pab_old")
     END IF
 !$OMP END PARALLEL
     CALL timestop(0.0_wp,handle2)
 
-    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical) THEN
+    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
+         .AND. rebuild) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,&
             rho%pw,"FORWARD")
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 !FM copy also in mgrid_rspace?
        CALL coeff_transform_space(rho,rho_gspace)
     ELSE
@@ -685,7 +686,7 @@ mrebuild=.true.
        END DO
 
        !   *** Save real-space density ***
-       IF (.NOT. mrebuild) THEN
+       IF (.NOT. rebuild) THEN
           CALL coeff_sumup(rho_gspace_old,rho_gspace)
        END IF
 
