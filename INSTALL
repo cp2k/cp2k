@@ -2,7 +2,12 @@
 How to compile CP2K code
 ========================
 
- 1) Extract the archive file:
+ 1) Acquire the code:
+
+ 1a) The preferred method is to download it from the CVS, using
+       http://cp2k.berlios.de/
+
+ 1b) Get the tar file from CSCS; extract the archive file:
 
 # gtar zxvf cp2k.tar.gz
 
@@ -82,5 +87,5 @@ You can join our mailing lists by sending e-mail to the address below
  8) Happy computing!
 
 --
-cp2k@prr.mpi-stuttgart.mpg.de
-20. III AD 2001
+cp2k@cscs.ch
+10/02/2002
