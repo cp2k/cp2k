@@ -244,7 +244,11 @@ SUBROUTINE copy_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * REAL ( len, dbl ) * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * REAL ( len, dbl ) * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i2,i10,A,T59,F14.4,A)' ) " Copy test:   Size = 2^",i, &
@@ -326,7 +330,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -340,7 +348,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -354,7 +366,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -393,7 +409,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -407,7 +427,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -420,7 +444,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -433,7 +461,11 @@ SUBROUTINE matmul_test ( globenv )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
-    perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    IF ( t > 0._dbl ) THEN
+       perf = REAL ( ntim, dbl ) * 2._dbl * REAL ( len, dbl )**3 * 1.e-6_dbl / t
+    ELSE
+       perf = 0._dbl
+    END IF
 
     IF ( globenv % ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
@@ -531,7 +563,11 @@ SUBROUTINE fft_test ( globenv )
           END DO
           tend = m_cputime ( )
           t = tend - tstart
-          perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+          IF ( t > 0._dbl ) THEN
+             perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+          ELSE
+             perf = 0._dbl
+          END IF
 
           IF ( globenv % ionode ) THEN
             WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
@@ -679,7 +715,11 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0._dbl ) THEN
+     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  ELSE
+     perf = 0._dbl
+  END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -741,7 +781,11 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0._dbl ) THEN
+     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  ELSE
+     perf = 0._dbl
+  END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -804,7 +848,11 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0._dbl ) THEN
+     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  ELSE
+     perf = 0._dbl
+  END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
@@ -866,7 +914,11 @@ SUBROUTINE pw_fft_test ( globenv )
   END DO
   tend = m_cputime ( )
   t = tend - tstart
-  perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  IF ( t > 0._dbl ) THEN
+     perf = REAL ( ntim, dbl ) * 2._dbl * flops * 1.e-6_dbl / t
+  ELSE
+     perf = 0._dbl
+  END IF
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
