@@ -52,6 +52,8 @@ MODULE md_conserved_quantities
   REAL (dbl) :: temp_coefs  
   END TYPE md_ener_type
 
+  INTEGER :: int_group
+
   PUBLIC :: compute_conserved_quantity, &
             compute_conserved_quantity_pimd                                    
 
