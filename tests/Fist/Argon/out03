@@ -1,7 +1,7 @@
-  **** **** ******  **  PROGRAM STARTED AT               Tue Jul  3 14:40:42 200
+  **** **** ******  **  PROGRAM STARTED AT               Mon Nov 19 17:26:16 200
  ***** ** ***  *** **   PROGRAM STARTED ON                              ocisgi29
  **    ****   ******    PROGRAM STARTED BY                                hutter
- ***** **    ** ** **   PROGRAM PROCESS ID                                314005
+ ***** **    ** ** **   PROGRAM PROCESS ID                                100080
   **** **  *******  **  PROGRAM STARTED IN 
                                 /home/ocisgi29/hutter/CP2K/cp2k/tests/Fist/Argon
 
@@ -110,90 +110,90 @@
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_I
  STEP NUMBER                  =                                              100
- CONSERVED QNTY               =                                   -0.5152767E+05
+ CONSERVED QNTY               =                                   -0.5152799E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.1015791E-05   0.4549057E-05
- POTENTIAL ENERGY[K]          =                   -0.6638039E+05  -0.6559869E+05
- KINETIC ENERGY[K]            =                    0.1541172E+05   0.1431484E+05
- TEMPERATURE[K]               =                    0.9602317E+02   0.8918906E+02
- PRESSURE[bar]                =                    0.4184222E+03   0.5457371E+03
- VOLUME[A^3]                  =                    0.5051636E+04   0.5051453E+04
- CELL LNTHS[A]                =    0.1715842E+02   0.1715842E+02   0.1715842E+02
- AVE. CELL LNTHS[A]           =    0.1715822E+02   0.1715822E+02   0.1715822E+02
- LIST UPDATES[steps]          =                            22.00           23.00
+ {E-E0}/E0                    =                    0.6535835E-05   0.6196645E-05
+ POTENTIAL ENERGY[K]          =                   -0.6418764E+05  -0.6402200E+05
+ KINETIC ENERGY[K]            =                    0.1331698E+05   0.1260397E+05
+ TEMPERATURE[K]               =                    0.8297183E+02   0.7852941E+02
+ PRESSURE[bar]                =                    0.9478098E+02  -0.1790255E+01
+ VOLUME[A^3]                  =                    0.5286325E+04   0.5326272E+04
+ CELL LNTHS[A]                =    0.1742013E+02   0.1742013E+02   0.1742013E+02
+ AVE. CELL LNTHS[A]           =    0.1746291E+02   0.1746291E+02   0.1746291E+02
+ LIST UPDATES[steps]          =                            21.00           17.00
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_I
  STEP NUMBER                  =                                              200
- CONSERVED QNTY               =                                   -0.5152825E+05
+ CONSERVED QNTY               =                                   -0.5152747E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.1234151E-04   0.7514449E-05
- POTENTIAL ENERGY[K]          =                   -0.6587718E+05  -0.6585647E+05
- KINETIC ENERGY[K]            =                    0.1487723E+05   0.1475993E+05
- TEMPERATURE[K]               =                    0.9269301E+02   0.9196217E+02
- PRESSURE[bar]                =                    0.5442865E+03   0.5057968E+03
- VOLUME[A^3]                  =                    0.5051984E+04   0.5051633E+04
- CELL LNTHS[A]                =    0.1715882E+02   0.1715882E+02   0.1715882E+02
- AVE. CELL LNTHS[A]           =    0.1715842E+02   0.1715842E+02   0.1715842E+02
- LIST UPDATES[steps]          =                            20.00           21.00
+ {E-E0}/E0                    =                    0.3542747E-05   0.6990601E-05
+ POTENTIAL ENERGY[K]          =                   -0.6315781E+05  -0.6417707E+05
+ KINETIC ENERGY[K]            =                    0.1329924E+05   0.1331389E+05
+ TEMPERATURE[K]               =                    0.8286131E+02   0.8295257E+02
+ PRESSURE[bar]                =                    0.6984794E+02  -0.5731755E+00
+ VOLUME[A^3]                  =                    0.5361999E+04   0.5317512E+04
+ CELL LNTHS[A]                =    0.1750286E+02   0.1750286E+02   0.1750286E+02
+ AVE. CELL LNTHS[A]           =    0.1745378E+02   0.1745378E+02   0.1745378E+02
+ LIST UPDATES[steps]          =                            18.00           18.60
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_I
  STEP NUMBER                  =                                              300
- CONSERVED QNTY               =                                   -0.5152835E+05
+ CONSERVED QNTY               =                                   -0.5152770E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.1417234E-04   0.8212782E-05
- POTENTIAL ENERGY[K]          =                   -0.6681371E+05  -0.6608679E+05
- KINETIC ENERGY[K]            =                    0.1476966E+05   0.1488213E+05
- TEMPERATURE[K]               =                    0.9202278E+02   0.9272358E+02
- PRESSURE[bar]                =                    0.4211112E+03   0.4785762E+03
- VOLUME[A^3]                  =                    0.5052300E+04   0.5051805E+04
- CELL LNTHS[A]                =    0.1715917E+02   0.1715917E+02   0.1715917E+02
- AVE. CELL LNTHS[A]           =    0.1715861E+02   0.1715861E+02   0.1715861E+02
- LIST UPDATES[steps]          =                            26.00           21.14
+ {E-E0}/E0                    =                    0.9109234E-06   0.6660428E-05
+ POTENTIAL ENERGY[K]          =                   -0.6361683E+05  -0.6379912E+05
+ KINETIC ENERGY[K]            =                    0.1439981E+05   0.1337508E+05
+ TEMPERATURE[K]               =                    0.8971844E+02   0.8333382E+02
+ PRESSURE[bar]                =                    0.2845448E+03  -0.2552294E+01
+ VOLUME[A^3]                  =                    0.5262844E+04   0.5347579E+04
+ CELL LNTHS[A]                =    0.1739429E+02   0.1739429E+02   0.1739429E+02
+ AVE. CELL LNTHS[A]           =    0.1748650E+02   0.1748650E+02   0.1748650E+02
+ LIST UPDATES[steps]          =                            19.00           19.13
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_I
  STEP NUMBER                  =                                              400
- CONSERVED QNTY               =                                   -0.5152847E+05
+ CONSERVED QNTY               =                                   -0.5152788E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.1650603E-04   0.8334975E-05
- POTENTIAL ENERGY[K]          =                   -0.6667797E+05  -0.6605556E+05
- KINETIC ENERGY[K]            =                    0.1316396E+05   0.1444592E+05
- TEMPERATURE[K]               =                    0.8201846E+02   0.9000571E+02
- PRESSURE[bar]                =                    0.3143977E+03   0.4762874E+03
- VOLUME[A^3]                  =                    0.5052563E+04   0.5051963E+04
- CELL LNTHS[A]                =    0.1715947E+02   0.1715947E+02   0.1715947E+02
- AVE. CELL LNTHS[A]           =    0.1715879E+02   0.1715879E+02   0.1715879E+02
- LIST UPDATES[steps]          =                            23.00           21.72
+ {E-E0}/E0                    =                    0.4471653E-05   0.6209576E-05
+ POTENTIAL ENERGY[K]          =                   -0.6285801E+05  -0.6367231E+05
+ KINETIC ENERGY[K]            =                    0.1382577E+05   0.1357646E+05
+ TEMPERATURE[K]               =                    0.8614187E+02   0.8458852E+02
+ PRESSURE[bar]                =                    0.1960678E+03   0.4747031E+00
+ VOLUME[A^3]                  =                    0.5348475E+04   0.5357810E+04
+ CELL LNTHS[A]                =    0.1748813E+02   0.1748813E+02   0.1748813E+02
+ AVE. CELL LNTHS[A]           =    0.1749772E+02   0.1749772E+02   0.1749772E+02
+ LIST UPDATES[steps]          =                            21.00           19.55
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_I
  STEP NUMBER                  =                                              500
- CONSERVED QNTY               =                                   -0.5152811E+05
+ CONSERVED QNTY               =                                   -0.5152864E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.9613090E-05   0.9129884E-05
- POTENTIAL ENERGY[K]          =                   -0.6627569E+05  -0.6622881E+05
- KINETIC ENERGY[K]            =                    0.1199324E+05   0.1414810E+05
- TEMPERATURE[K]               =                    0.7472425E+02   0.8815016E+02
- PRESSURE[bar]                =                    0.4456253E+03   0.4442389E+03
- VOLUME[A^3]                  =                    0.5052775E+04   0.5052105E+04
- CELL LNTHS[A]                =    0.1715971E+02   0.1715971E+02   0.1715971E+02
- AVE. CELL LNTHS[A]           =    0.1715895E+02   0.1715895E+02   0.1715895E+02
- LIST UPDATES[steps]          =                            23.00           21.74
+ {E-E0}/E0                    =                    0.1912033E-04   0.6455793E-05
+ POTENTIAL ENERGY[K]          =                   -0.6241890E+05  -0.6336819E+05
+ KINETIC ENERGY[K]            =                    0.1349902E+05   0.1349249E+05
+ TEMPERATURE[K]               =                    0.8410607E+02   0.8406537E+02
+ PRESSURE[bar]                =                   -0.2310940E+01   0.7359314E+00
+ VOLUME[A^3]                  =                    0.5451888E+04   0.5375554E+04
+ CELL LNTHS[A]                =    0.1760012E+02   0.1760012E+02   0.1760012E+02
+ AVE. CELL LNTHS[A]           =    0.1751702E+02   0.1751702E+02   0.1751702E+02
+ LIST UPDATES[steps]          =                            22.00           20.17
  *******************************************************************************
 
 
@@ -203,20 +203,21 @@
  -                                                                             -
  -------------------------------------------------------------------------------
  SUBROUTINE                        CALLS  CPU TIME T  PERFORMANCE   ELAPSED TIME
- CP2K                                  1      5.60 I       ---             5.81
- CONTROL                               1      5.60 I       ---             5.81
- CNTL_WORK                             1      5.57 I       ---             5.77
- VERLET                              500      5.45 I       ---             5.65
- FORCE                               501      5.26 I       ---             5.30
- NONBOND                             501      4.77 E  36.0 Mflops          4.76
- LIST_CONTROL                        501      0.38 I       ---             0.37
- VERLET_LIST                          24      0.33 I 282.5 KIs             0.32
+ CP2K                                  1      4.93 I       ---             5.14
+ CONTROL                               1      4.93 I       ---             5.14
+ CNTL_WORK                             1      4.90 I       ---             5.10
+ VERLET                              500      4.83 I       ---             4.98
+ FORCE                               501      4.55 I       ---             4.61
+ NONBOND                             501      4.17 E  39.1 Mflops          4.13
+ LIST_CONTROL                        501      0.31 I       ---             0.34
+ VERLET_LIST                          25      0.28 I 332.3 KIs             0.28
+ LNHC                               2000      0.11 I  18.4 Mflops          0.13
  -------------------------------------------------------------------------------
 
 
-  **** **** ******  **  PROGRAM ENDED AT                 Tue Jul  3 14:40:48 200
+  **** **** ******  **  PROGRAM ENDED AT                 Mon Nov 19 17:26:21 200
  ***** ** ***  *** **   PROGRAM RAN ON                                  ocisgi29
  **    ****   ******    PROGRAM RAN BY                                    hutter
- ***** **    ** ** **   PROGRAM PROCESS ID                                314005
+ ***** **    ** ** **   PROGRAM PROCESS ID                                100080
   **** **  *******  **  PROGRAM RAN IN     
                                 /home/ocisgi29/hutter/CP2K/cp2k/tests/Fist/Argon

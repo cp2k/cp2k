@@ -1,7 +1,7 @@
-  **** **** ******  **  PROGRAM STARTED AT               Tue Jul  3 14:41:27 200
+  **** **** ******  **  PROGRAM STARTED AT               Mon Nov 19 17:27:32 200
  ***** ** ***  *** **   PROGRAM STARTED ON                              ocisgi29
  **    ****   ******    PROGRAM STARTED BY                                hutter
- ***** **    ** ** **   PROGRAM PROCESS ID                                314066
+ ***** **    ** ** **   PROGRAM PROCESS ID                                100089
   **** **  *******  **  PROGRAM STARTED IN 
                                 /home/ocisgi29/hutter/CP2K/cp2k/tests/Fist/Argon
 
@@ -110,100 +110,100 @@
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_F
  STEP NUMBER                  =                                              100
- CONSERVED QNTY               =                                   -0.5118300E+05
+ CONSERVED QNTY               =                                   -0.5118053E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.2833740E-04   0.1167936E-04
- POTENTIAL ENERGY[K]          =                   -0.6652991E+05  -0.6629046E+05
- KINETIC ENERGY[K]            =                    0.1533613E+05   0.1493753E+05
- TEMPERATURE[K]               =                    0.9555219E+02   0.9306875E+02
- PRESSURE[bar]                =                    0.4547794E+03   0.4519077E+03
- VOLUME[A^3]                  =                    0.5051287E+04   0.5051275E+04
- CELL LNTHS[A]                =    0.1715857E+02   0.1715748E+02   0.1715803E+02
- AVE. CELL LNTHS[A]           =    0.1715829E+02   0.1715773E+02   0.1715802E+02
- CELL ANGLS[deg]              =    0.9000066E+02   0.9000090E+02   0.9000956E+02
- AVE. CELL ANGLS[deg]         =    0.9000033E+02   0.9000046E+02   0.9000488E+02
- LIST UPDATES[steps]          =                            20.00           21.00
+ {E-E0}/E0                    =                    0.2019164E-04   0.1040744E-04
+ POTENTIAL ENERGY[K]          =                   -0.6418488E+05  -0.6549761E+05
+ KINETIC ENERGY[K]            =                    0.1315591E+05   0.1409417E+05
+ TEMPERATURE[K]               =                    0.8196827E+02   0.8781411E+02
+ PRESSURE[bar]                =                    0.1304778E+03   0.3026938E+02
+ VOLUME[A^3]                  =                    0.5267919E+04   0.5230998E+04
+ CELL LNTHS[A]                =    0.1775360E+02   0.1695380E+02   0.1757812E+02
+ AVE. CELL LNTHS[A]           =    0.1773339E+02   0.1700308E+02   0.1742000E+02
+ CELL ANGLS[deg]              =    0.9203952E+02   0.9208917E+02   0.9438942E+02
+ AVE. CELL ANGLS[deg]         =    0.9173695E+02   0.9101646E+02   0.9425203E+02
+ LIST UPDATES[steps]          =                            17.00           13.14
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_F
  STEP NUMBER                  =                                              200
- CONSERVED QNTY               =                                   -0.5118271E+05
+ CONSERVED QNTY               =                                   -0.5118155E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.2265496E-04   0.1701322E-04
- POTENTIAL ENERGY[K]          =                   -0.6667172E+05  -0.6611193E+05
- KINETIC ENERGY[K]            =                    0.1529559E+05   0.1481339E+05
- TEMPERATURE[K]               =                    0.9529963E+02   0.9229528E+02
- PRESSURE[bar]                =                    0.3760322E+03   0.4818712E+03
- VOLUME[A^3]                  =                    0.5051312E+04   0.5051288E+04
- CELL LNTHS[A]                =    0.1715911E+02   0.1715699E+02   0.1715806E+02
- AVE. CELL LNTHS[A]           =    0.1715857E+02   0.1715748E+02   0.1715803E+02
- CELL ANGLS[deg]              =    0.9000127E+02   0.9000173E+02   0.9001849E+02
- AVE. CELL ANGLS[deg]         =    0.9000065E+02   0.9000089E+02   0.9000950E+02
- LIST UPDATES[steps]          =                            21.00           21.44
+ {E-E0}/E0                    =                    0.2417538E-06   0.1156189E-04
+ POTENTIAL ENERGY[K]          =                   -0.6425233E+05  -0.6453036E+05
+ KINETIC ENERGY[K]            =                    0.1389230E+05   0.1345807E+05
+ TEMPERATURE[K]               =                    0.8655639E+02   0.8385091E+02
+ PRESSURE[bar]                =                    0.1467497E+03   0.8278995E+00
+ VOLUME[A^3]                  =                    0.5292941E+04   0.5300753E+04
+ CELL LNTHS[A]                =    0.1757059E+02   0.1740133E+02   0.1733836E+02
+ AVE. CELL LNTHS[A]           =    0.1762021E+02   0.1720307E+02   0.1756781E+02
+ CELL ANGLS[deg]              =    0.8979898E+02   0.8927662E+02   0.9311313E+02
+ AVE. CELL ANGLS[deg]         =    0.9113241E+02   0.9091720E+02   0.9480196E+02
+ LIST UPDATES[steps]          =                            13.00           13.27
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_F
  STEP NUMBER                  =                                              300
- CONSERVED QNTY               =                                   -0.5118287E+05
+ CONSERVED QNTY               =                                   -0.5118116E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.2581758E-04   0.1838197E-04
- POTENTIAL ENERGY[K]          =                   -0.6642721E+05  -0.6611349E+05
- KINETIC ENERGY[K]            =                    0.1404919E+05   0.1463971E+05
- TEMPERATURE[K]               =                    0.8753391E+02   0.9121317E+02
- PRESSURE[bar]                =                    0.3589006E+03   0.4639700E+03
- VOLUME[A^3]                  =                    0.5051335E+04   0.5051300E+04
- CELL LNTHS[A]                =    0.1715962E+02   0.1715653E+02   0.1715809E+02
- AVE. CELL LNTHS[A]           =    0.1715884E+02   0.1715724E+02   0.1715805E+02
- CELL ANGLS[deg]              =    0.9000183E+02   0.9000251E+02   0.9002685E+02
- AVE. CELL ANGLS[deg]         =    0.9000095E+02   0.9000130E+02   0.9001392E+02
- LIST UPDATES[steps]          =                            23.00           22.08
+ {E-E0}/E0                    =                    0.7967546E-05   0.1480554E-04
+ POTENTIAL ENERGY[K]          =                   -0.6344970E+05  -0.6381051E+05
+ KINETIC ENERGY[K]            =                    0.1408670E+05   0.1316061E+05
+ TEMPERATURE[K]               =                    0.8776761E+02   0.8199760E+02
+ PRESSURE[bar]                =                    0.6606049E+02  -0.1298382E+02
+ VOLUME[A^3]                  =                    0.5381028E+04   0.5360660E+04
+ CELL LNTHS[A]                =    0.1808504E+02   0.1789875E+02   0.1667879E+02
+ AVE. CELL LNTHS[A]           =    0.1771814E+02   0.1738809E+02   0.1746493E+02
+ CELL ANGLS[deg]              =    0.8708318E+02   0.9049661E+02   0.9362964E+02
+ AVE. CELL ANGLS[deg]         =    0.9045176E+02   0.9093767E+02   0.9412534E+02
+ LIST UPDATES[steps]          =                            11.00           13.50
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_F
  STEP NUMBER                  =                                              400
- CONSERVED QNTY               =                                   -0.5118190E+05
+ CONSERVED QNTY               =                                   -0.5118057E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.6781482E-05   0.1872890E-04
- POTENTIAL ENERGY[K]          =                   -0.6492028E+05  -0.6616817E+05
- KINETIC ENERGY[K]            =                    0.1107290E+05   0.1427902E+05
- TEMPERATURE[K]               =                    0.6899004E+02   0.8896587E+02
- PRESSURE[bar]                =                    0.5741342E+03   0.4436337E+03
- VOLUME[A^3]                  =                    0.5051358E+04   0.5051311E+04
- CELL LNTHS[A]                =    0.1716009E+02   0.1715611E+02   0.1715812E+02
- AVE. CELL LNTHS[A]           =    0.1715909E+02   0.1715701E+02   0.1715806E+02
- CELL ANGLS[deg]              =    0.9000237E+02   0.9000325E+02   0.9003466E+02
- AVE. CELL ANGLS[deg]         =    0.9000124E+02   0.9000170E+02   0.9001815E+02
- LIST UPDATES[steps]          =                            26.00           22.11
+ {E-E0}/E0                    =                    0.1946600E-04   0.1644783E-04
+ POTENTIAL ENERGY[K]          =                   -0.6284850E+05  -0.6368702E+05
+ KINETIC ENERGY[K]            =                    0.1450163E+05   0.1353427E+05
+ TEMPERATURE[K]               =                    0.9035283E+02   0.8432568E+02
+ PRESSURE[bar]                =                    0.8461434E+02  -0.2416159E+01
+ VOLUME[A^3]                  =                    0.5398519E+04   0.5367926E+04
+ CELL LNTHS[A]                =    0.1829131E+02   0.1728474E+02   0.1711188E+02
+ AVE. CELL LNTHS[A]           =    0.1788906E+02   0.1741420E+02   0.1729652E+02
+ CELL ANGLS[deg]              =    0.9045549E+02   0.9088203E+02   0.9360860E+02
+ AVE. CELL ANGLS[deg]         =    0.8986808E+02   0.9088204E+02   0.9395823E+02
+ LIST UPDATES[steps]          =                            15.00           13.45
  *******************************************************************************
 
 
  *******************************************************************************
  ENSEMBLE TYPE                =                                            NPT_F
  STEP NUMBER                  =                                              500
- CONSERVED QNTY               =                                   -0.5118283E+05
+ CONSERVED QNTY               =                                   -0.5118097E+05
 
                                                    INSTANTANEOUS        AVERAGES
- {E-E0}/E0                    =                    0.2485711E-04   0.1828920E-04
- POTENTIAL ENERGY[K]          =                   -0.6756273E+05  -0.6628444E+05
- KINETIC ENERGY[K]            =                    0.1296849E+05   0.1391584E+05
- TEMPERATURE[K]               =                    0.8080058E+02   0.8670304E+02
- PRESSURE[bar]                =                    0.2182336E+03   0.4139516E+03
- VOLUME[A^3]                  =                    0.5051382E+04   0.5051323E+04
- CELL LNTHS[A]                =    0.1716056E+02   0.1715570E+02   0.1715815E+02
- AVE. CELL LNTHS[A]           =    0.1715934E+02   0.1715679E+02   0.1715808E+02
- CELL ANGLS[deg]              =    0.9000289E+02   0.9000398E+02   0.9004230E+02
- AVE. CELL ANGLS[deg]         =    0.9000152E+02   0.9000208E+02   0.9002222E+02
- LIST UPDATES[steps]          =                            28.00           22.50
+ {E-E0}/E0                    =                    0.1167816E-04   0.1855694E-04
+ POTENTIAL ENERGY[K]          =                   -0.6188581E+05  -0.6327183E+05
+ KINETIC ENERGY[K]            =                    0.1366257E+05   0.1349614E+05
+ TEMPERATURE[K]               =                    0.8512503E+02   0.8408807E+02
+ PRESSURE[bar]                =                   -0.4807332E+02  -0.9271774E+00
+ VOLUME[A^3]                  =                    0.5587952E+04   0.5401573E+04
+ CELL LNTHS[A]                =    0.1817837E+02   0.1744205E+02   0.1767528E+02
+ AVE. CELL LNTHS[A]           =    0.1796544E+02   0.1740560E+02   0.1733349E+02
+ CELL ANGLS[deg]              =    0.8664447E+02   0.9225296E+02   0.9180050E+02
+ AVE. CELL ANGLS[deg]         =    0.8953522E+02   0.9094359E+02   0.9373696E+02
+ LIST UPDATES[steps]          =                            20.00           13.75
  *******************************************************************************
 
 
@@ -213,20 +213,21 @@
  -                                                                             -
  -------------------------------------------------------------------------------
  SUBROUTINE                        CALLS  CPU TIME T  PERFORMANCE   ELAPSED TIME
- CP2K                                  1      5.75 I       ---             5.97
- CONTROL                               1      5.75 I       ---             5.97
- CNTL_WORK                             1      5.72 I       ---             5.93
- VERLET                              500      5.61 I       ---             5.81
- FORCE                               501      5.16 I       ---             5.21
- NONBOND                             501      4.71 E  36.4 Mflops          4.69
- LIST_CONTROL                        501      0.38 I       ---             0.36
- VERLET_LIST                          23      0.31 I 288.4 KIs             0.31
+ CP2K                                  1      5.40 I       ---             5.63
+ CONTROL                               1      5.40 I       ---             5.63
+ CNTL_WORK                             1      5.37 I       ---             5.59
+ VERLET                              500      5.28 I       ---             5.48
+ FORCE                               501      4.70 I       ---             4.84
+ NONBOND                             501      4.04 E  40.0 Mflops          4.20
+ LIST_CONTROL                        501      0.50 I       ---             0.49
+ VERLET_LIST                          37      0.44 I 309.6 KIs             0.42
+ LNHC                               2000      0.11 I  18.5 Mflops          0.13
  -------------------------------------------------------------------------------
 
 
-  **** **** ******  **  PROGRAM ENDED AT                 Tue Jul  3 14:41:33 200
+  **** **** ******  **  PROGRAM ENDED AT                 Mon Nov 19 17:27:38 200
  ***** ** ***  *** **   PROGRAM RAN ON                                  ocisgi29
  **    ****   ******    PROGRAM RAN BY                                    hutter
- ***** **    ** ** **   PROGRAM PROCESS ID                                314066
+ ***** **    ** ** **   PROGRAM PROCESS ID                                100089
   **** **  *******  **  PROGRAM RAN IN     
                                 /home/ocisgi29/hutter/CP2K/cp2k/tests/Fist/Argon
