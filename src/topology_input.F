@@ -154,6 +154,27 @@ SUBROUTINE read_topology_section ( topology, globenv )
               CALL stop_parser( 'read_topology_section', &
                                 'unknown option coordinate type' )
            END IF
+        CASE ('FORCEFIE')
+           topology % ff = .TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "CHM") THEN
+              topology%ff = .TRUE.
+              topology%ff_type = "PDB"
+           ELSE IF (str2 == "AMB") THEN
+              topology%ff = .TRUE.
+              topology%ff_type = "CHM"
+           ELSE IF (str2 == "OFF") THEN
+              topology%ff = .FALSE.
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_topology_section', &
+                                'unknown option force field type' )
+           END IF
+        CASE ('FOFI_FIL')
+           ilen = 40
+           CALL get_next(topology % ff_file_name,ilen)
         CASE ('CONN_FIL')
            topology % connectivity = .TRUE.
            ilen = 40

@@ -183,10 +183,8 @@ OBJECTS_GENERIC =\
  message_passing.o\
  method_specifications.o\
  mol_force.o\
- mol_kind_list_types.o\
  mol_kind_new_list_types.o\
  mol_new_list_types.o\
- mol_struct_list_types.o\
  molecular_states.o\
  molecule_kind_types.o\
  molecule_types.o\

@@ -38,6 +38,9 @@ MODULE topology_types
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
     LOGICAL                                   :: dump_topology
+    LOGICAL                                   :: ff
+    CHARACTER (LEN=default_string_length)     :: ff_file_name
+    CHARACTER (LEN=default_string_length)     :: ff_type
     CHARACTER (LEN=default_string_length)     :: nhcopt
     CHARACTER (LEN=default_string_length)     :: bondparm_type
     REAL (dbl)                                :: bondparm_factor
@@ -78,6 +81,24 @@ MODULE topology_types
     REAL (dbl), POINTER :: const_g33_dab(:)
     REAL (dbl), POINTER :: const_g33_dac(:)
     REAL (dbl), POINTER :: const_g33_dbc(:)
+
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bond_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bond_b(:)
+    REAL (dbl), POINTER                            :: ff_bond_k(:)
+    REAL (dbl), POINTER                            :: ff_bond_r0(:)
+
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_bend_c(:)
+    REAL (dbl), POINTER                            :: ff_bend_k(:)
+    REAL (dbl), POINTER                            :: ff_bend_theta0(:)
+
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ff_torsion_d(:)
+    REAL (dbl), POINTER                            :: ff_torsion_k(:)
+    REAL (dbl), POINTER                            :: ff_torsion_phi0(:)
 
   END TYPE topology_parameters_type
 
@@ -120,6 +141,7 @@ SUBROUTINE init_topology (topology)
   topology%reorder_atom=.FALSE.
   topology%coordinate=.FALSE.
   topology%connectivity=.FALSE.
+  topology%ff=.FALSE.
   topology%nhcopt='GLOBAL'
   topology%bondparm_type='COVALENT'
   topology%bondparm_factor=1.1
@@ -127,6 +149,8 @@ SUBROUTINE init_topology (topology)
   topology%coord_file_name=''
   topology%conn_type='OFF'
   topology%conn_file_name='OFF'
+  topology%ff_file_name=''
+  topology%ff_type='OFF'
   NULLIFY(topology%label_molname)
   NULLIFY(topology%label_resname)
   NULLIFY(topology%label_atmname)
@@ -166,6 +190,17 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%const_g33_dab)
   NULLIFY(topology%const_g33_dac)
   NULLIFY(topology%const_g33_dbc)
+
+  NULLIFY(topology%ff_bond_a)
+  NULLIFY(topology%ff_bond_b)
+  NULLIFY(topology%ff_bond_k)
+  NULLIFY(topology%ff_bond_r0)
+
+  NULLIFY(topology%ff_bend_a)
+  NULLIFY(topology%ff_bend_b)
+  NULLIFY(topology%ff_bend_c)
+  NULLIFY(topology%ff_bend_k)
+  NULLIFY(topology%ff_bend_theta0)
     
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -354,6 +389,71 @@ SUBROUTINE deallocate_topology (topology)
   END IF
 
 
+
+  IF(ASSOCIATED(topology%ff_bond_a)) THEN
+    DEALLOCATE(topology%ff_bond_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_a')
+  END IF
+  IF(ASSOCIATED(topology%ff_bond_b)) THEN
+    DEALLOCATE(topology%ff_bond_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_b')
+  END IF
+  IF(ASSOCIATED(topology%ff_bond_k)) THEN
+    DEALLOCATE(topology%ff_bond_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_k')
+  END IF
+  IF(ASSOCIATED(topology%ff_bond_r0)) THEN
+    DEALLOCATE(topology%ff_bond_r0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_r0')
+  END IF
+
+
+  IF(ASSOCIATED(topology%ff_bend_a)) THEN
+    DEALLOCATE(topology%ff_bend_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_a')
+  END IF
+  IF(ASSOCIATED(topology%ff_bend_b)) THEN
+    DEALLOCATE(topology%ff_bend_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_b')
+  END IF
+  IF(ASSOCIATED(topology%ff_bend_c)) THEN
+    DEALLOCATE(topology%ff_bend_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_c')
+  END IF
+  IF(ASSOCIATED(topology%ff_bend_k)) THEN
+    DEALLOCATE(topology%ff_bend_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_k')
+  END IF
+  IF(ASSOCIATED(topology%ff_bend_theta0)) THEN
+    DEALLOCATE(topology%ff_bend_theta0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bend_theta0')
+  END IF
+
+
+  IF(ASSOCIATED(topology%ff_torsion_a)) THEN
+    DEALLOCATE(topology%ff_torsion_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_a')
+  END IF
+  IF(ASSOCIATED(topology%ff_torsion_b)) THEN
+    DEALLOCATE(topology%ff_torsion_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_b')
+  END IF
+  IF(ASSOCIATED(topology%ff_torsion_c)) THEN
+    DEALLOCATE(topology%ff_torsion_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_c')
+  END IF
+  IF(ASSOCIATED(topology%ff_torsion_d)) THEN
+    DEALLOCATE(topology%ff_torsion_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_d')
+  END IF
+  IF(ASSOCIATED(topology%ff_torsion_k)) THEN
+    DEALLOCATE(topology%ff_torsion_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_k')
+  END IF
+  IF(ASSOCIATED(topology%ff_torsion_phi0)) THEN
+    DEALLOCATE(topology%ff_torsion_phi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_torsion_phi0')
+  END IF
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE deallocate_topology

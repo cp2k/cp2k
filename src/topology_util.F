@@ -30,6 +30,12 @@ MODULE topology_util
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              set_potential
+  USE force_field_types,               ONLY: allocate_bond_kind_set,&
+                                             allocate_bend_kind_set,&
+                                             allocate_torsion_kind_set,&
+                                             bend_kind_type,&
+                                             bond_kind_type,&
+                                             torsion_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
@@ -80,6 +86,7 @@ MODULE topology_util
             topology_connectivity_pack,&
             topology_constraint_pack,&
             topology_coordinate_pack,&
+            topology_force_field_pack,&
             topology_generate_bend,&
             topology_generate_bond,&
             topology_generate_dihe,&
@@ -1777,21 +1784,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   END IF
 
 
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the ndc info
-    !molecule_set(i)%molpar%ndcon = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-    !Stuff the n3x3c info
-    !molecule_set(i)%molpar%n3x3con = 0
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
 
-    !---------------------------------------------------------------------------
-    !---------------------------------------------------------------------------
-
-
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  topology_connectivity_pack"
 
   IF(PRESENT(globenv)) THEN
@@ -2096,7 +2091,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
   INTEGER, DIMENSION(:), POINTER           :: molecule_list
-  CHARACTER(LEN=default_string_length)  :: name
+  CHARACTER(LEN=default_string_length)  :: name,element_symbol
   TYPE(atomic_kind_type), POINTER        :: atomic_kind
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
   TYPE(molecule_type), POINTER        :: molecule
@@ -2133,7 +2128,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. NULLIFY the molecule_set(imol)%lci via set_molecule_set
+  ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol
     molecule => molecule_set(i)
@@ -2148,7 +2143,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Set info necessary for atom constraint
+  ! 2. Set info necessary for atom constraint
   !-----------------------------------------------------------------------------
   IF(topology%const_atom) THEN
     CALL stop_program("topology_constraint_pack","NO CONST_ATOM yet")
@@ -2157,7 +2152,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Add more stuff to topology%const_dist_* if constraint hydrogen is on
+  ! 3. Add more stuff to topology%const_dist_* if constraint hydrogen is on
   !-----------------------------------------------------------------------------
   IF(topology%const_hydr) THEN
     ndist = topology%nconst_dist
@@ -2169,8 +2164,8 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       DO j=1,SIZE(atom_list)
         atomic_kind => atom_list(j)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name) 
-        IF(TRIM(name)=="H") THEN
+                             name=name,element_symbol=element_symbol) 
+        IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
           DO k=1,nbond
             IF((bond_list(k)%a==j).OR.(bond_list(k)%b==j)) THEN
               ndist = ndist + 1
@@ -2193,7 +2188,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. sort and find duplicates topology%const_dist_*
+  ! 4. sort and find duplicates topology%const_dist_*
   !-----------------------------------------------------------------------------
   IF(topology%const_dist) THEN
     ndist = topology%nconst_dist
@@ -2257,7 +2252,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Set the distance constraint molecule_kind_set(ikind)%dist_list
+  ! 5. Set the distance constraint molecule_kind_set(ikind)%dist_list
   !-----------------------------------------------------------------------------
   IF(topology%const_dist) THEN
     DO i=1,SIZE(molecule_kind_set)
@@ -2299,7 +2294,7 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! X. Set the group 3x3 constraint g3x3_list
+  ! 6. Set the group 3x3 constraint g3x3_list
   !-----------------------------------------------------------------------------
   IF(topology%const_33) THEN
     DO i=1,SIZE(molecule_kind_set)
@@ -2358,6 +2353,429 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   !CALL stop_program("topology_constraint_pack","checkpoint end")
 
 END SUBROUTINE topology_constraint_pack
+
+
+
+
+!******************************************************************************
+!!****** topology_util/topology_force_field_pack [1.0] *
+!!
+!!   NAME
+!!     topology_force_field_pack
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Pack in all the information needed for the force_field
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*** *************************************************************************
+
+SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
+                                      topology,globenv)
+
+  TYPE(molecule_kind_type), DIMENSION(:), &
+    POINTER                                :: molecule_kind_set
+  TYPE(molecule_type), DIMENSION(:), &
+    POINTER                                :: molecule_set
+  TYPE(topology_parameters_type), &
+    INTENT(INOUT)                          :: topology
+  TYPE(global_environment_type), &
+    INTENT(IN), OPTIONAL                   :: globenv
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'topology_force_field_pack', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: istat, iw, i, j, k
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+  CHARACTER(LEN=default_string_length)   :: name
+  TYPE(atomic_kind_type), POINTER        :: atomic_kind
+  TYPE(molecule_kind_type), POINTER      :: molecule_kind
+  TYPE(molecule_type), POINTER           :: molecule
+
+  INTEGER                                  :: natom,nbond,nbend,ntorsion
+  INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
+  CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b
+  CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
+  CHARACTER(LEN=default_string_length)   :: name_atm_a2,name_atm_b2
+  CHARACTER(LEN=default_string_length)   :: name_atm_c2,name_atm_d2
+  TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
+  TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
+  TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list
+  TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
+  LOGICAL                                  :: found
+  INTEGER                                  :: counter
+  INTEGER,POINTER                          :: map_bond_kind(:)
+  INTEGER,POINTER                          :: map_bend_kind(:)
+  INTEGER,POINTER                          :: map_torsion_kind(:)
+  TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
+  TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set
+  TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
+
+
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering topology_force_field_pack"
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Determine the number of unique bond kind and allocate bond_kind_set
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    counter=0
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nbond=nbond,bond_list=bond_list)
+    ALLOCATE(map_bond_kind(nbond),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+    DO j=1,nbond
+      atm_a = bond_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = bond_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      found = .FALSE.
+      DO k=1,j
+        atm_a = bond_list(k)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a2)
+        atm_b = bond_list(k)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b2)
+        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
+            ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
+          found = .TRUE.
+          map_bond_kind(j) = map_bond_kind(k)
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) THEN
+        counter=counter+1
+        map_bond_kind(j) = counter
+      END IF
+    END DO
+    CALL allocate_bond_kind_set(bond_kind_set,counter)
+    DO j=1,nbond
+      bond_list(j)%bond_kind => bond_kind_set(map_bond_kind(j))
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bond_kind_set=bond_kind_set,bond_list=bond_list)
+    DEALLOCATE(map_bond_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bond_kind')
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Determine the number of unique bend kind and allocate bend_kind_set
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    counter=0
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nbend=nbend,bend_list=bend_list)
+    ALLOCATE(map_bend_kind(nbend),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+    DO j=1,nbend
+      atm_a = bend_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = bend_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = bend_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      found = .FALSE.
+      DO k=1,j
+        atm_a = bend_list(k)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a2)
+        atm_b = bend_list(k)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b2)
+        atm_c = bend_list(k)%c
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_c2)
+        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+             (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
+            ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+             (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+          found = .TRUE.
+          map_bend_kind(j) = map_bend_kind(k)
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) THEN
+        counter=counter+1
+        map_bend_kind(j) = counter
+      END IF
+    END DO
+    CALL allocate_bend_kind_set(bend_kind_set,counter)
+    DO j=1,nbend
+      bend_list(j)%bend_kind => bend_kind_set(map_bend_kind(j))
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           bend_kind_set=bend_kind_set,bend_list=bend_list)
+    DEALLOCATE(map_bend_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_bend_kind')
+  END DO
+
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Determine the number of unique torsion kind and allocate torsion_kind_set
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    counter=0
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           ntorsion=ntorsion,torsion_list=torsion_list)
+    ALLOCATE(map_torsion_kind(ntorsion),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+    DO j=1,ntorsion
+      atm_a = torsion_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = torsion_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = torsion_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      atm_d = torsion_list(j)%d
+      atomic_kind => atom_list(atm_d)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_d)
+      found = .FALSE.
+      DO k=1,j
+        atm_a = torsion_list(k)%a
+        atomic_kind => atom_list(atm_a)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_a2)
+        atm_b = torsion_list(k)%b
+        atomic_kind => atom_list(atm_b)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_b2)
+        atm_c = torsion_list(k)%c
+        atomic_kind => atom_list(atm_c)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_c2)
+        atm_d = torsion_list(k)%d
+        atomic_kind => atom_list(atm_d)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name_atm_d2)
+        IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
+             (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
+             (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
+            ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
+             (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
+             (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
+             (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+          found = .TRUE.
+          map_torsion_kind(j) = map_torsion_kind(k)
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) THEN
+        counter=counter+1
+        map_torsion_kind(j) = counter
+      END IF
+    END DO
+    CALL allocate_torsion_kind_set(torsion_kind_set,counter)
+    DO j=1,ntorsion
+      torsion_list(j)%torsion_kind => torsion_kind_set(map_torsion_kind(j))
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                           torsion_kind_set=torsion_kind_set,torsion_list=torsion_list)
+    DEALLOCATE(map_torsion_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('force_field_pack','map_torsion_kind')
+  END DO
+
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. BONDS
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nbond=nbond,bond_list=bond_list)
+    DO j=1,nbond
+      atm_a = bond_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = bond_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      found = .FALSE.
+      DO k=1,SIZE(topology%ff_bond_a)
+        IF( ((TRIM(topology%ff_bond_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(topology%ff_bond_b(k))==TRIM(name_atm_b))) .OR. &
+            ((TRIM(topology%ff_bond_a(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(topology%ff_bond_b(k))==TRIM(name_atm_a))) ) THEN
+          bond_list(j)%bond_kind%k  = topology%ff_bond_k(k)
+          bond_list(j)%bond_kind%r0 = topology%ff_bond_r0(k)
+          found = .TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) CALL stop_program("FF_pack","missing bond parm")
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,bond_list=bond_list)
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. BENDS
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           nbend=nbend,bend_list=bend_list)
+    DO j=1,nbend
+      atm_a = bend_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = bend_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = bend_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      found = .FALSE.
+      DO k=1,SIZE(topology%ff_bend_a)
+        IF( ((TRIM(topology%ff_bend_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(topology%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(topology%ff_bend_c(k))==TRIM(name_atm_c))) .OR. &
+            ((TRIM(topology%ff_bend_a(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(topology%ff_bend_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(topology%ff_bend_c(k))==TRIM(name_atm_a))) ) THEN
+          bend_list(j)%bend_kind%k      = topology%ff_bend_k(k)
+          bend_list(j)%bend_kind%theta0 = topology%ff_bend_theta0(k)
+          found = .TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) CALL stop_program("FF_pack","missing bend parm")
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,bend_list=bend_list)
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. TORSION
+  !-----------------------------------------------------------------------------
+  DO i=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(i)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           natom=natom,atom_list=atom_list,&
+                           ntorsion=ntorsion,torsion_list=torsion_list)
+    DO j=1,ntorsion
+      atm_a = torsion_list(j)%a
+      atomic_kind => atom_list(atm_a)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_a)
+      atm_b = torsion_list(j)%b
+      atomic_kind => atom_list(atm_b)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_b)
+      atm_c = torsion_list(j)%c
+      atomic_kind => atom_list(atm_c)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_c)
+      atm_d = torsion_list(j)%d
+      atomic_kind => atom_list(atm_d)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=name_atm_d)
+      found = .FALSE.
+      DO k=1,SIZE(topology%ff_torsion_a)
+        IF( ((TRIM(topology%ff_torsion_a(k))==TRIM(name_atm_a)) .AND. &
+             (TRIM(topology%ff_torsion_b(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(topology%ff_torsion_c(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(topology%ff_torsion_d(k))==TRIM(name_atm_d))) .OR. &
+            ((TRIM(topology%ff_torsion_a(k))==TRIM(name_atm_d)) .AND. &
+             (TRIM(topology%ff_torsion_b(k))==TRIM(name_atm_c)) .AND. &
+             (TRIM(topology%ff_torsion_c(k))==TRIM(name_atm_b)) .AND. &
+             (TRIM(topology%ff_torsion_d(k))==TRIM(name_atm_a))) ) THEN
+          torsion_list(j)%torsion_kind%k      = topology%ff_torsion_k(k)
+          torsion_list(j)%torsion_kind%phi0 = topology%ff_torsion_phi0(k)
+          found = .TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.found) CALL stop_program("FF_pack","missing torsion parm")
+    END DO
+    CALL set_molecule_kind(molecule_kind=molecule_kind,torsion_list=torsion_list)
+  END DO
+
+
+
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting  topology_force_field_pack"
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  !CALL stop_program("topology_force_field_pack","checkpoint end")
+
+END SUBROUTINE topology_force_field_pack
 
 
 END MODULE topology_util
