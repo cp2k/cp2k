@@ -290,16 +290,16 @@ END SUBROUTINE set_energies
         WRITE ( iw, '( )' )
         WRITE ( iw, '( A,A )' ) ' ******************************** ', &
            'GO CP2K GO! **********************************'
-        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL POTENTIAL ENERGY', &
            adjustl( unit % e_label), '= ', epot
-        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL KINETIC ENERGY', &
            adjustl( unit % e_label), '= ', ekin
-        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL TEMPERATURE', &
            adjustl( unit % temp_label ), '= ', temp
         IF ( virial % pv_availability ) &
-        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL PRESSURE', &
            adjustl( unit % pres_label), '= ', pv_scalar
-        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
+        WRITE ( iw, '( A,A,T40,A,T60,1(1X,E20.12) )' ) ' INITIAL VOLUME', &
            adjustl( unit % vol_label), '= ', cell%deth
         WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
            adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
@@ -386,24 +386,24 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                ADJUSTR ( simpar%ensemble)
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
-          WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' TIME [FS]                    = ', t
-          WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' CONSERVED QNTY               = ', &
+          WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' TIME [FS]                    = ', t
+          WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
-          WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
-          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
+          WRITE ( iw, '( T47,A )' ) 'INSTANTANEOUS             AVERAGES'
+          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
                econs, econs_avg/REAL(itimes,dbl)
-          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POTENTIAL ENERGY', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
-          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
                adjustl(unit % e_label), '= ', ekin, averages%avekin
-          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' TEMPERATURE', &
                adjustl(unit % temp_label), '= ', temp, averages%avetemp
           IF ( virial % pv_availability ) &
-          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
+          WRITE ( iw, '( A,A,T31,A,T39,2(1X,E10.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
           IF (simpar%ensemble(1:3)=='NPT') THEN
-             WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
+             WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
                   adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
                   adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
