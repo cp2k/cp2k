@@ -152,7 +152,7 @@ module cp_b_matrix_structure
      logical :: initialized
      type(global_environment_type), pointer :: global_env
      integer, dimension(:,:), pointer :: block_owner
-     integer :: ref_count
+     integer :: ref_count, id_nr
   end type cp_b_distribution_type
 !!***
   !****************************************************************************
@@ -192,7 +192,7 @@ module cp_b_matrix_structure
   type cp_b_dims_type
      logical :: initialized
      integer, dimension(:), pointer :: block_begins_at_row, block_begins_at_col
-     integer :: ref_count
+     integer :: ref_count, id_nr
   end type cp_b_dims_type
 !!***
   !****************************************************************************
@@ -234,7 +234,7 @@ module cp_b_matrix_structure
      type(cp_b_dims_type), pointer :: b_dims
      type(cp_b_distribution_type), pointer :: distribution
      logical, dimension(:,:), pointer :: sparsity
-     integer :: ref_count
+     integer :: ref_count, id_nr
   end type cp_b_matrix_struct_type
 !!***
   !****************************************************************************
@@ -330,6 +330,7 @@ contains
 
     logical :: failure
     integer :: stat
+    integer, save :: last_id_nr=0
     character(len=*), parameter :: routineN='cp_b_distribution_type',&
          routineP=moduleN//':'//routineN
     failure=.false.
@@ -341,11 +342,13 @@ contains
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     end if
     if (.not. failure) then
+       last_id_nr=last_id_nr+1
        d_struct%global_env => global_env
        allocate(d_struct%block_owner(n_block_rows,n_block_cols),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        d_struct%block_owner=global_env%source
        d_struct%ref_count=1
+       d_struct%id_nr=last_id_nr
        d_struct%initialized=.true.
     end if
   end subroutine cp_dstruct_create
@@ -599,6 +602,7 @@ contains
 
     logical :: failure
     integer :: stat,i
+    integer, save :: last_id_nr=0
     character(len=*), parameter :: routineN='cp_b_dims_create',&
          routineP=moduleN//':'//routineN
     failure=.false.
@@ -614,6 +618,8 @@ contains
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
+       last_id_nr=last_id_nr+1
+       b_dims%id_nr=last_id_nr
        b_dims%ref_count=1
        allocate (b_dims%block_begins_at_row(size(b_row_sizes)+1),&
             b_dims%block_begins_at_col(size(b_col_sizes)+1),stat=stat)
@@ -860,6 +866,7 @@ contains
 
     logical :: failure, no_spars
     integer :: stat
+    integer, save :: last_id_nr=0
     character(len=*), parameter :: routineN='cp_bmstruct_create',&
          routineP=moduleN//':'//routineN
     failure=.false.
@@ -869,6 +876,8 @@ contains
     allocate(m_struct, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
+       last_id_nr=last_id_nr+1
+       m_struct%id_nr=last_id_nr
        m_struct%sparsity_frozen= present(sparsity).or.no_spars
        m_struct%symmetric=.true. ! make it default to false
        if (present(symmetric)) m_struct%symmetric=symmetric
