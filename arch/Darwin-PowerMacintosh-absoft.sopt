@@ -6,7 +6,7 @@ FC_fixed = f90 -ffixed
 LD       = f90
 AR       = ar -r
 RANLIB   = ranlib
-CPPFLAGS = -C -D__ABSOFT -D__FFTSG -DFD_DEBUG -DFD_SHORT_EXPANSIONS
+CPPFLAGS = -C -D__ABSOFT -D__FFTSG -DFD_SHORT_EXPANSIONS
 FCFLAGS  = -O -en -N11 -YEXT_SFX=_ -YEXT_NAMES=LCS
 FCSPEZ   = -O -B18 -en
 LDFLAGS  = $(FCFLAGS) -L/Applications/Absoft/lib
