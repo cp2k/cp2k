@@ -1,0 +1,617 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/input_keyword_types [1.0] *
+!!
+!!   NAME
+!!     input_keyword_types
+!!
+!!   FUNCTION
+!!     represents keywords in an input
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     06.2004 created, based on Joost cp_keywords proposal [fawzi]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE input_keyword_types
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             logical_t,&
+                                             no_t,&
+                                             real_t,&
+                                             val_create,&
+                                             val_release,&
+                                             val_retain,&
+                                             val_type,&
+                                             val_write
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE output_utilities,                ONLY: print_message
+  USE string_utilities,                ONLY: uppercase
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_keyword_types'
+
+  INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length
+  INTEGER, SAVE, PRIVATE :: last_keyword_id=0
+  
+  PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
+       keyword_release, keyword_get, keyword_describe
+
+!!***
+!****************************************************************************
+
+!!****s* input_keyword_types/keyword_p_type *
+!!
+!!   NAME
+!!     keyword_p_type
+!!
+!!   FUNCTION
+!!     represent a pointer to a keyword (to make arrays of pointers)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - keyword: the pointer to the keyword
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE keyword_p_type
+     TYPE(keyword_type), POINTER :: keyword
+  END TYPE keyword_p_type
+!!***
+  !****************************************************************************
+
+!!****s* input_keyword_types/keyword_type *
+!!
+!!   NAME
+!!     keyword_type
+!!
+!!   FUNCTION
+!!     represent a keyword in the input
+!!
+!!   NOTES
+!!     I have expressely avoided a format string for the type of keywords:
+!!     they should easily map to basic types of fortran, if you need more
+!!     information use a subsection. [fawzi]
+!!
+!!   ATTRIBUTES
+!!     - names: the names of the current keyword (at least one should be
+!!       present) for example "MAXSCF"
+!!     - usage: how to use it "MAXSCF 10"
+!!     - description: what does it do: "MAXSCF : determines the maximum 
+!!       number of steps in an SCF run"
+!!     - type_of_var: the type of keyword (controls how it is parsed)
+!!       it can be one of: no_parse_t,logical_t, integer_t, real_t,
+!!       char_t
+!!     - n_var: number of values that should be parsed (-1=unknown)
+!!     - repeats: if the keyword can be present more than once in the
+!!       section
+!!     - required: if the keyword is required (leaving it out will give an
+!!       error)
+!!     - default_value: the default value for the keyword
+!!     - lone_keyword_value: value to be used in presence of the keyword
+!!       without any parameter
+!!
+!!   AUTHOR
+!!     Joost & fawzi
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE keyword_type
+     INTEGER :: ref_count,id_nr
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
+     CHARACTER(LEN=default_string_length) :: usage
+     CHARACTER(LEN=description_string_length) :: description
+     INTEGER :: type_of_var,n_var
+     LOGICAL :: repeats, required
+     
+     TYPE(val_type), POINTER :: default_value
+     TYPE(val_type), POINTER :: lone_keyword_value
+  END TYPE keyword_type
+!!***
+  !****************************************************************************
+
+CONTAINS
+
+
+!!****f* keywords/keyword_create *
+!!
+!!   NAME
+!!     keyword_create
+!!
+!!   FUNCTION
+!!     creates a keyword object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - keyword: the keyword object to be created
+!!     - name: the name of the keyword
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE keyword_create(keyword, name, description, usage, type_of_var,&
+     n_var,repeats,variants,required,default_val,&
+     default_l_val, default_r_val, default_c_val, default_i_val,&
+     default_l_vals, default_r_vals, default_c_vals, default_i_vals,&
+     lone_keyword_val, lone_keyword_l_val, lone_keyword_r_val, lone_keyword_c_val,&
+     lone_keyword_i_val, lone_keyword_l_vals, lone_keyword_r_vals, &
+     lone_keyword_c_vals, lone_keyword_i_vals, error)
+    TYPE(keyword_type), POINTER              :: keyword
+    CHARACTER(len=*), INTENT(in)             :: name, description, usage
+    INTEGER, INTENT(in), OPTIONAL            :: type_of_var, n_var
+    LOGICAL, INTENT(in), OPTIONAL            :: repeats
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: variants
+    LOGICAL, INTENT(in), OPTIONAL            :: required
+    TYPE(val_type), OPTIONAL, POINTER        :: default_val
+    LOGICAL, INTENT(in), OPTIONAL            :: default_l_val
+    REAL(KIND=DP), INTENT(in), OPTIONAL      :: default_r_val
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: default_c_val
+    INTEGER, INTENT(in), OPTIONAL            :: default_i_val
+    LOGICAL, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: default_l_vals
+    REAL(KIND=DP), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: default_r_vals
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: default_c_vals
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: default_i_vals
+    TYPE(val_type), OPTIONAL, POINTER        :: lone_keyword_val
+    LOGICAL, INTENT(in), OPTIONAL            :: lone_keyword_l_val
+    REAL(KIND=DP), INTENT(in), OPTIONAL      :: lone_keyword_r_val
+    CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: lone_keyword_c_val
+    INTEGER, INTENT(in), OPTIONAL            :: lone_keyword_i_val
+    LOGICAL, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: lone_keyword_l_vals
+    REAL(KIND=DP), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: lone_keyword_r_vals
+    CHARACTER(len=*), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: lone_keyword_c_vals
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: lone_keyword_i_vals
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+  ALLOCATE(keyword,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     keyword%ref_count=1
+     last_keyword_id=last_keyword_id+1
+     keyword%id_nr=last_keyword_id
+
+     IF (PRESENT(variants)) THEN
+        ALLOCATE(keyword%names(SIZE(variants)+1),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           keyword%names(1)=name
+           DO i=1,SIZE(variants)
+              keyword%names(i+1)=variants(i)
+           END DO
+        END IF
+     ELSE
+        ALLOCATE(keyword%names(1),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF (.not.failure) keyword%names(1)=name
+     END IF
+     DO i=1,SIZE(keyword%names)
+        CALL uppercase(keyword%names(i))
+     END DO
+     
+     CPPrecondition(LEN_TRIM(usage)<=LEN(keyword%usage),cp_failure_level,routineP,error,failure)
+     keyword%usage=usage
+     CPPrecondition(LEN_TRIM(description)<=LEN(keyword%description),cp_failure_level,routineP,error,failure)
+     keyword%description=description
+     
+     keyword%repeats=.FALSE.
+     IF (PRESENT(repeats)) keyword%repeats=repeats
+     keyword%required=.FALSE.
+     IF (PRESENT(required)) keyword%required=required
+
+     NULLIFY(keyword%default_value, keyword%lone_keyword_value)
+     IF (PRESENT(default_val)) THEN
+        CALL cp_assert(.NOT.(PRESENT(default_l_val).OR.PRESENT(default_l_vals).OR.&
+             PRESENT(default_i_val).OR.PRESENT(default_i_vals).OR.&
+             PRESENT(default_r_val).or.PRESENT(default_r_vals).OR.&
+             PRESENT(default_c_val).OR.PRESENT(default_c_vals)),cp_failure_level,&
+             cp_assertion_failed,routineP,&
+             "you should pass either default_val or a default value, not both",&
+             error,failure)
+        keyword%default_value => default_val
+        CALL val_retain(default_val,error=error)
+     END IF
+     IF (.not.ASSOCIATED(keyword%default_value)) THEN
+        CALL val_create(keyword%default_value,l_val=default_l_val,&
+             l_vals=default_l_vals,i_val=default_i_val,i_vals=default_i_vals,&
+             r_val=default_r_val,r_vals=default_r_vals,c_val=default_c_val,&
+             c_vals=default_c_vals)
+     END IF
+
+     keyword%type_of_var=keyword%default_value%type_of_var
+     IF (keyword%default_value%type_of_var==no_t) THEN
+        CALL val_release(keyword%default_value,error=error)
+     END IF
+
+     IF (keyword%type_of_var==no_t) THEN
+        IF (PRESENT(type_of_var)) THEN
+           keyword%type_of_var=type_of_var
+        ELSE
+           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,routineP,&
+                "keyword "//TRIM(keyword%names(1))//&
+                " assumed undefined type by default",error,failure)
+        END IF
+     ELSE IF (PRESENT(type_of_var)) THEN
+        CALL cp_assert(keyword%type_of_var==type_of_var,cp_failure_level,&
+             cp_assertion_failed,routineP, &
+             "keyword "//TRIM(keyword%names(1))//&
+             " has a type different from the type of the default_value",&
+             error,failure)
+        keyword%type_of_var=type_of_var
+     END IF
+
+     IF (keyword%type_of_var==no_t) THEN
+        CALL val_create(keyword%default_value,error=error)
+     END IF
+  END IF
+
+  IF (.NOT.failure) THEN
+     IF (PRESENT(lone_keyword_val)) THEN
+        CALL cp_assert(.NOT.(PRESENT(lone_keyword_l_val).OR.PRESENT(lone_keyword_l_vals).OR.&
+             PRESENT(lone_keyword_i_val).OR.PRESENT(lone_keyword_i_vals).OR.&
+             PRESENT(lone_keyword_r_val).OR.PRESENT(lone_keyword_r_vals).OR.&
+             PRESENT(lone_keyword_c_val).OR.PRESENT(lone_keyword_c_vals)),&
+             cp_failure_level, cp_assertion_failed,routineP,&
+             "you should pass either lone_keyword_val or a lone_keyword value, not both",&
+             error,failure)
+        keyword%lone_keyword_value => lone_keyword_val
+        CALL val_retain(lone_keyword_val,error=error)
+     END IF
+     IF (.NOT.ASSOCIATED(keyword%lone_keyword_value)) THEN
+        CALL val_create(keyword%lone_keyword_value,l_val=lone_keyword_l_val,&
+             l_vals=lone_keyword_l_vals,i_val=lone_keyword_i_val,i_vals=lone_keyword_i_vals,&
+             r_val=lone_keyword_r_val,r_vals=lone_keyword_r_vals,c_val=lone_keyword_c_val,&
+             c_vals=lone_keyword_c_vals)
+     END IF
+     IF (ASSOCIATED(keyword%lone_keyword_value)) THEN
+        IF (keyword%lone_keyword_value%type_of_var==no_t) THEN
+           CALL val_release(keyword%lone_keyword_value,error=error)
+        ELSE
+           CALL cp_assert(keyword%lone_keyword_value%type_of_var==keyword%type_of_var,&
+                cp_failure_level,cp_assertion_failed,routineP,&
+                "lone_keyword_value type incompatible with "//&
+                "keyword type",error,failure)
+        END IF
+     END IF
+
+     keyword%n_var=1
+     IF (ASSOCIATED(keyword%default_value)) THEN
+        SELECT CASE(keyword%default_value%type_of_var)
+        CASE(logical_t)
+           keyword%n_var=SIZE(keyword%default_value%l_val)
+        CASE(integer_t)
+           keyword%n_var=SIZE(keyword%default_value%i_val)
+        CASE(real_t)
+           keyword%n_var=SIZE(keyword%default_value%r_val)
+        CASE(char_t)
+           keyword%n_var=SIZE(keyword%default_value%c_val)
+        CASE(no_t)
+           keyword%n_var=0
+        CASE default
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END SELECT
+     END IF
+     IF (PRESENT(n_var)) keyword%n_var=n_var
+
+  END IF
+END SUBROUTINE keyword_create
+!***************************************************************************
+
+!!****f* keywords/keyword_retain *
+!!
+!!   NAME
+!!     keyword_retain
+!!
+!!   FUNCTION
+!!     retains the given keyword (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - keyword: the keyword to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE keyword_retain(keyword, error)
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
+     keyword%ref_count=keyword%ref_count+1
+  END IF
+END SUBROUTINE keyword_retain
+!***************************************************************************
+
+!!****f* input_keyword_types/keyword_release *
+!!
+!!   NAME
+!!     keyword_release
+!!
+!!   FUNCTION
+!!     releases the given keyword (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - keyword: the keyword to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE keyword_release(keyword, error)
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  IF (ASSOCIATED(keyword)) THEN
+     CPPreconditionNoFail(keyword%ref_count>0,cp_failure_level,routineP,error)
+     keyword%ref_count=keyword%ref_count-1
+     IF (keyword%ref_count==0) THEN
+        DEALLOCATE(keyword%names,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CALL val_release(keyword%default_value,error=error)
+        CALL val_release(keyword%lone_keyword_value,error=error)
+        DEALLOCATE(keyword,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(keyword)
+END SUBROUTINE keyword_release
+!***************************************************************************
+
+!!****f* input_keyword_types/keyword_get *
+!!
+!!   NAME
+!!     keyword_get
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE keyword_get(keyword,names,usage,description,type_of_var,n_var,&
+     default_value, lone_keyword_value,required,repeats,error)
+    TYPE(keyword_type), POINTER              :: keyword
+    CHARACTER(len=default_string_length), &
+      DIMENSION(:), OPTIONAL, POINTER        :: names
+    CHARACTER(len=*), INTENT(out), OPTIONAL  :: usage, description
+    INTEGER, INTENT(out), OPTIONAL           :: type_of_var, n_var
+    TYPE(val_type), OPTIONAL, POINTER        :: default_value, &
+                                                lone_keyword_value
+    LOGICAL, INTENT(out), OPTIONAL           :: required, repeats
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_get', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+  CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     IF (PRESENT(names)) names => keyword%names
+     IF (PRESENT(usage)) usage=keyword%usage
+     IF (PRESENT(description)) description=keyword%description
+     IF (PRESENT(type_of_var)) type_of_var=keyword%type_of_var
+     IF (PRESENT(n_var)) n_var=keyword%n_var
+     IF (PRESENT(repeats)) repeats=keyword%repeats
+     IF (PRESENT(required)) required=keyword%required
+     IF (PRESENT(default_value)) default_value => keyword%default_value
+     IF (PRESENT(lone_keyword_value)) lone_keyword_value => keyword%lone_keyword_value
+  END IF
+END SUBROUTINE keyword_get
+!***************************************************************************
+
+!!****f* input_keyword_types/keyword_describe [1.0] *
+!!
+!!   NAME
+!!     keyword_describe
+!!
+!!   FUNCTION
+!!     writes out a description of the keyword
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - keyword: the keyword to describe
+!!     - unit_nr: the unit to write to
+!!     - level: the description level (0 no description, 1 name
+!!       2: +usage, 3: +variants+description+default_value+required+repeats
+!!       4: +type_of_var)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE keyword_describe(keyword, unit_nr, level,error)
+    TYPE(keyword_type), POINTER              :: keyword
+    INTEGER, INTENT(in)                      :: unit_nr, level
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'keyword_describe', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(keyword),cp_failure_level,routineP,error,failure)
+  CPPrecondition(keyword%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure.AND.level>0) THEN
+     WRITE(unit_nr,"(a,a,a)") "                                        ---",&
+          TRIM(keyword%names(1)),"---"
+     IF (level>1) THEN
+        WRITE(unit_nr,"(a,a)") "usage         : ",TRIM(keyword%usage)
+     END IF
+     IF (level>2) THEN
+        WRITE(unit_nr,"(a)")"description   : "
+        CALL print_message(TRIM(keyword%description),unit_nr,0,0,0)
+        IF (level>3) THEN
+           SELECT CASE(keyword%type_of_var)
+           CASE (logical_t)
+              IF (keyword%n_var==-1) THEN
+                 WRITE(unit_nr,"('  A list of logicals is expected')")
+              ELSE IF (keyword%n_var==1) THEN
+                 WRITE(unit_nr,"('  A logical is expected')")
+              ELSE
+                 WRITE(unit_nr,"(i6,'  logicals are expected')") keyword%n_var
+              END IF
+              WRITE(unit_nr,"('  (T,TRUE,YES,ON) and (F,FALSE,NO,OFF) are synonyms')")
+           CASE (integer_t)
+              IF (keyword%n_var==-1) THEN
+                 WRITE(unit_nr,"('  A list of integers is expected')")
+              ELSE IF (keyword%n_var==1) THEN
+                 WRITE(unit_nr,"('  An integer is expected')")
+              ELSE
+                 WRITE(unit_nr,"(i6,' integers are expected')") keyword%n_var
+              END IF
+           CASE (real_t)
+              IF (keyword%n_var==-1) THEN
+                 WRITE(unit_nr,"('  A list of reals is expected')")
+              ELSE IF (keyword%n_var==1) THEN
+                 WRITE(unit_nr,"('  A real is expected')")
+              ELSE
+                 WRITE(unit_nr,"(i6,' reals are expected')") keyword%n_var
+              END IF
+           CASE (char_t)
+              IF (keyword%n_var==-1) THEN
+                 WRITE(unit_nr,"('  A list of words is expected')")
+              ELSE IF (keyword%n_var==1) THEN
+                 WRITE(unit_nr,"('  A word is expected')")
+              ELSE
+                 WRITE(unit_nr,"(i6,' words are expected')") keyword%n_var
+              END IF
+           CASE (no_t)
+              WRITE(unit_nr,"('  Nonstadard type.')")
+           CASE default
+              CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)           
+           END SELECT
+        END IF
+
+        IF (ASSOCIATED(keyword%default_value).AND.keyword%type_of_var/=no_t) THEN
+           WRITE(unit_nr,"('default_value : ')",advance="NO")
+           CALL val_write(keyword%default_value,unit_nr=unit_nr,error=error)
+        END IF
+        IF (ASSOCIATED(keyword%lone_keyword_value).AND.keyword%type_of_var/=no_t) THEN
+           WRITE(unit_nr,"('lone_keyword  : ')",advance="NO")
+           CALL val_write(keyword%lone_keyword_value,unit_nr=unit_nr,error=error)
+        END IF
+        IF (keyword%required) THEN
+           WRITE(unit_nr,"('  This keyword is required')",advance="NO")
+        ELSE
+           WRITE(unit_nr,"('  This keyword is optional')",advance="NO")
+        END IF
+        IF (keyword%repeats) THEN
+           WRITE(unit_nr,"(' and it can be repeated more than once')",advance="NO")
+        END IF
+        WRITE(unit_nr,"()")
+        IF (SIZE(keyword%names)>1) THEN
+           WRITE(unit_nr,"(a)",advance="NO") "variants    : "
+           DO i=2,SIZE(keyword%names)
+              WRITE(unit_nr,"(a,' ')",advance="NO") keyword%names(i)
+           END DO
+           WRITE(unit_nr,"()")
+        ENDIF
+     END IF
+  END IF
+END SUBROUTINE keyword_describe
+!***************************************************************************
+
+END MODULE input_keyword_types

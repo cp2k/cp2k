@@ -1,0 +1,596 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2004  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/input_val_types [1.0] *
+!!
+!!   NAME
+!!     input_val_types
+!!
+!!   FUNCTION
+!!     a wrapper for basic fortran types.
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     06.2004 created
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE input_val_types
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_val_types'
+
+  INTEGER, SAVE, PRIVATE :: last_val_id=0
+
+  PUBLIC :: val_p_type, val_type
+  PUBLIC :: val_create, val_retain, val_release, val_get, val_write
+!***
+!****************************************************************************
+
+  INTEGER, PARAMETER, PUBLIC :: no_t=0, logical_t=1, &
+       integer_t=2, real_t=3, char_t=4
+  
+!!****s* input_val_types/val_p_type [1.0] *
+!!
+!!   NAME
+!!     val_p_type
+!!
+!!   FUNCTION
+!!     pointer to a val, to create arrays of pointers
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - val: to pointer to the val
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE val_p_type
+     TYPE(val_type), POINTER :: val
+  END TYPE val_p_type
+!!***
+  !****************************************************************************
+
+!!****s* input_val_types/val_type *
+!!
+!!   NAME
+!!     val_type
+!!
+!!   FUNCTION
+!!     a type to  have a wrapper that stores any basic fortran type
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - type_of_var: type stored in the val (should be one of no_t,
+!!       integer_t, logical_t, real_t, char_t)
+!!     - l_val, i_val, c_val, r_val: arrays with logical,integer,character
+!!       or real values. Only one should be associated (and namely the one
+!!       specified in type_of_var).
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE val_type
+     INTEGER :: ref_count, id_nr, type_of_var
+     LOGICAL, DIMENSION(:), POINTER :: l_val
+     INTEGER, DIMENSION(:), POINTER :: i_val
+     CHARACTER(len=default_string_length), DIMENSION(:), POINTER :: &
+          c_val
+     REAL(kind=dp), DIMENSION(:), POINTER :: r_val
+  END TYPE val_type
+!!***
+  !****************************************************************************
+CONTAINS
+
+!!****f* input_val_types/val_create *
+!!
+!!   NAME
+!!     val_create
+!!
+!!   FUNCTION
+!!     creates a keyword value
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - val: the object to be created
+!!     - l_val,i_val,r_val,c_val: a logical,integer,real,string
+!!       to be stored in the val
+!!     - l_vals, i_vals, r_vals, c_vals: an array of logicals, integers, reals,
+!!       characters to be stored in val
+!!     - l_vals_ptr, i_vals_ptr, r_vals_ptr, c_vals_ptr: an array of logicals,
+!!       ... to be stored in val, val will get the ownership of the pointer 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
+     r_val,r_vals,r_vals_ptr,c_val,c_vals,c_vals_ptr,error)
+    TYPE(val_type), POINTER                  :: val
+    LOGICAL, INTENT(in), OPTIONAL            :: l_val
+    LOGICAL, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: l_vals
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals_ptr
+    INTEGER, INTENT(in), OPTIONAL            :: i_val
+    INTEGER, DIMENSION(:), INTENT(in), &
+      OPTIONAL                               :: i_vals
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals_ptr
+    REAL(KIND=DP), INTENT(in), OPTIONAL      :: r_val
+    REAL(KIND=DP), DIMENSION(:), &
+      INTENT(in), OPTIONAL                   :: r_vals
+    REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_vals_ptr
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      INTENT(in), OPTIONAL                   :: c_val
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), INTENT(in), OPTIONAL     :: c_vals
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: narg, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(val),cp_failure_level,routineP,error,failure)
+  ALLOCATE(val,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     NULLIFY(val%l_val,val%i_val,val%r_val,val%c_val)
+     val%type_of_var=no_t
+     last_val_id=last_val_id+1
+     val%id_nr=last_val_id
+     val%ref_count=1
+
+     narg=0
+     val%type_of_var=no_t
+     IF (PRESENT(l_val)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(l_vals),cp_failure_level,routineP,error,failure)
+!FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%l_val(1),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        val%l_val(1)=l_val
+        val%type_of_var=logical_t
+     END IF
+     IF (PRESENT(l_vals)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(l_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%l_val(SIZE(l_vals)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%l_val=l_vals
+        val%type_of_var=logical_t
+     END IF
+     IF (PRESENT(l_vals_ptr)) THEN
+        narg=narg+1
+        val%l_val => l_vals_ptr
+        val%type_of_var=logical_t
+     END IF
+     
+     IF (PRESENT(r_val)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(r_vals),cp_failure_level,routineP,error,failure)
+!FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%r_val(1),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%r_val(1)=r_val
+        val%type_of_var=real_t
+     END IF
+     IF (PRESENT(r_vals)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(r_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%r_val(SIZE(r_vals)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%r_val=r_vals
+        val%type_of_var=real_t
+     END IF
+     IF (PRESENT(r_vals_ptr)) THEN
+        narg=narg+1
+        val%r_val => r_vals_ptr
+        val%type_of_var=real_t
+     END IF
+     
+     IF (PRESENT(i_val)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(i_vals),cp_failure_level,routineP,error,failure)
+!FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%i_val(1),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%i_val(1)=i_val
+        val%type_of_var=integer_t
+     END IF
+     IF (PRESENT(i_vals)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(i_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%i_val(SIZE(i_vals)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%i_val=i_vals
+        val%type_of_var=integer_t
+     END IF
+     IF (PRESENT(i_vals_ptr)) THEN
+        narg=narg+1
+        val%i_val => i_vals_ptr
+        val%type_of_var=integer_t
+     END IF
+     
+     IF (PRESENT(c_val)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(c_vals),cp_failure_level,routineP,error,failure)
+!FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%c_val(1),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%c_val(1)=c_val
+        val%type_of_var=char_t
+     END IF
+     IF (PRESENT(c_vals)) THEN
+!FM        CPPrecondition(.NOT.PRESENT(c_vals_ptr),cp_failure_level,routineP,error,failure)
+        narg=narg+1
+        ALLOCATE(val%c_val(SIZE(c_vals)),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        val%c_val=c_vals
+        val%type_of_var=char_t
+     END IF
+     IF (PRESENT(c_vals_ptr)) THEN
+        narg=narg+1
+        val%c_val => c_vals_ptr
+        val%type_of_var=char_t
+     END IF
+     CPPostcondition(narg<=1,cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE val_create
+!***************************************************************************
+
+!!****f* input_val_types/val_release *
+!!
+!!   NAME
+!!     val_release
+!!
+!!   FUNCTION
+!!     releases the given val
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - val: the val to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_release(val,error)
+    TYPE(val_type), POINTER                  :: val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  IF (ASSOCIATED(val)) THEN
+     CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP,error)
+     val%ref_count=val%ref_count-1
+     IF (val%ref_count==0) THEN
+        IF (ASSOCIATED(val%l_val)) THEN
+           DEALLOCATE(val%l_val,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(val%i_val)) THEN
+           DEALLOCATE(val%i_val,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(val%r_val)) THEN
+           DEALLOCATE(val%r_val,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(val%c_val)) THEN
+           DEALLOCATE(val%c_val,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        val%type_of_var=no_t
+        DEALLOCATE(val,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(val)
+END SUBROUTINE val_release
+!***************************************************************************
+
+!!****f* input_val_types/val_retain *
+!!
+!!   NAME
+!!     val_retain
+!!
+!!   FUNCTION
+!!     retains the given val
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - val: the val to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_retain(val,error)
+    TYPE(val_type), POINTER                  :: val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(val),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(val%ref_count>0,cp_failure_level,routineP,error)
+     val%ref_count=val%ref_count+1
+  END IF
+END SUBROUTINE val_retain
+!***************************************************************************
+
+!!****f* input_val_types/val_get *
+!!
+!!   NAME
+!!     val_get
+!!
+!!   FUNCTION
+!!     returns the stored values
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - val: the object from which you want to extract the values
+!!     - l_val,i_val,r_val,c_val: gets a logical, integer, real, char
+!!       from the val
+!!     - logical_vals: gets an array of logicals, integers, reals, chars
+!!       from the val
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
+     i_vals,r_val,r_vals,c_val,c_vals,type_of_var,error)
+    TYPE(val_type), POINTER                  :: val
+    LOGICAL, INTENT(out), OPTIONAL           :: has_l, has_i, has_r, has_c, &
+                                                l_val
+    LOGICAL, DIMENSION(:), OPTIONAL, POINTER :: l_vals
+    INTEGER, INTENT(out), OPTIONAL           :: i_val
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
+    REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
+    REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_vals
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      INTENT(out), OPTIONAL                  :: c_val
+    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+      DIMENSION(:), OPTIONAL, POINTER        :: c_vals
+    INTEGER, INTENT(out), OPTIONAL           :: type_of_var
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = "val_get", &
+      routineP = moduleN//":"//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  IF (PRESENT(has_l)) has_l=ASSOCIATED(val%l_val)
+  IF (PRESENT(has_i)) has_i=ASSOCIATED(val%i_val)
+  IF (PRESENT(has_r)) has_r=ASSOCIATED(val%r_val)
+  IF (PRESENT(has_c)) has_c=ASSOCIATED(val%c_val)
+  IF (PRESENT(l_vals)) l_vals => val%l_val
+  IF (PRESENT(l_val)) THEN
+     IF (ASSOCIATED(val%l_val)) THEN
+        IF (SIZE(val%l_val)>0) THEN
+           l_val=val%l_val(1)
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+
+  IF (PRESENT(i_vals)) i_vals => val%i_val
+  IF (PRESENT(i_val)) THEN
+     IF (ASSOCIATED(val%i_val)) THEN
+        IF (SIZE(val%i_val)>0) THEN
+           i_val=val%i_val(1)
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+
+  IF (PRESENT(r_vals)) r_vals => val%r_val
+  IF (PRESENT(r_val)) THEN
+     IF (ASSOCIATED(val%r_val)) THEN
+        IF (SIZE(val%r_val)>0) THEN
+           r_val=val%r_val(1)
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+
+  IF (PRESENT(c_vals)) c_vals => val%c_val
+  IF (PRESENT(c_val)) THEN
+     IF (ASSOCIATED(val%c_val)) THEN
+        IF (SIZE(val%c_val)>0) THEN
+           c_val=val%c_val(1)
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     ELSE
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+     END IF
+  END IF
+
+  IF (PRESENT(type_of_var)) type_of_var=val%type_of_var
+
+END SUBROUTINE val_get
+!***************************************************************************
+
+!!****f* input_val_types/val_write *
+!!
+!!   NAME
+!!     val_write
+!!
+!!   FUNCTION
+!!     writes out the valuse stored in the val
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - val: the val to write
+!!     - unit_nr: the unit to write to
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE val_write(val,unit_nr,error)
+    TYPE(val_type), POINTER                  :: val
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'val_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, l
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  IF (ASSOCIATED(val)) THEN
+     SELECT CASE(val%type_of_var)
+     CASE (logical_t)
+        IF (ASSOCIATED(val%l_val)) THEN
+           DO i=1,SIZE(val%l_val)
+              IF (MODULO(i,20)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              WRITE(unit=unit_nr,fmt="(' ',l1)",advance="NO")&
+                   val%l_val(i)
+           END DO
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     CASE (integer_t)
+        IF (ASSOCIATED(val%i_val)) THEN
+           DO i=1,SIZE(val%i_val)
+              IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              WRITE(unit=unit_nr,fmt="(' ',i8)",advance="NO")&
+                   val%i_val(i)
+           END DO
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     CASE (real_t)
+        IF (ASSOCIATED(val%r_val)) THEN
+           DO i=1,SIZE(val%r_val)
+              IF (MODULO(i,10)==0) WRITE(unit=unit_nr,fmt="(' \')")
+              WRITE(unit=unit_nr,fmt="(' ',i8)",advance="NO")&
+                   val%r_val(i)
+           END DO
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     CASE (char_t)
+        IF (ASSOCIATED(val%c_val)) THEN
+           l=0
+           DO i=1,SIZE(val%c_val)
+              IF (l>10.AND.l+LEN(val%c_val(i))>76)THEN
+                 WRITE(unit=unit_nr,fmt="(' \')")
+                 l=0
+              ELSE
+                 l=l+LEN(val%c_val(i))+3
+              END IF
+              WRITE(unit=unit_nr,fmt="(' ',a,a,a)",advance="NO")&
+                   '"',TRIM(val%c_val(i)),'"'
+           END DO
+        ELSE
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     CASE(no_t)
+        WRITE(unit=unit_nr,fmt="(' *empty*')",advance="NO")
+     CASE default
+        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+             routineP,"unexpected type_of_var for val ",error,failure)
+     END SELECT
+  ELSE
+     WRITE(unit=unit_nr,fmt="(' *null*')",advance="NO")
+  END IF
+  WRITE(unit=unit_nr,fmt="()")
+END SUBROUTINE val_write
+!***************************************************************************
+  
+END MODULE input_val_types
