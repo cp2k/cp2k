@@ -52,7 +52,7 @@ MODULE perdew_wang_functional
   END INTERFACE
 
   INTERFACE perdew_wang_energy_density
-     MODULE PROCEDURE pw_lda_ed, pw_lsd_ed
+     MODULE PROCEDURE pw_info, pw_init, pw_lda_ed, pw_lsd_ed
   END INTERFACE
 
 CONTAINS

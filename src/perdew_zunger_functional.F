@@ -52,7 +52,7 @@ MODULE perdew_zunger_functional
   END INTERFACE
 
   INTERFACE perdew_zunger_energy_density
-     MODULE PROCEDURE pz_lsd_ed, pz_lda_ed
+     MODULE PROCEDURE pz_info, pz_init, pz_lsd_ed, pz_lda_ed
   END INTERFACE
 
 CONTAINS
