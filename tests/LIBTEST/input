@@ -1,14 +1,14 @@
 &CP2K
  PROGRAM      TEST
- IOLEVEL      10
+ IOLEVEL      15
  FFTLIB       FFTSG
 &END
 
 &TEST
-   COPY           1                                                             I
-   MATMUL         1                                                             I
-   FFT            1                                                             I
-   PW_FFT         1                                                             I
-   FUNCTIONALS    1                                                          I
-   Clebsch-Gordon 1                                                       I
+   COPY           1
+   MATMUL         1
+   FFT            1
+   PW_FFT         1
+   FUNCTIONALS    1
+   Clebsch-Gordon 1
 &END
