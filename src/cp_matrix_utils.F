@@ -56,7 +56,6 @@ MODULE cp_matrix_utils
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             copy_local_sm_to_replicated_fm,&
                                              find_block_node,&
                                              first_block_node,&
                                              get_block_node,&

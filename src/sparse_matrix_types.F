@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003 CP2K developers group                           !
+!   Copyright (C) 2000 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -95,9 +95,8 @@ MODULE sparse_matrix_types
 
   PUBLIC :: real_block_node_type,&
             real_matrix_p_type,&
-            real_matrix_type,&
-            real_block_list_type, &
-            distribution_2d_type
+            real_matrix_type, &
+            real_block_list_type
 
 ! *** Public subroutines ***
 
@@ -106,34 +105,27 @@ MODULE sparse_matrix_types
             add_1d_block_node,&
             allocate_matrix,&
             allocate_matrix_set,&
-            copy_matrix,&
+            copy_matrix, transfer_matrix, & ! what is the difference ?
             copy_local_sm_to_replicated_fm,&
             deallocate_matrix,&
-            deallocate_matrix_row,&
             deallocate_matrix_set,&
             get_block_node,&
             get_matrix_diagonal,&
             get_matrix_info,&
-            merge_matrices,&
             put_block_node,&
-            replicate_matrix,&
-            replicate_matrix_structure,&
+            replicate_matrix, replicate_matrix_structure,& ! should be put together
             scale_matrix,&
             set_matrix,&
             set_matrix_diagonal,&
-            symmetrise_diagonal_blocks,&
-            transfer_matrix, &
             sparse_times_local, &
             sparse_plus_loc_loct, &
             remove_block_node, &
-            write_blocks_maxabsval, &
-            add_all_real_matrix_blocks,&
-            get_real_matrix_occupation,&
+            write_blocks_maxabsval, add_all_real_matrix_blocks, get_real_matrix_occupation,& ! should be removed
             cp_sm_scale_and_add,&
             cp_sm_get_id_nr,&
             cp_sm_set,&
             cp_sm_sm_trace,&
-            cp_sm_get_block_list,&
+            cp_sm_get_block_list,& 
             cp_sm_maxabsval
 
 ! *** Public functions ***
@@ -190,10 +182,6 @@ MODULE sparse_matrix_types
 
   INTERFACE get_matrix_diagonal
     MODULE PROCEDURE get_real_matrix_diagonal
-  END INTERFACE
-
-  INTERFACE merge_matrices
-    MODULE PROCEDURE merge_real_matrices
   END INTERFACE
 
   INTERFACE next_block_node
@@ -1675,75 +1663,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE merge_real_matrices(a,b)
-
-!   Purpose: Merge two sparse matrices a and b which have the same structure,
-!            i.e. all blocks of b which are not present in a will be created
-!            and blocks which are present in both matrices will be added.
-!            b will be removed before exit.
-
-!   History: - Creation (16.07.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER          :: a, b
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE merge_real_matrices (MODULE sparse_matrix_types)"
-
-    INTEGER                                  :: iblock_col, iblock_row
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a_block, b_block
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
-!   *** Check the association status of the matrices ***
-
-    IF (.NOT.ASSOCIATED(a)) THEN
-       CALL stop_program(routine,"The matrix pointer a is not associated")
-    END IF
-
-    IF (.NOT.ASSOCIATED(b)) THEN
-       CALL stop_program(routine,"The matrix pointer b is not associated")
-    END IF
-
-    DO iblock_row=1,b%nblock_row
-
-      block_node => first_block_node(b,iblock_row)
-
-      DO WHILE (ASSOCIATED(block_node))
-
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
-                            BLOCK=b_block)
-
-        CALL get_block_node(matrix=a,&
-                            block_row=iblock_row,&
-                            block_col=iblock_col,&
-                            BLOCK=a_block)
-
-        IF (ASSOCIATED(a_block)) THEN
-          a_block(:,:) = a_block(:,:) + b_block(:,:)
-        ELSE
-          CALL add_real_matrix_block(matrix=a,&
-                                     block_row=iblock_row,&
-                                     block_col=iblock_col,&
-                                     BLOCK=b_block)
-        END IF
-
-        block_node => block_node%next_block_node
-
-      END DO
-
-      CALL deallocate_real_matrix_row(matrix=b,block_row=iblock_row)
-
-    END DO
-
-    CALL deallocate_real_matrix(b)
-
-  END SUBROUTINE merge_real_matrices
-
-! *****************************************************************************
-
   FUNCTION next_real_block_node(block_node) RESULT(next_block_node)
 
 !   Purpose: Return a pointer to the next block node of a block list.
@@ -2200,61 +2119,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE set_real_matrix_diagonal
-
-! *****************************************************************************
-
-  SUBROUTINE symmetrise_diagonal_blocks(matrix)
-
-!   Purpose: Symmetrise the diagonal blocks of matrix.
-
-!   History: - Creation (13.06.2001, MK)
-
-!   ***************************************************************************
-
-    TYPE(real_matrix_type), POINTER          :: matrix
-
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE symmetrise_diagonal_blocks (MODULE sparse_matrix_types)"
-
-    INTEGER                                  :: iblock_col, iblock_row, icol, &
-                                                irow
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: BLOCK
-    TYPE(real_block_node_type), POINTER      :: block_node
-
-!   ---------------------------------------------------------------------------
-!   *** Check the association status of the input matrix ***
-
-    IF (.NOT.ASSOCIATED(matrix)) THEN
-      CALL stop_program(routine,"The input matrix pointer is not associated")
-    END IF
-
-!   *** Traverse all block nodes ***
-
-    DO iblock_row=1,matrix%nblock_row
-
-      block_node => first_block_node(matrix,iblock_row)
-
-      DO WHILE (ASSOCIATED(block_node))
-
-        CALL get_block_node(block_node=block_node,&
-                            block_col=iblock_col,&
-                            BLOCK=BLOCK)
-
-        IF (iblock_row == iblock_col) THEN
-          DO irow=1,SIZE(BLOCK,1)
-            DO icol=irow+1,SIZE(BLOCK,2)
-              BLOCK(icol,irow) = BLOCK(irow,icol)
-            END DO
-          END DO
-        END IF
-
-        block_node => next_block_node(block_node)
-
-      END DO
-
-    END DO
-
-  END SUBROUTINE symmetrise_diagonal_blocks
 
 ! *****************************************************************************
 
