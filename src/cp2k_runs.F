@@ -14,6 +14,7 @@ MODULE cp2k_runs
   USE global_types,                    ONLY: global_environment_type
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length, &
+                                             default_path_length,&
                                              dbl
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep_create_force_env
@@ -45,6 +46,9 @@ MODULE cp2k_runs
                                              mp_comm_free
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_parser,                       ONLY: open_file,close_file
+  USE parser,                          ONLY: parser_init, parser_end,&
+       get_next, test_next, search_label, read_line
+  USE string_utilities,                ONLY: uppercase
   USE trajana_methods,                 ONLY: trajana
   USE timings,                         ONLY: timeset, &
                                              timestop
@@ -230,10 +234,14 @@ CONTAINS
 
     LOGICAL                                  :: failure,run_OK
     TYPE(farming_env_type), POINTER          :: farming_env
-    INTEGER                                  :: stat,i,ierr,output_unit,handle
-    CHARACTER(LEN=default_string_length)     :: output_file
+    INTEGER                                  :: stat,i,ierr,output_unit,handle,&
+         length
+    CHARACTER(LEN=default_path_length)       :: output_file
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER                                  :: ngroups
+    CHARACTER(LEN=3)                         :: test_result
+    CHARACTER(LEN=default_string_length)     :: keyword, str
+    character(len=5)                         :: label
     INTEGER                                  :: new_group,new_rank,new_size
 
     failure=.FALSE.
@@ -287,7 +295,35 @@ CONTAINS
           IF (ierr==0) THEN
               CALL mp_environ(new_size,new_rank,new_group)
               IF (new_rank == 0) THEN 
+
+                 ! generate the output file
                   write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+                  CALL parser_init(file_name=TRIM(farming_env%Job_input(i)))
+                  label="&CP2K"
+                  CALL search_label(label,ierr,ignore_case=.true.)
+                  IF (ierr==0) THEN
+                     DO
+                        CALL read_line()
+                        test_result = test_next()
+                        IF (test_result == "X") exit
+                        length=default_string_length
+                        CALL get_next(keyword,length)
+                        call uppercase(keyword)
+                        SELECT CASE(keyword)
+                        CASE("PROJECT")
+                           length=default_string_length
+                           CALL get_next(str,length)
+                           output_file=TRIM(str)//".out"
+                        CASE("OUTPUT_FILE_NAME","OUTPUT_FILE")
+                           length=default_string_length
+                           CALL get_next(str,length)
+                           output_file=TRIM(str)
+                           EXIT
+                        END SELECT
+                     END DO
+                  END IF
+                  CALL parser_end()
+
                   CALL open_file(file_name=TRIM(output_file),&
                         file_action="WRITE",&
                         file_status="UNKNOWN",&

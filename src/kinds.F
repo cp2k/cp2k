@@ -50,7 +50,8 @@ MODULE kinds
   LOGICAL, PARAMETER :: YES = .TRUE., NO = .FALSE.
   LOGICAL, PARAMETER :: TRUE = .TRUE., FALSE = .FALSE.
 
-  integer, parameter :: default_string_length=80
+  INTEGER, PARAMETER :: default_string_length=80
+  INTEGER, PUBLIC, PARAMETER :: default_path_length=250
 
 !!*****
 !******************************************************************************
@@ -62,6 +63,11 @@ CONTAINS
 !!
 !!   NAME
 !!     print_kind_info
+!!
+!!   SYNOPSIS
+!!     Subroutine print_kind_info(iw)
+!!       Integer, Intent (IN):: iw
+!!     End Subroutine print_kind_info
 !!
 !!   FUNCTION
 !!     Print informations about the used data types.

@@ -5,16 +5,14 @@
 #include "cp_prep_globals.h"
 
 MODULE farming_types
-  USE kinds,                           ONLY: default_string_length
-  USE cp_log_handling,                 ONLY: cp_logger_type, &
-                                             cp_failure_level, &
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
                                              cp_to_string
-  USE cp_error_handling,               ONLY: cp_error_type, &
-                                             cp_a_l, &
-                                             cp_assert, &
-                                             cp_error_init, &
-                                             cp_error_dealloc_ref, &
-                                             cp_assertion_failed
+  USE kinds,                           ONLY: default_path_length
+
   IMPLICIT NONE
   PRIVATE
 
@@ -26,10 +24,10 @@ MODULE farming_types
      INTEGER :: ngroup_wish          
      LOGICAL :: ngroup_wish_set      
      INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
-     CHARACTER(LEN=default_string_length)                        :: cwd        ! directory we started from
+     CHARACTER(LEN=default_path_length)                        :: cwd        ! directory we started from
      INTEGER                                                     :: Njobs      ! how many jobs to run
-     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_cwd    ! list of directories to go to
-     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_input  ! name of the input file to use
+     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_cwd    ! list of directories to go to
+     CHARACTER(LEN=default_path_length), DIMENSION(:), POINTER :: Job_input  ! name of the input file to use
      INTEGER, DIMENSION(:), POINTER                              :: Job_group  ! number of the target group
   END TYPE farming_env_type
 
@@ -39,6 +37,11 @@ CONTAINS
 !!
 !!   NAME
 !!      init_farming_env
+!!   SYNOPSIS
+!!     Subroutine init_farming_env(farming_env)
+!!       Type(farming_env_type), Pointer:: farming_env
+!!     End Subroutine init_farming_env
+!!
 !!   FUNCTION
 !!      help poor compilers do their job
 !!      i.e. provide a default initialization
@@ -52,8 +55,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE init_farming_env(farming_env)
-    TYPE(farming_env_type), POINTER :: farming_env
-    IF (associated(farming_env)) THEN
+    TYPE(farming_env_type), POINTER          :: farming_env
+
+    IF (ASSOCIATED(farming_env)) THEN
        farming_env%group_size_wish     = 0 
        farming_env%group_size_wish_set = .FALSE.
        farming_env%ngroup_wish         = 0
@@ -72,6 +76,11 @@ END SUBROUTINE
 !!   NAME
 !!     deallocate_farming_env
 !!
+!!   SYNOPSIS
+!!     Subroutine deallocate_farming_env(farming_env)
+!!       Type(farming_env_type), Pointer:: farming_env
+!!     End Subroutine deallocate_farming_env
+!!
 !!   FUNCTION
 !!     deallocates all associated fields of the farming_env type
 !!     and the type itself
@@ -86,7 +95,8 @@ END SUBROUTINE
 !!*** **********************************************************************
 
   SUBROUTINE deallocate_farming_env(farming_env)
-     TYPE(farming_env_type), POINTER :: farming_env
+    TYPE(farming_env_type), POINTER          :: farming_env
+
      IF (ASSOCIATED(farming_env)) THEN
         IF (ASSOCIATED(farming_env%Job_cwd)) DEALLOCATE(farming_env%Job_cwd)
         IF (ASSOCIATED(farming_env%Job_input)) DEALLOCATE(farming_env%Job_input)
