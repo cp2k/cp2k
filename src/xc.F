@@ -63,7 +63,8 @@ MODULE xc
                                              xc_deriv_spline3_smooth,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth
+                                             xc_rho_spline3_smooth,&
+                                             xc_rho_nn10
   USE kinds,                           ONLY: dbl,&
                                              wp => dp
   USE mathconstants,                   ONLY: twopi
@@ -88,7 +89,8 @@ MODULE xc
                                              pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
                                              pw_spline3_test_coeff,&
-                                             pw_spline_scale_deriv
+                                             pw_spline_scale_deriv,&
+                                             pw_nn_smear_g
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              NOSPACE,&
@@ -390,6 +392,9 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
     REAL ( kind=wp ) :: eps_rho,alpha
+    REAL ( kind=wp ), PARAMETER, dimension(4) :: nn10_coeffs=&
+         (/ 125._wp/216._wp, 25._wp/432._wp, 5._wp/864._wp, 1._wp/1728._wp /)
+    ! factor 10 between subsequent values
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -460,6 +465,9 @@ CONTAINS
                 CALL pw_spline2_evaluate_values_g(my_rho_g,error=error)
              CASE (xc_rho_spline3_smooth)
                 CALL pw_spline3_evaluate_values_g(my_rho_g,error=error)
+             CASE (xc_rho_nn10)
+                CALL pw_nn_smear_g(my_rho_g,&
+                     nn10_coeffs, error=error)
              END SELECT
              CALL pw_transfer(my_rho_g,my_rho_r)
           END IF
@@ -814,6 +822,9 @@ CONTAINS
                 CALL pw_spline2_evaluate_values_g(vxc_g,error=error)
              CASE (xc_rho_spline3_smooth)
                 CALL pw_spline3_evaluate_values_g(vxc_g,error=error)
+             CASE (xc_rho_nn10)
+                CALL pw_nn_smear_g(vxc_g,&
+                     nn10_coeffs,error=error)
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT

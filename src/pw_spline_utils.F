@@ -87,7 +87,7 @@ MODULE pw_spline_utils
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
        pw_spline3_deriv_r, pw_spline3_deriv_g, pw_spline3_test_coeff
-  PUBLIC :: pw_spline_scale_deriv
+  PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
 !***
@@ -323,8 +323,8 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
-!!       will contain the FFT of the coefficents of the spline
+!!     - spline_g: on entry the FFT of the coefficents of the spline as cr3d,
+!!       will contain the FFT of the values of the spline
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -402,6 +402,113 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE pw_spline2_evaluate_values_g
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_nn_smear_g [1.0] *
+!!
+!!   NAME
+!!     pw_nn_smear_g
+!!
+!!   FUNCTION
+!!     calculates the FFT of the values of a nearest neighbor smearing
+!!
+!!   NOTES
+!!     does not normalize the smear to 1.
+!!     with coeff=(/ 8._wp/27._wp, 2._wp/27._wp, 1._wp/54._wp, 1._wp/216._wp /)
+!!     is equivalent to pw_spline3_evaluate_values_g, with
+!!     coeff=(/ 27._wp/64._wp, 9._wp/128._wp, 3._wp/256._wp, 1._wp/512._wp /)
+!!
+!!   INPUTS
+!!     - spline_g: on entry the FFT of the values to interpolate as cc3d,
+!!       will contain the FFT of the smeared values
+!!     - coeffs: array with the coefficent of the smearing, ordered with 
+!!       the distance from the center: coeffs(1) the coeff of the central
+!!       element, coeffs(2) the coeff of the 6 element with distance 1,
+!!       coeff(3) the coeff of the 12 elements at distance sqrt(2),
+!!       coeff(4) the coeff of the 8 elements at distance sqrt(3).
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_nn_smear_g(spline_g,coeffs,error)
+    TYPE(pw_type),POINTER :: spline_g
+    REAL(kind=wp), DIMENSION(4), intent(in) :: coeffs
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_nn_smear_g',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp) :: c23, c_val, coeff
+    REAL (kind=wp), dimension(4) :: r_coeffs
+    REAL (kind=wp), DIMENSION(:), ALLOCATABLE :: cosIVals,cosJVals, cosKVals
+    INTEGER, DIMENSION(3) :: n,n_tot
+    INTEGER :: ii,i, j, k, handle, stat
+    INTEGER, DIMENSION (2,3) :: bo, gbo
+    TYPE(cp_logger_type), POINTER :: logger
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    n(1:3) = spline_g%pw_grid%npts_local (1:3)
+    n_tot(1:3) = spline_g%pw_grid%npts (1:3)
+    bo = spline_g%pw_grid%bounds_local
+    gbo = spline_g%pw_grid%bounds
+
+    r_coeffs=coeffs
+    r_coeffs(2)=r_coeffs(2)*2.0_wp
+    r_coeffs(3)=r_coeffs(3)*4.0_wp
+    r_coeffs(4)=r_coeffs(4)*8.0_wp
+
+    CPPrecondition(ASSOCIATED(spline_g),cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_use==COMPLEXDATA1D,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%in_space==RECIPROCALSPACE,cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.spline_g%pw_grid%spherical,cp_failure_level,routineP,error,failure)
+    CPPrecondition(spline_g%pw_grid%grid_span==FULLSPACE,cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(cosIVals(gbo(1,1):gbo(2,1)),cosJVals(gbo(1,2):gbo(2,2)), &
+         cosKVals(gbo(1,3):gbo(2,3)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    coeff=twopi/n_tot(1)
+    !$omp parallel do private(i)
+    DO i=gbo(1,1),gbo(2,1)
+       cosIVals(i)=COS(coeff*REAL(i,wp))
+    END DO
+    coeff=twopi/n_tot(2)
+    !$omp parallel do private(j)
+    DO j=gbo(1,2),gbo(2,2)
+       cosJVals(j)=COS(coeff*REAL(j,wp))
+    END DO
+    !$omp parallel do private(k)
+    DO k=gbo(1,3),gbo(2,3)
+       cosKVals(k)=COS(coeff*REAL(k,wp))
+    END DO
+
+    !$omp parallel do private(ii,k,j,i,coeff,c23)
+    DO ii=1,SIZE(spline_g%cc)
+       i=spline_g%pw_grid%g_hat(1,ii)
+       j=spline_g%pw_grid%g_hat(2,ii)
+       k=spline_g%pw_grid%g_hat(3,ii)
+
+       c23=cosJVals(j)*cosKVals(k)
+       coeff=(r_coeffs(4)*cosIVals(i)*c23+&
+            (cosIVals(i)*cosJVals(j)+cosIVals(i)*cosKVals(k)+c23)*r_coeffs(3)+&
+            (cosIVals(i)+cosJVals(j)+cosKVals(k))*r_coeffs(2)+&
+            r_coeffs(1))
+       
+       spline_g%cc(ii)=spline_g%cc(ii)*coeff
+    END DO
+    DEALLOCATE(cosIVals, cosJVals, cosKVals, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE pw_nn_smear_g
 !***************************************************************************
 
 !!****f* pw_spline_utils/pw_spline3_evaluate_values_g [1.0] *
