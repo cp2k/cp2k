@@ -22,7 +22,8 @@ MODULE qs_tddfpt_eigensolver
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                              cp_fm_symm,&
                                              cp_fm_trace,&
-                                             cp_sm_fm_multiply
+                                             cp_sm_fm_multiply, &
+                                             cp_sm_plus_fm_fm_t
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm_vect,&
@@ -49,8 +50,7 @@ MODULE qs_tddfpt_eigensolver
   USE qs_arpack_utils,                 ONLY: arpack_confirm
   USE qs_blacs,                        ONLY: blacs_syevd,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_real_matrix_to_full_matrix,&
-                                             cp_sm_plus_fm_fm_t
+                                             copy_real_matrix_to_full_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -485,12 +485,12 @@ CONTAINS
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=p_env%psi0d(spin)%matrix,&
                                   matrix_g=X(spin)%matrix,&
-                                  ncol=p_env%n_mo(spin), &
+                                  last_col=p_env%n_mo(spin), &
                                   alpha=0.5_dbl) 
           CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
                                   matrix_v=X(spin)%matrix,&
                                   matrix_g=p_env%psi0d(spin)%matrix,&
-                                  ncol=p_env%n_mo(spin), &
+                                  last_col=p_env%n_mo(spin), &
                                   alpha=0.5_dbl) 
        END DO
        CALL p_op_l2(p_env, qs_env, p_env%p1, R, &

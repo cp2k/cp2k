@@ -46,7 +46,8 @@ MODULE qs_p_env_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply, &
+                                             cp_sm_plus_fm_fm_t
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -95,7 +96,6 @@ MODULE qs_p_env_methods
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
                                              cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size,&
                                              replicate_blacs_matrix
@@ -641,7 +641,7 @@ END SUBROUTINE p_env_did_change
                 CALL cp_sm_plus_fm_fm_t(p_new(spin)%matrix,&
                      matrix_v=my_psi0(spin)%matrix,&
                      matrix_g=p_env%psi0d(spin)%matrix,&
-                     ncol=p_env%n_mo(spin),error=error)
+                     last_col=p_env%n_mo(spin),error=error)
                 CALL cp_sm_scale_and_add(alpha=maxocc,&
                      matrix_a=p_new(spin)%matrix,error=error)
              ELSE
@@ -1401,11 +1401,11 @@ END SUBROUTINE p_env_did_change
              CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=v(ispin)%matrix,&
                   matrix_g=p_env%psi0d(ispin)%matrix,&
-                  ncol=p_env%n_mo(ispin),error=error)
+                  last_col=p_env%n_mo(ispin),error=error)
              CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
                   matrix_v=p_env%psi0d(ispin)%matrix,&
                   matrix_g=v(ispin)%matrix,&
-                  ncol=p_env%n_mo(ispin),error=error)
+                  last_col=p_env%n_mo(ispin),error=error)
              CALL cp_sm_scale_and_add(alpha=maxocc, &
                   matrix_a=p1_new(ispin)%matrix,error=error)
           ELSE

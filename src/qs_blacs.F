@@ -40,8 +40,7 @@ MODULE qs_blacs
                                              cp_fm_syrk,&
                                              cp_fm_trace,&
                                              cp_fm_triangular_multiply,&
-                                             cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t
+                                             cp_sm_fm_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
@@ -156,7 +155,6 @@ MODULE qs_blacs
             cp_fm_schur_product, &
             blacs_transpose,  blacs_scale_matrix, &
             cp_sm_fm_multiply, &
-            cp_sm_plus_fm_fm_t, &
             cp_fm_triangular_multiply
 
   PUBLIC :: blacs_jacobi,&

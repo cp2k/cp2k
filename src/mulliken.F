@@ -109,7 +109,7 @@ CONTAINS
                                matrix_v=fm_temp,&
                                matrix_g=eigenvectors,&
                                first_col=1,&
-                               ncol=homo)
+                               last_col=homo)
        CALL cp_fm_release(fm_temp)
     ENDDO
 

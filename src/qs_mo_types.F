@@ -47,6 +47,7 @@ MODULE qs_mo_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_fm_basic_linalg,              ONLY: cp_sm_plus_fm_fm_t
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create_fm,&
@@ -89,7 +90,6 @@ MODULE qs_mo_types
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&
                                              cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t,&
                                              read_blacs_matrix,&
                                              replicate_blacs_matrix,&
                                              write_blacs_matrix
@@ -392,14 +392,14 @@ CONTAINS
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                             matrix_v=mo_set%eigenvectors,&
                             first_col=1,&
-                            ncol=mo_set%lfomo-1,&
+                            last_col=mo_set%lfomo-1,&
                             alpha=mo_set%maxocc)
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                               matrix_v=mo_set%eigenvectors,&
                               first_col=imo,&
-                              ncol=imo,&
+                              last_col=imo,&
                               alpha=mo_set%occupation_numbers(imo))
     END DO
 
@@ -454,7 +454,7 @@ CONTAINS
                             matrix_v=mo_set%eigenvectors,&
                             matrix_g=weighted_vectors,&
                             first_col=1,&
-                            ncol=mo_set%homo)
+                            last_col=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
     CALL timestop(0.0_wp,handle)
@@ -521,7 +521,7 @@ CONTAINS
                             matrix_v=mo_set%eigenvectors,&
                             matrix_g=weighted_vectors,&
                             first_col=1,&
-                            ncol=mo_set%homo)
+                            last_col=mo_set%homo)
 
     CALL cp_fm_release(weighted_vectors)
     CALL cp_fm_release(h_block)

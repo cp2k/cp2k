@@ -204,137 +204,16 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-
-!! OLD VERSION
-
-!!TC    IF (my_beta==0.0_wp) THEN
-!!TC
-!!TC       IF (alpha==0.0_wp) THEN
-!!TC          a(:,:)=0.0_wp
-!!TC       ELSE IF (alpha == 1.0_wp) THEN
-!!TC          RETURN
-!!TC       ELSE
-!!TC          a(:,:) = alpha*a(:,:)
-!!TC       END IF
-!!TC
-!!TC    ELSE
-!!TC       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
-!!TC       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
-!!TC       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
-!!TC       CALL cp_assert(matrix_a%matrix_struct%context%group==&
-!!TC            matrix_b%matrix_struct%context%group,cp_failure_level,&
-!!TC            cp_assertion_failed,fromWhere=routineP,&
-!!TC            message="matrixes must be in the same blacs context"//&
-!!TC            CPSourceFileRef,&
-!!TC            error=error,failure=failure)
-!!TC
-!!TC       IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
-!!TC            matrix_b%matrix_struct,error=error)) THEN
-!!TC
-!!TC          b => matrix_b%local_data
-!!TC
-!!TC          IF (alpha == 0.0_wp) THEN
-!!TC             IF (my_beta == 1.0_wp) THEN
-!!TC                a(:,:) = b(:,:)
-!!TC             ELSE
-!!TC                a(:,:) = my_beta*b(:,:)
-!!TC             END IF
-!!TC          ELSE IF (alpha == 1.0_wp) THEN
-!!TC             IF (my_beta == 1.0_wp) THEN
-!!TC                a(:,:) = a(:,:) + b(:,:)
-!!TC             ELSE
-!!TC                a(:,:) = a(:,:) + my_beta*b(:,:)
-!!TC             END IF
-!!TC          ELSE
-!!TC             a(:,:) = alpha*a(:,:) + my_beta*b(:,:)
-!!TC          END IF
-!!TC       ELSE
-!!TC#ifdef __SCALAPACK
-!!TC          CALL cp_unimplemented_error(fromWhere=routineP, &
-!!TC               message="to do (pdscal,pdcopy,pdaxpy)", error=error)
-!!TC#else
-!!TC          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-!!TC#endif
-!!TC       END IF
-!!TC    END IF
-
   END SUBROUTINE cp_fm_scale_and_add
 
 ! *****************************************************************************
-
-! *****************************************************************************
-  SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol,para_env, &
-       alpha,beta,block_owner,error)
-! to do: better interface
-    TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(cp_full_matrix_type) , POINTER :: v_in
-    TYPE(cp_full_matrix_type) , POINTER :: v_out
-    INTEGER, INTENT(IN)               :: ncol
-    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
-    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
-    INTEGER, INTENT(in), DIMENSION(:,:), OPTIONAL :: block_owner
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local parameters ***
-    INTEGER, PARAMETER          :: max_blocksize = 100
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_sm_fm_multiply (MODULE qs_blacs)"
-
-!   *** Local variables ***
-    LOGICAL :: failure
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
-    INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize, stat
-!   ---------------------------------------------------------------------------
-
-    CALL  cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env,alpha,beta,error)
-    RETURN
-
-    CALL timeset("cp_sm_fm_multiply","I","",handle)
-
-    failure=.FALSE.
-    nrow_in=v_in%matrix_struct%nrow_global
-    nrow_out=v_out%matrix_struct%nrow_global
-    blocksize=MIN(ncol,max_blocksize)
-    ALLOCATE(rep_v_in(blocksize,nrow_in),rep_v_out(blocksize,nrow_out),&
-         stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-
-    ! zero the rep_v_in and rep_v_out matrices
-    CALL dcopy(blocksize*nrow_in, 0.0_wp, 0, rep_v_in, 1)
-    CALL dcopy(blocksize*nrow_out, 0.0_wp, 0, rep_v_out, 1)
-
-    DO i=1,ncol,blocksize
-       ncol_block=MIN(ncol-i+1,blocksize)
-       CALL cp_fm_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
-            transpose_target_m=.TRUE.)
-
-       CALL dcopy(nrow_out*blocksize,0.0_wp,0,rep_v_out,1)
-
-       CALL sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,&
-            ncol_block, blocksize, para_env=para_env, block_owner=block_owner)
-
-
-#if defined(__parallel)
-       CALL mp_sum(rep_v_out,para_env%group)
-#endif
-
-       CALL cp_fm_set_submatrix(v_out,rep_v_out,&
-            start_col=i,n_cols=ncol_block,transpose_new_val=.TRUE.,&
-            alpha=alpha,beta=beta)
-
-    ENDDO
-
-    DEALLOCATE(rep_v_in,rep_v_out,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
-    CALL timestop(0.0_wp,handle)
-  END SUBROUTINE cp_sm_fm_multiply
 
 !******************************************************************************
 !
 ! new version of the cp_sm_fm_multiply, optimized communication, 
 !
 !*******************************************************************************
-  SUBROUTINE cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env, &
+  SUBROUTINE cp_sm_fm_multiply(sparse_matrix,v_in,v_out,ncol,para_env, &
        alpha,beta,error)
 ! to do: better interface
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
@@ -346,7 +225,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
-    CHARACTER(LEN=*), PARAMETER :: routine = "cp_sm_fm_multiply_new"
+    CHARACTER(LEN=*), PARAMETER :: routine = "cp_sm_fm_multiply"
 
 !   *** Local variables ***
     LOGICAL :: failure
@@ -360,7 +239,7 @@ CONTAINS
     INTEGER, EXTERNAL :: NUMROC
 #endif
     
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_fm_multiply_new", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_fm_multiply", &
                                    routineP = moduleN//"/"//routineN
 
 !   ---------------------------------------------------------------------------
@@ -371,7 +250,7 @@ CONTAINS
      CPSourceFileRef,&
      error)
 #endif
-    CALL timeset("cp_sm_fm_multiply_new","I","",handle)
+    CALL timeset("cp_sm_fm_multiply","I","",handle)
 
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routine,error,failure)
     CPPrecondition(ASSOCIATED(v_in),cp_failure_level,routine,error,failure)
@@ -505,111 +384,12 @@ CONTAINS
     DEALLOCATE(local_v_in,local_v_out,ncol_loc)
 
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE cp_sm_fm_multiply_new
+  END SUBROUTINE cp_sm_fm_multiply
 
 ! *****************************************************************************
 ! computes sparse=sparse+alpha*v*g^T 
-! only v*v^T tested
 ! *****************************************************************************
-  SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix, &
-                                matrix_v, matrix_g, &
-                                ncol,&
-                                first_col, &
-                                alpha, &
-                                error)
-    
-    IMPLICIT NONE
-
-    TYPE(real_matrix_type), POINTER              :: sparse_matrix
-    TYPE(cp_full_matrix_type), POINTER           :: matrix_v
-    TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_g
-    INTEGER, INTENT(IN)                          :: ncol
-    REAL(wp), OPTIONAL, INTENT(IN)               :: alpha
-    INTEGER, OPTIONAL, INTENT(IN)                :: first_col
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-!   *** Local parameters ***
-    INTEGER, PARAMETER          :: max_blocksize = 100
-    CHARACTER(LEN=*), PARAMETER :: routine = "cp_sm_plus_fm_fm_t"
-
-!   *** Local variables ***
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v, rep_g
-    REAL(wp) :: prefactor
-    INTEGER col1,i,nrow,ncol_block,handle,blocksize
-    LOGICAL g_present
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT(matrix_g)) THEN
-      CALL cp_sm_plus_fm_fm_t_new(sparse_matrix=sparse_matrix,&
-                                  matrix_v=matrix_v,&
-                                  matrix_g=matrix_g,&
-                                  last_col=ncol,&
-                                  first_col=first_col,&
-                                  alpha=alpha,&
-                                  error=error)
-    ELSE
-      CALL cp_sm_plus_fm_fm_t_new(sparse_matrix=sparse_matrix,&
-                                  matrix_v=matrix_v,&
-                                  last_col=ncol,&
-                                  first_col=first_col,&
-                                  alpha=alpha,&
-                                  error=error)
-    END IF
-    RETURN
-
-    CALL timeset("cp_sm_plus_fm_fm_t","I","",handle)
-
-    IF (PRESENT(first_col)) THEN
-       col1 = first_col
-    ELSE
-       col1 = 1
-    END IF
-
-    blocksize=MIN(max_blocksize,ncol-col1+1)
-
-    nrow=matrix_v%matrix_struct%nrow_global
-
-    ALLOCATE(rep_v(blocksize,nrow))
-    IF (PRESENT(matrix_g)) THEN
-       ALLOCATE(rep_g(blocksize,nrow))
-    ELSE
-       rep_g => rep_v
-    ENDIF
-
-    IF (PRESENT(alpha)) THEN
-       prefactor = alpha
-    ELSE
-       prefactor = 1.0_wp
-    END IF
-
-    DO i=col1, ncol, blocksize
-       ncol_block=MIN(ncol-i+1,blocksize)
-       CALL cp_fm_get_submatrix(matrix_v, rep_v, start_col=i, n_cols=ncol_block,&
-                                transpose_target_m = .TRUE., error=error)
-       IF (PRESENT(matrix_g)) THEN
-          CALL cp_fm_get_submatrix(matrix_g, rep_g, start_col=i, n_cols=ncol_block, &
-                                   transpose_target_m=.TRUE., error=error)
-       ENDIF
-       CALL sparse_plus_loc_loct(sparse_matrix, rep_v, rep_g, ncol_block, &
-                                 blocksize, alpha=prefactor)
-    ENDDO
-
-    IF (PRESENT(matrix_g)) THEN
-       DEALLOCATE(rep_v,rep_g)
-    ELSE
-       DEALLOCATE(rep_v)
-    ENDIF
-
-
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE cp_sm_plus_fm_fm_t
-
-! *****************************************************************************
-! computes sparse=sparse+alpha*v*g^T 
-! only v*v^T tested
-! *****************************************************************************
-  SUBROUTINE cp_sm_plus_fm_fm_t_new(sparse_matrix,matrix_v,matrix_g,last_col,&
+  SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,last_col,&
        first_col,alpha,error)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(cp_full_matrix_type) , POINTER :: matrix_v
@@ -621,7 +401,7 @@ CONTAINS
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_sm_plus_fm_fm_t_new (MODULE qs_blacs)"
+         "SUBROUTINE cp_sm_plus_fm_fm_t (MODULE qs_blacs)"
 
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
@@ -635,7 +415,7 @@ CONTAINS
     INTEGER, EXTERNAL :: numroc
 #endif
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_plus_fm_fm_t_new", &
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_sm_plus_fm_fm_t", &
                                    routineP = moduleN//"/"//routineN
 
 !   ---------------------------------------------------------------------------
@@ -646,7 +426,7 @@ CONTAINS
      CPSourceFileRef,&
      error)
 #endif
-    CALL timeset("cp_sm_plus_fm_fm_t_new","I","",handle)
+    CALL timeset("cp_sm_plus_fm_fm_t","I","",handle)
     NULLIFY(newdat,ncol_loc)
 
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routine,error,failure)
@@ -771,7 +551,8 @@ CONTAINS
 
     DEALLOCATE(ncol_loc)
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE cp_sm_plus_fm_fm_t_new
+  END SUBROUTINE cp_sm_plus_fm_fm_t
+
 ! *****************************************************************************
 ! computes the LU decomposition of a given matrix
 ! the actual purpose right now is to compute the determinant of a given matrix
