@@ -1,7 +1,0 @@
-rm \
-water_401.crd \
-water_401.dump \
-water_401.ener \
-water_401.temp \
-water_401.vel \
-water_401.ptens

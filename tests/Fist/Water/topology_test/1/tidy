@@ -1,7 +1,0 @@
-rm \
-water_1.crd \
-water_1.dump \
-water_1.ener \
-water_1.temp \
-water_1.vel \
-water_1.ptens
