@@ -57,6 +57,7 @@ CONTAINS
   REAL (dbl) :: thk
 
   ncoef = size(ao%cr)
+  fthk(:) = 0.0_dbl
 
   DO icoef = 1, ncoef
      ikind = ao % coef_to_basis (icoef)
