@@ -755,7 +755,7 @@ END SUBROUTINE qs_ks_did_change
 
     REAL(wp) :: ec,ex
     LOGICAL :: failure
-    INTEGER :: i
+    INTEGER :: i,ispin
     CHARACTER(len=*), PARAMETER :: routineN='calculate_xc_potential',&
          routineP=moduleN//':'//routineN
 
@@ -792,7 +792,15 @@ END SUBROUTINE qs_ks_did_change
               energy%exc,qs_env%dft_control)
          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
       ELSEIF ( qs_env%dft_control%nspins == 2) THEN
-         CALL stop_program(routineP,"NA")
+         energy%exc=0.0_wp
+         DO ispin=1,dft_control%nspins
+            CALL xc_calculate (rho_struct%rho_r(ispin)%pw,&
+                 rho_struct%rho_g(ispin)%pw,&
+                 v_rspace_new(ispin)%pw,&
+                 energy%exc,qs_env%dft_control)
+            energy%exc = energy%exc+&
+                 rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
+         END DO
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF
