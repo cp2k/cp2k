@@ -14,18 +14,34 @@
 !!   MODIFICATION HISTORY
 !!   cjm, Feb-20-2001 : added all the extended variables to
 !!   system_type
+!!   gt 23-09-2002 : major changes. Pointer part is allocated/deallocated
+!!                   and initialized here. Atomic coordinates can now be 
+!!                   read also from &COORD section in the input file.
+!!                   If &COORD is not found, .dat file is read.  
+!!                   If & coord is found and .NOT. 'INIT', parsing of the .dat
+!!                   is performed to get the proper coords/vel/eta variables
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE atoms_input
 
+  USE atomic_kind_types,   ONLY: allocate_atomic_kind_set,&
+                                 atomic_kind_type,&
+                                 get_atomic_kind,&
+                                 set_atomic_kind
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
+  USE memory_utilities,    ONLY: reallocate
   USE message_passing, ONLY : mp_bcast
+  USE molecule_types, ONLY : molecule_type
+  USE particle_types, ONLY : particle_type, allocate_particle_set, &
+                             particle_prop_type
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
        p_error, get_next, search_label
-  USE string_utilities, ONLY : xstring, uppercase
+  USE periodic_table,      ONLY: ptable
+  USE string_utilities, ONLY : xstring, uppercase, integer_to_string, &
+                               string_to_integer, str_search
   USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_unit
 
@@ -88,7 +104,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_coord_vel ( atype, filen, globenv )
+SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
+                           mol_setup, atom_names, pstat, globenv )
 
   IMPLICIT NONE
 
@@ -96,14 +113,42 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
   TYPE ( system_type ), INTENT ( INOUT ) :: atype
   CHARACTER ( LEN = * ), INTENT ( INOUT ) :: filen
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
+  TYPE ( particle_prop_type ), INTENT ( IN ), DIMENSION ( : ), TARGET :: pstat
+  CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
+
 
 ! Locals
-  INTEGER :: ierror, ilen, iw, source, allgrp, ia, ie, i, ios
+  INTEGER :: ierror, ilen, iw, source, allgrp, ia, ie, i
   INTEGER :: size1, size2
-  CHARACTER ( LEN = 6 ) :: string
-  CHARACTER ( LEN = 5 ) :: label
+  INTEGER, PARAMETER :: max_name_length = 60
+  INTEGER, PARAMETER :: nblock_atom = 1000,&
+                        nblock_kind = 10
 
-!------------------------------------------------------------------------------
+  TYPE(atomic_kind_type), POINTER :: atomic_kind
+  CHARACTER(LEN=max_name_length)  :: current_label,label,string
+  CHARACTER(LEN=200)              :: message
+  CHARACTER(LEN=8)                :: unit_name
+  CHARACTER(LEN=3)                :: test_result
+  INTEGER                         :: iatom,ikind,istat,natom,nkind,z,n,iat,&
+                                     natom_types,nmol_type,k,j
+  LOGICAL                         :: new_kind,coords,&
+                                       init
+
+  INTEGER, DIMENSION(:), POINTER :: kind_of,natom_of_kind,natom_of_kind_check
+
+  REAL(dbl), DIMENSION(:,:), POINTER :: r
+  INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
+
+!   ---------------------------------------------------------------------------
+
+  nkind = 0
+  natom = 0
+  iat = 0
+  COORDS = .FALSE.
+  INIT = .TRUE.
 
   iw = globenv % scr
 
@@ -118,15 +163,22 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
   NULLIFY ( atype % eta_baro )
   NULLIFY ( atype % veta_baro )
   NULLIFY ( atype % mass_eta_baro )
+  NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,r)
+
+  CALL reallocate(atom_list,1,nblock_kind,1,nblock_atom)
+  CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
+  CALL reallocate(kind_of,1,nblock_atom)
+  CALL reallocate(natom_of_kind,1,nblock_kind)
+  CALL reallocate(r,1,3,1,nblock_atom)
 
 !..parse the input section
-  label = '&ATOMS'
+  label = '&COORD'
   CALL parser_init ( globenv % input_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
 
      IF( globenv % ionode) THEN
-       WRITE ( iw, '( A )' ) ' ATOM| No input section &ATOMS found '
+       WRITE ( iw, '( A )' ) ' ATOM| No input section &COORD found '
        IF ( filen == ' ' ) THEN
           CALL xstring ( globenv % project_name, ia, ie )
           filen = globenv % project_name ( ia:ie ) // '.dat'
@@ -146,50 +198,50 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
      CALL mp_bcast ( atype % rtype, source, allgrp )
      CALL mp_bcast ( atype % n, source, allgrp )
      IF ( .NOT. ASSOCIATED ( atype % c ) ) THEN
-        ALLOCATE ( atype % c(1:3,1:atype % n ), STAT = ios )
-        IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
+        ALLOCATE ( atype % c(1:3,1:atype % n ), STAT = istat )
+        IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
      END IF
      CALL mp_bcast ( atype % c, source, allgrp )
      IF ( atype % rtype == 'POSVEL' ) THEN
         IF ( .NOT. ASSOCIATED ( atype % v ) ) THEN
-           ALLOCATE (atype % v(1:3,1:atype % n),STAT=ios)
-           IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+           ALLOCATE (atype % v(1:3,1:atype % n),STAT=istat)
+           IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
         END IF
         CALL mp_bcast ( atype % v, source, allgrp )
      END IF
      IF ( atype % rtype == 'ALL' ) THEN
         IF ( .NOT. globenv % ionode ) THEN
-           ALLOCATE (atype % v(1:3,1:atype % n),STAT=ios)
-           IF ( ios /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+           ALLOCATE (atype % v(1:3,1:atype % n),STAT=istat)
+           IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
            size1 = atype % size1_nvt_part
            size2 = atype % size2_nvt_part
-           ALLOCATE (atype % veta_part (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % veta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%veta_part', size1 * size2 )
-           ALLOCATE (atype % eta_part (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % eta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%eta_part', size1 * size2 )
-           ALLOCATE (atype % mass_eta_part (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % mass_eta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%mass_eta_part', size1 * size2 )
-           ALLOCATE (atype % veta_baro (size1, size2 ),STAT=ios)
+           ALLOCATE (atype % veta_baro (size1, size2 ),STAT=istat)
            size1 = atype % size1_nvt_baro
            size2 = atype % size2_nvt_baro
-           IF ( ios /= 0 )  &
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%veta_baro', size1 * size2 )
-           ALLOCATE (atype % eta_baro (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % eta_baro (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%eta_baro', size1 * size2 )
-           ALLOCATE (atype % mass_eta_baro (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % mass_eta_baro (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%mass_eta_baro', size1 * size2 )
            size1 = atype % size1_npt
            size2 = atype % size2_npt
-           ALLOCATE (atype % veps (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % veps (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%veps', size1 * size2 )
-           ALLOCATE (atype % mass_eps (size1, size2 ),STAT=ios)
-           IF ( ios /= 0 )  &
+           ALLOCATE (atype % mass_eps (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
             CALL stop_memory ( 'ATOM', 'atype%mass_eps', size1 * size2 )
         END IF
         CALL mp_bcast ( atype % v, source, allgrp )
@@ -203,35 +255,319 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
         CALL mp_bcast ( atype % mass_eta_baro, source, allgrp )
      END IF
 #endif
+! allocate particle set
 
-     ELSE
+     CALL allocate_particle_set(particle_set, atype % n)
+! fill position and velocities
+     CALL put_posvel_in_particle_set(particle_set, atype )
+     nkind = SIZE(atom_names)
+     natom = atype % n
+     CALL reallocate(atom_list,1,nkind,1,natom)
+     CALL reallocate(kind_label,1,max_name_length,1,nkind)
+     CALL reallocate(kind_of,1,natom)
+     CALL reallocate(natom_of_kind,1,nkind)
 
-        CALL stop_program ( 'atom','this part of the code not yet written' )
+!   *** Allocate the data structure for the atomic kind information ***
 
-     END IF
-     CALL parser_end
+    CALL allocate_atomic_kind_set(atomic_kind_set,nkind)
+
+!   *** setup atomic_kind_based atom lists
+ 
+     nmol_type = SIZE(mol_setup)
+     natom_types = SIZE(atom_names)
+     DO i = 1, nmol_type
+       DO k = 1, mol_setup(i) % num_mol
+         DO j = 1, mol_setup(i) % molpar % natom
+           iat = iat + 1
+           n = str_search ( atom_names, natom_types, &
+                mol_setup ( i ) % molpar % aname ( j ) )
+           particle_set ( iat ) % prop => pstat ( n )
+           natom_of_kind(n) = natom_of_kind(n) + 1
+           atom_list(n,natom_of_kind(n)) = iat
+           kind_of(iat) = n
+        END DO
+      END DO
+    END DO
+
+!   *** Initialize the data structure for atomic kind information ***
+
+     DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       string = atom_names (ikind) 
+       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                            kind_number=ikind,&
+                            name=string,&
+                            atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
+     END DO
+
+      DO iatom=1,natom
+        ikind = kind_of(iatom)
+        particle_set(iatom) % abase = 0
+        particle_set(iatom) % kind = ikind
+        particle_set(iatom) % grid_id = 0
+        particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
+        particle_set(iatom)%iatom = iatom
+        particle_set(iatom)%first_cgf = 0
+        particle_set(iatom)%first_sgf = 0
+        NULLIFY ( particle_set ( iatom ) % coef_list )
+     END DO
+
+   ELSE
+
+!   ******************************************************************
+!   **** Reads cordinates from the Input file in QS-friendly style ***  
+!   ******************************************************************
+
+     COORDS = .TRUE.
+     CALL read_line
+     DO WHILE (test_next()/='X')
+       ilen = 8
+       IF (test_next()=="C") THEN
+          CALL get_next(current_label,ilen)
+       ELSE IF (test_next()=="N") THEN
+          CALL get_next (z)
+          current_label = ptable(z)%symbol
+       END IF
+
+       CALL uppercase(current_label)
+       natom = natom + 1
+
+       IF (natom > SIZE(atom_list,2)) THEN
+        CALL reallocate(atom_list,1,nkind,1,natom+nblock_atom)
+        CALL reallocate(kind_of,1,natom+nblock_atom)
+        CALL reallocate(r,1,3,1,natom+nblock_atom)
+       END IF
+
+!     *** Read the atomic coordinates ***
+
+       CALL get_next(r(1,natom))
+       CALL get_next(r(2,natom))
+       CALL get_next(r(3,natom))
+       label = current_label
+       CALL uppercase(label)
+
+       new_kind = .TRUE.
+
+       DO ikind=1,nkind
+         CALL integer_to_string(kind_label(:,ikind),string)
+         CALL uppercase(string)
+         IF (string == label) THEN
+           new_kind = .FALSE.
+           EXIT
+         END IF
+       END DO
+
+       IF (new_kind) THEN
+         nkind = nkind + 1
+         IF (nkind > SIZE(atom_list,1)) THEN
+           CALL reallocate(atom_list,1,nkind+nblock_kind,1,natom)
+           CALL reallocate(kind_label,1,max_name_length,1,nkind+nblock_kind)
+           CALL reallocate(natom_of_kind,1,nkind+nblock_kind)
+         END IF
+         ikind = nkind
+         CALL string_to_integer(current_label,kind_label(:,ikind))
+       END IF
+
+       kind_of(natom) = ikind
+       natom_of_kind(ikind) = natom_of_kind(ikind) + 1
+       atom_list(ikind,natom_of_kind(ikind)) = natom
+
+     call read_line
+     END DO
+
+   END IF
+   CALL parser_end
 !..end of parsing the input section
 
-!..write some information to output
-     IF (globenv%ionode .and. globenv%print_level>0) THEN
-        WRITE ( iw, '( A )' ) ' ATOM| Box parameters [Angstrom]'
-        WRITE ( iw, '( A, T36, 3F15.5 )' ) &
-             ' ATOM| ', ( atype % box ( 1, i ), i = 1, 3 )
-        WRITE ( iw, '( A, T36, 3F15.5 )' ) &
-             ' ATOM| ', ( atype % box ( 2, i ), i = 1, 3 )
-        WRITE ( iw, '( A, T36, 3F15.5 )' ) &
-             ' ATOM| ', ( atype % box ( 3, i ), i = 1, 3 )
-        WRITE ( iw, '( A, T71, I10 )' ) &
-             ' ATOM| Number of atoms read ', atype % n
-        IF ( globenv % print_level > 4 ) THEN
-           IF ( atype % rtype == 'POS' ) THEN
-              CALL print_c ( iw, atype % c )
-           ELSE IF ( atype % rtype == 'POSVEL' ) THEN
-              CALL print_cv ( iw, atype % c, atype % v )
-           END IF
-        END IF
-        WRITE ( iw, '()' )
+  IF (COORDS) THEN
+     CALL reallocate(atom_list,1,nkind,1,natom)
+     CALL reallocate(kind_label,1,max_name_length,1,nkind)
+     CALL reallocate(kind_of,1,natom)
+     CALL reallocate(natom_of_kind,1,nkind)
+     CALL reallocate(r,1,3,1,natom)
+
+!   *** Allocate the data structure for the atomic kind information ***
+
+     CALL allocate_atomic_kind_set(atomic_kind_set,nkind)
+
+!   *** Initialize the data structure for atomic kind information ***
+
+     DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL integer_to_string(kind_label(:,ikind),string)
+       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                            kind_number=ikind,&
+                            name=string,&
+                            atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
+     END DO
+!   *** Allocate the data structure for the atomic information ***
+
+     CALL allocate_particle_set(particle_set,natom)
+
+!   *** Initialize the data structure for the atomic information ***
+     DO iatom=1,natom
+       ikind = kind_of(iatom)
+       particle_set(iatom) % abase = 0
+       particle_set(iatom) % kind = ikind
+       particle_set(iatom) % grid_id = 0
+       particle_set(iatom)%atomic_kind => atomic_kind_set(ikind)
+       particle_set(iatom)%iatom = iatom
+       particle_set(iatom)%first_cgf = 0
+       particle_set(iatom)%first_sgf = 0
+       particle_set(iatom)%f(:) = 0.0_dbl
+       particle_set(iatom)%r(:) = r(:,iatom)
+       particle_set(iatom)%v(:) = 0.0_dbl
+       NULLIFY ( particle_set ( iatom ) % coef_list )
+    END DO
+
+!   *** check if the lables in &COORD match with the &MOLECULE setup
+
+     ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
+     nmol_type = SIZE (mol_setup) 
+     natom_types = SIZE(atom_names)
+     DO i = 1, nmol_type
+       DO k = 1, mol_setup(i) % num_mol
+         DO j = 1, mol_setup(i) % molpar % natom
+           iat = iat + 1
+           n = str_search ( atom_names, natom_types, &
+                mol_setup ( i ) % molpar % aname ( j ) )
+           ikind = particle_set ( iat) % kind        
+           IF (ikind/=n) CALL stop_program ( 'read_coord_vel', &
+                'kind label ordering in &COORD and &MOL dont match ')
+           CALL integer_to_string(kind_label(:,ikind),string)
+           IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_coord_vel', &
+                'inconsistent kind labels in &COORD and &MOL- check input')
+           particle_set ( iat ) % prop => pstat ( ikind )
+           natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
+           iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
+           IF (iatom/=iat) CALL stop_program ( 'read_coord_vel', &
+                'atom lists in &COORD and &MOL dont match ')
+        END DO
+      END DO
+    END DO
+
+!   *** Release work storage ***
+
+    DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,natom_of_kind_check,r,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory('ATOM',&
+                       "atom_list,kind_label,kind_of,natom_of_kind_check,natom_of_kind,r")
+    END IF
+
+ END IF
+
+! now that particle set has been initialized using the input cooridnates,
+! check if we have to restart from the position/velocities in the .dat file 
+ 
+ IF (atype%rtype /= 'INIT') THEN 
+   INIT = .FALSE.
+ END IF
+
+  IF ((COORDS).AND.(.NOT.(INIT))) THEN
+   CALL xstring ( globenv % project_name, ia, ie )
+   filen = globenv % project_name ( ia:ie ) // '.dat'
+   ia = MIN ( LEN ( filen ), 20 )
+   WRITE ( iw, '( A, T61, A )' ) ' ATOM| Read pos/vel/eta from file ', &
+            ADJUSTR ( filen ( 1:ia ) )
+   CALL read_file ( filen, atype )
+
+!..broadcast the input data to all nodes
+#if defined(__parallel)
+     source = globenv % source
+     allgrp = globenv % group
+     CALL mp_bcast ( atype % box, source, allgrp )
+     CALL mp_bcast ( atype % box_ref, source, allgrp )
+     CALL mp_bcast ( atype % ptype, source, allgrp )
+     CALL mp_bcast ( atype % rtype, source, allgrp )
+     CALL mp_bcast ( atype % n, source, allgrp )
+     IF ( .NOT. ASSOCIATED ( atype % c ) ) THEN
+        ALLOCATE ( atype % c(1:3,1:atype % n ), STAT = istat )
+        IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%c', 3 * atype % n )
      END IF
+     CALL mp_bcast ( atype % c, source, allgrp )
+     IF ( atype % rtype == 'POSVEL' ) THEN
+        IF ( .NOT. ASSOCIATED ( atype % v ) ) THEN
+           ALLOCATE (atype % v(1:3,1:atype % n),STAT=istat)
+           IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+        END IF
+        CALL mp_bcast ( atype % v, source, allgrp )
+     END IF
+     IF ( atype % rtype == 'ALL' ) THEN
+        IF ( .NOT. globenv % ionode ) THEN
+           ALLOCATE (atype % v(1:3,1:atype % n),STAT=istat)
+           IF ( istat /= 0 ) CALL stop_memory ( 'ATOM', 'atype%v', 3 * atype % n )
+           size1 = atype % size1_nvt_part
+           size2 = atype % size2_nvt_part
+           ALLOCATE (atype % veta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veta_part', size1 * size2 )
+           ALLOCATE (atype % eta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%eta_part', size1 * size2 )
+           ALLOCATE (atype % mass_eta_part (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eta_part', size1 * size2 )
+           ALLOCATE (atype % veta_baro (size1, size2 ),STAT=istat)
+           size1 = atype % size1_nvt_baro
+           size2 = atype % size2_nvt_baro
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veta_baro', size1 * size2 )
+           ALLOCATE (atype % eta_baro (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%eta_baro', size1 * size2 )
+           ALLOCATE (atype % mass_eta_baro (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eta_baro', size1 * size2 )
+           size1 = atype % size1_npt
+           size2 = atype % size2_npt
+           ALLOCATE (atype % veps (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%veps', size1 * size2 )
+           ALLOCATE (atype % mass_eps (size1, size2 ),STAT=istat)
+           IF ( istat /= 0 )  &
+            CALL stop_memory ( 'ATOM', 'atype%mass_eps', size1 * size2 )
+        END IF
+        CALL mp_bcast ( atype % v, source, allgrp )
+        CALL mp_bcast ( atype % veta_part, source, allgrp )
+        CALL mp_bcast ( atype % eta_part, source, allgrp )
+        CALL mp_bcast ( atype % veta_baro, source, allgrp )
+        CALL mp_bcast ( atype % eta_baro, source, allgrp )
+        CALL mp_bcast ( atype % veps, source, allgrp )
+        CALL mp_bcast ( atype % mass_eps, source, allgrp )
+        CALL mp_bcast ( atype % mass_eta_part, source, allgrp )
+        CALL mp_bcast ( atype % mass_eta_baro, source, allgrp )
+     END IF
+#endif
+! Check if the informations in the .dat files are consistent
+! with the ones in the &COORD section
+   IF (atype % n /= natom)  CALL stop_program ( 'read_coord_vel', &
+                ' inconsistent number of atoms specified ')
+   
+! if yes, fill the position and/or velocities in particle_set
+   CALL put_posvel_in_particle_set(particle_set, atype )
+
+ END IF
+
+!..write some information to output
+ IF (globenv%ionode .and. globenv%print_level>0 .and.(.not.INIT)) THEN
+    WRITE ( iw, '( A )' ) ' ATOM| Box parameters [Angstrom]'
+    WRITE ( iw, '( A, T36, 3F15.5 )' ) &
+         ' ATOM| ', ( atype % box ( 1, i ), i = 1, 3 )
+    WRITE ( iw, '( A, T36, 3F15.5 )' ) &
+         ' ATOM| ', ( atype % box ( 2, i ), i = 1, 3 )
+    WRITE ( iw, '( A, T36, 3F15.5 )' ) &
+         ' ATOM| ', ( atype % box ( 3, i ), i = 1, 3 )
+    WRITE ( iw, '( A, T71, I10 )' ) &
+        ' ATOM| Number of atoms read ', atype % n
+    IF ( globenv % print_level > 4 ) THEN
+         IF ( atype % rtype == 'POS' ) THEN
+           CALL print_c ( iw, atype % c )
+         ELSE IF ( atype % rtype == 'POSVEL' ) THEN
+            CALL print_cv ( iw, atype % c, atype % v )
+         END IF
+    END IF
+    WRITE ( iw, '()' )
+  END IF
 
 END SUBROUTINE read_coord_vel
 
@@ -415,6 +751,47 @@ SUBROUTINE read_file ( filen, atype )
 
 END SUBROUTINE read_file
 
+!******************************************************************************
+SUBROUTINE put_posvel_in_particle_set ( part, atype )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
+  TYPE ( system_type ), INTENT ( INOUT ) :: atype
+
+!locals
+  INTEGER :: natoms,iat
+
+!------------------------------------------------------------------------------
+
+  natoms = SIZE ( atype % c, 2 )
+  DO iat = 1, natoms
+     part(iat) % iatom = iat
+     part(iat) % r(1) = atype % c(1,iat)
+     part(iat) % r(2) = atype % c(2,iat)
+     part(iat) % r(3) = atype % c(3,iat)
+  END DO
+
+! set initial velocities to 0
+  part ( : ) % v ( 1 ) =  0._dbl
+  part ( : ) % v ( 2 ) =  0._dbl
+  part ( : ) % v ( 3 ) =  0._dbl
+
+! set forces to 0
+  part ( : ) % f ( 1 ) =  0._dbl
+  part ( : ) % f ( 2 ) =  0._dbl
+  part ( : ) % f ( 3 ) =  0._dbl
+
+  IF ( ( atype%rtype=='POSVEL' ) .OR. ( atype%rtype=='ALL' ) ) THEN
+     DO iat = 1, natoms
+        part ( iat ) % v ( 1 ) = atype % v ( 1, iat )
+        part ( iat ) % v ( 2 ) = atype % v ( 2, iat )
+        part ( iat ) % v ( 3 ) = atype % v ( 3, iat )
+     END DO
+  END IF
+
+ END SUBROUTINE put_posvel_in_particle_set
 !******************************************************************************
 
 SUBROUTINE print_c ( iw, c )
