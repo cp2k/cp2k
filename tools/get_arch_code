@@ -4,6 +4,10 @@
 # However, there is not always /bin/bash. Let's try if the default shell
 # works for most of the systems (10.06.2003,MK)
 #
+# made some additional changes so that it appears to run for the /bin/sh
+# on sun,ibm,irix,linux,cygwin (the shells can be ksh,bash,bourne shell)
+# still some problems for AIX, but I guess there will be many more (10.06.2003, JVdV)
+#
 # this script should return some simplified machine code
 # corresponding to the machine dependent files in 
 # cp2k/arch/*.*
@@ -12,8 +16,8 @@
 
 
 ### Aliasing of commands ###
-
-    alias echo="\echo"
+#   alias is not know by all shells
+#   alias echo="\echo"
 
 ### No localization ###
 
@@ -22,33 +26,33 @@
 
 ### Load informations for system identification ###
 
-    ostype=$(uname -s)
-    osversion=$(uname -v)
-    osrelease=$(uname -r)
-    machine=$(uname -m)
+    ostype=`uname -s`
+    osversion=`uname -v`
+    osrelease=`uname -r`
+    machine=`uname -m`
 
     platform="${ostype}-${osversion}-${osrelease}-${machine}"
     case $platform in
-      (Darwin-*-*-Power\ Macintosh)
+      Darwin-*-*-Power\ Macintosh)
         PLATFORM="Darwin-PowerMacintosh-absoft";;
-      (AIX-*-*-*)
-        arch=$(lsattr -E -O -l proc0 | grep "enable" | cut -f2 -d":")
+      AIX-*-*-*)
+        arch=`lsattr -E -O -l proc0 | grep "enable" | cut -f2 -d":"`
         if [[ -n $arch ]]; then
           PLATFORM="AIX-$arch"
         else
           PLATFORM="unknown"
         fi;;
-      (IRIX-*-*-*)
+      IRIX-*-*-*)
         PLATFORM="IRIX";;
-      (IRIX64-*-*-*)
+      IRIX64-*-*-*)
         PLATFORM="IRIX";;
-      (Linux-*-*-alpha)
+      Linux-*-*-alpha)
         PLATFORM="Linux-dec-alpha";;
-      (OSF1-*-*-alpha)
+      OSF1-*-*-alpha)
         PLATFORM="DEC_OS";;
-      (CYGWIN*-*-i686)
+      CYGWIN*-*-i686)
         PLATFORM="Cygwin-i686-g95";;
-      (Linux-*-*-i686)
+      Linux-*-*-i686)
         if [[ -n $FORT_C_NAME ]]; then
 	  PLATFORM="Linux-i686-$FORT_C_NAME"
         elif [[ -n $G95 ]]; then
@@ -60,16 +64,16 @@
         else
           PLATFORM="Linux-i686"
         fi;;
-      (*-unicosmk-*-CRAY*T3E)
+      *-unicosmk-*-CRAY*T3E)
         PLATFORM="CRAY-T3E";;
-      (SunOS-*-sun4u)
+      SunOS-*-sun4u)
         PLATFORM="SUN";;
-      (*)
+      *)
         PLATFORM="unknown"
     esac
 
     case $PLATFORM in
-        (unknown)
+        unknown)
         echo "############################################################" >&2
         echo "have a look at cp2k/tools/get_arch_code" >&2
         echo "your system is a $platform" >&2
