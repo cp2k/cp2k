@@ -10,9 +10,20 @@ How to compile CP2K code
 
  2a) gnu make should be on your system (gmake or make on linux), 
      go to http://www.gnu.org/software/make/make.html to get it
- 2b) a f90 compiler, blass and lapack should be installed
- 2c) mpi and scalapack might be needed for parallel runs
+
+ 2b) a f90 compiler, BLAS and LAPACK should be installed
+     http://www.netlib.org/blas/
+     http://www.netlib.org/lapack/
+     http://math-atlas.sourceforge.net/
+     using vendor provided libraries can make a very significant difference (e.g. mkl, essl)
+
+ 2c) MPI and SCALAPACK might be needed for parallel runs
+     http://www-unix.mcs.anl.gov/mpi/mpich/
+     http://www.netlib.org/scalapack/
+
  2d) fftw could be an advantage but is not needed
+     the current version of the code needs FFTW 2.X
+     http://www.fftw.org/
 
  3) to compile the code use : 
 
@@ -20,6 +31,7 @@ How to compile CP2K code
 
     "p" stands for parallel (alternatively "s" = serial)
     "opt" means to buil an optimised version (alternatively "dbg" = debugging)
+    (make stands for GNU make)
 
  3b) These easily fails, but there are a number of easy fixes (step 4,5)
 
@@ -33,12 +45,17 @@ How to compile CP2K code
     - ~/cp2k/tools/get_arch_code returns unknown for the architecture
       try to have it return the closest possible match.
       have a look in ~/cp2k/arch for the possible options (or see step 7)
- 
+      different compilers (e.g. INTEL ifc, PGI pgf90, NAG f95, ...) can often also be selected
+
+    - your compiler is broken. Many, many bad f90 compilers are still around, 
+      and the latest version is not always the best one. Especially the PC 
+      platform seems to be affected (and a different compiler (version) can be twice as fast)
+
  5) If your machine is really not there, it shouldn't be too difficult to add.
     Only ~/cp2k/src/machine*.F should be affected.
 
- 6) If compilation works fine, you can go into one of the test cases 
-    and try out the executable
+ 6) If compilation works fine, you can run one of the test cases 
+    to try out the executable
 
 >  cd ~/cp2k/tests/QS/
 > ~/cp2k/exe/YOURMACHINE/cp2k.sopt H2O.inp
