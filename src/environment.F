@@ -25,7 +25,10 @@
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
   USE cp_log_handling,                 ONLY: cp_destroy_default_logger,&
-                                             cp_init_default_logger
+                                             cp_get_default_logger,&
+                                             cp_init_default_logger,&
+                                             cp_logger_set,&
+                                             cp_logger_type
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release
   USE fft_tools,                       ONLY: fft3d,&
@@ -153,6 +156,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
+    TYPE(cp_logger_type), POINTER :: logger
 
 #if defined(__HPM)
 #include "f_hpm.h"    
@@ -319,6 +323,18 @@ CONTAINS
 !   *** Read the CP2K section ***
 
     CALL read_cp2k_section(globenv)
+
+    ! try to use better names for the local log if it is not too late
+    IF (globenv%output_file_name/="") THEN
+       logger => cp_get_default_logger()
+       CALL cp_logger_set(logger,&
+            local_filename=TRIM(globenv%output_file_name)//"_localLog")
+    END IF
+    IF (globenv%project_name/="") THEN
+       logger => cp_get_default_logger()
+       CALL cp_logger_set(logger,&
+            local_filename=TRIM(globenv%project_name)//"_localLog")
+    END IF
 
     IF (ionode) THEN
       IF (globenv%print%basic_data_types) CALL print_kind_info(output_unit)
