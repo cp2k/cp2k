@@ -283,6 +283,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    apname = ""
+
     all_potential_present = .FALSE.
     gth_potential_present = .FALSE.
 
