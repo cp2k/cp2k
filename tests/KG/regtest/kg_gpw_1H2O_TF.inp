@@ -18,7 +18,7 @@
 
 &KG
  METHOD       KG_GPW
- CUTOFF       100
+ CUTOFF       10
  NGRID        1
  EXTRAPOLATION  USE_GUESS
 &END
