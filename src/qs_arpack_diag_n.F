@@ -21,30 +21,27 @@
 !!     qs_arpack_diag_sy.F
 !!
 !!****
-module qs_arpack_diag_n
+MODULE qs_arpack_diag_n
 
-  use global_types, only : global_environment_type
-  use kinds,        only : dbl
-  use qs_blacs,     only : cp_full_matrix_type, cp_fm_get_info, &
-                           blacs_find_vector_distribution
-  use termination,  only : stop_program
+  USE global_types,    ONLY : global_environment_type
+  USE kinds,           ONLY : dbl
+  USE qs_arpack_utils, ONLY : arpack_confirm
+  USE qs_blacs,        ONLY : cp_full_matrix_type, cp_fm_get_info, &
+                              blacs_find_vector_distribution
+  USE termination,     ONLY : stop_program
 
   ! the operator environments and operators
-  use qs_p_types,       only : qs_p_env_type
-  use qs_arpack_tddfpt, only : arpack_op_tddfpt
+  USE qs_p_types,       ONLY : qs_p_env_type
+  USE qs_arpack_tddfpt, ONLY : arpack_op_tddfpt, op_tddfpt_type
 
-  implicit none
+  IMPLICIT NONE
 
-!!!  interface arpack_op
-!!!     module procedure arpack_op_tddfpt
-!!!  end interface
+  CHARACTER(len=*), PARAMETER :: moduleN = "qs_arpack_diag_n"
 
-  character(len=*), parameter :: moduleN = "qs_arpack_diag_n"
+  PRIVATE
+  PUBLIC :: arpack_diag_n
 
-  private
-  public :: arpack_diag_n
-
-contains
+CONTAINS
 
 ! *****************************************************************************
 
@@ -81,151 +78,178 @@ contains
 !!     arpack_diag_sy
 !!
 !!****
-  subroutine arpack_diag_n(n_ev, eval, evec, glob_env, op_tddfpt)
+  SUBROUTINE arpack_diag_n(n_ev, eval, evec, glob_env, op_tddfpt)
   
-    implicit none
+    IMPLICIT NONE
 
   	! arguments
-    integer, intent(in)                          :: n_ev
-    real(dbl), dimension(:,:), pointer           :: eval
-    type(cp_full_matrix_type), pointer           :: evec
-    type(global_environment_type), intent(in)    :: glob_env
-    type(qs_p_env_type), intent(inout), optional :: op_tddfpt
+    INTEGER, INTENT(in)                           :: n_ev
+    REAL(dbl), DIMENSION(:,:), POINTER            :: eval
+    TYPE(cp_full_matrix_type), POINTER            :: evec
+    TYPE(global_environment_type), INTENT(in)     :: glob_env
+    TYPE(op_tddfpt_type), INTENT(inout), OPTIONAL :: op_tddfpt
   
   	! locals
-    integer   :: stat              ! return value of allocation operation
-    integer   :: op_present        ! how many optional operators are present
-    character(len=*), parameter :: routineN = "arpack_diag_n", &
+    INTEGER   :: stat              ! return value of allocation operation
+    INTEGER   :: op_present        ! how many optional operators are present
+    CHARACTER(len=*), PARAMETER :: routineN = "arpack_diag_n", &
                                    routineP = moduleN//"/"//routineN
     
     ! arpack specific
-    character :: bmat*1, which*2
-    logical   :: rvec
-    logical, dimension(:), pointer :: ev_select
-    integer   :: ido, &
+    CHARACTER :: bmat*1, which*2
+    LOGICAL   :: rvec
+    LOGICAL, DIMENSION(:), POINTER :: ev_select
+    INTEGER   :: ido, &
                  n_local, &        ! size of matrix on local node?
                  ldv, &            ! leading dimension ?
                  n_kv, &           ! number of krylov space vectors
                  lworkl, &         ! leading dimension of workl
                  info                 
-    real(dbl) :: tol               ! tolerance
-    real(dbl) :: sigmar, sigmai    ! unused but must be provided
-    integer, dimension(11)             :: param, pntr
-    real(dbl), dimension(:), pointer   :: resid, workev, workd, workl, vin, vout
-    real(dbl), dimension(:,:), pointer :: v
+    REAL(dbl) :: tol               ! tolerance
+    REAL(dbl) :: sigmar, sigmai    ! unused but must be provided
+    INTEGER, DIMENSION(14)             :: param, pntr
+    REAL(dbl), DIMENSION(:), POINTER   :: resid, workev, workd, workl, vin, vout
+    REAL(dbl), DIMENSION(:,:), POINTER :: v
+    
+    CALL arpack_confirm(glob_env)
     
     ! check if an operator has been specified
     op_present = 0
-    if (present(op_tddfpt)) then
+    IF (PRESENT(op_tddfpt)) THEN
        op_present = op_present + 1
-    end if
-    if (op_present /= 1) then
-       call stop_program(routineP, "exactly 1 operator must be specified", glob_env)
-    end if
+    END IF
+    IF (op_present /= 1) THEN
+       CALL stop_program(routineP, "exactly 1 operator must be specified", glob_env)
+    END IF
 
-  	! code
-    call check_input(n_ev, eval, evec, glob_env)
+    ! get n_local (which is <= n_ao)
+    CALL blacs_find_vector_distribution(evec, n_local)
+
+    CALL check_input(n_ev, n_local, eval, evec, glob_env)
     
     ! set up some variables
     ido   = 0
-    call blacs_find_vector_distribution(evec, n_local)
-    which = 'SA'
+    which = 'SR'                    ! eigenvalues with the smallest real part
     tol   = 1.0e-15_dbl             ! hardcoded ?
-    n_kv  = min(2 * n_ev, n_local)
-    if (n_kv < n_ev + 1) &
-         call stop_program(routineP, "n_kv < n_ev + 1, n_ev too large", glob_env)
+
+    n_kv  = 2*n_ev
+    n_kv  = MIN(n_kv, n_local)
+    IF (n_kv - n_ev < 2) n_kv = 2 + n_ev
+
     ldv = n_local
     param = 0
     param(1) = 1    ! exact shift mode
     param(3) = 1500 ! maximum number of iterations
     param(7) = 1    ! simple mode
     pntr     = 0
-    lworkl   = n_kv*(n_kv+8)
+    lworkl   = 3*(n_kv**2) + 6*(n_kv) ! do larger numbers give better performance?
     info     = 0    ! no starting vector as of now
 
+    IF (PRESENT(op_tddfpt)) THEN
+       bmat = 'I'
+    END IF
+
     ! allocate some arrays
-    allocate(resid(n_local), v(ldv, n_kv), &
+    ALLOCATE(resid(n_local), v(ldv, n_kv), &
              workev(3*n_kv), workd(3*n_local), workl(lworkl), &
              ev_select(n_kv), &
              stat=stat)
-    if (stat /= 0) &
-         call stop_program(routineP, "allocation of temporary variables failed", glob_env)
+    IF (stat /= 0) &
+         CALL stop_program(routineP, "allocation of temporary variables failed", glob_env)
 
-    reverse_comm: do 
+
 #if defined(__ARPACK)
-       call dnaupd(ido, bmat, n_local, which, n_ev, tol, resid, &
+    reverse_comm: DO 
+
+       CALL dnaupd(ido, bmat, n_local, which, n_ev, tol, resid, &
                    n_kv, v, ldv, param, pntr, workd, workl, lworkl, info)
-       
-       if (ido==-1.or.ido==1) then
-          vin  => workd(pntr(1):)
-          vout => workd(pntr(2):)
-          if (present(op_tddfpt)) then
-             call arpack_op_tddfpt(op_tddfpt, vin, vout)
-          end if
-       else
-          exit reverse_comm
-       end if
-       if (info < 0) then
-          !! report info
-          call stop_program(routineP, "error in dnaupd", glob_env)
-       end if
+       IF (info < 0) THEN
+          IF (glob_env%ionode) WRITE (glob_env%scr, '(A,I5)') 'info = ', info
+          CALL stop_program(routineP, "error in dnaupd", glob_env)
+       END IF
+
+       IF (ido==-1.OR.ido==1) THEN
+          vin  => workd(pntr(1):) ! is this going to work?
+          vout => workd(pntr(2):) ! is this going to work?
+          ! should have some kind of z here (see arpack manual on p 126)
+          IF (PRESENT(op_tddfpt)) THEN
+             CALL arpack_op_tddfpt(op_tddfpt, vin, vout, glob_env)
+             IF (glob_env%ionode) THEN
+                WRITE (glob_env%scr, '(A)') routineP//": Mock operation exiting loop"
+             END IF
+             EXIT reverse_comm
+          END IF
+       ELSE IF (ido == 99) THEN
+          EXIT reverse_comm
+       ELSE
+          IF (glob_env%ionode) WRITE (glob_env%scr, '(A,I5)') 'ido = ', ido
+          CALL stop_program(routineP, "error in reverse communication")
+       END IF
+
+    END DO reverse_comm
 #endif
-
-    end do reverse_comm
-
-    if (info /=0) then
-       call stop_program(routineP, "errors in revers communication process", glob_env)
-    end if
     
 #if defined(__ARPACK)
-    rvec = .true.          ! we want the eigenvectors
-    ev_select = .true.     ! just to be sure
+    rvec = .TRUE.          ! we want the eigenvectors
+    ev_select = .TRUE.     ! just to be sure
     sigmar = 0.0_dbl; sigmai = 0.0_dbl
-    call dneupd(rvec, 'A', ev_select, eval(:,1), eval(:,2), evec, ldv, &
+    CALL dneupd(rvec, 'A', ev_select, eval(:,1), eval(:,2), evec, ldv, &
                 sigmar, sigmai, workev, &
                 bmat, n_local, which, n_ev, tol, resid, &
                 n_kv, v, ldv, param, pntr, workd, workl, lworkl, info)
 #endif
 
-    if (info /= 0) then
-       !! report info
-       call stop_program(routineP, "error in dneupd", glob_env)
-    end if
+    IF (info /= 0) THEN
+       IF (glob_env%ionode) WRITE (glob_env%scr, '(A,I5)') routineP//": info = ", info
+!! Suspend that for now
+!!       CALL stop_program(routineP, "error in dneupd", glob_env)
+    END IF
 
-    deallocate(resid, v, workev, workd, workl, ev_select, stat=stat)
-    if (stat /= 0) &
-         call stop_program(routineP, "deallocation of temporary variables failed", glob_env)
+    DEALLOCATE(resid, v, workev, workd, workl, ev_select, stat=stat)
+    IF (stat /= 0) &
+         CALL stop_program(routineP, "deallocation of temporary variables failed", glob_env)
 
-  end subroutine arpack_diag_n
+  END SUBROUTINE arpack_diag_n
 
 ! *****************************************************************************
 
-  subroutine check_input(n_ev, eval, evec, glob_env)
-    implicit none
+  SUBROUTINE check_input(n_ev, n_local, eval, evec, glob_env)
+    IMPLICIT NONE
 
     ! arguments
-    integer, intent(in)                       :: n_ev
-    real(dbl), dimension(:,:), pointer        :: eval
-    type(cp_full_matrix_type), pointer        :: evec
-    type(global_environment_type), intent(in) :: glob_env
+    INTEGER, INTENT(in)                       :: n_ev
+    INTEGER, INTENT(in)                       :: n_local
+    REAL(dbl), DIMENSION(:,:), POINTER        :: eval
+    TYPE(cp_full_matrix_type), POINTER        :: evec
+    TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    integer                     :: evec_cols
-    character(len=*), parameter :: routineN = "check_input", &
+    INTEGER                     :: evec_cols
+    CHARACTER(len=*), PARAMETER :: routineN = "check_input", &
                                    routineP = moduleN//"/"//routineN
 
     ! code
-    if (n_ev < 1) &
-         call stop_program(routineP, "n_ev must be at least 1", glob_env)
-    if (size(eval,1) < n_ev) &
-         call stop_program(routineP, "size(eval) too small", glob_env)
-    call cp_fm_get_info(evec, ncol_global=evec_cols)
-    ! not quite sure if it really is necessary to have 2*n_ev cols
-    if (evec_cols < 2*n_ev) &
-         call stop_program(routineP, "evec needs at least n_ev columns", glob_env)
+    IF (n_ev < 1) &
+         CALL stop_program(routineP, "n_ev must be at least 1", glob_env)
+    IF (SIZE(eval,1) < n_ev) &
+         CALL stop_program(routineP, "size(eval) too small", glob_env)
+    CALL cp_fm_get_info(evec, ncol_global=evec_cols)
 
-  end subroutine check_input
+    IF (n_ev > n_local - 2) THEN
+       CALL stop_program(routineP, "n_kv >= n_ev+2 and n_kv <= n_local but n_ev > n_local-2")
+    END IF
+
+    ! we need 2*n_ev cols because the eigenvectors can be complex
+    ! these complex eigenvectors need 2 cols to store the real and the imaginary part
+    IF (glob_env%ionode) THEN
+       WRITE (glob_env%scr, '(A)') routineP//": evec still has only n_ev cols. Should be 2*n_ev"
+    END IF
+    IF (evec_cols < n_ev) THEN
+       CALL stop_program(routineP, "evec needs at least n_ev columns", glob_env)
+    END IF
+    
+  END SUBROUTINE check_input
 
 ! *****************************************************************************
 
-end module qs_arpack_diag_n
+END MODULE qs_arpack_diag_n

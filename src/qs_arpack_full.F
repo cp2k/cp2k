@@ -30,6 +30,7 @@
 
 module qs_arpack_full
 
+  use global_types, only : global_environment_type
   use kinds, only: wp => dp, wp_size => dp_size
   use termination,         only: stop_memory, stop_program
   use qs_blacs,            only: cp_full_matrix_type, &
@@ -55,11 +56,12 @@ contains
 
 ! *****************************************************************************
 
-subroutine arpack_op_symv(op, vin, vout)
+subroutine arpack_op_symv(op, vin, vout, glob_env)
   implicit none
   ! arguments
-  type(op_symv_type), intent(in)        :: op
-  real(wp), dimension(:), pointer       :: vin, vout
+  type(op_symv_type), intent(in)            :: op
+  real(wp), dimension(:), pointer           :: vin, vout
+  type(global_environment_type), intent(in) :: glob_env
   ! code
   call blacs_vector_symv(op%a, vin, vout, op%buffer)
 end subroutine arpack_op_symv

@@ -31,11 +31,13 @@ MODULE qs_tddfpt_module
 
   USE global_types,         ONLY : global_environment_type
   USE kinds,                ONLY : dbl
+  USE qs_arpack,            ONLY : arpack_diag_n
+  USE qs_arpack_tddfpt,     ONLY : op_tddfpt_type, setup_op_tddfpt
   USE qs_build_ks_matrix,   ONLY : qs_ks_env_type
   USE qs_environment_types, ONLY : qs_environment_type
   USE qs_p_types,           ONLY : qs_p_env_type
   USE qs_tddfpt_utils
-  USE qs_tddfpt_types,      ONLY : tddfpt_env_type
+  USE qs_tddfpt_types,      ONLY : tddfpt_env_type, tddfpt_env_deallocate
 
   IMPLICIT NONE
 
@@ -80,21 +82,53 @@ CONTAINS
     ! locals
     TYPE(qs_p_env_type)         :: p_env
     TYPE(tddfpt_env_type)       :: t_env
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_tddfpt_calculation', &
-                                   routineP = moduleN//':'//routineN
+    INTEGER                     :: n_spins, spin
+    TYPE(op_tddfpt_type)        :: op
+    CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_calculation', &
+                                   routineP = moduleN//'/'//routineN
 
     ! abort if this calculation is not wanted
     IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
+
 
     CALL tddfpt_write_banner(glob_env)
 
     CALL tddfpt_init(p_env, t_env, qs_env, ks_env, glob_env)
 
-    ! do until convergence
-    call update_p_env(p_env, t_env)
-    ! end do
+    n_spins = p_env%qs_env%dft_control%nspins
+    
+    CALL setup_op_tddfpt(op, p_env, 'x', glob_env)
+
+    self_consistency: DO
+       
+       CALL update_p_env(p_env, t_env, glob_env)
+
+       ! solve eigenequation
+       DO spin=1, n_spins
+          ! right eigenvectors
+          op%mode = 'x'
+          CALL arpack_diag_n(p_env%n_mo(spin), &
+               t_env%eval(spin)%values, t_env%x(spin)%matrix, glob_env, op_tddfpt=op)
+          ! left eigenvectors
+          op%mode = 'y'
+          CALL arpack_diag_n(p_env%n_mo(spin), &
+               t_env%eval(spin)%values, t_env%y(spin)%matrix, glob_env, op_tddfpt=op)
+       END DO
+
+       ! test for convergence
+       IF (.TRUE.) THEN
+          IF (glob_env%ionode) THEN
+             WRITE (glob_env%scr, '(A)') routineP//": Convergence criteria not yet implemented"
+          END IF
+          EXIT self_consistency
+       END IF
+
+    END DO self_consistency
 
     CALL tddfpt_testing(p_env, t_env, glob_env)
+
+    ! free some memory
+    CALL tddfpt_env_deallocate(t_env, glob_env)
 
   END SUBROUTINE tddfpt_calculation
 

@@ -23,18 +23,26 @@
 !!     qs_arpack_diag_n, qs_arpack_full
 !!
 !!****
-module qs_arpack_tddfpt
+MODULE qs_arpack_tddfpt
 
-  use kinds,      only : dbl
-  use qs_p_types, only : qs_p_env_type
-  use qs_p_utils, only : p_op_l1, p_op_l2
+  USE global_types, ONLY : global_environment_type
+  USE kinds,        ONLY : dbl
+  USE qs_p_types,   ONLY : qs_p_env_type
+  USE qs_p_utils,   ONLY : p_op_l1, p_op_l2
 
-  implicit none
+  IMPLICIT NONE
 
-  private
-  public :: arpack_op_tddfpt
+  TYPE op_tddfpt_type
+     TYPE(qs_p_env_type), POINTER :: p_env
+     CHARACTER                    :: mode
+  END TYPE op_tddfpt_type
+
+  CHARACTER(len=*), PARAMETER :: moduleN="qs_arpack_tddfpt"
+
+  PRIVATE
+  PUBLIC :: arpack_op_tddfpt, op_tddfpt_type, setup_op_tddfpt
   
-contains
+CONTAINS
 
 ! *****************************************************************************
 
@@ -48,9 +56,10 @@ contains
 !!     input vector vin. Store output in vout
 !!
 !!   ARGUMENTS
-!!     - p_env : environment that contains necessary quantities
-!!     - vin   : vector to operate on
-!!     - vout  : result
+!!     - op       : operator containing needed info
+!!     - vin      : vector to operate on
+!!     - vout     : result
+!!     - glob_env : global environment
 !!
 !!   NOTES
 !!     Doesn't work yet.
@@ -59,23 +68,73 @@ contains
 !!     09-2002, TCH, created
 !!
 !!****
-  subroutine arpack_op_tddfpt(p_env, vin, vout)
+  SUBROUTINE arpack_op_tddfpt(op, vin, vout, glob_env)
   
-    implicit none
+    IMPLICIT NONE
 
   	! arguments
-    type(qs_p_env_type), intent(inout) :: p_env
-    real(dbl), dimension(:), pointer    :: vin, vout
+    TYPE(op_tddfpt_type), INTENT(inout)       :: op
+    REAL(dbl), DIMENSION(:), POINTER          :: vin, vout
+    TYPE(global_environment_type), INTENT(in) :: glob_env
   
   	! locals
+    CHARACTER(len=*), PARAMETER               :: routineN='arpack_op_tddfpt',&
+                                                 routineP=moduleN//':'//routineN
   
-  
-  	! code
-    ! calls to p_op_l1, p_op_l2 and cholesky factorization of 
-    ! S matrix and so on
-  
-  end subroutine arpack_op_tddfpt
+    ! code
+    IF (glob_env%ionode) THEN
+       WRITE (glob_env%scr, '(A)') routineP//": Not yet implemented"
+    END IF
+
+  END SUBROUTINE arpack_op_tddfpt
 
 ! *****************************************************************************
 
-end module qs_arpack_tddfpt
+!!****f* cp2k/qs_arpack_tddfpt/setup_op_tddfpt *
+!!
+!!   NAME
+!!     setup_op_tddfpt
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   ARGUMENTS
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   MODIFICATION HISTORY
+!!     , TCH, created
+!!
+!!   SEE ALSO
+!!     
+!!
+!!****
+  SUBROUTINE setup_op_tddfpt(op, p_env, mode, glob_env)
+  
+    IMPLICIT NONE
+
+  	! arguments
+    TYPE(op_tddfpt_type), INTENT(inout) :: op
+    TYPE(qs_p_env_type), TARGET, INTENT(inout) :: p_env
+    CHARACTER, INTENT(in)               :: mode
+    TYPE(global_environment_type), INTENT(in) :: glob_env
+
+  	! locals
+    CHARACTER(len=*), PARAMETER               :: routineN='setup_op_tddfpt',&
+                                                 routineP=moduleN//':'//routineN
+  
+  	! code
+    IF (glob_env%ionode) THEN
+       WRITE (glob_env%scr, '(A)') routineP//": Not yet implemented"
+    END IF
+  
+    op%p_env => p_env
+    op%mode = mode
+
+  END SUBROUTINE setup_op_tddfpt
+
+! *****************************************************************************
+
+END MODULE qs_arpack_tddfpt

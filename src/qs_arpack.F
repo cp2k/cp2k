@@ -8,12 +8,13 @@
 !!     qs_arpack
 !!
 !!   FUNCTION
-!!     provide an interface to (p)arpack
+!!     Provide an interface to (p)arpack diagonlization routines.
 !!
 !!   AUTHOR
 !!     Joost VandeVondele (05.2002)
 !!
 !!   NOTES
+!!     (General notes concerning all the arpack files)
 !!     - This module needs the MPI version of PARPACK to linked 
 !!     - Notice that the routines PXLAMCH conflict with the scalapack routines, 
 !!       and have to be renamed througout the (P)ARPACK code (see the 
@@ -35,11 +36,12 @@
 
 module qs_arpack
 
+  use qs_arpack_diag_n,    only : arpack_diag_n
   use qs_arpack_diag_sy,   only : arpack_diag_sy
   
   implicit none
 
   private
-  public  :: arpack_diag_sy
+  public  :: arpack_diag_n, arpack_diag_sy
 
 end module qs_arpack

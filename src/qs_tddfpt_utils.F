@@ -69,8 +69,10 @@ CONTAINS
     ! locals
     TYPE(qs_K_P_P1_env_type)                  :: kpp1_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0d
-    TYPE(cp_full_matrix_type), POINTER          :: eigenvectors
+    TYPE(cp_full_matrix_type), POINTER        :: eigenvectors
     INTEGER                                   :: n_spins, spin
+    CHARACTER(len=*), PARAMETER               :: routineN = "tddfpt_init", &
+                                                 routineP = moduleN//"/"//routineN
     
     ! do intializations
     CALL kpp1_init(kpp1_env, qs_env, ks_env, glob_env)
@@ -88,9 +90,10 @@ CONTAINS
 
     CALL tddfpt_env_init(t_env, p_env, glob_env)
 
-    IF (glob_env%ionode) WRITE(glob_env%scr, *) &
-         "finished initialization"
-    
+    IF (glob_env%ionode) THEN 
+       WRITE(glob_env%scr, '(A)') routineP//": Finished initialization"
+    END IF
+
   END SUBROUTINE tddfpt_init
 
 ! *****************************************************************************
@@ -149,14 +152,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  subroutine update_p_env(p_env, t_env)
-    implicit none
+  SUBROUTINE update_p_env(p_env, t_env, glob_env)
+    IMPLICIT NONE
     ! arguments
-    type(qs_p_env_type), intent(inout) :: p_env
-    type(tddfpt_env_type), intent(in)  :: t_env
+    TYPE(qs_p_env_type), INTENT(inout)        :: p_env
+    TYPE(tddfpt_env_type), INTENT(in)         :: t_env
+    TYPE(global_environment_type), INTENT(in) :: glob_env
+
     ! locals
+    CHARACTER(len=*), PARAMETER  :: routineN = "update_p_env", &
+                                    routineP = moduleN//"/"//routineN
+
     ! code
-  end subroutine update_p_env
+    IF (glob_env%ionode) THEN
+       WRITE (glob_env%scr, '(A)') routineP//": Not yet implemented"
+    END IF
+
+  END SUBROUTINE update_p_env
 
 ! *****************************************************************************
 

@@ -17,35 +17,30 @@
 !!   MODIFICATION HISTORY
 !!
 !!****     
-module qs_arpack_diag_sy
+MODULE qs_arpack_diag_sy
 
-  use kinds, only: wp => dp, wp_size => dp_size
-  use global_types,        only: global_environment_type
-  use termination,         only: stop_memory, stop_program
-  use timings,             only: timeset, timestop
-  use qs_blacs,            only: cp_full_matrix_type,cp_fm_get_info, &
+  USE kinds, ONLY: wp => dp, wp_size => dp_size
+  USE global_types,        ONLY: global_environment_type
+  USE termination,         ONLY: stop_memory, stop_program
+  USE timings,             ONLY: timeset, timestop
+  USE qs_arpack_utils,     ONLY: arpack_confirm
+  USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
                                  blacs_vector_symv, &
                                  blacs_find_vector_distribution, &
                                  copy_vector_to_blacs, &
                                  copy_blacs_to_vector,blacs_daxpy
 
   ! the operators
-  use qs_arpack_full,      only: arpack_op_symv, op_symv_type
+  USE qs_arpack_full,      ONLY: arpack_op_symv, op_symv_type
 
-  implicit none
+  IMPLICIT NONE
 
-!!!  ! the collective interface to the operators
-!!!  ! note that the signature of the operators must be: (op_type, vin, vout)
-!!!  interface arpack_op
-!!!     module procedure arpack_op_symv
-!!!  end interface
+  CHARACTER(len=*), PARAMETER :: moduleN = "qs_arpack_diag_sy"
 
-  character(len=*), parameter :: moduleN = "qs_arpack_diag_sy"
+  PRIVATE
+  PUBLIC :: arpack_diag_sy
 
-  private
-  public :: arpack_diag_sy
-
-contains
+CONTAINS
 
 ! *****************************************************************************
 
@@ -85,75 +80,75 @@ contains
 !!     
 !!
 !!****
-subroutine arpack_diag_sy(vmatrix, &
+SUBROUTINE arpack_diag_sy(vmatrix, &
                           eval, nev, ncv, use_vectors, globenv, &
                           op_symv)
 
-  implicit none
+  IMPLICIT NONE
 
   ! arguments
-  type(cp_full_matrix_type), pointer           :: vmatrix
-  real(WP), dimension(:), pointer              :: eval
-  integer, intent(IN)                          :: nev
-  integer, intent(IN)                          :: ncv 
-  logical, intent(IN)                          :: use_vectors
-  type(global_environment_type), intent(IN)    :: globenv
-  type(op_symv_type), intent(in), optional   :: op_symv
+  TYPE(cp_full_matrix_type), POINTER           :: vmatrix
+  REAL(WP), DIMENSION(:), POINTER              :: eval
+  INTEGER, INTENT(IN)                          :: nev
+  INTEGER, INTENT(IN)                          :: ncv 
+  LOGICAL, INTENT(IN)                          :: use_vectors
+  TYPE(global_environment_type), INTENT(IN)    :: globenv
+  TYPE(op_symv_type), INTENT(in), OPTIONAL     :: op_symv
 
   ! locals
-  integer                           :: op_present
-  integer                           :: context,handle,istat
-  real(wp), dimension(:), pointer   :: vin,vout
-  character(len=*), parameter       :: routineN = "arpack_diag_sy", &
+  INTEGER                           :: op_present
+  INTEGER                           :: context,handle,istat
+  REAL(wp), DIMENSION(:), POINTER   :: vin,vout
+  CHARACTER(len=*), PARAMETER       :: routineN = "arpack_diag_sy", &
                                        routineP = moduleN//"/"//routineN
                                     
   ! locals arpack                   
-  integer                           :: ploc, nloc, n, vmatrix_cols
-  character                         :: bmat*1,which*2
-  real(wp), dimension(:), pointer   :: workl,workd,d,resid,ax
-  real(wp), dimension(:,:), pointer :: cv
-  logical, dimension(:), pointer    :: select
-  logical                           :: rvec
-  integer                           :: iparam(11), ipntr(11), &
+  INTEGER                           :: ploc, nloc, n, vmatrix_cols
+  CHARACTER                         :: bmat*1,which*2
+  REAL(wp), DIMENSION(:), POINTER   :: workl,workd,d,resid,ax
+  REAL(wp), DIMENSION(:,:), POINTER :: cv
+  LOGICAL, DIMENSION(:), POINTER    :: SELECT
+  LOGICAL                           :: rvec
+  INTEGER                           :: iparam(11), ipntr(11), &
                                        ierr, lworkl, info, ido
-  integer                           :: arpack_comm,i
-  integer, dimension(9)             :: descv
-  real(wp)                          :: tol,sigma,alpha
+  INTEGER                           :: arpack_comm,i
+  INTEGER, DIMENSION(9)             :: descv
+  REAL(wp)                          :: tol,sigma,alpha
 
-  call timeset(routineN,'I',' ',handle)
+  CALL timeset(routineN,'I',' ',handle)
 
   ! code to check if at least one of the optional operation
   ! types has been specified
   op_present = 0
-  if (present(op_symv)) then
+  IF (PRESENT(op_symv)) THEN
      n = op_symv%a_size
      op_present = op_present + 1
-  end if
-  if (op_present /= 1) then
-     call stop_program(routineP, "An operation must be specified", globenv)
-  end if
+  END IF
+  IF (op_present /= 1) THEN
+     CALL stop_program(routineP, "An operation must be specified", globenv)
+  END IF
 
   context = globenv%blacs_env%group
-  call arpack_confirm(globenv)
+  CALL arpack_confirm(globenv)
 
-  call cp_fm_get_info(vmatrix, ncol_global=vmatrix_cols)
-  if (vmatrix_cols < nev) then
-     call stop_program(routineP, "vmatrix should have at least nev columns", globenv)
-  end if
+  CALL cp_fm_get_info(vmatrix, ncol_global=vmatrix_cols)
+  IF (vmatrix_cols < nev) THEN
+     CALL stop_program(routineP, "vmatrix should have at least nev columns", globenv)
+  END IF
 
-  if (nev .lt. 1) then
-     call stop_program(routineP,"nev too small",globenv)
-  endif
-  if (ncv .lt. nev+1) then
-     call stop_program(routineP,"ncv to small",globenv)
-  endif
+  IF (nev .LT. 1) THEN
+     CALL stop_program(routineP,"nev too small",globenv)
+  ENDIF
+  IF (ncv .LT. nev+1) THEN
+     CALL stop_program(routineP,"ncv to small",globenv)
+  ENDIF
 ! limitation of arpack ... no way to get all eigenvectors (well, wouldn't make sence anyway)
-  if (ncv .gt. n) then
-     call stop_program(routineP,"ncv to large",globenv)
-  endif
+  IF (ncv .GT. n) THEN
+     CALL stop_program(routineP,"ncv to large",globenv)
+  ENDIF
 
   ! here we learn how big nloc has to be
-  call blacs_find_vector_distribution(vmatrix,nloc)
+  CALL blacs_find_vector_distribution(vmatrix,nloc)
 
 !
 ! allocate the scratch space, notice that some of these (cv,workl) are not small..
@@ -162,41 +157,41 @@ subroutine arpack_diag_sy(vmatrix, &
 !
 
   lworkl = ncv*(ncv+8)
-  allocate(workl(lworkl),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"workl",lworkl*wp_size)
-  endif
+  ALLOCATE(workl(lworkl),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"workl",lworkl*wp_size)
+  ENDIF
 
-  allocate(cv(nloc,ncv),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"cv",nloc*ncv*wp_size)
-  endif
+  ALLOCATE(cv(nloc,ncv),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"cv",nloc*ncv*wp_size)
+  ENDIF
 
-  allocate(select(ncv),STAT=istat)
-  if (istat.ne.0) then
+  ALLOCATE(SELECT(ncv),STAT=istat)
+  IF (istat.NE.0) THEN
     ! size of logical ... ?
-    call stop_memory(routineP,"select",ncv*4)
-  endif
+    CALL stop_memory(routineP,"select",ncv*4)
+  ENDIF
 
-  allocate(workd(3*nloc),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"workd",3*nloc*wp_size)
-  endif
+  ALLOCATE(workd(3*nloc),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"workd",3*nloc*wp_size)
+  ENDIF
 
-  allocate(d(2*ncv),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"d",2*ncv*wp_size)
-  endif
+  ALLOCATE(d(2*ncv),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"d",2*ncv*wp_size)
+  ENDIF
 
-  allocate(resid(nloc),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"resid",nloc*wp_size)
-  endif
+  ALLOCATE(resid(nloc),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"resid",nloc*wp_size)
+  ENDIF
 
-  allocate(ax(nloc),STAT=istat)
-  if (istat.ne.0) then
-    call stop_memory(routineP,"ax",nloc*wp_size)
-  endif
+  ALLOCATE(ax(nloc),STAT=istat)
+  IF (istat.NE.0) THEN
+    CALL stop_memory(routineP,"ax",nloc*wp_size)
+  ENDIF
 
   arpack_comm = 0
 
@@ -209,14 +204,14 @@ subroutine arpack_diag_sy(vmatrix, &
   
   ! arpack settings
   !
-  if (present(op_symv)) then
-     if (op_symv%general) then
+  IF (PRESENT(op_symv)) THEN
+     IF (op_symv%general) THEN
         bmat = 'G'   ! solve general problem Ax = BxE
-        call stop_program(routineP, "General problem not yet implemented")
-     else
+        CALL stop_program(routineP, "General problem not yet implemented")
+     ELSE
         bmat = 'I'   ! solve simple problem Ax = xE
-     end if
-  end if
+     END IF
+  END IF
   which = 'SA'       ! compute the nev smallest eigenvalues (algebraic)
   tol  = 1.0E-15_wp  ! accuracy
   info = 0           ! no intial guess for the eigenvectors
@@ -226,126 +221,97 @@ subroutine arpack_diag_sy(vmatrix, &
   iparam(7) = 1      ! simple mode
   iparam(1) = 1      ! with exact shifts
   iparam(3) = 1500   ! maxiter
-  select(:) = .true.
+  SELECT(:) = .TRUE.
 
 
-  if (use_vectors) then
+  IF (use_vectors) THEN
     alpha=1.0D0
     ! sum all eigenvectors in the first one
-    do i=2, nev ! neig
-       call blacs_daxpy(vmatrix,i,alpha,1)
-    enddo
+    DO i=2, nev ! neig
+       CALL blacs_daxpy(vmatrix,i,alpha,1)
+    ENDDO
     !  and use as an initial state
     info=1
-    call copy_blacs_to_vector(vmatrix,1,resid)
-  endif 
+    CALL copy_blacs_to_vector(vmatrix,1,resid)
+  ENDIF 
    
   !  the famous reverse communication let dsaupd 'call' arpack_op_blacs
-  do
+  DO
      !write(6,*) "in the loop",globenv%mepos
 
 #if defined(__ARPACK)
 #if defined(__parallel)
-     call pdsaupd(arpack_comm, ido, bmat, nloc, which, nev, tol, resid, &
+     CALL pdsaupd(arpack_comm, ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
                  lworkl, info )
 #else
-     call dsaupd ( ido, bmat, nloc, which, nev, tol, resid, &
+     CALL dsaupd ( ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
                  lworkl, info )
 #endif
 #endif
 
-     if (ido .eq. -1 .or. ido .eq. 1) then
+     IF (info.LT.0) THEN
+        CALL stop_program(routineP,"error in dsaupd",globenv) 
+     ENDIF
+
+     IF (ido .EQ. -1 .OR. ido .EQ. 1) THEN
        vin =>workd(ipntr(1):)
        vout=>workd(ipntr(2):)
-       if (present(op_symv)) then
-          call arpack_op_symv(op_symv, vin, vout)
-       end if
-     else
-       exit
-     endif
-     if (info.lt.0) then
-        call stop_program(routineP,"error in dsaupd",globenv) 
-     endif
-  enddo
+       IF (PRESENT(op_symv)) THEN
+          CALL arpack_op_symv(op_symv, vin, vout, globenv)
+       END IF
+     ELSE
+       EXIT
+     ENDIF
+  ENDDO
 
-  if (info.lt.0) then
-        write(6,*) info
-     call stop_program(routineP,"error in dsaupd",globenv) 
-  endif
+!TC  IF (info.LT.0) THEN
+!TC        WRITE(6,*) info
+!TC     CALL stop_program(routineP,"error in dsaupd",globenv) 
+!TC  ENDIF
 
-
-  rvec = .true.
+  rvec = .TRUE.
   ierr = 0 
 
 #if defined(__ARPACK)
 #if defined(__parallel)
-  call pdseupd ( arpack_comm, rvec, 'All', select, d, cv, nloc, sigma, &        
+  CALL pdseupd ( arpack_comm, rvec, 'All', SELECT, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
                 iparam, ipntr, workd, workl, lworkl, ierr )
 #else
-  call dseupd ( rvec, 'All', select, d, cv, nloc, sigma, &        
+  CALL dseupd ( rvec, 'All', SELECT, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
                 iparam, ipntr, workd, workl, lworkl, ierr )
 #endif
 #endif
 
-  if ( ierr .ne. 0) then
-     call stop_program(routineP,"dseupd error",globenv)
-  endif
+  IF ( ierr .NE. 0) THEN
+     CALL stop_program(routineP,"dseupd error",globenv)
+  ENDIF
 
-  if ( iparam(5) .ne. nev) then
-     call stop_program(routineP,"dseupd not all converged",globenv)
-  endif
+  IF ( iparam(5) .NE. nev) THEN
+     CALL stop_program(routineP,"dseupd not all converged",globenv)
+  ENDIF
 
-  if ( info .eq. 1) then
-     call stop_program(routineP,"max number of iterations reached",globenv)
-  endif
+  IF ( info .EQ. 1) THEN
+     CALL stop_program(routineP,"max number of iterations reached",globenv)
+  ENDIF
 
   ! copy eigenvalues
   eval(1:nev)=d(1:nev)
-  do i=1,nev
+  DO i=1,nev
      ! is there any clean way to do this ... ?
      workd(1:nloc)=cv(1:nloc,i)
-     call copy_vector_to_blacs(workd,vmatrix,i)
-  enddo
+     CALL copy_vector_to_blacs(workd,vmatrix,i)
+  ENDDO
 
-  deallocate(cv,workl,workd,d,resid,ax,select)
-  call timestop(0.0_wp,handle)
+  DEALLOCATE(cv,workl,workd,d,resid,ax,SELECT)
+  CALL timestop(0.0_wp,handle)
   
-end subroutine arpack_diag_sy
+END SUBROUTINE arpack_diag_sy
 
 ! *****************************************************************************
 
-! stops the program if arpack is not present
-! can also be used to check if the program is present
-! in that case use the optional logical
-subroutine arpack_confirm(globenv,is_present)
-
-  implicit none
-
-  ! arguments
-  type(global_environment_type), intent(IN) :: globenv
-  logical, optional, intent(INOUT)          :: is_present
-
-
-#if defined(__ARPACK)
-  if (present(is_present)) then ! hmmmm 
-     is_present=.true.
-  endif
-#else
-  if (present(is_present)) then ! hmmmm 
-     is_present=.false.
-  else
-     call stop_program("arpack_confirm",& 
-              "(p)arpack library not present but needed",globenv)
-  endif
-#endif
-
-end subroutine arpack_confirm
-
-! *****************************************************************************
-
-end module
+END MODULE
 
