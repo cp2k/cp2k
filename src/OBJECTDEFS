@@ -163,6 +163,7 @@ OBJECTS_GENERIC =\
  pol_diis.o\
  pol_electrostatics_ao.o\
  pol_electrostatics_pw.o\
+ pol_fo_kernel_pw.o\
  pol_force_ao.o\
  pol_force_numer_ao.o\
  pol_force_numer_pw.o\
