@@ -2858,8 +2858,8 @@ END SUBROUTINE potential_nonbond
 ! *****************************************************************************
   SUBROUTINE force_nonbond_numer (atomic_kind_set,particle_set,&
                                   local_particles, ewald_env, cell, &
-                                  potparm, delta, f_numer, energy_numer, &
-                                  globenv)
+                                  potparm, rcut, delta, f_numer,    &
+                                  energy_numer, globenv)
 
 !   Purpose: Build all the required neighbor lists for FIST.
 
@@ -2877,7 +2877,8 @@ END SUBROUTINE potential_nonbond
     TYPE ( cell_type ), POINTER              :: cell
     TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN)                                     :: globenv
+    REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) ::  rcut ( :, : )
     REAL ( dbl ), INTENT ( IN ) :: delta
     REAL ( dbl ), INTENT ( OUT ) ::  energy_numer
     REAL ( dbl ), INTENT ( OUT ) :: f_numer ( :, : )
@@ -2980,7 +2981,7 @@ END SUBROUTINE potential_nonbond
 
 !   *** evaluate the forces ***
     CALL force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
-                                  potparm, energy_numer, f_numer, delta,   &
+                                  potparm, rcut, energy_numer, f_numer, delta,   &
                                   maxatom_local )
 
     f_numer = f_numer/(2.0_dbl*delta)
@@ -3017,7 +3018,7 @@ END SUBROUTINE potential_nonbond
 ! *****************************************************************************
 
   SUBROUTINE force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
-                                      potparm, energy_numer, f_numer,    &
+                                      potparm, rcut, energy_numer, f_numer,    &
                                       numerical_shift, maxatom_local )
 
 !   Purpose: Build simple pair neighbor lists.
@@ -3036,6 +3037,7 @@ END SUBROUTINE potential_nonbond
     REAL ( dbl ), INTENT ( OUT )                     :: energy_numer    
     REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
     REAL ( dbl ), INTENT ( IN )                      :: numerical_shift
+    REAL ( dbl ), INTENT ( IN ) , DIMENSION ( :, : ) :: rcut
 
 ! locals
     CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_evaluate"
@@ -3043,7 +3045,7 @@ END SUBROUTINE potential_nonbond
       iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, &
       jkind, k, kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    ::  cell_b, ncell, &
-                                                nsubcell, periodic
+                                                 periodic
     LOGICAL                                  :: include_ab, exclude_flag
     REAL(dbl)                                 :: rab2, rab2_max, &
                                                 subcells, qi, qj
@@ -3085,17 +3087,21 @@ END SUBROUTINE potential_nonbond
 
 !       *** Calculate the square of the maximum interaction distance ***
 
+        rab_max = rcut(ikind,jkind)
+        rab2_max = rab_max*rab_max
+
+        r(:) = rab_max
+        sab_max(:) = real_to_scaled(r(:),cell)
+
+
         rab2_max = potparm ( ikind, jkind ) % rcutsq 
 
         r(:) = SQRT ( rab2_max )
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MAX(1,NINT(0.5_dbl*subcells/sab_max(:)))
 
-!       *** Check, if we have to consider a subcell grid ***
-
-        IF (SUM(nsubcell) == 3) THEN
+!       *** No subcells will be considered in the debug ****
 
 !         *** Case 1: No subcell grid is needed ***
 
@@ -3149,7 +3155,7 @@ END SUBROUTINE potential_nonbond
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                      IF (rab2 < rab2_max) THEN
+                      IF (rab2 < potparm ( ikind, jkind ) % rcutsq ) THEN
                         IF (rab2 > 1.0E-6_dbl) THEN
                           sab(:) = real_to_scaled(rab(:),cell)
                           exclude_flag = .FALSE.
@@ -3181,125 +3187,6 @@ END SUBROUTINE potential_nonbond
             END DO loop1_kcell
 
           END DO
-
-        ELSE
-
-!         *** Case 2: A subcell grid is needed ***
-
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
-
-          DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_a_index(iatom_local)
-            atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dbl
-            i = MIN(INT(s(1)*REAL(nsubcell(1),dbl) + 1.0_dbl),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),dbl) + 1.0_dbl),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),dbl) + 1.0_dbl),nsubcell(3))
-            subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
-            subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
-          END DO
-
-          DO jatom_local=1,natom_local_b
-
-            atom_b = atom(jkind)%list(jatom_local)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
-
-            loop2_kcell: DO kcell=-ncell(3),ncell(3)
-
-              sb(3) = sb_pbc(3) + REAL(kcell,dbl)
-              sb_min(3) = sb(3) - sab_max(3)
-              IF (sb_min(3) >= 0.5_dbl) EXIT loop2_kcell
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (sb_max(3) < -0.5_dbl) CYCLE loop2_kcell
-              cell_b(3) = kcell
-
-              loop2_jcell: DO jcell=-ncell(2),ncell(2)
-
-                sb(2) = sb_pbc(2) + REAL(jcell,dbl)
-                sb_min(2) = sb(2) - sab_max(2)
-                IF (sb_min(2) >= 0.5_dbl) EXIT loop2_jcell
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (sb_max(2) < -0.5_dbl) CYCLE loop2_jcell
-                cell_b(2) = jcell
-
-                loop2_icell: DO icell=-ncell(1),ncell(1)
-
-                  sb(1) = sb_pbc(1) + REAL(icell,dbl)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  IF (sb_min(1) >= 0.5_dbl) EXIT loop2_icell
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (sb_max(1) < -0.5_dbl) CYCLE loop2_icell
-                  cell_b(1) = icell
-
-                  rb(:) = scaled_to_real(sb(:),cell)
-
-                  loop_k: DO k=1,nsubcell(3)
-                    loop_j: DO j=1,nsubcell(2)
-                      loop_i: DO i=1,nsubcell(1)
-
-                        IF (subcell(i,j,k)%natom == 0) CYCLE
-
-                        IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
-                        IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
-
-                        IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
-                        IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
-
-                        IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
-                        IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
-
-                        DO iatom_subcell=1,subcell(i,j,k)%natom
-                          iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_a_index(iatom_local)
-                          atom_a = atom(ikind)%list(iatom)
-                          IF (atom_a > atom_b) THEN
-                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                          ELSE
-                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                          END IF
-                          IF (include_ab) THEN
-                            rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                            IF (rab2 < rab2_max) THEN
-                              IF (rab2 > 1.0E-6_dbl) THEN
-                                sab(:) = real_to_scaled(rab(:),cell)
-                                exclude_flag = .FALSE.
-                                exclusion_list => &
-                                particle_set ( atom_a ) % lpi % exclusion ( jkind ) % list 
-                                IF ( ASSOCIATED ( exclusion_list ) ) THEN
-                                  DO iatom=1,SIZE(exclusion_list)
-                                    IF (exclusion_list(iatom) == 0) EXIT
-                                    IF (exclusion_list(iatom) == atom_b) &
-                                    exclude_flag = .TRUE. 
-                                  END DO
-                                END IF
-                                IF (.NOT.exclude_flag ) &
-                                CALL finite_difference_evaluate ( ewald_env,     &
-                                                                 potparm, rab,    &
-                                                                 ikind, jkind, &
-                                                                 atom_a, atom_b, &
-                                                                 qi, qj, &
-                                                                 numerical_shift, &
-                                                                 f_numer,     &
-                                                                 energy_numer )
-                              END IF
-                            END IF
-                          END IF
-                        END DO
-
-                      END DO loop_i
-                    END DO loop_j
-                  END DO loop_k
-
-                END DO loop2_icell
-              END DO loop2_jcell
-            END DO loop2_kcell
-
-          END DO
-
-          CALL deallocate_subcell(subcell)
-
-        END IF
 
       END DO
     END DO
