@@ -41,7 +41,8 @@ MODULE qs_ot
                                  copy_sparse_to_blacs_matrix, &
                                  copy_blacs_to_sparse_matrix, &
                                  blacs_scale_matrix, &
-                                 blacs_cholesky_restore
+                                 blacs_cholesky_restore, &
+                                 cp_fm_maxval
 
   USE global_types,        ONLY: global_environment_type
   USE sparse_matrix_types, ONLY: real_matrix_type, &
@@ -173,11 +174,13 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
    TYPE(global_environment_type), INTENT(IN) :: globenv
 
    real(kind=wp) :: xa,xb,xc,fa,fb,fc,pos,val
-   real(kind=wp) :: gnorm_cross,beta_pr,lbfgs_beta,ds,nom,denom
-   integer       :: lbfgs_incr,lbfgs_bound,j,i,lbfgs_m,diis_m,diis_bound,diis_incr,info
+   real(kind=wp) :: gnorm_cross,beta_pr,lbfgs_beta,ds,nom,denom,test_down
+   integer       :: lbfgs_incr,lbfgs_bound,j,i,lbfgs_m,diis_m,diis_bound,diis_incr,info,k,n
 
    lbfgs_m=qs_ot_env%settings%lbfgs_m
    diis_m=qs_ot_env%settings%diis_m
+   k=qs_ot_env%settings%k
+   n=qs_ot_env%settings%n
 
    IF (qs_ot_env%energy_only) THEN
       qs_ot_env%delta=1.0_wp
@@ -213,13 +216,24 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
            CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,qs_ot_env%gnorm)
            qs_ot_env%delta=sqrt(qs_ot_env%gnorm/(qs_ot_env%settings%k*qs_ot_env%settings%n))
            CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_gx_old,qs_ot_env%matrix_gx)
+           ! this should be zero if the lagrangian multiplier is done correctly
+           !CALL cp_fm_gemm('T','N',k,k,n,1.0_wp,qs_ot_env%matrix_gx,qs_ot_env%matrix_sc0,0.0_wp,& 
+           !                qs_ot_env%matrix_buf1)
+           !CAll cp_fm_maxval(qs_ot_env%matrix_buf1,test_down)
+           !write(6,*) test_down
          ELSE
            CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm)
          ENDIF
          beta_pr=(qs_ot_env%gnorm-gnorm_cross)/qs_ot_env%gnorm_old
          ! we should add beta_pr=MAX(0.0_wp,beta_pr)
+         beta_pr=MAX(beta_pr,0.0_wp)
          CALL cp_fm_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx)  
          ! should we test for a downhill direction (we use inexact linesearch) ?
+         CALL cp_fm_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_dx,test_down)
+         if (test_down.ge.0.0_wp) then
+            write(6,*) "steepest"
+            CALL cp_fm_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx)  
+         endif
          qs_ot_env%gnorm_old=qs_ot_env%gnorm
 
       CASE ("QN") ! L-BFGS

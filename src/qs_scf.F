@@ -91,6 +91,7 @@ MODULE qs_scf
                                       cp_fm_gemm,&
                                       blacs_get_element,&
                                       cp_full_matrix_type,&
+                                      cp_full_matrix_p_type,&
                                       cp_fm_set_all,&
                                       cp_fm_set_element,&
                                       blacs_syevx,&
@@ -208,6 +209,8 @@ MODULE qs_scf
   PRIVATE
 
   TYPE(qs_ot_type)                  :: qs_ot_env
+  REAL(wp), DIMENSION(:), POINTER   :: evals_ot
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
 
   TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
   TYPE(cell_type), POINTER          :: cell
@@ -381,6 +384,8 @@ CONTAINS
                                                   nrow_global=n, &
                                                   ncol_global=k)
 
+       allocate(evals_ot(k))
+
        ! decide settings
        qs_ot_env%settings%ot_method="CG"
        qs_ot_env%settings%ot_linesearch=.true.
@@ -427,11 +432,7 @@ CONTAINS
        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
 
        ! and the corresponding density matrix
-       !CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-       !CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
-       !CALL symmetrise_diagonal_blocks(p%matrix)
        CALL calculate_density_matrix(mo_set,p%matrix,globenv)
-
        CALL init_preconditioner(ot_preconditioner,globenv)
 
     ENDIF
@@ -602,11 +603,26 @@ CONTAINS
         ENDIF
 
         IF (iscf==1) THEN
-           CALL make_preconditioner(ot_preconditioner,"FULL", &
+          if (.false.) then
+           CALL cp_fm_add(0.25_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
+           CALL make_preconditioner(ot_preconditioner,"FULL_ALL", &
                                     ks%matrix,s(1)%matrix, &
-                                    -0.06_wp,0.2_wp) 
-           
-           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
+                                    qs_ot_env%matrix_c0,  qs_ot_env%matrix_sc0, &
+                                    qs_ot_env%matrix_hc,0.2_wp) 
+          else
+           ! here we make c0 the ritz vectors, and rotate the corresponding vectors
+           allocate(ot_orbs_to_rotate(3))
+           ot_orbs_to_rotate(1)%matrix => qs_ot_env%matrix_c0
+           ot_orbs_to_rotate(2)%matrix => qs_ot_env%matrix_hc
+           ot_orbs_to_rotate(3)%matrix => qs_ot_env%matrix_sc0
+           CALL calculate_subspace_eigenvalues(ot_orbs_to_rotate,evals_ot,globenv)
+           deallocate(ot_orbs_to_rotate)
+           CALL make_preconditioner(ot_preconditioner,"FULL_SINGLE", &
+                                    ks%matrix,s(1)%matrix, &
+                                    evals_ot(qs_ot_env%settings%k),0.2_wp) 
+          endif 
+          CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
+          CALL cp_fm_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
 
         qs_ot_env%etotal=energy%total
@@ -652,6 +668,7 @@ CONTAINS
     IF (use_ot) THEN
      call qs_ot_destroy(qs_ot_env,globenv)
      call destroy_preconditioner(ot_preconditioner)
+     deallocate(evals_ot)
     END IF
 
     IF (ionode.AND.globenv%print%scf) THEN
@@ -713,7 +730,7 @@ CONTAINS
       if (globenv%ionode) write(globenv%scr,*) " "
       if (globenv%ionode) write(globenv%scr,*) " Eigenvalues of the occupied subspace"
       if (globenv%ionode) write(globenv%scr,*) " ------------------------------------"
-      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv)
+      CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks%matrix,globenv=globenv)
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
          ! overwrites rho_rspace with a wavefunction !
@@ -757,7 +774,7 @@ CONTAINS
                           eps_gradient=eps_lumos, &
                           iter_max=max_iter_lumos,globenv=globenv)
   
-      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv)
+      CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks%matrix,globenv=globenv)
 
       DO ivector=1,nlumos
          ! overwrites rho_rspace with a wavefunction !
