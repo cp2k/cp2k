@@ -2275,6 +2275,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     INTEGER, EXTERNAL  :: ilaenv
 #endif
 
+    type(cp_logger_type), pointer :: logger
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_syevx","I","",handle)
@@ -2282,7 +2284,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     ! to do : redefine io using error
     ionode = matrix%matrix_struct%para_env%mepos==&
          matrix%matrix_struct%para_env%source ! globenv%ionode
-    output_unit = cp_logger_get_default_unit_nr(cp_error_get_logger(error))! globenv%scr
+    ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX CORE DUMP XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    !output_unit = cp_logger_get_default_unit_nr(cp_error_get_logger(error))! globenv%scr
+    output_unit = 6
 
     context =>  matrix%matrix_struct%context
     myprow=context%mepos(1)
