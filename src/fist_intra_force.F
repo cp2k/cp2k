@@ -322,10 +322,10 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
      IMP_TORSION: DO itorsion = 1, nimptors
         CALL get_molecule ( molecule, first_atom=first_atom )
-        index_a = torsion_list ( itorsion ) % a + first_atom - 1
-        index_b = torsion_list ( itorsion ) % b + first_atom - 1
-        index_c = torsion_list ( itorsion ) % c + first_atom - 1
-        index_d = torsion_list ( itorsion ) % d + first_atom - 1
+        index_a = impr_list ( itorsion ) % a + first_atom - 1
+        index_b = impr_list ( itorsion ) % b + first_atom - 1
+        index_c = impr_list ( itorsion ) % c + first_atom - 1
+        index_d = impr_list ( itorsion ) % d + first_atom - 1
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t34 = particle_set ( index_c ) % r - particle_set ( index_d ) % r
@@ -357,7 +357,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         particle_set ( index_c )% f = particle_set ( index_c ) % f &
                                       + gt3 * fscalar
         particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                      + gt3 * fscalar
+                                      + gt4 * fscalar
 
 ! computing the pressure tensor
         CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
