@@ -343,7 +343,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         is32 = 1._dbl/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn,t32, &
+        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,energy,fscalar)

@@ -229,12 +229,12 @@ END SUBROUTINE force_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t32, &
+SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
                                 k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
 
     IMPLICIT NONE
     REAL(dbl), INTENT(IN)                    :: is32, s32, dist1, dist2, ism, isn
-    REAL(dbl), DIMENSION(:), INTENT(IN)      :: tm, tn,  t32
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: tm, tn,  t32, t12
     REAL(dbl), INTENT(IN)                    :: k, phi0
     REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
     REAL(dbl), INTENT(OUT)                   :: energy, fscalar
@@ -247,7 +247,7 @@ SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t32,
   cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
   IF(cosphi > 1.0_dbl) cosphi = 1.0_dbl
   IF(cosphi < -1.0_dbl) cosphi = -1.0_dbl
-  phi = acos ( cosphi )
+  phi = SIGN ( acos ( cosphi ), DOT_PRODUCT ( t12, tn ) )
 ! compute energy
   energy = 0.5_dbl * k * ( phi - phi0 ) * ( phi - phi0 ) 
 
@@ -257,8 +257,8 @@ SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t32,
 ! compute the gradients
   gt1 = ( s32* ism * ism ) * tm
   gt4 = -( s32 * isn * isn ) * tn
-  gt2 = ( dist1 * is32 ** 2 - 1._dbl ) * gt1 + dist2 * is32 ** 2 * gt4
-  gt3 = ( - dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
+  gt2 = ( dist1 * is32 ** 2 - 1._dbl ) * gt1 - dist2 * is32 ** 2 * gt4
+  gt3 = ( dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
 
 END SUBROUTINE force_imp_torsions
 

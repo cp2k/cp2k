@@ -849,7 +849,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         DO iatom = 1, natoms
         WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
         WRITE ( iwf, '( A,T21,3G20.12 )' ) ' F ANA IMP TORSION =', &
-             dbg % f_torsion(:,iatom)
+             dbg % f_imptors(:,iatom)
         WRITE ( iwf, '( A,T21,3G20.12,/ )' ) ' F NUM IMP TORSION =', &
              f_numer(:,iatom)
         END DO

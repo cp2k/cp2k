@@ -846,7 +846,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
         ! get the energy
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn,t32, &
+        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
@@ -864,11 +864,10 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_m = SQRT ( dot_product(tm_m,tm_m) )
            ism_m = 1._dbl/sm_m
            dist1m = dot_product(t12_m,t32)
-           CALL force_imp_torsions(s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t32, &
+           CALL force_imp_torsions(s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t12_m,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
-
            t12_p = t12 + delta
            tm_p(1) = t12_p(2)*t32(3)-t32(2)*t12_p(3)
            tm_p(2) = -t12_p(1)*t32(3)+t32(1)*t12_p(3)
@@ -876,7 +875,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_p = SQRT ( dot_product(tm_p,tm_p) )
            ism_p = 1._dbl/sm_p
            dist1p = dot_product(t12_p,t32)
-           CALL force_imp_torsions(s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t32, &
+           CALL force_imp_torsions(s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t12_p,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -907,7 +906,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_m = 1._dbl/sm_m
            dist1m = dot_product(t12,t32_m)
            dist2m = dot_product(t34,t32_m)
-           CALL force_imp_torsions(s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m,t32_m, &
+           CALL force_imp_torsions(s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m, t12, t32_m, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -928,7 +927,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_p = 1._dbl/sm_p
            dist1p = dot_product(t12,t32_p)
            dist2p = dot_product(t34,t32_p)
-           CALL force_imp_torsions(s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p,t32_p, &
+           CALL force_imp_torsions(s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p, t12, t32_p, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -949,7 +948,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_m = SQRT ( dot_product(tn_m,tn_m) )
            isn_m= 1._dbl/sn_m
            dist2m = dot_product(t34_m,t32)
-           CALL force_imp_torsions(s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t32, &
+           CALL force_imp_torsions(s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -961,7 +960,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
            isn_p= 1._dbl/sn_p
            dist2p = dot_product(t34_p,t32)
-           CALL force_imp_torsions(s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t32, &
+           CALL force_imp_torsions(s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -997,7 +996,7 @@ END SUBROUTINE force_imptors_numer
 !******************************************************************************
 
 SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
-                                local_particles, numerical_shift, f_numer )
+                               local_particles, numerical_shift, f_numer )
 
   IMPLICIT NONE
 
@@ -2055,7 +2054,7 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
   nparticle_kind = SIZE ( atomic_kind_set )
 ! numerical energy
   energy = 0.0_dbl
-  sum_igr = 0.0_dbl
+  sum_igr = CMPLX ( 0.0_dbl, 0.0_dbl, dbl )
   DO ig = 1, ngtot
      gsq = DOT_PRODUCT(glocal(:,ig),glocal(:,ig))
      IF ( gsq <= 1.0E-10_dbl ) CYCLE
@@ -2063,6 +2062,7 @@ SUBROUTINE potential_g_numer( atomic_kind_set, particle_set, local_particles, &
      DO iparticle_kind = 1, nparticle_kind
        atomic_kind => atomic_kind_set(iparticle_kind)
        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
+       IF ( ig == 2 ) write ( *, * ) "q", q
        nparticle_local = local_particles%n_el(iparticle_kind)
        DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
@@ -2214,7 +2214,6 @@ END SUBROUTINE pme_force_numer
 ! Locals
   TYPE ( pw_pool_type ), POINTER :: pw_pool
   TYPE ( pw_grid_type ), POINTER :: pw_grid
-  TYPE ( cell_type ), POINTER :: cell
   COMPLEX ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: sum_igr
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: gauss
   REAL ( dbl ) :: alpha, epsilon0
@@ -2222,7 +2221,7 @@ END SUBROUTINE pme_force_numer
   INTEGER :: isos, ngtot
 
 !------------------------------------------------------------------------------
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool )
   pw_grid => pw_pool % pw_grid
   g => pw_grid % g
   ngtot = pw_grid % ngpts_cut
@@ -2243,7 +2242,7 @@ END SUBROUTINE pme_force_numer
   CALL potential_g_numer( atomic_kind_set, particle_set, local_particles, &
                           sum_igr, gauss, alpha, g, ngtot, energy_numer)
 
-  energy_numer = energy_numer / epsilon0 / cell % deth
+  energy_numer = energy_numer / epsilon0 / pw_grid % vol 
   DEALLOCATE (sum_igr,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'ewald_energy_numer', 'sum_igr' )
   DEALLOCATE (gauss,STAT=isos)
@@ -2703,7 +2702,7 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         is32 = 1._dbl/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn,t32, &
+        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
