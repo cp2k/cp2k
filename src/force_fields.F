@@ -286,8 +286,8 @@ SUBROUTINE input_nonbonded(topology,globenv)
         END IF
         CALL read_line
      END DO
+     CALL convert_to_cp2k_units ( "KELVIN", ff_nonbonded = ffin_info % ff_nonbonded )
   END IF
-  CALL convert_to_cp2k_units ( "KELVIN", ff_nonbonded = ffin_info % ff_nonbonded )
 
 END SUBROUTINE input_nonbonded
 
