@@ -1,10 +1,13 @@
-.SUFFIXES: .F .d .o
+.SUFFIXES: .F .dep .o .f90 .for
+export VERSION=sopt
 
-CP2KHOME  = $(HOME)/cp2k
+# the home dir is taken from the current directory: you must cd to the makefiles
+# directory before executing make
+CP2KHOME  := $(PWD)/..
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
 VERSION   = sopt
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 1
+PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2klib
 
 ### Dependent variables ###
@@ -14,16 +17,17 @@ MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
 SRCDIR       = $(CP2KHOME)/src
-TOOLDIR      = $(CP2KHOME)/tools
+SRCDIRS      = $(SRCDIR):$(SRCDIR)/lib
+TOOLDIR      = $(OBJDIR)/tools
+TOOLSRC      = $(CP2KHOME)/tools
+FORPAR       = $(TOOLDIR)/forpar.x -chkint
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
-FORPAR       = $(CP2KHOME)/tools/forpar.x -chkint
 SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
 PROG         = $(EXEDIR)/cp2k.$(VERSION)
 EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
-VPATH        = $(SRCDIR):$(SRCDIR)/lib
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 
@@ -32,19 +36,30 @@ LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 VERSION_TARGETS = sopt sdbg popt pdbg
 CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
-
+.PHONY : build clean realclean distclean $(CLEAN_TARGETS)
 ### Master rules ###
 
-$(VERSION_TARGETS):
+build:
 	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
-	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
-	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
-	@$(SMAKE) -C $(TOOLDIR)
-	@$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
-	@$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
+	@cd $(LIBDIR)/$(VERSION) || mkdir -p $(LIBDIR)/$(VERSION)
+	@cd $(TOOLDIR) || mkdir -p $(TOOLDIR)
+	$(if $(shell if [ ! -f $(OBJDIR)/$(VERSION)/parallel_include.int -o \
+		! -f $(OBJDIR)/$(VERSION)/parallel_include.dep ] ; then  echo 1 ; fi),\
+		$(shell mkdir -p $(OBJDIR)/$(VERSION) ; \
+			touch $(OBJDIR)/$(VERSION)/parallel_include.int \
+				$(OBJDIR)/$(VERSION)/parallel_include.dep))
+	@echo
+	@echo "*** machine file = $(MACHINEDEFS)"	
+	@echo
+	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC)
+	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) dependencies
+	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) all
+
+$(VERSION_TARGETS):
+	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
-	$(SMAKE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+	$(SMAKE) -f $(MAKEFILE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
 
 include $(OBJECTDEFS)
 
@@ -55,18 +70,24 @@ OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o \
 	           mltfftsg_tools.o mltfftsg.o
 
-DEPENDENCIES = $(OBJECTS:.o=.d)
+DEPENDENCIES = $(OBJECTS:.o=.dep)
 
 LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
+
+.SECONDARY: $(OBJECTS:.o=.f90) $(LIB1_OBJECTS:.o=.f90) parallel_include.f90
 
 ### Slave rules ###
 
 dependencies: $(DEPENDENCIES)
+	@echo
+	@echo "** DFLAGS= $(DFLAGS)"
+	@echo "** CPPFLAGS= $(CPPFLAGS)"
+	@echo "** FCFLAGS= $(FCFLAGS)"
+	@echo "** LDFLAGS= $(LDFLAGS)"
+	@echo "** LIBS= $(LIBS)"
+	@echo
 
 all: $(PROG)
-
-$(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
-	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
@@ -74,34 +95,39 @@ ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB1_ARCHIVE)
 endif
 
-%.o: %.F
+$(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
+	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
+
+vpath %.F $(SRCDIRS)
+
+%.f90: %.F
+	$(CPP) $(CPPFLAGS) $< > $*.f90
+
+%.o: %.f90
 	$(FC) -c $(FCFLAGS) $<
 
-%.d: %.F
-	$(CPP) $(CPPFLAGS) $< > $*.f
-	$(FORPAR) $*.f
-	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	@rm -f $*.d.old
+%.dep: %.F
+	$(CPP) $(CPPFLAGS) -P $< > $*.for
+	$(FORPAR) $*.for
+	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
+	@rm -f $*.dep.old $*.for
 
-parallel_include.o: parallel_include.F
-	$(FC_fixed) -c $(FCFLAGS) $<
-
-parallel_include.d: parallel_include.F
-	$(CPP) $(CPPFLAGS) $< > $*.f
-	-$(FORPAR) -fix $*.f
-	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	@rm -f $*.d.old
+parallel_include.o: parallel_include.f90
+	$(FC_fixed) -c $(FCFLAGS) $*.f90
 
 clean:
-	rm -f *.o *.mod
+	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod 
 
 realclean: clean
-	rm -f $(PROG) *.f *.d *.int *~ *.lst
+	cd $(OBJDIR)/$(VERSION) ; rm -f $(PROG) *
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
-	$(SMAKE) -C $(TOOLDIR) realclean
+	$(SMAKE) -C $(TOOLSRC) realclean
+
+# lib dependencies
+mltfftsg.o: mltfftsg_tools.o
 
 ### Load the automatically generated rules of sfmakedepend ###
 
-include $(wildcard *.d)
+include $(wildcard *.dep)
