@@ -539,16 +539,30 @@ SUBROUTINE read_topology_mc (topology,globenv)
 
 ! deallocate all the temporary stuff
   DEALLOCATE(bond_a,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','bond_a')
+  IF(istat/=0) CALL stop_memory('read_topology_mc','bond_a')
   DEALLOCATE(bond_b,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','bond_b')
+  IF(istat/=0) CALL stop_memory('read_topology_mc','bond_b')
   DEALLOCATE(theta_a,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','theta_a')
+  IF(istat/=0) CALL stop_memory('read_topology_mc','theta_a')
   DEALLOCATE(theta_b,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','theta_b')
+  IF(istat/=0) CALL stop_memory('read_topology_mc','theta_b')
   DEALLOCATE(theta_c,STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','theta_c')
-
+  IF(istat/=0) CALL stop_memory('read_topology_mc','theta_c')
+  !dellocate some more stuff...this never gets used outside this routine
+  DEALLOCATE(atm_mol_name,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_mol_name')
+  DEALLOCATE(atm_res_num,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_res_num')
+  DEALLOCATE(atm_res_name,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_res_name')
+  DEALLOCATE(atm_name1,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_name1')
+  DEALLOCATE(atm_name2,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_name2')
+  DEALLOCATE(atm_charge,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_charge')
+  DEALLOCATE(atm_mass,STAT=ierror)
+  IF(ierror/=0) CALL stop_memory('read_topology_mc','atm_mass')
 END SUBROUTINE read_topology_mc
 
 END MODULE topology_psf
