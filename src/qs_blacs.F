@@ -515,7 +515,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)      :: globenv
     INTEGER, INTENT(IN)                    :: context
     INTEGER, INTENT(OUT)                   :: nloc
-    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,nloc
+    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs
 
     n = matrix_a%nrow_global
 
