@@ -622,7 +622,6 @@ CONTAINS
 !     *** functions which depends on the method ***
 
       nload = MAX(natom,nsgf)
-
       nmolecule = SIZE(molecule_list)
 
 !     *** Save current estimated work load ***
@@ -669,16 +668,16 @@ CONTAINS
 
       n = nmolecule_local_row(imolecule_kind)
 
-      IF (n > 0) THEN
+      !JVDV IF (n > 0) THEN
         ALLOCATE (local_molecule_row(imolecule_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
                            "local_molecule_row(imolecule_kind)%array",&
                            n*int_size)
         END IF
-      ELSE
-        NULLIFY (local_molecule_row(imolecule_kind)%array)
-      END IF
+      !JVDV ELSE
+      !JVDV NULLIFY (local_molecule_row(imolecule_kind)%array)
+      !JVDV END IF
 
       imolecule_local = 0
 
@@ -708,16 +707,16 @@ CONTAINS
 
       n = nmolecule_local_col(imolecule_kind)
 
-      IF (n > 0) THEN
+      !JVDV IF (n > 0) THEN
         ALLOCATE (local_molecule_col(imolecule_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
                            "local_molecule_col(imolecule_kind)%array",&
                            n*int_size)
         END IF
-      ELSE
-        NULLIFY (local_molecule_col(imolecule_kind)%array)
-      END IF
+      !JVDV ELSE
+      !JVDV   NULLIFY (local_molecule_col(imolecule_kind)%array)
+      !JVDV END IF
 
       imolecule_local = 0
 
@@ -751,29 +750,29 @@ CONTAINS
 
       n = nparticle_local_row(iparticle_kind)
 
-      IF (n > 0) THEN
+      !JVDV IF (n > 0) THEN
         ALLOCATE (local_particle_row(iparticle_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
                            "local_particle_row(iparticle_kind)%array",&
                            n*int_size)
         END IF
-      ELSE
-        NULLIFY (local_particle_row(iparticle_kind)%array)
-      END IF
+      !JVDV ELSE
+      !JVDV   NULLIFY (local_particle_row(iparticle_kind)%array)
+      !JVDV END IF
 
       n = nparticle_local_col(iparticle_kind)
 
-      IF (n > 0) THEN
+      !JVDV IF (n > 0) THEN
         ALLOCATE (local_particle_col(iparticle_kind)%array(n),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
                            "local_particle_col(iparticle_kind)%array",&
                            n*int_size)
         END IF
-      ELSE
-        NULLIFY (local_particle_col(iparticle_kind)%array)
-      END IF
+      !JVDV ELSE
+      !JVDV   NULLIFY (local_particle_col(iparticle_kind)%array)
+      !JVDV END IF
 
     END DO
 
