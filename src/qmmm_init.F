@@ -194,7 +194,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, qmmm_section
     TYPE(qmmm_links_type), pointer           :: qmmm_links
     REAL(KIND=dp),  DIMENSION(:), POINTER    :: mm_link_scale_factor, fist_scale_charge_link
-    LOGICAL                                  :: move_mm_charges, add_mm_charges
+    LOGICAL                                  :: move_mm_charges, add_mm_charges, nocenter
     TYPE(add_set_type), POINTER              :: added_charges
 
     CALL timeset(routineN,"I","",handle)
@@ -239,7 +239,8 @@ CONTAINS
        qmmm_env_mm%qmmm_coupl_type        =  qmmm_coupl_type
        qmmm_env_mm%qmmm_link              =  qmmm_link
        ! Center the qm subsys into the qm box
-       IF (globenv%run_type == "DEBUG") qmmm_env_qm%center_qm_subsys = .FALSE.
+       CALL section_vals_val_get(qmmm_section,"NOCENTER",l_val=nocenter,error=error)
+       qmmm_env_qm%center_qm_subsys = .NOT.nocenter
 
        ! First Initialize Fist...
        globenv%program_name="FIST"       

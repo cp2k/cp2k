@@ -1919,6 +1919,14 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
+       CALL keyword_create(keyword, name="nocenter",&
+            description="This keyword disables the automatic centering of the qm system every MD step."//&
+            "Default .FALSE. (i.e. the QM system is centered every step)",&
+            usage="nocenter LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
        CALL keyword_create(keyword, name="E_COUPL",&
             variants=(/"QMMM_COUPLING",&
             "ECOUPL       "/),& 
