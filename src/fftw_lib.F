@@ -33,8 +33,13 @@ MODULE fftw_lib
   
 ! integer_pointer_kind: kind parameter for pointer variables (addresses)
 !                       this is usually an integer with 32 or 64 bit size
+! needs improving, this will cause problems
 #if defined (__ABSOFT)
   INTEGER, PARAMETER :: integer_pointer_kind = 4
+#elif defined (__NAG)
+  INTEGER*4          :: dummy_32_bit                  
+  INTEGER*8          :: dummy_64_bit                  
+  INTEGER, PARAMETER :: integer_pointer_kind = KIND(dummy_64_bit)
 #else
   INTEGER, PARAMETER :: integer_pointer_kind = 8
 #endif
