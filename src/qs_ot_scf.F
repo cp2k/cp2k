@@ -86,6 +86,13 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%energy_gap=0.2_dp
     qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
     qs_ot_env(1)%settings%max_taylor=4 
+    qs_ot_env(1)%settings%gold_target=0.01_dp
+    ! should be removed
+    qs_ot_env(1)%settings%n=0
+    qs_ot_env(1)%settings%k=0
+    qs_ot_env(1)%settings%nrow_block=0
+    qs_ot_env(1)%settings%ncol_block=0
+    qs_ot_env(1)%settings%ortho_k=0
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -122,7 +129,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CASE ("3PNT")
                     qs_ot_env(1)%settings%line_search_method="3PNT"
                CASE ("GOLD")
-                    qs_ot_env(1)%settings%gold_target=0.01 ! 1 percent in the position 
+                    qs_ot_env(1)%settings%gold_target=0.01_dp ! 1 percent in the position 
                     qs_ot_env(1)%settings%line_search_method="GOLD"
                     IF (test_object().EQ."FLT") THEN
                        CALL read_object(qs_ot_env(1)%settings%gold_target)
