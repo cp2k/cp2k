@@ -63,6 +63,7 @@ MODULE input_cp2k
        hockney2d,&
        hockney1d,&
        hockney0d 
+  USE string_utilities, ONLY: s2a
   implicit none
   private
 
@@ -540,15 +541,15 @@ contains
     nullify(keyword)
     CALL keyword_create(keyword, name="BLACS_GRID",&
          description="how to distribute the processors on the 2d grid needed "//&
-         "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE|COL|COLUMN|ROW",&
+         "by BLACS (and thus SCALAPACK)", usage="BLACS_GRID SQUARE",&
          default_c_val="BLACS_GRID_SQUARE",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="FFT_LIBRARY",&
-         variants=(/"FFT_LIB","FFTLIB "/),&
+         variants=s2a("FFT_LIB","FFTLIB"),&
          description="which fft library to use to perform the ffts",&
-         usage="FFT_LIBRARY FFTSG|FFTW|FFTESSL...",&
+         usage="FFT_LIBRARY FFTW",&
          default_c_val="FFTSG",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -558,13 +559,10 @@ contains
          description="How much output is written out.",&
          usage="PRINT_LEVEL HIGH",&
          default_i_val=medium_print_level,enum_c_vals=&
-         (/"SILENT","LOW   ","MEDIUM","HIGH  ","DEBUG "/),&
-         enum_desc=(/&
-         "Almost no output                                             ",&
-         "Little output                                                ",&
-         "Quite some output                                            ",&
-         "Lots of output                                               ",&
-         "Everything is written out, useful for debugging purposes only"/),&
+          s2a("SILENT","LOW","MEDIUM","HIGH","DEBUG"),&
+         enum_desc=s2a( "Almost no output",&
+                        "Little output", "Quite some output", "Lots of output",&
+                        "Everything is written out, useful for debugging purposes only"),&
          enum_i_vals=(/silent_print_level,low_print_level,medium_print_level,&
          high_print_level,debug_print_level/),error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -573,18 +571,10 @@ contains
     CALL keyword_create(keyword, name="PROGRAM_NAME",&
          variants=(/"PROGRAM"/),&
          description="Which program should be run to compute forces,...",&
-         usage="PROGRAM_NAME QUICKSTEP|FIST|KG|QMMM|...",&
-         enum_c_vals=(/&
-         "QUICKSTEP   ",&
-         "QS          ",&
-         "FIST        ",&
-         "KIM_GORDON  ",&
-         "KG          ",&
-         "QMMM        ",&
-         "ATOM        ",&
-         "FARMING     ",&
-         "TEST        " /),&
-         enum_i_vals=(/ do_qs,do_qs,do_fist,do_kg,do_kg,do_qmmm,do_atom,&
+         usage="PROGRAM_NAME QUICKSTEP",&
+         enum_c_vals=s2a("QUICKSTEP","QS","FIST","KIM_GORDON","KG",&
+         "QMMM", "ATOM", "FARMING", "TEST"),&
+         enum_i_vals=(/do_qs,do_qs,do_fist,do_kg,do_kg,do_qmmm,do_atom,&
          do_farming,do_test/),&
          default_i_val=do_qs, error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -602,19 +592,11 @@ contains
     CALL keyword_create(keyword, name="RUN_TYPE",&
          description="Type of run that you want to perform Geometry "//&
          "optimization, md, montecarlo,...",&
-         usage="RUN_TYPE MD|GEO_OPT|MC",&
+         usage="RUN_TYPE MD",&
          default_i_val=energy_force_run,&
-         enum_c_vals=(/&
-         "ENERGY               ",&
-         "ENERGY_FORCE         ",&
-         "MD                   ",&
-         "MOLECULAR_DYNAMICS   ",&
-         "GEO_OPT              ",&
-         "GEOMETRY_OPTIMIZATION",&
-         "MC                   ",&
-         "MONTECARLO           ",&
-         "SPECTRA              ",&
-         "ELECTRONIC_SPECTRA   "/),&
+         enum_c_vals=s2a( "ENERGY", "ENERGY_FORCE", "MD", "MOLECULAR_DYNAMICS",&
+         "GEO_OPT", "GEOMETRY_OPTIMIZATION", "MC", "MONTECARLO",&
+         "SPECTRA", "ELECTRONIC_SPECTRA"),&
          enum_i_vals=(/energy_run,energy_force_run,md_run,md_run,&
          geo_opt_run,geo_opt_run,mc_run,mc_run,&
          electronic_spectra_run,electronic_spectra_run/),&
@@ -626,7 +608,7 @@ contains
          description="If the input should be echoed to the output with all the "//&
          "defaults made explicit",&
          usage="ECHO_INPUT NO",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -718,10 +700,7 @@ contains
     CALL keyword_create(keyword, name="EXCITATIONS",&
          description="If excitations should be calculated",&
          usage="EXCITATIONS",&
-         enum_c_vals=(/&
-         "NONE  ",&
-         "TDLR  ",&
-         "TDDFPT"/),&
+         enum_c_vals=s2a("NONE","TDLR","TDDFPT"),&
          enum_i_vals=(/ no_excitations, tddfpt_excitations, &
          tddfpt_excitations/),&
          default_i_val=no_excitations, error=error)
@@ -879,8 +858,7 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPSRHO0",&
-          variants=(/"EPSVRHO0 ",&
-                     "EPS_VRHO0"/),&
+          variants=s2a("EPSVRHO0","EPS_VRHO0"),&
           description="GAPW : precision to determine the range of V(rho0-rho0soft)",&
           usage="EPSRHO0 real", default_r_val=1.0E-6_dp,&
           error=error)
@@ -952,11 +930,8 @@ SUBROUTINE create_qs_section(section,error)
      ! Characters
      CALL keyword_create(keyword, name="QUADRATURE",&
           description="GAPW: algorithm to construct the atomic radial grids",&
-          usage="QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
-          enum_c_vals=(/&
-          "GC_SIMPLE     ",&
-          "GC_TRANSFORMED",&
-          "GC_LOG        "/),&
+          usage="QUADRATURE GC_SIMPLE",&
+          enum_c_vals=s2a("GC_SIMPLE","GC_TRANSFORMED","GC_LOG"),&
           enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
           default_i_val=do_gapw_log, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -964,11 +939,8 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="PW_GRID",&
           description="What kind of PW_GRID should be employed",&
-          usage="PW_GRID {SPHERICAL|NS-FULLSPACE|NS-HALFSPACE}",&
-          enum_c_vals=(/&
-          "SPHERICAL     ",&
-          "NS-FULLSPACE  ",&
-          "NS-HALFSPACE  "/),&
+          usage="PW_GRID NS-FULLSPACE",&
+          enum_c_vals=s2a("SPHERICAL","NS-FULLSPACE","NS-HALFSPACE"),&
           enum_i_vals=(/ do_pwgrid_spherical, do_pwgrid_ns_fullspace,do_pwgrid_ns_halfspace/),&
           default_i_val=do_pwgrid_ns_fullspace, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -976,30 +948,19 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="RS_GRID",&
           description="Parallellisation strategy of the realspace grids",&
-          usage="RS_GRID {DISTRIBUTED|REPLICATED}",&
-          enum_c_vals=(/&
-          "DISTRIBUTED   ",&
-          "REPLICATED    "/),&
+          usage="RS_GRID DISTRIBUTED",&
+          enum_c_vals=s2a("DISTRIBUTED","REPLICATED"),&
           enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
           default_i_val=do_rsgrid_replicated, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EXTRAPOLATION",&
-          variants=(/"INTERPOLATION   ",&
-                     "WF_INTERPOLATION"/),&
+          variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
           description="Extrapolation strategy for e.g. MD",&
-          usage="EXTRAPOLATION {PS|USE_GUESS|USE_PREV_P|USE_PREV_WF|"//&
-                 "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS}",&
-          enum_c_vals=(/&
-          "PS            ",&
-          "USE_GUESS     ",&
-          "USE_PREV_P    ",&
-          "USE_PREV_WF   ",&
-          "USE_PREV_RHO_R",&
-          "LINEAR_WF     ",&
-          "LINEAR_P      ",&
-          "LINEAR_PS     "/),&
+          usage="EXTRAPOLATION PS",&     ! XXXXXXXXXXX how to add the order ? i.e. PS 3
+          enum_c_vals=s2a("PS","USE_GUESS","USE_PREV_P","USE_PREV_WF",&
+          "USE_PREV_RHO_R", "LINEAR_WF", "LINEAR_P", "LINEAR_PS"),&
           enum_i_vals=(/ do_extrpl_ps,&
                          do_extrpl_use_guess,&
                          do_extrpl_use_prev_p,&
@@ -1014,13 +975,8 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="METHOD",&
           description="What method should be employed",&
-          usage="METHOD {GAPW|GPW|KG_POL|KG_NOPOL|KG_GPW}",&
-          enum_c_vals=(/&
-          "GAPW          ",&
-          "GPW           ",&
-          "KG_POL        ",&
-          "KG_NOPOL      ",&
-          "KG_GPW        "/),&
+          usage="METHOD GAPW",&
+          enum_c_vals=s2a("GAPW","GPW","KG_POL","KG_NOPOL","KG_GPW"),&
           enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
                          do_method_kg_nopol, do_method_kg_gpw/),&
           default_i_val=do_method_gpw, error=error)
@@ -1085,9 +1041,7 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="NREORTHO",&
-          variants=(/"N_REORTHO           ",&
-                     "REORTHO             ",&
-                     "REORTHOGONALITAZIONS"/),&
+          variants=s2a("N_REORTHO","REORTHO","REORTHOGONALITAZIONS"),&
           description=" number of reorthogonalization steps",&
           usage="NREORTHO someInteger>0",&
           n_var=1,type_of_var=integer_t,&
@@ -1108,14 +1062,8 @@ SUBROUTINE create_tddfpt_section(section,error)
           variants=(/"RESTRICTED_EXCITATIONS_TYPE",&
                      "RES_E_TYPE                 "/),& 
           description="(singlets/triplets) for restricted calculation",&
-          usage="RES_ETYPE {SINGLET[S]|TRIPLET[S]|S|T}",&
-          enum_c_vals=(/&
-          "S             ",&
-          "SINGLET       ",&
-          "SINGLETS      ",&
-          "T             ",&
-          "TRIPLET       ",&
-          "TRIPLETS      "/),&
+          usage="RES_ETYPE T",&
+          enum_c_vals=s2a("S","SINGLET","SINGLETS","T","TRIPLET","TRIPLETS"),&
           enum_i_vals=(/ do_tddfpt_singlet, do_tddfpt_singlet, do_tddfpt_singlet,&
                          do_tddfpt_triplet, do_tddfpt_triplet, do_tddfpt_triplet/),&
           default_i_val=do_tddfpt_singlet, error=error)
@@ -1125,10 +1073,8 @@ SUBROUTINE create_tddfpt_section(section,error)
      CALL keyword_create(keyword, name="DIAG_METHOD",&
           variants=(/"DIAGONALIZATION_METHOD"/),& 
           description="Diagonalization method used in tddfpt.",&
-          usage="DIAG_METHOD LANCZOS|DAVIDSON",&
-          enum_c_vals=(/&
-          "DAVIDSON ",&
-          "LANCZOS  "/),&
+          usage="DIAG_METHOD DAVIDSON",&
+          enum_c_vals=s2a("DAVIDSON","LANCZOS"),&
           enum_i_vals=(/ do_tddfpt_davidson, do_tddfpt_lanczos/),&
           default_i_val=do_tddfpt_lanczos, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -1138,11 +1084,8 @@ SUBROUTINE create_tddfpt_section(section,error)
           variants=(/"ORBITAL_EIGENVALUES_CORRECTION"/),& 
           description="Which type of orbital eigenvalue correction to use\n"//&
                       "(to yield better HOMO-LUMO energies)",&
-          usage="OE_CORR NONE|SAOP",&
-          enum_c_vals=(/&
-          "NONE       ",&
-          "SAOP       ",&
-          "SIC        "/),&
+          usage="OE_CORR SAOP",&
+          enum_c_vals=s2a("NONE","SAOP","SIC"),&
           enum_i_vals=(/ oe_none, oe_saop, oe_sic /),&
           default_i_val=oe_none, error=error)
      CALL section_add_keyword(section,keyword,error=error)
@@ -1224,14 +1167,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="xc_smooth_rho",&
             description="The density smoothing used for the xc calculation",&
             usage="xc_smooth_rho nn10", default_i_val=xc_rho_no_smooth,&
-            enum_c_vals=(/ &
-            "NONE   ",&
-            "NN50   ",&
-            "NN10   ",&
-            "SPLINE2",&
-            "NN6    ",&
-            "SPLINE3",&
-            "NN4    " /),&
+            enum_c_vals=s2a("NONE","NN50","NN10","SPLINE2","NN6","SPLINE3","NN4"),&
             enum_i_vals=(/ xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
             xc_rho_spline2_smooth,xc_rho_spline2_smooth,xc_rho_spline3_smooth,&
             xc_rho_spline3_smooth/),&
@@ -1242,16 +1178,8 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="xc_deriv",&
             description="The method used to compute the derivatives",&
             usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_spline2,&
-            enum_c_vals=(/&
-            "PW            ",&
-            "SPLINE3       ",&
-            "SPLINE2       ",&
-            "NN50_SMOOTH   ",&
-            "NN10_SMOOTH   ",&
-            "SPLINE2_SMOOTH",&
-            "NN6_SMOOTH    ",&
-            "SPLINE3_SMOOTH",&
-            "NN4_SMOOTH    "/),&
+            enum_c_vals=s2a("PW","SPLINE3","SPLINE2","NN50_SMOOTH","NN10_SMOOTH",&
+            "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH"),&
             enum_i_vals=(/xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2,&
             xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
             xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth/),&
@@ -1409,7 +1337,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="SCF_GUESS",&
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
-            enum_c_vals=(/ "ATOMIC ", "RESTART", "RANDOM ", "CORE   "/),&
+            enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE"),&
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1581,10 +1509,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             "; posvel: using both the latest positions and velocites stored in "//&
             "the restart file", usage="RESTART posvel", &
             default_i_val=md_init_start,&
-            enum_c_vals=(/&
-            "init  ",&
-            "pos   ",&
-            "posvel"/),&
+            enum_c_vals=s2a("init","pos","posvel"),&
             enum_i_vals=(/md_init_start,md_pos_restart, md_pov_vel_restart/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -1655,11 +1580,9 @@ SUBROUTINE create_ewald_section(section,error)
          " EWALD is the standard non-fft based ewald."//&
          " SPME is the smooth particle mesh using beta-Eurler splines."//&
          " PME is the particle mesh using fft interpolation.",&
-         usage="EWALD_TYPE {EWALD|SPME|PME}",&
+         usage="EWALD_TYPE SPME}",&
          default_i_val=do_ewald,&
-         enum_c_vals=(/"EWALD           ", &
-                       "SPME            ", &
-                       "PME             "/),&
+         enum_c_vals=s2a("EWALD", "SPME", "PME"),&
          enum_i_vals=(/do_ewald,do_spme,do_pme/),error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
@@ -1667,12 +1590,8 @@ SUBROUTINE create_ewald_section(section,error)
     CALL keyword_create(keyword, name="UNITS",&
           variants=(/"UNIT"/),& 
           description="Specify the units used in the ewald input.",&
-          usage="UNITS {ANGSTROM|BOHR|SCALED_ANGSTROM|SCALED_BOHR}",&
-          enum_c_vals=(/&
-          "ANGSTROM        ",&
-          "SCALED_ANGSTROM ",&
-          "BOHR            ",&
-          "SCALED_BOHR     "/),&
+          usage="UNITS BOHR",&
+          enum_c_vals=s2a("ANGSTROM","SCALED_ANGSTROM","BOHR","SCALED_BOHR"),&
           enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
           use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
           default_i_val=use_unit_angstrom, error=error)
@@ -1785,59 +1704,35 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="AUX_BASIS_SET",&
-            variants=(/&
-            "AUXILIARY_BASIS_SET",&
-            "AUX_BASIS          "/),&
+            variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
             description="The auxliliary basis set (GTO type)",&
             usage="AUX_BASIS_SET DZVP", type_of_var=char_t, &
             n_var=1, required=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="AUX_BASIS_NORMALIZATION",&
-            variants=(/&
-            "AUXILIARY_BASIS_NORMALIZATION",&
-            "AUX_BASIS_NORM               "/),&
+            variants=s2a( "AUXILIARY_BASIS_NORMALIZATION", "AUX_BASIS_NORM"),&
             description="The normalization of the auxliliary basis set",&
             usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=(/&
-            "NONE        ",&
-            "NO          ",&
-            "WFN         ",&
-            "WAVEFUNCTION",&
-            "FUNCTION    ",&
-            "DENS        ",&
-            "DENSITY     ",&
-            "SQUARE      ",&
-            "UNDEFINED   "/),&
+            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
+            "DENS","DENSITY","SQUARE","UNDEFINED"),&
             enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
             default_i_val=-1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="BASIS_SET",&
-            variants=(/&
-            "ORBITAL_BASIS_SET",&
-            "ORB_BASIS        "/),&
+            variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
             description="The basis set (GTO type)",&
             usage="BASIS_SET DZVP", type_of_var=char_t, &
             n_var=1, required=.TRUE., error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
-            variants=(/&
-            "ORBITAL_BASIS_NORMALIZATION",&
-            "ORB_BASIS_NORM             "/),&
+            variants=s2a("ORBITAL_BASIS_NORMALIZATION","ORB_BASIS_NORM"),&
             description="The normalization of the auxliliary basis set",&
             usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=(/&
-            "NONE        ",&
-            "NO          ",&
-            "WFN         ",&
-            "WAVEFUNCTION",&
-            "FUNCTION    ",&
-            "DENS        ",&
-            "DENSITY     ",&
-            "SQUARE      ",&
-            "UNDEFINED   "/),&
+            enum_c_vals=s2a( "NONE", "NO", "WFN", "WAVEFUNCTION",&
+            "FUNCTION", "DENS", "DENSITY", "SQUARE", "UNDEFINED"),&
             enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
             default_i_val=-1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -1851,10 +1746,7 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword, name="MASS",&
-            variants=(/ &
-            "ATOMIC_MASS  ",&
-            "ATOMIC_WEIGHT",&
-            "WEIGHT       "/),&
+            variants=s2a("ATOMIC_MASS", "ATOMIC_WEIGHT", "WEIGHT"),&
             description="The mass of the atom "//&
             "(if negative or non present it is inferred from the element symbol)",&
             usage="MASS 2.0", type_of_var=real_t,n_var=1,&
@@ -2001,13 +1893,8 @@ END SUBROUTINE create_ewald_section
             "potential analytically on the Grid. (3) GAUSS: Mapping the MM electrostatic"//&
             "potential on the Grid with Gaussian.",&
             usage="E_COUPL char",&
-            enum_c_vals=(/&
-            "NONE          ",&
-            "GRID          ",&
-            "GAUSS         "/),&
-            enum_i_vals=(/ do_qmmm_none,&
-            do_qmmm_grid,&
-            do_qmmm_gauss/),&
+            enum_c_vals=s2a( "NONE","GRID","GAUSS"),&
+            enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss/),&
             default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
@@ -2032,9 +1919,6 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="RADIUS",&
-            variants=(/"RADS  ",&
-            "RAGGI ",&
-            "RAGGIO"/),&
             description="Specifies the radius of the atomic kinds [angstrom]",&
             usage="RADIUS ",n_var=1,type_of_var=real_t,&
             default_r_val=0.8_dp,error=error)
@@ -2098,27 +1982,10 @@ END SUBROUTINE create_ewald_section
             variants=(/"POISSON", "PSOLVER"/),& 
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
-            enum_c_vals=(/&
-            "PERIODIC3D    ",&
-            "ANALYTIC2D    ",&
-            "ANALYTIC1D    ",&
-            "ANALYTIC0D    ",&
-            "MT2D          ",&
-            "MT1D          ",&
-            "MT0D          ",&
-            "HOCKNEY2D     ",&
-            "HOCKNEY1D     ",&
-            "HOCKNEY0D     "/),&
-            enum_i_vals=(/ periodic3d,&
-            analytic2d,&
-            analytic1d,&
-            analytic0d,&
-            mt2d,&
-            mt1d,&
-            mt0d,&
-            hockney2d,&
-            hockney1d,&
-            hockney0d /),&
+            enum_c_vals=s2a( "PERIODIC3D", "ANALYTIC2D", "ANALYTIC1D", "ANALYTIC0D", "MT2D",&
+            "MT1D", "MT0D", "HOCKNEY2D", "HOCKNEY1D", "HOCKNEY0D"),&
+            enum_i_vals=(/ periodic3d, analytic2d, analytic1d, analytic0d, mt2d, &
+            mt1d, mt0d, hockney2d, hockney1d, hockney0d/),&
             default_i_val=periodic3d, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
@@ -2205,12 +2072,8 @@ END SUBROUTINE create_ewald_section
        CALL keyword_create(keyword, name="UNITS",&
             variants=(/"UNIT"/),& 
             description="Specify the global units used in the input.",&
-            usage="UNITS {ANGSTROM|BOHR|SCALED_ANGSTROM|SCALED_BOHR}",&
-            enum_c_vals=(/&
-            "ANGSTROM        ",&
-            "SCALED_ANGSTROM ",&
-            "BOHR            ",&
-            "SCALED_BOHR     "/),&
+            usage="UNITS ANGSTROM",&
+            enum_c_vals=s2a( "ANGSTROM","SCALED_ANGSTROM","BOHR","SCALED_BOHR"),&
             enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
             use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
             default_i_val=use_unit_bohr, error=error)
@@ -2299,11 +2162,7 @@ END SUBROUTINE create_ewald_section
             description="the interpolator to use",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=(/&
-            "pw           ",&
-            "linear       ",&
-            "spline3_nopbc",&
-            "spline3      "/),&
+            enum_c_vals=s2a("pw","linear","spline3_nopbc","spline3"),&
             enum_i_vals=(/pw_interp,linear_interp,&
             spline3_nopbc_interp,spline3_pbc_interp/),error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -2313,10 +2172,7 @@ END SUBROUTINE create_ewald_section
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=(/&
-            "copy               ",&
-            "spl3_nopbc_aint    ",&
-            "spl3_nopbc_precond1"/),&
+            enum_c_vals=s2a( "copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
             enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -2326,10 +2182,7 @@ END SUBROUTINE create_ewald_section
             " for the linear solver of the spline3 methods",&
             usage="kind spline3",&
             default_i_val=pw_interp,&
-            enum_c_vals=(/&
-            "copy               ",&
-            "spl3_nopbc_aint    ",&
-            "spl3_nopbc_precond1"/),&
+            enum_c_vals=s2a("copy","spl3_nopbc_aint","spl3_nopbc_precond1"),&
             enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
             error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -2427,11 +2280,7 @@ SUBROUTINE create_sic_section(section,error)
           description="Method used to remove the self interaction",&
           usage="SIC_METHOD MAURI_US",&
           default_i_val=sic_none,&
-          enum_c_vals=(/&
-          "NONE     ",&
-          "MAURI_US ",&
-          "MAURI_SPZ",&
-          "AD       "/),&
+          enum_c_vals=s2a( "NONE", "MAURI_US", "MAURI_SPZ", "AD"),&
           enum_i_vals=(/sic_none,sic_mauri_us,sic_mauri_spz,sic_ad/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)

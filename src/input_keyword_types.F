@@ -814,14 +814,23 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
       END IF
  
       IF (keyword%type_of_var==enum_t) THEN
-            WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
-            l=17
-            DO i=1,SIZE(keyword%enum%c_vals)
-               c_string=keyword%enum%c_vals(i)
-               WRITE (unit_nr,'(a,a,a,a,a)',advance='NO') "<li><code><b>",&
-                    TRIM(c_string), "</b></code> ",TRIM(keyword%enum%desc(i)),"</li>"
-            END DO
-            WRITE (unit_nr,'(a)',advance='NO') '</ul>'
+            IF (ANY(keyword%enum%desc.NE."")) THEN
+                WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:<ul> '
+                DO i=1,SIZE(keyword%enum%c_vals)
+                   c_string=keyword%enum%c_vals(i)
+                   WRITE (unit_nr,'(a,a,a,a,a)',advance='NO') "<li><code>",&
+                        TRIM(c_string), "</code>: ",TRIM(keyword%enum%desc(i)),"</li>"
+                END DO
+                WRITE (unit_nr,'(a)',advance='NO') '</ul>'
+            ELSE
+                WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords: '
+                IF (SIZE(keyword%enum%c_vals)>0) &
+                    WRITE (unit_nr,'(a)',advance='NO') TRIM(keyword%enum%c_vals(1))
+                DO i=2,SIZE(keyword%enum%c_vals)
+                   c_string=keyword%enum%c_vals(i)
+                   WRITE (unit_nr,'(a)',advance='NO') ", "//TRIM(c_string)
+                END DO
+            ENDIF
             IF (.NOT.keyword%enum%strict) THEN
                WRITE (unit_nr,"('     other integer values are also accepted.')")
             END IF

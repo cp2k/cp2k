@@ -34,12 +34,102 @@ MODULE string_utilities
             str_comp,&
             string_to_ascii,&
             uppercase,&
-            xstring,str_search
+            xstring,str_search, s2a
+
+  INTERFACE s2a
+    MODULE PROCEDURE s2a_1,s2a_2,s2a_3,s2a_4,s2a_5,s2a_6, &
+                     s2a_7,s2a_8,s2a_9,s2a_10,s2a_11,s2a_12  ! should be clear how to add more
+  END INTERFACE s2a
+
 
 ! *****************************************************************************
 
 CONTAINS
-
+!!****f* string_utilities/s2a *
+!!
+!!   NAME
+!!    s2a_x
+!!
+!!   FUNCTION
+!!    converts a bunch of strings of different length to an array of strings of the same length
+!!   NOTES
+!!    can be used instead of the illegal (/"12","1234"/) generating s2a("12","1234").EQ.(/"12  ","1234"/)
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [Joost VandeVondele ]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+PURE FUNCTION s2a_1(s1) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1
+  character(LEN=LEN(s1)), DIMENSION(1) :: a
+  a(1)=s1
+END FUNCTION
+PURE FUNCTION s2a_2(s1,s2) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2
+  character(LEN=MAX(LEN(s1),LEN(s2))), DIMENSION(2) :: a
+  a(1)=s1; a(2)=s2
+END FUNCTION
+PURE FUNCTION s2a_3(s1,s2,s3) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3))), DIMENSION(3) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3
+END FUNCTION
+PURE FUNCTION s2a_4(s1,s2,s3,s4) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4))), DIMENSION(4) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4
+END FUNCTION
+PURE FUNCTION s2a_5(s1,s2,s3,s4,s5) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5))), DIMENSION(5) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5
+END FUNCTION
+PURE FUNCTION s2a_6(s1,s2,s3,s4,s5,s6) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6))), DIMENSION(6) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6
+END FUNCTION
+PURE FUNCTION s2a_7(s1,s2,s3,s4,s5,s6,s7) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7))), DIMENSION(7) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+END FUNCTION
+PURE FUNCTION s2a_8(s1,s2,s3,s4,s5,s6,s7,s8) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7),&
+                    LEN(s8))), DIMENSION(8) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8
+END FUNCTION
+PURE FUNCTION s2a_9(s1,s2,s3,s4,s5,s6,s7,s8,s9) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7),&
+                    LEN(s8),LEN(s9))), DIMENSION(9) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9
+END FUNCTION
+PURE FUNCTION s2a_10(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7),&
+                    LEN(s8),LEN(s9),LEN(s10))), DIMENSION(10) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10
+END FUNCTION
+PURE FUNCTION s2a_11(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7),&
+                    LEN(s8),LEN(s9),LEN(s10),LEN(s11))), DIMENSION(11) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11
+END FUNCTION
+PURE FUNCTION s2a_12(s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12) RESULT(a)
+  character(LEN=*), INTENT(IN) :: s1,s2,s3,s4,s5,s6,s7,s8,s9,s10,s11,s12
+  character(LEN=MAX(LEN(s1),LEN(s2),LEN(s3),LEN(s4),LEN(s5),LEN(s6),LEN(s7), &
+                    LEN(s8),LEN(s9),LEN(s10),LEN(s11),LEN(s12))), DIMENSION(12) :: a
+  a(1)=s1; a(2)=s2; a(3)=s3; a(4)=s4; a(5)=s5; a(6)=s6; a(7)=s7
+  a(8)=s8; a(9)=s9; a(10)=s10; a(11)=s11; a(12)=s12
+END FUNCTION
 ! *****************************************************************************
 
   SUBROUTINE ascii_to_string(nascii,string)
