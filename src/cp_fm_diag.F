@@ -174,13 +174,13 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevx",&
       routineP=moduleN//':'//routineN
-    REAL(wp), PARAMETER :: abstol = 0.0_wp,&
-                           orfac = -1.0_wp,&
+    REAL(wp), PARAMETER :: orfac = -1.0_wp,&
                            vl = 0.0_wp,&
                            vu = 0.0_wp
 
 !   *** Local variables ***
 
+    REAL(wp) :: abstol
     INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
                 nn,np0,npcol,npe,nprow,nq0,nz,output_unit,itype
     LOGICAL  :: ionode
@@ -193,6 +193,8 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER    :: context
     TYPE(cp_logger_type), POINTER       :: logger
 
+    REAL(wp), EXTERNAL :: dlamch
+
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL  :: iceil,numroc
 #else
@@ -202,6 +204,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("cp_fm_syevx","I","",handle)
+
+    abstol = 2.0_wp*dlamch("S")
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
