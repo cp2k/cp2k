@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 !!****h* cp2k/qs_ot [1.0] *
@@ -248,6 +248,8 @@ END SUBROUTINE qs_ot_new_preconditioner
 
 !*******************************************************************************
 ! allocates the data in qs_ot_env, for a calculation with fm_struct_ref
+! ortho_k allows for specifying an additional orthogonal subspace (i.e. c will
+! be kept orthogonal provided c0 was, used in qs_ot_eigensolver)
 !*******************************************************************************
 SUBROUTINE qs_ot_allocate(qs_ot_env,fm_struct_ref,ortho_k)
     TYPE(qs_ot_type)                         :: qs_ot_env

@@ -260,7 +260,7 @@ END SUBROUTINE
 !
 !
 SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
-                                     energy_only,delta,qs_ot_env,globenv)
+                                     energy_only,delta,qs_ot_env)
  
 
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -270,15 +270,11 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     LOGICAL                                  :: energy_only
     REAL(KIND=dp)                            :: delta
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_dedc
 
     INTEGER                                  :: handle, ispin, nspin
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, hc_tmp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor
-    INTEGER                                  :: k,k2,n
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER                                  :: k,n
     CHARACTER(LEN=*), PARAMETER              :: RoutineN="ot_scf_mini"
 
     CALL timeset("ot_scf_mini","I","",handle)
@@ -318,7 +314,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     ENDIF
     CALL timestop(0.0_dp,handle)
 
-END SUBROUTINE
+END SUBROUTINE ot_scf_mini
 !
 ! initialises qs_ot_env so that mo_coeff is the current point
 ! and that the mimizization can be started.

@@ -680,8 +680,9 @@ CONTAINS
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
-          CALL ot_scf_mini(mos,qs_env%mo_derivs,matrix_s(1)%matrix,energy%total, &
-               energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
+          CALL ot_scf_mini(mos,qs_env%mo_derivs,matrix_s(1)%matrix, &
+                           energy%total, energy_only,scf_env%iter_delta, &
+                           scf_env%qs_ot_env)
 
             DO ispin=1,dft_control%nspins
                CALL calculate_density_matrix(mos(ispin)%mo_set,&

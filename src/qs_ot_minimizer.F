@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 !!****** cp2k/qs_ot_minimizer [1.0] *
@@ -225,12 +225,10 @@ SUBROUTINE do_line_search_gold(qs_ot_env)
 
     REAL(KIND=dp), PARAMETER                 :: gold_sec = 0.3819_dp 
 
-    INTEGER                                  :: count, ispin, nspin
+    INTEGER                                  :: count
     REAL(KIND=dp)                            :: ds
 
 ! approx (3-sqrt(5))/2
-
-   nspin=SIZE(qs_ot_env)
 
    qs_ot_env(1)%line_search_count=qs_ot_env(1)%line_search_count+1
    count=qs_ot_env(1)%line_search_count
@@ -321,11 +319,9 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    INTEGER                                  :: count, ispin, nspin
+    INTEGER                                  :: count
     real(KIND=dp)                            :: denom, ds, fa, fb, fc, nom, &
                                                 pos, val, xa, xb, xc
-
-   nspin=size(qs_ot_env)
 
    qs_ot_env(1)%line_search_might_be_done=.false.
    qs_ot_env(1)%energy_only=.true.
@@ -384,10 +380,8 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
 
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    INTEGER                                  :: count, ispin, nspin
+    INTEGER                                  :: count
     real(KIND=dp)                            :: a, b, c, ds, pos, val, x0, x1
-
-   nspin=SIZE(qs_ot_env)
 
    qs_ot_env(1)%line_search_might_be_done=.false.
    qs_ot_env(1)%energy_only=.true.
@@ -433,11 +427,7 @@ END SUBROUTINE do_line_search_2pnt
 SUBROUTINE do_line_search_none(qs_ot_env)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
-    INTEGER                                  :: ispin, nspin
-    REAL(KIND=dp) :: ds
-
-    ds=qs_ot_env(1)%ds_min
-    CALL take_step(ds,qs_ot_env)
+    CALL take_step(qs_ot_env(1)%ds_min,qs_ot_env)
 
 END SUBROUTINE do_line_search_none
 
@@ -453,7 +443,6 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
     real(KIND=dp)                            :: tmp
 
    nspin=SIZE(qs_ot_env)
-
    IF (associated(qs_ot_env(1)%preconditioner)) THEN
        IF (.not. qs_ot_env(1)%use_dx) CALL stop_program("OT SD","use dx ")
        qs_ot_env(1)%gnorm=0.0_dp
@@ -629,7 +618,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                ispin, j, k, n, nspin, itmp
     REAL(KIND=dp)                            :: tmp
-    REAL(KIND=dp) :: tr_xold_gx,tr_xnew_gx,tr_xold_xold,tr_xnew_xnew,tr_xold_xnew,tr_gx_gx,overlap
+    REAL(KIND=dp) :: tr_xold_gx,tr_xnew_gx,overlap
    nspin=SIZE(qs_ot_env)
 
    diis_m=qs_ot_env(1)%settings%diis_m
