@@ -30,6 +30,7 @@ MODULE control_module
   USE dft_input, ONLY : read_dft_section, read_wave_section
   USE dft_types, ONLY : dft_control_type
   USE dump, ONLY : dump_variables
+  USE empirical_parameters, ONLY : read_empirical_parameters
   USE ewalds, ONLY : ewald_print, ewald_correction
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE extended_system_types, ONLY : extended_system_type
@@ -57,6 +58,7 @@ MODULE control_module
   USE mathconstants, ONLY : zero, twopi
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, thermodynamic_type, mdio_parameters_type
+  USE method_specifications, ONLY : get_maxder
   USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
        charge
   USE molecule_types, ONLY : molecule_type, intra_parameters_type
@@ -127,6 +129,7 @@ SUBROUTINE control ( globenv )
   INTEGER :: handle1, handle2, isos
   INTEGER :: nel, ibead, beads, ia, ib
   INTEGER :: ncoef, nll, nbasis_types, i
+  INTEGER :: maxder
 
   CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
@@ -431,6 +434,15 @@ SUBROUTINE control ( globenv )
   ENDDO
 
   IF ( pol ) then
+
+     IF (( setup % run_type == 'DEBUG' ).OR.( setup % run_type == 'MD'))  THEN
+        maxder = 1    
+        CALL get_maxder(maxder)
+     ELSE 
+        maxder = 0    
+        CALL get_maxder(maxder)
+     ENDIF
+
      ALLOCATE ( struc ( 1 ) % coef_pos ( 1 ) , STAT = isos )
      IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_pos', 1 )
 
@@ -444,6 +456,9 @@ SUBROUTINE control ( globenv )
                                mol_setup, struc ( 1 ) % part, atom_names, ncoef, globenv )
 
      nbasis_types  = size ( struc ( 1 ) % drho_basis_info )
+
+     CALL read_empirical_parameters ( struc (1) % drho_basis_info, set_fn, &
+                atom_names, inter%empparm, globenv )
      
      ALLOCATE (rcut_cgf ( nbasis_types, nbasis_types ), STAT = isos)
       IF ( isos /=0 ) CALL stop_memory ( 'control', 'rcut_cgf', 0 )
@@ -460,6 +475,7 @@ SUBROUTINE control ( globenv )
 
      CALL initialize_nhc_pol ( simpar, struc ( 1 ) % coef_vel ( 1 ),  &
                                globenv, extended_type % nhc_pol )
+
   END IF
 
 
