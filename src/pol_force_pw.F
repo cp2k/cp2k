@@ -210,7 +210,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 ! initialize coeffs with a gaussian (for debugging purposes)
   DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
     e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-    coef_pos % pw % cc = CMPLX ( e_gsq, 0 )
+    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
+    coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
   ENDDO
 !dbg 
 
