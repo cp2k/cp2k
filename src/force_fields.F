@@ -48,7 +48,9 @@ MODULE force_fields
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_force_field_section
+  PUBLIC :: read_force_field_section,&
+            read_force_field_charmm,&
+            read_force_field_amber
 
   INTEGER :: scr
   TYPE ( global_environment_type ) :: globenv
@@ -834,6 +836,64 @@ END SUBROUTINE input_constraints
 !!*****
 !******************************************************************************
 
+!******************************************************************************
+!!****** force_fields/read_force_field_charmm [1.0] *
+!!
+!!   NAME
+!!     read_force_field_charmm
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (30.11.2001) : moved determination of setup variables to 
+!!                        molecule_input 
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE read_force_field_charmm ( topology , globenv )
+
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+END SUBROUTINE read_force_field_charmm
+
+
+!******************************************************************************
+!!****** force_fields/read_force_field_amber [1.0] *
+!!
+!!   NAME
+!!     read_force_field_amber
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (30.11.2001) : moved determination of setup variables to 
+!!                        molecule_input 
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE read_force_field_amber ( topology , globenv )
+
+
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+END SUBROUTINE read_force_field_amber
 END MODULE force_fields
 
 !******************************************************************************

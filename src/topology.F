@@ -24,7 +24,9 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE force_fields,                    ONLY: read_force_field_section
+  USE force_fields,                    ONLY: read_force_field_section,&
+                                             read_force_field_charmm,&
+                                             read_force_field_amber
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -498,9 +500,11 @@ SUBROUTINE force_field_control(topology,globenv)
     CASE ("CHM")
       CALL stop_program ("force_field_control",&
                          "force field type not implemented")
+      CALL read_force_field_charmm(topology,globenv)
     CASE ("AMB")
       CALL stop_program ("force_field_control",&
                          "force field type not implemented")
+      CALL read_force_field_amber(topology,globenv)
     CASE DEFAULT
       CALL stop_program ("force_field_control",&
                          "force field type not implemented")
