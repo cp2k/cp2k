@@ -3,6 +3,7 @@
 MODULE metadynamics
   USE colvar,                          ONLY: colvar_eval_f,&
                                              colvar_read
+  USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -16,22 +17,29 @@ MODULE metadynamics
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE force_env_types,                 ONLY: force_env_type
+  USE cp_para_env,                     ONLY: cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_bcast
   USE metadynamics_types,              ONLY: colvar_init,&
                                              colvar_type,&
                                              hills_env_type,&
                                              meta_env_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE qs_parser,                       ONLY: finish_parser,&
+                                             open_file,&
                                              read_object,&
                                              search_object,&
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-  USE convert_units, only: convert_to_cp2k_units
+
   PRIVATE 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics'
@@ -68,10 +76,11 @@ CONTAINS
 !!     04.2004 created
 !!
 !!*** **********************************************************************
-SUBROUTINE metadyn_create(meta_env,n_colvar,dt,error)
+SUBROUTINE metadyn_create(meta_env,n_colvar,dt,para_env,error)
     TYPE(meta_env_type), POINTER             :: meta_env
     INTEGER, INTENT(in)                      :: n_colvar
     REAL(dp), INTENT(in)                     :: dt
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -90,18 +99,23 @@ SUBROUTINE metadyn_create(meta_env,n_colvar,dt,error)
      last_meta_env_id=last_meta_env_id+1
      meta_env%id_nr=last_meta_env_id
      meta_env%n_colvar=n_colvar
+     meta_env%para_env => para_env
+     CALL cp_para_env_retain(para_env,error=error)
     
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     meta_env%ekin_s=HUGE(0.0_dp)
     meta_env%cv_energy=-HUGE(0.0_dp)
     meta_env%n_steps=0
     meta_env%dt = dt
+    meta_env%colvar_file_unit_nr=-1
+    meta_env%colvar_file_name="COLVAR"
 
     ! hills_env
     ALLOCATE(meta_env%hills_env%ss_history(n_colvar,0), stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)   
     meta_env%hills_env%n_hills=0
     meta_env%hills_env%restart_hills=.FALSE.
+    meta_env%hills_env%hills_file_name='HILLS'
 
     ! colvar
     ALLOCATE(meta_env%colvars(n_colvar), stat=stat)
@@ -128,7 +142,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
     INTEGER                                  :: n_colvar
     LOGICAL                                  :: do_hills, failure, &
                                                 section_found
-    REAL(kind=dp)                            :: dt, ww
+    REAL(kind=dp)                            :: dt
 
   CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)
   CALL start_parser(file_name=globenv%input_file_name,&
@@ -176,17 +190,25 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
         time_units='FS'
         CALL read_object(dt)
         IF (test_object(newline=.FALSE.)=='STR') THEN
-           CALL read_object(time_units,lower_to_upper=.TRUE.,newline=.false.)
-        end if
+           CALL read_object(time_units,lower_to_upper=.TRUE.,newline=.FALSE.)
+        END IF
         CALL convert_to_cp2k_units (time_units,time=dt)
      END SELECT
   END DO
   CALL finish_parser()
 
   CALL metadyn_create(meta_env,n_colvar=n_colvar,&
-       dt=dt,error=error)
+       dt=dt,para_env=globenv%para_env,error=error)
   
   
+  IF (globenv%project_name/="") THEN
+     meta_env%colvar_file_name='COLVAR-'//globenv%project_name
+     meta_env%hills_env%hills_file_name='HILLS-'//globenv%project_name
+  ELSE
+     meta_env%colvar_file_name='COLVAR'
+     meta_env%hills_env%hills_file_name="HILLS"
+  END IF
+
   CALL start_parser(file_name=globenv%input_file_name,&
        globenv=globenv,&
        start_section_label="METADYNAMICS",&
@@ -229,7 +251,8 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
 
 END SUBROUTINE metadyn_read
 
-  SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
+SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
+  !FM not safe with multiple non overlapping para_env for the subsys
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -238,53 +261,101 @@ END SUBROUTINE metadyn_read
     CHARACTER(len=*), PARAMETER :: routinen = 'metadyn_add_forces', &
       routinep = modulen//':'//routinen
 
-    INTEGER                                  :: i_c
+    INTEGER                                  :: i_c, np, stat
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: dt, fft
+    REAL(kind=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: f
     TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
-    failure=.FALSE.
-    CPPrecondition(ASSOCIATED(meta_env),cp_failure_level,routineP,error,failure)
-    colvars => meta_env%colvars
-    dt = meta_env%dt
-    meta_env%n_steps=meta_env%n_steps+1
+  NULLIFY(colvars,subsys,particles)
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(meta_env),cp_failure_level,routineP,error,failure)
+  CALL force_env_get(force_env, subsys=subsys, error=error)
+  np=0
+  DO isubsys=1,SIZE(subsys)
+     np=np+subsys(isubsys)%subsys%particles%n_els
+  END DO
+  ALLOCATE(f(3,np),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-    IF(meta_env%n_steps==1)THEN
-       IF(meta_env%hills_env%restart_hills)THEN
-          OPEN(1012,file='COLVAR',status='OLD',position='APPEND')
-       ELSE
-          OPEN(1012,file='COLVAR',status='REPLACE')
-       END IF
-    ENDIF
-    DO i_c=1,meta_env%n_colvar
-       CALL colvar_eval_f(meta_env%colvars(i_c),force_env,meta_env%n_steps, &
-                          error=error)
-    ENDDO
+  IF (meta_env%para_env%source==meta_env%para_env%mepos) THEN
+     colvars => meta_env%colvars
+     dt = meta_env%dt
+     meta_env%n_steps=meta_env%n_steps+1
 
-    IF(meta_env%do_hills)THEN
-       CALL  hills(meta_env,error)
-    ENDIF
-    DO i_c=1,meta_env%n_colvar
-       fft=colvars(i_c)%ff_s+colvars(i_c)%ff_hills
-       colvars(i_c)%vv=colvars(i_c)%vvp+0.5d0*dt*fft/colvars(i_c)%mass
-       colvars(i_c)%vvp=colvars(i_c)%vv+0.5d0*dt*fft/colvars(i_c)%mass
-    ENDDO
-    meta_env%ekin_s=0.0_dp
-    meta_env%cv_energy=0.0_dp
-    DO i_c=1,meta_env%n_colvar
-       colvars(i_c)%ss0=colvars(i_c)%ss0+dt*colvars(i_c)%vvp
-       meta_env%ekin_s=meta_env%ekin_s + &
-                       0.5d0*colvars(i_c)%mass*colvars(i_c)%vvp**2
-       meta_env%cv_energy=meta_env%cv_energy + &
-                       colvars(i_c)%cv_energy
-    ENDDO
-    WRITE(1012,'(f12.1,40f13.5)')dt*meta_env%n_steps, &
-                   (colvars(i)%ss0,i=1,meta_env%n_colvar), &
-                   (colvars(i)%ss,i=1,meta_env%n_colvar), &
-                   (colvars(i)%ff_s,i=1,meta_env%n_colvar), &
-                   (colvars(i)%ff_hills,i=1,meta_env%n_colvar)
-    CALL m_flush(1012)
-  END SUBROUTINE metadyn_add_forces
+     IF(meta_env%n_steps==1)THEN
+        IF(meta_env%hills_env%restart_hills)THEN
+           CALL open_file(trim(meta_env%colvar_file_name),file_status='OLD',&
+                file_position='APPEND', file_action="WRITE",&
+                unit_number=meta_env%colvar_file_unit_nr)
+        ELSE
+           CALL open_file(trim(meta_env%colvar_file_name),file_status='REPLACE',&
+                file_action="WRITE",unit_number=meta_env%colvar_file_unit_nr)
+        END IF
+     ENDIF
+     DO i_c=1,meta_env%n_colvar
+        CALL colvar_eval_f(meta_env%colvars(i_c),force_env,meta_env%n_steps, &
+             error=error)
+     ENDDO
+
+     IF(meta_env%do_hills)THEN
+        CALL  hills(meta_env,error)
+     ENDIF
+     DO i_c=1,meta_env%n_colvar
+        fft=colvars(i_c)%ff_s+colvars(i_c)%ff_hills
+        colvars(i_c)%vv=colvars(i_c)%vvp+0.5d0*dt*fft/colvars(i_c)%mass
+        colvars(i_c)%vvp=colvars(i_c)%vv+0.5d0*dt*fft/colvars(i_c)%mass
+     ENDDO
+     meta_env%ekin_s=0.0_dp
+     meta_env%cv_energy=0.0_dp
+     DO i_c=1,meta_env%n_colvar
+        colvars(i_c)%ss0=colvars(i_c)%ss0+dt*colvars(i_c)%vvp
+        meta_env%ekin_s=meta_env%ekin_s + &
+             0.5d0*colvars(i_c)%mass*colvars(i_c)%vvp**2
+        meta_env%cv_energy=meta_env%cv_energy + &
+             colvars(i_c)%cv_energy
+     ENDDO
+
+     WRITE(meta_env%colvar_file_unit_nr,'(f12.1,40f13.5)')dt*meta_env%n_steps, &
+          (colvars(i)%ss0,i=1,meta_env%n_colvar), &
+          (colvars(i)%ss,i=1,meta_env%n_colvar), &
+          (colvars(i)%ff_s,i=1,meta_env%n_colvar), &
+          (colvars(i)%ff_hills,i=1,meta_env%n_colvar)
+     CALL m_flush(meta_env%colvar_file_unit_nr)
+     IF (meta_env%para_env%num_pe>1) THEN
+        ii=0
+        DO isubsys=1,SIZE(subsys)
+           particles => subsys(isubsys)%subsys%particles
+           DO ip=1,particles%n_els
+              ii=ii+1
+              f(:,ii)=particles%els(ip)%f
+           END DO
+        END DO
+     END IF
+  END IF
+  IF (meta_env%para_env%num_pe>1) THEN
+     CALL mp_bcast(meta_env%ekin_s,meta_env%para_env%source,&
+          meta_env%para_env%group)
+     CALL mp_bcast(meta_env%ekin_s,meta_env%para_env%source,&
+          meta_env%para_env%group)
+     CALL mp_bcast(f(:,:),meta_env%para_env%source,&
+          meta_env%para_env%group)
+     ii=0
+     DO isubsys=1,SIZE(subsys)
+        particles => subsys(isubsys)%subsys%particles
+        DO ip=1,particles%n_els
+           ii=ii+1
+           particles%els(ip)%f=f(:,ii)
+        END DO
+     END DO
+  END IF
+  DEALLOCATE(f,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+END SUBROUTINE metadyn_add_forces
 
   SUBROUTINE hills(meta_env,error)
     TYPE(meta_env_type), INTENT(inout), &
@@ -295,7 +366,8 @@ END SUBROUTINE metadyn_read
     CHARACTER(len=*), PARAMETER :: routinen = 'hills', &
       routinep = modulen//':'//routinen
 
-    INTEGER                                  :: i, ih, n_colvar, n_step, stat
+    INTEGER                                  :: i, ih, n_colvar, n_step, &
+                                                stat, unit_number
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dfunc, dp2
@@ -316,22 +388,24 @@ END SUBROUTINE metadyn_read
     NULLIFY(tmp)
     IF (n_step==1) THEN
        IF(hills_env%restart_hills)THEN
-          OPEN(667,file='HILLS',status='old')
+          CALL open_file(hills_env%hills_file_name,file_status="old",&
+               file_action="READ",unit_number=unit_number)
           DO i=1,100000
-             READ(667,*,END=144)
+             READ(unit_number,*,END=144)
           ENDDO
 144       CONTINUE
           n_hills=i-1
           ALLOCATE(ss_history(n_colvar,n_hills), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-          REWIND(667)
+          REWIND(unit_number)
           DO i=1,n_hills
-             READ(667,*)ih,(ss_history(ih,i),ih=1,n_colvar)
+             READ(unit_number,*)ih,(ss_history(ih,i),ih=1,n_colvar)
           ENDDO
-          CLOSE(667)
+          CLOSE(unit_number)
        ELSE
-          OPEN(667,file='HILLS',status='replace')
-          CLOSE(667)
+          CALL open_file(hills_env%hills_file_name,file_status='replace',&
+               file_action="WRITE",unit_number=unit_number)
+          CLOSE(unit_number)
        ENDIF
     ENDIF
     IF(MODULO(n_step,hills_env%nt_hills)==0)THEN
@@ -352,11 +426,12 @@ END SUBROUTINE metadyn_read
           ss_history(i,n_hills)=colvars(i)%ss0
        ENDDO
        WRITE(cp_logger_get_default_unit_nr(logger,local=.TRUE.),*)' hills number ',n_hills,' added'
-       OPEN(667,file='HILLS',status='unknown',position='append')
-       WRITE(667,'(i10,30f13.5)')&
+       CALL open_file(hills_env%hills_file_name,file_status='unknown',&
+            file_action="WRITE",file_position='append', unit_number=unit_number)
+       WRITE(unit_number,'(i10,30f13.5)')&
             n_step,(hills_env%ss_history(ih,n_hills),ih=1,n_colvar), &
                    (colvars(ih)%delta_s,ih=1,n_colvar),hills_env%ww
-       CLOSE(667)
+       CLOSE(unit_number)
     ENDIF
 
     ! forces from the hills

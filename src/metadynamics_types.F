@@ -12,7 +12,9 @@ MODULE metadynamics_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE kinds,                           ONLY: dp
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
 
   PRIVATE 
 
@@ -94,6 +96,7 @@ MODULE metadynamics_types
    TYPE hills_env_type
      REAL(kind=dp) :: ww
      INTEGER :: n_hills, nt_hills
+     CHARACTER(len=default_path_length) :: hills_file_name
      REAL(kind=dp), DIMENSION(:,:), POINTER :: ss_history
      LOGICAL :: restart_hills
   END TYPE hills_env_type
@@ -103,9 +106,11 @@ MODULE metadynamics_types
      LOGICAL :: do_hills
      INTEGER :: n_colvar
      REAL(kind=dp) :: ekin_s,cv_energy, dt
-     INTEGER :: n_steps
+     INTEGER :: n_steps, colvar_file_unit_nr
+     CHARACTER(len=default_path_length) :: colvar_file_name     
      TYPE(hills_env_type) :: hills_env
      TYPE(colvar_type), DIMENSION(:), POINTER :: colvars
+     TYPE(cp_para_env_type), POINTER :: para_env
   END TYPE meta_env_type
 
 CONTAINS
@@ -160,7 +165,7 @@ SUBROUTINE colvar_init(colvar,index,error)
   colvar%coord_param%nncrd=6
   colvar%coord_param%ndcrd=12
   colvar%coord_param%R_0=3.0_dp
-  nullify(colvar%coord_param%i_at_from,colvar%coord_param%i_at_to)
+  NULLIFY(colvar%coord_param%i_at_from,colvar%coord_param%i_at_to)
 
   colvar%ss=0.0_dp
   colvar%ss0=0.0_dp
@@ -198,8 +203,8 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
     CHARACTER(len=*), PARAMETER :: routinen = 'colvar_dealloc_ref', &
       routinep = modulen//':'//routinen
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    INTEGER :: stat
 
   failure=.FALSE.
   
