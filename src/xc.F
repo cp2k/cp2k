@@ -4405,6 +4405,7 @@ END FUNCTION xc_exc_calc
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       gradient_f = .FALSE.
        nspins     = dft_control%nspins
        lsd = (nspins /= 1)
        xc_control = dft_control%xc_control
@@ -4462,8 +4463,13 @@ END FUNCTION xc_exc_calc
           DO k = bounds(1,3), bounds(2,3)
              DO j = bounds(1,2), bounds(2,2)
                 DO i = bounds(1,1), bounds(2,1)
-                   v_xc(1)%pw%cr3d(i,j,k)=&
+                   if (nspins /= 1) then
+                      v_xc(1)%pw%cr3d(i,j,k)=&
                         deriv_data(i,j,k)*rho1a(i,j,k)
+                   else 
+                      v_xc(1)%pw%cr3d(i,j,k)=&
+                           2.0_dp*deriv_data(i,j,k)*rho1a(i,j,k)
+                   end if
                 END DO
              END DO
           END DO
@@ -4485,10 +4491,10 @@ END FUNCTION xc_exc_calc
                            deriv_data(i,j,k)*rho1b(i,j,k)
                    ELSE IF (dft_control%tddfpt_control%res_etype == "SINGLET") THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k)*rho1b(i,j,k)
+                           2.0_dp*deriv_data(i,j,k)*rho1b(i,j,k)
                    ELSE
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k)*rho1b(i,j,k)
+                           2.0_dp*deriv_data(i,j,k)*rho1b(i,j,k)
                    END IF
                 END DO
              END DO
@@ -4691,7 +4697,7 @@ END FUNCTION xc_exc_calc
     REAL(KIND=dp)                            :: diag_factor, dr1dr
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: drho1_r
-    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: atoms
+    TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g, tmp_r2
     TYPE(pw_p_type)                          :: v_drho
@@ -4743,7 +4749,7 @@ END FUNCTION xc_exc_calc
        END DO
     END IF
 
-    NULLIFY(rho_g, tau, atoms)
+    NULLIFY(rho_g, tau)
     call xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
        rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,atoms=atoms,&
        needs_basic_components=.TRUE.,error=error)

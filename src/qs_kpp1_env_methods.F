@@ -28,6 +28,7 @@
 MODULE qs_kpp1_env_methods
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_deallocate,&
+                                             coeff_init,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
@@ -392,7 +393,7 @@ CONTAINS
        !------!
        ! rho1 !
        !------!
-       bo = rho_r(1)%pw%pw_grid%bounds_local
+       bo = rho1_r(1)%pw%pw_grid%bounds_local
        ! create the place where to store the argument for the functionals
        CALL xc_rho_set_create(rho1_set,bo,rho_cutoff=xc_control%density_cut,&
                               drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
@@ -421,7 +422,7 @@ CONTAINS
        CALL  xc_calc_2nd_deriv_new(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
             rho1_set, auxbas_pw_pool, dft_control, error=error)
        do ispin=1,nspins
-          v_rspace_new(ispin)%pw => v_xc(ispin)%pw
+          call coeff_init(v_rspace_new(ispin), pw=v_xc(ispin)%pw,error=error)
        end do
        deallocate(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -720,23 +721,8 @@ CONTAINS
           END IF
        END IF
        
-       if (.not.(associated(kpp1_env%deriv_set).and.&
-                 associated(kpp1_env%spin_pot).and.&
-                 associated(kpp1_env%grad_pot).and.&
-                 associated(kpp1_env%ndiag_term))) then
-          call cp_assert(.not.associated(kpp1_env%deriv_set).and.&
-                         .not.associated(kpp1_env%spin_pot).and.&
-                         .not.associated(kpp1_env%grad_pot).and.&
-                         .not.associated(kpp1_env%ndiag_term),&
-                         cp_failure_level,cp_assertion_failed,routineP,&
-                         " internal error xc_deriv related thing should be "//&
-                         "either all valid or all invalid "//&
-                         CPSourceFileRef,&
-                         error,failure)
-          
-          !-----------------------------------------!
-          ! now the derivative is actually computed !
-          !-----------------------------------------!
+       if (.not.associated(kpp1_env%deriv_set)) then
+
           call qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
           !call xc_prep_2nd_deriv1(kpp1_env%deriv_set, &
           !                        rho_r=rho_r, rho_g=rho_g,&
