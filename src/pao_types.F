@@ -38,7 +38,7 @@ module pao_types
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
        add_block_node, put_block_node
   use global_types, only: global_environment_type
-  use cp_sparse_matrix, only: cp_sparse_matrix_type,cp_sparse_matrix_p_type,&
+  use cp_block_matrix, only: cp_block_matrix_type,cp_block_matrix_p_type,&
        cp_sp_create
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_get
   use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
@@ -127,9 +127,9 @@ module pao_types
      logical :: initialized, m_s_m_valid, m_h_m_valid
      real(kind=wp), dimension(:), pointer :: angles
      logical, dimension(:), pointer :: ut_calculated, NUi_injection_calculated
-     type(cp_sparse_matrix_type), pointer :: unitary_t, NUi_injection
-     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_overlap_m
-     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_hamiltonian_m
+     type(cp_block_matrix_type), pointer :: unitary_t, NUi_injection
+     type(cp_block_matrix_p_type), dimension(:), pointer :: min_overlap_m
+     type(cp_block_matrix_p_type), dimension(:), pointer :: min_hamiltonian_m
   end type pao_glob_angles_type
 !!***
 !****************************************************************************
@@ -189,11 +189,11 @@ module pao_types
      integer :: max_min_bas,max_full_bas,max_excl_bas,tot_min_bas,&
           tot_full_bas, tot_excl_bas, max_l_angles
      type(pao_glob_angles_type), pointer :: angles_att
-     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_density_m
+     type(cp_block_matrix_p_type), dimension(:), pointer :: min_density_m
      type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
           full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
           full_bas_diag_m_struct
-     type(cp_sparse_matrix_type), pointer :: atomic_ortho
+     type(cp_block_matrix_type), pointer :: atomic_ortho
   end type pao_env_type
 !!***
 !***************************************************************************
@@ -218,7 +218,7 @@ contains
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         wanted_in_subspace_precision
 !!       Type(pao_glob_angles_type), Optional, Pointer:: angles_att
-!!       Type(cp_sparse_matrix_p_type), Dimension(:), Optional, Pointer::&
+!!       Type(cp_block_matrix_p_type), Dimension(:), Optional, Pointer::&
 !!         min_density_m
 !!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
 !!         min_bas_m_struct, full_bas_m_struct, full_min_bas_m_struct,&
@@ -261,7 +261,7 @@ contains
     real(kind=wp), optional, intent(out) :: wanted_subspace_pos_precision
     real(kind=wp), optional, intent(out) :: wanted_in_subspace_precision
     type(pao_glob_angles_type), optional, pointer :: angles_att
-    type(cp_sparse_matrix_p_type), dimension(:), optional, pointer ::&
+    type(cp_block_matrix_p_type), dimension(:), optional, pointer ::&
          min_density_m
     type(cp_b_matrix_struct_type), pointer, optional :: min_bas_m_struct, &
          full_bas_m_struct, full_min_bas_m_struct, min_full_bas_m_struct,&
