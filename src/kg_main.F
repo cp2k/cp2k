@@ -294,7 +294,7 @@ SUBROUTINE kg ( globenv )
 
 !*** Read &COORD section ***
   CALL read_atoms_input ( particle_set, atomic_kind_set, &
-                          mol_setup, setup % atom_names, globenv )
+                          mol_setup, setup % atom_names, setup, globenv )
 
 !*** Read the input section with the cell parameters ***
 

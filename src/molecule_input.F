@@ -21,20 +21,31 @@
 
 MODULE molecule_input
 
-  USE global_types, ONLY : global_environment_type
-  USE input_types, ONLY : setup_parameters_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE molecule_types, ONLY : molecule_type, topology_type, init_molecule_type
-  USE message_passing, ONLY : mp_bcast
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser, search_label
-  USE periodic_table, ONLY : ptable
-  USE string_utilities, ONLY : uppercase, xstring, str_search, &
-       str_comp, make_tuple
-  USE termination, ONLY : stop_memory, stop_program
-  USE topology, ONLY : read_topology_file, get_molecules_topology, &
-       set_molecule_type_topology, get_molecule_structure_topology
+  USE global_types,                     ONLY : global_environment_type
+  USE input_types,                      ONLY : setup_parameters_type
+  USE kinds,                            ONLY : dbl
+  USE mathconstants,                    ONLY : pi, zero
+  USE molecule_types,                   ONLY : molecule_type, &
+                                               topology_type, &
+                                               init_molecule_type
+  USE message_passing,                  ONLY : mp_bcast
+  USE parser,                           ONLY : parser_init, &
+                                               parser_end, &
+                                               read_line, &
+                                               test_next, &
+                                               p_error, &
+                                               get_next, &
+                                               stop_parser, &
+                                               search_label
+  USE periodic_table,                   ONLY : ptable
+  USE string_utilities,                 ONLY : uppercase, &
+                                               xstring, &
+                                               str_search, &
+                                               str_comp, &
+                                               make_tuple
+  USE termination,                      ONLY : stop_memory, &
+                                               stop_program
+  USE topology_control,                 ONLY : read_topology_control
 
   IMPLICIT NONE
 
@@ -111,26 +122,11 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   CHARACTER ( LEN = 12 ) :: default_thermostat
   CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
 
-!------------------------------------------------------------------------------
-! look for a possible topology file
-  CALL read_topology_file ( setup % topology_file_name, globenv )
-! molecule types defined on topology file
-  nmol_topo = get_molecules_topology ()
-  if ( nmol_topo > 0 ) THEN
-!    allocate space for the molecules
-     ALLOCATE (mol_setup(nmol_topo ),STAT=ios)
-     IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
-        'mol_setup', nmol_topo )
-     DO i=1,SIZE(mol_setup)
-        CALL init_molecule_type(mol_setup(i))
-     ENDDO
-  END IF
-!------------------------------------------------------------------------------
-
   default_thermostat = "GLOBAL"
   iw = globenv % scr
   icount = 0
   nmol_type = -1
+  nmol_topo = 0
 !
   setup % states = -1
   setup % nspins = 1
@@ -146,9 +142,16 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   setup % simulation_cell % poisson_solver = "STANDARD"
   setup % simulation_cell % perd = 1
 
+  IF(setup%topology) THEN
+    CALL read_topology_control(mol_setup,setup,globenv)
+    nmol_topo = SIZE(mol_setup)
+    WRITE (iw,*) "nmol_topo = ",nmol_topo
+  END IF
+
 !..parse the input section
   label = '&SETUP'
 ! try to find the input section on the main input file
+  WRITE(iw,*) "PARSING ",setup%set_file_name
   CALL parser_init ( setup % set_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
@@ -206,8 +209,13 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   END IF
   CALL parser_end
 
+!!-------------------------------------------------------------------------
+!!Commented out....
+  !mol_setup (:) % molpar % name = "#"
+!!-------------------------------------------------------------------------
+
 ! process the information from the topology file
-  CALL set_molecule_type_topology ( mol_setup, default_thermostat )
+  !CALL set_molecule_type_topology ( mol_setup, default_thermostat )
 
   IF ( section_found ) THEN
 ! reinitiate the parser at the beginning of the section
@@ -480,8 +488,10 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
      molname(i) = mol_setup(i) %molpar%name
   END DO
 
-  ! get molecule structures from topology file
-  CALL get_molecule_structure_topology ( molname, mol_setup )
+  IF(setup%topology) THEN
+    ! get molecule structures from topology file
+    !CALL get_molecule_structure_topology ( molname, mol_setup )
+  ELSE
 
   ! parse the input section
   label = '&MOLEC'
@@ -694,6 +704,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
      END DO
   END IF
   CALL parser_end
+  END IF
 
 ! add some defaults to the non specified molecules
   DO imol = 1, nmol_type
@@ -747,12 +758,14 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   n = 0
   DO i = 1, nmol_type
      DO j = 1, mol_setup(i) % molpar % natom
-        IF (str_search(setup % atom_names,n,mol_setup(i) % molpar%aname(j))==0) THEN
+        IF(str_search(setup%atom_names,n,mol_setup(i)%molpar%aname(j))==0)THEN
            n = n + 1
            setup % atom_names(n) = mol_setup(i) % molpar%aname(j)
         END IF
      END DO
   END DO
+
+  WRITE(iw,*) "n = ",n
 
   IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
        'natom_type mismatch' )
@@ -953,7 +966,9 @@ SUBROUTINE read_topology_section ( topo, setup, globenv )
   topo%nbend = 0
   topo%ntors = 0
 
-! CALL get_topology_from_file ( )
+  IF(setup%topology) THEN
+    !CALL get_topology_from_file ( )
+  ELSE
 
   ! parse the input section
   label = '&TOPOL'
@@ -1018,6 +1033,7 @@ SUBROUTINE read_topology_section ( topo, setup, globenv )
   END IF
 
   CALL parser_end
+  END IF
 
 ! write some information to output
   IF (globenv%ionode) THEN

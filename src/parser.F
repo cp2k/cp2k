@@ -412,6 +412,7 @@ SUBROUTINE cfield ( string, length )
      IF (char1==':') EXIT
      IF (char1=='=') EXIT
      IF (char1=='[') EXIT
+     IF (char1=='!') EXIT
      string(i:i) = char1
   END DO
   l = len_trim(inp_line(p_line))

@@ -128,8 +128,7 @@ MODULE qs_scf
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
                                              sm_pools_give_back_matrix_vect
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             destroy_cube_info,&
+  USE cube_utils,                      ONLY: destroy_cube_info,&
                                              init_cube_info
   USE dft_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: all_potential_type,&

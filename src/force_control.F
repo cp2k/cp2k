@@ -216,6 +216,7 @@ SUBROUTINE force_env_calculate_force ( force_env, globenv, box_change, error )
         ENDDO
         fist_env % thermo % pot = e_pot
       CASE ( .FALSE. )
+
           CALL fist_force_control ( fist_env % rep_env ( 1 ), &
                                     fist_env % ewald_param, &
                                     fist_env % potparm, fist_env % thermo, &

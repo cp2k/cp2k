@@ -127,6 +127,7 @@ FUNCTION ener_pot ( pot, qi, qj, r )
           goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
      ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
   ELSE
+     WRITE(*,*) "pot%type = ",pot%type
      CALL stop_program("pair_potential%ener_pot","Potential type unknown")
   END IF
 

@@ -59,7 +59,9 @@ CONTAINS
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
 !!I coord_file       "filename"                                               I
+!!I COORDINATE       [PDB,CHM,...]
 !!I topo_file        "filename"                                               I
+!!I TOPOLOGY         [PSF,GROMOS,OFF,...]                                I
 !!I symmetry         [on,off]                                                 I
 !!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
@@ -103,6 +105,10 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
   setup % coord_file_name = globenv % project_name(ia:ie) // '.dat'
   setup % topology_file_name = globenv % project_name(ia:ie) // '.top'
+
+  setup % coordinate = .FALSE.
+  setup % topology = .FALSE.
+  setup % topology_type = 'OFF'
 
   iw = globenv % scr
 
@@ -190,9 +196,46 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
         CASE ( 'INPUT_FI')
            ilen = 40
            CALL get_next(setup % coord_file_name,ilen)
+        CASE ( 'COORDINA')
+           setup % coordinate = .TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "PDB") THEN
+              setup%coordinate = .TRUE.
+              setup%coordinate_type = "PDB"
+           ELSE IF (str2 == "CHM") THEN
+              setup%coordinate = .TRUE.
+              setup%coordinate_type = "CHM"
+           ELSE IF (str2 == "OFF") THEN
+              setup%coordinate = .FALSE.
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_cntl_section', &
+                                'unknown option coordinate type' )
+           END IF
         CASE ( 'TOPO_FIL')
+           setup % topology = .TRUE.
            ilen = 40
            CALL get_next(setup % topology_file_name,ilen)
+        CASE ( 'TOPOLOGY')
+           setup % topology = .TRUE.
+           ilen = 40
+           CALL get_next(str2,ilen)
+           CALL uppercase(str2)
+           IF (str2 == "PSF") THEN
+              setup % topology = .TRUE.
+              setup % topology_type = "PSF"
+           ELSE IF (str2 == "GROMOS") THEN
+              setup % topology = .TRUE.
+              setup % topology_type = "GROMOS"
+           ELSE IF (str2 == "OFF") THEN
+              setup % topology = .FALSE.
+           ELSE
+              CALL p_error()
+              CALL stop_parser( 'read_cntl_section', &
+                                'unknown option topology type' )
+           END IF
         END SELECT
 
 ! check for trailing rubbish

@@ -250,7 +250,7 @@ CONTAINS
 
     CALL read_atoms_input ( particle_set, atomic_kind_set, &
                             mol_setup, setup % atom_names, &
-                            globenv )
+                            setup, globenv )
 
     CALL convert ( units, part = particle_set )
 

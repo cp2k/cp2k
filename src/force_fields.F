@@ -179,7 +179,7 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   DO i1 = 1, natom_types
      DO i2 = 1, natom_types
         potparm(i1,i2) %type = 'NULL'
-        CALL uppercase(potparm(i1,i2) %type )
+        !CALL uppercase(potparm(i1,i2) %type )
      END DO
   END DO
 
@@ -423,6 +423,7 @@ SUBROUTINE input_bonds(bond_parm,set_fn)
               ilen = 0
               CALL get_next(string2,ilen)
               CALL uppercase(string2)
+              WRITE(*,*) "string2 ",string2
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()

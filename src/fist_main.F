@@ -289,7 +289,7 @@ SUBROUTINE fist ( globenv )
 !*** Read &COORD section ***
  
   CALL read_atoms_input ( particle_set, atomic_kind_set, &
-                          mol_setup, setup % atom_names, globenv )
+                          mol_setup, setup % atom_names, setup, globenv )
 
 !*** Read the input section with the cell parameters ***
 
@@ -320,7 +320,6 @@ SUBROUTINE fist ( globenv )
                  potparm = potparm,  &
                  intra_param = intra_param,  &
                  ewald_param = ewald_param )
-
 
 ! Filling up the replica environment one bead at a time
   DO ibead = 1, beads
@@ -447,7 +446,6 @@ SUBROUTINE fist ( globenv )
   CALL set_fist_energies_param ( units % pconv, units % econv, units % l_label, &
        units % vol_label, units % e_label, units % pres_label, &
        units % temp_label, units % angl_label )
-
 
 !...initialize splines
 

@@ -39,7 +39,11 @@ MODULE input_types
      INTEGER                :: nmol, natoms, natom_type
      LOGICAL                :: symmetry
      CHARACTER ( LEN = 40 ) :: set_file_name
+     LOGICAL                :: coordinate
+     CHARACTER ( LEN = 40 ) :: coordinate_type
      CHARACTER ( LEN = 40 ) :: coord_file_name
+     LOGICAL                :: topology
+     CHARACTER ( LEN = 40 ) :: topology_type
      CHARACTER ( LEN = 40 ) :: topology_file_name
      CHARACTER ( LEN = 20 ) :: run_type
      CHARACTER ( LEN = 20 ) :: unit_type
