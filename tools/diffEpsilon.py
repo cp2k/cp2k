@@ -3,7 +3,7 @@
 import sys
 
 def compareNr(n1,n2):
-  return abs(n1-n2)/max(abs(n1),abs(n2))
+  return abs(n1-n2) # /max(abs(n1),abs(n2))
 
 def diffEpsilon(str1, str2,incomparable_val=1):
     """retuns the difference between two strings, parsing numbers and confronting them."""
