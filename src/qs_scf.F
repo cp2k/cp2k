@@ -595,6 +595,8 @@ CONTAINS
                          ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
         use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
 
+        delta = 0.0_wp
+
         DO ispin=1,dft_control%nspins
 
            CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
@@ -616,7 +618,9 @@ CONTAINS
 
            CALL calculate_density_matrix(c(ispin)%mo_set,p_new(ispin)%matrix,globenv)
 
-           CALL density_mixing(p_new(ispin),p_rmpv(ispin),pmix,delta,globenv)
+           CALL density_mixing(p_new(ispin),p_rmpv(ispin),pmix,tmp,globenv)
+           
+           delta=MAX(delta,tmp)
 
         ENDDO
 
@@ -1147,10 +1151,13 @@ CONTAINS
     WRITE(6,*) "calculate first dm not yet ok CORE and RANDOM might work"
     ENDIF
     ! XXXXXXXXXX
+    IF (dft_control%nspins.eq.2) THEN
+       CALL copy_blacs_to_blacs_matrix(scf_work1(1)%matrix,scf_work1(2)%matrix)
+    ENDIF
     DO ispin=1,dft_control%nspins
        mo_set => c(ispin)%mo_set
        CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(ispin),s(1), &
-            scf_work1(1)%matrix,scf_work2,globenv,&
+            scf_work1(ispin)%matrix,scf_work2,globenv,&
              scf_control=scf_control, id_nr=qs_env%id_nr)
     ENDDO
 
