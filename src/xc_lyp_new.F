@@ -232,7 +232,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat, handle
+    INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_norm_drho, epsilon_rho
@@ -402,189 +402,265 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
       t40, t41, t44, t45, t48, t5, t52, t6, t61, t62, t69, t7, t70, t77, t78, &
       t80, t87, t88, t89, t93, t94, t95, t98, t99
 
-    epsilon_rho13=epsilon_rho**(1.0_dp/3.0_dp)
+  epsilon_rho13=epsilon_rho**(1.0_dp/3.0_dp)
   cf=0.3_dp*(3._dp*pi*pi)**(2._dp/3._dp)
-  DO ii=1,npoints
-     my_rho = rho(ii)
-     IF (my_rho>epsilon_rho) THEN
-     my_rho_1_3 = rho_1_3(ii)
-     my_ndrho = norm_drho(ii)
-!      cg9 = my_rho ** (0.1e1_dp / 0.3e1_dp)
-      t1 = my_rho_1_3 ** 2
-      t2 = t1 * my_rho
-      t3 = 0.1e1_dp / t2
-      t4 = a * t3
-      t5 = my_rho ** 2
-      t6 = t5 * my_rho
-      t7 = my_rho_1_3 * t6
-      t11 = 0.1e1_dp / my_rho_1_3
-      t13 = EXP(-c * t11)
-      t14 = b * t13
-      t22 = my_ndrho ** 2
-      t26 = my_rho_1_3 * t22
-      t37 = -0.72e2_dp * t7 - 0.72e2_dp * t6 * d - 0.72e2_dp * t14 *&
-           & t7 * cf - 0.72e2_dp * t14 * t6 * cf * d + 0.3e1_dp * t14&
-           & * t1 * t22 + 0.10e2_dp * t14 * t26 * d + 0.7e1_dp * t14 &
-           &* t26 * c + 0.7e1_dp * t14 * t22 * c * d
-      t38 = my_rho_1_3 + d
-      t39 = t38 ** 2
-      t40 = 0.1e1_dp / t39
-      t41 = t37 * t40
+  SELECT CASE(grad_deriv)
+  CASE (1)
+     DO ii=1,npoints
+        my_rho = rho(ii)
+        IF (my_rho>epsilon_rho) THEN
+           my_rho_1_3 = rho_1_3(ii)
+           my_ndrho = norm_drho(ii)
+           t1 = my_rho_1_3 ** 2
+           t2 = t1 * my_rho
+           t3 = 0.1e1_dp / t2
+           t4 = a * t3
+           t5 = my_rho ** 2
+           t6 = t5 * my_rho
+           t7 = my_rho_1_3 * t6
+           t11 = 0.1e1_dp / my_rho_1_3
+           t13 = EXP(-c * t11)
+           t14 = b * t13
+           t22 = my_ndrho ** 2
+           t26 = my_rho_1_3 * t22
+           t37 = -0.72e2_dp * t7 - 0.72e2_dp * t6 * d - 0.72e2_dp * t14 *&
+                & t7 * cf - 0.72e2_dp * t14 * t6 * cf * d + 0.3e1_dp * t14&
+                & * t1 * t22 + 0.10e2_dp * t14 * t26 * d + 0.7e1_dp * t14 &
+                &* t26 * c + 0.7e1_dp * t14 * t22 * c * d
+           t38 = my_rho_1_3 + d
+           t39 = t38 ** 2
+           t40 = 0.1e1_dp / t39
+           t41 = t37 * t40
 
-     IF (grad_deriv>=0) THEN
-        e_0(ii) = e_0(ii)&
-             + t4 * t41 / 0.72e2_dp
-     END IF
+           e_0(ii) = e_0(ii)&
+                + t4 * t41 / 0.72e2_dp
 
-      t44 = 0.1e1_dp / t1 / t5
-      t45 = a * t44
-      t48 = my_rho_1_3 * t5
-      t52 = b * c
-      t61 = t13 * cf
-      t62 = t61 * d
-      t69 = 0.1e1_dp / t1
-      t70 = t69 * t13
-      t77 = 0.1e1_dp / my_rho
-      t78 = t52 * t77
-      t80 = t13 * t22 * d
-      t87 = c ** 2
-      t88 = b * t87
-      t89 = t77 * t13
-      t93 = my_rho_1_3 * my_rho
-      t94 = 0.1e1_dp / t93
-      t95 = t88 * t94
-      t98 = -0.240e3_dp * t48 - 0.216e3_dp * t5 * d - 0.24e2_dp * t52&
-           & * t5 * t13 * cf - 0.240e3_dp * t14 * t48 * cf -&
-           & 0.24e2_dp * t52 * t2 * t62 - 0.216e3_dp * t14 * t5 * cf &
-           &* d + 0.10e2_dp / 0.3e1_dp * t52 * t70 * t22 + 0.2e1_dp *&
-           & t14 * t11 * t22 + 0.10e2_dp / 0.3e1_dp * t78 * t80 +&
-           & 0.10e2_dp / 0.3e1_dp * t14 * t69 * t22 * d + 0.7e1_dp /&
-           & 0.3e1_dp * t88 * t89 * t22 + 0.7e1_dp / 0.3e1_dp * t95 *&
-           & t80
-      t99 = t98 * t40
-      t102 = 0.1e1_dp / t48
-      t103 = a * t102
-      t105 = 0.1e1_dp / t39 / t38
-      t106 = t37 * t105
-      t112 = my_rho_1_3 * my_ndrho
-      t123 = 0.6e1_dp * t14 * t1 * my_ndrho + 0.20e2_dp * t14 * t112 &
-           &* d + 0.14e2_dp * t14 * t112 * c + 0.14e2_dp * t14 *&
-           & my_ndrho * c * d
-      t124 = t123 * t40
+           t44 = 0.1e1_dp / t1 / t5
+           t45 = a * t44
+           t48 = my_rho_1_3 * t5
+           t52 = b * c
+           t61 = t13 * cf
+           t62 = t61 * d
+           t69 = 0.1e1_dp / t1
+           t70 = t69 * t13
+           t77 = 0.1e1_dp / my_rho
+           t78 = t52 * t77
+           t80 = t13 * t22 * d
+           t87 = c ** 2
+           t88 = b * t87
+           t89 = t77 * t13
+           t93 = my_rho_1_3 * my_rho
+           t94 = 0.1e1_dp / t93
+           t95 = t88 * t94
+           t98 = -0.240e3_dp * t48 - 0.216e3_dp * t5 * d - 0.24e2_dp * t52&
+                & * t5 * t13 * cf - 0.240e3_dp * t14 * t48 * cf -&
+                & 0.24e2_dp * t52 * t2 * t62 - 0.216e3_dp * t14 * t5 * cf &
+                &* d + 0.10e2_dp / 0.3e1_dp * t52 * t70 * t22 + 0.2e1_dp *&
+                & t14 * t11 * t22 + 0.10e2_dp / 0.3e1_dp * t78 * t80 +&
+                & 0.10e2_dp / 0.3e1_dp * t14 * t69 * t22 * d + 0.7e1_dp /&
+                & 0.3e1_dp * t88 * t89 * t22 + 0.7e1_dp / 0.3e1_dp * t95 *&
+                & t80
+           t99 = t98 * t40
+           t102 = 0.1e1_dp / t48
+           t103 = a * t102
+           t105 = 0.1e1_dp / t39 / t38
+           t106 = t37 * t105
 
-     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
-        e_rho(ii) = e_rho(ii) &
-             -0.5e1_dp / 0.216e3_dp * t45 * t41 + t4 * t99 / 0.72e2_dp&
-             & - t103 * t106 / 0.108e3_dp
-        e_ndrho(ii) = e_ndrho(ii)&
-             +t4 * t124 / 0.72e2_dp
-     END IF
+           e_rho(ii) = e_rho(ii) &
+                -0.5e1_dp / 0.216e3_dp * t45 * t41 + t4 * t99 / 0.72e2_dp&
+                & - t103 * t106 / 0.108e3_dp
 
-      t127 = 0.1e1_dp / t1 / t6
-      t128 = a * t127
-      t133 = 0.1e1_dp / t7
-      t134 = a * t133
-      t161 = t3 * t13
-      t165 = 0.1e1_dp / t5
-      t166 = t165 * t13
-      t173 = t52 * t165
-      t176 = t88 * t102
-      t184 = b * t87 * c
-      t185 = t102 * t13
-      t189 = t184 * t44
-      t192 = -0.560e3_dp * t93 - 0.432e3_dp * my_rho * d - 0.128e3_dp&
-           & * t52 * my_rho * t13 * cf - 0.8e1_dp * t88 * t1 * t13 *&
-           & cf - 0.560e3_dp * t14 * t93 * cf - 0.112e3_dp * t52 * t1&
-           & * t62 - 0.8e1_dp * t88 * my_rho_1_3 * t62 - 0.432e3_dp *&
-           & t14 * my_rho * cf * d - 0.14e2_dp / 0.9e1_dp * t52 *&
-           & t161 * t22 - 0.11e2_dp / 0.9e1_dp * t88 * t166 * t22 -&
-           & 0.2e1_dp / 0.3e1_dp * t14 * t94 * t22 - 0.20e2_dp /&
-           & 0.9e1_dp * t173 * t80 - 0.2e1_dp * t176 * t80 -&
-           & 0.20e2_dp / 0.9e1_dp * t14 * t3 * t22 * d + 0.7e1_dp /&
-           & 0.9e1_dp * t184 * t185 * t22 + 0.7e1_dp / 0.9e1_dp *&
-           & t189 * t80
-      t193 = t192 * t40
-      t196 = t98 * t105
-      t199 = 0.1e1_dp / t6
-      t200 = a * t199
-      t201 = t39 ** 2
-      t202 = 0.1e1_dp / t201
-      t203 = t37 * t202
-      t215 = t13 * my_ndrho * d
-      t227 = 0.20e2_dp / 0.3e1_dp * t52 * t70 * my_ndrho + 0.4e1_dp *&
-           & t14 * t11 * my_ndrho + 0.20e2_dp / 0.3e1_dp * t78 * t215&
-           & + 0.20e2_dp / 0.3e1_dp * t14 * t69 * my_ndrho * d +&
-           & 0.14e2_dp / 0.3e1_dp * t88 * t89 * my_ndrho + 0.14e2_dp &
-           &/ 0.3e1_dp * t95 * t215
-      t228 = t227 * t40
-      t231 = t123 * t105
-      t245 = 0.6e1_dp * t14 * t1 + 0.20e2_dp * t14 * my_rho_1_3 * d +&
-           & 0.14e2_dp * t14 * my_rho_1_3 * c + 0.14e2_dp * t14 * c *&
-           & d
-      t246 = t245 * t40
+           t112 = my_rho_1_3 * my_ndrho
+           t123 = 0.6e1_dp * t14 * t1 * my_ndrho + 0.20e2_dp * t14 * t112 &
+                &* d + 0.14e2_dp * t14 * t112 * c + 0.14e2_dp * t14 *&
+                & my_ndrho * c * d
+           t124 = t123 * t40
 
-     IF (grad_deriv>=2 .OR.grad_deriv==-2) THEN
-        e_rho_rho(ii) = e_rho_rho(ii)&
-             +0.5e1_dp / 0.81e2_dp * t128 * t41 - 0.5e1_dp / 0.108e3_dp&
-           & * t45 * t99 + t134 * t106 / 0.27e2_dp + t4 * t193 /&
-           & 0.72e2_dp - t103 * t196 / 0.54e2_dp + t200 * t203 /&
-           & 0.108e3_dp
-        e_ndrho_rho(ii) = e_ndrho_rho(ii)&
-             -0.5e1_dp / 0.216e3_dp * t45 * t124 + t4 * t228 /&
-           & 0.72e2_dp - t103 * t231 / 0.108e3_dp
-        e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
-             +t4 * t246 / 0.72e2_dp
-     END IF
+           e_ndrho(ii) = e_ndrho(ii)&
+                +t4 * t124 / 0.72e2_dp
+        END IF
+     END DO
+  CASE default
+     DO ii=1,npoints
+        my_rho = rho(ii)
+        IF (my_rho>epsilon_rho) THEN
+           my_rho_1_3 = rho_1_3(ii)
+           my_ndrho = norm_drho(ii)
+           t1 = my_rho_1_3 ** 2
+           t2 = t1 * my_rho
+           t3 = 0.1e1_dp / t2
+           t4 = a * t3
+           t5 = my_rho ** 2
+           t6 = t5 * my_rho
+           t7 = my_rho_1_3 * t6
+           t11 = 0.1e1_dp / my_rho_1_3
+           t13 = EXP(-c * t11)
+           t14 = b * t13
+           t22 = my_ndrho ** 2
+           t26 = my_rho_1_3 * t22
+           t37 = -0.72e2_dp * t7 - 0.72e2_dp * t6 * d - 0.72e2_dp * t14 *&
+                & t7 * cf - 0.72e2_dp * t14 * t6 * cf * d + 0.3e1_dp * t14&
+                & * t1 * t22 + 0.10e2_dp * t14 * t26 * d + 0.7e1_dp * t14 &
+                &* t26 * c + 0.7e1_dp * t14 * t22 * c * d
+           t38 = my_rho_1_3 + d
+           t39 = t38 ** 2
+           t40 = 0.1e1_dp / t39
+           t41 = t37 * t40
 
-      t248 = t5 ** 2
-      t265 = 0.1e1_dp / t248
-      t278 = t87 ** 2
-      t279 = b * t278
-      t332 = -0.432e3_dp * d - 0.2240e4_dp / 0.3e1_dp * my_rho_1_3 -&
-           & 0.74e2_dp / 0.27e2_dp * t184 * t127 * t80 + 0.100e3_dp /&
-           & 0.27e2_dp * t14 * t44 * t22 * d + 0.7e1_dp / 0.27e2_dp *&
-           & t279 * t127 * t13 * t22 - 0.8e1_dp / 0.3e1_dp * t184 *&
-           & t70 * cf - 0.2240e4_dp / 0.3e1_dp * t14 * my_rho_1_3 *&
-           & cf - 0.48e2_dp * t88 * t11 * t13 * cf - 0.944e3_dp /&
-           & 0.3e1_dp * t52 * t61 - 0.40e2_dp * t88 * t69 * t62 -&
-           & 0.656e3_dp / 0.3e1_dp * t52 * t11 * t62 + 0.7e1_dp /&
-           & 0.27e2_dp * t279 * t265 * t80 + 0.64e2_dp / 0.27e2_dp *&
-           & t52 * t44 * t13 * t22 - 0.8e1_dp / 0.3e1_dp * t184 * t77&
-           & * t62 - 0.432e3_dp * t14 * cf * d + 0.52e2_dp /&
-           & 0.27e2_dp * t88 * t199 * t13 * t22 - 0.20e2_dp /&
-           & 0.9e1_dp * t184 * t133 * t13 * t22 + 0.8e1_dp / 0.9e1_dp&
-           & * t14 * t102 * t22 + 0.100e3_dp / 0.27e2_dp * t52 * t199&
-           & * t80 + 0.106e3_dp / 0.27e2_dp * t88 * t133 * t80
+           IF (grad_deriv>=0) THEN
+              e_0(ii) = e_0(ii)&
+                   + t4 * t41 / 0.72e2_dp
+           END IF
 
-     IF (grad_deriv>=3 .OR. grad_deriv==-3) THEN
-        e_rho_rho_rho(ii) = e_rho_rho_rho(ii)&
-             -0.55e2_dp / 0.243e3_dp * a / t1 / t248 * t41 + 0.5e1_dp &
-           &/ 0.27e2_dp * t128 * t99 - 0.40e2_dp / 0.243e3_dp * a /&
-           & my_rho_1_3 / t248 * t106 - 0.5e1_dp / 0.72e2_dp * t45 *&
-           & t193 + t134 * t196 / 0.9e1_dp - 0.7e1_dp / 0.108e3_dp *&
-           & a * t265 * t203 + t4 * t332 * t40 / 0.72e2_dp - t103 *&
-           & t192 * t105 / 0.36e2_dp + t200 * t98 * t202 / 0.36e2_dp &
-           &- t128 * t37 / t201 / t38 / 0.81e2_dp
-        e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-             +0.5e1_dp / 0.81e2_dp * t128 * t124 - 0.5e1_dp /&
-           & 0.108e3_dp * t45 * t228 + t134 * t231 / 0.27e2_dp + t4 *&
-           & (-0.28e2_dp / 0.9e1_dp * t52 * t161 * my_ndrho -&
-           & 0.22e2_dp / 0.9e1_dp * t88 * t166 * my_ndrho - 0.4e1_dp &
-           &/ 0.3e1_dp * t14 * t94 * my_ndrho - 0.40e2_dp / 0.9e1_dp &
-           &* t173 * t215 - 0.4e1_dp * t176 * t215 - 0.40e2_dp /&
-           & 0.9e1_dp * t14 * t3 * my_ndrho * d + 0.14e2_dp /&
-           & 0.9e1_dp * t184 * t185 * my_ndrho + 0.14e2_dp / 0.9e1_dp&
-           & * t189 * t215) * t40 / 0.72e2_dp - t103 * t227 * t105 /&
-           & 0.54e2_dp + t200 * t123 * t202 / 0.108e3_dp
-        e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-              -0.5e1_dp / 0.216e3_dp * t45 * t246 + t4 * (0.20e2_dp /&
-           & 0.3e1_dp * t52 * t70 + 0.4e1_dp * t14 * t11 + 0.20e2_dp &
-           &/ 0.3e1_dp * t52 * t89 * d + 0.20e2_dp / 0.3e1_dp * t14 *&
-           & t69 * d + 0.14e2_dp / 0.3e1_dp * t88 * t89 + 0.14e2_dp /&
-           & 0.3e1_dp * t88 * t94 * t13 * d) * t40 / 0.72e2_dp - t103&
-           & * t245 * t105 / 0.108e3_dp
-     END IF
-  END IF
+           t44 = 0.1e1_dp / t1 / t5
+           t45 = a * t44
+           t48 = my_rho_1_3 * t5
+           t52 = b * c
+           t61 = t13 * cf
+           t62 = t61 * d
+           t69 = 0.1e1_dp / t1
+           t70 = t69 * t13
+           t77 = 0.1e1_dp / my_rho
+           t78 = t52 * t77
+           t80 = t13 * t22 * d
+           t87 = c ** 2
+           t88 = b * t87
+           t89 = t77 * t13
+           t93 = my_rho_1_3 * my_rho
+           t94 = 0.1e1_dp / t93
+           t95 = t88 * t94
+           t98 = -0.240e3_dp * t48 - 0.216e3_dp * t5 * d - 0.24e2_dp * t52&
+                & * t5 * t13 * cf - 0.240e3_dp * t14 * t48 * cf -&
+                & 0.24e2_dp * t52 * t2 * t62 - 0.216e3_dp * t14 * t5 * cf &
+                &* d + 0.10e2_dp / 0.3e1_dp * t52 * t70 * t22 + 0.2e1_dp *&
+                & t14 * t11 * t22 + 0.10e2_dp / 0.3e1_dp * t78 * t80 +&
+                & 0.10e2_dp / 0.3e1_dp * t14 * t69 * t22 * d + 0.7e1_dp /&
+                & 0.3e1_dp * t88 * t89 * t22 + 0.7e1_dp / 0.3e1_dp * t95 *&
+                & t80
+           t99 = t98 * t40
+           t102 = 0.1e1_dp / t48
+           t103 = a * t102
+           t105 = 0.1e1_dp / t39 / t38
+           t106 = t37 * t105
+           t112 = my_rho_1_3 * my_ndrho
+           t123 = 0.6e1_dp * t14 * t1 * my_ndrho + 0.20e2_dp * t14 * t112 &
+                &* d + 0.14e2_dp * t14 * t112 * c + 0.14e2_dp * t14 *&
+                & my_ndrho * c * d
+           t124 = t123 * t40
+
+           IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+              e_rho(ii) = e_rho(ii) &
+                   -0.5e1_dp / 0.216e3_dp * t45 * t41 + t4 * t99 / 0.72e2_dp&
+                   & - t103 * t106 / 0.108e3_dp
+              e_ndrho(ii) = e_ndrho(ii)&
+                   +t4 * t124 / 0.72e2_dp
+           END IF
+
+           t127 = 0.1e1_dp / t1 / t6
+           t128 = a * t127
+           t133 = 0.1e1_dp / t7
+           t134 = a * t133
+           t161 = t3 * t13
+           t165 = 0.1e1_dp / t5
+           t166 = t165 * t13
+           t173 = t52 * t165
+           t176 = t88 * t102
+           t184 = b * t87 * c
+           t185 = t102 * t13
+           t189 = t184 * t44
+           t192 = -0.560e3_dp * t93 - 0.432e3_dp * my_rho * d - 0.128e3_dp&
+                & * t52 * my_rho * t13 * cf - 0.8e1_dp * t88 * t1 * t13 *&
+                & cf - 0.560e3_dp * t14 * t93 * cf - 0.112e3_dp * t52 * t1&
+                & * t62 - 0.8e1_dp * t88 * my_rho_1_3 * t62 - 0.432e3_dp *&
+                & t14 * my_rho * cf * d - 0.14e2_dp / 0.9e1_dp * t52 *&
+                & t161 * t22 - 0.11e2_dp / 0.9e1_dp * t88 * t166 * t22 -&
+                & 0.2e1_dp / 0.3e1_dp * t14 * t94 * t22 - 0.20e2_dp /&
+                & 0.9e1_dp * t173 * t80 - 0.2e1_dp * t176 * t80 -&
+                & 0.20e2_dp / 0.9e1_dp * t14 * t3 * t22 * d + 0.7e1_dp /&
+                & 0.9e1_dp * t184 * t185 * t22 + 0.7e1_dp / 0.9e1_dp *&
+                & t189 * t80
+           t193 = t192 * t40
+           t196 = t98 * t105
+           t199 = 0.1e1_dp / t6
+           t200 = a * t199
+           t201 = t39 ** 2
+           t202 = 0.1e1_dp / t201
+           t203 = t37 * t202
+           t215 = t13 * my_ndrho * d
+           t227 = 0.20e2_dp / 0.3e1_dp * t52 * t70 * my_ndrho + 0.4e1_dp *&
+                & t14 * t11 * my_ndrho + 0.20e2_dp / 0.3e1_dp * t78 * t215&
+                & + 0.20e2_dp / 0.3e1_dp * t14 * t69 * my_ndrho * d +&
+                & 0.14e2_dp / 0.3e1_dp * t88 * t89 * my_ndrho + 0.14e2_dp &
+                &/ 0.3e1_dp * t95 * t215
+           t228 = t227 * t40
+           t231 = t123 * t105
+           t245 = 0.6e1_dp * t14 * t1 + 0.20e2_dp * t14 * my_rho_1_3 * d +&
+                & 0.14e2_dp * t14 * my_rho_1_3 * c + 0.14e2_dp * t14 * c *&
+                & d
+           t246 = t245 * t40
+
+           IF (grad_deriv>=2 .OR.grad_deriv==-2) THEN
+              e_rho_rho(ii) = e_rho_rho(ii)&
+                   +0.5e1_dp / 0.81e2_dp * t128 * t41 - 0.5e1_dp / 0.108e3_dp&
+                   & * t45 * t99 + t134 * t106 / 0.27e2_dp + t4 * t193 /&
+                   & 0.72e2_dp - t103 * t196 / 0.54e2_dp + t200 * t203 /&
+                   & 0.108e3_dp
+              e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+                   -0.5e1_dp / 0.216e3_dp * t45 * t124 + t4 * t228 /&
+                   & 0.72e2_dp - t103 * t231 / 0.108e3_dp
+              e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+                   +t4 * t246 / 0.72e2_dp
+           END IF
+
+           t248 = t5 ** 2
+           t265 = 0.1e1_dp / t248
+           t278 = t87 ** 2
+           t279 = b * t278
+           t332 = -0.432e3_dp * d - 0.2240e4_dp / 0.3e1_dp * my_rho_1_3 -&
+                & 0.74e2_dp / 0.27e2_dp * t184 * t127 * t80 + 0.100e3_dp /&
+                & 0.27e2_dp * t14 * t44 * t22 * d + 0.7e1_dp / 0.27e2_dp *&
+                & t279 * t127 * t13 * t22 - 0.8e1_dp / 0.3e1_dp * t184 *&
+                & t70 * cf - 0.2240e4_dp / 0.3e1_dp * t14 * my_rho_1_3 *&
+                & cf - 0.48e2_dp * t88 * t11 * t13 * cf - 0.944e3_dp /&
+                & 0.3e1_dp * t52 * t61 - 0.40e2_dp * t88 * t69 * t62 -&
+                & 0.656e3_dp / 0.3e1_dp * t52 * t11 * t62 + 0.7e1_dp /&
+                & 0.27e2_dp * t279 * t265 * t80 + 0.64e2_dp / 0.27e2_dp *&
+                & t52 * t44 * t13 * t22 - 0.8e1_dp / 0.3e1_dp * t184 * t77&
+                & * t62 - 0.432e3_dp * t14 * cf * d + 0.52e2_dp /&
+                & 0.27e2_dp * t88 * t199 * t13 * t22 - 0.20e2_dp /&
+                & 0.9e1_dp * t184 * t133 * t13 * t22 + 0.8e1_dp / 0.9e1_dp&
+                & * t14 * t102 * t22 + 0.100e3_dp / 0.27e2_dp * t52 * t199&
+                & * t80 + 0.106e3_dp / 0.27e2_dp * t88 * t133 * t80
+
+           IF (grad_deriv>=3 .OR. grad_deriv==-3) THEN
+              e_rho_rho_rho(ii) = e_rho_rho_rho(ii)&
+                   -0.55e2_dp / 0.243e3_dp * a / t1 / t248 * t41 + 0.5e1_dp &
+                   &/ 0.27e2_dp * t128 * t99 - 0.40e2_dp / 0.243e3_dp * a /&
+                   & my_rho_1_3 / t248 * t106 - 0.5e1_dp / 0.72e2_dp * t45 *&
+                   & t193 + t134 * t196 / 0.9e1_dp - 0.7e1_dp / 0.108e3_dp *&
+                   & a * t265 * t203 + t4 * t332 * t40 / 0.72e2_dp - t103 *&
+                   & t192 * t105 / 0.36e2_dp + t200 * t98 * t202 / 0.36e2_dp &
+                   &- t128 * t37 / t201 / t38 / 0.81e2_dp
+              e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
+                   +0.5e1_dp / 0.81e2_dp * t128 * t124 - 0.5e1_dp /&
+                   & 0.108e3_dp * t45 * t228 + t134 * t231 / 0.27e2_dp + t4 *&
+                   & (-0.28e2_dp / 0.9e1_dp * t52 * t161 * my_ndrho -&
+                   & 0.22e2_dp / 0.9e1_dp * t88 * t166 * my_ndrho - 0.4e1_dp &
+                   &/ 0.3e1_dp * t14 * t94 * my_ndrho - 0.40e2_dp / 0.9e1_dp &
+                   &* t173 * t215 - 0.4e1_dp * t176 * t215 - 0.40e2_dp /&
+                   & 0.9e1_dp * t14 * t3 * my_ndrho * d + 0.14e2_dp /&
+                   & 0.9e1_dp * t184 * t185 * my_ndrho + 0.14e2_dp / 0.9e1_dp&
+                   & * t189 * t215) * t40 / 0.72e2_dp - t103 * t227 * t105 /&
+                   & 0.54e2_dp + t200 * t123 * t202 / 0.108e3_dp
+              e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
+                   -0.5e1_dp / 0.216e3_dp * t45 * t246 + t4 * (0.20e2_dp /&
+                   & 0.3e1_dp * t52 * t70 + 0.4e1_dp * t14 * t11 + 0.20e2_dp &
+                   &/ 0.3e1_dp * t52 * t89 * d + 0.20e2_dp / 0.3e1_dp * t14 *&
+                   & t69 * d + 0.14e2_dp / 0.3e1_dp * t88 * t89 + 0.14e2_dp /&
+                   & 0.3e1_dp * t88 * t94 * t13 * d) * t40 / 0.72e2_dp - t103&
+                   & * t245 * t105 / 0.108e3_dp
+           END IF
+        END IF
 
 !FM      t1 = my_rho_1_3 ** 2
 !FM      t2 = t1 * my_rho
@@ -763,8 +839,8 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 !FM           & * t245 * t105 / 0.108e3_dp
 !FM     END IF
 
-  END DO
-
+     END DO
+  END SELECT
 END SUBROUTINE lyp_lda_calc
 !***************************************************************************
 
@@ -809,7 +885,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'lyp_lsd_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: npoints, stat, handle
+    INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
@@ -819,7 +895,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
       e_ra_rb, e_rb, e_rb_rb, norm_drho, norm_drhoa, norm_drhob, rhoa, rhob
     TYPE(xc_derivative_type), POINTER        :: deriv
 
-    call timeset(routineN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(deriv, bo)
 
