@@ -49,7 +49,8 @@ MODULE qs_energy
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_energy"
 
-  PUBLIC :: qs_energies
+  PUBLIC :: qs_energies,&
+            qs_energies_update
 
 ! *****************************************************************************
 
@@ -65,9 +66,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)          :: ks_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -130,9 +131,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)          :: ks_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -166,10 +167,6 @@ CONTAINS
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.FALSE.)
-
-!   *** Updates rho structure ***
-
-    CALL qs_env_rebuild_rho(qs_env=qs_env)
 
 !   *** Perform a SCF run ***
 

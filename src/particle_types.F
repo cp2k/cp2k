@@ -221,7 +221,9 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    INTEGER                           :: iatom,icgf,isgf,istat,natom,ncgf,nsgf
+
+    REAL(wp) :: mass
+    INTEGER  :: iatom,icgf,isgf,istat,kind_number,natom,ncgf,nsgf
 
 !   ---------------------------------------------------------------------------
 
@@ -231,7 +233,14 @@ CONTAINS
       isgf = 0
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             orb_basis_set=orb_basis_set)
+                             orb_basis_set=orb_basis_set,&
+                             kind_number=kind_number,&
+                             mass=mass)
+        ALLOCATE (particle_set(iatom)%prop,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"particle_set(iatom)%prop",0)
+        particle_set(iatom)%prop%charge = 0.0_wp
+        particle_set(iatom)%prop%mass = mass
+        particle_set(iatom)%prop%ptype = kind_number
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=ncgf,nsgf=nsgf)
         particle_set(iatom)%first_cgf = icgf + 1
         icgf = icgf + ncgf
@@ -570,7 +579,7 @@ CONTAINS
                 rab_image(:) = rb_image(:) - ra(:)
                 dab_image = SQRT(rab_image(1)*rab_image(1) +&
                                  rab_image(2)*rab_image(2) +&
-                               rab_image(3)*rab_image(3))
+                                 rab_image(3)*rab_image(3))
                 IF (dab_image < dab) dab = dab_image
               END DO
             END DO

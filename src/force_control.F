@@ -30,6 +30,7 @@ MODULE force_control
   USE kinds, ONLY : dbl
   USE qs_build_ks_matrix, ONLY : qs_ks_env_type
   USE qs_environment_types, ONLY : qs_environment_type
+  USE qs_force, ONLY: qs_forces_update
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
@@ -79,6 +80,7 @@ SUBROUTINE force ( globenv, box_change )
   INTEGER :: beads, i
   
 !------------------------------------------------------------------------------
+
   SELECT CASE ( in_use )
     CASE ( FIST )
       SELECT CASE ( fist_env % pimd )
@@ -100,6 +102,7 @@ SUBROUTINE force ( globenv, box_change )
                                     box_change, globenv )
       END SELECT 
     CASE ( QUICKSTEP )
+      CALL qs_forces_update(qs_env,globenv,ks_env)
     CASE ( POL )
     CASE ( KIM_GORDON )
       CALL kg_force_control ( kg_env, globenv )

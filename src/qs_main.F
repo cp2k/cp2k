@@ -29,7 +29,7 @@ MODULE qs_main
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: wp => dp
+  USE kinds,                           ONLY: dp
   USE qs_md,                           ONLY: qs_mol_dyn
   USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
   USE qs_energy,                       ONLY: qs_energies
@@ -110,7 +110,7 @@ CONTAINS
 
     CALL qs_finalize(qs_env,globenv)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 

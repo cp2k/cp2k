@@ -96,7 +96,7 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 !MK
   TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
 
-  INTEGER :: ilist,inode,nlist,nnode
+  INTEGER :: ilist,nlist,nnode
 
   REAL(dbl), DIMENSION(3) :: dra,drb,rab_last_update
 

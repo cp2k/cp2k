@@ -28,12 +28,14 @@ MODULE qs_force
                                              wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
+  USE particle_types,                  ONLY: particle_type
   USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
                                              qs_ks_env_type,&
                                              qs_ks_update_qs_env
   USE qs_core_energies,                ONLY: calculate_ecore_overlap
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_energy,                       ONLY: qs_energies
+  USE qs_energy,                       ONLY: qs_energies,&
+                                             qs_energies_update
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: init_qs_force,&
@@ -64,7 +66,8 @@ MODULE qs_force
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_forces
+  PUBLIC :: qs_forces,&
+            qs_forces_update
 
 ! *****************************************************************************
 
@@ -80,9 +83,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(INOUT) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)     :: qs_env
-    TYPE(qs_ks_env_type), INTENT(INOUT)          :: ks_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -92,16 +95,19 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(mo_set_type), POINTER       :: mo_set
-    TYPE(real_matrix_type), POINTER  :: w
+    TYPE(mo_set_type), POINTER      :: mo_set
+    TYPE(qs_rho_type), POINTER      :: rho
+    TYPE(real_matrix_type), POINTER :: w
 
-    INTEGER :: handle,ikind,istat,output_unit
+    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
+    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
-    type(qs_rho_type), pointer                      :: rho
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
 
 !   ---------------------------------------------------------------------------
 
@@ -113,11 +119,22 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
                     s=s,&
                     c=c,&
                     k=k,&
                     rho=rho,&
                     force=force)
+
+    natom = SIZE(particle_set)
+
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    ALLOCATE (kind_of(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
+                             kind_of=kind_of)
 
     p => rho%rho_ao
 
@@ -169,15 +186,162 @@ CONTAINS
                                 force(ikind)%rho_elec(:,:)
     END DO
 
+    DO iatom=1,natom
+      ikind = kind_of(iatom)
+      i = atom_of_kind(iatom)
+      particle_set(iatom)%f(1:3) = force(ikind)%total(1:3,i)
+    END DO
+
     CALL write_forces(force,atomic_kind_set,globenv)
 
     CALL deallocate_matrix(w)
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+
+    DEALLOCATE (kind_of,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
 
     CALL timestop(0.0_wp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
   END SUBROUTINE qs_forces
+
+! *****************************************************************************
+
+  SUBROUTINE qs_forces_update(qs_env,globenv,ks_env)
+
+!   Purpose: Calculate the Quickstep forces.
+
+!   History: - Creation (29.10.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_forces"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    TYPE(mo_set_type), POINTER      :: mo_set
+    TYPE(qs_rho_type), POINTER      :: rho
+    TYPE(real_matrix_type), POINTER :: w
+
+    INTEGER :: handle,i,iatom,ikind,istat,natom,output_unit
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
+    TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
+
+!   ---------------------------------------------------------------------------
+
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
+
+    CALL qs_energies_update(qs_env,globenv,ks_env)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    particle_set=particle_set,&
+                    s=s,&
+                    c=c,&
+                    k=k,&
+                    rho=rho,&
+                    force=force)
+
+    natom = SIZE(particle_set)
+
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    ALLOCATE (kind_of(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind,&
+                             kind_of=kind_of)
+
+    p => rho%rho_ao
+
+    CALL init_qs_force(force)
+
+!   *** Force component from the core charge distribution overlap ***
+
+    CALL calculate_ecore_overlap(qs_env=qs_env,&
+                                 globenv=globenv,&
+                                 calculate_forces=.TRUE.)
+
+!   *** Load MO set (QS wavefunction) ***
+
+    mo_set => c(1)%mo_set
+
+    NULLIFY (w)
+    CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
+
+    CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
+    IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
+      CALL write_sparse_matrix(w,4,6,qs_env,globenv)
+    END IF
+
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.TRUE.,&
+                                       p=p(1)%matrix,&
+                                       w=w)
+    CALL qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.)
+    CALL qs_ks_update_qs_env(ks_env=ks_env,&
+                             qs_env=qs_env,&
+                             global_env=globenv,&
+                             rebuild=.TRUE.,&
+                             calculate_forces=.TRUE.)
+
+    DO ikind=1,SIZE(force)
+      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
+      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
+      CALL mp_sum(force(ikind)%kinetic,globenv%group)
+      CALL mp_sum(force(ikind)%overlap,globenv%group)
+      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
+      force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
+                                force(ikind)%core_overlap(:,:) +&
+                                force(ikind)%gth_ppl(:,:) +&
+                                force(ikind)%gth_ppnl(:,:) +&
+                                force(ikind)%kinetic(:,:) +&
+                                force(ikind)%overlap(:,:) +&
+                                force(ikind)%rho_core(:,:) +&
+                                force(ikind)%rho_elec(:,:)
+    END DO
+
+    DO iatom=1,natom
+      ikind = kind_of(iatom)
+      i = atom_of_kind(iatom)
+      particle_set(iatom)%f(1:3) = force(ikind)%total(1:3,i)
+    END DO
+
+    CALL write_forces(force,atomic_kind_set,globenv)
+
+    CALL deallocate_matrix(w)
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+
+    DEALLOCATE (kind_of,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
+
+    CALL timestop(0.0_wp,handle)
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
+  END SUBROUTINE qs_forces_update
 
 ! *****************************************************************************
 
@@ -202,8 +366,9 @@ CONTAINS
 
     INTEGER :: i,iatom,ikind,istat,natom,output_unit
 
+    REAL(wp), DIMENSION(3) :: grand_total
+
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,kind_of
-    REAL(wp) :: grand_total(3)
 
 !   ---------------------------------------------------------------------------
 
@@ -216,7 +381,6 @@ CONTAINS
                                 "and cannot be printed")
     END IF
 
-    output_unit = globenv%scr
     output_unit = globenv%scr
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -233,7 +397,8 @@ CONTAINS
            FMT="(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T43,A1,2(13X,A1))")&
       "FORCES","Atom","Kind","Component","X","Y","Z"
 
-    grand_total(:)=0.0_wp
+    grand_total(:) = 0.0_wp
+
     DO iatom=1,natom
       ikind = kind_of(iatom)
       i = atom_of_kind(iatom)
@@ -246,10 +411,17 @@ CONTAINS
         iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
         iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
         iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
-        grand_total(1:3)=grand_total(1:3)+qs_force(ikind)%total(1:3,i)
+        grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
     END DO
-    WRITE(UNIT=output_unit,FMT="(/,(T2,A,T34,3F14.6))") "Sum of total", &
-        grand_total(1:3)
+
+    WRITE (UNIT=output_unit,FMT="(/,(T2,A,T34,3F14.6))")&
+      "Sum of total",grand_total(1:3)
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+
+    DEALLOCATE (kind_of,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
 
   END SUBROUTINE write_forces
 
