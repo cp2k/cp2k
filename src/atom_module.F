@@ -40,9 +40,9 @@ MODULE atom_module
   USE header, ONLY : atom_header
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero, pi
-  USE qs_error_handling, ONLY : qs_assert, qs_error_type, qs_init, qs_dealloc_ref, &
-       qs_note_level, qs_warning_level, qs_failure_level, qs_fatal_level
-  USE qs_log_handling, ONLY : qs_init_default_loggers, qs_to_string
+  USE cp_error_handling, ONLY : cp_assert, cp_error_type, cp_init, cp_dealloc_ref, &
+       cp_note_level, cp_warning_level, cp_failure_level, cp_fatal_level
+  USE cp_log_handling, ONLY : cp_init_default_loggers, cp_to_string
   USE radial_util, ONLY : radial_integrate
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
@@ -86,7 +86,7 @@ CONTAINS
 
     ! Locals
     TYPE (AM_ATOM_INFO) :: atom
-    TYPE (QS_ERROR_TYPE) :: error
+    TYPE (CP_ERROR_TYPE) :: error
     TYPE (AM_PARAMETERS_INFO) :: parameters
 
     INTEGER :: handle ! for the timer
@@ -99,14 +99,14 @@ CONTAINS
 
     CALL am_init(parameters, globenv)
     CALL am_init(atom, globenv)
-    CALL qs_init_default_loggers
-    CALL qs_init(error)
+    CALL cp_init_default_loggers
+    CALL cp_init(error)
     
     CALL atom_do_calc ( atom, parameters )
 
     CALL timestop ( zero, handle )
 
-    CALL qs_dealloc_ref ( error )
+    CALL cp_dealloc_ref ( error )
     CALL am_dealloc_ref ( atom )
     CALL am_dealloc_ref ( parameters )
 
