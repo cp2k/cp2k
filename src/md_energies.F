@@ -176,9 +176,9 @@ END SUBROUTINE set_energies
     INTEGER                                  :: handle, istat, isubsys, iw, delta_t
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
-    REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
+    REAL(KIND=dp)                            :: cons, ekin, &
                                                 ekin_coefs, epot, rcons, t, &
-                                                temp, temp_coefs, x, temp_baro, &
+                                                temp, temp_coefs, temp_baro, &
                                                 hugoniot
     REAL(KIND=dp), POINTER                   :: constant, used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -292,8 +292,8 @@ END SUBROUTINE set_energies
                               "BACKSPACE command failed for file <"//&
                               TRIM(ener_file_name)//">")
           END IF
-          READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old,x,x,x, &
-                                             e_old,e_diff
+          READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old
+                                             
           IF (istat /= 0) THEN
             CALL print_warning(routine_name,&
                                "Could not read the last line of the file <"//&
@@ -301,22 +301,16 @@ END SUBROUTINE set_energies
                                "and time are set to zero.")
             itimes_old = 0
             t_old = 0.0_dp
-            e_old = 0.0_dp
-            e_diff = 0.0_dp
           END IF
         ELSE
           itimes_old = 0
           t_old = 0.0_dp
-          e_old = 0.0_dp
-          e_diff = 0.0_dp
         END IF
         CALL open_md_file(crd_file_name,crd,replace_file)
         CALL open_md_file(vel_file_name,vel,replace_file)
       END IF
       CALL mp_bcast(itimes_old,source,group)
       CALL mp_bcast(t_old,source,group)
-      CALL mp_bcast(e_old,source,group)
-      CALL mp_bcast(e_diff,source,group)
       itimes = itimes_old
       t = t_old
       constant = cons
