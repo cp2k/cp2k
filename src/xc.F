@@ -376,7 +376,7 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER :: spline_coeff_g
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
-    REAL ( kind=wp ) :: eps_rho,alpha
+    REAL ( kind=wp ) :: eps_rho,alpha, exc_pippo
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -811,6 +811,7 @@ CONTAINS
         ENDDO
         CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
     ENDIF
+
     IF (dft_control%smooth_gradient) THEN
        DO ispin=1,nspins
           CALL pw_transfer(spline_coeff_g(ispin)%pw,rho_r(ispin)%pw)
@@ -821,8 +822,32 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    CALL timestop(0.0_wp,handle)
-
+    IF (.TRUE..OR.&
+         BTEST(dft_control%smooth,3).OR.BTEST(dft_control%smooth,4).OR.&
+         BTEST(dft_control%smooth,5).OR.BTEST(dft_control%smooth,6)) THEN
+       ! recalculate e_xc
+        exc_pippo=0.0_wp
+        DO ispin=1,nspins
+           !$omp parallel do private(k,j,i,exc_pippo)
+           DO k = bo(1,3), bo(2,3)
+              DO j = bo(1,2), bo(2,2)
+                 DO i = bo(1,1), bo(2,1)
+                    exc_pippo=exc_pippo+&
+                         rho_r(ispin)%pw%cr3d(i,j,k)*vxc(ispin)%pw%cr3d(i,j,k)
+                 END DO
+              END DO
+           END DO
+        ENDDO
+        exc_pippo=exc_pippo*rho_r(1)%pw%pw_grid%dvol
+        PRINT *,"old e_xc=",exc,"new e_xc=",exc_pippo," diff=",exc_pippo-exc
+        IF (BTEST(dft_control%smooth,8)) THEN
+           PRINT *,"using new e_xc"
+           exc=exc_pippo
+        END IF
+     END IF
+     
+     CALL timestop(0.0_wp,handle)
+     
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
 
