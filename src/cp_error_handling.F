@@ -21,9 +21,13 @@
 !!     codes.
 !!     Inspired from the nag nl90 library.
 !!     Some help on this is also available in the high level dev notes on pao.
-!!     There are the following error levels: 0 note, 1 warning, 2 failure,
-!!     3 fatal. You should use the constants defined here, not directly 
-!!     the numbers
+!!
+!!     The following error levels are defined:
+!!     0 - note    : CP_NOTE_LEVEL
+!!     1 - warning : CP_WARNING_LEVEL
+!!     2 - failure : CP_FAILURE_LEVEL
+!!     3 - fatal   : CP_FATAL_LEVEL
+!!     You shouldn't use the numbers but the constants defined in 
 !!     @see cp_log_handling
 !!
 !!   AUTHOR
@@ -36,15 +40,15 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_error_handling
-  USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
+  USE cp_log_handling,                 ONLY: CP_FAILURE_LEVEL,&
+                                             CP_FATAL_LEVEL,&
                                              cp_get_default_logger,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
-                                             cp_note_level,&
+                                             CP_NOTE_LEVEL,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             CP_WARNING_LEVEL
   USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   PRIVATE
@@ -167,7 +171,7 @@ CONTAINS
 !!   FUNCTION
 !!    Initializes the error structure error.
 !!    The optional arguments initialize the values in the structure.
-!!    Default values: stop_level=2, logger=null (i.e. default logger
+!!    Default values: stop_level=2, logger=null (i.e. default logger)
 !!
 !!   NOTES
 !!     -
@@ -192,6 +196,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_error_init(error, stop_level, print_level, logger, template_error, error_nr, level)
+
+    IMPLICIT NONE
+
     TYPE(cp_error_type), INTENT(out) :: error
     INTEGER, OPTIONAL, INTENT(in) :: stop_level, print_level, &
          error_nr, level
@@ -201,9 +208,9 @@ CONTAINS
     error%initialized=.TRUE.
     error%error_nr=0
     error%level=0
-    error%print_level=0
-    error%stop_level=2
-    error%print_level=0
+    error%print_level=CP_NOTE_LEVEL
+    error%stop_level=CP_FAILURE_LEVEL
+    error%print_level=CP_NOTE_LEVEL
     NULLIFY(error%logger)
     IF (PRESENT(template_error)) THEN
        error%logger => template_error%logger
@@ -258,7 +265,7 @@ CONTAINS
 
     IF (PRESENT(error)) THEN
        IF (.NOT. error%initialized) THEN
-          CALL cp_log(cp_get_default_logger(), cp_failure_level,  &
+          CALL cp_log(cp_get_default_logger(), CP_FAILURE_LEVEL,  &
                'cp_error_handling:cp_error_reset:1', &
                'error structure not initialized')
           CALL cp_error_common_stop('cp_error_reset',&
@@ -339,9 +346,9 @@ CONTAINS
 !!     Deallocates the memory allocated by the error
 !!
 !!   NOTES
-!!     actually the error allocates no memeory, and it is better if it 
+!!     actually the error allocates no memory, and it is better if it 
 !!     stays so even in the future, but I have written this routine 
-!!     to keep the consistence of the generic types
+!!     to remain consistent with the generic types
 !!
 !!   INPUTS
 !!     err_to_free: the error that gets deallocated
