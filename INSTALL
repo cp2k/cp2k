@@ -9,7 +9,8 @@ How to compile CP2K code
     put the code in ~/cp2k/ or equivalent
 
  2a) gnu make should be on your system (gmake or make on linux), 
-     go to http://www.gnu.org/software/make/make.html to get it
+     go to http://www.gnu.org/software/make/make.html 
+     download from http://ftp.gnu.org/pub/gnu/make/
 
  2b) a f90 compiler, BLAS and LAPACK should be installed
      http://www.netlib.org/blas/
