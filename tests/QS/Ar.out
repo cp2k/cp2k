@@ -1,12 +1,12 @@
- 
-  **** **** ******  **  PROGRAM STARTED AT              Tue Apr 16 18:03:51 2002
- ***** ** ***  *** **   PROGRAM STARTED ON                                lilith
- **    ****   ******    PROGRAM STARTED BY                                 krack
- ***** **    ** ** **   PROGRAM PROCESS ID                                 99636
-  **** **  *******  **  PROGRAM STARTED IN   /gpfs/home/krack/work/cp2k/tests/QS
- 
+
+  **** **** ******  **  PROGRAM STARTED AT              Thu May 16 10:17:24 2002
+ ***** ** ***  *** **   PROGRAM STARTED ON                       muralto.cscs.ch
+ **    ****   ******    PROGRAM STARTED BY                                 fawzi
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 27562
+  **** **  *******  **  PROGRAM STARTED IN             /home/fawzi/cp2k/tests/QS
+
  CP2K| Program name                                                           QS
- CP2K| Input file name                                                    Ar.inp
+ CP2K| Input file name                          /home/fawzi/cp2k/tests/QS/Ar.inp
  CP2K| Project name                                                      project
  CP2K| Default FFT library                                                 FFTSG
  CP2K| Default basis set file                                          BASIS_SET
@@ -15,7 +15,7 @@
  CP2K| Global print level                                                     10
  CP2K| Total number of processors                                              1
  CP2K| This output from processor                                              0
- 
+
  ******************************************************************************
  ******************************************************************************
  **                                                                          **
@@ -213,15 +213,19 @@
 
  SCF PARAMETERS
 
-  density guess: ATOMIC
-  max_scf:         30
-  nrebuild:         1
-  eps_scf:       1.00E-06
-  eps_eigval:    1.00E-05
-  p_mix:         0.40
-  work_syevx:    1.00
-  max_diis:         4
-  eps_diis:      1.00E-01
+  Density guess: ATOMIC
+
+  charge:                0
+  nrebuild:              1
+  max_scf:              30
+  max_diis:              4
+  eps_scf:            1.00E-06
+  eps_diis:           1.00E-01
+  eps_eigval:         1.00E-05
+  p_mix:              0.40
+  work_syevx:         1.00
+  level_shift [a.u.]: 0.00
+  smear [a.u.]:       0.00
 
 
  SUBCELL GRID FOR THE SAB_ORB NEIGHBOR LISTS
@@ -329,38 +333,38 @@
 
   Core Hamiltonian energy:                                        10.5602658593
   Hartree energy:                                                 17.0795472553
-  Exchange-correlation energy:                                    -3.5547349466
-     1  Mixing  0.40             8.72          0.0000136867      -21.0500885159
+  Exchange-correlation energy:                                    -3.5547349467
+     1  Mixing  0.40             7.80          0.0000136863      -21.0500885159
 
-  Core Hamiltonian energy:                                        10.5602635443
-  Hartree energy:                                                 17.0795491492
-  Exchange-correlation energy:                                    -3.5547345024
-     2  Mixing  0.40             9.44          0.0000076849      -21.0500884926
+  Core Hamiltonian energy:                                        10.5602635468
+  Hartree energy:                                                 17.0795491341
+  Exchange-correlation energy:                                    -3.5547345130
+     2  Mixing  0.40             7.81          0.0000076931      -21.0500885159
 
-  Core Hamiltonian energy:                                        10.5602629574
-  Hartree energy:                                                 17.0795496218
-  Exchange-correlation energy:                                    -3.5547343785
-     3  DIIS    0.73E-07         9.48          0.0000045395      -21.0500884831
+  Core Hamiltonian energy:                                        10.5602629481
+  Hartree energy:                                                 17.0795496304
+  Exchange-correlation energy:                                    -3.5547343761
+     3  DIIS    0.78E-07         7.74          0.0000045389      -21.0500884814
 
-  Core Hamiltonian energy:                                        10.5602623540
-  Hartree energy:                                                 17.0795500773
-  Exchange-correlation energy:                                    -3.5547342560
-     4  DIIS    0.11E-06         9.47          0.0000001201      -21.0500885085
+  Core Hamiltonian energy:                                        10.5602623486
+  Hartree energy:                                                 17.0795500817
+  Exchange-correlation energy:                                    -3.5547342548
+     4  DIIS    0.11E-06         8.06          0.0000001225      -21.0500885083
 
   *** SCF run converged ***
 
 
-  Total electronic density (r-space):         -7.9999996757        0.0000003243
+  Total electronic density (r-space):         -7.9999996752        0.0000003248
   Total core charge density (r-space):         7.9999999989       -0.0000000011
-  Total charge density (r-space):                                  0.0000003231
-  Total charge density (g-space):                                  0.0000003231
+  Total charge density (r-space):                                  0.0000003237
+  Total charge density (g-space):                                  0.0000003237
 
   Overlap energy of the core charge distribution:                  0.0000000000
   Self energy of the core charge distribution:                   -45.1351666838
-  Core Hamiltonian energy:                                        10.5602623540
-  Hartree energy:                                                 17.0795500773
-  Exchange-correlation energy:                                    -3.5547342560
-  Total energy:                                                  -21.0500885085
+  Core Hamiltonian energy:                                        10.5602623486
+  Hartree energy:                                                 17.0795500817
+  Exchange-correlation energy:                                    -3.5547342548
+  Total energy:                                                  -21.0500885083
 
 
  MO EIGENVALUES AND MO OCCUPATION NUMBERS
@@ -406,28 +410,28 @@
  -                                                                             -
  -------------------------------------------------------------------------------
  SUBROUTINE                        CALLS  CPU TIME T  PERFORMANCE   ELAPSED TIME
- CP2K                                  1     40.45 I       ---            42.22
- Quickstep                             1     40.45 I       ---            42.22
- scf                                   1     40.38 I       ---            42.14
- build_kohn_sham_matrix                4     37.11 I       ---            38.59
- fft_wrap_pw1pw2                      44     30.76 I       ---            31.64
- calculate_rho_elec                    4     13.83 I       ---            14.88
- integrate_v_rspace                    4      7.99 I       ---             8.20
- init_grid                             1      2.97 I       ---             3.17
- PW_SCATTER                           20      2.86 I   1.8 Mcopy           2.86
- calculate_xc_potential                4      2.71 I       ---             2.71
- PW_GATHER                            24      1.30 I   5.5 Mcopy           1.46
- PW_COPY                              36      0.75 I  28.5 Mcopy           0.94
- HARTREE                               4      0.62 I       ---             0.68
- PW_ZERO                              20      0.51 I  39.1 Mzero           0.72
- calculate_rho_core                    4      0.44 I       ---             0.44
- init_cube_info                        4      0.29 I       ---             0.37
- PW_ADD                               12      0.17 I  36.1 Mflops          0.17
+ CP2K                                  1     34.58 I       ---            39.37
+ Quickstep                             1     34.58 I       ---            39.37
+ scf                                   1     34.55 I       ---            39.33
+ build_kohn_sham_matrix                4     31.41 I       ---            36.12
+ fft_wrap_pw1pw2                      44     24.77 I       ---            28.42
+ calculate_rho_elec                    4     12.13 I       ---            14.08
+ integrate_v_rspace                    4      7.42 I       ---             8.49
+ init_grid                             1      2.90 I       ---             2.95
+ calculate_xc_potential                4      2.03 I       ---             2.22
+ PW_GATHER                            24      1.65 I   4.4 Mcopy           1.69
+ PW_SCATTER                           20      1.63 I   3.2 Mcopy           2.03
+ PW_COPY                              36      1.13 I  18.9 Mcopy           1.48
+ PW_ZERO                              20      0.57 I  35.0 Mzero           0.64
+ HARTREE                               4      0.52 I       ---             0.69
+ PW_ADD                               12      0.35 I  17.5 Mflops          0.51
+ init_cube_info                        4      0.24 I       ---             0.24
+ calculate_rho_core                    4      0.13 I       ---             0.13
  -------------------------------------------------------------------------------
 
 
-  **** **** ******  **  PROGRAM ENDED AT                Tue Apr 16 18:05:13 2002
- ***** ** ***  *** **   PROGRAM RAN ON                                    lilith
- **    ****   ******    PROGRAM RAN BY                                     krack
- ***** **    ** ** **   PROGRAM PROCESS ID                                 99636
-  **** **  *******  **  PROGRAM RAN IN       /gpfs/home/krack/work/cp2k/tests/QS
+  **** **** ******  **  PROGRAM ENDED AT                Thu May 16 10:18:16 2002
+ ***** ** ***  *** **   PROGRAM RAN ON                           muralto.cscs.ch
+ **    ****   ******    PROGRAM RAN BY                                     fawzi
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 27562
+  **** **  *******  **  PROGRAM RAN IN                 /home/fawzi/cp2k/tests/QS
