@@ -121,7 +121,6 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
      iatomtype = pnode ( iat ) % p % prop % ptype
      i = pnode ( iat ) % p % iatom
      ri = pnode ( iat ) % p % r
-!
 ! now do neighbors
      current_neighbor => pnode ( iat ) % nl
      DO j = 1, pnode ( iat ) % nneighbor
@@ -132,27 +131,31 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 ! apply periodic boundary conditions; the following code is the inline version
 ! of the general function pbc
 !
-        s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
-        s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
-        s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-        IF ( n_images ( iatomtype, jatomtype ) == 0 ) THEN
-           IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
-              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
-           END IF
-           IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
-              s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
-           END IF
-           IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
-              s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
-           END IF
-           rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-           rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-           rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
-        END IF
+        s ( 1 ) = h_inv ( 1, 1 ) * rij ( 1 ) + h_inv ( 1, 2 ) * rij ( 2 ) &
+                + h_inv ( 1, 3 ) * rij ( 3 )
+        s ( 2 ) = h_inv ( 2, 1 ) * rij ( 1 ) + h_inv ( 2, 2 ) * rij ( 2 ) &
+                + h_inv ( 2, 3 ) * rij ( 3 )
+        s ( 3 ) = h_inv ( 3, 1 ) * rij ( 1 ) + h_inv ( 3, 2 ) * rij ( 2 ) & 
+                + h_inv ( 3, 3 ) * rij ( 3 )
+        IF ( MAXVAL ( n_images ) == 0 ) THEN
+          IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
+             s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
+          END IF
+          IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
+             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
+          END IF
+          IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
+             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
+          END IF
+        ENDIF
+        rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
+        rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
+        rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
 
         rijsq = rij(1) *rij(1) + rij(2) * rij(2) + rij(3) * rij(3)
         flops = flops + 41.0_dbl
-        IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
+        IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) &
+           .AND. MAXVAL ( n_images ) == 0 ) THEN
            CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, energy, &
                 fscalar )
 !
@@ -226,14 +229,14 @@ SUBROUTINE find_image ( s, perd, vec, hmat, rijsq, rij )
 
 !------------------------------------------------------------------------------
 
-  strans(1) = s(1) + perd(1)*vec(1)
-  strans(2) = s(2) + perd(2)*vec(2)
-  strans(3) = s(3) + perd(3)*vec(3)
+  strans ( 1 ) = s ( 1 ) + perd ( 1 ) * vec ( 1 )
+  strans ( 2 ) = s ( 2 ) + perd ( 2 ) * vec ( 2 )
+  strans ( 3 ) = s ( 3 ) + perd ( 3 ) * vec ( 3 )
   rij(1) = hmat(1,1)*strans(1) + hmat(1,2)*strans(2) + hmat(1,3)*strans(3)
   rij(2) = hmat(2,1)*strans(1) + hmat(2,2)*strans(2) + hmat(2,3)*strans(3)
   rij(3) = hmat(3,1)*strans(1) + hmat(3,2)*strans(2) + hmat(3,3)*strans(3)
 
-  rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
+  rijsq = rij ( 1 ) * rij ( 1 ) + rij ( 2 ) * rij ( 2 ) + rij ( 3 ) * rij ( 3 )
 
 END SUBROUTINE find_image
 
