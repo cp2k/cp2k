@@ -76,6 +76,14 @@ SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr)
   CALL sp(env_id,new_pos,n_el,ierr)
 END SUBROUTINE cp_set_pos
 
+SUBROUTINE cp_get_natom(env_id, natom, ierr)
+  USE kinds, only: dp
+  USE f77_interface, only: gna => get_natom
+  INTEGER :: natom, env_id, ierr
+
+  CALL gna(env_id,natom,ierr)
+END SUBROUTINE cp_get_natom
+
 SUBROUTINE cp_get_pos(env_id, pos, n_el, ierr)
   USE kinds, only: dp
   USE f77_interface, only: gp => get_pos

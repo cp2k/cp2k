@@ -12,7 +12,10 @@
 !!     interface to use cp2k as library
 !!
 !!   NOTES
-!!     -
+!!     useful additions for the future would be:
+!!     - string(path) based set/get of simple values (to change the new
+!!       input during the run and extract more data (energy types for example).
+!!     - set/get of a subset of atoms
 !!
 !!   AUTHOR
 !!     fawzi & Johanna
@@ -128,7 +131,7 @@ MODULE f77_interface
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
        get_force, calc_energy_force, run_input, get_energy, &
-       calc_energy, calc_force, check_input
+       calc_energy, calc_force, check_input, get_natom
   !,set_force, set_vel, get_vel 
   !!***
   !****************************************************************************
@@ -790,6 +793,66 @@ END SUBROUTINE f_env_rm_defaults
     END IF
   END SUBROUTINE destroy_force_env
   !***************************************************************************
+
+  !!****f* f77_interface/get_natom [1.0] *
+  !!
+  !!   NAME
+  !!     get_natom
+  !!
+  !!   FUNCTION
+  !!     returns the number of atoms in the given force env
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - new_pos: the array with the new positions
+  !!     - n_el: number of positions (3*natom) just to check
+  !!     - env_id: id of the force_env
+  !!     - ierr: will return a number different from 0 if there was an error
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!*** *********************************************************************
+  SUBROUTINE get_natom(env_id, n_atom, ierr)
+    INTEGER, INTENT(in)                      :: env_id
+    INTEGER, INTENT(out)                     :: n_atom,ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = "get_natom", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: env_pos, idir, ii, ip, isub
+    logical                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), pointer                  :: subsys
+    TYPE(particle_list_type), pointer        :: particles
+    TYPE(f_env_type), pointer                :: f_env
+
+    failure=.false.
+
+    nullify(f_env)
+    CALL f_env_add_defaults(env_id,f_env,error,failure)
+    n_atom=0
+    IF (.not.failure) THEN
+       nullify(subsys)
+       CALL force_env_get(f_env%force_env,&
+            subsys=subsys,error=error)
+       CALL cp_error_check(error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          DO isub=1,SIZE(subsys)
+             particles => subsys(isub)%subsys%particles
+             n_atom=n_atom+particles%n_els
+          END DO
+       END IF
+    END IF
+    CALL f_env_rm_defaults(f_env,error,ierr)
+  END SUBROUTINE get_natom
+  !****************************************************************************
 
   !!****f* f77_interface/set_pos [1.0] *
   !!
