@@ -831,6 +831,7 @@ END SUBROUTINE nhc_particle_setup
   TYPE ( molecule_kind_type ), POINTER :: molecule_kind
 
   num_massive_atm_local = 0
+  NULLIFY(local_atm_list)
   CALL reallocate(local_atm_list,1,num_massive_atm_local)
 
   nkind = SIZE ( molecule_kind_set )
