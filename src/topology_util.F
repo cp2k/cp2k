@@ -2931,6 +2931,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       IF(topology%exclude_vdw==topology%exclude_ei) THEN
         NULLIFY(list2)
         CALL reallocate(list2,1,counter)
+        list(:) = list2(:)
         particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
       END IF
       IF (PM2) THEN 
