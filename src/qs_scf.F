@@ -1295,8 +1295,7 @@ END SUBROUTINE scf
         WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
            "Number of electrons:                    ",nelectron_spin,&
            "Number of occupied orbitals:            ",homo,&
-           "Number of orbital functions:            ",nao,&
-           "Number of independent orbital functions:",nao - ndep
+           "Number of orbital functions:            ",nao
       ENDDO
     END IF
 
@@ -1309,6 +1308,8 @@ END SUBROUTINE scf
      ELSE
        CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
             scf_control%eps_eigval,scf_control%work_syevx)
+       WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
+             "Number of independent orbital functions:",nao - ndep
      ENDIF
     ENDIF
     IF (logger%print_keys%ortho_matrix) THEN
