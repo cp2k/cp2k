@@ -331,9 +331,6 @@ CONTAINS
 
 
     CALL timeset("copy_sm_to_fm","I","",handle)
-    NULLIFY(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
-         block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
-         data_offset,send_offset,send_count,recv_offset,recv_count)
 
 
     ! info about the full matrix
@@ -361,6 +358,10 @@ CONTAINS
 
 
 #if defined(__SCALAPACK)
+    NULLIFY(number_of_blocks_row, cum_num_of_blocks_row,block_info_row,number_of_blocks_col,cum_num_of_blocks_col, &
+         block_info_col,number_of_blocks,total_size_of_blocks,block_send,block_recv,data_send,data_recv,block_offset, &
+         data_offset,send_offset,send_count,recv_offset,recv_count)
+
     ! find the blocks that are commensurate with both sparse_matrix and cp_fm blocks 
     ! (i.e. they fully live on just one cpu in both the layouts)
 
@@ -728,7 +729,7 @@ CONTAINS
     ENDIF
 
     failure=.FALSE.
-    NULLIFY(local_v_in,local_v_out,newdat)
+    NULLIFY(local_v_in,local_v_out)
 
     CALL cp_fm_get_info(v_in,nrow_global=nrow_global)
     num_pe=para_env%num_pe
@@ -879,7 +880,7 @@ CONTAINS
      error)
 #endif
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(newdat,ncol_loc)
+    NULLIFY(ncol_loc)
 
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(matrix_v),cp_failure_level,routineP,error,failure)
@@ -1272,8 +1273,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(4)                    :: reqs
     INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
       atomic_row_distribution, col_offset_in_junk, fm_col_indices, &
-      fm_row_indices, junk_of_col, local_atomic_cols, local_atomic_rows, &
-      ncol_global_of_junk, ncol_local_of_junk, row_offset_in_junk, &
+      fm_row_indices, local_atomic_cols, local_atomic_rows, &
+      ncol_global_of_junk,  row_offset_in_junk, &
       sm_first_col, sm_first_row, sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
@@ -1281,12 +1282,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: sparse_block
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: v_in, v_out
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
-    NULLIFY(junk_of_col, ncol_local_of_junk,&
+    NULLIFY( &
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
@@ -1294,7 +1294,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          local_atomic_cols)
     NULLIFY(blacs2mpi,sparse_block,block_node,&
          v_in,v_out,fm_para_env)
-    logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_out),cp_failure_level,routineP,error,failure)
@@ -1585,8 +1584,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(4)                    :: reqs
     INTEGER, DIMENSION(:), POINTER :: atomic_col_distribution, &
       atomic_row_distribution, col_offset_in_junk, flat_local_cols, &
-      flat_local_rows, fm_col_indices, fm_row_indices, junk_of_col, &
-      ncol_global_of_junk, ncol_local_of_junk, row_offset_in_junk, &
+      flat_local_rows, fm_col_indices, fm_row_indices,  &
+      ncol_global_of_junk, row_offset_in_junk, &
       sm_first_col, sm_first_row, sm_last_col, sm_last_row
     INTEGER, DIMENSION(:, :), POINTER        :: blacs2mpi
     LOGICAL                                  :: failure, transpose_block
@@ -1595,14 +1594,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: v_in, v_out
     TYPE(cp_fm_type), POINTER                :: my_matrix_g
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: fm_para_env
     TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
-    logger => cp_error_get_logger(error)
-    NULLIFY(junk_of_col, ncol_local_of_junk,&
-         col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
+    NULLIFY( col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,&
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, ncol_global_of_junk, flat_local_rows,&
@@ -1945,15 +1941,13 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          first_g_col,fm_npcol,nl,ss
     INTEGER, DIMENSION(:), POINTER :: fm_row_indices, fm_col_indices,&
          sm_last_row, sm_first_row, sm_first_col,sm_last_col,&
-         n_local_atomic_cols, n_local_atomic_rows, atomic_col_distribution,&
-         atomic_row_distribution
+         n_local_atomic_cols, n_local_atomic_rows, atomic_col_distribution
     TYPE(cp_1d_i_p_type), DIMENSION(:), POINTER :: local_atomic_rows, local_atomic_cols
     INTEGER, DIMENSION(:,:), POINTER :: blacs2mpi
     INTEGER :: sm_ncol_local, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, sm_nblock_col, sm_nblock_row,&
          sm_nrow_local, i
     TYPE(cp_para_env_type), POINTER :: fm_para_env
-    TYPE(cp_logger_type), POINTER :: logger
 #ifdef __SCALAPACK
     INTEGER, EXTERNAL :: indxg2p
 #endif
@@ -1962,10 +1956,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     failure=.FALSE.
     NULLIFY(fm_row_indices, fm_col_indices,&
          sm_last_row, sm_first_row, sm_first_col,sm_last_col,&
-         n_local_atomic_cols, n_local_atomic_rows, atomic_col_distribution,&
-         atomic_row_distribution)
+         n_local_atomic_cols, n_local_atomic_rows, atomic_col_distribution )
     NULLIFY(local_atomic_rows,local_atomic_cols,blacs2mpi,fm_para_env)
-    logger => cp_error_get_logger(error)
     IF (.NOT.transpose_layout) THEN
        nprow         =fm%matrix_struct%context%num_pe(1)
        npcol         =fm%matrix_struct%context%num_pe(2)
@@ -1977,7 +1969,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        local_atomic_cols => sm%distribution_2d%local_cols
        n_local_atomic_rows => sm%distribution_2d%n_local_rows
        n_local_atomic_cols => sm%distribution_2d%n_local_cols
-       atomic_row_distribution => sm%distribution_2d%row_distribution
        atomic_col_distribution => sm%distribution_2d%col_distribution
 
        CALL get_matrix_info(sm,nblock_row=sm_nblock_row,&
@@ -2004,7 +1995,6 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
        n_local_atomic_cols => sm%distribution_2d%n_local_rows
        n_local_atomic_rows => sm%distribution_2d%n_local_cols
        atomic_col_distribution => sm%distribution_2d%row_distribution
-       atomic_row_distribution => sm%distribution_2d%col_distribution
 
        CALL get_matrix_info(sm,nblock_col=sm_nblock_row,&
             nblock_row=sm_nblock_col, last_col=sm_last_row,&
@@ -2230,12 +2220,9 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(KIND = dp) :: flops
 
-    TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
-    TYPE(cp_logger_type), POINTER :: logger
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: indxg2p
@@ -2251,9 +2238,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, ordered_local_atomic_cols)
     NULLIFY(junk_on_prow, &
-         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
-         block_node,fm_para_env)
-    logger => cp_error_get_logger(error)
+         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,&
+         fm_para_env)
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(junks),cp_failure_level,routineP,error,failure)
@@ -2526,12 +2512,9 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     INTEGER, DIMENSION(:,:), POINTER :: junk_on_prow, &
          blacs2mpi, ipcol_of_junk_col, fm_blacs2mpi
     REAL(KIND = dp), DIMENSION(:), POINTER :: send_buffer, rcv_buffer
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: sparse_block
     REAL(KIND = dp) :: flops
 
-    TYPE(real_block_node_type), POINTER :: block_node
     TYPE(cp_para_env_type), POINTER :: fm_para_env
-    TYPE(cp_logger_type), POINTER :: logger
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: indxg2p
@@ -2552,9 +2535,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          sm_first_row, sm_first_col,sm_last_col, atomic_col_distribution,&
          atomic_row_distribution, ordered_local_atomic_cols)
     NULLIFY(junk_on_prow, &
-         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,sparse_block,&
-         block_node,fm_para_env)
-    logger => cp_error_get_logger(error)
+         blacs2mpi, ipcol_of_junk_col,send_buffer, rcv_buffer,&
+         fm_para_env)
     IF (.NOT.sm_transposed) THEN
        nprow         =fm%matrix_struct%context%num_pe(1)
        npcol         =fm%matrix_struct%context%num_pe(2)
