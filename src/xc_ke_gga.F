@@ -674,7 +674,7 @@ CONTAINS
     IF ( npoints > SIZE(pot) ) &
        CALL stop_program ( "kex_u_3", "Inconsistent array sizes" )
 
-!$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxy,sxxy)
+!$omp parallel do private(ip,a0,a1,a2,a3,sx,sy,sxx,sxy,sxxx,sxxy)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
