@@ -461,6 +461,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ! safety first, not very efficient, nor general
         ! one could possibly decide that this *is* the maximum allowed radius
         maxradius = maxradius * safety_factor 
+        pw_env%cube_info%max_rad_ga = maxradius
         ! write(6,*) igrid_level,maxradius, CEILING(maxradius/MINVAL(pw_pools(igrid_level)%pool%pw_grid%dr(:)))
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&

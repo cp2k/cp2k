@@ -273,6 +273,7 @@ CONTAINS
         END IF
         length = Li
       END IF 
+!        WRITE(*,*) 'side ', i , length, Li
     END DO
     side(1:3) = length
 
@@ -296,8 +297,6 @@ CONTAINS
     cell_mol%perd(:) = 0
     cell_mol%hmat(:,:) = 0.0_dp
     cell_mol%h_inv(:,:) = 0.0_dp
-    CALL get_cell(cell_mol, abc=abc)
-    CALL pw_green_setup(green, poisson_section, cell_mol%perd, abc, error )
 
     num_pe = para_env%num_pe
     molbox_env_p => molbox_env
@@ -334,8 +333,13 @@ CONTAINS
     END DO
 
    ! complete init of green's function
+    CALL get_cell(cell_mol, abc=abc)
+
+    CALL pw_green_setup(green, poisson_section, cell_mol%perd, abc, error )
+
     CALL pw_green_fn_rebuild(green,&
             new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
+
     CALL set_molbox_env(molbox_env=molbox_env_p,green=green)
     CALL pw_green_release(green, error=error)
 
@@ -490,6 +494,7 @@ CONTAINS
        ALLOCATE(pw_grid_mol,STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL pw_grid_construct(pw_grid_mol)
+
        pw_grid_mol%para%rs_dims ( 1 ) = num_pe
        pw_grid_mol%para%rs_dims ( 2 ) = 1
        IF ( dft_control % qs_control % pw_grid_opt % spherical ) THEN
@@ -532,7 +537,7 @@ CONTAINS
           pw_grid_mol% spherical = .TRUE.
           ecut = cutilev
        END IF
-
+       
        IF ( .NOT. pw_grid_mol % spherical ) THEN
 
          IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
@@ -563,6 +568,7 @@ CONTAINS
                 npts_tmp(1)=npts_out(1)+1
              ENDIF
            ENDDO
+
            ! keep looping to find the right one
            DO
              CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT )
@@ -678,8 +684,7 @@ CONTAINS
               CALL stop_program ( "grid_setup", &
                             "my_ncommensurate < 0 " )
            ENDIF
-!dbg
-!  write(*,*) 'ncomm', my_ncommensurate, my_icommensurate
+
          ! assign a unique tag to this grid
            grid_tag = grid_tag + 1
            pw_grid_mol % identifier = grid_tag
@@ -817,7 +822,7 @@ CONTAINS
         END DO  ! igrid_level
 
       END IF  ! ngrid_level > 1
-
+ 
       pw_mol%pw_pools => pw_pools_mol
       pw_mol%rs_pools => rs_pools_mol
 
@@ -826,15 +831,19 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
       cmax = 0
+
       DO igrid_level = 1,ngrid_level
       
-        maxradius = REAL(cube_info_g(igrid_level)%max_radius,dp)
+        maxradius = cube_info_g(igrid_level)%max_rad_ga
+        pw_mol%cube_info(igrid_level)%max_rad_ga=maxradius
+
         CALL init_cube_info(pw_mol%cube_info(igrid_level),&
              pw_pools_mol(igrid_level)%pool%pw_grid%dr(:),&
              maxradius,cmaxl)
         cmax = MAX(cmax,cmaxl)
 
       END DO
+
 
       maxlgto = l_info_g%lmax
       CALL init_l_info(pw_mol%l_info,maxlgto,cmax)

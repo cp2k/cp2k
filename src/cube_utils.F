@@ -33,6 +33,7 @@ MODULE cube_utils
      integer, pointer             :: ub_cube(:,:)
      TYPE(cube_ptr), pointer, dimension(:)  :: sphere_bounds
      integer, pointer             :: sphere_bounds_count(:)
+     real(KIND = dp)              :: max_rad_ga
   END TYPE cube_info_type
 
 CONTAINS
@@ -113,6 +114,7 @@ CONTAINS
     check_1=0
     check_2=0
 !   count and allocate
+
     DO i=1,imr
       k=1
       radius=i*drmin 
