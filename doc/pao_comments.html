@@ -131,6 +131,17 @@
 	object is no longer nedeed (otherwise there could be
 	leaks)</li>
     </ul>
+    <p>There are types that are better always seen as pointers
+      (as linked list for example). In this case the previous method
+      are not so suited. In this case two other method can be used
+      instread:</p>
+    <ul>
+      <li><code>qs_create(obj,..)</code> allocates and initializes a
+	type. <code>obj</code>will point to the new type</li>
+      <li><code>qs_dealloc(obj,..)<code> deallocates the memory
+	    allocated by <code>obj</code>, <em>and</em> <code>obj</code>
+	    itself.</li>
+    </ul>
     <h5>common methods</h5>
     <p>These methods are not required, but are often present.</p>
     <ul>
@@ -151,7 +162,19 @@
 	is expected that this method will be called only once.</li>
       <li><code>next(iterator,...)</code> moves the iterator to the
 	next element, and returns true if the iterator is still valid
-	(not past end)</code>
+	(not past end). Useful when you need more than one thing from
+	the iterator.</code></li>
+      <li><code>get_next(iterator,...)</code> moves the iterator to the
+	next element, and return a pointer to the actual
+	element. Returns a disassociated pointer when at end.
+	Useful when you need just one thing from the iterator.
+	Depending on the implementation the iterator after a call to
+	<code>get_next</code> could be on the next or the previous
+	element.</code></li>
+      <li><code>qs_did_change(obj,...)</code> tells the stucture
+	<code>obj</code> that some of its internal parameters have
+	changed and (if obj caches some values) that these could now
+	be invalid.</li>
     </ul>
     <h4>Special methods</h4>
     <p>Obviosly every type has his specific operations. One can be
@@ -224,6 +247,9 @@
     <p>For the moment these module are very simple in their
       implementation, but they give the necessary hooks to be extended
       in the future.</p>
+    <p><em>Important</em> to use them you must put a <code>call
+	qs_init_default_loggers</code> at the beginning of your
+      programm</p>
     <h4>Error handling</h4>
     <p>I will discuss the most mature (and the most used by me
       at moment) of these module: qs_error_handling. The idea behind
@@ -516,7 +542,7 @@
     <address><a href="mailto:fawzi@cscs.ch">Mohamed Fawzi (CSCS)</a></address>
 <!-- Created: Wed Jan 23 16:39:59 CET 2002 -->
 <!-- hhmts start -->
-Last modified: Tue Jan 29 16:04:37 CET 2002
+Last modified: Thu Feb  7 10:13:13 CET 2002
 <!-- hhmts end -->
   </body>
 </html>
