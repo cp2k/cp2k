@@ -2,24 +2,24 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ke_gga_functional [1.0] *
+!!****** cp2k/exchange_gga_functional [1.0] *
 !!
 !!   NAME
-!!     ke_gga_functional
+!!     exchange_gga_functional
 !!
 !!   FUNCTION
-!!     Calculate the several different kinetic energy functionals
+!!     Calculate several different exchange energy functionals
 !!     with a GGA form 
 !!
 !!   AUTHOR
-!!     JGH (20.02.2002)
+!!     JGH (27.02.2002)
 !!
 !!   MODIFICATION HISTORY
 !!     none
 !!
 !******************************************************************************
 
-MODULE ke_gga_functional
+MODULE exchange_gga_functional
 
 ! *****************************************************************************
 
@@ -40,34 +40,31 @@ MODULE ke_gga_functional
                           f43 = 4._dbl*f13, &
                           f53 = 5._dbl*f13
 
-  PUBLIC :: ol1, ol2, llp, ke_pw86, ke_pw91, t92, lc
+  PUBLIC :: b88, x_pw86, x_pw91, pbex, revpbex, optx
 
-  REAL(dbl) :: cf, b, flda, flsd, sfac, t13
+  REAL(dbl) :: cx, flda, flsd, sfac, t13
   REAL(dbl) :: fact, tact
   REAL(dbl) :: eps_rho
 
 ! *****************************************************************************
 
-  INTERFACE ol1
-    MODULE PROCEDURE ol1_u, ol1_p, kegga_init, ol1_info
+  INTERFACE b88
+    MODULE PROCEDURE b88_u, b88_p, xgga_init, b88_info
   END INTERFACE
-  INTERFACE ol2
-    MODULE PROCEDURE ol2_u, ol2_p, kegga_init, ol2_info
+  INTERFACE x_pw86
+    MODULE PROCEDURE pw86_u, pw86_p, xgga_init, pw86_info
   END INTERFACE
-  INTERFACE llp
-    MODULE PROCEDURE llp_u, llp_p, kegga_init, llp_info
+  INTERFACE x_pw91
+    MODULE PROCEDURE pw91_u, pw91_p, xgga_init, pw91_info
   END INTERFACE
-  INTERFACE ke_pw86
-    MODULE PROCEDURE pw86_u, pw86_p, kegga_init, pw86_info
+  INTERFACE pbex
+    MODULE PROCEDURE pbex_u, pbex_p, xgga_init, pbex_info
   END INTERFACE
-  INTERFACE ke_pw91
-    MODULE PROCEDURE pw91_u, pw91_p, kegga_init, pw91_info
+  INTERFACE revpbex
+    MODULE PROCEDURE revpbex_u, revpbex_p, xgga_init, revpbex_info
   END INTERFACE
-  INTERFACE lc
-    MODULE PROCEDURE lc_u, lc_p, kegga_init, lc_info
-  END INTERFACE
-  INTERFACE t92
-    MODULE PROCEDURE t92_u, t92_p, kegga_init, t92_info
+  INTERFACE optx
+    MODULE PROCEDURE optx_u, optx_p, xgga_init, optx_info
   END INTERFACE
 
 ! *****************************************************************************
@@ -76,7 +73,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE kegga_init ( cutoff )
+  SUBROUTINE xgga_init ( cutoff )
 
     IMPLICIT NONE
     REAL(dbl), INTENT(IN) :: cutoff
@@ -84,63 +81,31 @@ CONTAINS
     eps_rho = cutoff
     CALL set_util ( cutoff )
 
-    cf = 0.3_dbl*(3._dbl*pi*pi)**f23
-    flda = cf
-    flsd = flda * 2._dbl**f23
-    b = 2._dbl**f43 * (3._dbl*pi*pi)**(-f13)
-    sfac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
+    cx = -0.75_dbl*(3._dbl/pi)**f13
     t13 = 2._dbl**f13
+    flda = cx
+    flsd = cx * t13
 
-  END SUBROUTINE kegga_init
+    sfac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
+
+  END SUBROUTINE xgga_init
 
 ! *****************************************************************************
 
-  SUBROUTINE ol1_info ( reference, shortform )
+  SUBROUTINE b88_info ( reference, shortform )
 
     IMPLICIT NONE
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "H. Ou-Yang and M. Levy, "//&
-                  "Intl. J. Quant. Chem. 40, 379 (1991); Functional 1"
+      reference = "A. Becke, Phys. Rev. A 38, 3098 (1988)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Ou-Yang-Levy Functional 1"
+      shortform = "Becke 1988 Exchange Functional"
     END IF
 
-  END SUBROUTINE ol1_info
-
-  SUBROUTINE ol2_info ( reference, shortform )
-
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
-
-    IF ( PRESENT ( reference ) ) THEN
-      reference = "H. Ou-Yang and M. Levy, "//&
-                  "Intl. J. Quant. Chem. 40, 379 (1991); Functional 2"
-    END IF
-    IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Ou-Yang-Levy Functional 2"
-    END IF
-
-  END SUBROUTINE ol2_info
-
-  SUBROUTINE llp_info ( reference, shortform )
-
-    IMPLICIT NONE
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
-    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
-
-    IF ( PRESENT ( reference ) ) THEN
-      reference = "H. Lee, C. Lee, R.G. Parr, Phys. Rev. A, 44, 768 (1991)"
-    END IF
-    IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Lee-Lee-Parr Functional"
-    END IF
-
-  END SUBROUTINE llp_info
+  END SUBROUTINE b88_info
 
   SUBROUTINE pw86_info ( reference, shortform )
 
@@ -152,7 +117,7 @@ CONTAINS
       reference = "J.P. Perdew and Y. Wang, Phys. Rev. B, 33, 8800 (1986)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Perdew-Wang 1986 Functional (kinetic energy)"
+      shortform = "Perdew-Wang 1986 Functional (exchange energy)"
     END IF
 
   END SUBROUTINE pw86_info
@@ -164,102 +129,79 @@ CONTAINS
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "J.P. Perdew and Y. Wang, Electronic Structure of Solids 91"
+      reference = "J.P. Perdew et al., Phys. Rev. B, 46, 6671 (1992)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Perdew-Wang 1991 Functional (kinetic energy)"
+      shortform = "Perdew-Wang 1991 Functional (exchange energy)"
     END IF
 
   END SUBROUTINE pw91_info
 
-  SUBROUTINE lc_info ( reference, shortform )
+  SUBROUTINE pbex_info ( reference, shortform )
 
     IMPLICIT NONE
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "A. Lembarki and H. Chermette, Phys. Rev. A, 50, 5328 (1994)"
+      reference = "J.P. Perdew, K. Burke, M Ernzerhof, Phys. Rev. Lett, 77, 3865 (1996)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Lembarki-Chermette kinetic energy functional"
+      shortform = "PBE exchange energy functional"
     END IF
 
-  END SUBROUTINE lc_info
+  END SUBROUTINE pbex_info
 
-  SUBROUTINE t92_info ( reference, shortform )
+  SUBROUTINE revpbex_info ( reference, shortform )
 
     IMPLICIT NONE
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "A.J. Thakkar, Phys. Rev. A, 46, 6920 (1992)"
+      reference = "Y. Zang et al., PRL, 80, 890 (1998) (Revised PBEX)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Thakkar 1992 Functional"
+      shortform = "Revised PBEX by Zang et al."
     END IF
 
-  END SUBROUTINE t92_info
+  END SUBROUTINE revpbex_info
+
+  SUBROUTINE optx_info ( reference, shortform )
+
+    IMPLICIT NONE
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+
+    IF ( PRESENT ( reference ) ) THEN
+      reference = "Wee-Meng Hoe, A.J. Cohen, N.C. Handy, CPL, 341, 319 (2001)"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+      shortform = "OPTX exchange energy functional"
+    END IF
+
+  END SUBROUTINE optx_info
 
 ! *****************************************************************************
 
-  SUBROUTINE ol1_u ( rho, grho, pot, order )
+  SUBROUTINE b88_u ( rho, grho, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_u ( 1, rho, grho, pot, order )
-  END SUBROUTINE ol1_u
-  SUBROUTINE ol1_p ( rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_u ( 1, rho, grho, pot, order )
+  END SUBROUTINE b88_u
+  SUBROUTINE b88_p ( rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_p ( 1, rhoa, rhob, grhoa, grhob, pot, order )
-  END SUBROUTINE ol1_p
-
-  SUBROUTINE ol2_u ( rho, grho, pot, order )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
-
-    CALL kex_u ( 2, rho, grho, pot, order )
-  END SUBROUTINE ol2_u
-  SUBROUTINE ol2_p ( rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
-
-    CALL kex_p ( 2, rhoa, rhob, grhoa, grhob, pot, order )
-  END SUBROUTINE ol2_p
-
-  SUBROUTINE llp_u ( rho, grho, pot, order )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
-
-    CALL kex_u ( 3, rho, grho, pot, order )
-  END SUBROUTINE llp_u
-  SUBROUTINE llp_p ( rhoa, rhob, grhoa, grhob, pot, order )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
-    INTEGER, INTENT(IN), OPTIONAL :: order
-
-    CALL kex_p ( 3, rhoa, rhob, grhoa, grhob, pot, order )
-  END SUBROUTINE llp_p
+    CALL x_p ( 1, rhoa, rhob, grhoa, grhob, pot, order )
+  END SUBROUTINE b88_p
 
   SUBROUTINE pw86_u ( rho, grho, pot, order )
     IMPLICIT NONE
@@ -268,7 +210,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_u ( 4, rho, grho, pot, order )
+    CALL x_u ( 2, rho, grho, pot, order )
   END SUBROUTINE pw86_u
   SUBROUTINE pw86_p ( rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
@@ -277,7 +219,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_p ( 4, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( 2, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw86_p
 
   SUBROUTINE pw91_u ( rho, grho, pot, order )
@@ -287,7 +229,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_u ( 5, rho, grho, pot, order )
+    CALL x_u ( 3, rho, grho, pot, order )
   END SUBROUTINE pw91_u
   SUBROUTINE pw91_p ( rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
@@ -296,50 +238,69 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_p ( 5, rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_p ( 3, rhoa, rhob, grhoa, grhob, pot, order )
   END SUBROUTINE pw91_p
 
-  SUBROUTINE lc_u ( rho, grho, pot, order )
+  SUBROUTINE pbex_u ( rho, grho, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_u ( 6, rho, grho, pot, order )
-  END SUBROUTINE lc_u
-  SUBROUTINE lc_p ( rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_u ( 4, rho, grho, pot, order )
+  END SUBROUTINE pbex_u
+  SUBROUTINE pbex_p ( rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_p ( 6, rhoa, rhob, grhoa, grhob, pot, order )
-  END SUBROUTINE lc_p
+    CALL x_p ( 4, rhoa, rhob, grhoa, grhob, pot, order )
+  END SUBROUTINE pbex_p
 
-  SUBROUTINE t92_u ( rho, grho, pot, order )
+  SUBROUTINE revpbex_u ( rho, grho, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_u ( 7, rho, grho, pot, order )
-  END SUBROUTINE t92_u
-  SUBROUTINE t92_p ( rhoa, rhob, grhoa, grhob, pot, order )
+    CALL x_u ( 5, rho, grho, pot, order )
+  END SUBROUTINE revpbex_u
+  SUBROUTINE revpbex_p ( rhoa, rhob, grhoa, grhob, pot, order )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
-    CALL kex_p ( 7, rhoa, rhob, grhoa, grhob, pot, order )
-  END SUBROUTINE t92_p
+    CALL x_p ( 5, rhoa, rhob, grhoa, grhob, pot, order )
+  END SUBROUTINE revpbex_p
+
+  SUBROUTINE optx_u ( rho, grho, pot, order )
+    IMPLICIT NONE
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    CALL x_u ( 6, rho, grho, pot, order )
+  END SUBROUTINE optx_u
+  SUBROUTINE optx_p ( rhoa, rhob, grhoa, grhob, pot, order )
+    IMPLICIT NONE
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    CALL x_p ( 6, rhoa, rhob, grhoa, grhob, pot, order )
+  END SUBROUTINE optx_p
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_u ( functional, rho, grho, pot, order )
+  SUBROUTINE x_u ( functional, rho, grho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -363,72 +324,70 @@ CONTAINS
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program ( "kex_u","Size of POT array too small" )
+    IF ( mt > mp ) CALL stop_program ( "x_u","Size of POT array too small" )
 
     n = SIZE ( rho )
     ALLOCATE ( r13(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "r13", n )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "r13", n )
     ALLOCATE ( s(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "s", n )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "s", n )
     ALLOCATE ( fs(n,m+1), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "fs", n*(m+1) )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "fs", n*(m+1) )
+
+    fact = flda
+    tact = t13
     
     CALL calc_rho13 ( rho, r13 )
     CALL calc_wave_vector ( "u", rho, grho, s )
     SELECT CASE (functional)
     CASE (1)
-      CALL efactor_ol1 ( s, fs, m )
+      CALL efactor_b88 ( s, fs, m )
     CASE (2)
-      CALL efactor_ol2 ( s, fs, m )
-    CASE (3)
-      CALL efactor_llp ( s, fs, m )
-    CASE (4)
       CALL efactor_pw86 ( s, fs, m )
+    CASE (3)
+      CALL efactor_pw91 ( s, fs, m )
+    CASE (4)
+      CALL efactor_pbex ( s, fs, m, 1 )
     CASE (5)
-      CALL efactor_pw91 ( s, fs, m, 1 )
+      CALL efactor_pbex ( s, fs, m, 2 )
     CASE (6)
-      CALL efactor_pw91 ( s, fs, m, 2 )
-    CASE (7)
-      CALL efactor_t92 ( s, fs, m )
+      CALL efactor_optx ( s, fs, m )
     CASE DEFAULT
-       CALL stop_program ( "kex_u", "Unknown functional" )
+       CALL stop_program ( "x_u", "Unknown functional" )
     END SELECT
-
-    fact = flda
-    tact = t13
 
     IF ( calc(0) ) THEN
        pot(:,1) = 0._dbl
-       CALL kex_p_0 ( rho, r13, fs, pot(:,1) )
+       CALL x_p_0 ( rho, r13, fs, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL kex_p_1 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_1 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL kex_p_2 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_2 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL kex_p_3 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_3 ( rho, grho, r13, s, fs, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( r13, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "r13" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "r13" )
     DEALLOCATE ( s, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "s" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "s" )
     DEALLOCATE ( fs, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_u", "fs" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_u", "fs" )
 
-  END SUBROUTINE kex_u
+  END SUBROUTINE x_u
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_p ( functional, rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE x_p ( functional, rhoa, rhob, grhoa, grhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -452,16 +411,16 @@ CONTAINS
     mp = SIZE ( pot, 2 )
     m = ABS(order)
     mt = mx(m,2)
-    IF ( mt > mp ) CALL stop_program ( "kex_p", &
+    IF ( mt > mp ) CALL stop_program ( "x_p", &
        "Size of POT array too small" )
 
     n = SIZE ( rhoa )
     ALLOCATE ( r13(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "r13", n )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "r13", n )
     ALLOCATE ( s(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "s", n )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "s", n )
     ALLOCATE ( fs(n,m+1), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "fs", n*(m+1) )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "fs", n*(m+1) )
 
     fact = flsd
     tact = 1._dbl
@@ -470,95 +429,91 @@ CONTAINS
     CALL calc_wave_vector ( "p", rhoa, grhoa, s )
     SELECT CASE (functional)
     CASE (1)
-      CALL efactor_ol1 ( s, fs, m )
+      CALL efactor_b88 ( s, fs, m )
     CASE (2)
-      CALL efactor_ol2 ( s, fs, m )
-    CASE (3)
-      CALL efactor_llp ( s, fs, m )
-    CASE (4)
       CALL efactor_pw86 ( s, fs, m )
+    CASE (3)
+      CALL efactor_pw91 ( s, fs, m )
+    CASE (4)
+      CALL efactor_pbex ( s, fs, m, 1 )
     CASE (5)
-      CALL efactor_pw91 ( s, fs, m, 1 )
+      CALL efactor_pbex ( s, fs, m, 2 )
     CASE (6)
-      CALL efactor_pw91 ( s, fs, m, 2 )
-    CASE (7)
-      CALL efactor_t92 ( s, fs, m )
+      CALL efactor_optx ( s, fs, m )
     CASE DEFAULT
-       CALL stop_program ( "kex_u", "Unknown functional" )
+       CALL stop_program ( "x_p", "Unknown functional" )
     END SELECT
 
     IF ( calc(0) ) THEN
        pot(:,1) = 0._dbl
-       CALL kex_p_0 ( rhoa, r13, fs, pot(:,1) )
+       CALL x_p_0 ( rhoa, r13, fs, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL kex_p_1 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_1 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL kex_p_2 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_2 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL kex_p_3 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
+       CALL x_p_3 ( rhoa, grhoa, r13, s, fs, pot(:,m1:m2) )
     END IF
 
     CALL calc_rho13 ( rhob, r13 )
     CALL calc_wave_vector ( "p", rhob, grhob, s )
     SELECT CASE (functional)
     CASE (1)
-      CALL efactor_ol1 ( s, fs, m )
+      CALL efactor_b88 ( s, fs, m )
     CASE (2)
-      CALL efactor_ol2 ( s, fs, m )
-    CASE (3)
-      CALL efactor_llp ( s, fs, m )
-    CASE (4)
       CALL efactor_pw86 ( s, fs, m )
+    CASE (3)
+      CALL efactor_pw91 ( s, fs, m )
+    CASE (4)
+      CALL efactor_pbex ( s, fs, m, 1 )
     CASE (5)
-      CALL efactor_pw91 ( s, fs, m, 1 )
+      CALL efactor_pbex ( s, fs, m, 2 )
     CASE (6)
-      CALL efactor_pw91 ( s, fs, m, 2 )
-    CASE (7)
-      CALL efactor_t92 ( s, fs, m )
+      CALL efactor_optx ( s, fs, m )
     CASE DEFAULT
-       CALL stop_program ( "kex_u", "Unknown functional" )
+       CALL stop_program ( "x_p", "Unknown functional" )
     END SELECT
 
     IF ( calc(0) ) THEN
-       CALL kex_p_0 ( rhob, r13, fs, pot(:,1) )
+       CALL x_p_0 ( rhob, r13, fs, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL kex_p_1 ( rhob, grhob, r13, s, fs, pot(:,m1+2:m2) )
+       CALL x_p_1 ( rhob, grhob, r13, s, fs, pot(:,m1+2:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL kex_p_2 ( rhob, grhob, r13, s, fs, pot(:,m1+3:m2) )
+       CALL x_p_2 ( rhob, grhob, r13, s, fs, pot(:,m1+3:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL kex_p_3 ( rhob, grhob, r13, s, fs, pot(:,m1+4:m2) )
+       CALL x_p_3 ( rhob, grhob, r13, s, fs, pot(:,m1+4:m2) )
     END IF
 
     DEALLOCATE ( r13, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "r13" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "r13" )
     DEALLOCATE ( s, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "s" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "s" )
     DEALLOCATE ( fs, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "kex_p", "fs" )
+    IF ( error /= 0 ) CALL stop_memory ( "x_p", "fs" )
 
-  END SUBROUTINE kex_p
+  END SUBROUTINE x_p
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_p_0 ( rho, r13, fs, pot )
+  SUBROUTINE x_p_0 ( rho, r13, fs, pot )
 
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
@@ -570,21 +525,21 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "kex_p_0", "Inconsistent array sizes" )
+       CALL stop_program ( "x_p_0", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
-         pot(ip) = pot(ip) + fact*r13(ip)*r13(ip)*rho(ip) * fs(ip,1)
+         pot(ip) = pot(ip) + fact*r13(ip)*rho(ip) * fs(ip,1)
       END IF
 
     END DO
 
-  END SUBROUTINE kex_p_0
+  END SUBROUTINE x_p_0
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_p_1 ( rho, grho, r13, s, fs, pot )
+  SUBROUTINE x_p_1 ( rho, grho, r13, s, fs, pot )
 
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
@@ -597,7 +552,7 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "kex_p_1", "Inconsistent array sizes" )
+       CALL stop_program ( "x_p_1", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
@@ -608,8 +563,8 @@ CONTAINS
 
       ELSE
 
-         a0 = fact*r13(ip)*r13(ip)*rho(ip)
-         a1 = f53*fact*r13(ip)*r13(ip)
+         a0 = fact*r13(ip)*rho(ip)
+         a1 = f43*fact*r13(ip)
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
          pot(ip,1) = a1*fs(ip,1) + a0*fs(ip,2)*sx
@@ -619,11 +574,11 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE kex_p_1
+  END SUBROUTINE x_p_1
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_p_2 ( rho, grho, r13, s, fs, pot )
+  SUBROUTINE x_p_2 ( rho, grho, r13, s, fs, pot )
 
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
@@ -636,7 +591,7 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "kex_p_2", "Inconsistent array sizes" )
+       CALL stop_program ( "x_p_2", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
@@ -648,9 +603,9 @@ CONTAINS
 
       ELSE
 
-         a0 = fact*r13(ip)*r13(ip)*rho(ip)
-         a1 = f53*fact*r13(ip)*r13(ip)
-         a2 = f23*f53*fact/r13(ip)
+         a0 = fact*r13(ip)*rho(ip)
+         a1 = f43*fact*r13(ip)
+         a2 = f13*f43*fact/(r13(ip)*r13(ip))
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
          sxx= 28._dbl/9._dbl*s(ip)/(rho(ip)*rho(ip))
@@ -664,11 +619,11 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE kex_p_2
+  END SUBROUTINE x_p_2
 
 ! *****************************************************************************
 
-  SUBROUTINE kex_p_3 ( rho, grho, r13, s, fs, pot )
+  SUBROUTINE x_p_3 ( rho, grho, r13, s, fs, pot )
 
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho, r13, s
@@ -681,7 +636,7 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "kex_u_3", "Inconsistent array sizes" )
+       CALL stop_program ( "x_u_3", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
@@ -694,10 +649,10 @@ CONTAINS
 
       ELSE
 
-         a0 = fact*r13(ip)*r13(ip)*rho(ip)
-         a1 = f53*fact*r13(ip)*r13(ip)
-         a2 = f23*f53*fact/r13(ip)
-         a3 = -f13*f23*f53*fact/(r13(ip)*rho(ip))
+         a0 = fact*r13(ip)*rho(ip)
+         a1 = f43*fact*r13(ip)
+         a2 = f13*f43*fact/(r13(ip)*r13(ip))
+         a3 = -f23*f13*f43*fact/(r13(ip)*r13(ip)*rho(ip))
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
          sxx= 28._dbl/9._dbl*s(ip)/(rho(ip)*rho(ip))
@@ -720,78 +675,12 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE kex_p_3
+  END SUBROUTINE x_p_3
 
 ! *****************************************************************************
 ! Enhancement Factors
 ! *****************************************************************************
-  SUBROUTINE efactor_ol1 ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
-
-    INTEGER :: ip
-    REAL(dbl) :: t1, t2
-
-    t1 = b*b/(72._dbl*cf)
-    t2 = 0.001878_dbl*b
-    DO ip=1,SIZE(s)
-      SELECT CASE (m)
-      CASE (0)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)
-      CASE (1)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)
-         fs(ip,2) = 2._dbl*t1*s(ip) + t2
-      CASE (2:3)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)
-         fs(ip,2) = 2._dbl*t1*s(ip) + t2
-         fs(ip,3) = 2._dbl*t1
-      CASE DEFAULT
-         CALL stop_program("efactor_ol1","Illegal order")
-      END SELECT
-    END DO
-    IF(m==3) fs(:,4)=0._dbl
-
-  END SUBROUTINE efactor_ol1
-! *****************************************************************************
-  SUBROUTINE efactor_ol2 ( s, fs, m )
-    IMPLICIT NONE
-    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m
-
-    INTEGER :: ip
-    REAL(dbl) :: t1, t2, t3, y
-
-    t1 = b*b/(72._dbl*cf)
-    t2 = 0.0245_dbl*b
-    t3 = 2._dbl**f53*b
-    DO ip=1,SIZE(s)
-      y = 1._dbl/(1._dbl+t3*s(ip))
-      SELECT CASE (m)
-      CASE (0)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)*y
-      CASE (1)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)*y
-         fs(ip,2) = 2._dbl*t1*s(ip) + t2*y*y
-      CASE (2)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)*y
-         fs(ip,2) = 2._dbl*t1*s(ip) + t2*y*y
-         fs(ip,3) = 2._dbl*(t1 - t2*t3*y*y*y)
-      CASE (3)
-         fs(ip,1) = 1._dbl + t1*s(ip)*s(ip) + t2*s(ip)*y
-         fs(ip,2) = 2._dbl*t1*s(ip) + t2*y*y
-         fs(ip,3) = 2._dbl*(t1 - t2*t3*y*y*y)
-         fs(ip,4) = 6._dbl*t2*t3*t3*y*y*y*y
-      CASE DEFAULT
-         CALL stop_program("efactor_ol2","Illegal order")
-      END SELECT
-    END DO
-
-  END SUBROUTINE efactor_ol2
-! *****************************************************************************
-  SUBROUTINE efactor_llp ( s, fs, m )
+  SUBROUTINE efactor_b88 ( s, fs, m )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN) :: s
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
@@ -799,15 +688,19 @@ CONTAINS
 
     INTEGER :: ip
     REAL(dbl) :: p, q, x, as, sas, asp, asp2, asp3, bs, ys, sbs, sbs3, sbs5
-    REAL(dbl) :: w1, w2
+    REAL(dbl) :: w1, w2, beta, f0, f1, f2
     REAL(dbl) :: t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39
     REAL(dbl) :: t43,t44,t60,t62
 
-    p = 0.0045_dbl*b*b
-    q = 0.0253_dbl*b
+    beta = 0.0042_dbl
+    f0 = 1._dbl/sfac
+    f1 = beta/cx
+    f2 = 6._dbl*beta
+    p = -f1*f0*f0
+    q = f2*f0
     DO ip=1,SIZE(s)
       x = s(ip)
-      bs = b*x
+      bs = beta*x
       sbs = sqrt(bs*bs+1._dbl)
       as = log(bs+sbs)
       sas = x*as
@@ -822,7 +715,7 @@ CONTAINS
       CASE (2)
          asp = as + bs / sbs
          sbs3 = sbs*sbs*sbs
-         asp2 = 2._dbl*b / sbs - b*bs*bs/ sbs3
+         asp2 = 2._dbl*beta / sbs - beta*bs*bs/ sbs3
          fs(ip,1) = 1._dbl + p*x*x*ys
          fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys
          fs(ip,3) = 2._dbl*p*ys - p*q*x*(4._dbl*asp+x*asp2)*ys*ys + &
@@ -831,27 +724,28 @@ CONTAINS
          asp = as + bs / sbs
          sbs3 = sbs*sbs*sbs
          sbs5 = sbs3*sbs*sbs
-         asp2 = 2._dbl*b / sbs - b*bs*bs/ sbs3
-         asp3 = -4._dbl*b*b*bs / sbs3 + 3._dbl*b*b*bs*bs*bs/ sbs5
+         asp2 = 2._dbl*beta / sbs - beta*bs*bs/ sbs3
+         asp3 = -4._dbl*beta*beta*bs / sbs3 + 3._dbl*beta*beta*bs*bs*bs/ sbs5
          fs(ip,1) = 1._dbl + p*x*x*ys
          fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys
          w1 = (4._dbl*asp+x*asp2)
          fs(ip,3) = 2._dbl*p*ys - p*q*x*w1*ys*ys + &
                     2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys
-         t1 = q*x; t3 = b**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
-         t16 = 1/sbs; t19 = q*as+t1*b*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
-         t33 = t3*b; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*b*t16-q*t4*t33*t36
+         t1 = q*x; t3 = beta**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
+         t16 = 1/sbs; t19 = q*as+t1*beta*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
+         t33 = t3*beta; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*beta*t16-q*t4*t33*t36
          t43 = p*t4; t44 = t12**2; t60 = t3**2; t62 = t34**2
          fs(ip,4) = &
             -6*p*t13*t19+12*t22*t24*t25-6*t22*t13*t39-6*t43/t44*t25*t19+ &
-            6*t43*t24*t19*t39-t43*t13*(-4*q*t33*t36*x+3*q*t4*x*t60*b/t62/sbs)
+            6*t43*t24*t19*t39-t43*t13*(-4*q*t33*t36*x+3*q*t4*x*t60*beta/t62/sbs)
 
       CASE DEFAULT
-         CALL stop_program("efactor_llp","Illegal order")
+         CALL stop_program("efactor_b88","Illegal order")
       END SELECT
     END DO
 
-  END SUBROUTINE efactor_llp
+
+  END SUBROUTINE efactor_b88
 ! *****************************************************************************
   SUBROUTINE efactor_pw86 ( s, fs, m )
     IMPLICIT NONE
@@ -913,90 +807,60 @@ CONTAINS
 
   END SUBROUTINE efactor_pw86
 ! *****************************************************************************
-  SUBROUTINE efactor_t92 ( s, fs, m )
+  SUBROUTINE efactor_optx ( s, fs, m )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN) :: s
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
     INTEGER, INTENT(IN) :: m
 
     INTEGER :: ip
-    REAL(dbl) :: p, q, x, as, sas, asp, asp2, asp3, bs, ys, sbs, sbs3, sbs5
-    REAL(dbl) :: w1, w2, a1, a2
+    REAL(dbl), PARAMETER :: a1=1.05151_dbl, a2=1.43169_dbl, gamma=0.006_dbl
+    REAL(dbl) :: f0, x, a, b, y
 
-    p = 0.0055_dbl*b*b
-    q = 0.0253_dbl*b
-    a1 = 0.072 * b
-    a2 = 2._dbl**f53 * b
+    f0 = 1._dbl/sfac
     DO ip=1,SIZE(s)
       x = s(ip)
-      bs = b*x
-      sbs = sqrt(bs*bs+1._dbl)
-      as = log(bs+sbs)
-      sas = x*as
-      ys =  1._dbl/(1._dbl+q*sas)
+      a = gamma*f0*f0
+      b = a2/cx
+      y = 1._dbl / (1._dbl + a*x*x)
       SELECT CASE (m)
       CASE (0)
-         fs(ip,1) = 1._dbl + p*x*x*ys - a1*x/(1+a2*x)
+         fs(ip,1) = a1 + b * a*x*x*y*y
       CASE (1)
-         asp = as + bs / sbs
-         fs(ip,1) = 1._dbl + p*x*x*ys - a1*x/(1+a2*x)
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys - a1/(1+a2*x)**2
+         fs(ip,1) = a1 + b * a*x*x*y*y
+         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
       CASE (2)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         asp2 = 2._dbl*b / sbs - b*bs*bs/ sbs3
-         fs(ip,1) = 1._dbl + p*x*x*ys - a1*x/(1+a2*x)
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys - a1/(1+a2*x)**2
-         fs(ip,3) = 2._dbl*p*ys - p*q*x*(4._dbl*asp+x*asp2)*ys*ys + &
-                    2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys + 2._dbl*a1*a2/(1+a2*x)**3
+         fs(ip,1) = a1 + b * a*x*x*y*y
+         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
+         fs(ip,3) = 2._dbl * b*a* (1._dbl+3._dbl*a*a*x*x*x*x-8._dbl*a*x*x)*y*y*y*y
       CASE (3)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         sbs5 = sbs3*sbs*sbs
-         asp2 = 2._dbl*b / sbs - b*bs*bs/ sbs3
-         asp3 = -4._dbl*b*b*bs / sbs3 + 3._dbl*b*b*bs*bs*bs/ sbs5
-         w1 = (4._dbl*asp+x*asp2)
-         fs(ip,1) = 1._dbl + p*x*x*ys - a1*x/(1+a2*x)
-         fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys - a1/(1+a2*x)**2
-         fs(ip,3) = 2._dbl*p*ys - p*q*x*w1*ys*ys + &
-                    2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys + 2._dbl*a1*a2/(1+a2*x)**3
-         fs(ip,4) = -2._dbl*p*q*asp*ys*ys+p*q*x*(5._dbl*asp2-x*asp3)*ys*ys - &
-                    p*q*w1*ys*ys + 2._dbl*p*q*q*x*asp*w1*ys*ys*ys - &
-                    6._dbl*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
-                    4._dbl*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
-                    6._dbl * a1*a2*a2/(1+a2*x)**4
+         fs(ip,1) = a1 + b * a*x*x*y*y
+         fs(ip,2) = 2._dbl * b * ( a*x*y*y - 2._dbl*a*a*x*x*x*y*y*y)
+         fs(ip,3) = 2._dbl * b*a* (1._dbl+3._dbl*a*a*x*x*x*x-8._dbl*a*x*x)*y*y*y*y
+         fs(ip,4) = -24._dbl*b*a*a*x*(2._dbl-5._dbl*a*x*x+a*a*x*x*x*x)*y*y*y*y*y
       CASE DEFAULT
-         CALL stop_program("efactor_t92","Illegal order")
+         CALL stop_program("efactor_optx","Illegal order")
       END SELECT
     END DO
 
-  END SUBROUTINE efactor_t92
+  END SUBROUTINE efactor_optx
 ! *****************************************************************************
-  SUBROUTINE efactor_pw91 ( s, fs, m, pset )
+  SUBROUTINE efactor_pw91 ( s, fs, m )
     IMPLICIT NONE
     REAL(dbl), DIMENSION(:), INTENT(IN) :: s
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
-    INTEGER, INTENT(IN) :: m, pset
+    INTEGER, INTENT(IN) :: m
 
-    ! parameter set 1: Perdew-Wang
-    ! parameter set 2: Lembarki-Chermette
-    REAL(dbl) :: pa(6,2)
     INTEGER :: ip
     REAL(dbl) :: a1,a2,a3,a4,a,b1,o,s1,s2,s3,x
 
-    pa(1:6,1)=(/0.19645_dbl,    0.2743_dbl,  &
-                0.1508_dbl,   100._dbl,      &
-                0.8145161_dbl,  0.004_dbl/)
-    pa(1:6,2)=(/0.093907_dbl,   0.26608_dbl, &
-                0.0809615_dbl,100._dbl,      &
-               76.320_dbl,      0.57767e-4_dbl/)
     o=1._dbl
-    a1 = pa(1,pset)
-    a2 = pa(2,pset)
-    a3 = pa(3,pset)
-    a4 = pa(4,pset)
-    a  = pa(5,pset)
-    b1 = pa(6,pset)
+    a1 = 0.19645_dbl
+    a2 = 0.2743_dbl
+    a3 = 0.1508_dbl
+    a4 = 100._dbl
+    a  = 0.8145161_dbl
+    b1 = 0.004_dbl
     IF ( m >= 0 ) THEN
       DO ip=1,SIZE(s)
         x = s(ip)
@@ -1071,9 +935,48 @@ CONTAINS
     END IF
 
   END SUBROUTINE efactor_pw91
+! *****************************************************************************
+  SUBROUTINE efactor_pbex ( s, fs, m, pset )
+    IMPLICIT NONE
+    REAL(dbl), DIMENSION(:), INTENT(IN) :: s
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: fs
+    INTEGER, INTENT(IN) :: m, pset
+
+    INTEGER :: ip
+    REAL(dbl), PARAMETER :: kappa1=0.804_dbl, kappa2=1.245_dbl, mu=0.21951_dbl
+    REAL(dbl) :: x, x2, mk, y
+
+    IF( pset==1 ) mk=mu/kappa1
+    IF( pset==2 ) mk=mu/kappa2
+
+    DO ip=1,SIZE(s)
+      x = s(ip)
+      x2 = x*x
+      y = 1._dbl/(1._dbl+mk*x2)
+      SELECT CASE (m)
+      CASE (0)
+         fs(ip,1) = 1._dbl + mu*x2*y
+      CASE (1)
+         fs(ip,1) = 1._dbl + mu*x2*y
+         fs(ip,2) = 2._dbl*mu*x*y*y
+      CASE (2)
+         fs(ip,1) = 1._dbl + mu*x2*y
+         fs(ip,2) = 2._dbl*mu*x*y*y
+         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y
+      CASE (3)
+         fs(ip,1) = 1._dbl + mu*x2*y
+         fs(ip,2) = 2._dbl*mu*x*y*y
+         fs(ip,3) = -2._dbl*mu*(3._dbl*mk*x2-1._dbl)*y*y*y
+         fs(ip,4) = 24._dbl*mu*mk*x*(mk*x2-1._dbl)*y*y*y*y
+      CASE DEFAULT
+         CALL stop_program("efactor_pbex","Illegal order")
+      END SELECT
+    END DO
+
+  END SUBROUTINE efactor_pbex
 
 ! *****************************************************************************
 
-END MODULE ke_gga_functional
+END MODULE exchange_gga_functional
 
 ! *****************************************************************************

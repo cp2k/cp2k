@@ -14,7 +14,7 @@
 !!     JGH (15.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     - none
+!!     JGH (20.02.2001) : Added setup routine
 !!
 !!   SOURCE
 !******************************************************************************
@@ -38,7 +38,8 @@ MODULE functionals_utilities
                           f43 = 4.0_dbl*f13, &
                           f53 = 5.0_dbl*f13
 
-  PUBLIC :: set_util, calc_rs, calc_rho13, calc_fx
+  PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
+            calc_wave_vector, calc_srs
 
   REAL(dbl) :: eps_rho
 
@@ -55,6 +56,88 @@ CONTAINS
     eps_rho = cutoff
 
     END SUBROUTINE set_util
+
+! *****************************************************************************
+
+    SUBROUTINE setup_calculation(order,m,calc,tag)
+
+    INTEGER, INTENT(IN) :: order
+    INTEGER, INTENT(OUT) :: m(0:,:)
+    LOGICAL, INTENT(OUT) :: calc(0:)
+    INTEGER, INTENT(IN) :: tag
+
+    IF ( ABS(order) > 3 ) &
+       CALL stop_program("setup_calculation","Order of derivative too high")
+
+    SELECT CASE (tag)
+    CASE ( 100 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 2
+          m(2,1) = 3
+          m(2,2) = 3
+          m(3,1) = 4
+          m(3,2) = 4
+    CASE ( 110 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 3
+          m(2,1) = 4
+          m(2,2) = 6
+          m(3,1) = 7
+          m(3,2) = 10
+    CASE ( 200 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 3
+          m(2,1) = 4
+          m(2,2) = 5
+          m(3,1) = 6
+          m(3,2) = 7
+    CASE ( 201 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 3
+          m(2,1) = 4
+          m(2,2) = 6
+          m(3,1) = 7
+          m(3,2) = 10
+    CASE ( 210 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 5
+          m(2,1) = 6
+          m(2,2) = 11
+          m(3,1) = 12
+          m(3,2) = 19
+    CASE ( 211 )
+          m(0,1) = 1
+          m(0,2) = 1
+          m(1,1) = 2
+          m(1,2) = 6
+          m(2,1) = 7
+          m(2,2) = 21
+          m(3,1) = 22
+          m(3,2) = 57
+    CASE DEFAULT
+       CALL stop_program("setup_calculation","Invalid tag")
+    END SELECT
+
+    calc = .FALSE.
+    IF ( order >= 0 ) THEN
+      calc(0:order) = .TRUE.
+    ELSE
+      calc(-order) = .TRUE.
+      m(0:3,2) = m(0:3,2) - m(0:3,1) + 1
+      m(0:3,1) = 1
+    END IF
+
+    END SUBROUTINE setup_calculation
 
 ! *****************************************************************************
 
@@ -91,6 +174,33 @@ CONTAINS
 
 ! *****************************************************************************
 
+    SUBROUTINE calc_srs ( rho, x )
+
+!   ---------------------------------------------------------------------------
+!   rs parameter : f*rho**(-1/3)
+!   x = sqrt(rs)
+!   ---------------------------------------------------------------------------
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(dbl), DIMENSION(:), INTENT(OUT) :: x
+
+!   *** Local variables ***
+
+    INTEGER :: n, ip
+
+!   ---------------------------------------------------------------------------
+
+    CALL calc_rs ( rho, x )
+    n = SIZE ( rho )
+
+    DO ip = 1, n
+      x(ip) = sqrt(x(ip))
+    END DO
+
+  END SUBROUTINE calc_srs
+
+! *****************************************************************************
+
     SUBROUTINE calc_rho13 ( rho, r13 )
 
 !   ---------------------------------------------------------------------------
@@ -117,6 +227,45 @@ CONTAINS
     END DO
 
   END SUBROUTINE calc_rho13
+
+! *****************************************************************************
+
+  SUBROUTINE calc_wave_vector ( tag, rho, grho, s )
+
+!   ---------------------------------------------------------------------------
+!   wave vector s = |nabla rho| / (2(3pi^2)^1/3 * rho^4/3)
+!   ---------------------------------------------------------------------------
+
+    CHARACTER (len=*), INTENT(IN)        :: tag
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grho
+    REAL(dbl), DIMENSION(:), INTENT(OUT) :: s
+
+!   *** Local variables ***
+
+    INTEGER :: n, ip
+    REAL(dbl) :: fac
+
+!   ---------------------------------------------------------------------------
+
+    fac = 1._dbl / (2._dbl*(3._dbl*pi*pi)**f13)
+    IF ( tag(1:1)=="u" .OR. tag(1:1)=="U" ) fac = fac*(2._dbl)**f13
+
+    n = SIZE ( rho )
+    IF ( n > SIZE(s) ) &
+      CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+    IF ( n > SIZE(grho) ) &
+      CALL stop_program ( "calc_wave_vector", "Incompatible array sizes" )
+
+    DO ip = 1, n
+      IF ( rho(ip) < eps_rho ) THEN
+         s(ip) = 0.0_dbl
+      ELSE
+         s(ip) = fac*grho(ip)*rho(ip)**(-f43)
+      END IF
+    END DO
+
+  END SUBROUTINE calc_wave_vector
 
 ! *****************************************************************************
 
@@ -151,6 +300,7 @@ CONTAINS
       CALL stop_program ( "calc_fx", "Incompatible array sizes" )
     IF ( m > SIZE(fx,2) ) &
       CALL stop_program ( "calc_fx", "Incompatible array sizes" )
+    IF ( m > 3 ) CALL stop_program ( "calc_fx", "Order too high" )
 
     DO ip = 1, n
       rhoab = rhoa(ip) + rhob(ip)
@@ -160,7 +310,7 @@ CONTAINS
          x = (rhoa(ip) - rhob(ip)) / rhoab
          IF ( x < -1._dbl ) THEN
            IF ( m >= 0 ) fx(ip,1) = 1._dbl
-           IF ( m >= 1 ) fx(ip,1) = -f43*fac*2._dbl**f13
+           IF ( m >= 1 ) fx(ip,2) = -f43*fac*2._dbl**f13
            IF ( m >= 2 ) fx(ip,3) = f13*f43*fac/2._dbl**f23
            IF ( m >= 3 ) fx(ip,4) = f23*f13*f43*fac/2._dbl**f53
          ELSE IF ( x > 1._dbl ) THEN

@@ -29,7 +29,8 @@ MODULE pade_functional
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rs, calc_fx
+  USE functionals_utilities, ONLY: set_util, calc_rs, calc_fx, &
+                                   setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -114,31 +115,16 @@ CONTAINS
 
 !   *** Local variables ***
 
-    LOGICAL   :: calc(0:4), allcalc
+    LOGICAL   :: calc(0:4)
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
-    INTEGER :: n, error, m, mp, mt
+    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        mt = order+1
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = 1
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 2
-    END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "pade_lda", &
-       "order of derivative too high" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "pade_lda", &
        "Size of POT array too small" )
 
@@ -146,23 +132,24 @@ CONTAINS
     ALLOCATE ( rs(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "pade_lda", "rs", n )
     
-    m = 1
     CALL calc_rs ( rho, rs )
     IF ( calc(0) .AND. calc(1) ) THEN
-       CALL pade_lda_01 ( rho, rs, pot(:,:) )
+       m1=mx(0,1)
+       m2=mx(1,2)
+       CALL pade_lda_01 ( rho, rs, pot(:,m1:m2) )
     ELSE IF ( calc(0) ) THEN
        CALL pade_lda_0 ( rho, rs, pot(:,1) )
     ELSE IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
-       CALL pade_lda_1 ( rho, rs, pot(:,m) )
+       m1=mx(1,1)
+       CALL pade_lda_1 ( rho, rs, pot(:,m1) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 3
-       CALL pade_lda_2 ( rho, rs, pot(:,m) )
+       m1=mx(2,1)
+       CALL pade_lda_2 ( rho, rs, pot(:,m1) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 4
-       CALL pade_lda_3 ( rho, rs, pot(:,m) )
+       m1=mx(3,1)
+       CALL pade_lda_3 ( rho, rs, pot(:,m1) )
     END IF
 
     DEALLOCATE ( rs, STAT=error )
@@ -182,43 +169,17 @@ CONTAINS
 
 !   *** Local variables ***
 
-    LOGICAL   :: calc(0:4), allcalc
+    LOGICAL   :: calc(0:4)
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: rs
     REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: fx
-    INTEGER :: n, error, m, mp, mt
+    INTEGER :: n, error, m, mp, mt, mx(0:3,2), m1, m2
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,201)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        SELECT CASE (order)
-        CASE (0)
-          mt = 1
-        CASE (1)
-          mt = 3
-        CASE (2)
-          mt = 6
-        CASE (3)
-          mt = 10
-        CASE DEFAULT
-          mt = mp+100
-        END SELECT
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = -order+1
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 3
-    END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "pade_lda", &
-       "order of derivative too high" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "pade_lsd", &
        "Size of POT array too small" )
 
@@ -231,24 +192,28 @@ CONTAINS
 
     fx(1:n,1) = rhoa(1:n) + rhob(1:n)
     CALL calc_rs ( fx(:,1), rs )
-    CALL calc_fx ( rhoa, rhob, fx, m )
+    CALL calc_fx ( rhoa, rhob, fx, m-1 )
 
-    m = 1
     IF ( calc(0) .AND. calc(1) ) THEN
-       CALL pade_lsd_01 ( rhoa, rhob, rs, fx, pot(:,1:3) )
+       m1=mx(0,1)
+       m2=mx(1,2)
+       CALL pade_lsd_01 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
     ELSE IF ( calc(0) ) THEN
        CALL pade_lsd_0 ( rhoa, rhob, rs, fx, pot(:,1) )
     ELSE IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
-       CALL pade_lsd_1 ( rhoa, rhob, rs, fx, pot(:,m:m+1) )
+       m1=mx(1,1)
+       m2=mx(1,2)
+       CALL pade_lsd_1 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 4
-       CALL pade_lsd_2 ( rhoa, rhob, rs, fx, pot(:,m:m+2) )
+       m1=mx(2,1)
+       m2=mx(2,2)
+       CALL pade_lsd_2 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 7
-       CALL pade_lsd_3 ( rhoa, rhob, rs, fx, pot(:,m:m+3) )
+       m1=mx(3,1)
+       m2=mx(3,2)
+       CALL pade_lsd_3 ( rhoa, rhob, rs, fx, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( fx, STAT=error )
@@ -732,6 +697,7 @@ CONTAINS
     REAL(dbl) :: p, q, dp, dq, xp, xq, rhoab, dr, dx, dc
     REAL(dbl) :: d2p, d2q, dxp, dxq, drr, dxr, dxx, xt, yt, or
     REAL(dbl) :: d3p, d3q, d2xp, d2xq
+    REAL(dbl) :: drrr, dxrr, dxxr, dxxx
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
@@ -785,15 +751,26 @@ CONTAINS
 
          dr = (dp*q - p*dq)/(q*q)
          drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         drrr = (d3p*q*q*q-3._dbl*d2p*dq*q*q+6._dbl*dp*dq*dq*q-3._dbl*dp*d2q*q*q - &
+                6._dbl*p*dq*dq*dq+6._dbl*p*dq*d2q*q-p*d3q*q*q)/(q*q*q*q)
          dx = (xp*q - p*xq)/(q*q)
          dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
+         dxxx = 6._dbl*xq*(q*xp*xq-p*xq*xq)/(q*q*q*q)
          dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+         dxxr = 2._dbl*(2._dbl*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dp-xq*q*q*dxp + &
+                2._dbl*xq*q*xp*dq-3._dbl*xq*xq*dq*p)/(q*q*q*q)
+         dxrr = (q*q*q*d2xp-2._dbl*q*q*dxp*dq-q*q*xp*d2q-q*q*d2p*xq - &
+                2._dbl*q*q*dp*dxq-q*q*p*d2xq+4._dbl*dq*q*dp*xq+4._dbl*dq*q*p*dxq + &
+                2._dbl*dq*dq*q*xp-6._dbl*dq*dq*p*xq+2._dbl*d2q*q*p*xq)/(q*q*q*q)
 
          or = 1._dbl/rhoab
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = 1._dbl
+         pot(ip,1) = 8._dbl/27._dbl*dr*rs(ip)*or*or + &
+                     1._dbl/9._dbl*drr*rs(ip)*rs(ip)*or*or + &
+                     1._dbl/27._dbl*drrr*rs(ip)**3*or*or + &
+                     dxr*or*or*yt*rs(ip)*(-8._dbl/3._dbl*fx(ip,2)+4._dbl*fx(ip,3)*yt) 
          pot(ip,2) = 1._dbl
          pot(ip,3) = 1._dbl
          pot(ip,4) = 1._dbl

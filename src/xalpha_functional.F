@@ -27,7 +27,7 @@ MODULE xalpha_functional
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rho13
+  USE functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -105,31 +105,16 @@ CONTAINS
 
 !   *** Local variables ***
 
-    LOGICAL   :: calc(0:4), allcalc
+    LOGICAL   :: calc(0:4)
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13
-    INTEGER :: n, error, m, mp, mt
+    INTEGER :: n, error, m, mp, mt, mx(0:3,2)
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,100)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        mt = order+1
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = 1
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 2
-    END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "xalpha_lda", &
-       "order of derivative too high" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "xalpha_lda", &
        "Size of POT array too small" )
 
@@ -137,21 +122,20 @@ CONTAINS
     ALLOCATE ( r13(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "xalpha_lda", "r13", n )
     
-    m = 1
     CALL calc_rho13 ( rho, r13 )
     IF ( calc(0) ) THEN
        CALL xalpha_lda_0 ( rho, r13, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
+       m = mx(1,1)
        CALL xalpha_lda_1 ( rho, r13, pot(:,m) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 3
+       m = mx(2,1)
        CALL xalpha_lda_2 ( rho, r13, pot(:,m) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 4
+       m = mx(3,1)
        CALL xalpha_lda_3 ( rho, r13, pot(:,m) )
     END IF
 
@@ -172,42 +156,16 @@ CONTAINS
 
 !   *** Local variables ***
 
-    LOGICAL   :: calc(0:4), allcalc
+    LOGICAL   :: calc(0:4)
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b
-    INTEGER :: n, error, m, mp, mt
+    INTEGER :: n, error, m, mp, mt, mx(0:3,2),m1,m2
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,200)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        SELECT CASE (order)
-        CASE (0)
-          mt = 1
-        CASE (1)
-          mt = 3
-        CASE (2)
-          mt = 5
-        CASE (3)
-          mt = 7
-        CASE DEFAULT
-          mt = mp+100
-        END SELECT
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = 2
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 3
-    END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "xalpha_lsd", &
-       "order of derivative too high" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "xalpha_lsd", &
        "Size of POT array too small" )
 
@@ -217,23 +175,25 @@ CONTAINS
     ALLOCATE ( r13b(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13b", n )
 
-    m = 1
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
     IF ( calc(0) ) THEN
        CALL xalpha_lsd_0 ( rhoa, rhob, r13a, r13b, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
-       CALL xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       m1 = mx(1,1)
+       m2 = mx(1,2)
+       CALL xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 4
-       CALL xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       m1 = mx(2,1)
+       m2 = mx(2,2)
+       CALL xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 6
-       CALL xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       m1 = mx(3,1)
+       m2 = mx(3,2)
+       CALL xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( r13a, STAT=error )

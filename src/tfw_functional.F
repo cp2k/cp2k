@@ -24,7 +24,7 @@ MODULE tfw_functional
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rho13
+  USE functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -101,39 +101,14 @@ CONTAINS
 
     LOGICAL   :: calc(0:4), allcalc
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13, s
-    INTEGER :: n, error, m, mp, mt, ip
+    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,110)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        SELECT CASE (order)
-        CASE (0)
-          mt = 1
-        CASE (1)
-          mt = 3
-        CASE (2)
-          mt = 6
-        CASE (3)
-          mt = 10
-        CASE DEFAULT
-          mt = mp+100
-        END SELECT
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = -order+1
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 3
-    END IF
-    IF ( abs(order) > 3 ) CALL stop_program ( "tfw_u", "order larger than 3" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "tfw_u", &
        "Size of POT array too small" )
 
@@ -143,7 +118,6 @@ CONTAINS
     ALLOCATE ( s(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "tfw_u", "s", n )
     
-    m = 1
     CALL calc_rho13 ( rho, r13 )
     DO ip = 1, n
       IF ( rho(ip) < eps_rho ) THEN
@@ -156,16 +130,19 @@ CONTAINS
        CALL tfw_u_0 ( rho, r13, s, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
-       CALL tfw_u_1 ( rho, grho, r13, s, pot(:,m:m+1) )
+       m1=mx(1,1)
+       m2=mx(1,2)
+       CALL tfw_u_1 ( rho, grho, r13, s, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 4
-       CALL tfw_u_2 ( rho, grho, r13, s, pot(:,m:m+2) )
+       m1=mx(2,1)
+       m2=mx(2,2)
+       CALL tfw_u_2 ( rho, grho, r13, s, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 7
-       CALL tfw_u_3 ( rho, grho, r13, s, pot(:,m:m+3) )
+       m1=mx(3,1)
+       m2=mx(3,2)
+       CALL tfw_u_3 ( rho, grho, r13, s, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( r13, STAT=error )
@@ -190,39 +167,14 @@ CONTAINS
 
     LOGICAL   :: calc(0:4), allcalc
     REAL(dbl), DIMENSION(:), ALLOCATABLE :: r13a, r13b, sa, sb
-    INTEGER :: n, error, m, mp, mt, ip
+    INTEGER :: n, error, m, mp, mt, ip, mx(0:3,2), m1, m2
 
 !   ---------------------------------------------------------------------------
 
-    calc = .FALSE.
+    CALL setup_calculation(order,mx,calc,210)
     mp = SIZE ( pot, 2 )
-    allcalc = .TRUE.
-    IF ( PRESENT ( order ) ) THEN
-      IF ( order >= 0 ) THEN
-        calc(0:order) = .TRUE.
-        SELECT CASE (order)
-        CASE (0)
-          mt = 1
-        CASE (1)
-          mt = 5
-        CASE (2)
-          mt = 11
-        CASE (3)
-          mt = 19
-        CASE DEFAULT
-          mt = mp+100
-        END SELECT
-      ELSE
-        calc(-order) = .TRUE.
-        allcalc = .FALSE.
-        mt = 2*(ABS(order)+1)
-      END IF
-    ELSE
-       calc(0) = .TRUE.
-       calc(1) = .TRUE.
-       mt = 3
-    END IF
-    IF ( abs(order) > 3 ) CALL stop_program ( "tfw_u", "order larger than 3" )
+    m = ABS(order)
+    mt = mx(m,2)
     IF ( mt > mp ) CALL stop_program ( "tfw_p", &
        "Size of POT array too small" )
 
@@ -236,23 +188,8 @@ CONTAINS
     ALLOCATE ( sb(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "tfw_p", "sb", n )
 
-    m = 1
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
-    DO ip = 1, n
-      IF ( rhoa(ip) < eps_rho ) THEN
-         sa(ip) = 0.0_dbl
-      ELSE
-         sa(ip) = grhoa(ip)*grhoa(ip) / rhoa(ip)
-      END IF
-    END DO
-    DO ip = 1, n
-      IF ( rhob(ip) < eps_rho ) THEN
-         sb(ip) = 0.0_dbl
-      ELSE
-         sb(ip) = grhob(ip)*grhob(ip) / rhob(ip)
-      END IF
-    END DO
     DO ip = 1, n
       IF ( rhoa(ip) < eps_rho ) THEN
          sa(ip) = 0.0_dbl
@@ -272,19 +209,22 @@ CONTAINS
                       r13a, r13b, sa, sb, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
-       IF ( allcalc ) m = 2
+       m1=mx(1,1)
+       m2=mx(1,2)
        CALL tfw_p_1 ( rhoa, rhob, grhoa, grhob, &
-                      r13a, r13b, sa, sb, pot(:,m:m+3) )
+                      r13a, r13b, sa, sb, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
-       IF ( allcalc ) m = 6
+       m1=mx(2,1)
+       m2=mx(2,2)
        CALL tfw_p_2 ( rhoa, rhob, grhoa, grhob, &
-                      r13a, r13b, sa, sb, pot(:,m:m+5) )
+                      r13a, r13b, sa, sb, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
-       IF ( allcalc ) m = 12
+       m1=mx(3,1)
+       m2=mx(3,2)
        CALL tfw_p_3 ( rhoa, rhob, grhoa, grhob, &
-                      r13a, r13b, sa, sb, pot(:,m:m+7) )
+                      r13a, r13b, sa, sb, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( r13a, STAT=error )
