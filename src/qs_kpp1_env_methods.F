@@ -213,16 +213,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ispin, nspins, &
-                                                ntot, output_unit = 6, stat
+                                                ntot, output_unit, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: failure, lsd, ionode
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 total_rho_gspace
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_g, rho1_r, rho_g, rho_r, &
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_r, &
                                                 v_rspace_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
@@ -239,14 +239,13 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho1_set, rho_set
 
-! NEW STUFF
-
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
-         pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         rho1_g_pw,tau_pw,cell,v_xc)
+
+    NULLIFY(dft_control, auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
+            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, deriv_set, rho_set, rho1_set)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
@@ -263,19 +262,14 @@ CONTAINS
             cell=cell,&
             error=error)
 
-       nspins=dft_control%nspins
+       nspins = dft_control%nspins
        CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
-       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+
+       lsd = (dft_control%nspins == 2)
+       xc_control = qs_env%dft_control%xc_control
+       IF (dft_control%do_tddfpt_calculation) &
+            xc_control = qs_env%dft_control%tddfpt_control%xc_control
     END IF
-
-    ! NEW CODE BEGINS
-    lsd = (dft_control%nspins == 2)
-    xc_control = qs_env%dft_control%xc_control
-    IF (dft_control%do_tddfpt_calculation) &
-         xc_control = qs_env%dft_control%tddfpt_control%xc_control
-    NULLIFY(deriv_set, rho_set, rho1_set)
-    ! NEW CODE ENDS
-
 
     IF (.NOT.failure) THEN
        kpp1_env%iter=kpp1_env%iter+1
@@ -283,6 +277,7 @@ CONTAINS
 
 ! gets the tmp grids
     IF (.NOT. failure) THEN
+       CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
             pw_pools=pw_pools)
        ALLOCATE(v_rspace_new(nspins), stat=stat)
@@ -300,34 +295,16 @@ CONTAINS
 ! *** calculate the hartree potential on the total density ***
     IF (.NOT. failure) THEN
 
-       CALL pw_pool_init_coeff(auxbas_pw_pool,rho1_tot_gspace,&
+       CALL pw_pool_init_coeff(auxbas_pw_pool, rho1_tot_gspace,&
             use_data = COMPLEXDATA1D,&
             in_space = RECIPROCALSPACE, error=error)
 
        CALL coeff_copy(rho1%rho_g(1),rho1_tot_gspace)
        DO ispin=2,nspins
-          CALL coeff_sumup(rho1%rho_g(ispin),rho1_tot_gspace)
+          CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
        END DO
 
-       IF (logger%print_keys%total_densities) THEN
-          total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
-          IF (logger%para_env%mepos==logger%para_env%source) THEN
-             output_unit=cp_unitnr_for_output(logger,&
-                  outputName="kpp1_charges",&
-                  fromWhere=routineP, &
-                  iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
-                  local=.FALSE.,error=error)
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                  "KPP1 total charge density (r-space):",&
-                  SUM(rho1%tot_rho_r),&
-                  "KPP1 total charge density (g-space):",&
-                  total_rho_gspace
-             CALL cp_finished_output(logger, outputName="kpp1_charges",&
-                  fromWhere=routineP, &
-                  iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
-                  unit_nr=output_unit,local=.FALSE.,error=error)
-          END IF
-       END IF
+       CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 
        IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
            dft_control%tddfpt_control%res_etype == "TRIPLET" )) THEN
@@ -345,16 +322,8 @@ CONTAINS
 
 ! *** calculate the xc potential ***       
 
-       !DO ispin=1,nspins
-       !   CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
-       !        use_data = REALDATA3D,&
-       !        in_space = REALSPACE, error=error)
-       !   CALL coeff_zero(v_rspace_new(ispin))
-       !END DO
-
-       CALL qs_rho_get(rho1,rho_r=rho1_r,rho_g=rho1_g,error=error)
+       CALL qs_rho_get(rho1, rho_r=rho1_r, error=error)
        
-       ! NEW CODE BEGINS
        IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
           ! In this case we need to do a unrestricted calculation to
           ! differenciate beween singlets and triplets
@@ -414,7 +383,7 @@ CONTAINS
        CALL  xc_calc_2nd_deriv_new(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
             rho1_set, auxbas_pw_pool, dft_control, error=error)
        do ispin=1,nspins
-          call coeff_init(v_rspace_new(ispin), pw=v_xc(ispin)%pw,error=error)
+          call coeff_init(v_rspace_new(ispin), pw=v_xc(ispin)%pw, error=error)
        end do
        deallocate(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -428,20 +397,8 @@ CONTAINS
        END IF
        DEALLOCATE(rho1_r_pw, atoms,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ! NEW CODE ENDS
+
        
-       !CALL xc_calc_2nd_deriv1(kpp1_env%deriv_set, &
-       !                        rho_r=rho_r,drho_r=kpp1_env%drho_r,&
-       !                        rho1_r=rho1_r,&
-       !                        rho1_g=rho1_g,&
-       !                        dft_control=dft_control,&
-       !                        spin_pot=kpp1_env%spin_pot,grad_pot=kpp1_env%grad_pot,&
-       !                        ndiag_term=kpp1_env%ndiag_term,&
-       !                        v_rspace_new=v_rspace_new,&
-       !                        pw_pool=auxbas_pw_pool,&
-       !                        error=error)
-
-
        !-------------------------------!
        ! Add both hartree and xc terms !
        !-------------------------------!
@@ -450,7 +407,6 @@ CONTAINS
           ntot = SIZE(v_rspace_new(ispin)%pw%cr3d,1) * &
                  SIZE(v_rspace_new(ispin)%pw%cr3d,2) * &
                  SIZE(v_rspace_new(ispin)%pw%cr3d,3)
-
 
           CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
                            v_rspace_new(ispin)%pw%cr3d,1)
@@ -658,7 +614,7 @@ CONTAINS
     INTEGER                                  :: ispin, nspins, stat
     LOGICAL                                  :: failure
     type(cell_type), pointer                 :: cell
-    type(coeff_type), dimension(:), pointer  :: rho_g, rho_r
+    type(coeff_type), dimension(:), pointer  :: rho_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     type(pw_p_type), dimension(:), pointer   :: my_rho_r
@@ -671,7 +627,7 @@ CONTAINS
 ! ------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,rho_g)
+    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -684,7 +640,7 @@ CONTAINS
 
        nspins=dft_control%nspins
 
-       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
+       CALL pw_env_get(pw_env, auxbas_pw_pool = auxbas_pw_pool, error=error)
 
        IF (.NOT.ASSOCIATED(kpp1_env%v_rspace)) THEN
           ALLOCATE(kpp1_env%v_rspace(nspins),stat=stat)
@@ -713,13 +669,7 @@ CONTAINS
        
        if (.not.associated(kpp1_env%deriv_set)) then
 
-          call qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, error=error)
-          !call xc_prep_2nd_deriv1(kpp1_env%deriv_set, &
-          !                        rho_r=rho_r, rho_g=rho_g,&
-          !                        dft_control=dft_control, pw_pool=auxbas_pw_pool,&
-          !                        drho_r=kpp1_env%drho_r,&
-          !                        spin_pot=kpp1_env%spin_pot, grad_pot=kpp1_env%grad_pot,&
-          !                        ndiag_term=kpp1_env%ndiag_term, error=error)
+          call qs_rho_get(rho, rho_r=rho_r, error=error)
 
           NULLIFY(deriv_set)
           allocate(my_rho_r(size(rho_r)),stat=stat)
@@ -734,6 +684,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        end if
     END IF
+
   END SUBROUTINE kpp1_check_i_alloc
 !***************************************************************************
 
@@ -838,5 +789,51 @@ CONTAINS
     END IF
   END SUBROUTINE kpp1_did_change
 ! ***************************************************************************
+
+  SUBROUTINE print_densities(kpp1_env, rho1, rho1_tot_gspace, error)
+    
+    ! arguments
+    TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
+    TYPE(qs_rho_type), POINTER               :: rho1
+    TYPE(coeff_type), INTENT(IN)             :: rho1_tot_gspace
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    ! locals
+    INTEGER                                  :: output_unit, ionode
+    REAL(KIND=dp)                            :: total_rho_gspace
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    ! parameters
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_densities', &
+                                   routineP = moduleN//':'//routineN
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = (logger%para_env%mepos==logger%para_env%source)
+
+    IF (.NOT.ionode) RETURN
+
+    IF (logger%print_keys%total_densities) THEN
+       total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
+       IF (logger%para_env%mepos==logger%para_env%source) THEN
+          output_unit=cp_unitnr_for_output(logger,&
+               outputName="kpp1_charges",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
+               local=.FALSE.,error=error)
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "KPP1 total charge density (r-space):",&
+               SUM(rho1%tot_rho_r),&
+               "KPP1 total charge density (g-space):",&
+               total_rho_gspace
+          CALL cp_finished_output(logger, outputName="kpp1_charges",&
+               fromWhere=routineP, &
+               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
+               unit_nr=output_unit,local=.FALSE.,error=error)
+       END IF
+    END IF
+
+  END SUBROUTINE print_densities
 
 END MODULE qs_kpp1_env_methods
