@@ -1863,7 +1863,7 @@ SUBROUTINE pw_smooth(pw_in,pw_out)
    TYPE(pw_type), POINTER :: pw_in
    TYPE(pw_type), POINTER :: pw_out
    REAL(wp) :: alpha,beta,sum,dr(3),radius,sigma,dist
-   integer  :: n(3),nc(3),bo(2,3),n,i,j,k,ir,il,jl,jr,kr,kl,p,q,r,method
+   integer  :: n(3),nc(3),bo(2,3),i,j,k,ir,il,jl,jr,kr,kl,p,q,r,method
    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: Kernel
 
    n(1:3) = pw_in%pw_grid%npts_local (1:3)
