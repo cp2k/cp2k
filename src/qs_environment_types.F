@@ -66,7 +66,7 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,cell,dft_control,h,s,k,p,c,atomic_kind_set,&
                         particle_set,sab_orb,sac_erfc,sac_ppl,sca_ppnl,&
-                        scb_ppnl,pao_env)
+                        scb_ppnl,pao_env,natoms)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -108,6 +108,7 @@ CONTAINS
     IF (PRESENT(sca_ppnl)) sca_ppnl => qs_env%sca_ppnl
     IF (PRESENT(scb_ppnl)) scb_ppnl => qs_env%scb_ppnl
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
+    IF (PRESENT(natoms)) natoms = size(qs_env%particle_set)
 
   END SUBROUTINE get_qs_env
 
