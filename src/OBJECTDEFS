@@ -161,6 +161,7 @@ OBJECTS_GENERIC =\
  kg_energy_types.o\
  kg_energy_utils.o\
  kg_environment.o\
+ kg_environment_methods.o\
  kg_environment_types.o\
  kg_force.o\
  kg_force_types.o\
@@ -171,6 +172,8 @@ OBJECTS_GENERIC =\
  kg_ppl.o\
  kg_rho_methods.o\
  kg_rho_types.o\
+ kg_rspw_methods.o\
+ kg_rspw_types.o\
  kg_scf.o\
  kg_scf_types.o\
  kinds.o\

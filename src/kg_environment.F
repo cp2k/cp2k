@@ -45,10 +45,7 @@ MODULE kg_environment
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
-  USE distribution_2d_types,           ONLY: distribution_2d_release,&
-                                             distribution_2d_type
-  USE distribution_methods,            ONLY: distribute_molecules_1d,&
-                                             distribute_molecules_2d
+  USE distribution_methods,            ONLY: distribute_molecules_1d
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
                                              dyn_coeff_set_release,&
                                              dyn_coeff_set_type
@@ -59,6 +56,7 @@ MODULE kg_environment
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
                                              set_kg_env
+  USE kg_environment_methods,          ONLY: kg_env_setup
   USE kg_force_types,                  ONLY: allocate_kg_force,&
                                              kg_force_type
   USE kg_rho_methods,                  ONLY: kg_rho_create
@@ -352,57 +350,6 @@ CONTAINS
   END SUBROUTINE kg_init
 
 !***************************************************************************
-
-  SUBROUTINE kg_env_setup(kg_env,error)
-
-    TYPE(kg_environment_type), INTENT(inout) :: kg_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'kg_env_setup', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(distribution_2d_type), POINTER      :: distribution_2d
-    TYPE(kg_rho_type), POINTER               :: rho
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    failure=.FALSE.
-
-    NULLIFY(rho)
-
-    CALL get_kg_env(kg_env=kg_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    molecule_kind_set=molecule_kind_set,&
-                    molecule_set=molecule_set,&
-                    particle_set=particle_set,&
-                    rho=rho)
-    CALL kg_rho_create(kg_rho=rho,kg_env=kg_env,error=error)
-    CALL set_kg_env(kg_env,rho=rho)
-    CALL kg_rho_release(kg_rho=rho,error=error)
-     ! create 2d distribution
-
-    CALL distribute_molecules_2d(particle_kind_set=atomic_kind_set,&
-                                  particle_set=particle_set,&
-                                  molecule_kind_set=molecule_kind_set,&
-                                  molecule_set=molecule_set,&
-                                  distribution_2d=distribution_2d,&
-                                  blacs_env=kg_env%blacs_env,&
-                                  error=error)
-
-    CALL set_kg_env(kg_env,distribution_2d=distribution_2d,error=error)
-    CALL distribution_2d_release(distribution_2d, error=error)
-
-  END SUBROUTINE kg_env_setup
-
-!******************************************************************************
 
   SUBROUTINE write_total_numbers(atomic_kind_set,particle_set,globenv)
 

@@ -1411,12 +1411,12 @@ CONTAINS
                          all_potential=all_potential,&
                          elp_potential=elp_potential,&
                          gth_potential=gth_potential)
-    IF (z < 1) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                     "No valid element is assign to the atomic kind ",globenv)
-    END IF
 
     IF (globenv%program_name == "QS") THEN
+      IF (z < 1) THEN
+        CALL stop_program(routine_name,module_name,__LINE__,&
+                     "No valid element is assign to the atomic kind ",globenv)
+      END IF
       IF (.NOT. dft_control%qs_control%semi_empirical) THEN
         IF ( .NOT. ASSOCIATED(gth_potential) .AND. &
              .NOT. ASSOCIATED(all_potential) .AND. &

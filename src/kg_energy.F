@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2002 - 2003  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/kg_energy [1.0] *
 !!
 !!   NAME
@@ -23,8 +24,19 @@ MODULE kg_energy
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
+                                             coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff,&
@@ -53,7 +65,10 @@ MODULE kg_energy
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
-  USE kg_rho_types,                    ONLY: kg_rho_type
+  USE kg_rho_types,                    ONLY: kg_rho_type, &
+                                             kg_rho_get
+  USE kg_rspw_types,                   ONLY: kg_rspw_type,&
+                                             kg_rspw_get
 ! USE kg_scf,                          ONLY: kg_qs_scf
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush,&
@@ -61,6 +76,13 @@ MODULE kg_energy
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -125,24 +147,29 @@ END SUBROUTINE kg_energies
 !!   MODIFICATION HISTORY
 !!
 !!*** *************************************************************************
-SUBROUTINE kg_std_energies ( kg_env, globenv )
+SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, handle2, i, isos, &
+    INTEGER                                  :: handle, handle2, i, stat, &
                                                 iter, output_unit
-    LOGICAL                                  :: ionode, should_stop
+    LOGICAL                                  :: ionode, should_stop, failure
     REAL(dbl)                                :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE (coeff_type), POINTER               :: vxc_r
     TYPE(diis_info_type), POINTER            :: diis_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !------------------------------------------------------------------------------
 
@@ -150,9 +177,10 @@ SUBROUTINE kg_std_energies ( kg_env, globenv )
   CALL timeset ( 'kg_std_energies','I',' ',handle )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
+  NULLIFY(rspw,auxbas_pw_pool,vxc_r)
   ionode=globenv%ionode
   output_unit=globenv%scr
-  isos = 0
+  stat = 0
   iter = 0
 
   t1 = m_walltime()
@@ -160,15 +188,26 @@ SUBROUTINE kg_std_energies ( kg_env, globenv )
   CALL get_kg_env(kg_env=kg_env,&
                   atomic_kind_set=atomic_kind_set,&
                   dyn_coeff_set=dyn_coeff_set,&
+                  rspw=rspw,&
                   scf_control=scf_control)           
+
+  CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  ALLOCATE(vxc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  IF (.NOT.failure) THEN
+    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(vxc_r)
+  END IF
    
   CALL build_kg_neighbor_lists(kg_env,globenv)
 
   CALL diis_info_create(diis_info,scf_control%max_diis,dyn_coeff_set)
 
-  CALL init_energy_calculation(kg_env,globenv)
+  CALL init_energy_calculation(kg_env,vxc_r,globenv)
 
-  CALL calc_c_gradients(kg_env,maxgrad,globenv)
+  CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv)
 
   IF (ionode) THEN
      WRITE (UNIT=output_unit,&
@@ -184,7 +223,7 @@ scf_loop: DO
     iter = iter + 1
 
     CALL do_diis_step(kg_env,diis_info,maxerr)
-    CALL calc_c_gradients(kg_env,maxgrad,globenv)
+    CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv)
 
     t2 = m_walltime()
 
@@ -226,6 +265,11 @@ scf_loop: DO
     CALL timestop(0.0_dbl,handle2)
 
   END DO scf_loop
+
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  DEALLOCATE(vxc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  
 !   *** Write restart file ***
   IF (scf_control%write_restart_each>=0) THEN
     CALL write_coeff_restart(dyn_coeff_set,atomic_kind_set,globenv)  
@@ -293,26 +337,33 @@ END SUBROUTINE kg_qs_energies
 
 !------------------------------------------------------------------------------
 
-SUBROUTINE init_energy_calculation ( kg_env, globenv )
+SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(coeff_type),POINTER                 :: vxc_r
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_energy_calculation (MODULE kg_energy)"
 
-    INTEGER                                  :: auxbas_grid, handle, i, isos, &
+    INTEGER                                  :: handle, i, stat, &
                                                 output_unit
-    LOGICAL                                  :: calculate_forces, ionode
+    LOGICAL                                  :: calculate_forces, ionode, failure
     REAL(dbl)                                :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
+                                                rhop_r, rhop_g
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER            :: energy
-    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(kg_rho_type), POINTER               :: rho
+    TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !------------------------------------------------------------------------------
@@ -321,18 +372,26 @@ SUBROUTINE init_energy_calculation ( kg_env, globenv )
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
   ionode=globenv%ionode
   output_unit=globenv%scr
-  NULLIFY(energy,atomic_kind_set,dft_control,&
-          kg_rho_v,scf_control,dyn_coeff_set)
+  NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
+          rho,rspw,scf_control,dyn_coeff_set)
+  NULLIFY(rho_r,rho_g,rho_core)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy,&
-                    rho=kg_rho_v,dyn_coeff_set=dyn_coeff_set,&
+                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,&
                     scf_control=scf_control)
 
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  IF(.NOT.failure) THEN
+    CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, &
+                    rho_core=rho_core)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  END IF
+
   calculate_forces=.FALSE. 
-  isos = 0
-  auxbas_grid=kg_rho_v%auxbas_grid
-  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
+  stat = 0
+  dvol=auxbas_pw_pool%pw_grid%dvol
 
   CALL build_kg_neighbor_lists(kg_env,globenv)
 
@@ -359,29 +418,22 @@ SUBROUTINE init_energy_calculation ( kg_env, globenv )
 
 ! Calculate the density generated by the core charges
 
-  CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
-                         kg_rho_v%l_info,&
-                         kg_rho_v%total_rho_core_rspace, kg_env)
+  CALL calculate_epc_density(rho_core,rho%total_rho_core_rspace, kg_env)
 
 ! calculate the frozen electronic pseudo density
 
-  CALL calculate_density ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
-            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
-            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rho0_rspace, kg_env)
+  CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env)
 
 ! calculate the total density
-  kg_rho_v%total_rho_rspace = total_rho0_rspace+&
-             kg_rho_v%total_rho_core_rspace
+  rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (kg_rho_v%rho_elec_rspace%pw, kg_rho_v%rho_gspace%pw, &
-                        kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
-                        kg_rho_v%pw_pool)
+  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
+                         dft_control,auxbas_pw_pool)
 
-  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
+  vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 ! add the frozen electronic density to the core density 
-  CALL coeff_sumup(kg_rho_v%rho_gspace,kg_rho_v%rho_core)
+  CALL coeff_sumup(rho_g,rho_core)
 
 !  read coef from restart file
   IF (scf_control%density_guess == "RESTART") THEN
@@ -393,49 +445,97 @@ SUBROUTINE init_energy_calculation ( kg_env, globenv )
 END SUBROUTINE init_energy_calculation 
 !------------------------------------------------------------------------------
 
-SUBROUTINE calc_c_gradients ( kg_env, maxgrad, globenv )
+SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(coeff_type), POINTER                :: vxc_r
     REAL(dbl), intent(inout)                 :: maxgrad
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calc_c_gradients (MODULE kg_energy)"
 
-    INTEGER                                  :: auxbas_grid, handle, i, &
-                                                ikind, nkind, output_unit
-    LOGICAL                                  :: calculate_forces, ionode
+    INTEGER                                  :: handle, i, &
+                                                ikind, nkind, output_unit, stat
+    LOGICAL                                  :: calculate_forces, ionode,&
+                                                failure
     REAL(dbl)                                :: dvol, e1_xc, e2_xc, &
                                                 total_rhop_rspace
     REAL(dbl), DIMENSION(:, :), POINTER      :: forces
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
+                                                rhop_r, rhop_g, &
+                                                v_gspace, &
+                                                v_rspace, &
+                                                v1xc_r, v2xc_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(kg_energy_type), POINTER            :: energy
-    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(kg_rho_type), POINTER               :: rho
+    TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
+
   ionode=globenv%ionode
   output_unit=globenv%scr
   calculate_forces=.FALSE.
 
   NULLIFY(energy,atomic_kind_set,cell,dft_control,&
-          dyn_coeff_set,kg_rho_v,local_coeffs,forces)
+          dyn_coeff_set,rho,rspw,local_coeffs,forces)
+  NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
+          v1xc_r,v2xc_r)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    rho=kg_rho_v,dyn_coeff_set=dyn_coeff_set)
+                    rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  IF(.NOT.failure) THEN
+    CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rhop_r=rhop_r,&
+                    rhop_g=rhop_g,rho_core=rho_core)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  END IF
+
+  ALLOCATE(v_gspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v_rspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v1xc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v2xc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+
+  IF (.NOT.failure) THEN
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    CALL coeff_zero(v_gspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v_rspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v1xc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v1xc_r)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v2xc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v2xc_r)
+  END IF
         
-  auxbas_grid=kg_rho_v%auxbas_grid
-  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
+  dvol=v_rspace%pw%pw_grid%dvol           
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
 ! reinitialize forces
   DO ikind= 1, nkind
@@ -445,48 +545,46 @@ SUBROUTINE calc_c_gradients ( kg_env, maxgrad, globenv )
       forces(:,:)=0.0_dbl
     END IF
   END DO
-  CALL coeff_zero(kg_rho_v%rho_gspace)
-  CALL coeff_copy(kg_rho_v%rho_core,kg_rho_v%rho_gspace)
-  kg_rho_v%total_rho_gspace = calculate_total_density(kg_rho_v%rho_gspace)
+  CALL coeff_zero(rho_g)
+  CALL coeff_copy(rho_core,rho_g)
+  rho%total_rho_gspace = calculate_total_density(rho_g)
 
   CALL calculate_drho_ppl(kg_env,globenv,calculate_forces)
-  CALL calculate_p_density(kg_rho_v%rho_p_rspace, kg_rho_v%rho_p_gspace, &
-            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
-            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rhop_rspace, kg_env )
 
-  CALL calculate_kxc_derivatives(kg_rho_v% pw_pool, & 
-                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
-                                kg_rho_v % rho_p_rspace, kg_rho_v%v_xc_rspace,&
-                                kg_rho_v%v1_xc_rspace, kg_rho_v%v2_xc_rspace,&
-                                e1_xc, e2_xc, dft_control,calculate_forces)
+  CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env)
 
-
+  CALL calculate_kxc_derivatives(auxbas_pw_pool, rho_r, rho_g, rhop_r, vxc_r, v1xc_r,&
+                                 v2xc_r, e1_xc, e2_xc, dft_control, calculate_forces)
 
 ! add the polarization density to get the total density
-  CALL coeff_sumup(kg_rho_v%rho_p_gspace,kg_rho_v%rho_gspace)
+  CALL coeff_sumup(rhop_g,rho_g)
 
 ! calculate electrostatic potential
   CALL init_pw_poisson_solver(cell%green)
-  CALL calculate_hartree(kg_rho_v%rho_gspace, energy % hartree,&
-           kg_rho_v%v_gspace)
+  CALL calculate_hartree(rho_g, energy % hartree,v_gspace)        
   CALL cleanup_pw_poisson_solver(cell%green)
 
-  CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
+  CALL coeff_transform_space(v_gspace,v_rspace)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  DEALLOCATE(v_gspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
-  kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
-               dvol*kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+  v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
+  v_rspace%pw%cr3d(:,:,:) =-1.0_dbl*(vxc_r%pw%cr3d(:,:,:) +&
+               v1xc_r%pw%cr3d(:,:,:)+ v_rspace%pw%cr3d(:,:,:))
 
-  kg_rho_v%vp_rspace%pw%cr3d(:,:,:) =-1.0_dbl* &
-              (kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:)+&
-               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:))
+  CALL calculate_vp_rspace_forces(v_rspace,kg_env, calculate_forces)            
 
-  CALL calculate_vp_rspace_forces(kg_rho_v%vp_rspace,kg_rho_v%mgrid_rspace,&
-               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-               kg_rho_v%gridlevel_info,&
-               kg_rho_v%cube_info, kg_rho_v%l_info,&
-               kg_env,calculate_forces)
+! deallocate work storage
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  DEALLOCATE(v_rspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v1xc_r,error=error)
+  DEALLOCATE(v1xc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v2xc_r,error=error)
+  DEALLOCATE(v2xc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
 ! add up all the potential energies
 
@@ -510,10 +608,10 @@ SUBROUTINE calc_c_gradients ( kg_env, maxgrad, globenv )
     IF (ionode) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total core charge density (r-space):",&
-            kg_rho_v%total_rho_core_rspace
+            rho%total_rho_core_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            kg_rho_v%total_rho_rspace
+            rho%total_rho_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total rho_coefs charge density (r-space):     ",&
             total_rhop_rspace

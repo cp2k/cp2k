@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2002 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/kg_density [1.0] *
 !!
 !!   NAME
@@ -27,15 +28,33 @@ MODULE kg_density
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_copy,&
-                                             coeff_deallocate,&
+  USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE cube_utils,                      ONLY: cube_info_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+                                             cp_fm_get_info,&
+                                             cp_fm_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect
+  USE cube_utils,                      ONLY: cube_info_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
                                              dyn_coeff_set_type,&
@@ -44,6 +63,8 @@ MODULE kg_density
                                              gridlevel_info_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
+  USE kg_rspw_types,                   ONLY: kg_rspw_get,&
+                                             kg_rspw_type
   USE kg_force_types,                  ONLY: kg_force_type
   USE kinds,                           ONLY: dbl,&
                                              dp_size,&
@@ -53,14 +74,20 @@ MODULE kg_density
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
-  USE pw_types,                        ONLY: REALDATA3D,&
-                                             REALSPACE
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             RECIPROCALSPACE,&
+                                             REALDATA3D,&
+                                             REALSPACE  
   USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
-                                             rs_grid_allocate,&
-                                             rs_grid_deallocate,&
-                                             rs_grid_setup,&
+                                             realspace_grid_p_type,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE simulation_cell,                 ONLY: cell_type,&
@@ -92,25 +119,21 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_density(rho,rho_gspace,&
-                                    mgrid_rspace,mgrid_gspace,&
-                                    gridlevel_info,cube_info,l_info,&
-                                    total_rho, kg_env)
+                               total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(dbl), INTENT(OUT)                   :: total_rho
     TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_density (MODULE kg_density)"
 
+    LOGICAL                                  :: failure
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, ncoa, nkind, nparticle_local, &
-      nseta, nsmax, sgfa
+      nseta, sgfa, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     REAL(dbl)                                :: dab, eps_rho_rspace, rab2, &
@@ -121,44 +144,67 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(kg_rspw_type), POINTER              :: rspw
+    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(REALSPACE_GRID_TYPE), &
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_density","I","",handle)
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
-            local_particles,particle_set,rs_rho)
+            local_particles,particle_set,rs_rho,rspw,rs_pools,pw_pools,&
+            mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,zeta,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
-
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.ne.0) then
-       CALL stop_program("calculate_rho_elec","rs_rho")
-    ENDIF
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax=-1
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
-                          nsmax)
-       call rs_grid_allocate(rs_rho(igrid_level))
-       call rs_grid_zero(rs_rho(igrid_level))
-    ENDDO
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    local_particles=local_particles ) 
+                    local_particles=local_particles,&
+                    rspw=rspw) 
+
+    ! *** assign from kg_rspw
+    gridlevel_info=>rspw%gridlevel_info
+    cube_info=>rspw%cube_info
+    l_info=rspw%l_info
+
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+
+    ! *** set up the rs multi-grids
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
 
     nkind=size(atomic_kind_set)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -232,7 +278,7 @@ CONTAINS
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            0,0.0_dbl,0,&
                            ra,rab,rab2,scale,pab,na1-1,0,&
-                           rs_rho(igrid_level),cube_info(igrid_level),&
+                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            l_info,eps_rho_rspace)
             END DO
 
@@ -242,29 +288,47 @@ CONTAINS
 
     END DO
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       call rs_grid_deallocate(rs_rho(igrid_level))
-    ENDDO
-
-    CALL coeff_zero(rho_gspace)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
-    END DO
-
-    CALL coeff_transform_space(rho_gspace,rho)
-
-!   *** Release work storage ***
-    deallocate(rs_rho)
-
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
+    IF (gridlevel_info%ngrid_levels==1) THEN
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL coeff_transform_space(rho,rho_gspace)
+       IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
+          CALL coeff_transform_space(rho_gspace,rho)
+       ENDIF
+    ELSE
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+               mgrid_rspace(igrid_level)%pw,"FORWARD")
+       ENDDO
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+
+       ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
+       CALL coeff_zero(rho_gspace)
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+         CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+              mgrid_gspace(igrid_level))
+         CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+       END DO
+       CALL coeff_transform_space(rho_gspace,rho)
+    END IF
+
     total_rho = calculate_total_density(rho)
+
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                      error=error)
+    DEALLOCATE(mgrid_gspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     CALL timestop(0.0_dbl,handle)
 
@@ -308,22 +372,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_epc_density (rho_core, cube_info, l_info, total_rho, &
-                                    kg_env)
+  SUBROUTINE calculate_epc_density (rho_core, total_rho, kg_env, error)
 ! *****************************************************************************
 
 
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(dbl), INTENT(OUT)                   :: total_rho
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, iatom, ikind, &
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "calculate_epc_density (MODULE kg_density)"
+
+    INTEGER                                  :: handle, iatom, ikind, istat, &
                                                 iparticle_local, &
-                                                nparticle_local, nsmax
+                                                nparticle_local
     REAL(dbl)                                :: alpha, eps_rho_rspace, scale
     REAL(dbl), DIMENSION(3)                  :: ra
     REAL(dbl), DIMENSION(:, :), POINTER      :: pab
@@ -332,35 +398,45 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rhoc_r
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(cube_info_type), POINTER            :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(l_info_type), POINTER               :: l_info
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(realspace_grid_type)                :: rs_rho
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(realspace_grid_type),POINTER        :: rs_rho
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_epc_density","I","",handle)
 
-    NULLIFY(atomic_kind,atomic_kind_set,cell,dft_control,local_particles,&
+    NULLIFY(atomic_kind,atomic_kind_set,cell,cube_info,dft_control,&
+            l_info,local_particles,rspw,rs_rho,&
+            auxbas_rs_pool, auxbas_pw_pool,&
             pab,particle_set)
 
-    ALLOCATE(pab(1,1))
+    ALLOCATE(pab(1,1),stat=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab")
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     local_particles=local_particles,&
+                    rspw=rspw,&
                     particle_set=particle_set)
+    CALL kg_rspw_get(kg_rspw=rspw,&
+                    auxbas_rs_pool=auxbas_rs_pool,&
+                    auxbas_pw_pool=auxbas_pw_pool,&
+                    l_info=l_info,error=error)
+    cube_info=>rspw%cube_info(1)
 
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax=-1   ! should be temporary fix
-    call rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
-    call rs_grid_allocate(rs_rho)
-    call rs_grid_zero(rs_rho)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
+    CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
     scale = -1.0_dbl
@@ -387,19 +463,20 @@ CONTAINS
 
     END DO
 
-    CALL coeff_allocate(rhoc_r,rho_core%pw%pw_grid,REALDATA3D)
-    rhoc_r%pw%in_space = REALSPACE
+    DEALLOCATE(pab,stat=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab")
+
+    CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rhoc_r, &
+         use_data=REALDATA3D,in_space=REALSPACE,error=error)
 
     call rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
-    call rs_grid_deallocate(rs_rho)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = calculate_total_density(rhoc_r)
 
     CALL coeff_transform_space(rhoc_r,rho_core)
 
-    CALL coeff_deallocate(rhoc_r)
-
-    DEALLOCATE(pab)
+    CALL pw_pool_give_back_coeff(auxbas_pw_pool,rhoc_r,error=error)
 
     CALL timestop(0.0_dbl,handle)
 
@@ -408,25 +485,22 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_p_density(rho,rho_gspace,&
-                                    mgrid_rspace,mgrid_gspace,&
-                                    gridlevel_info,cube_info,l_info,&
-                                    total_rho, kg_env)
+                                    total_rho, kg_env,error)
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(dbl), INTENT(OUT)                   :: total_rho
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_p_density (MODULE kg_density)"
 
+    LOGICAL                                  :: failure
     INTEGER :: handle, i, iatom, igrid_level, ikind, iparticle_local, ipgf, &
       iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
-      nparticle_local, nseta, nsmax, offset, sgfa
+      nparticle_local, nseta,  offset, sgfa,stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     REAL(dbl)                                :: dab, eps_rho_rspace, rab2, &
@@ -437,14 +511,24 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(l_info_type)                        :: l_info
+    TYPE(kg_rspw_type),POINTER               :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(REALSPACE_GRID_TYPE), &
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
 
 !   ---------------------------------------------------------------------------
@@ -452,25 +536,10 @@ CONTAINS
     CALL timeset("calculate_p_density","I","",handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
-            local_particles,local_coeffs,particle_set,rs_rho)
+            local_particles,local_coeffs,particle_set,rs_rho,rs_pools,pw_pools,rspw,&
+            mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,zeta,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
-
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.ne.0) then
-       CALL stop_program("calculate_rho_elec","rs_rho")
-    ENDIF
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax=-1
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
-                          nsmax)
-       call rs_grid_allocate(rs_rho(igrid_level))
-       call rs_grid_zero(rs_rho(igrid_level))
-    ENDDO
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -478,7 +547,34 @@ CONTAINS
                     dft_control=dft_control,&
                     dyn_coeff_set=dyn_coeff_set,&
                     local_particles=local_particles,&
-                    particle_set=particle_set ) 
+                    particle_set=particle_set,&
+                    rspw=rspw ) 
+
+    ! *** assign from kg_rspw
+    gridlevel_info=>rspw%gridlevel_info
+    cube_info=>rspw%cube_info
+    l_info=rspw%l_info
+
+    ! *** set up the pw multi-grids
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+
+    ! *** set up the rs multi-grids
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
 
     nkind=SIZE(atomic_kind_set)
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -562,7 +658,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dbl,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level),cube_info(igrid_level),&
+                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
             END DO
 
@@ -572,29 +668,47 @@ CONTAINS
       END DO
     END DO
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       call rs_grid_deallocate(rs_rho(igrid_level))
-    ENDDO
-
-    CALL coeff_zero(rho_gspace)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
-    END DO
-
-    CALL coeff_transform_space(rho_gspace,rho)
-
-!   *** Release work storage ***
-    deallocate(rs_rho)
-
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")
 
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
+    IF (gridlevel_info%ngrid_levels==1) THEN
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL coeff_transform_space(rho,rho_gspace)
+       IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
+          CALL coeff_transform_space(rho_gspace,rho)
+       ENDIF
+    ELSE
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+               mgrid_rspace(igrid_level)%pw,"FORWARD")
+       ENDDO
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+
+       ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
+       CALL coeff_zero(rho_gspace)
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+         CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+              mgrid_gspace(igrid_level))
+         CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+       END DO
+       CALL coeff_transform_space(rho_gspace,rho)
+    END IF
+
     total_rho = calculate_total_density(rho)
+
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                   error=error)
+    DEALLOCATE(mgrid_gspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
     CALL timestop(0.0_dbl,handle)
 
@@ -602,17 +716,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_epc_rspace_forces(v_rspace,cube_info,l_info,kg_env,force)
+  SUBROUTINE calculate_epc_rspace_forces(v_rspace,kg_env)
    
 
 !   *** Arguments ***
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
-    TYPE(cube_info_type), INTENT(IN)         :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
-    TYPE(kg_force_type), DIMENSION(:), &
-      POINTER                                :: force
+    TYPE(kg_environment_type), POINTER       :: kg_env
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
@@ -620,7 +730,7 @@ CONTAINS
     INTEGER                                  :: atom_a, handle, iatom, ikind, &
                                                 iparticle_local, istat, &
                                                 natom, nkind, &
-                                                nparticle_local, nsmax
+                                                nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     REAL(dbl)                                :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
@@ -630,35 +740,39 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(realspace_grid_type), POINTER       :: rs_pot
-    TYPE(realspace_grid_type), target        :: rs_v
+    TYPE(realspace_grid_type), POINTER       :: rs_v
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_epc_rspace_forces","I","",handle)
 
-    NULLIFY(atomic_kind_set,atomic_kind,cell,dft_control,&
-            local_particles,particle_set,rs_pot)
+    NULLIFY(atomic_kind_set,atomic_kind,cell,dft_control,force,&
+            local_particles,particle_set,rspw,auxbas_rs_pool)
     NULLIFY(hab,pab)
 
     ALLOCATE(hab(1,1),pab(1,1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab,pab",1*int_size)
 
-    nsmax = -1
-    CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
-    CALL rs_grid_allocate(rs_v)
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
-
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
+                    force=force,&
                     dft_control=dft_control,&
                     local_particles=local_particles,&
-                    particle_set=particle_set) 
+                    particle_set=particle_set,&
+                    rspw=rspw) 
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_rs_pool=auxbas_rs_pool)
+
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -690,11 +804,10 @@ CONTAINS
         force_a(:) = 0.0_dbl
         force_b(:) = 0.0_dbl
 
-        rs_pot=> rs_v
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
                                           0,0.0_dbl,0,&
                                           ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
-                                          rs_pot,cube_info,l_info,&
+                                          rs_v,rspw%cube_info(1),rspw%l_info,&
                                           hab,pab,0,0,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,&
@@ -708,7 +821,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_grid_deallocate(rs_v)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
 
     DEALLOCATE(pab,hab,atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab,pab,atom_of_kind")
@@ -719,35 +832,30 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_v_rspace_forces(v_rspace,mgrid_rspace,mgrid_gspace,&
-                                auxbas_grid,gridlevel_info,&
-                                cube_info,l_info,&
-                                kg_env,force,force_type)
+  SUBROUTINE calculate_v_rspace_forces(v_rspace,&
+                                kg_env,force_type,error)
 
 !   ***  Arguments   ***
 
     TYPE(coeff_type)                         :: v_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    INTEGER, INTENT(IN)                      :: auxbas_grid
-    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
-    TYPE(kg_force_type), DIMENSION(:), &
-      POINTER                                :: force
+    TYPE(kg_environment_type), POINTER       :: kg_env
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_v_rspace_forces (MODULE kg_density)"
 
     INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, iparticle_local, &
       ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, &
-      nparticle_local, nseta, nsmax, sgfa
+      nparticle_local, nseta,  sgfa, stat, auxbas_grid
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
     LOGICAL                                  :: calculate_forces
+    LOGICAL                                  :: failure
     REAL(dbl)                                :: dab, eps_gvg_rspace, rab2, &
                                                 scale, zetp
     REAL(dbl), DIMENSION(3)                  :: force_a, force_b, ra, rab, rb
@@ -757,67 +865,113 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
+    TYPE(l_info_type)                        :: l_info
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(REALSPACE_GRID_TYPE), &
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(REALSPACE_GRID_TYPE), POINTER       :: rs_pot
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_v_rspace_forces","I","",handle)
 
     NULLIFY(atomic_kind_set,atomic_kind,orb_basis_set,cell,dft_control,&
-            local_particles,particle_set)
-    NULLIFY(rs_pot,rs_v)
+            local_particles,particle_set,rspw,force)
+    NULLIFY(rs_v,pw_pools,rs_pools,mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,rpgfa,zeta,hab,pab,work)
     NULLIFY(la_max,la_min,npgfa,nsgfa,first_sgfa)
 
     calculate_forces =.TRUE.
+    CALL get_kg_env(kg_env=kg_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    force=force,&
+                    dft_control=dft_control,&
+                    local_particles=local_particles,&
+                    particle_set=particle_set,&
+                    rspw=rspw )
+
+    ! *** set up of the potential on the multigrids
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+
+    ! *** assign from rspw
+    auxbas_grid=rspw%auxbas_grid
+    gridlevel_info=>rspw%gridlevel_info
+    cube_info=>rspw%cube_info
+    l_info=rspw%l_info
 
 !   *** Get the potential on the subgrids in real space, via fft ***
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
 
     CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-
-      IF ( igrid_level /= auxbas_grid )  &
+      IF ( igrid_level /= auxbas_grid ) THEN
            CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-      CALL coeff_transform_space(mgrid_gspace(igrid_level),mgrid_rspace(igrid_level))
-
-!     *** Multiply by the grid volume element ratio ***
+           CALL coeff_transform_space(mgrid_gspace(igrid_level),&
+                                          mgrid_rspace(igrid_level))
+      ELSE
+           IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
+               CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
+                                          mgrid_rspace(auxbas_grid))
+           ELSE ! fft forward + backward should be identical
+               CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+           ENDIF
+      ENDIF
+      ! *** Multiply by the grid volume element ratio ***
       IF ( igrid_level /= auxbas_grid ) THEN
          scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
                  mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
-         mgrid_rspace(igrid_level)%pw%cr3d = scale*mgrid_rspace(igrid_level)%pw%cr3d
+         mgrid_rspace(igrid_level)%pw%cr3d = &
+                                   scale*mgrid_rspace(igrid_level)%pw%cr3d
       END IF
-
     END DO
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                   error=error)
+    DEALLOCATE(mgrid_gspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
 
-    ALLOCATE(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.ne.0) then
-        CALL stop_memory("calculate_v_rspace_forces","rs_v")
-    ENDIF
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
 
-    nsmax=-1   ! should be temporary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
-            nsmax)
-       CALL rs_grid_allocate(rs_v(igrid_level))
-       CALL rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
+       CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
                            "BACKWARD")
     ENDDO
 
-    CALL get_kg_env(kg_env=kg_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    local_particles=local_particles,&
-                    particle_set=particle_set )
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+
+!   *** having the potential on the rs_multigrids, just integrate ...
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -902,11 +1056,10 @@ CONTAINS
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
-             rs_pot=>rs_v(igrid_level)
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dbl,0,&
-                        ra,rab,rab2,rs_pot,&
+                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                         cube_info(igrid_level),l_info,&
                         hab,pab=pab,o1=na1-1,o2=0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
@@ -934,9 +1087,7 @@ CONTAINS
 
     END DO
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_deallocate(rs_v(igrid_level))
-    ENDDO
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
 
 !   *** Release work storage ***
 
@@ -958,31 +1109,25 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_vp_rspace_forces(v_rspace,&
-                                mgrid_rspace,mgrid_gspace,&
-                                auxbas_grid,gridlevel_info,&
-                                cube_info,l_info,kg_env,&
-                                calculate_forces,force_type)
+  SUBROUTINE calculate_vp_rspace_forces(v_rspace,kg_env,&
+                                calculate_forces,force_type,error)
 
 !   ***  Arguments   ***
 
     TYPE(coeff_type)                         :: v_rspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    INTEGER, INTENT(IN)                      :: auxbas_grid
-    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type), INTENT(IN)            :: l_info
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: force_type
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
 
     INTEGER :: atom_a, handle, i, iatom, igrid_level, ikind, iparticle_local, &
       ipgf, iset, istat, maxco, maxsgf_set, na1, na2, natom, natom_of_kind, &
-      ncoa, nkind, nparticle_local, nseta, nsmax, offset, sgfa
+      ncoa, nkind, nparticle_local, nseta,  offset, sgfa,stat, auxbas_grid
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
@@ -996,61 +1141,37 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(l_info_type)                        :: l_info
+    TYPE(kg_rspw_type),POINTER               :: rspw
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(REALSPACE_GRID_TYPE), &
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    TYPE(REALSPACE_GRID_TYPE), POINTER       :: rs_pot
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
+!--------------------------------------------------------------------------
 
     CALL timeset("calculate_v_rspace_forces","I","",handle)
     NULLIFY(atomic_kind_set,atomic_kind,aux_basis_set,cell,dft_control,dyn_coeff_set,&
             force,local_particles,local_coeffs,particle_set)
-    NULLIFY(rs_pot,rs_v)
+    NULLIFY(rs_v,rspw,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
     NULLIFY(sphi_a,rpgfa,zeta,hab,pab,work)
     NULLIFY(atom_list,la_max,la_min,npgfa,nsgfa,first_sgfa)
-
-!   *** Get the potential on the subgrids in real space, via fft ***
-
-    CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-
-      IF ( igrid_level /= auxbas_grid )  &
-           CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
-      CALL coeff_transform_space(mgrid_gspace(igrid_level),mgrid_rspace(igrid_level))
-
-!     *** Multiply by the grid volume element ratio ***
-      IF ( igrid_level /= auxbas_grid ) THEN
-         scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
-                 mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
-         mgrid_rspace(igrid_level)%pw%cr3d = scale*mgrid_rspace(igrid_level)%pw%cr3d
-      END IF
-
-    END DO
-
-    ALLOCATE(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.ne.0) then
-        CALL stop_memory("calculate_v_rspace_forces","rs_v")
-    ENDIF
-
-    nsmax=-1   ! should be temporary fix
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
-            nsmax)
-       CALL rs_grid_allocate(rs_v(igrid_level))
-       CALL rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
-                           "BACKWARD")
-    ENDDO
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1058,11 +1179,79 @@ CONTAINS
                     dft_control=dft_control,&
                     dyn_coeff_set=dyn_coeff_set,&
                     local_particles=local_particles,&
-                    particle_set=particle_set )
+                    particle_set=particle_set,&
+                    rspw=rspw )
 
     IF (calculate_forces) THEN
        CALL get_kg_env(kg_env=kg_env,force=force)
     END IF
+    
+    ! *** set up of the potential on the multigrids
+    CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                use_data = REALDATA3D,&
+                in_space = REALSPACE, error=error)
+
+    ! *** assign from rspw
+    auxbas_grid=rspw%auxbas_grid
+    gridlevel_info=>rspw%gridlevel_info
+    cube_info=>rspw%cube_info
+    l_info=rspw%l_info
+
+!   *** Get the potential on the subgrids in real space, via fft ***
+    ALLOCATE(mgrid_gspace(SIZE(pw_pools)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+
+    CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+      IF ( igrid_level /= auxbas_grid ) THEN
+           CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
+           CALL coeff_transform_space(mgrid_gspace(igrid_level),&
+                                          mgrid_rspace(igrid_level))
+      ELSE
+           IF (mgrid_gspace(auxbas_grid)%pw%pw_grid%spherical) THEN
+               CALL coeff_transform_space(mgrid_gspace(auxbas_grid),&
+                                          mgrid_rspace(auxbas_grid))
+           ELSE ! fft forward + backward should be identical
+               CALL coeff_copy(v_rspace,mgrid_rspace(auxbas_grid))
+           ENDIF
+      ENDIF
+      ! *** Multiply by the grid volume element ratio ***
+      IF ( igrid_level /= auxbas_grid ) THEN
+         scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
+                 mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
+         mgrid_rspace(igrid_level)%pw%cr3d = &
+                                   scale*mgrid_rspace(igrid_level)%pw%cr3d
+      END IF
+    END DO
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                   error=error)
+    DEALLOCATE(mgrid_gspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+
+    CALL kg_rspw_get(rspw, rs_pools=rs_pools)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
+                           "BACKWARD")
+    ENDDO
+
+    ! *** give back the pw multi-grids
+    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
+         error=error)
+    DEALLOCATE(mgrid_rspace,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+
+!   *** having the potential on the rs_multigrids, just integrate ...
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -1158,11 +1347,10 @@ CONTAINS
 
              igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
 
-             rs_pot=>rs_v(igrid_level)
              CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0, 0.0_dbl,0,&
-                        ra,rab,rab2,rs_pot,&             
+                        ra,rab,rab2,rs_v(igrid_level)%rs_grid,&             
                         cube_info(igrid_level),l_info,&
                         hab,pab,na1-1,0,&
                         eps_gvg_rspace=eps_gvg_rspace,&
@@ -1204,9 +1392,7 @@ CONTAINS
 
     END DO
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_deallocate(rs_v(igrid_level))
-    ENDDO
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
 
 !   *** Release work storage ***
 

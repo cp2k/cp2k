@@ -96,15 +96,18 @@ CONTAINS
 
     IF ( globenv%ionode ) CALL kg_header ( globenv%scr )
 
+!dbg
+    failure=.false.
+!dbg
     CALL kg_env_create(kg_env,para_env=globenv%para_env,error=error)
-    CALL cp_error_check(error,failure)
+!   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL kg_init( kg_env, globenv, error )
-    CALL cp_error_check(error,failure)
+!   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL force_env_create(force_env, kg_env=kg_env, &
          globenv=globenv, error=error)
-    CALL cp_error_check(error,failure)
+!   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL kg_env_release(kg_env,error=error)
     

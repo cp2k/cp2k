@@ -17,15 +17,15 @@
 !!   MODIFICATION HISTORY
 !!     JGH (22-Feb-03) PW grid options added
 !!     gt 16-nov-03 moved initialization in this new module
+!!     12-10-04 contains only the various rho: pw and rs stuff
+!!     has moved in pwrs types
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE kg_rho_types
-  USE coefficient_types,               ONLY: coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_type,&
-                                             coeff_zero
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -36,21 +36,7 @@ MODULE kg_rho_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cube_utils,                      ONLY: cube_info_type,&
-                                             destroy_cube_info
-  USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
-                                             gridlevel_info_type
   USE kinds,                           ONLY: dbl
-  USE l_utils,                         ONLY: destroy_l_info,&
-                                             l_info_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_pool_types,                   ONLY: pw_pool_release,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -58,43 +44,18 @@ MODULE kg_rho_types
 
   PRIVATE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_rho_types'
-  PUBLIC :: kg_rho_type, kg_rho_release, &
-            kg_rho_retain, allocate_kg_densities, deallocate_kg_densities
+  PUBLIC :: kg_rho_type, kg_rho_release, kg_rho_get, &
+            kg_rho_retain
 
-! definition of all variables (densities, potentials, grids....)
-! needed to perform a force calculation 
   TYPE kg_rho_type
-     ! definition of all grid types used (working grids and multigrids)
-     TYPE(pw_grid_type), DIMENSION(:), POINTER :: pw_grid
-     ! number of the grid used as reference grid for the density
-     INTEGER :: auxbas_grid
-     INTEGER :: ref_count
-     LOGICAL :: kgpol       
+     INTEGER :: ref_count, id_nr
      REAL(dbl) :: total_rho_gspace, total_rho_core_rspace, &
                   total_rho_rspace  
-     TYPE(coeff_type)                             :: rho_gspace, &
-                                                     rho_p_gspace, &
-                                                     v_gspace, &
-                                                     v_rspace, &
-                                                     vp_rspace, &
-                                                     v_xc_rspace, &
-                                                     v1_xc_rspace, &
-                                                     v2_xc_rspace
-     ! multigrids in qs-style
-     TYPE(coeff_type), DIMENSION(:), POINTER        :: mgrid_gspace, &
-                                                      mgrid_rspace
-     ! rho_elec_rspace contains the frozen electron density (for cube output)
-     TYPE(coeff_type)                :: rho_elec_rspace
-     ! rho_pol_rspace contains the polarization density (for cube output)
-     TYPE(coeff_type)                :: rho_p_rspace
-     ! hartree contains the total hartree potential (for cube ouput)
-     TYPE(coeff_type)          :: v_hartree_rspace
-     ! the core density (in KG, density of the Zeff nuclear charges)
-     TYPE(coeff_type)          :: rho_core
-     TYPE(gridlevel_info_type),POINTER :: gridlevel_info
-     TYPE(l_info_type),        POINTER         :: l_info
-     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
-     TYPE(pw_pool_type), POINTER :: pw_pool
+     TYPE(coeff_type), POINTER                    :: rho_g, &
+                                                     rhop_g, &
+                                                     rho_r, &
+                                                     rhop_r,&
+                                                     rho_core 
   END TYPE kg_rho_type
 !-----------------------------------------------------------------------------!
 
@@ -103,173 +64,35 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 !!***
 !******************************************************************************
-
-  SUBROUTINE allocate_kg_densities(kg_rho) 
-
+SUBROUTINE kg_rho_get(kg_rho, rho_r, rho_g, rhop_r, rhop_g, &
+                      rho_core, error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(coeff_type), &
+      OPTIONAL, POINTER                      :: rho_r, rho_g,&
+                                                rhop_r, rhop_g,&
+                                                rho_core
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "allocate_kg_densities"
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_get', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: auxbas, handle, igrid_level, &
-                                                istat, ngrid_level
-    TYPE(pw_grid_type), DIMENSION(:), &
-      POINTER                                :: pw_grid
+    LOGICAL                                  :: failure
 
-!---------------------------------------------------------------------------
+  failure=.FALSE.
 
-    CALL timeset(routine,"I","",handle)
+  CPPrecondition(ASSOCIATED(kg_rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    NULLIFY(kg_rho%mgrid_gspace, kg_rho%mgrid_rspace)    
-
-    auxbas = kg_rho % auxbas_grid
-    pw_grid => kg_rho % pw_grid
-    ngrid_level = SIZE ( pw_grid )
-
-! Allocate the rho's on the largest reference grid
-
-    CALL coeff_allocate(kg_rho%rho_elec_rspace,pw_grid(auxbas),REALDATA3D)
-    kg_rho%rho_elec_rspace%pw%in_space = REALSPACE
-    CALL coeff_zero (kg_rho%rho_elec_rspace)
-
-    CALL coeff_allocate(kg_rho%rho_gspace,pw_grid(auxbas),COMPLEXDATA1D)
-    kg_rho%rho_gspace%pw%in_space = RECIPROCALSPACE
-    CALL coeff_zero (kg_rho%rho_gspace)
-
-    CALL coeff_allocate(kg_rho%v_xc_rspace,pw_grid(auxbas),REALDATA3D)
-    kg_rho%v_xc_rspace%pw%in_space = REALSPACE
-    CALL coeff_zero (kg_rho%v_xc_rspace)
-
-    CALL coeff_allocate(kg_rho%v_rspace,pw_grid(auxbas),REALDATA3D)
-    kg_rho%v_rspace%pw%in_space = REALSPACE
-    CALL coeff_zero (kg_rho%v_rspace)
-
-    CALL coeff_allocate(kg_rho%v_gspace,pw_grid(auxbas),COMPLEXDATA1D)
-    kg_rho%v_gspace%pw%in_space = RECIPROCALSPACE
-    CALL coeff_zero (kg_rho%v_gspace)
-
-    CALL coeff_allocate(kg_rho%v_hartree_rspace,pw_grid(auxbas),REALDATA3D)
-    kg_rho%v_hartree_rspace%pw%in_space = REALSPACE
-    CALL coeff_zero (kg_rho%v_hartree_rspace)
-
-    CALL coeff_allocate(kg_rho%rho_core,pw_grid(auxbas),COMPLEXDATA1D)
-    kg_rho%rho_core%pw%in_space = RECIPROCALSPACE
-    CALL coeff_zero (kg_rho%rho_core)
-
-    IF ( kg_rho%kgpol ) THEN
-
-      CALL coeff_allocate(kg_rho%rho_p_gspace,pw_grid(auxbas),COMPLEXDATA1D)
-      kg_rho%rho_p_gspace%pw%in_space = RECIPROCALSPACE
-      CALL coeff_zero (kg_rho%rho_p_gspace)
-
-      CALL coeff_allocate(kg_rho%rho_p_rspace,pw_grid(auxbas),REALDATA3D)
-      kg_rho%rho_p_rspace%pw%in_space = REALSPACE
-      CALL coeff_zero (kg_rho%rho_p_rspace)
-
-      CALL coeff_allocate(kg_rho%v1_xc_rspace,pw_grid(auxbas),REALDATA3D)
-      kg_rho%v1_xc_rspace%pw%in_space = REALSPACE
-      CALL coeff_zero (kg_rho%v1_xc_rspace)
-
-      CALL coeff_allocate(kg_rho%v2_xc_rspace,pw_grid(auxbas),REALDATA3D)
-      kg_rho%v2_xc_rspace%pw%in_space = REALSPACE
-      CALL coeff_zero (kg_rho%v2_xc_rspace)
-
-      CALL coeff_allocate(kg_rho%vp_rspace,pw_grid(auxbas),REALDATA3D)
-      kg_rho%vp_rspace%pw%in_space = REALSPACE
-      CALL coeff_zero (kg_rho%vp_rspace)
-
-    END IF
-
-! allocate the multi-grid rho's
-    ALLOCATE (kg_rho%mgrid_rspace(ngrid_level),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
-    ALLOCATE (kg_rho%mgrid_gspace(ngrid_level),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
-
-! setup the multigrids
-    DO igrid_level=1,ngrid_level
-       CALL coeff_allocate(kg_rho%mgrid_rspace(igrid_level),pw_grid(igrid_level),&
-            REALDATA3D)
-       kg_rho%mgrid_rspace(igrid_level)%pw%in_space = REALSPACE
-       CALL coeff_zero (kg_rho % mgrid_rspace(igrid_level))
-       CALL coeff_allocate(kg_rho%mgrid_gspace(igrid_level),pw_grid(igrid_level),&
-            COMPLEXDATA1D)
-       kg_rho%mgrid_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
-       CALL coeff_zero (kg_rho % mgrid_gspace(igrid_level))
-    END DO
-
-    CALL timestop(0.0_dbl,handle)
-
-END SUBROUTINE allocate_kg_densities
-
-! *************************************************************************
-  SUBROUTINE deallocate_kg_densities(kg_rho)
-
-    TYPE(kg_rho_type), POINTER               :: kg_rho
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "deallocate_kg_densities"
-
-    INTEGER                                  :: auxbas, handle, igrid_level, &
-                                                istat, ngrid_level
-    TYPE(pw_grid_type), DIMENSION(:), &
-      POINTER                                :: pw_grid
-
-!---------------------------------------------------------------------------
-
-    CALL timeset("deallocate_density","I","",handle)
-
-    auxbas = kg_rho % auxbas_grid
-    pw_grid => kg_rho % pw_grid
-    ngrid_level = SIZE ( pw_grid )
-
-! DeAllocate the rho's on the largest reference grid
-
-    CALL coeff_deallocate(kg_rho%rho_elec_rspace)
-
-    CALL coeff_deallocate(kg_rho%rho_gspace)
-
-    CALL coeff_deallocate(kg_rho%v_xc_rspace)
-
-    CALL coeff_deallocate(kg_rho%v_rspace)
-
-    CALL coeff_deallocate(kg_rho%v_gspace)
-
-    CALL coeff_deallocate(kg_rho%v_hartree_rspace)
-
-    CALL coeff_deallocate(kg_rho%rho_core)
-
-    IF (kg_rho % kgpol) THEN
-
-      CALL coeff_deallocate(kg_rho%rho_p_rspace)
-
-      CALL coeff_deallocate(kg_rho%rho_p_gspace)
-
-      CALL coeff_deallocate(kg_rho%v1_xc_rspace)
-
-      CALL coeff_deallocate(kg_rho%v2_xc_rspace)
-
-      CALL coeff_deallocate(kg_rho%vp_rspace)
-
-   END IF
-
-
-! deallocate the multi-grid rho's
-
-    DO igrid_level=1,ngrid_level
-       CALL coeff_deallocate(kg_rho%mgrid_rspace(igrid_level))
-       CALL coeff_deallocate(kg_rho%mgrid_gspace(igrid_level))
-    END DO
-
-    DEALLOCATE (kg_rho%mgrid_rspace, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mgrid_rspace",0)
-    DEALLOCATE (kg_rho%mgrid_gspace,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"mgrid_gspace",0)
-
-    CALL timestop(0.0_dbl,handle)
-
-END SUBROUTINE deallocate_kg_densities
-!!*** **********************************************************************
+  IF (.NOT. failure) THEN
+    IF (PRESENT(rho_r)) rho_r => kg_rho%rho_r
+    IF (PRESENT(rho_g)) rho_g => kg_rho%rho_g
+    IF (PRESENT(rhop_r)) rhop_r => kg_rho%rhop_r
+    IF (PRESENT(rhop_g)) rhop_g => kg_rho%rhop_g
+    IF (PRESENT(rho_core)) rho_core => kg_rho%rho_core
+  END IF
+END SUBROUTINE kg_rho_get
+!!**************************************************************************
 SUBROUTINE kg_rho_retain(kg_rho,error)
     TYPE(kg_rho_type), POINTER               :: kg_rho
     TYPE(cp_error_type), INTENT(inout), &
@@ -289,7 +112,6 @@ SUBROUTINE kg_rho_retain(kg_rho,error)
   END IF
 END SUBROUTINE kg_rho_retain
 !***************************************************************************
-
 !!****f* kg_force/release_kg_rho [1.0] *
 !!
 !!   NAME
@@ -300,7 +122,7 @@ END SUBROUTINE kg_rho_retain
 !!
 !!   MODIFICATION HISTORY
 !!
-!!*** **********************************************************************
+!!*************************************************************************
   SUBROUTINE kg_rho_release(kg_rho,error)               
 
 
@@ -311,36 +133,44 @@ END SUBROUTINE kg_rho_retain
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, igrid_level, stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
+!---------------------------------------------------------------------------
 
-   CALL timeset(routineN,"I","",handle)
-   failure=.FALSE.  
-   IF (ASSOCIATED(kg_rho)) THEN
-     CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
-     kg_rho%ref_count=kg_rho%ref_count-1
-     IF (kg_rho%ref_count<1) THEN
-       IF (ASSOCIATED(kg_rho%gridlevel_info)) THEN
-         CALL destroy_gaussian_gridlevel(kg_rho%gridlevel_info,error=error)
-         DEALLOCATE(kg_rho%gridlevel_info,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(kg_rho%l_info)) THEN
-         CALL destroy_l_info(kg_rho%l_info)
-         DEALLOCATE(kg_rho%l_info, stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
-       IF (ASSOCIATED(kg_rho%cube_info)) THEN
-         DO igrid_level=1,SIZE(kg_rho%cube_info)
-           CALL destroy_cube_info(kg_rho%cube_info(igrid_level))
-         END DO
-        DEALLOCATE (kg_rho%cube_info,STAT=stat)
+  CALL timeset(routineN,"I","",handle)
+  failure=.FALSE.  
+  IF (ASSOCIATED(kg_rho)) THEN
+    CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
+    kg_rho%ref_count=kg_rho%ref_count-1
+    IF (kg_rho%ref_count<1) THEN
+      IF (ASSOCIATED(kg_rho%rho_core)) THEN
+        CALL coeff_deallocate(kg_rho%rho_core)
+        DEALLOCATE(kg_rho%rho_core,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-      END IF   
-      CALL pw_pool_release (kg_rho%pw_pool)
-      CALL deallocate_kg_densities(kg_rho)
+      END IF
+      IF (ASSOCIATED(kg_rho%rho_r)) THEN
+        CALL coeff_deallocate(kg_rho%rho_r)
+        DEALLOCATE(kg_rho%rho_r,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(kg_rho%rho_g)) THEN
+        CALL coeff_deallocate(kg_rho%rho_g)
+        DEALLOCATE(kg_rho%rho_g,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(kg_rho%rhop_r)) THEN
+        CALL coeff_deallocate(kg_rho%rhop_r)
+        DEALLOCATE(kg_rho%rhop_r,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      IF (ASSOCIATED(kg_rho%rhop_g)) THEN
+        CALL coeff_deallocate(kg_rho%rhop_g)
+        DEALLOCATE(kg_rho%rhop_g,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+      END IF
+      DEALLOCATE(kg_rho,stat=stat)
+      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     END IF
   END IF
   NULLIFY(kg_rho)
@@ -348,7 +178,5 @@ END SUBROUTINE kg_rho_retain
   END SUBROUTINE kg_rho_release
 
 !***************************************************************************
-
 END MODULE kg_rho_types
-
 !******************************************************************************

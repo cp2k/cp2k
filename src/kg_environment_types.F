@@ -68,6 +68,9 @@ MODULE kg_environment_types
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_retain,&
                                              kg_rho_type
+  USE kg_rspw_types,                   ONLY: kg_rspw_release,&
+                                             kg_rspw_retain,&
+                                             kg_rspw_type
   USE kg_scf_types,                    ONLY: kg_scf_env_type,&
                                              kg_scf_env_retain,&
                                              kg_scf_env_release
@@ -113,6 +116,7 @@ MODULE kg_environment_types
     TYPE(kg_energy_type), POINTER                         :: energy
     TYPE(kg_force_type), DIMENSION(:), POINTER            :: force
     TYPE(kg_rho_type),POINTER                             :: rho 
+    TYPE(kg_rspw_type),POINTER                            :: rspw 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
     TYPE(kg_scf_env_type), POINTER                        :: scf_env
@@ -146,7 +150,7 @@ CONTAINS
                          dyn_coeff_set,energy,force,&
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
-                         blacs_env,particle_set,rho,scf_env,&
+                         blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: Get the KG environment.
@@ -185,6 +189,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(kg_rspw_type), OPTIONAL, POINTER    :: rspw
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
@@ -229,6 +234,7 @@ CONTAINS
     IF (PRESENT(para_env)) para_env => kg_env%para_env
     IF (PRESENT(scf_env)) scf_env => kg_env%scf_env
     IF (PRESENT(rho)) rho => kg_env%rho
+    IF (PRESENT(rspw)) rspw => kg_env%rspw
     IF (PRESENT(sac_ppl)) sac_ppl => kg_env%sac_ppl
     IF (PRESENT(sac_ppl_aux)) sac_ppl_aux => kg_env%sac_ppl_aux
     IF (PRESENT(scf_control)) scf_control => kg_env%scf_control
@@ -272,6 +278,7 @@ CONTAINS
     NULLIFY (kg_env%energy)
     NULLIFY (kg_env%force)
     NULLIFY (kg_env%rho)
+    NULLIFY (kg_env%rspw)
     NULLIFY (kg_env%sac_ppl)
     NULLIFY (kg_env%sac_ppl_aux)
     NULLIFY (kg_env%scf_control)
@@ -295,7 +302,7 @@ CONTAINS
                          dft_control,distribution_2d,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
-                         sub_qs_env,particle_set,rho,scf_env,&
+                         sub_qs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: set the KG environment.
@@ -330,6 +337,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
+    TYPE(kg_rspw_type), OPTIONAL, POINTER    :: rspw
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
     TYPE(scf_control_type), OPTIONAL, &
@@ -389,6 +397,11 @@ CONTAINS
       IF (ASSOCIATED(rho)) CALL kg_rho_retain(rho,error=error)
       CALL kg_rho_release(kg_env%rho,error=error)
       kg_env%rho => rho
+    END IF
+    IF (PRESENT(rspw)) THEN ! accepts also null pointers !
+      IF (ASSOCIATED(rspw)) CALL kg_rspw_retain(rspw,error=error)
+      CALL kg_rspw_release(kg_env%rspw,error=error)
+      kg_env%rspw => rspw
     END IF
     IF (PRESENT(scf_env)) THEN 
        CALL kg_scf_env_retain(scf_env,error=error)
@@ -615,6 +628,7 @@ SUBROUTINE kg_env_release(kg_env,error)
            CALL distribution_2d_release(kg_env%distribution_2d)
         ENDIF
         CALL kg_rho_release(kg_env%rho, error=error)
+        CALL kg_rspw_release(kg_env%rspw, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
         CALL scf_c_release(kg_env%scf_control, error=error)
         CALL cp_para_env_release(kg_env%para_env,error=error)

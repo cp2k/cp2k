@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C ) 2002 - 2003  CP2K developers group                         !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/kg_force [1.0] *
 !!
 !!   NAME
@@ -26,8 +27,19 @@ MODULE kg_force
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
+                                             coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE global_types,                    ONLY: global_environment_type
@@ -52,12 +64,22 @@ MODULE kg_force
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
-  USE kg_rho_types,                    ONLY: kg_rho_type
+  USE kg_rho_types,                    ONLY: kg_rho_type, &
+                                             kg_rho_get
+  USE kg_rspw_types,                   ONLY: kg_rspw_type,&
+                                             kg_rspw_get
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE simulation_cell,                 ONLY: cell_type
@@ -99,12 +121,13 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE kg_force_control ( kg_env, globenv )
-
+SUBROUTINE kg_force_control ( kg_env, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     LOGICAL                                  :: kgpol
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -140,22 +163,25 @@ SUBROUTINE kg_force_control ( kg_env, globenv )
 !!
 !!*** *************************************************************************
 
-SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
+SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kgpol_calculate_forces (MODULE kg_force)"
 
-    INTEGER                                  :: auxbas_grid, handle, i, &
-                                                iatom, ikind, isos, natoms, &
+    INTEGER                                  :: handle, i, &
+                                                iatom, ikind, stat, natoms, &
                                                 nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: calculate_forces, ionode
+    LOGICAL                                  :: calculate_forces, ionode,&
+                                                failure
     REAL(dbl)                                :: dvol, e1_xc, e2_xc, &
                                                 total_rho0_rspace, &
                                                 total_rhop_rspace
@@ -163,14 +189,21 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
+                                                rhop_r, rhop_g, &  
+                                                v_gspace, &
+                                                v_rspace, vxc_r,&
+                                                v1xc_r, v2xc_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(kg_rho_type), POINTER               :: rho
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), POINTER             :: part( : )
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 !  CHARACTER(LEN=8) :: force_type
@@ -181,23 +214,65 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
-          dyn_coeff_set,local_coeffs,kg_rho_v)
-
+          dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
+  NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
+          vxc_r,v1xc_r,v2xc_r)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     dyn_coeff_set=dyn_coeff_set,&
-                    force=force,particle_set=part,rho=kg_rho_v)
+                    force=force,particle_set=part,rho=rho,rspw=rspw)
+
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  IF(.NOT.failure) THEN
+    CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rhop_r=rhop_r,&
+                    rhop_g=rhop_g,rho_core=rho_core)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  END IF
+
+  ALLOCATE(v_gspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v_rspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(vxc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v1xc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v2xc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+
+  IF (.NOT.failure) THEN
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    CALL coeff_zero(v_gspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v_rspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(vxc_r)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v1xc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v1xc_r)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v2xc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v2xc_r)
+  END IF
 
   calculate_forces=.TRUE. 
   natoms = SIZE ( part )
   nkind = SIZE( atomic_kind_set )
-  isos = 0
-  auxbas_grid=kg_rho_v%auxbas_grid
-  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
+  stat = 0
+  dvol=v_rspace%pw%pw_grid%dvol
 
   IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
-     ALLOCATE (natom_of_kind(nkind),STAT=isos)
-     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     ALLOCATE (natom_of_kind(nkind),STAT=stat)
+     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
   END IF
@@ -244,88 +319,73 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 
 ! Calculate the density generated by the core charges
 
-  CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
-                         kg_rho_v%l_info,&
-                         kg_rho_v%total_rho_core_rspace, kg_env)
+  CALL calculate_epc_density(rho_core,rho%total_rho_core_rspace, kg_env)
 
 ! calculate the frozen electronic pseudo density
 
-  CALL calculate_density ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
-            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
-            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rho0_rspace, kg_env)
+  CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env)        
 
-  CALL calculate_p_density(kg_rho_v%rho_p_rspace, kg_rho_v%rho_p_gspace, &
-            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
-            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rhop_rspace, kg_env )
-
-  CALL coeff_zero(kg_rho_v%v_rspace)
+  CALL calculate_p_density(rhop_r, rhop_g, total_rhop_rspace, kg_env)      
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (kg_rho_v%rho_elec_rspace%pw, kg_rho_v%rho_gspace%pw, &
-                        kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
-                        kg_rho_v%pw_pool)
+  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
+                         dft_control,auxbas_pw_pool)
 
-  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
+  vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 
-  CALL calculate_kxc_derivatives(kg_rho_v% pw_pool, & 
-                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
-                                kg_rho_v % rho_p_rspace, kg_rho_v%v_xc_rspace,&
-                                kg_rho_v%v1_xc_rspace, kg_rho_v%v2_xc_rspace,&
-                                e1_xc, e2_xc, dft_control,calculate_forces)
+  CALL calculate_kxc_derivatives(auxbas_pw_pool, rho_r, rho_g, rhop_r, vxc_r, v1xc_r,&
+                                 v2xc_r, e1_xc, e2_xc, dft_control, calculate_forces)
 
 ! calculate the total density
-  kg_rho_v%total_rho_rspace = total_rho0_rspace+&
-             kg_rho_v%total_rho_core_rspace
+  rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! add the core density to the frozen electronic density
-  CALL coeff_sumup(kg_rho_v%rho_core,kg_rho_v%rho_gspace)
+  CALL coeff_sumup(rho_core,rho_g)
 
-  kg_rho_v%total_rho_gspace = calculate_total_density(kg_rho_v%rho_gspace)
+  rho%total_rho_gspace = calculate_total_density(rho_g)
 
 ! add the polarization density to get the total density
-  CALL coeff_sumup(kg_rho_v%rho_p_gspace,kg_rho_v%rho_gspace)
+  CALL coeff_sumup(rhop_g,rho_g)
 
 ! calculate electrostatic potential
   CALL init_pw_poisson_solver(cell%green)
-  CALL calculate_hartree(kg_rho_v%rho_gspace, energy % hartree,&
-           kg_rho_v%v_gspace)
+  CALL calculate_hartree(rho_g, energy % hartree,v_gspace)
   CALL cleanup_pw_poisson_solver(cell%green)
 
 !  calclation of the forces on the ions
 
-  CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
+  CALL coeff_transform_space(v_gspace,v_rspace)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  DEALLOCATE(v_gspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
-  kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
-               dvol*kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+  v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
 
-  CALL calculate_epc_rspace_forces(kg_rho_v % v_hartree_rspace,&
-                   kg_rho_v%cube_info(1),&
-                   kg_rho_v%l_info, kg_env, force)
+  CALL calculate_epc_rspace_forces(v_rspace, kg_env)         
 
-  kg_rho_v%v_rspace%pw%cr3d(:,:,:) =&
-               kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v2_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+  v_rspace%pw%cr3d(:,:,:) =-1.0_dbl*(vxc_r%pw%cr3d(:,:,:) +&
+               v1xc_r%pw%cr3d(:,:,:)+ v_rspace%pw%cr3d(:,:,:))
 
-  CALL calculate_v_rspace_forces(kg_rho_v%v_rspace,kg_rho_v%mgrid_rspace,&
-               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-               kg_rho_v%gridlevel_info,&
-               kg_rho_v%cube_info, kg_rho_v%l_info,&
-               kg_env, force)
+  CALL calculate_vp_rspace_forces(v_rspace,kg_env, calculate_forces)
 
-  kg_rho_v%vp_rspace%pw%cr3d(:,:,:) =-1.0_dbl* &
-              (kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:)+&
-               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:))
+  v_rspace%pw%cr3d(:,:,:) = -1.0_dbl*v_rspace%pw%cr3d(:,:,:)+&
+                            v2xc_r%pw%cr3d(:,:,:)
 
-  CALL calculate_vp_rspace_forces(kg_rho_v%vp_rspace,kg_rho_v%mgrid_rspace,&
-               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-               kg_rho_v%gridlevel_info,&
-               kg_rho_v%cube_info, kg_rho_v%l_info,&
-               kg_env, calculate_forces)
+  CALL calculate_v_rspace_forces(v_rspace,kg_env) 
+
+! deallocate work storage
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  DEALLOCATE(v_rspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  DEALLOCATE(vxc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v1xc_r,error=error)
+  DEALLOCATE(v1xc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v2xc_r,error=error)
+  DEALLOCATE(v2xc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
 ! add up all the potential energies
 
@@ -334,15 +394,15 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
                  energy% bond_corr
      
 ! print
-    IF (ionode) THEN
+    IF (ionode.AND.(globenv%print%level>3)) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total electronic density (r-space): ",&
             total_rho0_rspace,  &
             "Total core charge density (r-space):",&
-            kg_rho_v%total_rho_core_rspace
+            rho%total_rho_core_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            kg_rho_v%total_rho_rspace
+            rho%total_rho_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total rho_coefs charge density (r-space):     ",&
             total_rhop_rspace
@@ -389,8 +449,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
 
 ! deallocating all local variables
   IF ( ALLOCATED ( natom_of_kind ) ) THEN
-     DEALLOCATE (natom_of_kind ,STAT=isos)
-     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     DEALLOCATE (natom_of_kind ,STAT=stat)
+     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
   END IF
 
  CALL timestop ( zero, handle )
@@ -415,33 +475,41 @@ END SUBROUTINE kgpol_calculate_forces
 !!
 !!*** *************************************************************************
 
-SUBROUTINE kg_calculate_forces ( kg_env, globenv )
-
+SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
 
-    INTEGER                                  :: auxbas_grid, handle, i, &
-                                                iatom, ikind, isos, natoms, &
+    INTEGER                                  :: handle, i, &
+                                                iatom, ikind, stat, natoms, &
                                                 nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: calculate_forces, ionode
+    LOGICAL                                  :: calculate_forces, ionode,&
+                                                failure
     REAL(dbl)                                :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), POINTER                :: rho_core, rho_r, rho_g,&
+                                                v_gspace, &
+                                                v_rspace, vxc_r
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(kg_rho_type), POINTER               :: rho
+    TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(particle_type), POINTER             :: part( : )
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
 
 !  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 !  CHARACTER(LEN=8) :: force_type
@@ -449,25 +517,52 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
   CALL write_checkpoint_information("entering "//routine,globenv)
   CALL timeset ( 'FORCE','I',' ',handle )
+  failure=.FALSE.
   ionode=globenv%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
-          kg_rho_v)
-
+          rho,rspw,auxbas_pw_pool)
+  NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    force=force,particle_set=part,rho=kg_rho_v)
+                    force=force,particle_set=part,rho=rho,rspw=rspw)
+  CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
+  CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
+  IF(.NOT.failure) THEN
+    CALL kg_rho_get(kg_rho=rho, rho_r=rho_r, rho_g=rho_g, rho_core=rho_core)
+    CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  END IF
 
+  ALLOCATE(v_gspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(v_rspace,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  ALLOCATE(vxc_r,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+  IF (.NOT.failure) THEN
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+                            use_data = COMPLEXDATA1D,&
+                            in_space = RECIPROCALSPACE, error=error)
+    CALL coeff_zero(v_gspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(v_rspace)
+    CALL pw_pool_init_coeff(auxbas_pw_pool, vxc_r,&
+                            use_data = REALDATA3D,&
+                            in_space = REALSPACE, error=error)
+    CALL coeff_zero(vxc_r)
+  END IF
+ 
   calculate_forces=.TRUE. 
   natoms = SIZE ( part )
   nkind = SIZE( atomic_kind_set )
-  isos = 0
-  auxbas_grid=kg_rho_v%auxbas_grid
-  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
+  stat = 0
+  dvol=v_rspace%pw%pw_grid%dvol
 
   IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
-     ALLOCATE (natom_of_kind(nkind),STAT=isos)
-     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     ALLOCATE (natom_of_kind(nkind),STAT=stat)
+     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                               natom_of_kind=natom_of_kind)
   END IF
@@ -477,10 +572,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 !  ELSE
 !     CALL rebuild_neighbor_lists(kg_env,globenv)
 !  END IF
-
-! allocate density/pot arrays
- 
-!  CALL allocate_kg_densities (kg_rho_v, globenv )
 
 ! initialize forces and energies                    
  
@@ -511,62 +602,51 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
 ! Calculate the density generated by the core charges
 
-  CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
-                         kg_rho_v%l_info,&
-                         kg_rho_v%total_rho_core_rspace, kg_env)
+  CALL calculate_epc_density(rho_core, rho%total_rho_core_rspace, kg_env)
 
 ! calculate the frozen electronic pseudo density
 
-  CALL calculate_density ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
-            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
-            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rho0_rspace, kg_env)
+  CALL calculate_density (rho_r, rho_g, total_rho0_rspace, kg_env)
 
-
-  CALL coeff_zero(kg_rho_v%v_rspace)
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL xc_calculate_pw1 (kg_rho_v%rho_elec_rspace%pw, kg_rho_v%rho_gspace%pw, &
-                        kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
-                        kg_rho_v%pw_pool)
-  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
+  CALL xc_calculate_pw1 (rho_r%pw, rho_g%pw, vxc_r%pw, energy%exc, &
+                         dft_control,auxbas_pw_pool)
+  vxc_r%pw%cr3d(:,:,:) =dvol*vxc_r%pw%cr3d(:,:,:)
 
 ! calculate the total density
-  kg_rho_v%total_rho_rspace = total_rho0_rspace+&
-             kg_rho_v%total_rho_core_rspace
+  rho%total_rho_rspace = total_rho0_rspace+ rho%total_rho_core_rspace
 
 ! add the core density to the frozen electronic density
 
-  CALL coeff_sumup(kg_rho_v%rho_core,kg_rho_v%rho_gspace)
-
-  kg_rho_v%total_rho_gspace = calculate_total_density(kg_rho_v%rho_gspace)
+  CALL coeff_sumup(rho_core,rho_g)
+  rho%total_rho_gspace = calculate_total_density(rho_g)
 
 ! calculate electrostatic potential
   CALL init_pw_poisson_solver(cell%green)
-  CALL calculate_hartree(kg_rho_v%rho_gspace, energy % hartree,&
-           kg_rho_v%v_gspace)
+  CALL calculate_hartree(rho_g, energy % hartree,v_gspace)
   CALL cleanup_pw_poisson_solver(cell%green)
 
 !  calclation of the forces on the ions
+  CALL coeff_transform_space(v_gspace,v_rspace)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+  DEALLOCATE(v_gspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
-  CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
+  v_rspace%pw%cr3d(:,:,:) = dvol*v_rspace%pw%cr3d(:,:,:)
 
-  kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
-               dvol*kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+  CALL calculate_epc_rspace_forces(v_rspace, kg_env)
 
+  v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%cr3d(:,:,:)+ vxc_r%pw%cr3d(:,:,:)
 
-  CALL calculate_epc_rspace_forces(kg_rho_v % v_hartree_rspace,&
-                   kg_rho_v%cube_info(1),&
-                   kg_rho_v%l_info, kg_env, force)
+  CALL calculate_v_rspace_forces(v_rspace,kg_env) 
 
-    kg_rho_v%v_rspace%pw%cr3d(:,:,:) =&
-               kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
-               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
-
-    CALL calculate_v_rspace_forces(kg_rho_v%v_rspace,kg_rho_v%mgrid_rspace,&
-               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-               kg_rho_v%gridlevel_info,&
-               kg_rho_v%cube_info, kg_rho_v%l_info,&
-               kg_env, force)
+! deallocate work storage
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace,error=error)
+  DEALLOCATE(v_rspace,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
+  CALL pw_pool_give_back_coeff(auxbas_pw_pool,vxc_r,error=error)
+  DEALLOCATE(vxc_r,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
 
 ! add up all the potential energies
 
@@ -574,15 +654,16 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
                  energy % hartree + energy % pseudo + energy % bond_corr
      
 ! print
-    IF (ionode) THEN
+!    IF (ionode) THEN
+    IF (ionode.AND.(globenv%print%level>3)) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
             "Total electronic density (r-space): ",&
             total_rho0_rspace,  &
             "Total core charge density (r-space):",&
-            kg_rho_v%total_rho_core_rspace
+            rho%total_rho_core_rspace
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            kg_rho_v%total_rho_rspace
+            rho%total_rho_rspace
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
             "Self energy of the core charge distribution:   ",energy%core_self,&
@@ -625,10 +706,9 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
 ! deallocating all local variables
   IF ( ALLOCATED ( natom_of_kind ) ) THEN
-     DEALLOCATE (natom_of_kind ,STAT=isos)
-     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     DEALLOCATE (natom_of_kind ,STAT=stat)
+     IF (stat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
   END IF
-! CALL deallocate_kg_densities ( kg_rho_v, globenv )
 
  CALL timestop ( zero, handle )
  CALL write_checkpoint_information("leaving "//routine,globenv)
