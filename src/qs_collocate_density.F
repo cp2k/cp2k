@@ -338,7 +338,7 @@ CONTAINS
 !$OMP PARALLEL &
 !$OMP DEFAULT(none) &
 !$OMP PRIVATE(pab_old,pab,work,istat) &
-!$OMP PRIVATE(ikind,jkind) &
+!$OMP PRIVATE(ikind,jkind,i,j) &
 !$OMP PRIVATE(atomic_kind,orb_basis_set) &
 !$OMP PRIVATE(first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,sphi_a,zeta) &
 !$OMP PRIVATE(first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,kind_radius_b) &
