@@ -337,7 +337,7 @@ SUBROUTINE fist ( globenv )
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
-    IF ( setup % run_type == 'DEBUG' ) THEN
+    IF ( globenv % run_type == 'DEBUG' ) THEN
       rep_env ( ibead ) % box_ref => cell
     ENDIF
 
@@ -538,17 +538,17 @@ SUBROUTINE control_work ( globenv, simpar, fist_env, md_env, &
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'constant', 0 )
   CALL force_env_release(force_env)
 
-  SELECT CASE ( setup % run_type )
+  SELECT CASE ( globenv % run_type )
   CASE DEFAULT
      CALL stop_program ( "control_work", "no suitable run_type" &
-                         //  setup % run_type )
+                         //  globenv % run_type )
      
   CASE ( "DEBUG" )
      
 ! debug the forces
      CALL control_debug_work ( globenv, fist_env, mdio )
      
-  CASE ( "MD" )
+  CASE ( "MOLECULAR DYNAMICS" )
      
      CALL control_md_work ( globenv, fist_env, md_env, mdio )
      

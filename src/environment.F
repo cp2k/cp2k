@@ -823,14 +823,16 @@ CONTAINS
       globenv%run_type = "MOLECULAR DYNAMICS"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
+    CASE ("DEBUG_FORCES","DEBUG")
+      globenv%run_type = "DEBUG"
     CASE ("default")
        SELECT CASE (globenv%program_name)
        CASE ("ATOM")
           globenv%run_type = "NONE"
        CASE ("FIST")
-          globenv%run_type = "NONE"
+          globenv%run_type = "MOLECULAR DYNAMICS"
        CASE ("KIM-GORDON","KG")
-          globenv%run_type = "NONE"
+          globenv%run_type = "MOLECULAR DYNAMICS"
        CASE ("QUICKSTEP","QS")
           globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
        CASE ("TEST")

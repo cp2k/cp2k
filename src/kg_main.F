@@ -322,13 +322,6 @@ SUBROUTINE kg ( globenv )
 
 !..initialize cell parameters
     box_ref => box
-!!!    box_ref % hmat = setup % reference_cell % hmat
-
-! If run is a debug.  Make box_ref = box to work under
-! all ensembles and restart options
-!  IF ( setup % run_type == 'DEBUG' ) THEN
-!     box_ref % hmat = setup % simulation_cell % hmat
-!  ENDIF
 
   CALL init_interaction_radii ( dft_control%kg_control, box, &
                                 atomic_kind_set, globenv)
@@ -364,18 +357,11 @@ SUBROUTINE kg ( globenv )
      CALL initialize_nhc_coef ( simpar,  coef_vel ( 1 ),  &
                                 globenv, extended_type % nhc_coef )
 
-     IF ( setup % run_type == 'ENERGY') THEN
+     IF ( globenv % run_type == 'WAVEFUNCTION OPTIMIZATION') THEN
        CALL read_energy_section ( energy_min, globenv )
      END IF
 
   END IF
-!  CALL stop_program ( "kg_main", "not yet implemented " )
-
-!   CALL get_hinv ( box )
-!   IF ( simpar % read_type == 'INIT' ) THEN
-!      box_ref = box
-!   ENDIF
-!   CALL get_hinv ( box_ref )
 
 !..initialize molecule_type
   CALL initialize_molecule_type ( mol_setup, pnode,  particle_set,  &
@@ -510,21 +496,21 @@ SUBROUTINE control_work ( globenv, simpar, kg_env, md_env, &
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'constant', 0 )
   CALL force_env_release(force_env)
 
-  SELECT CASE ( setup % run_type )
+  SELECT CASE ( globenv % run_type )
   CASE DEFAULT
      CALL stop_program ( "control_work", "no suitable run_type" &
-                         //  setup % run_type )
+                         //  globenv % run_type )
 
   CASE ( "DEBUG" )
 
 ! debug the forces
      CALL control_debug_work ( globenv, kg_env, mdio )
 
-  CASE ( "ENERGY" )
+  CASE ( "WAVEFUNCTION OPTIMIZATION" )
 
      CALL control_energy_work ( globenv, kg_env, md_env, energy_min, mdio )
 
-  CASE ( "MD" )
+  CASE ( "MOLECULAR DYNAMICS" )
 
      CALL control_md_work ( globenv, kg_env, md_env, mdio )
 

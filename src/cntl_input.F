@@ -63,7 +63,6 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &cntl ... &end                                                   I
 !!I                                                                           I
-!!I simulation       [md,debug,min,amoeba]                                    I
 !!I printlevel       globenv%print_level                                      I
 !!I set_file         "filename"                                               I
 !!I coord_file       "filename"                                               I 
@@ -95,7 +94,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
 
 
 !..defaults
-  setup % run_type = 'MD'
   setup % unit_type = 'KELVIN'
   setup % symmetry = .FALSE.
   setup % path_integrals = .FALSE.
@@ -127,10 +125,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
         CASE DEFAULT
            CALL p_error()
            CALL stop_parser( 'read_cntl_section','unknown option: '//TRIM(string))
-        CASE ( 'SIMULATI')
-           ilen = 20
-           CALL get_next(setup % run_type,ilen)
-           CALL uppercase(setup % run_type )
         CASE ( 'PRINTLEV')
            CALL get_next ( globenv % print_level )
         CASE ('SYMMETRY')
@@ -230,8 +224,6 @@ SUBROUTINE read_cntl_section ( setup, globenv )
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 ) THEN
-        WRITE ( iw, '( A, T61, A )' ) &
-             ' CONTROL| Run type ', ADJUSTR ( setup % run_type )
         WRITE ( iw, '( A, T61, A )' ) &
              ' CONTROL| Unit type ', ADJUSTR ( setup % unit_type )
         IF ( setup%symmetry ) THEN

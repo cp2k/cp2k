@@ -46,7 +46,6 @@ MODULE input_types
      LOGICAL                :: topology
      CHARACTER ( LEN = 40 ) :: topology_type
      CHARACTER ( LEN = 40 ) :: topology_file_name
-     CHARACTER ( LEN = 20 ) :: run_type
      CHARACTER ( LEN = 20 ) :: unit_type
      LOGICAL                :: path_integrals
      REAL ( dbl )           :: charge
