@@ -316,7 +316,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
-    TYPE(real_matrix_type), POINTER   :: dp
+    TYPE(real_matrix_type), POINTER   :: deltap
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
@@ -357,7 +357,7 @@ CONTAINS
     CALL timeset("calculate_rho_elec","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control, orb_basis_set, sab_orb_neighbor_list,&
-         sab_orb_neighbor_node, dp, atomic_kind_set, sab_orb, particle_set,&
+         sab_orb_neighbor_node, deltap, atomic_kind_set, sab_orb, particle_set,&
          rs_rho,pw_env,rs_pools,para_env, pab,work,pblock,dist_ab,dab_local,&
          set_radius_a, set_radius_b, la_max, la_min,&
          lb_max,lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, p_old_block,&
@@ -418,7 +418,7 @@ CONTAINS
 
 !   *** Initialize working density matrix ***
 
-    CALL allocate_matrix(matrix=dp,&
+    CALL allocate_matrix(matrix=deltap,&
                          nrow=p%nrow,&
                          ncol=p%ncol,&
                          nblock_row=p%nblock_row,&
@@ -528,7 +528,7 @@ CONTAINS
              pdim2 = SIZE(p_block,2)
 
              NULLIFY ( pblock )
-             CALL add_block_node ( dp, brow, bcol, pblock )
+             CALL add_block_node ( deltap, brow, bcol, pblock )
 
              IF (rebuild) THEN
                pblock = p_block
@@ -663,7 +663,7 @@ CONTAINS
           npme = 0
           CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &
-                                   pmat=dp, pcor=latom )
+                                   pmat=deltap, pcor=latom )
           DO itask = 1, npme
               iatom  = ival (1,itask)
               jatom  = ival (2,itask)
@@ -697,12 +697,12 @@ CONTAINS
               IF (iatom <= jatom) THEN
 
                 IF ( ia_last /= iatom .OR. ja_last /= jatom ) THEN
-                  CALL get_block_node(matrix=dp,&
+                  CALL get_block_node(matrix=deltap,&
                                       block_row=iatom,&
                                       block_col=jatom,&
                                       BLOCK=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in dp")
+                     CALL stop_program(routine,"p_block not associated in deltap")
                   ia_last = iatom
                   ja_last = jatom
                   reread = .TRUE.
@@ -733,12 +733,12 @@ CONTAINS
               ELSE
 
                 IF ( ia_last /= iatom .OR. ja_last /= jatom ) THEN
-                  CALL get_block_node(matrix=dp,&
+                  CALL get_block_node(matrix=deltap,&
                                       block_row=jatom,&
                                       block_col=iatom,&
                                       BLOCK=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in dp")
+                     CALL stop_program(routine,"p_block not associated in deltap")
                   ia_last = iatom
                   ja_last = jatom
                   reread = .TRUE.
@@ -777,7 +777,7 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    CALL deallocate_matrix ( dp )
+    CALL deallocate_matrix ( deltap )
 
     DEALLOCATE (pab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pab")

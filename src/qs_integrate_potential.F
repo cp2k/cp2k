@@ -396,7 +396,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
     TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
-    TYPE(real_matrix_type), POINTER   :: dp, dh
+    TYPE(real_matrix_type), POINTER   :: deltap, dh
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
@@ -543,11 +543,11 @@ CONTAINS
     END DO
     p_duplicated = .FALSE.
     IF ( PRESENT ( p ) ) THEN
-       dp => p%matrix
+       deltap => p%matrix
        DO igrid_level = 1, gridlevel_info%ngrid_levels
          IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
-           NULLIFY ( dp )
-           CALL allocate_matrix(matrix=dp,&
+           NULLIFY ( deltap )
+           CALL allocate_matrix(matrix=deltap,&
                          nrow=p%matrix%nrow,&
                          ncol=p%matrix%ncol,&
                          nblock_row=p%matrix%nblock_row,&
@@ -697,14 +697,14 @@ CONTAINS
             IF ( p_duplicated ) THEN
               IF (iatom <= jatom) THEN
                  NULLIFY ( dp_block )
-                 CALL add_block_node ( dp, iatom, jatom, dp_block )
+                 CALL add_block_node ( deltap, iatom, jatom, dp_block )
                  CALL get_block_node(matrix=p%matrix,&
                                      block_row=iatom,&
                                      block_col=jatom,&
                                      block=p_block)
                ELSE
                  NULLIFY ( dp_block )
-                 CALL add_block_node ( dp, jatom, iatom, dp_block )
+                 CALL add_block_node ( deltap, jatom, iatom, dp_block )
                  CALL get_block_node(matrix=p%matrix,&
                                      block_row=jatom,&
                                      block_col=iatom,&
@@ -823,7 +823,7 @@ CONTAINS
             latom(1:2,1:n) = tasks(3:4,1:n,igrid_level)
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &
-                                   pmat=dp, pcor=latom )
+                                   pmat=deltap, pcor=latom )
           ELSE
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local )
@@ -862,12 +862,12 @@ CONTAINS
 
              IF (PRESENT(P)) THEN
                 IF (iatom <= jatom) THEN
-                  CALL get_block_node(matrix=dp,&
+                  CALL get_block_node(matrix=deltap,&
                                       block_row=iatom,&
                                       block_col=jatom,&
                                       block=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in dp")
+                     CALL stop_program(routine,"p_block not associated in deltap")
 
                   CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                               1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
@@ -889,12 +889,12 @@ CONTAINS
                         calculate_forces=calculate_forces,&
                         force_a=force_a,force_b=force_b)
                 ELSE
-                  CALL get_block_node(matrix=dp,&
+                  CALL get_block_node(matrix=deltap,&
                                       block_row=jatom,&
                                       block_col=iatom,&
                                       block=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
-                     CALL stop_program(routine,"p_block not associated in dp")
+                     CALL stop_program(routine,"p_block not associated in deltap")
 
                   CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
                              1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
@@ -1001,9 +1001,9 @@ CONTAINS
     END IF
 
     IF ( p_duplicated ) THEN
-      CALL deallocate_matrix ( dp )
+      CALL deallocate_matrix ( deltap )
     ELSE
-      NULLIFY ( dp )
+      NULLIFY ( deltap )
     END IF
 
     DEALLOCATE (hab,STAT=istat)

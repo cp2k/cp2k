@@ -1257,7 +1257,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: dp,dq,epade,rs,p,q,rho13
+    REAL(wp) :: mydp,dq,epade,rs,p,q,rho13
 
 !   ---------------------------------------------------------------------------
 
@@ -1276,11 +1276,11 @@ CONTAINS
       q = (b1 + (b2 + (b3 + b4*rs)*rs)*rs)*rs
       epade = -p/q
 
-      dp = a1 + (2.0_wp*a2 + 3.0_wp*a3*rs)*rs
+      mydp = a1 + (2.0_wp*a2 + 3.0_wp*a3*rs)*rs
       dq = b1 + (2.0_wp*b2 + (3.0_wp*b3 + 4.0_wp*b4*rs)*rs)*rs
 
       exc = epade*rho
-      vxc = epade + f13*rs*(dp*q - p*dq)/q**2
+      vxc = epade + f13*rs*(mydp*q - p*dq)/q**2
 
     END IF
 
@@ -1804,7 +1804,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: crho,dcrho,dp,dq,drho2,ephi,rs,p,phi,q,rhom43,rhom76
+    REAL(wp) :: crho,dcrho,mydp,dq,drho2,ephi,rs,p,phi,q,rhom43,rhom76
 
 !   ---------------------------------------------------------------------------
 
@@ -1833,10 +1833,10 @@ CONTAINS
 
         ec = ec + crho*EXP(-phi)*rhom43*drho2
 
-        dp = c3 + 2.0_wp*c4*rs
+        mydp = c3 + 2.0_wp*c4*rs
         dq = c5 + (2.0_wp*c6 + 3.0_wp*c7*rs)*rs
 
-        dcrho = (dp*q - p*dq)/(q*q)
+        dcrho = (mydp*q - p*dq)/(q*q)
 
         vc = vc - ephi*drho2*rhom76*rhom76*((f43 - f76*phi)*crho +&
                                             f13*rs*(phi + 1.0_wp)*dcrho)
@@ -2001,7 +2001,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: dfx,dp,fx,p,rho13,rho43,s,s2,t,tau
+    REAL(wp) :: dfx,mydp,fx,p,rho13,rho43,s,s2,t,tau
 
 !   ---------------------------------------------------------------------------
 
@@ -2020,10 +2020,10 @@ CONTAINS
       s2 = s*s
 
       p = 1.0_wp + (a + (b + c*s2)*s2)*s2
-      dp = 2.0_wp*s*(a + (2.0_wp*b + 3.0_wp*c*s2)*s2)
+      mydp = 2.0_wp*s*(a + (2.0_wp*b + 3.0_wp*c*s2)*s2)
 
       fx = p**m
-      dfx = m*p**(m - 1.0_wp)*dp
+      dfx = m*p**(m - 1.0_wp)*mydp
 
 !     *** Correction to fx for large s values ***
 
