@@ -2158,6 +2158,7 @@ CONTAINS
                   CALL construct_molecular_states ( molecule, mo_localized, &
                                                     mo_eigenvectors, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
+                                                    s(1)%matrix, &
                                                     globenv, pw_env, qs_env,    &
                                                     wf_r, wf_g, mgrid_rspace,   &
                                                     mgrid_gspace )

@@ -36,6 +36,7 @@ MODULE molecular_states
                                              cp_fm_release,&
                                              cp_fm_to_fm, &
                                              cp_fm_write
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
@@ -80,7 +81,7 @@ CONTAINS
 
 SUBROUTINE construct_molecular_states(molecule, mo_localized, &
                                    mo_eigenvectors, mo_eigenvalues, &
-                                   Hks,globenv,pw_env,qs_env,wf_r,wf_g, &
+                                   Hks,matrix_S,globenv,pw_env,qs_env,wf_r,wf_g, &
                                    mgrid_rspace,mgrid_gspace)
 
   IMPLICIT NONE
@@ -88,7 +89,7 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER      :: molecule
   TYPE ( cp_fm_type ), POINTER                          :: mo_eigenvectors, mo_localized
   REAL ( wp ), POINTER, DIMENSION(:)                    :: mo_eigenvalues
-  TYPE ( real_matrix_type ), POINTER                    :: Hks
+  TYPE ( real_matrix_type ), POINTER                    :: Hks,matrix_S
   TYPE ( global_environment_type ), INTENT ( IN )       :: globenv
   TYPE ( pw_env_type ), POINTER                         :: pw_env
   TYPE ( qs_environment_type ), INTENT ( IN )           :: qs_env
@@ -107,6 +108,7 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   TYPE(cp_fm_type), POINTER                       :: e_vectors,&
                                                      rot_e_vectors
   TYPE(cp_fm_type), POINTER                       :: D_igk
+  TYPE ( cp_fm_type ), POINTER                    :: smo
   TYPE(cp_fm_struct_type), POINTER                :: fm_struct_tmp
   TYPE(cp_error_type)                             :: error
 
@@ -223,8 +225,15 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
   END DO
 
 #endif
+  CALL cp_fm_get_info(mo_localized, &
+                      ncol_global=ncol_global, &
+                      nrow_global=nrow_global )
+  NULLIFY(smo)
+  CALL cp_fm_create(smo,mo_eigenvectors%matrix_struct)
+  CALL cp_sm_fm_multiply(matrix_S,mo_eigenvectors,smo,ncol_global,qs_env%para_env)
+
   IF (globenv%ionode) THEN
-     WRITE(unit_report,*) nmol, " number of molecules "
+     WRITE(unit_report,*) nmol,nstates_max, " number of molecules, maximum number of states "
   ENDIF
 
   !WRITE(*,*) "Start DO loop"
@@ -238,9 +247,6 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
 
     NULLIFY(b,c,d,fm_struct_tmp,e_vectors,rot_e_vectors)
 
-    CALL cp_fm_get_info(mo_localized, &
-                        ncol_global=ncol_global, &
-                        nrow_global=nrow_global )
           
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nrow_global, &
                              ncol_global=ns, &
@@ -303,10 +309,10 @@ SUBROUTINE construct_molecular_states(molecule, mo_localized, &
     CALL cp_fm_create(D_igk,fm_struct_tmp)
     CALL cp_fm_struct_release(fm_struct_tmp) 
     CALL cp_fm_gemm('T','N',ns,ncol_global,nrow_global,1.0_wp, &             
-                         rot_e_vectors,mo_eigenvectors,0.0_wp,D_igk)    
-    DO k=1,ns
-       DO i=1,nrow_global
-          CALL cp_fm_get_element(D_igk,k,i,tmp)
+                         rot_e_vectors,smo,0.0_wp,D_igk)    
+    DO i=1,ns
+       DO k=1,ncol_global
+          CALL cp_fm_get_element(D_igk,i,k,tmp)
           IF (globenv%ionode) THEN
              write(unit_report,*) tmp**2
           ENDIF
