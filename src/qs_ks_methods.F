@@ -243,7 +243,8 @@ CONTAINS
     LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
+!    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
@@ -262,7 +263,9 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
-         pw_env,rho_core,cell, logger, v_rspace_new, v_tau_rspace)
+!         pw_env,rho_core,cell, logger, v_rspace_new, v_tau_rspace)
+         pw_env,rho_core,cell_REF, logger, v_rspace_new, v_tau_rspace)
+
     !   -----------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -280,7 +283,8 @@ CONTAINS
          h=h,&
          s=s,&
          pw_env=pw_env,&
-         cell=cell,&
+!         cell=cell,&
+         cell_ref=cell_ref,&
          rho_core=rho_core,&
          qs_charges=qs_charges)
 
@@ -342,10 +346,12 @@ CONTAINS
                qs_charges%total_rho_gspace
        END IF
 
-       CALL init_pw_poisson_solver(cell%green,error=error)
+!       CALL init_pw_poisson_solver(cell%green,error=error)
+       CALL init_pw_poisson_solver(cell_ref%green,error=error)
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
             v_hartree_gspace)
-       CALL cleanup_pw_poisson_solver(cell%green,error=error)
+!       CALL cleanup_pw_poisson_solver(cell%green,error=error)
+       CALL cleanup_pw_poisson_solver(cell_ref%green,error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,&
             error=error)
        IF (.NOT. just_energy) THEN
