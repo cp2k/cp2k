@@ -104,6 +104,8 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   CHARACTER(LEN=6)  :: label
   INTEGER                         :: iatom,istat,natom
 
+  INTEGER :: atm_equal_mol
+
 !   ---------------------------------------------------------------------------
 
   natom = 0
@@ -149,16 +151,20 @@ SUBROUTINE read_atoms_input ( topology, globenv )
        ilen = default_string_length
        topology%label_resname(natom) = ""
        topology%label_atmname(natom) = ""
-       CALL get_next(topology%label_resname(natom),ilen)
+
+       ! For default, set atom name to molecule name
        CALL get_next(topology%label_atmname(natom),ilen)
+       topology%label_resname(natom) = topology%label_atmname(natom)
+
 !     *** Read the atomic coordinates ***
        CALL get_next(topology%r(1,natom))
        CALL get_next(topology%r(2,natom))
        CALL get_next(topology%r(3,natom))
 
-
-
        !Future user optional inputs
+       IF (test_next()=='C') THEN
+         CALL get_next(topology%label_resname(natom),ilen)
+       END IF
        topology%atm_mass(natom) = 0.0_dbl 
        topology%atm_charge(natom) = 0.0_dbl 
 
@@ -167,10 +173,6 @@ SUBROUTINE read_atoms_input ( topology, globenv )
 
     CALL parser_end
   END IF
-
-! if we are getting the coordinates from the program, we change them here
-
-
 !..end of parsing the input section
 
   topology%natoms = natom
@@ -188,6 +190,18 @@ SUBROUTINE read_atoms_input ( topology, globenv )
     CALL convert_to_cp2k_units(topology%cell%unit_of_length_name,&
                                length=topology%r(3,iatom))
   END DO
+
+  atm_equal_mol = 0
+  DO iatom=1,natom
+    IF(topology%label_resname(iatom)==topology%label_atmname(iatom))THEN
+      atm_equal_mol = atm_equal_mol + 1
+      topology%bondparm_factor=0.0
+    END IF
+  END DO
+
+  IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
+    CALL stop_program ('read_atoms_input','check coord optional molname')
+  END IF
 
 END SUBROUTINE read_atoms_input
 
