@@ -650,6 +650,9 @@ CONTAINS
     qs_control%gapw_control%quadrature = 1
     qs_control%gapw_control%quadrature_name = "Gauss-Chebyshev"
 
+    qs_control%mulliken_restraint_control%strength=0.1_dp
+    qs_control%mulliken_restraint_control%target=1.0_dp
+
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.

@@ -65,8 +65,8 @@ MODULE cp_control_types
 
 ! *** some parameters useful for mulliken_restraints
   TYPE mulliken_restraint_type
-    REAL(KIND = dp)                 :: strength=0.1_dp
-    REAL(KIND = dp)                 :: target=1.0_dp
+    REAL(KIND = dp)                 :: strength
+    REAL(KIND = dp)                 :: target
   END TYPE mulliken_restraint_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***
