@@ -366,10 +366,16 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
  
   ALLOCATE(checkme(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+  IF (ASSOCIATED(atom_info%map_mol_typ)) &
+       DEALLOCATE(atom_info%map_mol_typ,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','dealloc :: map_mol_typ')
   ALLOCATE (atom_info%map_mol_typ(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_typ')
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','alloc :: map_mol_typ')
+  IF (ASSOCIATED(atom_info%map_mol_num)) &
+       DEALLOCATE(atom_info%map_mol_num,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','dealloc :: map_mol_num')
   ALLOCATE (atom_info%map_mol_num(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','map_mol_num')
+  IF (istat /= 0) CALL stop_memory('topology_generate_molecule','alloc :: map_mol_num')
 
   !Zero the arrays
   checkme(:) = 0

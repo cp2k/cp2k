@@ -124,24 +124,54 @@ SUBROUTINE read_topology_psf (topology,globenv)
     CALL get_next (natom)
     WRITE(iw,*) 'NATOM = ',natom
     !malloc the memory that we need
+    IF (ASSOCIATED(atom_info%label_molname)) &
+         DEALLOCATE(atom_info%label_molname,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_mol_name',nphi)
     ALLOCATE(atom_info%label_molname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_mol_name',nphi)
+      ('read_topology_psf','alloc :: atm_mol_name',nphi)
+
+    IF (ASSOCIATED(atom_info%map_mol_num)) &
+         DEALLOCATE(atom_info%map_mol_num,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_res_num',nphi)    
     ALLOCATE(atom_info%map_mol_num(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_res_num',nphi)
+      ('read_topology_psf','alloc :: atm_res_num',nphi)
+
+    IF (ASSOCIATED(atom_info%label_resname)) &
+         DEALLOCATE(atom_info%label_resname,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_res_name',nphi)    
     ALLOCATE(atom_info%label_resname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_res_name',nphi)
+      ('read_topology_psf','alloc :: atm_res_name',nphi)
+
+    IF (ASSOCIATED(atom_info%label_atmname)) &
+         DEALLOCATE(atom_info%label_atmname,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_name1',nphi)
     ALLOCATE(atom_info%label_atmname(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_name1',nphi)
+      ('read_topology_psf','alloc :: atm_name1',nphi)
+
+    IF (ASSOCIATED(atom_info%atm_charge)) &
+         DEALLOCATE(atom_info%atm_charge,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_charge',nphi)    
     ALLOCATE(atom_info%atm_charge(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_charge',nphi)
+      ('read_topology_psf','alloc :: atm_charge',nphi)
+
+    IF (ASSOCIATED(atom_info%atm_mass)) &
+         DEALLOCATE(atom_info%atm_mass,STAT=ierror)
+    IF(ierror/=0) CALL stop_memory &
+      ('read_topology_psf','dealloc :: atm_mass',nphi)    
     ALLOCATE(atom_info%atm_mass(natom),STAT=ierror)
     IF(ierror/=0) CALL stop_memory &
-      ('read_topology_psf','atm_mass',nphi)
+      ('read_topology_psf','alloc :: atm_mass',nphi)
+
     !Read in the atom info
     DO iatom=1,natom
       ilen = 20
@@ -723,10 +753,16 @@ SUBROUTINE read_topology_mc (topology,globenv)
 !------------------------------------------------------------------------------
 
 ! now take care of the atom_info
+  IF (ASSOCIATED(topology%atom_info%map_mol_typ)) &
+       DEALLOCATE(topology%atom_info%map_mol_typ,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_topology_mc','dealloc :: map_mol_typ')
   ALLOCATE (topology%atom_info%map_mol_typ(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('read_topology_mc','map_mol_typ')
+  IF (istat /= 0) CALL stop_memory('read_topology_mc','alloc :: map_mol_typ')
+  IF (ASSOCIATED(topology%atom_info%map_mol_num)) &
+       DEALLOCATE(topology%atom_info%map_mol_num,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_topology_mc','dealloc :: map_mol_num')
   ALLOCATE (topology%atom_info%map_mol_num(natom),STAT=istat)
-  IF (istat /= 0) CALL stop_memory('read_topology_mc','map_mol_num')
+  IF (istat /= 0) CALL stop_memory('read_topology_mc','alloc :: map_mol_num')
 
 ! we only have one molecule type
   topology%atom_info%map_mol_typ(:) = 1
