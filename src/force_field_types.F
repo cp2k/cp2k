@@ -1064,9 +1064,11 @@ END SUBROUTINE deallocate_ff_type
     CHARACTER(len=*), PARAMETER :: routineN='deallocate_ub_kind_set',&
          routineP=moduleN//':'//routineN
     INTEGER                                  ::  stat
+    LOGICAL :: failure
 
+    failure = .false.
     deallocate(ub_kind_set, STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
   end subroutine deallocate_ub_kind_set
 ! *****************************************************************************
@@ -1125,12 +1127,15 @@ END SUBROUTINE deallocate_ff_type
     integer :: stat
     CHARACTER(len=*), PARAMETER :: routineN='deallocate_onfo_kind_type',&
          routineP=moduleN//':'//routineN
-
-    write(*,*)"DEALLOCATE_ONFO_KIND_TYPE"
-    call spline_env_release(onfo_kind%spline_env, error)
-    deallocate(onfo_kind, STAT=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    nullify(onfo_kind)
+    logical :: failure
+    
+    failure = .false.
+    IF (ASSOCIATED(onfo_kind)) THEN
+       CALL spline_env_release(onfo_kind%spline_env, error)
+       DEALLOCATE(onfo_kind, STAT=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       NULLIFY(onfo_kind)
+    END IF
   end subroutine deallocate_onfo_kind_type
 ! *****************************************************************************
 
