@@ -145,61 +145,95 @@ SUBROUTINE deallocate_topology (topology)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 
-  DEALLOCATE(topology%cell,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','cell_type')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%cell,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','cell_type')
+  END IF
 
   IF(ASSOCIATED(topology%atom_names)) THEN
     DEALLOCATE(topology%atom_names,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_names')
   END IF
 
-  DEALLOCATE(topology%label_resname,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resname')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%label_resname,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','label_resname')
+  END IF
 
-  DEALLOCATE(topology%label_atmname,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','label_atmname')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%label_atmname,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','label_atmname')
+  END IF
 
-  DEALLOCATE(topology%r,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','r')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%r,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','r')
+  END IF
 
-  DEALLOCATE(topology%map_mol_typ,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_typ')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%map_mol_typ,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_typ')
+  END IF
 
-  DEALLOCATE(topology%map_mol_num,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_num')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%map_mol_num,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','map_mol_num')
+  END IF
 
-  DEALLOCATE(topology%bond_a,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_a')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%bond_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_a')
+  END IF
 
-  DEALLOCATE(topology%bond_b,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_b')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%bond_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','bond_b')
+  END IF
 
-  DEALLOCATE(topology%theta_a,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_a')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%theta_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_a')
+  END IF
 
-  DEALLOCATE(topology%theta_b,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_b')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%theta_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_b')
+  END IF
 
-  DEALLOCATE(topology%theta_c,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_c')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%theta_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','theta_c')
+  END IF
 
-  DEALLOCATE(topology%phi_a,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_a')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%phi_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_a')
+  END IF
 
-  DEALLOCATE(topology%phi_b,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_b')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%phi_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_b')
+  END IF
 
-  DEALLOCATE(topology%phi_c,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_c')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%phi_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_c')
+  END IF
 
-  DEALLOCATE(topology%phi_d,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_d')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%phi_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','phi_d')
+  END IF
 
-  DEALLOCATE(topology%atm_charge,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_charge')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%atm_charge,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_charge')
+  END IF
 
-  DEALLOCATE(topology%atm_mass,STAT=istat)
-  IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_mass')
+  IF(ASSOCIATED(topology%atom_names)) THEN
+    DEALLOCATE(topology%atm_mass,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','atm_mass')
+  END IF
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------

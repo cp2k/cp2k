@@ -142,7 +142,7 @@ SUBROUTINE topology_generate_molecule(topology)
 
   natom = topology%natoms
   nbond = SIZE(topology%bond_a)
-
+ 
   ALLOCATE(checkme(natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
   ALLOCATE (topology%map_mol_typ(natom),STAT=istat)
@@ -197,8 +197,15 @@ SUBROUTINE topology_generate_molecule(topology)
               !-------------------------------------------------------------
               !Way slow version but can be improved with above
               DO iii=1,nbond
-                IF (topology%bond_a(iii)==iiatom) THEN
+                IF((topology%bond_a(iii)==iiatom).AND.&
+                  (topology%map_mol_num(topology%bond_b(iii))==0)) THEN 
+                  !WRITE(*,*) "bond1 ",iiatom,topology%bond_b(iii)
                   checkme(topology%bond_b(iii))=1
+                END IF
+                IF((topology%bond_b(iii)==iiatom).AND.&
+                  (topology%map_mol_num(topology%bond_a(iii))==0)) THEN
+                  !WRITE(*,*) "bond2 ",iiatom,topology%bond_a(iii)
+                  checkme(topology%bond_a(iii))=1
                 END IF
               END DO
               !-------------------------------------------------------------
@@ -213,6 +220,12 @@ SUBROUTINE topology_generate_molecule(topology)
 
   DEALLOCATE(checkme,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
+
+  !DO iatom=1,natom
+  !  WRITE(*,*) "iatom,map_mol_typ,map_mol_num ",iatom,&
+  !             topology%map_mol_typ(iatom),topology%map_mol_num(iatom)
+  !END DO
+  !topology%map_mol_num(:) = 1
 
 END SUBROUTINE topology_generate_molecule
 
