@@ -323,10 +323,9 @@ SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
        atm_offset = 0
        DO i = 1, size(molecule)
           j = molecule(i) %moltype
-          natoms = mol_setup(j) %molpar%natom
           natoms_mol(i) = mol_setup(j) %molpar%natom
           point(1,i) = atm_offset + 1
-          point(2,i) = atm_offset + natoms
+          point(2,i) = atm_offset + natoms_mol ( i )
           const_mol(i) = mol_setup(j) %molpar%ndcon &
              + 3*mol_setup(j) %molpar%n3x3con
           tot_const(i) = const_mol(i)
@@ -337,13 +336,13 @@ SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
        atm_offset = 0
        mol_off = 0
        DO i = 1, nmol_type
-          natoms = mol_setup(i) %num_mol*mol_setup(i) %molpar%natom
-          natoms_mol(i) = mol_setup(i) %molpar%natom
+          j = molecule ( i ) % moltype
+          natoms_mol(i) = mol_setup(j) %molpar%natom
           point(1,i) = atm_offset + 1
-          point(2,i) = atm_offset + natoms_mol(i)*get_share(mol_setup(i)%num_mol, &
+          point(2,i) = atm_offset + natoms_mol(i)*get_share(mol_setup(j)%num_mol, &
                globenv%num_pe,globenv%mepos)
-          const_mol(i) = mol_setup(i) %molpar%ndcon + 3*mol_setup(i) %molpar%n3x3con
-          tot_const(i) = const_mol(i)*mol_setup(i) %num_mol
+          const_mol(i) = mol_setup(j) %molpar%ndcon + 3*mol_setup(j) %molpar%n3x3con
+          tot_const(i) = const_mol(i)*mol_setup(j) %num_mol
           atm_offset = point(2,i)
        END DO
        DO i = 1, nmol_type
