@@ -21,6 +21,7 @@
 !******************************************************************************
 
 MODULE particle_types
+
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -51,11 +52,17 @@ MODULE particle_types
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+
   IMPLICIT NONE
 
   PRIVATE
 
-  INTEGER, PARAMETER :: max_name_length = 60
+! *** Global parameters (in this module) ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "particle_types"
+  INTEGER, PARAMETER          :: max_name_length = 60
+
+! *** Data types ***
 
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind
@@ -63,12 +70,13 @@ MODULE particle_types
                                               first_sgf,first_sgf_aux,grid_id,&
                                               iatom,kind,last_cgf,last_sgf
      REAL(wp), DIMENSION(3)                :: f,r,v
-     INTEGER, DIMENSION(:), POINTER        :: coef_list
+     INTEGER, DIMENSION(:), POINTER        :: coef_list,exclusion_list
   END TYPE particle_type
 
 ! *** Public data types ***
 
-  PUBLIC :: particle_type, particle_1d_a_type
+  PUBLIC :: particle_type,&
+            particle_1d_a_type
 
 ! *** Public subroutines ***
 
@@ -121,7 +129,7 @@ CONTAINS
 
 !   Purpose: Allocate a particle set.
 
-!   History: - Creation (14.01.2002, Matthias Krack)
+!   History: - Creation (14.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -129,8 +137,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE allocate_particle_set (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_particle_set"
 
 !   *** Local variables ***
 
@@ -141,11 +148,13 @@ CONTAINS
     IF (ASSOCIATED(particle_set)) CALL deallocate_particle_set(particle_set)
 
     ALLOCATE (particle_set(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"particle_set(natom)",0)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "particle_set",0)
 
     DO iatom=1,natom
       NULLIFY (particle_set(iatom)%atomic_kind)
       NULLIFY (particle_set(iatom)%coef_list)
+      NULLIFY (particle_set(iatom)%exclusion_list)
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -156,7 +165,7 @@ CONTAINS
 
 !   Purpose: Deallocate a particle set.
 
-!   History: - Creation (14.01.2002, Matthias Krack)
+!   History: - Creation (14.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -164,8 +173,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE deallocate_particle_set (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_particle_set"
 
 !   *** Local variables ***
 
@@ -174,20 +182,32 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) THEN
+
       natom = SIZE(particle_set)
+
       DO iatom=1,natom
         IF (ASSOCIATED(particle_set(iatom)%coef_list)) THEN
           DEALLOCATE (particle_set(iatom)%coef_list,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,&
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                            "particle_set(iatom)%coef_list")
         END IF
+        IF (ASSOCIATED(particle_set(iatom)%exclusion_list)) THEN
+          DEALLOCATE (particle_set(iatom)%exclusion_list,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "particle_set(iatom)%exclusion_list")
+        END IF
       END DO
+
       DEALLOCATE (particle_set,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"particle_set")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "particle_set")
+
     ELSE
-      CALL stop_program(routine,&
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
                         "The pointer particle_set is not associated and "//&
                         "cannot be deallocated")
+
     END IF
 
   END SUBROUTINE deallocate_particle_set
@@ -198,7 +218,7 @@ CONTAINS
 
 !   Purpose: Get the components of a particle set.
 
-!   History: - Creation (14.01.2002, Matthias Krack)
+!   History: - Creation (14.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -207,8 +227,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE get_particle_set (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_particle_set"
 
 !   *** Local variables ***
 
@@ -216,10 +235,19 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(r)) THEN
-      DO iatom=1,SIZE(particle_set)
-        r(:,iatom) = particle_set(iatom)%r(:)
-      END DO
+    IF (ASSOCIATED(particle_set)) THEN
+
+      IF (PRESENT(r)) THEN
+        DO iatom=1,SIZE(particle_set)
+          r(:,iatom) = particle_set(iatom)%r(:)
+        END DO
+      END IF
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer particle_set is not associated")
+
     END IF
 
   END SUBROUTINE get_particle_set
@@ -230,7 +258,7 @@ CONTAINS
 
 !   Purpose: Initialise a particle set.
 
-!   History: - Creation (14.01.2002, Matthias Krack)
+!   History: - Creation (14.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -238,8 +266,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_particle_set (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_particle_set"
 
 !   *** Local variables ***
 
@@ -251,9 +278,12 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(particle_set)) THEN
+
       natom = SIZE(particle_set)
+
       icgf = 0
       isgf = 0
+
       DO iatom=1,natom
         CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                              orb_basis_set=orb_basis_set,&
@@ -267,8 +297,12 @@ CONTAINS
         isgf = isgf + nsgf
         particle_set(iatom)%last_sgf = isgf
       END DO
+
     ELSE
-      CALL stop_program(routine,"The pointer particle_set is not associated")
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer particle_set is not associated")
+
     END IF
 
   END SUBROUTINE init_particle_set
@@ -291,8 +325,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_particle_set (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_particle_set"
 
     INTEGER, PARAMETER :: nblock_atom = 1000,&
                           nblock_kind = 10
@@ -332,8 +365,9 @@ CONTAINS
                       start_section_label="COORD",&
                       section_found=section_found)
 
-    IF (.NOT.section_found) CALL stop_program(routine,&
-                                              "No COORD section found.")
+    IF (.NOT.section_found) THEN
+      CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
+    END IF
 
     test_result = test_object(newline=.TRUE.)
 
@@ -346,7 +380,7 @@ CONTAINS
       CASE ("STR")
         CALL read_object(current_label,newline=.TRUE.)
       CASE DEFAULT
-        CALL stop_parser(routine,&
+        CALL stop_parser(routine_name,module_name,__LINE__,&
                          "Floating point number found for the atomic "//&
                          "label or atomic number")
       END SELECT
@@ -430,7 +464,8 @@ CONTAINS
     IF (natom > 0) THEN
       CALL allocate_particle_set(particle_set,natom)
     ELSE
-      CALL stop_program(routine,"No atomic coordinates found")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "No atomic coordinates found")
     END IF
 
 !   *** Initialize the data structure for the atomic information ***
@@ -457,11 +492,25 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,r,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine,&
-                       "atom_list,kind_label,kind_of,natom_of_kind,r")
-    END IF
+    DEALLOCATE (atom_list,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "atom_list")
+
+    DEALLOCATE (kind_label,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "kind_label")
+
+    DEALLOCATE (kind_of,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "kind_of")
+
+    DEALLOCATE (natom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "natom_of_kind")
+
+    DEALLOCATE (r,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "r")
 
   END SUBROUTINE read_particle_set
 
@@ -583,8 +632,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE write_particle_distances (MODULE particle_types)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_particle_distances"
 
 !   *** Local variables ***
 
@@ -615,8 +663,8 @@ CONTAINS
       natom = SIZE(particle_set)
 
       ALLOCATE (distance_matrix(natom,natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"distance_matrix(natom,natom)",&
-                                       wp_size*natom*natom)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "distance_matrix",wp_size*natom*natom)
 
       distance_matrix(:,:) = 0.0_wp
 

@@ -98,6 +98,10 @@ MODULE qs_parser
                      read_string_object
   END INTERFACE
 
+  INTERFACE stop_parser
+    MODULE PROCEDURE stop_parser_new,stop_parser_old
+  END INTERFACE
+
 !!***
 ! *****************************************************************************
 
@@ -140,8 +144,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "close_file"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -161,12 +163,12 @@ CONTAINS
         "An error occurred inquiring the unit with the number ",unit_number,&
         " (IOSTAT = ",istat,")"
       CALL compress(message)
-      CALL stop_program(routine,message)
+      CALL stop_program(routine_name,module_name,__LINE__,message)
     ELSE IF (.NOT.exists) THEN
       WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
         "The specified unit number ",unit_number," does not exist"
       CALL compress(message)
-      CALL stop_program(routine,message)
+      CALL stop_program(routine_name,module_name,__LINE__,message)
     END IF
 
 !   *** Close the specified file ***
@@ -187,7 +189,7 @@ CONTAINS
           "An error occurred closing the file <"//TRIM(input_file_name)//&
           "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
         CALL compress(message)
-        CALL stop_program(routine,message)
+        CALL stop_program(routine_name,module_name,__LINE__,message)
       END IF
 
     END IF
@@ -207,8 +209,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "finish_parser"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -218,7 +218,7 @@ CONTAINS
 
     IF (ionode) THEN
       IF (input_unit == 0) THEN
-        CALL stop_program(routine,&
+        CALL stop_program(routine_name,module_name,__LINE__,&
                           "Cannot finish an input session that was never "//&
                           " started")
       ELSE
@@ -271,8 +271,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_next_input_string"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -317,7 +315,7 @@ CONTAINS
         ELSE
           icol1 = icol
           icol2 = icol
-          CALL stop_parser(routine,&
+          CALL stop_parser(routine_name,module_name,__LINE__,&
                            "Unexpected separator token <"//&
                            input_line(icol:icol)//"> found")
         END IF
@@ -328,7 +326,8 @@ CONTAINS
         IF (icol2 == icol) THEN
           icol1 = icol
           icol2 = icol
-          CALL stop_parser(routine,"Unmatched quotation mark found")
+          CALL stop_parser(routine_name,module_name,__LINE__,&
+                           "Unmatched quotation mark found")
         ELSE
           icol = icol2
           icol2 = icol2 - 1
@@ -460,8 +459,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "open_file"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -502,10 +499,10 @@ CONTAINS
       WRITE (UNIT=message,FMT="(A,I6,A)")&
         "An error occurred inquiring the file <"//TRIM(file_name)//&
         "> (IOSTAT = ",istat,")"
-      CALL stop_program(routine,message)
+      CALL stop_program(routine_name,module_name,__LINE__,message)
     ELSE IF (status_string == "OLD") THEN
       IF (.NOT.exists) THEN
-        CALL stop_program(routine,&
+        CALL stop_program(routine_name,module_name,__LINE__,&
                           "The specified file <"//TRIM(file_name)//&
                           "> does not exist")
       END IF
@@ -525,7 +522,7 @@ CONTAINS
       unit_number = get_unit_number()
 
       IF (unit_number < 0) THEN
-        CALL stop_program(routine,&
+        CALL stop_program(routine_name,module_name,__LINE__,&
                           "Could not find a logical unit number which "//&
                           "exists and is not connected")
       END IF
@@ -539,7 +536,7 @@ CONTAINS
           "An error occurred opening the file <"//TRIM(file_name)//&
           "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
         CALL compress(message)
-        CALL stop_program(routine,message)
+        CALL stop_program(routine_name,module_name,__LINE__,message)
       END IF
 
     END IF
@@ -565,8 +562,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_integer_object"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -591,7 +586,7 @@ CONTAINS
     IF (icol1 > icol2) THEN
       icol1 = icol
       icol2 = icol
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "An integer type object was expected, "//&
                        "found end of line")
     END IF
@@ -599,7 +594,7 @@ CONTAINS
     IF (integer_object(input_line(icol1:icol2))) THEN
       READ (UNIT=input_line(icol1:icol2),FMT=*) object
     ELSE
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "An integer type object was expected, found <"//&
                        input_line(icol1:icol2)//">")
     END IF
@@ -624,8 +619,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_logical_object"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -653,7 +646,7 @@ CONTAINS
     IF (input_string_length == 0) THEN
       icol1 = icol
       icol2 = icol
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "A string representing a logical object was expected, "//&
                        "found end of line")
     ELSE
@@ -669,7 +662,7 @@ CONTAINS
     CASE ("1","T",".T.","TRUE",".TRUE.","Y","YES","ON")
       object = .TRUE.
     CASE DEFAULT
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "A string representing a logical object was expected, "//&
                        "found <"//TRIM(input_string)//">")
     END SELECT
@@ -693,8 +686,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_next_input_line"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -734,7 +725,7 @@ CONTAINS
               TRIM(input_file_name)//"> with the unit number ",input_unit,&
               " (IOSTAT = ",istat,")"
             CALL compress(message)
-            CALL stop_program(routine,message)
+            CALL stop_program(routine_name,module_name,__LINE__,message)
           END IF
         END IF
 
@@ -781,8 +772,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_real_object"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -810,7 +799,7 @@ CONTAINS
     IF (icol1 > icol2) THEN
       icol1 = icol
       icol2 = icol
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "A real type object was expected, found end of line")
     END IF
 
@@ -829,7 +818,7 @@ CONTAINS
     DO iz=1,nz
 
       IF (LEN_TRIM(string(iz)) == 0) THEN
-        CALL stop_parser(routine,&
+        CALL stop_parser(routine_name,module_name,__LINE__,&
                          "A real type object was expected, found end of line")
       END IF
 
@@ -844,14 +833,14 @@ CONTAINS
           istat = 1
         END IF
         IF (istat /= 0) THEN
-          CALL stop_parser(routine,&
+          CALL stop_parser(routine_name,module_name,__LINE__,&
                            "A real type object was expected, found <"//&
                            TRIM(string(iz))//">")
         END IF
       ELSE IF (integer_object(string(iz))) THEN
         READ (UNIT=string(iz),FMT=*) z(iz)
       ELSE
-        CALL stop_parser(routine,&
+        CALL stop_parser(routine_name,module_name,__LINE__,&
                          "A real type object was expected, found <"//&
                          TRIM(string(iz))//">")
       END IF
@@ -879,8 +868,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_string_object"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -910,7 +897,7 @@ CONTAINS
     IF (input_string_length == 0) THEN
       icol1 = icol
       icol2 = icol
-      CALL stop_parser(routine,&
+      CALL stop_parser(routine_name,module_name,__LINE__,&
                        "A string type object was expected, found end of line")
     ELSE IF (input_string_length > LEN(object)) THEN
       WRITE (UNIT=message,FMT="(A,I6,A)")&
@@ -918,7 +905,7 @@ CONTAINS
         LEN(object)," characters and is therefore too long to fit in the "//&
         "specified variable"
       CALL compress(message)
-      CALL stop_parser(routine,message)
+      CALL stop_parser(routine_name,module_name,__LINE__,message)
     ELSE
       object(:input_string_length) = input_line(icol1:icol2)
     END IF
@@ -951,8 +938,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "search_object"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1001,7 +986,7 @@ CONTAINS
                 " characters and is therefore too long to fit in the "//&
                 "specified variable"
               CALL compress(message)
-              CALL stop_program(routine,message)
+              CALL stop_program(routine_name,module_name,__LINE__,message)
             END IF
           END IF
           EXIT
@@ -1049,8 +1034,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "start_parser"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1094,7 +1077,7 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(/,T2,A,I6,/,T2,A)")&
           "Current input unit: ",input_unit,&
           "Current input file: """//TRIM(input_file_name)//""""
-        CALL stop_program(routine,&
+        CALL stop_program(routine_name,module_name,__LINE__,&
                           "Cannot start a new input session, because an "//&
                           "old input session was not finished")
       END IF
@@ -1136,7 +1119,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE stop_parser(routine,message)
+  SUBROUTINE stop_parser_old(routine,message)
 
 !   Purpose: Print an input error message and stop the program run.
 
@@ -1146,7 +1129,7 @@ CONTAINS
 !            - INVALID_KEYWORD
 !            - SECTION_NOT_FOUND
 
-!   History: - Creation (15.02.2001, Matthias Krack)
+!   History: - Creation (15.02.2001,MK)
 
 !   ***************************************************************************
 
@@ -1196,7 +1179,73 @@ CONTAINS
 
     CALL mp_sync(group)
 
-  END SUBROUTINE stop_parser
+  END SUBROUTINE stop_parser_old
+
+! *****************************************************************************
+
+  SUBROUTINE stop_parser_new(routine_name,module_name,line_number,message)
+
+!   Purpose: Print an input error message and stop the program run.
+
+!            There are default error messages for common instances:
+
+!            - END_OF_FILE or EOF
+!            - INVALID_KEYWORD
+!            - SECTION_NOT_FOUND
+
+!   History: - Creation (15.02.2001,MK)
+!            - Adapted to new stop_program version (24.07.2003,MK)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN) :: message,module_name,routine_name
+    INTEGER, INTENT(IN)          :: line_number
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=max_message_length) :: error_message
+
+!   ---------------------------------------------------------------------------
+
+    IF (ionode) THEN
+
+      INQUIRE (UNIT=input_unit,NAME=input_file_name)
+
+      SELECT CASE (message)
+      CASE ("END_OF_FILE","EOF")
+        error_message = "Unexpected end of file found while reading the "//&
+                        "input section <"//TRIM(start_section)//&
+                        "> from the input file <"//TRIM(input_file_name)//">"
+      CASE ("SECTION_NOT_FOUND")
+        error_message = "No input section <"//TRIM(start_section)//&
+                        "> found while reading from the input file <"//&
+                        TRIM(input_file_name)//">"
+      CASE DEFAULT
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+          "Current input file: "//TRIM(input_file_name)
+        WRITE (UNIT=error_message,FMT="(A,I6,A,I6,A)")&
+          "ERROR in line ",input_line_number,", column ",icol1,":"
+        CALL compress(error_message)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,T2,A)")&
+          TRIM(error_message),TRIM(input_line),&
+          REPEAT(blank_character,MAX(0,icol1-1))//&
+          REPEAT("^",MAX(1,icol2-icol1+1))
+        SELECT CASE (message)
+        CASE ("INVALID_KEYWORD")
+          error_message = "Invalid keyword found in the input section <"//&
+                          TRIM(start_section)//">"
+        CASE DEFAULT
+          error_message = message
+        END SELECT
+      END SELECT
+
+      CALL stop_program(routine_name,module_name,line_number,error_message)
+
+    END IF
+
+    CALL mp_sync(group)
+
+  END SUBROUTINE stop_parser_new
 
 ! *****************************************************************************
 

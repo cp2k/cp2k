@@ -17,7 +17,7 @@
 !!     - List rebuild for sab_orb neighbor list (10.09.2002,MK)
 !!     - List rebuild for all lists (25.09.2002,MK)
 !!     - Row-wise parallelized version (16.06.2003,MK)
-!!     - Row- and cloumn-wise parallelized version (19.07.2003,MK)
+!!     - Row- and column-wise parallelized version (19.07.2003,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -83,7 +83,8 @@ MODULE qs_neighbor_lists
 ! *** Type definitions (only used in this module) ***
 
   TYPE atom_type
-    INTEGER, DIMENSION(:), POINTER    :: list,&
+    INTEGER, DIMENSION(:), POINTER    :: exclusion_list,&
+                                         list,&
                                          list_local_a_index,&
                                          list_local_b_index
     REAL(wp), DIMENSION(:,:), POINTER :: r_pbc,&
@@ -132,8 +133,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_qs_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -208,29 +207,36 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     ALLOCATE (atom(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom",nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "atom",nkind*int_size)
 
     ALLOCATE (orb_present(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orb_present",nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_present",nkind*int_size)
 
     ALLOCATE (orb_radius(nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orb_radius",nkind*wp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_radius",nkind*wp_size)
     orb_radius(:) = 0.0_wp
 
     IF (gth_potential_present) THEN
 
       ALLOCATE (ppl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_present",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppl_present",nkind*int_size)
 
       ALLOCATE (ppl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppl_radius",nkind*wp_size)
       ppl_radius = 0.0_wp
 
       ALLOCATE (ppnl_present(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppnl_present",nkind*int_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppnl_present",nkind*int_size)
 
       ALLOCATE (ppnl_radius(nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppnl_radius",nkind*wp_size)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppnl_radius",nkind*wp_size)
       ppnl_radius = 0.0_wp
 
     END IF
@@ -243,6 +249,7 @@ CONTAINS
 
       atomic_kind => atomic_kind_set(ikind)
 
+      NULLIFY (atom(ikind)%exclusion_list)
       NULLIFY (atom(ikind)%list)
       NULLIFY (atom(ikind)%list_local_a_index)
       NULLIFY (atom(ikind)%list_local_b_index)
@@ -272,10 +279,9 @@ CONTAINS
         IF (natom_local_a > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atom(ikind)%list_local_a_index",&
-                             natom_local_a*int_size)
-          END IF
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "atom(ikind)%list_local_a_index",&
+                                           natom_local_a*int_size)
 
 !         *** Build index vector for mapping ***
 
@@ -296,10 +302,9 @@ CONTAINS
         IF (natom_local_b > 0) THEN
 
           ALLOCATE (atom(ikind)%list_local_b_index(natom_local_b),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine,"atom(ikind)%list_local_b_index",&
-                             natom_local_b*int_size)
-          END IF
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "atom(ikind)%list_local_b_index",&
+                                           natom_local_b*int_size)
 
 !         *** Build index vector for mapping ***
 
@@ -316,14 +321,12 @@ CONTAINS
         END IF
 
         ALLOCATE (atom(ikind)%r_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%r_pbc",3*natom_a*wp_size)
-        END IF
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%r_pbc",3*natom_a*wp_size)
 
         ALLOCATE (atom(ikind)%s_pbc(3,natom_a),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine,"atom(ikind)%s_pbc",3*natom_a*wp_size)
-        END IF
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%s_pbc",3*natom_a*wp_size)
 
 !       *** Calculate PBC coordinates ***
 
@@ -423,44 +426,55 @@ CONTAINS
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_a_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_a_index")
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%list_local_a_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%list_local_b_index)) THEN
         DEALLOCATE (atom(ikind)%list_local_b_index,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%list_local_b_index")
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%list_local_b_index")
       END IF
       IF (ASSOCIATED(atom(ikind)%r_pbc)) THEN
         DEALLOCATE (atom(ikind)%r_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%r_pbc")
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%r_pbc")
       END IF
       IF (ASSOCIATED(atom(ikind)%s_pbc)) THEN
         DEALLOCATE (atom(ikind)%s_pbc,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"atom(ikind)%s_pbc")
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atom(ikind)%s_pbc")
       END IF
     END DO
 
     DEALLOCATE (atom,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "atom")
 
     DEALLOCATE (orb_present,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orb_present")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_present")
 
     DEALLOCATE (orb_radius,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"orb_radius")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "orb_radius")
 
     IF (gth_potential_present) THEN
 
       DEALLOCATE (ppl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_present")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppl_present")
 
       DEALLOCATE (ppl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppl_radius")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppl_radius")
 
       DEALLOCATE (ppnl_present,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppnl_present")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppnl_present")
 
       DEALLOCATE (ppnl_radius,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ppnl_radius")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "ppnl_radius")
 
     END IF
 
@@ -497,8 +511,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -530,7 +542,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
       END DO
       DEALLOCATE (ab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ab")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structure ***
@@ -538,7 +550,8 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ab",nkind*nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ab",nkind*nkind*int_size)
 
     DO iab=1,SIZE(ab)
       NULLIFY (ab(iab)%neighbor_list_set)
@@ -828,10 +841,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_gth_ppl_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_gth_ppl_neighbor_lists"
 
 !   *** Local variables ***
 
@@ -862,7 +872,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ac")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structure ***
@@ -870,7 +880,8 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ac",nkind*nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ac",nkind*nkind*int_size)
 
     DO iac=1,SIZE(ac)
       NULLIFY (ac(iac)%neighbor_list_set)
@@ -1142,10 +1153,7 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name =&
-      "build_gth_ppnl_neighbor_lists"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_gth_ppnl_neighbor_lists"
 
 !   *** Local variables ***
 
@@ -1179,7 +1187,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"ac")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
     END IF
 
     IF (ASSOCIATED(bc)) THEN
@@ -1187,7 +1195,7 @@ CONTAINS
         CALL deallocate_neighbor_list_set(bc(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (bc,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"bc")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"bc")
     END IF
 
 !   *** Allocate and initialize the new neighbor list structures ***
@@ -1195,10 +1203,12 @@ CONTAINS
     nkind = SIZE(atom)
 
     ALLOCATE (ac(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ac",nkind*nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "ac",nkind*nkind*int_size)
 
     ALLOCATE (bc(nkind*nkind),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"bc",nkind*nkind*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "bc",nkind*nkind*int_size)
 
     DO iac=1,SIZE(ac)
       NULLIFY (ac(iac)%neighbor_list_set)
@@ -1589,8 +1599,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_subcell"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1604,7 +1612,8 @@ CONTAINS
     nc = nsubcell(3)
 
     ALLOCATE (subcell(na,nb,nc),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"subcell",na*nb*nc*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "subcell",na*nb*nc*int_size)
 
     delta_a = 1.0_wp/REAL(na,wp)
     delta_b = 1.0_wp/REAL(nb,wp)
@@ -1628,7 +1637,8 @@ CONTAINS
           subcell(i,j,k)%s_max(3) = c_max
           subcell(i,j,k)%natom = 0
           ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine,"subcell(i,j,k)%atom_list",&
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "subcell(i,j,k)%atom_list",&
                                            maxatom*int_size)
           subcell(i,j,k)%atom_list(:) = 0
           a_min = a_max
@@ -1655,8 +1665,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_subcell"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1671,18 +1679,21 @@ CONTAINS
           DO i=1,SIZE(subcell,1)
             DEALLOCATE (subcell(i,j,k)%atom_list,STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"subcell(i,j,k)%atom_list")
+              CALL stop_memory(routine_name,module_name,__LINE__,&
+                               "subcell(i,j,k)%atom_list")
             END IF
           END DO
         END DO
       END DO
 
       DEALLOCATE (subcell,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"subcell")
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "subcell")
 
     ELSE
 
-      CALL stop_program(routine,"The pointer subcell is not associated")
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer subcell is not associated")
 
     END IF
 
@@ -1705,8 +1716,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_distribution"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1736,11 +1745,13 @@ CONTAINS
 !   *** Allocate work storage ***
 
     ALLOCATE (nblock(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nblock",npe*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock",npe*int_size)
     nblock(:) = 0
 
     ALLOCATE (nelement(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nelement",npe*int_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement",npe*int_size)
     nelement(:) = 0
 
     nkind = SIZE(atomic_kind_set)
@@ -1816,10 +1827,12 @@ CONTAINS
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nblock")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nblock")
 
     DEALLOCATE (nelement,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"nelement")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "nelement")
 
   END SUBROUTINE write_distribution
 

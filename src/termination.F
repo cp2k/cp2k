@@ -341,7 +341,8 @@ CONTAINS
       CALL print_message(message,error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,0)
       WRITE (UNIT=message,FMT="(A,I6,A)")&
-        "Check line number ",line_number," of MODULE "//TRIM(module_name)
+        "Program stopped at line number ",line_number,&
+        " of MODULE "//TRIM(module_name)
       CALL compress(message)
       CALL print_message(message,error_unit,1,1,0)
       CALL print_stack(error_unit)
