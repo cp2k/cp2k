@@ -851,7 +851,7 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-        WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
+      IF(PM2) WRITE(iw,'(A)') "WARNING : topology_set_atm_mass: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
 
@@ -998,7 +998,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       END IF
     END DO
     IF (.NOT. element_found) THEN
-        WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
+      IF(PM2) WRITE(iw,'(A)') "WARNING : topology_generate_bond: The element " &
                         //atm_symbol(iatom)//" was not found in the periodic table"
     ENDIF
     covalent_radius(iatom) = ptable(ielem_found)%covalent_radius
