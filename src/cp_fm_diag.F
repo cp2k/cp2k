@@ -37,7 +37,8 @@ MODULE cp_fm_diag
                                              cp_logger_get_unit_nr,&
                                              cp_logger_type,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level, &
+                                             cp_logger_get_default_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -399,7 +400,8 @@ CONTAINS
 
     CALL cp_fm_syevx(matrix,work,eigenvalues,ncol_global,work_syevx)
     IF (matrix%matrix_struct%para_env%mepos.eq.0) &
-    write(6,'(A,2E16.8)') "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
+    write(cp_logger_get_default_unit_nr(NULL()),'(A,2E16.8)') &
+                "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
 
 #if defined(__SCALAPACK)
 
