@@ -1836,9 +1836,9 @@ END SUBROUTINE pw_nn_compose_r
                 fk=coarse_gbo(1,3)+MODULO(2*k+ik-coarse_bo(1,3),2*s(3))
              ELSE
                 fk=2*k+ik+f_shift(3)
-                IF (fk<=fine_bo(1,3)+1+f_shift(3).OR.fk>=fine_bo(2,3)-1+f_shift(3)) THEN
-                   IF (fk<fine_bo(1,3)+f_shift(3).OR.fk>fine_bo(2,3)+f_shift(3)) CYCLE
-                   IF (fk==2*coarse_bo(1,3)+f_shift(3).OR.fk==2*coarse_bo(2,3)+f_shift(3)) THEN
+                IF (fk<=fine_bo(1,3)+1.OR.fk>=fine_bo(2,3)-1) THEN
+                   IF (fk<fine_bo(1,3).OR.fk>fine_bo(2,3)) CYCLE
+                   IF (fk==fine_bo(1,3).OR.fk==fine_bo(2,3)) THEN
                       IF (ik/=0) CYCLE
                       wk=w_border0
                    ELSE IF (fk==2*coarse_bo(1,3)+1+f_shift(3)) THEN
@@ -1877,9 +1877,9 @@ END SUBROUTINE pw_nn_compose_r
                       fj=coarse_bo(1,2)+MODULO(2*j+ij-coarse_bo(1,2),2*s(2))
                    ELSE
                       fj=2*j+ij+f_shift(2)
-                      IF (fj<=fine_bo(1,2)+1+f_shift(2).OR.fj>=fine_bo(2,2)-1+f_shift(2)) THEN
-                         IF (fj<fine_bo(1,2)+f_shift(2).OR.fj>fine_bo(2,2)+f_shift(2)) CYCLE
-                         IF (fj==fine_bo(1,2)+f_shift(2).OR.fj==fine_bo(2,2)+f_shift(2)) THEN
+                      IF (fj<=fine_bo(1,2)+1.OR.fj>=fine_bo(2,2)-1) THEN
+                         IF (fj<fine_bo(1,2).OR.fj>fine_bo(2,2)) CYCLE
+                         IF (fj==fine_bo(1,2).OR.fj==fine_bo(2,2)) THEN
                             IF (ij/=0) CYCLE
                             wj=w_border0*wk
                          ELSE IF (fj==2*coarse_bo(1,2)+1+f_shift(2)) THEN
@@ -1918,9 +1918,9 @@ END SUBROUTINE pw_nn_compose_r
                                fi=coarse_bo(1,2)+MODULO(2*i+ii-coarse_bo(1,1),2*s(1))
                             ELSE
                                fi=2*i+ii+f_shift(1)
-                               IF (fi<=fine_bo(1,1)+1+f_shift(1).OR.fi>=fine_bo(2,1)-1+f_shift(1)) THEN
-                                  IF (fi<fine_bo(1,1)+f_shift(1).OR.fi>fine_bo(2,1)+f_shift(1)) CYCLE
-                                  IF (fi==fine_bo(1,1)+f_shift(1).OR.fi==fine_bo(2,1)+f_shift(1)) THEN
+                               IF (fi<=fine_bo(1,1)+1.OR.fi>=fine_bo(2,1)-1) THEN
+                                  IF (fi<fine_bo(1,1).OR.fi>fine_bo(2,1)) CYCLE
+                                  IF (fi==fine_bo(1,1).OR.fi==fine_bo(2,1)) THEN
                                      IF (ii/=0) CYCLE
                                      wi=w_border0*wj
                                   ELSE IF (fi==2*coarse_bo(1,1)+1+f_shift(1)) THEN
@@ -2391,12 +2391,12 @@ END SUBROUTINE pw_nn_compose_r
        DO k=coarse_bo(1,3),coarse_bo(2,3)
           DO ik=-3,3
              fk=2*k+ik+f_shift(3)
-             IF (fk<=2*coarse_bo(1,3)+1+f_shift(3).OR.fk>=2*coarse_bo(2,3)-1+f_shift(3)) THEN
-                IF (fk<2*coarse_bo(1,3)+f_shift(3).OR.fk>2*coarse_bo(2,3)+f_shift(3)) CYCLE
-                IF (fk==2*coarse_bo(1,3)+f_shift(3).OR.fk==2*coarse_bo(2,3)+f_shift(3)) THEN
+             IF (fk<=fine_bo(1,3)+1.OR.fk>=fine_bo(2,3)-1) THEN
+                IF (fk<fine_bo(1,3).OR.fk>fine_bo(2,3)) CYCLE
+                IF (fk==fine_bo(1,3).OR.fk==fine_bo(2,3)) THEN
                    IF (ik/=0) CYCLE
                    wk=w_border0
-                ELSE IF (fk==2*coarse_bo(1,3)+1+f_shift(3)) THEN
+                ELSE IF (fk==fine_bo(1,3)+1) THEN
                    SELECT CASE(ik)
                    CASE(1)
                       wk=w_border1(1)
@@ -2427,12 +2427,12 @@ END SUBROUTINE pw_nn_compose_r
              DO j=coarse_bo(1,2),coarse_bo(2,2)
                 DO ij=-3,3
                    fj=2*j+ij+f_shift(2)
-                   IF (fj<=2*coarse_bo(1,2)+1+f_shift(2).OR.fj>=2*coarse_bo(2,2)-1+f_shift(2)) THEN
-                      IF (fj<2*coarse_bo(1,2)+f_shift(2).OR.fj>2*coarse_bo(2,2)+f_shift(2)) CYCLE
-                      IF (fj==2*coarse_bo(1,2)+f_shift(2).OR.fj==2*coarse_bo(2,2)+f_shift(2)) THEN
+                   IF (fj<=fine_bo(1,2)+1.OR.fj>=fine_bo(2,2)-1) THEN
+                      IF (fj<fine_bo(1,2).OR.fj>fine_bo(2,2)) CYCLE
+                      IF (fj==fine_bo(1,2).OR.fj==fine_bo(2,2)) THEN
                          IF (ij/=0) CYCLE
                          wj=w_border0*wk
-                      ELSE IF (fj==2*coarse_bo(1,2)+1+f_shift(2)) THEN
+                      ELSE IF (fj==fine_bo(1,2)+1) THEN
                          SELECT CASE(ij)
                          CASE(1)
                             wj=w_border1(1)*wk
@@ -2469,12 +2469,12 @@ END SUBROUTINE pw_nn_compose_r
                                fi=coarse_bo(1,1)+MODULO(2*i+ii-coarse_bo(1,1),2*s(1))+f_shift(1)
                             ELSE
                                fi=2*i+ii+f_shift(1)
-                               IF (fi<=fine_bo(1,1)+1+f_shift(1).OR.fi>=fine_bo(2,1)-1+f_shift(1)) THEN
-                                  IF (fi<fine_bo(1,1)+f_shift(1).OR.fi>fine_bo(2,1)+f_shift(1)) CYCLE
-                                  IF (fi==fine_bo(1,1)+f_shift(1).OR.fi==fine_bo(2,1)+f_shift(1)) THEN
+                               IF (fi<=fine_bo(1,1)+1.OR.fi>=fine_bo(2,1)-1) THEN
+                                  IF (fi<fine_bo(1,1).OR.fi>fine_bo(2,1)) CYCLE
+                                  IF (fi==fine_bo(1,1).OR.fi==fine_bo(2,1)) THEN
                                      IF (ii/=0) CYCLE
                                      wi=w_border0*wj
-                                  ELSE IF (fi==2*coarse_bo(1,1)+1+f_shift(1)) THEN
+                                  ELSE IF (fi==fine_bo(1,1)+1) THEN
                                      SELECT CASE(ii)
                                      CASE(1)
                                         wi=w_border1(1)*wj
