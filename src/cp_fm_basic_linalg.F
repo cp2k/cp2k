@@ -303,6 +303,7 @@ CONTAINS
     INTEGER, EXTERNAL :: NUMROC
 #endif
 !   ---------------------------------------------------------------------------
+    failure=.false.
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
@@ -310,6 +311,12 @@ CONTAINS
      error)
 #endif
     CALL timeset("cp_sm_fm_multiply_new","I","",handle)
+
+    CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(v_in),cp_failure_level,routine,error,failure)
+    CPPrecondition(v_in%ref_count>0,cp_failure_level,routine,error,failure)
+    CPPrecondition(ASSOCIATED(v_out),cp_failure_level,routine,error,failure)
+    CPPrecondition(v_out%ref_count>0,cp_failure_level,routine,error,failure)
 
     IF (PRESENT(alpha)) THEN
        alpha_l=alpha
@@ -546,6 +553,7 @@ CONTAINS
     INTEGER, EXTERNAL :: numroc
 #endif
 !   ---------------------------------------------------------------------------
+    failure=.FALSE.
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_plus_fm_fm_t would be most happy to use scalapack libraries"//&
