@@ -17,6 +17,7 @@
 !!     - 04.2002 added pao [fawzi]
 !!     - 09.2002 adapted for POL/KG use [GT]
 !!     - 02.2004 flexible normalization of basis sets [jgh]
+!!     - 03.2004 attach/detach routines [jgh]
 !!   SOURCE
 !******************************************************************************
 
@@ -110,6 +111,11 @@ MODULE atomic_kind_types
     INTEGER, DIMENSION(:), POINTER         :: atom_list
   END TYPE atomic_kind_type
 
+  TYPE atomic_kind_p_type
+    TYPE(atomic_kind_type),DIMENSION(:),&
+       POINTER                             :: atomic_kind_set
+  END TYPE atomic_kind_p_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_atomic_kind_set,&
@@ -123,9 +129,13 @@ MODULE atomic_kind_types
             write_atomic_kind_set,&
             write_gto_basis_sets
 
+  PUBLIC :: attach_atomic_kind_set,&
+            detach_atomic_kind_set
+
 ! *** Public data types ***
 
-  PUBLIC :: atomic_kind_type
+  PUBLIC :: atomic_kind_type,&
+            atomic_kind_p_type
 
 !!***
 ! *****************************************************************************
@@ -1356,4 +1366,134 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE attach_atomic_kind_set(new_atomic_kind_set,atomic_kind_set)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: new_atomic_kind_set,&
+                                                atomic_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "attach_atomic_kind_set"
+
+    INTEGER                                  :: nset, iset
+
+!   ---------------------------------------------------------------------------
+    IF (ASSOCIATED(atomic_kind_set) .AND. &
+        ASSOCIATED(new_atomic_kind_set) ) THEN
+
+      nset = SIZE(atomic_kind_set)
+      IF ( nset /= SIZE(new_atomic_kind_set)) THEN
+        CALL stop_program(routine_name,module_name,__LINE__,&
+          "Sets have different sizes")
+      END IF
+
+      DO iset = 1, nset
+
+        IF (ASSOCIATED(atomic_kind_set(iset)%all_potential)) THEN
+           new_atomic_kind_set(iset)%all_potential => &
+               atomic_kind_set(iset)%all_potential
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%all_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(iset)%elp_potential)) THEN
+           new_atomic_kind_set(iset)%elp_potential => &
+               atomic_kind_set(iset)%elp_potential
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%elp_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(iset)%gth_potential)) THEN
+           new_atomic_kind_set(iset)%gth_potential => &
+               atomic_kind_set(iset)%gth_potential
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%gth_potential)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(iset)%aux_basis_set)) THEN
+           new_atomic_kind_set(iset)%aux_basis_set => &
+               atomic_kind_set(iset)%aux_basis_set
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%aux_basis_set)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(iset)%orb_basis_set)) THEN
+           new_atomic_kind_set(iset)%orb_basis_set => &
+               atomic_kind_set(iset)%orb_basis_set
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%orb_basis_set)
+        END IF
+        IF (ASSOCIATED(atomic_kind_set(iset)%pao_bas_proj)) THEN
+           new_atomic_kind_set(iset)%pao_bas_proj => &
+               atomic_kind_set(iset)%pao_bas_proj 
+        ELSE
+           NULLIFY(new_atomic_kind_set(iset)%pao_bas_proj)
+        END IF
+
+        new_atomic_kind_set(iset)%name = atomic_kind_set(iset)%name
+        new_atomic_kind_set(iset)%element_symbol = &
+            atomic_kind_set(iset)%element_symbol
+        new_atomic_kind_set(iset)%mass = atomic_kind_set(iset)%mass
+        new_atomic_kind_set(iset)%kind_number = &
+            atomic_kind_set(iset)%kind_number
+        new_atomic_kind_set(iset)%number_of_grid_points = &
+            atomic_kind_set(iset)%number_of_grid_points
+        new_atomic_kind_set(iset)%natom = 0
+        NULLIFY(new_atomic_kind_set(iset)%atom_list)
+
+      END DO
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+       "The pointer atomic_kind_set or new_atomic_kind_set is not associated")
+
+    END IF
+
+  END SUBROUTINE attach_atomic_kind_set
+
+! *****************************************************************************
+
+  SUBROUTINE detach_atomic_kind_set(atomic_kind_set)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "detach_atomic_kind_set"
+
+    INTEGER                                  :: iset, nset, istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set) ) THEN
+
+      nset = SIZE(atomic_kind_set)
+      DO iset = 1, nset
+        NULLIFY(atomic_kind_set(iset)%all_potential)
+        NULLIFY(atomic_kind_set(iset)%elp_potential)
+        NULLIFY(atomic_kind_set(iset)%gth_potential)
+        NULLIFY(atomic_kind_set(iset)%aux_basis_set)
+        NULLIFY(atomic_kind_set(iset)%orb_basis_set)
+        NULLIFY(atomic_kind_set(iset)%pao_bas_proj)
+        atomic_kind_set(iset)%name = ""
+        atomic_kind_set(iset)%element_symbol = ""
+        atomic_kind_set(iset)%mass = 0
+        atomic_kind_set(iset)%kind_number = 0
+        atomic_kind_set(iset)%number_of_grid_points = 0
+        atomic_kind_set(iset)%natom = 0
+        IF ( ASSOCIATED(atomic_kind_set(iset)%atom_list) ) THEN
+          DEALLOCATE(atomic_kind_set(iset)%atom_list,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "atomic_kind_set(iset)%atom_list")
+        END IF
+      END DO
+
+    ELSE
+
+      CALL stop_program(routine_name,module_name,__LINE__,&
+       "The pointer atomic_kind_set is not associated")
+
+    END IF
+
+  END SUBROUTINE detach_atomic_kind_set
+
+! *****************************************************************************
+
 END MODULE atomic_kind_types
+
+! *****************************************************************************
