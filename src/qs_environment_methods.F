@@ -95,6 +95,7 @@ MODULE qs_environment_methods
   USE qs_charges_types,                ONLY: qs_charges_type,&
                                              qs_charges_retain,&
                                              qs_charges_release
+  USE qs_collocate_density,            ONLY: calculate_rho_core
   USE qs_blacs,                        ONLY: cp_fm_add,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
