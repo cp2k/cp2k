@@ -2,7 +2,7 @@
 # precompilation generates .f90 files (thus avoiding problems
 # with case insensitve filesystems)
 
-.SUFFIXES: .F .d .o .f90 .for
+.SUFFIXES: .F .dep .o .f90 .for
 
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
@@ -10,7 +10,7 @@ CP2KHOME  := $(PWD)/..
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
 VERSION   = sopt
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j
+PMAKE     = $(SMAKE) -j 1
 LIB1      = cp2klib
 
 ### Dependent variables ###
@@ -61,7 +61,7 @@ OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o \
 	           mltfftsg_tools.o mltfftsg.o
 
-DEPENDENCIES = $(OBJECTS:.o=.d)
+DEPENDENCIES = $(OBJECTS:.o=.dep)
 
 LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
@@ -90,26 +90,27 @@ vpath %.F $(SRCDIRS)
 %.o: %.f90
 	$(FC) -c $(FCFLAGS) $<
 
-%.d: %.f90
+# for rapid aggrssive testing (modify the .f90) make it dependent of %.f90
+%.dep: %.F
 	$(CPP) $(CPPFLAGS) -P $< > $*.for
 	$(FORPAR) $*.for
-	$(PERL) $(SFMAKEDEPEND) $*.d $*.for
-	@rm -f $*.d.old $*.for
+	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
+	@rm -f $*.dep.old $*.for
 
 parallel_include.o: parallel_include.f90
 	$(FC_fixed) -c $(FCFLAGS) $*.f90
 
-parallel_include.d: parallel_include.f90
+parallel_include.dep: parallel_include.f90
 	$(CPP) $(CPPFLAGS) -P $< > $*.for
 	-$(FORPAR) -fix $*.for
-	$(PERL) $(SFMAKEDEPEND) $*.d $*.for
-	@rm -f $*.d.old
+	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
+	@rm -f $*.dep.old
 
 clean:
 	rm -f *.o *.mod
 
 realclean: clean
-	rm -f $(PROG) *.f90 *.d *.int *~ *.lst
+	rm -f $(PROG) *.f90 *.dep *.int *~ *.lst
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
@@ -117,4 +118,4 @@ distclean:
 
 ### Load the automatically generated rules of sfmakedepend ###
 
-include $(wildcard *.d)
+include $(wildcard *.dep)
