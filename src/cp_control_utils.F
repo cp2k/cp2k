@@ -373,7 +373,7 @@ CONTAINS
        dft_control % use_kinetic_energy_density=&
             dft_control % use_kinetic_energy_density .OR.&
             needs%tau .OR. needs%tau_spin
-       PRINT *, "dft_control % use_kinetic_energy_density",dft_control % use_kinetic_energy_density
+!XXXX       PRINT *, "dft_control % use_kinetic_energy_density",dft_control % use_kinetic_energy_density
        ! fills in the old structure (I would like to remove it)
        dft_control % xc_control % gradient_functionals=&
             dft_control % xc_control % gradient_functionals.OR.&
