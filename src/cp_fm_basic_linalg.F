@@ -110,17 +110,19 @@ CONTAINS
 
   SUBROUTINE cp_fm_add(alpha,matrix_a,beta,matrix_b,error)
 
-!   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
+    !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 
-!   History: - Creation (11.06.2001, Matthias Krack)
+    !   History: - Creation (11.06.2001, Matthias Krack)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: matrix_a,matrix_b
-    REAL(wp), INTENT(IN)                      :: alpha,beta
+    TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+    REAL(wp), INTENT(IN)                         :: alpha
+    REAL(wp), INTENT(in), OPTIONAL               :: beta
+    TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_b
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-!   *** Local variables ***
+    !   *** Local variables ***
 
     INTEGER :: handle,mypcol,myprow,npcol,nprow,source
 
@@ -128,64 +130,74 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_add',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
-    failure=.FALSE.
+    REAL(wp) :: my_beta
 
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
+    failure=.FALSE.
+    my_beta=0.0_wp
+    IF(PRESENT(beta)) my_beta=beta
+    NULLIFY(a,b)
+
     CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
-    CALL cp_assert(matrix_a%matrix_struct%context%group==&
-         matrix_b%matrix_struct%context%group,cp_failure_level,&
-         cp_assertion_failed,fromWhere=routineP,&
-         message="matrixes must be in the same blacs context"//&
-         CPSourceFileRef,&
-         error=error,failure=failure)
+    ! to do: use dscal,dcopy,daxp
+    myprow=matrix_a%matrix_struct%context%mepos(1)
+    mypcol=matrix_a%matrix_struct%context%mepos(2)
 
-    IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,matrix_b%matrix_struct,&
-         error=error)) THEN
-! to do: use dscal,dcopy,daxp
-       myprow=matrix_a%matrix_struct%context%mepos(1)
-       mypcol=matrix_a%matrix_struct%context%mepos(2)
+    a => matrix_a%local_data
 
-       a => matrix_a%local_data
-       b => matrix_b%local_data
+    IF (my_beta==0.0_wp) THEN
 
-       IF (alpha == 0.0_wp) THEN
-          IF (beta == 0.0_wp) THEN
-             a(:,:) = 0.0_wp
-          ELSE IF (beta == 1.0_wp) THEN
-             a(:,:) = b(:,:)
-          ELSE
-             a(:,:) = beta*b(:,:)
-          END IF
-       ELSE IF (beta == 0.0_wp) THEN
-          IF (alpha == 1.0_wp) THEN
-             RETURN
-          ELSE
-             a(:,:) = alpha*a(:,:)
-          END IF
+       IF (alpha==0.0_wp) THEN
+          a(:,:)=0.0_wp
        ELSE IF (alpha == 1.0_wp) THEN
-          IF (beta == 1.0_wp) THEN
-             a(:,:) = a(:,:) + b(:,:)
-          ELSE
-             a(:,:) = a(:,:) + beta*b(:,:)
-          END IF
-       ELSE IF (beta == 1.0_wp) THEN
-          a(:,:) = alpha*a(:,:) + b(:,:)
+          RETURN
        ELSE
-          a(:,:) = alpha*a(:,:) + beta*b(:,:)
+          a(:,:) = alpha*a(:,:)
        END IF
+
     ELSE
+       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
+       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
+       CALL cp_assert(matrix_a%matrix_struct%context%group==&
+            matrix_b%matrix_struct%context%group,cp_failure_level,&
+            cp_assertion_failed,fromWhere=routineP,&
+            message="matrixes must be in the same blacs context"//&
+            CPSourceFileRef,&
+            error=error,failure=failure)
+
+       IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
+            matrix_b%matrix_struct,error=error)) THEN
+
+          b => matrix_b%local_data
+
+          IF (alpha == 0.0_wp) THEN
+             IF (my_beta == 1.0_wp) THEN
+                a(:,:) = b(:,:)
+             ELSE
+                a(:,:) = my_beta*b(:,:)
+             END IF
+          ELSE IF (alpha == 1.0_wp) THEN
+             IF (my_beta == 1.0_wp) THEN
+                a(:,:) = a(:,:) + b(:,:)
+             ELSE
+                a(:,:) = a(:,:) + my_beta*b(:,:)
+             END IF
+          ELSE
+             a(:,:) = alpha*a(:,:) + my_beta*b(:,:)
+          END IF
+       ELSE
 #ifdef __SCALAPACK
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="to do (pdscal,pdcopy,pdaxpy)", error=error)
+          CALL cp_unimplemented_error(fromWhere=routineP, &
+               message="to do (pdscal,pdcopy,pdaxpy)", error=error)
 #else
-       CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
+       END IF
     END IF
     CALL timestop(0.0_wp,handle)
 
