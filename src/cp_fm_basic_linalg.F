@@ -941,9 +941,9 @@ CONTAINS
 
 #else
 
-    lda = matrix_a%matrix_struct%nrow_global
-    ldb = matrix_b%matrix_struct%nrow_global
-    ldc = matrix_c%matrix_struct%nrow_global
+    lda = matrix_a%matrix_struct%local_leading_dimension
+    ldb = matrix_b%matrix_struct%local_leading_dimension
+    ldc = matrix_c%matrix_struct%local_leading_dimension
 
     CALL dsymm(side,uplo,m,n,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
 
@@ -1001,8 +1001,8 @@ CONTAINS
 
 #else
 
-    lda = matrix_a%matrix_struct%nrow_global
-    ldc = matrix_c%matrix_struct%nrow_global
+    lda = SIZE(a,1)
+    ldc = SIZE(c,1)
 
     CALL dsyrk(uplo,trans,n,k,alpha,a(ia,ja),lda,beta,c(1,1),ldc)
 
