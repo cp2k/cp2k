@@ -56,7 +56,9 @@ MODULE dgs
   USE realspace_grid_types,            ONLY: realspace_grid_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell_param,&
-                                             get_hinv
+                                             get_hinv,&
+                                             cell_create,&
+                                             cell_release
   USE structure_factors,               ONLY: structure_factor_evaluate
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -115,12 +117,14 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   TYPE ( cp_error_type ), OPTIONAL          :: error
   
   REAL(KIND=dp)                                :: cutoff, ecut
-  TYPE(cell_type)                          :: box_s, unit_box
+  TYPE(cell_type), POINTER                 :: box_s, unit_box
   INTEGER                                  :: output_unit
   LOGICAL                                  :: ionode
   TYPE ( cp_logger_type ), POINTER         :: logger
   
-  !------------------------------------------------------------------------------
+  nullify(box_s, unit_box)
+  CALL cell_create(box_s)
+  CALL cell_create(unit_box)
   logger => cp_error_get_logger(error)
   ionode=(logger%para_env%mepos==logger%para_env%source)
   IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
@@ -144,7 +148,8 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
   
   CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
-  
+  CALL cell_release(box_s)
+  CALL cell_release(unit_box)
 END SUBROUTINE dg_pme_grid_setup
 
 !******************************************************************************
@@ -217,22 +222,22 @@ SUBROUTINE dg_get_spacing ( npts, cutoff_radius, dr )
 
 
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
+  IMPLICIT NONE
+  !Arguments
+  TYPE(cell_type), POINTER              :: box_b
+  TYPE(pw_grid_type), POINTER           :: grid_b
+  TYPE(pw_grid_type), POINTER           :: grid_s
+  ! Local Variables
+  TYPE(cell_type), POINTER              :: box_s, unit_box
 
-
-    TYPE(cell_type), POINTER              :: box_b
-    TYPE(pw_grid_type), POINTER           :: grid_b
-    TYPE(pw_grid_type), POINTER        :: grid_s
-
-    TYPE(cell_type)                    :: box_s, unit_box
-
-!------------------------------------------------------------------------------
-
-  CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
-
-  CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
-
+  NULLIFY(box_s, unit_box)
+  CALL cell_create(unit_box )
+  CALL cell_create(box_s)
+  CALL dg_find_basis  ( grid_b % npts, box_b, unit_box )
+  CALL dg_set_cell    ( grid_s % npts, unit_box, box_s )
   CALL pw_grid_change ( box_s, grid_s )
-
+  CALL cell_release(unit_box)
+  CALL cell_release(box_s)
 END SUBROUTINE dg_grid_change
 
 !******************************************************************************
@@ -262,14 +267,13 @@ END SUBROUTINE dg_find_radix
 !******************************************************************************
 
 SUBROUTINE dg_find_basis( npts, box, unit_box )
-
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), POINTER                 :: box
-    TYPE(cell_type), INTENT(OUT)             :: unit_box
-
-    INTEGER                                  :: i
-
-!------------------------------------------------------------------------------
+  IMPLICIT NONE
+  ! Arguments
+  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+  TYPE(cell_type), POINTER                 :: box
+  TYPE(cell_type), POINTER                 :: unit_box
+  ! Local Variables
+  INTEGER                                  :: i
 
   DO i = 1, 3
      unit_box % hmat ( :, i ) = box % hmat ( :, i ) / REAL ( npts ( : ),KIND=dp)
@@ -284,21 +288,19 @@ END SUBROUTINE dg_find_basis
 !! Calculation of the basis on the mesh 'box'
 
 SUBROUTINE dg_set_cell (npts, unit_box, box )
-
-
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    TYPE(cell_type), INTENT(IN)         :: unit_box
-    TYPE(cell_type), INTENT(OUT)                :: box
-
-!------------------------------------------------------------------------------
-! computing the unit vector along a, b, c and scaling it to length dr:
-
+  IMPLICIT NONE
+  ! Arguments
+  INTEGER, DIMENSION(:), INTENT(IN)        :: npts
+  TYPE(cell_type), POINTER                 :: unit_box
+  TYPE(cell_type), POINTER                 :: box
+  
+  ! computing the unit vector along a, b, c and scaling it to length dr:
   box % hmat ( :, 1 ) = unit_box % hmat ( :, 1 ) * npts ( 1 )
   box % hmat ( :, 2 ) = unit_box % hmat ( :, 2 ) * npts ( 2 )
   box % hmat ( :, 3 ) = unit_box % hmat ( :, 3 ) * npts ( 3 )
-
+  
   CALL get_hinv ( box )
-
+  
 END SUBROUTINE dg_set_cell
 
 !******************************************************************************

@@ -48,7 +48,9 @@ MODULE real_space_test
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE simulation_cell,                 ONLY: cell_type,&
-                                             get_hinv
+                                             get_hinv,&
+                                             cell_create,&
+                                             cell_release
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: get_limit
@@ -85,13 +87,14 @@ SUBROUTINE rs_test ( globenv )
     REAL(KIND=dp), DIMENSION(3)                  :: s
     REAL(KIND=dp), DIMENSION(3, nparticle)       :: coord
     REAL(KIND=dp), DIMENSION(nparticle)          :: bval
-    TYPE(cell_type)                          :: box
+    TYPE(cell_type), POINTER                 :: box
     TYPE(pw_grid_type)                       :: grid
     TYPE(pw_type)                            :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type)                :: rden
 
   iw =globenv % scr
-
+  NULLIFY(box)
+  CALL cell_create(box)
   IF ( globenv % ionode ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
 
@@ -313,7 +316,7 @@ SUBROUTINE rs_test ( globenv )
   CALL pw_deallocate ( pw_a )
   CALL pw_deallocate ( pw_b )
   CALL pw_deallocate ( pw_c )
-
+  call cell_release(box)
 END SUBROUTINE rs_test
 
 ! *****************************************************************************

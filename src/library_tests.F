@@ -63,7 +63,9 @@ MODULE library_tests
                                              RECIPROCALSPACE
   USE real_space_test,                 ONLY: rs_test
   USE simulation_cell,                 ONLY: cell_type,&
-                                             get_hinv
+                                             get_hinv,&
+                                             cell_create,&
+                                             cell_release
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
 
@@ -703,12 +705,14 @@ SUBROUTINE pw_fft_test ( globenv )
     INTEGER, DIMENSION(3)                    :: no, np
     REAL(KIND=dp)                                :: cutoff, em, et, flops, gsq, &
                                                 perf, r, t, tend, tim, tstart
-    TYPE(cell_type)                          :: box
+    TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
     TYPE(pw_grid_type)                       :: grid
 
 !..the unit cell
 
+  NULLIFY(box)
+  CALL cell_create(box)
   box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,8.0_dp,0.0_dp,&
                            0.0_dp,0.0_dp,7.0_dp/), (/3,3/) )
   CALL get_hinv ( box )
@@ -988,7 +992,7 @@ SUBROUTINE pw_fft_test ( globenv )
       " Parallel FFT Tests: Performance [Mflops] ", perf
     WRITE ( iw, * )
   END IF
-
+  call cell_release(box)
 END SUBROUTINE pw_fft_test
 
 !

@@ -263,18 +263,12 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_hinv(box)
-
+    IMPLICIT NONE
 !   Purpose: Calculate the inverse of the h matrix.
-
 !   History: - Creation (16.01.2002, CJM,JGH,MK)
-
-!   ***************************************************************************
-
-    TYPE(cell_type), INTENT(INOUT)           :: box
-
+    ! Arguments    
+    TYPE(cell_type), POINTER                :: box    
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_hinv"
-
-!   ---------------------------------------------------------------------------
 
     box%deth = det_3x3(box%hmat)
 
@@ -1094,6 +1088,8 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
     ALLOCATE(cell,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    cell % perd = 1
+    IF (.NOT. PRESENT(hmat)) RETURN
     IF (.NOT. failure) THEN
        CALL init_cell(cell,hmat,periodic)
     END IF

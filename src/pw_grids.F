@@ -2070,18 +2070,16 @@ END SUBROUTINE pw_grid_remap
 !!*** *************************************************************************
 
 SUBROUTINE pw_grid_change ( cell, pw_grid )
-
-! Argument
-    TYPE(cell_type), INTENT(IN), TARGET      :: cell
-    TYPE(pw_grid_type), INTENT(INOUT), &
-      TARGET                                 :: pw_grid
-
-    INTEGER                                  :: gpt
-    REAL(KIND=dp)                            :: l, m, n
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
-
-!------------------------------------------------------------------------------
-
+  IMPLICIT NONE
+  ! Argument
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(pw_grid_type), INTENT(INOUT), &
+       TARGET                                 :: pw_grid
+  ! Local 
+  INTEGER                                  :: gpt
+  REAL(KIND=dp)                            :: l, m, n
+  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g, h_inv
+  
   h_inv => cell % h_inv
   g => pw_grid % g
 
