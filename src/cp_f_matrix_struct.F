@@ -224,6 +224,8 @@ subroutine cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
           fmstruct%context%num_pe(2))
      call mp_sum(fmstruct%nrow_local,fmstruct%para_env%group)
      call mp_sum(fmstruct%ncol_local,fmstruct%para_env%group)
+     fmstruct%nrow_local(:)=fmstruct%nrow_local(:)/fmstruct%context%num_pe(2)
+     fmstruct%ncol_local(:)=fmstruct%ncol_local(:)/fmstruct%context%num_pe(1)
 #else
      ! block = full matrix
      fmstruct%nrow_block=fmstruct%nrow_global
