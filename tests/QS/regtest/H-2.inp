@@ -1,0 +1,61 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+
+&MD
+ ensemble:     nve                     (nve,nvt,npt_i,npt_f)
+ steps:        5
+ timestep:     0.1 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      init                    start type (pos,posvel)
+ constraints:  off
+ shake:        1.0E-10
+ nose_parameter & 
+  length:    3        &
+  Yoshida:   3        &
+  timecon:   100.0 fs &
+  mts:       2
+&END  
+
+&DFT
+ FUNCTIONAL   Pade
+ LSD
+&END
+
+&QS
+ CUTOFF       200
+ EPS_DEFAULT  1.0E-12
+&END
+
+&SCF
+ GUESS        ATOMIC
+ EPS_SCF      1.0E-6
+ MAX_SCF      3
+&END
+
+&OTSCF
+&END
+ ROTATION
+
+&PRINT LOW
+ HOMOS 1
+ LUMOS 1
+&END
+
+&KIND H
+ BASIS_SET    DZV-GTH-PADE
+ POTENTIAL    GTH-PADE-q1
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          4.0 4.0 4.0
+&END
+
+&COORD
+ H   0.000000  0.0000 0.0000
+&END
