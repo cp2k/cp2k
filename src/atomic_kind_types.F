@@ -65,6 +65,7 @@ MODULE atomic_kind_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
+  USE orbital_pointers,                ONLY: init_orbital_pointers
   USE pao_bas_projection_types
   USE periodic_table,                  ONLY: ptable
 !dbg
@@ -880,6 +881,7 @@ CONTAINS
     END IF
 
 !   *** Allocate and initialise the orbital basis set data set structure ***
+    CALL init_orbital_pointers(1) ! debug the SUN optimizer
 
     IF (orb_basis_set_name /= "") THEN
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
