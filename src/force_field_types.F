@@ -452,12 +452,23 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%inp_info%bend_c)
   NULLIFY(ff_type%inp_info%bend_k)
   NULLIFY(ff_type%inp_info%bend_theta0)
+  NULLIFY(ff_type%inp_info%ub_a)
+  NULLIFY(ff_type%inp_info%ub_b)
+  NULLIFY(ff_type%inp_info%ub_c)
+  NULLIFY(ff_type%inp_info%ub_k)
+  NULLIFY(ff_type%inp_info%ub_r0)
   NULLIFY(ff_type%inp_info%torsion_a)
   NULLIFY(ff_type%inp_info%torsion_b)
   NULLIFY(ff_type%inp_info%torsion_c)
   NULLIFY(ff_type%inp_info%torsion_d)
   NULLIFY(ff_type%inp_info%torsion_k)
   NULLIFY(ff_type%inp_info%torsion_phi0)
+  NULLIFY(ff_type%inp_info%impr_a)
+  NULLIFY(ff_type%inp_info%impr_b)
+  NULLIFY(ff_type%inp_info%impr_c)
+  NULLIFY(ff_type%inp_info%impr_d)
+  NULLIFY(ff_type%inp_info%impr_k)
+  NULLIFY(ff_type%inp_info%impr_phi0)
   NULLIFY(ff_type%inp_info%nonbonded)
   NULLIFY(ff_type%inp_info%nonbonded14)
 
@@ -590,6 +601,26 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%inp_info%bend_theta0,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','bend_theta0')
   END IF
+  IF(ASSOCIATED(ff_type%inp_info%ub_a)) THEN
+    DEALLOCATE(ff_type%inp_info%ub_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_a')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%ub_b)) THEN
+    DEALLOCATE(ff_type%inp_info%ub_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_b')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%ub_c)) THEN
+    DEALLOCATE(ff_type%inp_info%ub_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_c')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%ub_k)) THEN
+    DEALLOCATE(ff_type%inp_info%ub_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_k')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%ub_r0)) THEN
+    DEALLOCATE(ff_type%inp_info%ub_r0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','ub_r0')
+  END IF
   IF(ASSOCIATED(ff_type%inp_info%torsion_a)) THEN
     DEALLOCATE(ff_type%inp_info%torsion_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_a')
@@ -613,6 +644,30 @@ SUBROUTINE deallocate_ff_type (ff_type)
   IF(ASSOCIATED(ff_type%inp_info%torsion_phi0)) THEN
     DEALLOCATE(ff_type%inp_info%torsion_phi0,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_phi0')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_a)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_a,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_a')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_b)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_b,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_b')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_c)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_c,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_c')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_d)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_d,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_d')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_k)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_k,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_k')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%impr_phi0)) THEN
+    DEALLOCATE(ff_type%inp_info%impr_phi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','impr_phi0')
   END IF
   IF(ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
     DEALLOCATE(ff_type%inp_info%nonbonded,STAT=istat)
