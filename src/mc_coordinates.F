@@ -234,6 +234,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       oo_min_cutoff=2.0E0_dp/angstrom
       oh_min_cutoff=1.0E0_dp/angstrom
       hh_min_cutoff=1.0E0_dp/angstrom
+      classical_energy_new=0.0_dp
 
 
       NULLIFY(oldsys,particles)
