@@ -72,7 +72,7 @@ CONTAINS
 !!******
 !!
 !!   NAME
-!!     compute_conserved_quantity_md
+!!     compute_conserved_quantity
 !!
 !!   FUNCTION
 !!     calculates conserved quantity.                                  

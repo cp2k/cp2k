@@ -96,6 +96,7 @@ MODULE force_field_types
     REAL (dbl), POINTER                            :: torsion_k(:)
     REAL (dbl), POINTER                            :: torsion_phi0(:)
     TYPE (pair_potential_type), POINTER            :: nonbonded(:)
+    TYPE (pair_potential_type), POINTER            :: nonbonded14(:)
   END TYPE input_info_type
 
   TYPE charmm_info_type
@@ -478,6 +479,7 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%inp_info%torsion_k)
   NULLIFY(ff_type%inp_info%torsion_phi0)
   NULLIFY(ff_type%inp_info%nonbonded)
+  NULLIFY(ff_type%inp_info%nonbonded14)
 
 
   !-----------------------------------------------------------------------------
@@ -630,6 +632,10 @@ SUBROUTINE deallocate_ff_type (ff_type)
   IF(ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
     DEALLOCATE(ff_type%inp_info%nonbonded,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','nonbonded')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%nonbonded14)) THEN
+    DEALLOCATE(ff_type%inp_info%nonbonded14,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','nonbonded14')
   END IF
 
 

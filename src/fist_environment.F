@@ -47,7 +47,6 @@ MODULE fist_environment
   USE fist_energy_types,               ONLY: fist_energy_type,    &
                                              allocate_fist_energy
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
-                                             fist_nonbond_env_create, &
                                              fist_nonbond_env_release
   USE kinds,                           ONLY: dbl,dp,&
                                              int_size
@@ -61,8 +60,6 @@ MODULE fist_environment
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
-  USE pair_potential,                  ONLY: spline_nonbond_control
-  USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -74,10 +71,6 @@ MODULE fist_environment
                                              cell_release,&
                                              read_cell,&
                                              write_cell
-  USE splines,                         ONLY: spline_environment_type, &
-                                             spline_env_create, &
-                                             spline_env_release, &
-                                             spline_env_set
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -144,10 +137,10 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE(particle_list_type), POINTER        :: particles
   TYPE(particle_type), DIMENSION(:), &
     POINTER                                :: particle_set
-  TYPE ( pair_potential_type ),  &
-    DIMENSION ( :, : ), POINTER            :: potparm
   TYPE ( distribution_1d_type ), POINTER :: local_molecules,&
                                             local_particles
+  TYPE ( ewald_environment_type ), POINTER :: ewald_env
+  TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
   INTEGER                                  :: handle
 
 ! Local parameters 
@@ -161,8 +154,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
-            particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref, &
-            potparm )
+            particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+  NULLIFY ( ewald_env, fist_nonbond_env )
 
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
@@ -172,6 +165,12 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 ! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
 
+! Create the ewald environment
+  CALL ewald_env_create ( ewald_env, globenv % para_env, error )
+
+! Read the input section and set the ewald_env ***
+  CALL read_ewald_section ( ewald_env, globenv )
+
 ! topology
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set,&
@@ -179,7 +178,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
-                             globenv, potparm = potparm )
+                             ewald_env, fist_nonbond_env, globenv )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )
@@ -193,7 +192,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                          potparm, globenv, error )
+                          fist_nonbond_env, ewald_env, globenv, error )
 
   CALL cell_release(cell,error=error)
   CALL cell_release(cell_ref,error=error)
@@ -204,7 +203,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
 !   ***************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                                potparm, globenv, error )
+                                fist_nonbond_env, ewald_env, globenv, error )
 
 !   Purpose: Read the input and the database files for the setup of the
 !            FIST environment.
@@ -215,7 +214,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( fist_environment_type ), POINTER       :: fist_env
   TYPE ( cp_subsystem_type ), POINTER           :: subsystem
   TYPE ( cell_type ), POINTER                   :: cell, cell_ref
-  TYPE ( pair_potential_type ), POINTER         :: potparm ( :, : )
+  TYPE ( fist_nonbond_env_type ), POINTER       :: fist_nonbond_env
+  TYPE ( ewald_environment_type ), POINTER      :: ewald_env
   LOGICAL, INTENT ( IN )                        :: use_ref_cell
   TYPE ( global_environment_type ), &
     INTENT ( INOUT )                            :: globenv
@@ -239,9 +239,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
     POINTER                                :: particle_set
   TYPE(fist_energy_type), POINTER          :: thermo
   TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-  TYPE ( ewald_environment_type ), POINTER          :: ewald_env
-  TYPE ( fist_nonbond_env_type ), POINTER           :: fist_nonbond_env
-  TYPE ( spline_environment_type ), POINTER         :: spline_env
 
 
   CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -251,16 +248,11 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   molecule_set => subsystem % molecules_new % els
   molecule_kind_set => subsystem % molecule_kinds_new % els
 
-  NULLIFY ( thermo, ewald_env, ewald_pw, fist_nonbond_env, spline_env )
+  NULLIFY ( thermo, ewald_pw )
 
 ! Create the fist_energy_type
   ALLOCATE ( thermo )
 
-! Create the ewald environment
-  CALL ewald_env_create ( ewald_env, globenv % para_env, error )
-
-! Read the input section and set the ewald_env ***
-  CALL read_ewald_section ( ewald_env, globenv )
 
 ! Print the atomic kind set
   CALL write_atomic_kind_set(atomic_kind_set,globenv)
@@ -293,20 +285,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &
                     thermo % e_self, thermo % e_neut )
 
-! Create the spline environment
-  CALL spline_env_create ( spline_env, error )
-
-! set the potparm
-  CALL spline_env_set ( spline_env, potparm = potparm )
-
-! Initialize splines
-  CALL spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
-
-  natom_types = SIZE ( atomic_kind_set )
-! create fist_nonbond_env
-  CALL fist_nonbond_env_create ( fist_nonbond_env, spline_env, &
-                                 natom_types, error )
-
 ! set the fist_env
   CALL set_fist_env ( fist_env = fist_env, subsys = subsystem, error = error )
   CALL set_fist_env ( fist_env=fist_env,&
@@ -320,7 +298,6 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL distribution_1d_release ( local_molecules, error = error )
   CALL ewald_env_release ( ewald_env, error )
   CALL ewald_pw_release ( ewald_pw, error )
-  CALL spline_env_release ( spline_env, error )
   CALL fist_nonbond_env_release ( fist_nonbond_env, error )
 
   IF (globenv%ionode) CALL m_flush(globenv%scr)

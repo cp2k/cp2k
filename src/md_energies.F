@@ -47,7 +47,6 @@ MODULE md_energies
   USE md,                              ONLY: mdio_parameters_type,&
                                              simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
-
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env

@@ -125,7 +125,6 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
     INTEGER                                  :: i, isos, j, jx, n, ntab, ntype
     INTEGER                                  :: npoints
-    LOGICAL, SAVE                            :: first_visit = .TRUE.
     REAL(dbl)                                :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -140,11 +139,6 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
   ntype = SIZE ( atomic_kind_set )
   ntab = ( ntype * ntype + ntype ) / 2
-
-  IF ( first_visit ) THEN
-     NULLIFY ( spline_env % spline_table )
-     first_visit = .FALSE.
-  END IF
 
   IF ( ASSOCIATED ( spline_env % spline_table ) ) THEN
      DO i = 1, ntab
