@@ -32,7 +32,8 @@ MODULE cp_keywords
        CHARACTER(LEN=80)  :: variant3         ! alternate names of keywords
   END TYPE
 
-  PUBLIC :: list_keywords, find_keyword
+  PRIVATE
+  PUBLIC :: list_keywords, find_keyword, keyword_type
 
 CONTAINS
 

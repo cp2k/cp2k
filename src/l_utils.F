@@ -17,14 +17,13 @@ MODULE l_utils
   USE timings,                         ONLY: timeset,&
                                              timestop
 
-   IMPLICIT NONE
+  IMPLICIT NONE
+  PRIVATE 
 
-   CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='l_utils'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='l_utils'
 
-   public :: l_info_type
-   public :: init_l_info
-   public :: return_l_info
-   public :: destroy_l_info
+  PUBLIC :: l_info_type, init_l_info, return_l_info, destroy_l_info, & 
+            l_info_release, l_set_info_type, l_info_retain
    
    TYPE l_set_info_type
         integer                        :: lx_max,lxy_max,lxyz_max

@@ -29,8 +29,9 @@ MODULE cp_blacs_calls
 
   IMPLICIT NONE
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_blacs_calls'
+  PRIVATE
   ! setup / info calls
-  PUBLIC :: cp_blacs_gridinit, &
+  PUBLIC :: cp_blacs_gridinit, cp_blacs_get, cp_blacs_pnum, &
             cp_blacs_pinfo, cp_blacs_gridexit, cp_blacs_gridinfo
   ! actual message passing
   PUBLIC :: cp_blacs_zgebs2d, cp_blacs_zgebr2d, cp_blacs_dgebs2d, &

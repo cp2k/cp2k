@@ -22,7 +22,7 @@
 !******************************************************************************
 
 MODULE lapack
-
+  PUBLIC ! make all routines public 
 #if defined (__sp_lib)
   INTERFACE lapack_ssyev
      SUBROUTINE ssyev ( jobz, uplo, n, a, lda, w, work, lwork, info )

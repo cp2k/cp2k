@@ -32,6 +32,8 @@ MODULE hartree
                                              timestop
 
   IMPLICIT NONE
+  PRIVATE
+  PUBLIC :: calculate_hartree
 
 !!*****
 !******************************************************************************

@@ -10,7 +10,10 @@ MODULE cp_lbfgs
   USE machine,                         ONLY: m_cputime
 
   IMPLICIT NONE
-INTEGER, PUBLIC :: cp_lbfgs_unit_nr=6
+  PRIVATE
+  PUBLIC :: setulb
+  INTEGER, PUBLIC :: cp_lbfgs_unit_nr=6
+ 
 CONTAINS
 
 SUBROUTINE setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, &
