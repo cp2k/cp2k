@@ -273,7 +273,8 @@ CONTAINS
       cmax = MAX(cmax,cmaxl)
     END DO
 
-    CALL init_l_info(l_info,maxl,cmax)
+    ! maxl+1 to allow for the forces
+    CALL init_l_info(l_info,maxl+1,cmax)
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
