@@ -462,6 +462,7 @@ CONTAINS
     DO ikind=1,nkind
       onfo_kind_set(ikind)%name = ""
       onfo_kind_set(ikind)%kind_number = ikind
+      NULLIFY(onfo_kind_set(ikind)%spline_env)
     END DO
 
   END SUBROUTINE allocate_onfo_kind_set
