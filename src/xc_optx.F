@@ -208,11 +208,9 @@ CONTAINS
             drho_cutoff=epsilon_drho,error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       IF (grad_deriv>=0) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-       END IF
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
        deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
             allocate_deriv=.TRUE.,error=error)
        CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
@@ -266,7 +264,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'optx_lsd_eval', &
          routineP = moduleN//':'//routineN
-    INTEGER                                  :: npoints,ispin
+    INTEGER                                  :: npoints,ispin, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: epsilon_drho, epsilon_rho
@@ -294,26 +292,23 @@ CONTAINS
                            drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
-       IF (grad_deriv>=0) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"",&
-               allocate_deriv=.TRUE., error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-       END IF
-       IF (grad_deriv>=1 .OR. grad_deriv<=-1) THEN
-          deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
-                            allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
-                            allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"",&
+            allocate_deriv=.TRUE., error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho(1)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(rhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rho(2)%array,error=error)
+       
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+       deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
+            allocate_deriv=.TRUE.,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
 
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhoa)",&
-                            allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
-          deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
-                            allocate_deriv=.TRUE.,error=error)
-          CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
-       ENDIF
        IF (grad_deriv>1.OR.grad_deriv<-1) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 1 not implemented", &
