@@ -305,6 +305,8 @@ CONTAINS
 
     CALL timeset("scf","I","",handle)
 
+    t1 = cputime()
+
     call cp_error_init(error)
 
     ionode = globenv%ionode
@@ -448,12 +450,12 @@ CONTAINS
 
 !   *** SCF loop ***
 
+
     scf_loop: DO
       IF (ionode) CALL m_flush(output_unit)
 
       iscf = iscf + 1
 
-      t1 = cputime()
 
       IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
@@ -1080,7 +1082,6 @@ CONTAINS
     REAL(WP), INTENT(IN)                      :: level_shift
 
 !   *** Local variables ***
-
     INTEGER :: handle,imo,nao,nmo,homo,ncv,handle2, a_size
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
     REAL(wp), DIMENSION(:), POINTER  :: mo_eigenvalues
@@ -1436,6 +1437,8 @@ CONTAINS
                         "guess was specified")
 
     END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
 
