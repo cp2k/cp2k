@@ -473,6 +473,10 @@ CONTAINS
 
        END DO ! ikind
 
+       IF (calculate_forces) THEN
+          DEALLOCATE(atom_of_kind)
+       ENDIF
+
        IF (ewald) THEN
          ! calculate Coulomb long range forces
          CALL nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&

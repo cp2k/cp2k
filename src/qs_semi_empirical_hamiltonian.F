@@ -466,6 +466,7 @@ CONTAINS
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
                matrix_p(2)%matrix,-1.0_dp)
        END IF
+       DEALLOCATE(atom_of_kind)
      END IF
 
   END SUBROUTINE build_se_core_matrix
