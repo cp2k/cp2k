@@ -943,21 +943,22 @@ CONTAINS
 !     *** Remove the appendix of the potential name ***
 !     *** (e.g. remove "-PADE" from  GTH-PADE)      ***
 
-      pot_fullname = potential_name
-      ipos = INDEX(potential_name,"-")
-      IF (ipos > 0) potential_name(ipos:) = " "
+      !guess we should not remove the tail, e.g. -LDA -BLYP
+      !pot_fullname = potential_name
+      !ipos = INDEX(potential_name,"-")
+      !IF (ipos > 0) potential_name(ipos:) = " "
 
       CALL uppercase(potential_name)
 
-      IF (potential_name == "ALL") THEN
+      IF (potential_name(1:3) == "ALL") THEN
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%all_potential,globenv)
-      ELSE IF (potential_name == "GTH") THEN
+      ELSE IF (potential_name(1:3) == "GTH") THEN
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,globenv)
-      ELSE IF (potential_name == "EPC") THEN
+      ELSE IF (potential_name(1:3) == "EPC") THEN
         CALL allocate_potential(atomic_kind%epc_potential)
         CALL read_potential(atomic_kind%element_symbol,pot_fullname,&
                             atomic_kind%epc_potential,globenv)
