@@ -72,6 +72,7 @@ MODULE control_module
   USE pol_debug_ao, ONLY : debug_control_ao => debug_control
   USE pol_debug_pw, ONLY : debug_control_pw => debug_control
   USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
+  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_grids, ONLY : pw_grid_setup
   USE physcon, ONLY : boltzmann, h_planck
   USE read_pimd, ONLY : read_pimd_section
@@ -493,12 +494,13 @@ SUBROUTINE control ( globenv )
 
      ELSEIF ( simpar % pol_basis == "PW" ) THEN
      
+       struc ( 1 ) % pw_grid ( 1 ) % grid_span = HALFSPACE
        CALL pw_grid_setup ( struc ( 1 ) % box, struc ( 1 ) % pw_grid ( 1 ),  &
                             simpar % pol_ecut )
        nproj = n
        CALL allocate_pol_coefs ( nproj, struc ( 1 ) % coef_pos ( 1 ),  &
           struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), &
-          struc ( 1 ) % projector ( 1 ) )
+          struc ( 1 ) % projector ( 1 ),  struc ( 1 ) % pw_grid ( 1 ) )
 
        CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
           struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
