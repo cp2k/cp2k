@@ -36,7 +36,7 @@ MODULE cp_[el_name]_pool_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_linked_list_fm,               ONLY: cp_sll_[el_name]_dealloc,&
+  USE cp_linked_list_[el_name],        ONLY: cp_sll_[el_name]_dealloc,&
                                              cp_sll_[el_name]_get_first_el,&
                                              cp_sll_[el_name]_insert_el,&
                                              cp_sll_[el_name]_next,&
@@ -100,6 +100,7 @@ MODULE cp_[el_name]_pool_types
      PRIVATE
      INTEGER :: ref_count, id_nr
      [el_struct_type], POINTER :: el_struct
+     [other_struct_data]
      TYPE(cp_sll_[el_name]_type), POINTER :: cache
   END TYPE cp_[el_name]_pool_type
 !!***
@@ -161,10 +162,12 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE [el_name]_pool_create(pool, el_struct, error)
+  SUBROUTINE [el_name]_pool_create(pool, el_struct,&
+       [pool_create-extra_args] error)
     TYPE(cp_[el_name]_pool_type), POINTER :: pool
     [el_struct_type], POINTER :: el_struct
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    [pool_create-extra_args_types]
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_create',&
@@ -181,6 +184,7 @@ CONTAINS
        pool%id_nr=last_[el_name]_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
+       [pool_create-post_init_commands]
     END IF
   END SUBROUTINE [el_name]_pool_create
 !***************************************************************************
@@ -360,7 +364,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_create_[el_name]',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
-    [create_el-local_types]
 
     failure=.FALSE.
 
@@ -420,7 +423,6 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pool_create_[el_name]_vect',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat,i
-    [create_els-local_types]
 
     failure=.FALSE.
 
@@ -763,7 +765,6 @@ SUBROUTINE [el_name]_pools_create_[el_name]_vect(pools,elements,&
   CHARACTER(len=*), PARAMETER :: routineN='[el_name]_pools_create_[el_name]_vect',&
         routineP=moduleN//':'//routineN
   TYPE(cp_[el_name]_pool_type), POINTER :: pool
-  [create_els-local_types]
 
   failure=.FALSE.
   NULLIFY(pool)

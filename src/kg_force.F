@@ -20,89 +20,89 @@
 !******************************************************************************
 
 MODULE kg_force
-
-  USE atomic_kind_types,               ONLY : atomic_kind_type,&
-                                              get_atomic_kind,&
-                                              get_atomic_kind_set
-  USE coefficient_types,               ONLY : coeff_allocate,&
-                                              coeff_copy, &
-                                              coeff_deallocate, &
-                                              coeff_transform_space,&
-                                              coeff_type,&
-                                              coeff_zero,&
-                                              coeff_sumup
-  USE cube_utils,                      ONLY : cube_info_type,&
-                                              destroy_cube_info,&
-                                              init_cube_info
-  USE dft_types,                       ONLY : dft_control_type 
-  USE external_potential_types,        ONLY : epc_potential_type,&
-                                               get_potential
-  USE greens_fn,                       ONLY : pw_green_fn_init
-  USE gaussian_gridlevels,             ONLY : gridlevel_info_type, &
-                                              init_gaussian_gridlevel,&
-                                               destroy_gaussian_gridlevel
-  USE global_types,                    ONLY : global_environment_type
-  USE hartree,                         ONLY : calculate_hartree
-  USE l_utils,                         ONLY : destroy_l_info,&
-                                              init_l_info,&
-                                              l_info_type
-  USE kg_core,                         ONLY : calculate_ecore_rspace,&
-                                              calculate_eself
-  USE kg_density,                      ONLY : calculate_density,&
-                                              calculate_epc_density,&
-                                              calculate_p_density,&
-                                              calculate_total_density,&
-                                              calculate_v_rspace_forces,&
-                                              calculate_vp_rspace_forces,&
-                                              calculate_epc_rspace_forces 
-  USE kg_environment_types,            ONLY : get_kg_env,&
-                                              kg_environment_type, &
-                                              kg_thermodynamic_type
-  USE kg_force_types,                  ONLY : kg_force_type,&
-                                              allocate_kg_forces, &
-                                              deallocate_kg_forces,&
-                                              init_kg_forces
-  USE kg_intra,                        ONLY : calculate_ebond_corr
-  USE kg_kxc,                          ONLY : calculate_kxc_potential
-  USE kinds,                           ONLY : dbl
-  USE mathconstants,                   ONLY : pi, zero
-  USE message_passing,                 ONLY : mp_sum, &
-                                              mp_max, &
-                                              mp_sync,&
-                                              mp_range, &
-                                              mp_allgather
-  USE molecule_types,                  ONLY : molecule_structure_type,&
-                                              particle_node_type, &
-                                              linklist_exclusion, &
-                                              linklist_bonds, &
-                                              linklist_bends,&
-                                              linklist_torsions
-  USE particle_types,                  ONLY : particle_type
-  USE pw_grid_types,                   ONLY : pw_grid_type,&
-                                              HALFSPACE, FULLSPACE
-  USE pw_grids,                        ONLY : pw_find_cutoff,&
-                                              pw_grid_construct, &   
-                                              pw_grid_change,&
-                                              pw_grid_setup
-  USE pw_pool_types,                   ONLY : pw_pool_create,&
-                                              pw_pool_release,&
-                                              pw_pool_type
-  USE pws,                             ONLY : init_pw_poisson_solver,&
-                                              pw_poisson_solver 
-  USE pw_types,                        ONLY : COMPLEXDATA1D,&
-                                              COMPLEXDATA3D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
-                                              RECIPROCALSPACE, &
-                                              pw_type
-  USE simulation_cell,                 ONLY : cell_type,&
-                                              get_hinv,&
-                                              get_cell
-  USE termination,                     ONLY : stop_program,&
-                                              stop_memory
-  USE timings,                         ONLY : timeset,&
-                                              timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE coefficient_types,               ONLY: coeff_allocate,&
+                                             coeff_copy,&
+                                             coeff_deallocate,&
+                                             coeff_sumup,&
+                                             coeff_transform_space,&
+                                             coeff_type,&
+                                             coeff_zero
+  USE cube_utils,                      ONLY: cube_info_type,&
+                                             destroy_cube_info,&
+                                             init_cube_info
+  USE dft_types,                       ONLY: dft_control_type
+  USE external_potential_types,        ONLY: epc_potential_type,&
+                                             get_potential
+  USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
+                                             gridlevel_info_type,&
+                                             init_gaussian_gridlevel
+  USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: pw_green_fn_init
+  USE hartree,                         ONLY: calculate_hartree
+  USE kg_core,                         ONLY: calculate_ecore_rspace,&
+                                             calculate_eself
+  USE kg_density,                      ONLY: calculate_density,&
+                                             calculate_epc_density,&
+                                             calculate_epc_rspace_forces,&
+                                             calculate_p_density,&
+                                             calculate_total_density,&
+                                             calculate_v_rspace_forces,&
+                                             calculate_vp_rspace_forces
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type,&
+                                             kg_thermodynamic_type
+  USE kg_force_types,                  ONLY: allocate_kg_forces,&
+                                             deallocate_kg_forces,&
+                                             init_kg_forces,&
+                                             kg_force_type
+  USE kg_intra,                        ONLY: calculate_ebond_corr
+  USE kg_kxc,                          ONLY: calculate_kxc_potential
+  USE kinds,                           ONLY: dbl
+  USE l_utils,                         ONLY: destroy_l_info,&
+                                             init_l_info,&
+                                             l_info_type
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE message_passing,                 ONLY: mp_allgather,&
+                                             mp_max,&
+                                             mp_range,&
+                                             mp_sum,&
+                                             mp_sync
+  USE molecule_types,                  ONLY: linklist_bends,&
+                                             linklist_bonds,&
+                                             linklist_exclusion,&
+                                             linklist_torsions,&
+                                             molecule_structure_type,&
+                                             particle_node_type
+  USE particle_types,                  ONLY: particle_type
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
+                                             pw_grid_type
+  USE pw_grids,                        ONLY: pw_find_cutoff,&
+                                             pw_grid_change,&
+                                             pw_grid_construct,&
+                                             pw_grid_setup
+  USE pw_pool_types,                   ONLY: pw_pool_create,&
+                                             pw_pool_release,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
+  USE pws,                             ONLY: init_pw_poisson_solver,&
+                                             pw_poisson_solver
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             get_hinv
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -123,8 +123,8 @@ MODULE kg_force
      ! definition of all grid types used (working grids and multigrids)
      TYPE(pw_grid_type), DIMENSION(:), POINTER :: pw_grid
      ! number of the grid used as reference grid for the density
-     integer :: auxbas_grid
-     logical :: initialized     
+     INTEGER :: auxbas_grid
+     LOGICAL :: initialized     
      REAL(dbl) :: total_rho_gspace, total_rho_core_rspace, &
                   total_rho_rspace  
      TYPE(coeff_type)                             :: rho_gspace, &
@@ -162,6 +162,14 @@ CONTAINS
 !!
 !!   NAME
 !!     kg_force_control
+!!
+!!   SYNOPSIS
+!!     Subroutine kg_force_control(kg_env, globenv, debug)
+!!       Implicit None
+!!       Type(kg_environment_type), Intent (INOUT):: kg_env
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(debug_variables_type), Intent (OUT), Optional:: debug
+!!     End Subroutine kg_force_control
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force, and the
@@ -696,7 +704,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
               kg_rho_v%gridlevel_info,&
               kg_rho_v%cube_info, kg_rho_v%l_info,&
               kg_env, kg_forces, globenv, force_type)
-    DO i=1,size (coef_pos % ao % cr)
+    DO i=1,SIZE (coef_pos % ao % cr)
        debug % fc_hartree (i)= coef_force % ao % cr (i)
     END DO
 
@@ -719,9 +727,9 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
                 kg_rho_v%gridlevel_info,&
                 kg_rho_v%cube_info, kg_rho_v%l_info,&
                 kg_env, kg_forces, globenv, force_type)
-    do i=1,size (coef_pos % ao % cr)
+    DO i=1,SIZE (coef_pos % ao % cr)
       debug % fc_xc (i)= coef_force % ao % cr (i)
-    end do
+    END DO
   ELSE 
      kg_rho_v%v_rspace%pw%cr3d(:,:,:) =&
                 kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
@@ -820,7 +828,7 @@ END SUBROUTINE kgpol_calculate_forces
 
 ! Arguments
     TYPE(kg_rho_v_type), INTENT(OUT) :: kg_rho_v
-    TYPE(global_environment_type), intent(in), target :: globenv
+    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
     LOGICAL, INTENT (IN),OPTIONAL :: kgpol
 
 ! Locals
@@ -921,7 +929,7 @@ END SUBROUTINE allocate_kg_densities
 
 ! Arguments
     TYPE(kg_rho_v_type), INTENT(OUT) :: kg_rho_v
-    TYPE(global_environment_type), intent(in), target :: globenv
+    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
     LOGICAL, INTENT (IN),OPTIONAL :: kgpol
 
 ! Locals
@@ -1017,7 +1025,7 @@ END SUBROUTINE deallocate_kg_densities
 
     TYPE(kg_rho_v_type), INTENT(OUT) :: kg_rho_v
     TYPE(kg_environment_type), INTENT(IN), TARGET :: kg_env
-    TYPE(global_environment_type), intent(in), target :: globenv
+    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
 
 ! Locals
 
@@ -1039,7 +1047,7 @@ END SUBROUTINE deallocate_kg_densities
     rel_cutoff =  kg_env%dft_control%kg_control%relative_cutoff
     cutoff => kg_env % dft_control%kg_control%e_cutoff
     atomic_kind_set => kg_env % atomic_kind_set
-    ngrid_level = size(cutoff)
+    ngrid_level = SIZE(cutoff)
 
     CALL init_gaussian_gridlevel(kg_rho_v%gridlevel_info,&
          ngrid_level,cutoff,rel_cutoff)
@@ -1048,16 +1056,16 @@ END SUBROUTINE deallocate_kg_densities
          ngrid_level=ngrid_level)
 
     ALLOCATE (kg_rho_v%cube_info(ngrid_level),STAT=istat)
-    if (istat /= 0) call stop_memory(routine,"cube_info",0)
+    IF (istat /= 0) CALL stop_memory(routine,"cube_info",0)
 
     cmax = 0
-    do igrid_level=1,ngrid_level
-       maxradius = maxgridpoints*maxval(kg_rho_v%pw_grid(igrid_level)%dr)
-       call init_cube_info(kg_rho_v%cube_info(igrid_level),&
+    DO igrid_level=1,ngrid_level
+       maxradius = maxgridpoints*MAXVAL(kg_rho_v%pw_grid(igrid_level)%dr)
+       CALL init_cube_info(kg_rho_v%cube_info(igrid_level),&
             kg_rho_v%pw_grid(igrid_level)%dr(:),&
             maxradius,cmaxl)
-       cmax = max(cmax,cmaxl)
-    end do
+       cmax = MAX(cmax,cmaxl)
+    END DO
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
 
@@ -1067,7 +1075,7 @@ END SUBROUTINE deallocate_kg_densities
     kg_rho_v%total_rho_core_rspace=0.0_dbl
     kg_rho_v%total_rho_rspace=0.0_dbl
     kg_rho_v%total_rho_gspace=0.0_dbl
-    kg_rho_v%initialized=.true.
+    kg_rho_v%initialized=.TRUE.
 
   END SUBROUTINE init_kg_force_calculation
 !***************************************************************************
@@ -1100,7 +1108,7 @@ END SUBROUTINE deallocate_kg_densities
 
 !   ---------------------------------------------------------------------------
  
-    DO igrid_level=1,size(kg_rho_v%cube_info)
+    DO igrid_level=1,SIZE(kg_rho_v%cube_info)
       CALL destroy_cube_info(kg_rho_v%cube_info(igrid_level))
     END DO
 
@@ -1111,7 +1119,7 @@ END SUBROUTINE deallocate_kg_densities
     CALL destroy_l_info(kg_rho_v%l_info)
     CALL destroy_gaussian_gridlevel(kg_rho_v%gridlevel_info,globenv)
 
-    kg_rho_v%initialized=.false.
+    kg_rho_v%initialized=.FALSE.
   END SUBROUTINE release_kg_rho_v
 
 !***************************************************************************
@@ -1138,9 +1146,9 @@ END SUBROUTINE deallocate_kg_densities
     INTEGER :: nrhos, auxbas
     LOGICAL :: ionode
     TYPE(cell_type), POINTER          :: cell
-    type(pw_grid_type), dimension(:), pointer :: pw_grid
-    type(pw_grid_type), pointer :: pw_grid_loc
-    type(pw_pool_type), pointer :: pw_pool
+    TYPE(pw_grid_type), DIMENSION(:), POINTER :: pw_grid
+    TYPE(pw_grid_type), POINTER :: pw_grid_loc
+    TYPE(pw_pool_type), POINTER :: pw_pool
     REAL(dbl), DIMENSION(:), POINTER :: cutoff
     REAL(dbl) :: cutilev
 
@@ -1222,7 +1230,7 @@ END SUBROUTINE deallocate_kg_densities
 
     pw_grid_loc=>pw_grid(auxbas)
     NULLIFY (pw_pool)
-    CALL pw_pool_create(pw_pool, pw_grid_ptr=pw_grid_loc)     
+    CALL pw_pool_create(pw_pool, pw_grid=pw_grid_loc)     
     kg_rho_v%pw_pool => pw_pool
 
     CALL timestop(0.0_dbl,handle)
@@ -1257,6 +1265,13 @@ END SUBROUTINE get_grids
 !!
 !!   NAME
 !!     kg_force_release
+!!
+!!   SYNOPSIS
+!!     Subroutine kg_force_release(kg_env, globenv)
+!!       Implicit None
+!!       Type(kg_environment_type), Intent (INOUT):: kg_env
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine kg_force_release
 !!
 !!   FUNCTION
 !!     before exiting the run, clean all the allocated/associated     

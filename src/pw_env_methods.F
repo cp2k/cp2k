@@ -22,6 +22,7 @@
 !!   MODIFICATION HISTORY
 !!     10.2002 created [fawzi]
 !!     JGH (22-Feb-03) PW grid options added
+!!     04.2003 added rs grid pools [fawzi]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -47,6 +48,13 @@ MODULE pw_env_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create,&
+                                             rs_pool_release,&
+                                             rs_pool_retain,&
+                                             rs_pools_copy,&
+                                             rs_pools_dealloc
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
@@ -65,10 +73,12 @@ MODULE pw_env_methods
                                              pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: HALFSPACE, FULLSPACE,&
+  USE pw_grid_types,                   ONLY: FULLSPACE,&
+                                             HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
                                              pw_grid_construct,&
+                                             pw_grid_release,&
                                              pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_init_coeff,&
@@ -144,7 +154,7 @@ SUBROUTINE pw_env_create(pw_env,qs_env,error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      NULLIFY(pw_env%pw_pools, pw_env%gridlevel_info,&
-          pw_env%l_info, pw_env%cube_info)
+          pw_env%l_info, pw_env%cube_info, pw_env%rs_pools)
      pw_env%auxbas_grid=-1
      pw_env%ref_count=1
      IF (PRESENT(qs_env)) CALL pw_env_rebuild(pw_env,qs_env=qs_env,error=error)
@@ -195,25 +205,30 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
        routineP=moduleN//':'//routineN
   REAL(wp)          :: rel_cutoff, maxradius, cutilev
   INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxl
+  INTEGER, DIMENSION(3) :: nsmax
   REAL(wp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
   TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(pw_pool_p_type),DIMENSION(:), POINTER :: pw_pools
+  TYPE(cp_rs_pool_p_type),DIMENSION(:), POINTER :: rs_pools
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_logger_type), POINTER :: logger
+
+  CALL timeset(routineN,"I","",handle)
+
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-       pw_pools,para_env)
+       pw_pools,rs_pools, para_env)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
-  CALL timeset(routineN,"I","",handle)
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
+     CALL rs_pools_dealloc(pw_env%rs_pools,error=error)
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
         CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
      ELSE
@@ -248,10 +263,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
 
-     ! init pw_pools
+     ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
+     ALLOCATE(rs_pools(ngrid_level),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
      DO igrid_level=1,ngrid_level ! keep the pw_grids in a separate array?
         ALLOCATE(pw_grid,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -295,11 +312,26 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            END IF
         END IF
         
+        ! init pw_pools
         NULLIFY(pw_pools(igrid_level)%pool)
         CALL pw_pool_create(pw_pools(igrid_level)%pool,&
-             pw_grid_ptr=pw_grid,error=error)
+             pw_grid=pw_grid,error=error)
+
+        ! init rs_pools
+        ! nsmax hard coded for the time being
+        ! gives the minimum thickness of a slice (or related quantity)
+        ! is not yet used in rs_grid_setup
+        ! this is dependent from the progression factor of the multigrids
+        ! and the softest gaussian
+        nsmax(:)=1000
+        NULLIFY(rs_pools(igrid_level)%pool)
+        CALL rs_pool_create(rs_pools(igrid_level)%pool,&
+             el_struct=pw_grid,nsmax=nsmax,error=error)
+
+        CALL pw_grid_release(pw_grid,error=error)
      END DO
      pw_env%pw_pools => pw_pools
+     pw_env%rs_pools => rs_pools
 
      ! init cube info
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=istat)

@@ -61,7 +61,8 @@ MODULE pw_pool_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_destruct
+  USE pw_grids,                        ONLY: pw_grid_release,&
+                                             pw_grid_retain
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA1D,&
@@ -159,9 +160,9 @@ CONTAINS
 !!     pw_pool_create
 !!
 !!   SYNOPSIS
-!!     Subroutine pw_pool_create(pool, pw_grid_ptr, error)
+!!     Subroutine pw_pool_create(pool, pw_grid, error)
 !!       Type(pw_pool_type), Pointer:: pool
-!!       Type(pw_grid_type), Pointer:: pw_grid_ptr
+!!       Type(pw_grid_type), Pointer:: pw_grid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pw_pool_create
 !!
@@ -184,9 +185,9 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_pool_create(pool, pw_grid_ptr, error)
+  SUBROUTINE pw_pool_create(pool, pw_grid, error)
     TYPE(pw_pool_type), POINTER :: pool
-    TYPE(pw_grid_type), POINTER :: pw_grid_ptr
+    TYPE(pw_grid_type), POINTER :: pw_grid
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -198,7 +199,8 @@ CONTAINS
     ALLOCATE(pool, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       pool%pw_grid => pw_grid_ptr
+       pool%pw_grid => pw_grid
+       CALL pw_grid_retain(pw_grid,error=error)
        last_pw_pool_id_nr=last_pw_pool_id_nr+1
        pool%id_nr=last_pw_pool_id_nr
        pool%ref_count=1
@@ -379,7 +381,7 @@ CONTAINS
           pool%ref_count=0
           CPPrecondition(ASSOCIATED(pool%pw_grid),cp_warning_level,routineP,error,failure)
           IF (.NOT.failure) THEN
-             CALL pw_grid_destruct(pool%pw_grid)
+             CALL pw_grid_release(pool%pw_grid,error=error)
           END IF
 
           DEALLOCATE(pool,stat=stat)

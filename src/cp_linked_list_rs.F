@@ -8,10 +8,10 @@
 #define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
 #define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 
-!!****h* cp2k/cp_linked_list_rs_grid [1.0] *
+!!****h* cp2k/cp_linked_list_rs [1.0] *
 !!
 !!   NAME
-!!     cp_linked_list_rs_grid
+!!     cp_linked_list_rs
 !!
 !!   FUNCTION
 !!     describes a generic linked list template.
@@ -34,7 +34,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-MODULE cp_linked_list_rs_grid
+MODULE cp_linked_list_rs
   USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
@@ -52,10 +52,10 @@ MODULE cp_linked_list_rs_grid
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_rs_grid'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_rs'
 
 ! type
-  PUBLIC :: cp_sll_rs_grid_type
+  PUBLIC :: cp_sll_rs_type
 ! common methods
   PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
 ! special get
@@ -69,106 +69,106 @@ MODULE cp_linked_list_rs_grid
   PUBLIC :: cp_dealloc_node, cp_write
 
   ! underlying routines
-  PUBLIC :: cp_sll_rs_grid_create, cp_sll_rs_grid_dealloc,&
-       cp_sll_rs_grid_dealloc_node,cp_sll_rs_grid_set,&
-       cp_sll_rs_grid_get,cp_sll_rs_grid_next,&
-       cp_sll_rs_grid_get_first_el, cp_sll_rs_grid_get_rest,&
-       cp_sll_rs_grid_get_empty, cp_sll_rs_grid_get_length,&
-       cp_sll_rs_grid_get_el_at, cp_sll_rs_grid_set_el_at,&
-       cp_sll_rs_grid_insert_el, cp_sll_rs_grid_insert_el_at,&
-       cp_sll_rs_grid_rm_first_el, cp_sll_rs_grid_rm_el_at,&
-       cp_sll_rs_grid_rm_all_el, cp_sll_rs_grid_output,&
-       cp_sll_rs_grid_write, cp_sll_rs_grid_to_array,&
-       cp_sll_rs_grid_from_array, cp_sll_rs_grid_insert_ordered,&
-       cp_sll_rs_grid_insert_ordered2
+  PUBLIC :: cp_sll_rs_create, cp_sll_rs_dealloc,&
+       cp_sll_rs_dealloc_node,cp_sll_rs_set,&
+       cp_sll_rs_get,cp_sll_rs_next,&
+       cp_sll_rs_get_first_el, cp_sll_rs_get_rest,&
+       cp_sll_rs_get_empty, cp_sll_rs_get_length,&
+       cp_sll_rs_get_el_at, cp_sll_rs_set_el_at,&
+       cp_sll_rs_insert_el, cp_sll_rs_insert_el_at,&
+       cp_sll_rs_rm_first_el, cp_sll_rs_rm_el_at,&
+       cp_sll_rs_rm_all_el, cp_sll_rs_output,&
+       cp_sll_rs_write, cp_sll_rs_to_array,&
+       cp_sll_rs_from_array, cp_sll_rs_insert_ordered,&
+       cp_sll_rs_insert_ordered2
 
 ! creation of an object (from a pointer)
   INTERFACE cp_create
-     MODULE PROCEDURE cp_sll_rs_grid_create
+     MODULE PROCEDURE cp_sll_rs_create
   END INTERFACE
 ! destruction of an object (from a pointer)
   INTERFACE cp_dealloc
-     MODULE PROCEDURE cp_sll_rs_grid_dealloc
+     MODULE PROCEDURE cp_sll_rs_dealloc
   END INTERFACE
 ! destruction only of the node (low level)
   INTERFACE cp_dealloc_node
-     MODULE PROCEDURE cp_sll_rs_grid_dealloc_node
+     MODULE PROCEDURE cp_sll_rs_dealloc_node
   END INTERFACE
 ! modifies attributes of an object
   INTERFACE cp_set
-     MODULE PROCEDURE cp_sll_rs_grid_set
+     MODULE PROCEDURE cp_sll_rs_set
   END INTERFACE
 ! returns attributes of an object
   INTERFACE cp_get
-     MODULE PROCEDURE cp_sll_rs_grid_get
+     MODULE PROCEDURE cp_sll_rs_get
   END INTERFACE
 ! iterates to the next element
   INTERFACE cp_next
-     MODULE PROCEDURE cp_sll_rs_grid_next
+     MODULE PROCEDURE cp_sll_rs_next
   END INTERFACE
 ! returns the first element
   INTERFACE cp_get_first_el
-     MODULE PROCEDURE cp_sll_rs_grid_get_first_el
+     MODULE PROCEDURE cp_sll_rs_get_first_el
   END INTERFACE
 ! returns the rest of the list
   INTERFACE cp_get_rest
-     MODULE PROCEDURE cp_sll_rs_grid_get_rest
+     MODULE PROCEDURE cp_sll_rs_get_rest
   END INTERFACE
 ! returns if the list is empty
   INTERFACE cp_get_empty
-     MODULE PROCEDURE cp_sll_rs_grid_get_empty
+     MODULE PROCEDURE cp_sll_rs_get_empty
   END INTERFACE
 ! returns the length of the list
   INTERFACE cp_get_length
-     MODULE PROCEDURE cp_sll_rs_grid_get_length
+     MODULE PROCEDURE cp_sll_rs_get_length
   END INTERFACE
 ! returns the element at the given position
   INTERFACE cp_get_element_at
-     MODULE PROCEDURE cp_sll_rs_grid_get_el_at
+     MODULE PROCEDURE cp_sll_rs_get_el_at
   END INTERFACE
 ! sets the element at the given position
   INTERFACE cp_set_element_at
-     MODULE PROCEDURE cp_sll_rs_grid_set_el_at
+     MODULE PROCEDURE cp_sll_rs_set_el_at
   END INTERFACE
 ! inserts one element call cp_insert(list,element,...)
   INTERFACE cp_insert
-     MODULE PROCEDURE cp_sll_rs_grid_insert_el
+     MODULE PROCEDURE cp_sll_rs_insert_el
   END INTERFACE
   INTERFACE cp_insert_ordered
-     MODULE PROCEDURE cp_sll_rs_grid_insert_ordered,&
-          cp_sll_rs_grid_insert_ordered2
+     MODULE PROCEDURE cp_sll_rs_insert_ordered,&
+          cp_sll_rs_insert_ordered2
   END INTERFACE
   INTERFACE cp_insert_at
-     MODULE PROCEDURE cp_sll_rs_grid_insert_el_at
+     MODULE PROCEDURE cp_sll_rs_insert_el_at
   END INTERFACE
 ! removes an element
   INTERFACE cp_remove_el
-     MODULE PROCEDURE cp_sll_rs_grid_rm_first_el, &
-          cp_sll_rs_grid_rm_el_at
+     MODULE PROCEDURE cp_sll_rs_rm_first_el, &
+          cp_sll_rs_rm_el_at
   END INTERFACE
 ! removes the first el
   INTERFACE cp_remove_first_el
-     MODULE PROCEDURE cp_sll_rs_grid_rm_first_el
+     MODULE PROCEDURE cp_sll_rs_rm_first_el
   END INTERFACE
 ! remove all the elments
   INTERFACE cp_remove_all
-     MODULE PROCEDURE cp_sll_rs_grid_rm_all_el
+     MODULE PROCEDURE cp_sll_rs_rm_all_el
   END INTERFACE
 ! outputs the list
   INTERFACE cp_output
-     MODULE PROCEDURE cp_sll_rs_grid_output
+     MODULE PROCEDURE cp_sll_rs_output
   END INTERFACE
 ! writes the list (low-level)
   INTERFACE cp_write
-     MODULE PROCEDURE cp_sll_rs_grid_write
+     MODULE PROCEDURE cp_sll_rs_write
   END INTERFACE
 !!***
 !****************************************************************************
 
-!!****s* cp2k/cp_sll_rs_grid_type [1.0] *
+!!****s* cp2k/cp_sll_rs_type [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_type
+!!     cp_sll_rs_type
 !!
 !!   FUNCTION
 !!     represent a single linked list that stores pointers to the elements
@@ -202,11 +202,11 @@ MODULE cp_linked_list_rs_grid
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE cp_sll_rs_grid_type
+  TYPE cp_sll_rs_type
      LOGICAL :: initialized
      type(realspace_grid_type),pointer :: first_el
-     TYPE(cp_sll_rs_grid_type), POINTER :: rest
-  END TYPE cp_sll_rs_grid_type
+     TYPE(cp_sll_rs_type), POINTER :: rest
+  END TYPE cp_sll_rs_type
 !!***
 !****************************************************************************
 
@@ -214,10 +214,10 @@ CONTAINS
 
 ! =========== creation / distruction ========
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_create [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_create [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_create
+!!     cp_sll_rs_create
 !!
 !!   FUNCTION
 !!    allocates and initializes a single linked list
@@ -239,16 +239,16 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_create(sll,first_el,rest,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_create(sll,first_el,rest,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     type(realspace_grid_type), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: rest
+    TYPE(cp_sll_rs_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_create'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_create'
     INTEGER :: stat
-    TYPE(cp_sll_rs_grid_type), POINTER :: empty_list
+    TYPE(cp_sll_rs_type), POINTER :: empty_list
     failure=.FALSE.
 
     IF (.NOT.PRESENT(first_el)) THEN
@@ -265,13 +265,13 @@ CONTAINS
        END IF
     END IF
     IF (failure) NULLIFY(sll)
-  END SUBROUTINE cp_sll_rs_grid_create
+  END SUBROUTINE cp_sll_rs_create
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_dealloc [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_dealloc [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_dealloc
+!!     cp_sll_rs_dealloc
 !!
 !!   FUNCTION
 !!     deallocates the singly linked list starting at sll.
@@ -293,22 +293,22 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_dealloc(sll,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_dealloc(sll,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_dealloc'
 
-    CALL cp_sll_rs_grid_rm_all_el(sll,error)
-  END SUBROUTINE cp_sll_rs_grid_dealloc
+    CALL cp_sll_rs_rm_all_el(sll,error)
+  END SUBROUTINE cp_sll_rs_dealloc
 !***************************************************************************
 
 ! * low-level *
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_dealloc_node [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_dealloc_node [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_dealloc_node
+!!     cp_sll_rs_dealloc_node
 !!
 !!   FUNCTION
 !!     deallocates a node of a singly linked list (low level)
@@ -328,27 +328,27 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_dealloc_node(sll,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_dealloc_node(sll,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_dealloc_node'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_dealloc_node'
     INTEGER:: stat
     failure=.FALSE.
 
     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
     DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  END SUBROUTINE cp_sll_rs_grid_dealloc_node
+  END SUBROUTINE cp_sll_rs_dealloc_node
 !***************************************************************************
 
 ! ============= get/set ============
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_set [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_set [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_set
+!!     cp_sll_rs_set
 !!
 !!   FUNCTION
 !!     sets tha various attributes of a single linked list
@@ -372,19 +372,19 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_set(sll,first_el,rest,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_set(sll,first_el,rest,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     type(realspace_grid_type), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: rest
+    TYPE(cp_sll_rs_type), POINTER, OPTIONAL :: rest
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_set_sll_rs_grid'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_set_sll_rs'
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
        IF (PRESENT(first_el)) THEN
-          CALL cp_sll_rs_grid_create(sll,first_el,rest,error)
+          CALL cp_sll_rs_create(sll,first_el,rest,error)
        ELSE
           CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,error,failure)
        END IF
@@ -395,13 +395,13 @@ CONTAINS
           IF (PRESENT(rest)) sll%rest => rest
        END IF
     END IF
-  END SUBROUTINE cp_sll_rs_grid_set
+  END SUBROUTINE cp_sll_rs_set
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get
+!!     cp_sll_rs_get
 !!
 !!   FUNCTION
 !!     returns various attributes from the linked list
@@ -424,16 +424,16 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_get(sll,first_el,rest,empty,length,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_get(sll,first_el,rest,empty,length,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     type(realspace_grid_type), pointer, OPTIONAL :: first_el
-    TYPE(cp_sll_rs_grid_type), OPTIONAL, POINTER :: rest
+    TYPE(cp_sll_rs_type), OPTIONAL, POINTER :: rest
     LOGICAL, OPTIONAL, INTENT(out) :: empty
     INTEGER, INTENT(out), OPTIONAL :: length
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_get'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_get'
     failure=.FALSE.
 
     IF (.NOT.ASSOCIATED(sll)) THEN
@@ -448,16 +448,16 @@ CONTAINS
           IF (PRESENT(rest)) rest => sll%rest
           IF (PRESENT(empty)) empty = .FALSE.
           IF (PRESENT(length)) &
-               length = cp_sll_rs_grid_get_length(sll,error=error)
+               length = cp_sll_rs_get_length(sll,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_rs_grid_get
+  END SUBROUTINE cp_sll_rs_get
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get_first_el [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get_first_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get_first_el
+!!     cp_sll_rs_get_first_el
 !!
 !!   FUNCTION
 !!     returns the first element stored in the list
@@ -477,13 +477,13 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_get_first_el(sll,error) RESULT(res)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  FUNCTION cp_sll_rs_get_first_el(sll,error) RESULT(res)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     type(realspace_grid_type),pointer :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_get_first'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_get_first'
     failure=.FALSE.
 
     IF (cp_debug) THEN
@@ -495,13 +495,13 @@ CONTAINS
     IF (.NOT. failure) THEN
        res => sll%first_el
     END IF
-  END FUNCTION cp_sll_rs_grid_get_first_el
+  END FUNCTION cp_sll_rs_get_first_el
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get_rest [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get_rest [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get_rest
+!!     cp_sll_rs_get_rest
 !!
 !!   FUNCTION
 !!     returns the rest of the list
@@ -523,14 +523,14 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_get_rest(sll, iter, error) RESULT(res)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  FUNCTION cp_sll_rs_get_rest(sll, iter, error) RESULT(res)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     INTEGER, OPTIONAL :: iter
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_sll_rs_grid_type), POINTER :: res
+    TYPE(cp_sll_rs_type), POINTER :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_get_first'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_get_first'
     INTEGER :: i
     failure=.FALSE.
 
@@ -571,13 +571,13 @@ CPSourceFileRef,&
           NULLIFY(res)
        END IF
     END IF
-  END FUNCTION cp_sll_rs_grid_get_rest
+  END FUNCTION cp_sll_rs_get_rest
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get_empty [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get_empty [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get_empty
+!!     cp_sll_rs_get_empty
 !!
 !!   FUNCTION
 !!     -
@@ -597,23 +597,23 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_get_empty(sll,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_empty(sll,error) RESULT(res)
     LOGICAL :: res
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_get_empty'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_get_empty'
     failure=.FALSE.
 
     res = .NOT.ASSOCIATED(sll)
-  END FUNCTION cp_sll_rs_grid_get_empty
+  END FUNCTION cp_sll_rs_get_empty
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get_length [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get_length [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get_length
+!!     cp_sll_rs_get_length
 !!
 !!   FUNCTION
 !!     returns the length of the list
@@ -633,14 +633,14 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_rs_grid_type), INTENT(in), TARGET :: sll
+  FUNCTION cp_sll_rs_get_length(sll,error) RESULT(res)
+    TYPE(cp_sll_rs_type), INTENT(in), TARGET :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER ::res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_get_length'
-    TYPE(cp_sll_rs_grid_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_get_length'
+    TYPE(cp_sll_rs_type), POINTER :: iterator
     failure=.FALSE.
 
     res=0
@@ -653,13 +653,13 @@ CPSourceFileRef,&
           EXIT
        END IF
     END DO
-  END FUNCTION cp_sll_rs_grid_get_length
+  END FUNCTION cp_sll_rs_get_length
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_get_el_at [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_get_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_get_el_at
+!!     cp_sll_rs_get_el_at
 !!
 !!   FUNCTION
 !!     returns the element at the given index
@@ -680,36 +680,36 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_get_el_at(sll,index,error) RESULT(res)
+  FUNCTION cp_sll_rs_get_el_at(sll,index,error) RESULT(res)
     type(realspace_grid_type),pointer :: res
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+    TYPE(cp_sll_rs_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_get_el_at'
-    TYPE(cp_sll_rs_grid_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_get_el_at'
+    TYPE(cp_sll_rs_type), POINTER :: pos
     failure=.FALSE.
 
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
     IF (index==-1) THEN
-       pos => cp_sll_rs_grid_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
     ELSE
-       pos => cp_sll_rs_grid_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        res => pos%first_el
     END IF
-  END FUNCTION cp_sll_rs_grid_get_el_at
+  END FUNCTION cp_sll_rs_get_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_set_el_at [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_set_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_set_el_at
+!!     cp_sll_rs_set_el_at
 !!
 !!   FUNCTION
 !!     sets the element at the given index
@@ -732,35 +732,35 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_set_el_at(sll,index,value,error)
+  SUBROUTINE cp_sll_rs_set_el_at(sll,index,value,error)
     type(realspace_grid_type), pointer :: value
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+    TYPE(cp_sll_rs_type), POINTER :: sll
     INTEGER, INTENT(in) :: index
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_set_el_at'
-    TYPE(cp_sll_rs_grid_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_set_el_at'
+    TYPE(cp_sll_rs_type), POINTER :: pos
     failure=.FALSE.
 
     IF (index==-1) THEN
-       pos => cp_sll_rs_grid_get_rest(sll, iter=-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
     ELSE
-       pos => cp_sll_rs_grid_get_rest(sll, iter=index-1,error=error)
+       pos => cp_sll_rs_get_rest(sll, iter=index-1,error=error)
     END IF
     CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        pos%first_el => value
     END IF
-  END SUBROUTINE cp_sll_rs_grid_set_el_at
+  END SUBROUTINE cp_sll_rs_set_el_at
 !***************************************************************************
 
 ! * iteration *
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_next [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_next [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_next
+!!     cp_sll_rs_next
 !!
 !!   FUNCTION
 !!     returns true if the actual element is valid (i.e. iterator ont at end)
@@ -782,14 +782,14 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  FUNCTION cp_sll_rs_grid_next(iterator,el_att,error) RESULT(res)
-    TYPE(cp_sll_rs_grid_type), POINTER :: iterator
+  FUNCTION cp_sll_rs_next(iterator,el_att,error) RESULT(res)
+    TYPE(cp_sll_rs_type), POINTER :: iterator
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     type(realspace_grid_type), pointer, OPTIONAL :: el_att
     LOGICAL :: res
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_next'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_next'
     failure=.FALSE.
 
     IF (ASSOCIATED(iterator)) THEN
@@ -802,15 +802,15 @@ CPSourceFileRef,&
     ELSE
        res=.FALSE.
     END IF
-  END FUNCTION cp_sll_rs_grid_next
+  END FUNCTION cp_sll_rs_next
 !***************************************************************************
 
 ! ============ structure modifications ============
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_insert_el [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_insert_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_insert_el
+!!     cp_sll_rs_insert_el
 !!
 !!   FUNCTION
 !!     insert an element at the beginning of the list
@@ -832,28 +832,28 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_insert_el(sll,element,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_insert_el(sll,element,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     type(realspace_grid_type), pointer:: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid:cp_sll_rs_grid_add_el'
-    TYPE(cp_sll_rs_grid_type), POINTER :: newSlot
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs:cp_sll_rs_add_el'
+    TYPE(cp_sll_rs_type), POINTER :: newSlot
     INTEGER :: stat
     failure=.FALSE.
     NULLIFY(newSlot)
 
-    CALL cp_sll_rs_grid_create(newSlot,first_el=element,&
+    CALL cp_sll_rs_create(newSlot,first_el=element,&
          rest=sll,error=error)
     sll => newSlot
-  END SUBROUTINE cp_sll_rs_grid_insert_el
+  END SUBROUTINE cp_sll_rs_insert_el
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_rm_first_el [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_rm_first_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_rm_first_el
+!!     cp_sll_rs_rm_first_el
 !!
 !!   FUNCTION
 !!     remove the first element of the linked list
@@ -873,32 +873,32 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_rm_first_el(sll,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_rm_first_el(sll,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_rm_first_el'
-    TYPE(cp_sll_rs_grid_type), POINTER :: node_to_rm
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_rm_first_el'
+    TYPE(cp_sll_rs_type), POINTER :: node_to_rm
     failure=.FALSE.
     node_to_rm => sll
 
     IF (ASSOCIATED(sll)) THEN
        sll => sll%rest
-       CALL cp_sll_rs_grid_dealloc_node(node_to_rm,error=error)
+       CALL cp_sll_rs_dealloc_node(node_to_rm,error=error)
     ELSE
        CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
 CPSourceFileRef,&
             error,failure)
     END IF
-  END SUBROUTINE cp_sll_rs_grid_rm_first_el
+  END SUBROUTINE cp_sll_rs_rm_first_el
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_insert_el_at [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_insert_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_insert_el_at
+!!     cp_sll_rs_insert_el_at
 !!
 !!   FUNCTION
 !!     inserts the element at the given index
@@ -921,37 +921,37 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_insert_el_at(sll,element,index,error)
+  SUBROUTINE cp_sll_rs_insert_el_at(sll,element,index,error)
     type(realspace_grid_type), pointer :: element
     INTEGER, INTENT(in) :: index
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_insert_el_at'
-    TYPE(cp_sll_rs_grid_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_insert_el_at'
+    TYPE(cp_sll_rs_type), POINTER :: pos
     failure=.FALSE.
 
     IF (index==1) THEN
-       CALL cp_sll_rs_grid_insert_el(sll,element,error=error)
+       CALL cp_sll_rs_insert_el(sll,element,error=error)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_rs_grid_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_rs_grid_get_rest(sll, iter=index-1,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=index-1,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          CALL cp_sll_rs_grid_insert_el(pos%rest,element,error=error)
+          CALL cp_sll_rs_insert_el(pos%rest,element,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_rs_grid_insert_el_at
+  END SUBROUTINE cp_sll_rs_insert_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_rm_el_at [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_rm_el_at [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_rm_el_at
+!!     cp_sll_rs_rm_el_at
 !!
 !!   FUNCTION
 !!     removes the element at the given index
@@ -973,39 +973,39 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_rm_el_at(sll,index,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_rm_el_at(sll,index,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER, INTENT(in)::index
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_remove_el_at'
-    TYPE(cp_sll_rs_grid_type), POINTER :: pos
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_remove_el_at'
+    TYPE(cp_sll_rs_type), POINTER :: pos
     failure=.FALSE.
     
     IF (cp_debug) THEN
        CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
     END IF
     IF (index==1) THEN
-       CALL cp_sll_rs_grid_rm_first_el(sll,error=error)
+       CALL cp_sll_rs_rm_first_el(sll,error=error)
     ELSE
        IF (index==-1) THEN
-          pos => cp_sll_rs_grid_get_rest(sll, iter=-1,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=-1,error=error)
        ELSE
-          pos => cp_sll_rs_grid_get_rest(sll, iter=index-2,error=error)
+          pos => cp_sll_rs_get_rest(sll, iter=index-2,error=error)
        END IF
        CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          CALL cp_sll_rs_grid_rm_first_el(pos%rest,error=error)
+          CALL cp_sll_rs_rm_first_el(pos%rest,error=error)
        END IF
     END IF
-  END SUBROUTINE cp_sll_rs_grid_rm_el_at
+  END SUBROUTINE cp_sll_rs_rm_el_at
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_rm_all_el [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_rm_all_el [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_rm_all_el
+!!     cp_sll_rs_rm_all_el
 !!
 !!   FUNCTION
 !!     removes all the elements from the list
@@ -1025,13 +1025,13 @@ CPSourceFileRef,&
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_rm_all_el(sll,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_rm_all_el(sll,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs_grid/cp_sll_rs_grid_rm_all_el'
-    TYPE(cp_sll_rs_grid_type), POINTER :: next_node, actual_node
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_rs/cp_sll_rs_rm_all_el'
+    TYPE(cp_sll_rs_type), POINTER :: next_node, actual_node
     INTEGER:: stat
     failure=.FALSE.
 
@@ -1039,19 +1039,19 @@ CPSourceFileRef,&
     DO
        IF (.NOT.ASSOCIATED(actual_node)) EXIT
        next_node => cp_get_rest(actual_node,error=error)
-       CALL cp_sll_rs_grid_dealloc_node(actual_node,error=error)
+       CALL cp_sll_rs_dealloc_node(actual_node,error=error)
        actual_node => next_node
     END DO
     NULLIFY(sll)
-  END SUBROUTINE cp_sll_rs_grid_rm_all_el
+  END SUBROUTINE cp_sll_rs_rm_all_el
 !***************************************************************************
 
 ! ========= output =========
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_output [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_output [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_output
+!!     cp_sll_rs_output
 !!
 !!   FUNCTION
 !!     outputs the contents of the list as a comma separated parentized list
@@ -1081,20 +1081,20 @@ CPSourceFileRef,&
 !!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_output(logger, outputName,&
+  SUBROUTINE cp_sll_rs_output(logger, outputName,&
        fromWhere, iter, sll,comment,local, finish, error)
     TYPE(cp_logger_type),POINTER ::logger
     CHARACTER(len=*) , INTENT(in) :: outputName
     CHARACTER(len=*), INTENT(in):: fromWhere
     INTEGER, INTENT(in) :: iter
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+    TYPE(cp_sll_rs_type), POINTER :: sll
     CHARACTER(len=*), INTENT(in),OPTIONAL :: comment
     LOGICAL, INTENT(in), OPTIONAL :: local, finish
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, loc, fin
     INTEGER :: handle, unitNr, iostat
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_output',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_output',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
   
@@ -1113,7 +1113,7 @@ CPSourceFileRef,&
              WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
              CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
           END IF
-          CALL cp_sll_rs_grid_write(sll,unit_nr=unitNr,error=error)
+          CALL cp_sll_rs_write(sll,unit_nr=unitNr,error=error)
 
           IF (fin) THEN
              CALL cp_finished_output(logger, outputName, fromWhere, iter,&
@@ -1122,13 +1122,13 @@ CPSourceFileRef,&
        END IF
     END IF
     CALL timestop(0.0_wp,handle)
-  END SUBROUTINE cp_sll_rs_grid_output
+  END SUBROUTINE cp_sll_rs_output
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_write [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_write [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_write
+!!     cp_sll_rs_write
 !!
 !!   FUNCTION
 !!     writes the list as a comma separated parentized list to the given
@@ -1150,30 +1150,30 @@ CPSourceFileRef,&
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_sll_rs_grid_write(sll,unit_nr,error)
-    TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  SUBROUTINE cp_sll_rs_write(sll,unit_nr,error)
+    TYPE(cp_sll_rs_type), POINTER :: sll
     INTEGER, INTENT(in) :: unit_nr
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    TYPE(cp_sll_rs_grid_type), POINTER :: iterator
-    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_write',&
+    TYPE(cp_sll_rs_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_write',&
          routineP=moduleN//':'//routineN
     type(realspace_grid_type),pointer :: el
     failure=.FALSE.
     iterator => sll
   
     DO
-       IF (.NOT.cp_sll_rs_grid_next(iterator,el_att=el,error=error)) EXIT
+       IF (.NOT.cp_sll_rs_next(iterator,el_att=el,error=error)) EXIT
        CALL rs_grid_write(el, unit_nr=unit_nr, error=error)
     END DO
-  END SUBROUTINE cp_sll_rs_grid_write
+  END SUBROUTINE cp_sll_rs_write
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_to_array [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_to_array [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_to_array
+!!     cp_sll_rs_to_array
 !!
 !!   FUNCTION
 !!     returns a newly allocated array with the same contents as
@@ -1194,37 +1194,37 @@ CPSourceFileRef,&
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_rs_grid_to_array(sll,error) RESULT(res)
-  TYPE(cp_sll_rs_grid_type), POINTER :: sll
+FUNCTION cp_sll_rs_to_array(sll,error) RESULT(res)
+  TYPE(cp_sll_rs_type), POINTER :: sll
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   type(realspace_grid_p_type), DIMENSION(:), POINTER :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_to_array',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_to_array',&
         routineP=moduleN//':'//routineN
   INTEGER :: len,stat,i
-  TYPE(cp_sll_rs_grid_type), POINTER :: iter
+  TYPE(cp_sll_rs_type), POINTER :: iter
   failure=.FALSE.
   
-  len=cp_sll_rs_grid_get_length(sll,error)
+  len=cp_sll_rs_get_length(sll,error)
   ALLOCATE(res(len),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      iter => sll
      DO i=1,len
         res(len)%rs_grid => iter%first_el
-        IF (.NOT.(cp_sll_rs_grid_next(iter,error=error).OR.i==len)) THEN
+        IF (.NOT.(cp_sll_rs_next(iter,error=error).OR.i==len)) THEN
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_rs_grid_to_array
+END FUNCTION cp_sll_rs_to_array
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_from_array [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_from_array [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_from_array
+!!     cp_sll_rs_from_array
 !!
 !!   FUNCTION
 !!     returns a linked list with the same contents as the given array
@@ -1244,38 +1244,38 @@ END FUNCTION cp_sll_rs_grid_to_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_rs_grid_from_array(array,error) RESULT(res)
+FUNCTION cp_sll_rs_from_array(array,error) RESULT(res)
   type(realspace_grid_p_type), DIMENSION(:), INTENT(in) :: array
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  TYPE(cp_sll_rs_grid_type), POINTER :: res
+  TYPE(cp_sll_rs_type), POINTER :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_from_array',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_from_array',&
         routineP=moduleN//':'//routineN
   INTEGER :: i
-  TYPE(cp_sll_rs_grid_type), POINTER :: last_el
+  TYPE(cp_sll_rs_type), POINTER :: last_el
   failure=.FALSE.
   
   NULLIFY(res,last_el)
   IF (SIZE(array)>0) THEN
-     CALL cp_sll_rs_grid_create(res,&
+     CALL cp_sll_rs_create(res,&
           first_el=array(1)%rs_grid,&
           error=error)
      last_el => res
   END IF
   DO i=2,SIZE(array)
-     CALL cp_sll_rs_grid_create(last_el%rest,&
+     CALL cp_sll_rs_create(last_el%rest,&
           first_el=array(i)%rs_grid,&
           error=error)
      last_el => last_el%rest
   END DO
-END FUNCTION cp_sll_rs_grid_from_array
+END FUNCTION cp_sll_rs_from_array
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_insert_ordered [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_insert_ordered [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_insert_ordered
+!!     cp_sll_rs_insert_ordered
 !!
 !!   FUNCTION
 !!     insert an element mantaining the order
@@ -1301,19 +1301,19 @@ END FUNCTION cp_sll_rs_grid_from_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_sll_rs_grid_insert_ordered(sll,el,insert_equals,&
+SUBROUTINE cp_sll_rs_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
-  TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  TYPE(cp_sll_rs_type), POINTER :: sll
   type(realspace_grid_type), pointer :: el
   LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
   LOGICAL, OPTIONAL, INTENT(out) :: did_insert
-  TYPE(cp_sll_rs_grid_type), POINTER, OPTIONAL :: pos
+  TYPE(cp_sll_rs_type), POINTER, OPTIONAL :: pos
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_insert_ordered',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_insert_ordered',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_rs_grid_type), POINTER :: iter
+  TYPE(cp_sll_rs_type), POINTER :: iter
   failure=.FALSE.
   i_eq=.FALSE.
   
@@ -1321,13 +1321,13 @@ SUBROUTINE cp_sll_rs_grid_insert_ordered(sll,el,insert_equals,&
   IF (PRESENT(pos)) NULLIFY(pos)
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_rs_grid_create(sll,first_el=el,error=error)
+     CALL cp_sll_rs_create(sll,first_el=el,error=error)
      IF (PRESENT(did_insert)) did_insert=.TRUE.
      IF (PRESENT(pos)) pos=>sll
   ELSE IF (.NOT.CP_SLL_RS_LESS_Q(sll%first_el,el)) THEN
      IF (PRESENT(pos)) pos=>sll
      IF (i_eq.OR.CP_SLL_RS_LESS_Q(el,sll%first_el)) THEN
-        CALL cp_sll_rs_grid_insert_el(sll,el,error=error)
+        CALL cp_sll_rs_insert_el(sll,el,error=error)
         IF (PRESENT(did_insert)) did_insert=.TRUE.
         IF (PRESENT(pos)) pos=>sll
      END IF
@@ -1335,28 +1335,28 @@ SUBROUTINE cp_sll_rs_grid_insert_ordered(sll,el,insert_equals,&
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_rs_grid_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
            EXIT
         ELSE IF (.NOT.CP_SLL_RS_LESS_Q(iter%rest%first_el,el)) THEN
            IF (PRESENT(pos)) pos=>iter
            IF (i_eq.OR. CP_SLL_RS_LESS_Q(el,sll%first_el)) THEN
-              CALL cp_sll_rs_grid_insert_el(iter%rest,el,error=error)
+              CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
               IF (PRESENT(did_insert)) did_insert=.TRUE.
               IF (PRESENT(pos)) pos=>iter%rest
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_rs_grid_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_rs_next(iter),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
-END SUBROUTINE cp_sll_rs_grid_insert_ordered
+END SUBROUTINE cp_sll_rs_insert_ordered
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_insert_ordered2 [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_insert_ordered2 [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_insert_ordered2
+!!     cp_sll_rs_insert_ordered2
 !!
 !!   FUNCTION
 !!     insert an element mantaining the order defined by a user given function
@@ -1382,9 +1382,9 @@ END SUBROUTINE cp_sll_rs_grid_insert_ordered
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_sll_rs_grid_insert_ordered2(sll,el,compare_function,&
+SUBROUTINE cp_sll_rs_insert_ordered2(sll,el,compare_function,&
      insert_equals,error)
-  TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  TYPE(cp_sll_rs_type), POINTER :: sll
   type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
@@ -1398,48 +1398,48 @@ SUBROUTINE cp_sll_rs_grid_insert_ordered2(sll,el,compare_function,&
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,i_eq
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_insert_ordered2',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_insert_ordered2',&
         routineP=moduleN//':'//routineN
   INTEGER :: comp
-  TYPE(cp_sll_rs_grid_type), POINTER :: iter
+  TYPE(cp_sll_rs_type), POINTER :: iter
   failure=.FALSE.
   i_eq=.FALSE.
   
   IF (PRESENT(insert_equals)) i_eq=insert_equals
   IF (.NOT.ASSOCIATED(sll)) THEN
-     CALL cp_sll_rs_grid_create(sll,first_el=el,error=error)
+     CALL cp_sll_rs_create(sll,first_el=el,error=error)
      RETURN
   END IF
   comp=compare_function(sll%first_el,el)
   IF (comp>=0) THEN
      IF (i_eq.OR.comp/=0) THEN
-        CALL cp_sll_rs_grid_insert_el(sll,el,error=error)
+        CALL cp_sll_rs_insert_el(sll,el,error=error)
      END IF
   ELSE
      iter => sll
      DO
         IF (.NOT.ASSOCIATED(iter%rest)) THEN
-           CALL cp_sll_rs_grid_insert_el(iter%rest,el,error=error)
+           CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
            EXIT
         END IF
         comp=compare_function(iter%rest%first_el,el)
         IF (comp>=0) THEN
            IF (i_eq.OR. comp/=0) THEN
-              CALL cp_sll_rs_grid_insert_el(iter%rest,el,error=error)
+              CALL cp_sll_rs_insert_el(iter%rest,el,error=error)
            END IF
            EXIT
         END IF
-        CPInvariant(cp_sll_rs_grid_next(iter),cp_failure_level,routineP,error,failure)
+        CPInvariant(cp_sll_rs_next(iter),cp_failure_level,routineP,error,failure)
      END DO
      CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
   END IF
-END SUBROUTINE cp_sll_rs_grid_insert_ordered2
+END SUBROUTINE cp_sll_rs_insert_ordered2
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_contains [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_contains [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_contains
+!!     cp_sll_rs_contains
 !!
 !!   FUNCTION
 !!     returns true if the list contains the given element
@@ -1462,17 +1462,17 @@ END SUBROUTINE cp_sll_rs_grid_insert_ordered2
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_rs_grid_contains(sll,el,ordered,error) RESULT(res)
+FUNCTION cp_sll_rs_contains(sll,el,ordered,error) RESULT(res)
   LOGICAL ::res
-  TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  TYPE(cp_sll_rs_type), POINTER :: sll
   type(realspace_grid_type), pointer :: el
   LOGICAL, INTENT(in), OPTIONAL :: ordered
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure,ord
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_contains',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_contains',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_rs_grid_type), POINTER :: iter
+  TYPE(cp_sll_rs_type), POINTER :: iter
   type(realspace_grid_type),pointer :: el_att
   failure=.FALSE.; ord=.FALSE.
   res=.FALSE.
@@ -1481,7 +1481,7 @@ FUNCTION cp_sll_rs_grid_contains(sll,el,ordered,error) RESULT(res)
   IF (PRESENT(ordered)) ord=ordered
   IF (ord) THEN
      DO
-        IF (.NOT.cp_sll_rs_grid_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_rs_next(iter,el_att=el_att,error=error)) EXIT
         IF (.NOT.CP_SLL_RS_LESS_Q(el_att,el)) THEN
            res=.NOT.CP_SLL_RS_LESS_Q(el,el_att)
            RETURN
@@ -1489,20 +1489,20 @@ FUNCTION cp_sll_rs_grid_contains(sll,el,ordered,error) RESULT(res)
      END DO
   ELSE
      DO
-        IF (.NOT.cp_sll_rs_grid_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_rs_next(iter,el_att=el_att,error=error)) EXIT
         IF (.NOT.CP_SLL_RS_EQUAL_Q(el_att,el)) THEN
            res=.TRUE.
            RETURN
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_rs_grid_contains
+END FUNCTION cp_sll_rs_contains
 !***************************************************************************
 
-!!****f* cp_linked_list_rs_grid/cp_sll_rs_grid_contains [1.0] *
+!!****f* cp_linked_list_rs/cp_sll_rs_contains [1.0] *
 !!
 !!   NAME
-!!     cp_sll_rs_grid_contains
+!!     cp_sll_rs_contains
 !!
 !!   FUNCTION
 !!     returns true if the list contains the given element
@@ -1528,10 +1528,10 @@ END FUNCTION cp_sll_rs_grid_contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_sll_rs_grid_contains2(sll,el,compare_function,ordered,error)&
+FUNCTION cp_sll_rs_contains2(sll,el,compare_function,ordered,error)&
      RESULT(res)
   LOGICAL ::res
-  TYPE(cp_sll_rs_grid_type), POINTER :: sll
+  TYPE(cp_sll_rs_type), POINTER :: sll
   type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
@@ -1546,9 +1546,9 @@ FUNCTION cp_sll_rs_grid_contains2(sll,el,compare_function,ordered,error)&
   
   LOGICAL :: failure
   INTEGER :: comp
-  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_grid_contains2',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_rs_contains2',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_sll_rs_grid_type), POINTER :: iter
+  TYPE(cp_sll_rs_type), POINTER :: iter
   type(realspace_grid_type),pointer :: el_att
   failure=.FALSE.
   res=.FALSE.
@@ -1556,7 +1556,7 @@ FUNCTION cp_sll_rs_grid_contains2(sll,el,compare_function,ordered,error)&
   iter => sll
   IF (ordered) THEN
      DO
-        IF (.NOT.cp_sll_rs_grid_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_rs_next(iter,el_att=el_att,error=error)) EXIT
         comp=compare_function(el_att,el)
         IF (comp>=0) THEN
            res= comp==0
@@ -1565,14 +1565,14 @@ FUNCTION cp_sll_rs_grid_contains2(sll,el,compare_function,ordered,error)&
      END DO
   ELSE
      DO
-        IF (.NOT.cp_sll_rs_grid_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.cp_sll_rs_next(iter,el_att=el_att,error=error)) EXIT
         IF (compare_function(el_att,el)==0) THEN
            res=.TRUE.
            RETURN
         END IF
      END DO
   END IF
-END FUNCTION cp_sll_rs_grid_contains2
+END FUNCTION cp_sll_rs_contains2
 !***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
@@ -1592,7 +1592,7 @@ END FUNCTION cp_sll_rs_grid_contains2
 !     "
 !  equalQ = "CP_SLL_RS_EQUAL_Q"
 !  lessQ = "CP_SLL_RS_LESS_Q"
-!  nametype1 = "rs_grid"
+!  nametype1 = "rs"
 !  type1 = "type(realspace_grid_type),pointer"
 !  type1arrayEl = "type(realspace_grid_p_type)"
 !  type1in = "type(realspace_grid_type), pointer"
@@ -1600,5 +1600,5 @@ END FUNCTION cp_sll_rs_grid_contains2
 !  write_el = "rs_grid_write"
 
 
-END MODULE cp_linked_list_rs_grid
+END MODULE cp_linked_list_rs
 

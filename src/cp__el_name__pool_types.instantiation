@@ -17,10 +17,17 @@
     'el_struct_release':'cp_fm_struct_release',
     'el_struct_retain':'cp_fm_struct_retain',
 
+    'other_struct_data':'',
+
+    'pool_create-extra_args':'',
+    'pool_create-extra_args_types':'',
+    'pool_create-post_init_commands':'',
+
+    'pool_dealloc-extra_commands':'',
+
     'create_el-extra_args':'name,',
     'create_el-extra_args_types':'character(len=*), intent(in), optional :: name',
     'create_el-extra_args_doc':"!!     - name: the name for the new matrix (optional)\n",
-    'create_el-local_types':"",
     'create_el-reuse_commands':"",
     'create_el-create_commands':'    call cp_fm_create(element,matrix_struct=pool%el_struct,error=error)',
     'create_el-post_create_commands':"""
@@ -75,12 +82,22 @@
     'el_struct_release':'pw_grid_release',
     'el_struct_retain':'pw_grid_retain',
 
+    'other_struct_data':'INTEGER, DIMENSION(3) :: nsmax',
+
+    'pool_create-extra_args':'nsmax,',
+    'pool_create-extra_args_types':'INTEGER, DIMENSION(3), INTENT(IN) :: nsmax',
+    'pool_create-post_init_commands':'pool%nsmax=nsmax',
+
+    'pool_dealloc-extra_commands':'',
+
     'create_el-extra_args':'',
     'create_el-extra_args_types':'',
     'create_el-extra_args_doc':"",
     'create_el-local_types':"",
     'create_el-reuse_commands':"",
-    'create_el-create_commands':'call rs_grid_create(element,=pool%el_struct,error=error)',
+    'create_el-create_commands':
+      """call rs_grid_create(element,pw_grid=pool%el_struct,&
+         nsmax=pool%nsmax,error=error)""",
     'create_el-post_create_commands':"",
     'same_struct_check':
     """   CALL cp_assert(pool%el_struct%identifier==element%identifier,&

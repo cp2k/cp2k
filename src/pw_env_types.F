@@ -39,6 +39,13 @@ MODULE pw_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_release,&
+                                             rs_pool_retain,&
+                                             rs_pools_copy,&
+                                             rs_pools_dealloc,&
+                                             rs_pools_flush_cache
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
@@ -82,26 +89,35 @@ MODULE pw_env_types
 !!     contained for different pw related things
 !!
 !!   NOTES
-!!     -
+!!     be careful in parallel nsmax for the rs_grids is choosen with
+!!     multigrid in mind! (well not as of this writing but...)
 !!
 !!   ATTRIBUTES
 !!     - pw_pools: pools for multigrids
+!!     - rs_pools: pools for the realspace grids
 !!     - gridlevel_info: gaussian gridlevel info
 !!     - l_info: informations for l calc
 !!     - cube_info: info on cube and max sphere size for multigrids
 !!     - aux_bas: which multigrid is the auxiliar basis
+!!     
+!!     readonly attributes
+!!     - auxbas_pw_pool: a pool that allocates grids in the auxiliary basis
+!!     - auxbas_rs_pool: real space grid in the auxiliary basis, be careful
+!!       in parallel nsmax is choosen with multigrid in mind!
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
 !!     10.2002 created [fawzi]
+!!     04.2003 added rs grid pools [fawzi]
 !!
 !!   SOURCE
   !***************************************************************************
   TYPE pw_env_type
      INTEGER :: ref_count
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(l_info_type), POINTER :: l_info ! right place for it?
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
@@ -120,7 +136,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine pw_env_get(pw_env, pw_pools, l_info, cube_info,&
 !!         gridlevel_info, auxbas_pw_pool, auxbas_cube_info, auxbas_grid,&
-!!         error)
+!!         rs_pools, auxbas_rs_pool, error)
 !!       Type(pw_env_type), Pointer:: pw_env
 !!       Type(pw_pool_p_type), Dimension(:), Pointer, Optional:: pw_pools
 !!       Type(l_info_type), Pointer, Optional:: l_info
@@ -129,6 +145,9 @@ CONTAINS
 !!       Type(pw_pool_type), Pointer, Optional:: auxbas_pw_pool
 !!       Type(cube_info_type), Pointer, Optional:: auxbas_cube_info
 !!       Integer, Intent (OUT), Optional:: auxbas_grid
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer, Optional::&
+!!         rs_pools
+!!       Type(cp_rs_pool_type), Pointer, Optional:: auxbas_rs_pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pw_env_get
 !!
@@ -140,7 +159,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pw_env: the einvironment you want info about
-!!     - auxbas_pw_pool: a pool that allocates grids in the auxiliary basis
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!     For the other see the attributes of pw_env_type
@@ -153,7 +171,8 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
-     auxbas_pw_pool,auxbas_cube_info,auxbas_grid, error)
+     auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
+     error)
   TYPE(pw_env_type), POINTER :: pw_env
   TYPE(pw_pool_p_type), DIMENSION(:), POINTER, OPTIONAL :: pw_pools
   TYPE(l_info_type), POINTER, OPTIONAL :: l_info
@@ -162,6 +181,8 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
   TYPE(pw_pool_type), POINTER, OPTIONAL :: auxbas_pw_pool
   TYPE(cube_info_type), POINTER, OPTIONAL :: auxbas_cube_info
   INTEGER, INTENT(out), OPTIONAL :: auxbas_grid
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER, OPTIONAL :: rs_pools
+  TYPE(cp_rs_pool_type), POINTER, OPTIONAL :: auxbas_rs_pool
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -173,14 +194,18 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
+     IF (PRESENT(rs_pools)) rs_pools => pw_env%rs_pools
      IF (PRESENT(l_info)) l_info => pw_env%l_info
      IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
         auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
      END IF
-     IF (PRESENT(auxbas_cube_info)) THEN
-        auxbas_cube_info => pw_env%cube_info(pw_env%auxbas_grid)
+     IF (PRESENT(auxbas_pw_pool)) THEN
+        auxbas_pw_pool => pw_env%pw_pools(pw_env%auxbas_grid)%pool
+     END IF
+     IF (PRESENT(auxbas_rs_pool)) THEN
+        auxbas_rs_pool => pw_env%rs_pools(pw_env%auxbas_grid)%pool
      END IF
      IF (PRESENT(auxbas_grid)) auxbas_grid = pw_env%auxbas_grid
   END IF
@@ -294,6 +319,7 @@ SUBROUTINE pw_env_release(pw_env, error)
            DEALLOCATE(pw_env%cube_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        CALL rs_pools_dealloc(pw_env%rs_pools, error=error)
         DEALLOCATE(pw_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -344,6 +370,9 @@ SUBROUTINE pw_env_flush_cache(pw_env,error)
   IF (.NOT. failure) THEN
      IF (ASSOCIATED(pw_env%pw_pools)) THEN
         CALL pw_pools_flush_cache(pw_env%pw_pools,error=error)
+     END IF
+     IF (ASSOCIATED(pw_env%rs_pools)) THEN
+        CALL rs_pools_flush_cache(pw_env%rs_pools, error=error)
      END IF
   END IF
 END SUBROUTINE pw_env_flush_cache

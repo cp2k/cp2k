@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_fm_pool_types [1.0] *
+!!****h* cp2k/cp_rs_pool_types [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool_types
+!!     cp_rs_pool_types
 !!
 !!   FUNCTION
 !!     pool for for elements that are retained and released
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_fm_pool_types
+MODULE cp_rs_pool_types
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -36,19 +36,12 @@ MODULE cp_fm_pool_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_release,&
-                                             cp_fm_struct_retain,&
-                                             cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_release,&
-                                             cp_full_matrix_p_type,&
-                                             cp_full_matrix_type
-  USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
-                                             cp_sll_fm_get_first_el,&
-                                             cp_sll_fm_insert_el,&
-                                             cp_sll_fm_next,&
-                                             cp_sll_fm_rm_first_el,&
-                                             cp_sll_fm_type
+  USE cp_linked_list_rs,               ONLY: cp_sll_rs_dealloc,&
+                                             cp_sll_rs_get_first_el,&
+                                             cp_sll_rs_insert_el,&
+                                             cp_sll_rs_next,&
+                                             cp_sll_rs_rm_first_el,&
+                                             cp_sll_rs_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -57,31 +50,38 @@ MODULE cp_fm_pool_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: wp=>dp
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_release,&
+                                             pw_grid_retain
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_type,&
+                                             rs_grid_create,&
+                                             rs_grid_release
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_pool_types'
-  INTEGER, SAVE, PRIVATE :: last_fm_pool_id_nr=0
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_rs_pool_types'
+  INTEGER, SAVE, PRIVATE :: last_rs_pool_id_nr=0
 
-  PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
-  PUBLIC :: fm_pool_create, fm_pool_retain,&
-       fm_pool_release,&
-       fm_pool_create_fm, fm_pool_give_back_fm,&
-       fm_pool_get_el_struct, fm_pool_create_fm_vect,&
-       fm_pool_give_back_fm_vect
-  PUBLIC :: fm_pools_copy, fm_pools_dealloc,&
-       fm_pools_flush_cache, fm_pools_create_fm_vect,&
-       fm_pools_give_back_fm_vect
+  PUBLIC :: cp_rs_pool_type, cp_rs_pool_p_type
+  PUBLIC :: rs_pool_create, rs_pool_retain,&
+       rs_pool_release,&
+       rs_pool_create_rs, rs_pool_give_back_rs,&
+       rs_pool_get_el_struct, rs_pool_create_rs_vect,&
+       rs_pool_give_back_rs_vect
+  PUBLIC :: rs_pools_copy, rs_pools_dealloc,&
+       rs_pools_flush_cache, rs_pools_create_rs_vect,&
+       rs_pools_give_back_rs_vect
 !***
 !****************************************************************************
 
-!!****s* cp_fm_pool_types/cp_fm_pool_type [1.0] *
+!!****s* cp_rs_pool_types/cp_rs_pool_type [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool_type
+!!     cp_rs_pool_type
 !!
 !!   FUNCTION
 !!     represent a pool of elements with the same structure
@@ -102,21 +102,21 @@ MODULE cp_fm_pool_types
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE cp_fm_pool_type
+  TYPE cp_rs_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
-     TYPE(cp_fm_struct_type), POINTER :: el_struct
-     
-     TYPE(cp_sll_fm_type), POINTER :: cache
-  END TYPE cp_fm_pool_type
+     TYPE(pw_grid_type), POINTER :: el_struct
+     INTEGER, DIMENSION(3) :: nsmax
+     TYPE(cp_sll_rs_type), POINTER :: cache
+  END TYPE cp_rs_pool_type
 !!***
 !****************************************************************************
 
 
-!!****s* cp_fm_pool_types/cp_fm_pool_p_type [1.0] *
+!!****s* cp_rs_pool_types/cp_rs_pool_p_type [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool_p_type
+!!     cp_rs_pool_p_type
 !!
 !!   FUNCTION
 !!     to create arrays of pools
@@ -135,25 +135,26 @@ MODULE cp_fm_pool_types
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE cp_fm_pool_p_type
-     TYPE(cp_fm_pool_type), POINTER :: pool
-  END TYPE cp_fm_pool_p_type
+  TYPE cp_rs_pool_p_type
+     TYPE(cp_rs_pool_type), POINTER :: pool
+  END TYPE cp_rs_pool_p_type
 !!***
 !****************************************************************************
 
 CONTAINS
 
-!!****f* cp_fm_pool_types/fm_pool_create [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_create [1.0] *
 !!
 !!   NAME
-!!     fm_pool_create
+!!     rs_pool_create
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pool_create(pool, el_struct, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_fm_struct_type), Pointer:: el_struct
+!!     Subroutine rs_pool_create(pool, el_struct, nsmax, error)
+!!       Type(cp_rs_pool_type), Pointer:: pool
+!!       Type(pw_grid_type), Pointer:: el_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pool_create
+!!       Integer, Dimension(3), Intent (IN):: nsmax
+!!     End Subroutine rs_pool_create
 !!
 !!   FUNCTION
 !!     creates a pool of elements
@@ -175,15 +176,15 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_create(pool, el_struct,&
-        error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_fm_struct_type), POINTER :: el_struct
+  SUBROUTINE rs_pool_create(pool, el_struct,&
+       nsmax, error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(pw_grid_type), POINTER :: el_struct
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    
+    INTEGER, DIMENSION(3), INTENT(IN) :: nsmax
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
     failure=.FALSE.
@@ -192,20 +193,20 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        pool%el_struct=> el_struct
-       CALL cp_fm_struct_retain(pool%el_struct,error=error)
-       last_fm_pool_id_nr=last_fm_pool_id_nr+1
-       pool%id_nr=last_fm_pool_id_nr
+       CALL pw_grid_retain(pool%el_struct,error=error)
+       last_rs_pool_id_nr=last_rs_pool_id_nr+1
+       pool%id_nr=last_rs_pool_id_nr
        pool%ref_count=1
        NULLIFY(pool%cache)
-       
+       pool%nsmax=nsmax
     END IF
-  END SUBROUTINE fm_pool_create
+  END SUBROUTINE rs_pool_create
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/cp_fm_pool_retain [1.0] *
+!!****f* cp_rs_pool_types/cp_rs_pool_retain [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool_retain
+!!     cp_rs_pool_retain
 !!
 !!   FUNCTION
 !!     retains the pool (see cp2k/doc/ReferenceCounting.html)
@@ -225,12 +226,12 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_retain(pool,error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
+  SUBROUTINE rs_pool_retain(pool,error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_retain',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_retain',&
          routineP=moduleN//':'//routineN
     failure=.FALSE.
 
@@ -240,13 +241,13 @@ CONTAINS
 
        pool%ref_count=pool%ref_count+1
     END IF
-  END SUBROUTINE fm_pool_retain
+  END SUBROUTINE rs_pool_retain
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_flush_cache [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_flush_cache [1.0] *
 !!
 !!   NAME
-!!     fm_pool_flush_cache
+!!     rs_pool_flush_cache
 !!
 !!   FUNCTION
 !!     deallocates all the cached elements
@@ -266,15 +267,15 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_flush_cache(pool,error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
+  SUBROUTINE rs_pool_flush_cache(pool,error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_flush_cache',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_flush_cache',&
          routineP=moduleN//':'//routineN
-    TYPE(cp_sll_fm_type), POINTER :: iterator
-    TYPE(cp_full_matrix_type), POINTER :: el_att
+    TYPE(cp_sll_rs_type), POINTER :: iterator
+    TYPE(realspace_grid_type), POINTER :: el_att
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
@@ -282,18 +283,18 @@ CONTAINS
     IF (.NOT. failure) THEN
        iterator => pool%cache
        DO
-          IF (.NOT.cp_sll_fm_next(iterator,el_att=el_att)) EXIT
-          CALL cp_fm_release(el_att,error=error)
+          IF (.NOT.cp_sll_rs_next(iterator,el_att=el_att)) EXIT
+          CALL rs_grid_release(el_att,error=error)
        END DO
-       CALL cp_sll_fm_dealloc(pool%cache,error=error)
+       CALL cp_sll_rs_dealloc(pool%cache,error=error)
     END IF
-  END SUBROUTINE fm_pool_flush_cache
+  END SUBROUTINE rs_pool_flush_cache
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/cp_fm_pool_release [1.0] *
+!!****f* cp_rs_pool_types/cp_rs_pool_release [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool_release
+!!     cp_rs_pool_release
 !!
 !!   FUNCTION
 !!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
@@ -313,15 +314,15 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_release(pool,error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
+  SUBROUTINE rs_pool_release(pool,error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_pool_release',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_rs_pool_release',&
          routineP=moduleN//':'//routineN
-    TYPE(cp_sll_fm_type), POINTER :: iterator
-    TYPE(cp_full_matrix_type), POINTER :: el_att
+    TYPE(cp_sll_rs_type), POINTER :: iterator
+    TYPE(realspace_grid_type), POINTER :: el_att
     INTEGER :: stat
     failure=.FALSE.
 
@@ -330,8 +331,8 @@ CONTAINS
        pool%ref_count=pool%ref_count-1
        IF (pool%ref_count==0) THEN
           pool%ref_count=1
-          CALL fm_pool_flush_cache(pool,error=error)
-          CALL cp_fm_struct_release(pool%el_struct,error=error)
+          CALL rs_pool_flush_cache(pool,error=error)
+          CALL pw_grid_release(pool%el_struct,error=error)
           pool%ref_count=0
 
           DEALLOCATE(pool,stat=stat)
@@ -339,21 +340,20 @@ CONTAINS
        END IF
     END IF
     NULLIFY(pool)
-  END SUBROUTINE fm_pool_release
+  END SUBROUTINE rs_pool_release
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_create_fm [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_create_rs [1.0] *
 !!
 !!   NAME
-!!     fm_pool_create_fm
+!!     rs_pool_create_rs
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pool_create_fm(pool, element, name, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: element
+!!     Subroutine rs_pool_create_rs(pool, element, error)
+!!       Type(cp_rs_pool_type), Pointer:: pool
+!!       Type(realspace_grid_type), Pointer:: element
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!     End Subroutine fm_pool_create_fm
+!!     End Subroutine rs_pool_create_rs
 !!
 !!   FUNCTION
 !!     returns an element, allocating it if none is in the pool
@@ -364,7 +364,6 @@ CONTAINS
 !!   INPUTS
 !!     - pool: the pool from where you get the element
 !!     - element: will contain the new element
-!!     - name: the name for the new matrix (optional)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -375,15 +374,15 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_create_fm(pool, element,&
-       name, error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_type), POINTER :: element
+  SUBROUTINE rs_pool_create_rs(pool, element,&
+        error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(realspace_grid_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
+    
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_fm',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create_rs',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
 
@@ -393,43 +392,33 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(pool%cache)) THEN
-          element => cp_sll_fm_get_first_el(pool%cache)
-          CALL cp_sll_fm_rm_first_el(pool%cache)
+          element => cp_sll_rs_get_first_el(pool%cache)
+          CALL cp_sll_rs_rm_first_el(pool%cache)
           
        ELSE
           NULLIFY(element)
-              CALL cp_fm_create(element,matrix_struct=pool%el_struct,error=error)
+          CALL rs_grid_create(element,pw_grid=pool%el_struct,&
+         nsmax=pool%nsmax,error=error)
        END IF
        
-    IF (PRESENT(name)) THEN
-      element%name=name
-      element%print_count=0
-    ELSE
-      element%name="tmp-"//TRIM(ADJUSTL(cp_to_string(element%id_nr)))
-      element%print_count=0
-      ! guarantee output unicity?
-    END IF
-    
     END IF
     CPPostcondition(ASSOCIATED(element),cp_failure_level,routineP,error,failure)
     CPPostcondition(element%ref_count==1,cp_warning_level,routineP,error,failure)
-  END SUBROUTINE fm_pool_create_fm
+  END SUBROUTINE rs_pool_create_rs
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_create_fm_vect [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_create_rs_vect [1.0] *
 !!
 !!   NAME
-!!     fm_pool_create_fm_vect
+!!     rs_pool_create_rs_vect
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pool_create_fm_vect(pool, n_elements, elements, name,&
-!!         error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
+!!     Subroutine rs_pool_create_rs_vect(pool, n_elements, elements, error)
+!!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Integer, Intent (IN):: n_elements
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!     End Subroutine fm_pool_create_fm_vect
+!!     End Subroutine rs_pool_create_rs_vect
 !!
 !!   FUNCTION
 !!     returns a vector of elements, allocating them, if none
@@ -442,7 +431,6 @@ CONTAINS
 !!     - pool: the pool from where you get the elements
 !!     - n_elements: the number of elements in the vector
 !!     - elements: will contain the new vector
-!!     - name: the name for the new matrixes (optional)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -453,16 +441,16 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_create_fm_vect(pool, n_elements,&
-       elements, name, error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
+  SUBROUTINE rs_pool_create_rs_vect(pool, n_elements,&
+       elements,  error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
     INTEGER, INTENT(in) :: n_elements
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    CHARACTER(len=*),INTENT(in),OPTIONAL :: name
+    
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_fm_vect',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create_rs_vect',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat,i
 
@@ -474,41 +462,34 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        DO i=1,n_elements
-          NULLIFY(elements(i)%matrix)
-          IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           name=name//"-"//ADJUSTL(cp_to_string(i)),&
-           error=error)
-      ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           error=error)
-      END IF
-!          CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-!               name, error=error)
+          NULLIFY(elements(i)%rs_grid)
+          CALL rs_pool_create_rs(pool,elements(i)%rs_grid,error=error)
+!          CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
+!                error=error)
        END DO
        
     END IF
-  END SUBROUTINE fm_pool_create_fm_vect
+  END SUBROUTINE rs_pool_create_rs_vect
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_give_back_fm [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_give_back_rs [1.0] *
 !!
 !!   NAME
-!!     fm_pool_give_back_fm
+!!     rs_pool_give_back_rs
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pool_give_back_fm(pool, element, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_type), Pointer:: element
+!!     Subroutine rs_pool_give_back_rs(pool, element, error)
+!!       Type(cp_rs_pool_type), Pointer:: pool
+!!       Type(realspace_grid_type), Pointer:: element
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pool_give_back_fm
+!!     End Subroutine rs_pool_give_back_rs
 !!
 !!   FUNCTION
 !!     returns the element to the pool
 !!
 !!   NOTES
 !!     transfers the ownership of the element to the pool
-!!     (it is as if you had called cp_fm_release)
+!!     (it is as if you had called cp_rs_release)
 !!     Accept give_backs of non associated elements?
 !!
 !!   INPUTS
@@ -524,13 +505,13 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_give_back_fm(pool, element, error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_type), POINTER :: element
+  SUBROUTINE rs_pool_give_back_rs(pool, element, error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(realspace_grid_type), POINTER :: element
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_fm',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_give_back_rs',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat
     failure=.FALSE.
@@ -539,32 +520,32 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(element),cp_warning_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-          CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
+          CALL cp_assert(pool%el_struct%identifier==element%identifier,&
             cp_failure_level, cp_assertion_failed, routineP,&
-            "pool cannot reuse matrixes with another structure "//&
+            "pool cannot reuse rs grids of another pw_grid "//&
             CPSourceFileRef,&
             error=error,failure=failure)
     END IF
 
     IF (.NOT. failure) THEN
        CPPreconditionNoFail(element%ref_count==1,cp_warning_level,routineP,error)
-       CALL cp_sll_fm_insert_el(pool%cache, element=element)
+       CALL cp_sll_rs_insert_el(pool%cache, element=element)
     END IF
     NULLIFY(element)
-  END SUBROUTINE fm_pool_give_back_fm
+  END SUBROUTINE rs_pool_give_back_rs
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_give_back_fm_vect [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_give_back_rs_vect [1.0] *
 !!
 !!   NAME
-!!     fm_pool_give_back_fm_vect
+!!     rs_pool_give_back_rs_vect
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pool_give_back_fm_vect(pool, elements, error)
-!!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!     Subroutine rs_pool_give_back_rs_vect(pool, elements, error)
+!!       Type(cp_rs_pool_type), Pointer:: pool
+!!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pool_give_back_fm_vect
+!!     End Subroutine rs_pool_give_back_rs_vect
 !!
 !!   FUNCTION
 !!     returns the elements to the pool
@@ -572,7 +553,7 @@ CONTAINS
 !!   NOTES
 !!     transfers the ownership of the elements to the pool
 !!     and deallocates the array of elements
-!!     (it is as if you had called cp_fm_vect_dealloc)
+!!     (it is as if you had called cp_rs_vect_dealloc)
 !!     Accept give_backs of non associated arrays?
 !!
 !!   INPUTS
@@ -588,13 +569,13 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fm_pool_give_back_fm_vect(pool, elements, error)
-    TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+  SUBROUTINE rs_pool_give_back_rs_vect(pool, elements, error)
+    TYPE(cp_rs_pool_type), POINTER :: pool
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_elements_vect',&
+    CHARACTER(len=*), PARAMETER :: routineN='rs_pool_give_back_elements_vect',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat,i
     failure=.FALSE.
@@ -604,9 +585,9 @@ CONTAINS
     CPPrecondition(ASSOCIATED(elements),cp_warning_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        DO i=1,SIZE(elements)
-          IF (ASSOCIATED(elements(i)%matrix)) THEN
-             CALL fm_pool_give_back_fm(pool,&
-                  elements(i)%matrix,&
+          IF (ASSOCIATED(elements(i)%rs_grid)) THEN
+             CALL rs_pool_give_back_rs(pool,&
+                  elements(i)%rs_grid,&
                   error=error)
           END IF
        END DO
@@ -614,20 +595,20 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     NULLIFY(elements)
-  END SUBROUTINE fm_pool_give_back_fm_vect
+  END SUBROUTINE rs_pool_give_back_rs_vect
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pool_get_el_struct [1.0] *
+!!****f* cp_rs_pool_types/rs_pool_get_el_struct [1.0] *
 !!
 !!   NAME
-!!     fm_pool_get_el_struct
+!!     rs_pool_get_el_struct
 !!
 !!   SYNOPSIS
-!!     Function fm_pool_get_el_struct(pool, error) Result(res)
-!!       Type(cp_fm_struct_type), Pointer:: res
-!!       Type(cp_fm_pool_type), Pointer:: pool
+!!     Function rs_pool_get_el_struct(pool, error) Result(res)
+!!       Type(pw_grid_type), Pointer:: res
+!!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function fm_pool_get_el_struct
+!!     End Function rs_pool_get_el_struct
 !!
 !!   FUNCTION
 !!     returns the structure of the elements in this pool
@@ -647,13 +628,13 @@ CONTAINS
 !!     05.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
-  TYPE(cp_fm_struct_type), POINTER :: res
-  TYPE(cp_fm_pool_type), POINTER :: pool
+FUNCTION rs_pool_get_el_struct(pool,error) RESULT(res)
+  TYPE(pw_grid_type), POINTER :: res
+  TYPE(cp_rs_pool_type), POINTER :: pool
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pool_get_el_struct',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pool_get_el_struct',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
@@ -664,22 +645,22 @@ FUNCTION fm_pool_get_el_struct(pool,error) RESULT(res)
   ELSE
      NULLIFY(res)
   END IF
-END FUNCTION fm_pool_get_el_struct
+END FUNCTION rs_pool_get_el_struct
 !***************************************************************************
 
 !================== pools ================
 
-!!****f* cp_fm_pool_types/fm_pools_copy [1.0] *
+!!****f* cp_rs_pool_types/rs_pools_copy [1.0] *
 !!
 !!   NAME
-!!     fm_pools_copy
+!!     rs_pools_copy
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pools_copy(source_pools, target_pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: source_pools,&
+!!     Subroutine rs_pools_copy(source_pools, target_pools, error)
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: source_pools,&
 !!         target_pools
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pools_copy
+!!     End Subroutine rs_pools_copy
 !!
 !!   FUNCTION
 !!     shallow copy of an array of pools (retains each pool)
@@ -700,14 +681,14 @@ END FUNCTION fm_pool_get_el_struct
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
+SUBROUTINE rs_pools_copy(source_pools, target_pools, error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: source_pools,&
        target_pools
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: stat, i
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_copy',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_copy',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
@@ -719,22 +700,22 @@ SUBROUTINE fm_pools_copy(source_pools, target_pools, error)
   IF (.NOT.failure) THEN
      DO i=1,SIZE(source_pools)
         target_pools(i)%pool => source_pools(i)%pool
-        CALL fm_pool_retain(source_pools(i)%pool,error=error)
+        CALL rs_pool_retain(source_pools(i)%pool,error=error)
      END DO
   END IF
-END SUBROUTINE fm_pools_copy
+END SUBROUTINE rs_pools_copy
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_dealloc [1.0] *
+!!****f* cp_rs_pool_types/rs_pools_dealloc [1.0] *
 !!
 !!   NAME
-!!     fm_pools_dealloc
+!!     rs_pools_dealloc
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pools_dealloc(pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!     Subroutine rs_pools_dealloc(pools, error)
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pools_dealloc
+!!     End Subroutine rs_pools_dealloc
 !!
 !!   FUNCTION
 !!     deallocate an array of pools (releasing each pool)
@@ -754,36 +735,36 @@ END SUBROUTINE fm_pools_copy
 !!     11.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fm_pools_dealloc(pools, error)
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+SUBROUTINE rs_pools_dealloc(pools, error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
   
   LOGICAL :: failure
   INTEGER :: stat, i
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_dealloc',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_dealloc',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   IF (ASSOCIATED(pools)) THEN
      DO i=1,SIZE(pools)
-        CALL fm_pool_release(pools(i)%pool,error=error)
+        CALL rs_pool_release(pools(i)%pool,error=error)
      END DO
      DEALLOCATE(pools,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
-END SUBROUTINE fm_pools_dealloc
+END SUBROUTINE rs_pools_dealloc
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_flush_cache [1.0] *
+!!****f* cp_rs_pool_types/rs_pools_flush_cache [1.0] *
 !!
 !!   NAME
-!!     fm_pools_flush_cache
+!!     rs_pools_flush_cache
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pools_flush_cache(pools, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
+!!     Subroutine rs_pools_flush_cache(pools, error)
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pools_flush_cache
+!!     End Subroutine rs_pools_flush_cache
 !!
 !!   FUNCTION
 !!     deallocates all the cached elements of an array of pools
@@ -803,37 +784,36 @@ END SUBROUTINE fm_pools_dealloc
 !!     09.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fm_pools_flush_cache(pools, error)
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
+SUBROUTINE rs_pools_flush_cache(pools, error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)   :: error
   
   LOGICAL :: failure
   INTEGER :: stat,i
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_flush_cache',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_flush_cache',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
   CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      DO i=1,SIZE(pools)
-        CALL fm_pool_flush_cache(pools(i)%pool,error=error)
+        CALL rs_pool_flush_cache(pools(i)%pool,error=error)
      END DO
   END IF
-END SUBROUTINE fm_pools_flush_cache
+END SUBROUTINE rs_pools_flush_cache
 !***************************************************************************
 
-!!****f* cp_fm_pool_types/fm_pools_create_fm_vect [1.0] *
+!!****f* cp_rs_pool_types/rs_pools_create_rs_vect [1.0] *
 !!
 !!   NAME
-!!     fm_pools_create_fm_vect
+!!     rs_pools_create_rs_vect
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pools_create_fm_vect(pools, elements, name, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!     Subroutine rs_pools_create_rs_vect(pools, elements, error)
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Character(Len=*), Intent (IN), Optional:: name
-!!     End Subroutine fm_pools_create_fm_vect
+!!     End Subroutine rs_pools_create_rs_vect
 !!
 !!   FUNCTION
 !!     Returns a vector with an element from each pool
@@ -844,7 +824,6 @@ END SUBROUTINE fm_pools_flush_cache
 !!   INPUTS
 !!     - pools: the pools to create the elements from
 !!     - elements: will contain the vector of elements
-!!     - name: the name for the new matrixes (optional)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -855,18 +834,18 @@ END SUBROUTINE fm_pools_flush_cache
 !!     09.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
-     name,error)
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
+     error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  CHARACTER(len=*),INTENT(in),OPTIONAL :: name
+  
   
   LOGICAL :: failure
   INTEGER :: stat,i
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_create_fm_vect',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_create_rs_vect',&
         routineP=moduleN//':'//routineN
-  TYPE(cp_fm_pool_type), POINTER :: pool
+  TYPE(cp_rs_pool_type), POINTER :: pool
 
   failure=.FALSE.
   NULLIFY(pool)
@@ -878,39 +857,32 @@ SUBROUTINE fm_pools_create_fm_vect(pools,elements,&
   END IF
   IF (.NOT.failure) THEN
      DO i=1,SIZE(pools)
-        NULLIFY(elements(i)%matrix)
+        NULLIFY(elements(i)%rs_grid)
         pool => pools(i)%pool
-        IF (PRESENT(name)) THEN
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           name=name//"-"//ADJUSTL(cp_to_string(i)),&
-           error=error)
-      ELSE
-         CALL fm_pool_create_fm(pool,elements(i)%matrix,&
-           error=error)
-      END IF
-!           CALL fm_pool_create_type(cp_full_matrix_type)(pools(i)%pool,&
-!               elements(i)%matrix,error=error)
+        CALL rs_pool_create_rs(pool,elements(i)%rs_grid,error=error)
+!           CALL rs_pool_create_type(realspace_grid_type)(pools(i)%pool,&
+!               elements(i)%rs_grid,error=error)
      END DO
      
   END IF
-END SUBROUTINE fm_pools_create_fm_vect
+END SUBROUTINE rs_pools_create_rs_vect
 !***************************************************************************
 
-!!****f* cp_fm_pool_p_types/fm_pools_give_back_fm_vect [1.0] *
+!!****f* cp_rs_pool_p_types/rs_pools_give_back_rs_vect [1.0] *
 !!
 !!   NAME
-!!     fm_pools_give_back_fm_vect
+!!     rs_pools_give_back_rs_vect
 !!
 !!   SYNOPSIS
-!!     Subroutine fm_pools_give_back_fm_vect(pools, elements, error)
-!!       Type(cp_fm_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: elements
+!!     Subroutine rs_pools_give_back_rs_vect(pools, elements, error)
+!!       Type(cp_rs_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(realspace_grid_p_type), Dimension(:), Pointer:: elements
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fm_pools_give_back_fm_vect
+!!     End Subroutine rs_pools_give_back_rs_vect
 !!
 !!   FUNCTION
 !!     returns a vector to the pools. The vector is deallocated
-!!     (like cp_fm_vect_dealloc)
+!!     (like cp_rs_vect_dealloc)
 !!
 !!   NOTES
 !!     accept unassociated vect?
@@ -928,14 +900,14 @@ END SUBROUTINE fm_pools_create_fm_vect
 !!     09.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: pools
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: elements
+SUBROUTINE rs_pools_give_back_rs_vect(pools,elements,error)
+  TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: pools
+  TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: elements
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
   INTEGER :: i, stat
-  CHARACTER(len=*), PARAMETER :: routineN='fm_pools_give_back_fm_vect',&
+  CHARACTER(len=*), PARAMETER :: routineN='rs_pools_give_back_rs_vect',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
@@ -944,14 +916,14 @@ SUBROUTINE fm_pools_give_back_fm_vect(pools,elements,error)
   CPPrecondition(SIZE(pools)==SIZE(elements),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      DO i=1,SIZE(pools)
-        CALL fm_pool_give_back_fm(pools(i)%pool,&
-             elements(i)%matrix,error=error)
+        CALL rs_pool_give_back_rs(pools(i)%pool,&
+             elements(i)%rs_grid,error=error)
      END DO
      DEALLOCATE(elements, stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
   NULLIFY(elements)
-END SUBROUTINE fm_pools_give_back_fm_vect
+END SUBROUTINE rs_pools_give_back_rs_vect
 !***************************************************************************
 
-END MODULE cp_fm_pool_types
+END MODULE cp_rs_pool_types

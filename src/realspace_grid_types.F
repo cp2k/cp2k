@@ -1063,9 +1063,10 @@ END SUBROUTINE rs_grid_write
 !!     rs_grid_create
 !!
 !!   SYNOPSIS
-!!     Subroutine rs_grid_create(rs_grid, pw_grid, error)
+!!     Subroutine rs_grid_create(rs_grid, pw_grid, nsmax, error)
 !!       Type(realspace_grid_type), Pointer:: rs_grid
 !!       Type(pw_grid_type), Pointer:: pw_grid
+!!       Integer, Dimension(3), Optional, Intent (IN):: nsmax
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine rs_grid_create
 !!
@@ -1088,9 +1089,10 @@ END SUBROUTINE rs_grid_write
 !!     03.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_grid_create(rs_grid, pw_grid, error)
+SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
   TYPE(realspace_grid_type), POINTER :: rs_grid
   TYPE ( pw_grid_type ), POINTER :: pw_grid
+  INTEGER, DIMENSION(3), OPTIONAL, INTENT(in) :: nsmax
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -1098,9 +1100,12 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, error)
         routineP=moduleN//':'//routineN
   TYPE(cp_logger_type), POINTER :: logger
   INTEGER :: stat, iounit
+  INTEGER, DIMENSION(3) :: my_nsmax
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
+  my_nsmax=pw_grid%npts
+  IF (PRESENT(nsmax)) my_nsmax=nsmax
   
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
   
@@ -1109,10 +1114,10 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, error)
 
   IF (.NOT. failure) THEN
      IF (logger%print_keys%pw_grid_information) THEN
-        CALL rs_grid_setup(rs_grid, pw_grid, pw_grid%npts, &
+        CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, &
              iounit=cp_logger_get_default_unit_nr(logger,local=.FALSE.))
      ELSE
-        CALL rs_grid_setup(rs_grid, pw_grid, pw_grid%npts)
+        CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax)
      END IF
      CALL rs_grid_allocate(rs_grid)
   END IF

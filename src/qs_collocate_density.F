@@ -59,6 +59,12 @@ MODULE qs_collocate_density
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
   USE dft_types,                       ONLY: dft_control_type
@@ -78,6 +84,8 @@ MODULE qs_collocate_density
                                              ncoset,&
                                              nso
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA3D,&
@@ -98,7 +106,8 @@ MODULE qs_collocate_density
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+  USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
+                                             realspace_grid_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
                                              rs_grid_setup,&
@@ -163,28 +172,29 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
-    TYPE(realspace_grid_type)                     :: rs_rho
-    INTEGER, DIMENSION(3)                         :: nsmax
+    TYPE(realspace_grid_type), POINTER            :: rs_rho
     TYPE(coeff_type)                              :: rhoc_r
+    TYPE(pw_env_type), POINTER                    :: pw_env
+    TYPE(cp_rs_pool_type), POINTER               :: auxbas_rs_pool
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_core","I","",handle)
 
+    NULLIFY(atomic_kind,cell,dft_control,pab,atomic_kind_set,particle_set,&
+         atom_list, rs_rho, pw_env, auxbas_rs_pool)
     ALLOCATE(pab(1,1))
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
-                    particle_set=particle_set)
+                    particle_set=particle_set,&
+                    pw_env=pw_env)
+    CALL pw_env_get(pw_env,auxbas_rs_pool=auxbas_rs_pool)
 
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax(:)=1000 ! should be temprorary fix
-    CALL rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
-    CALL rs_grid_allocate(rs_rho)
+    ! be careful in parallel nsmax is choosen with multigrid in mind!
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho)
     CALL rs_grid_zero(rs_rho)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -224,7 +234,7 @@ CONTAINS
     rhoc_r%pw%in_space = REALSPACE
 
     CALL rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
-    CALL rs_grid_deallocate(rs_rho)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_rho,error=error)
 
     total_rho = calculate_total_rho(rhoc_r)
 
@@ -292,36 +302,36 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: p_block,p_old_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    INTEGER, DIMENSION(3)             :: nsmax
-    TYPE(realspace_grid_type), DIMENSION(:), POINTER  :: rs_rho
-    INTEGER :: ithread,nthread,natom,omp_get_num_threads,omp_get_thread_num,handle2
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER  :: rs_rho
+    INTEGER :: ithread,nthread,natom,omp_get_num_threads,omp_get_thread_num,&
+         handle2
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
-
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.NE.0) THEN
-       CALL stop_program("calculate_rho_elec","rs_rho")
-    ENDIF
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax(:)=1000 ! should be temprorary fix
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
-                          nsmax)
-       CALL rs_grid_allocate(rs_rho(igrid_level))
-       CALL rs_grid_zero(rs_rho(igrid_level))
-    ENDDO
+    NULLIFY(atomic_kind,cell,dft_control, orb_basis_set, sab_orb_neighbor_list,&
+         sab_orb_neighbor_node, atomic_kind_set, sab_orb, particle_set,&
+         pab,pab_old,work,set_radius_a, set_radius_b, la_max, la_min,&
+         lb_max, npgfa, npgfb, nsgfa, nsgfb, p_block, p_old_block,&
+         rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb,&
+         rs_rho,pw_env,rs_pools)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,&
+                    pw_env=pw_env)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
+
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -603,14 +613,14 @@ CONTAINS
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                            ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                           rs_rho(igrid_level),cube_info(igrid_level),&
+                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            l_info,eps_rho_rspace,ithread=ithread)
                        ELSE
                          CALL collocate_pgf_product_rspace(&
                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
                            rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                           rs_rho(igrid_level),cube_info(igrid_level),&
+                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            l_info,eps_rho_rspace,ithread=ithread)
                        END IF
 !XXXXX                 ENDIF
@@ -652,10 +662,11 @@ CONTAINS
 
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       CALL rs_grid_deallocate(rs_rho(igrid_level))
+       CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+            mgrid_rspace(igrid_level)%pw,"FORWARD")
     ENDDO
-    DEALLOCATE(rs_rho)
+    
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
 !   *** Get the density on the auxillary basis cutoff grid ***
 
@@ -689,18 +700,18 @@ CONTAINS
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace,&
                                     mgrid_rspace,mgrid_gspace,&
                                     gridlevel_info,cube_info,l_info,&
-                                    qs_env,globenv)
+                                    qs_env,error)
 
     TYPE(cp_full_matrix_type), POINTER :: mo_vectors
     INTEGER :: ivector
 
-    TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
-    TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
-    TYPE(global_environment_type), INTENT(IN)   :: globenv
-    TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
-    TYPE(l_info_type), INTENT(IN)               :: l_info
-    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
+    TYPE(coeff_type), INTENT(INOUT)              :: rho,rho_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER      :: mgrid_rspace,mgrid_gspace
+    TYPE(cube_info_type), DIMENSION(:), POINTER  :: cube_info
+    TYPE(gridlevel_info_type), INTENT(IN)        :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)                :: l_info
+    TYPE(qs_environment_type), INTENT(IN)        :: qs_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -738,16 +749,28 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    INTEGER, DIMENSION(3)             :: nsmax
-    TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
+    TYPE(REALSPACE_GRID_P_TYPE), DIMENSION(:), POINTER  :: rs_rho
     INTEGER :: offset,natom,nao,ncol_global
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_wavefunction","I","",handle)
 
     CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
-    ALLOCATE(eigenvector(nao))
+    NULLIFY(eigenvector, atomic_kind,cell,dft_control, orb_basis_set,&
+         sab_orb_neighbor_list,&
+         sab_orb_neighbor_node, atomic_kind_set, sab_orb, particle_set,&
+         pab,work,set_radius_a, set_radius_b, la_max, la_min,&
+         lb_max, npgfa, npgfb, nsgfa, nsgfb, p_block,&
+         rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb,&
+         rs_rho,pw_env,rs_pools)
+
+    ALLOCATE(eigenvector(nao), stat=istat)
+    IF (istat.NE.0) THEN
+       CALL stop_program("calculate_wavefunction","eigenvector")
+    ENDIF
     ! only some processors have non-zero elements. The sum of eigenvector on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
@@ -756,28 +779,20 @@ CONTAINS
        CALL blacs_get_element(mo_vectors,i,ivector,eigenvector(i))
     ENDDO
 
-    ALLOCATE(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.NE.0) THEN
-       CALL stop_program("calculate_rho_elec","rs_rho")
-    ENDIF
-    ! hard coded for the time being
-    ! gives the minimum thickness of a slice (or related quantity)
-    ! is not yet used in rs_grid_setup
-    nsmax(:)=1000
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
-                          nsmax)
-       CALL rs_grid_allocate(rs_rho(igrid_level))
-       CALL rs_grid_zero(rs_rho(igrid_level))
-    ENDDO
-
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb)
+                    sab_orb=sab_orb,&
+                    pw_env=pw_env)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools,error=error)
+
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+    END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -845,7 +860,7 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_wp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
-                        rs_rho(igrid_level),cube_info(igrid_level),&
+                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
          END DO
 
@@ -856,9 +871,11 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
-       CALL rs_grid_deallocate(rs_rho(igrid_level))
+       CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+            mgrid_rspace(igrid_level)%pw,"FORWARD")
     ENDDO
+    
+    CALL rs_pools_give_back_rs_vect(rs_pools,rs_rho,error=error)
 
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -869,7 +886,6 @@ CONTAINS
     CALL coeff_transform_space(rho_gspace,rho)
 
 !   *** Release work storage ***
-    DEALLOCATE(rs_rho)
     DEALLOCATE(eigenvector)
 
     DEALLOCATE (pab,STAT=istat)

@@ -2035,7 +2035,7 @@ CONTAINS
                         mgrid_gspace,&
                         pw_env%gridlevel_info,pw_env%cube_info, &
                         pw_env%l_info,&
-                        qs_env,globenv)
+                        qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
@@ -2123,7 +2123,7 @@ CONTAINS
                         gridlevel_info=pw_env%gridlevel_info,&
                         cube_info=pw_env%cube_info, &
                         l_info=pw_env%l_info,&
-                        qs_env=qs_env,globenv=globenv)
+                        qs_env=qs_env,error=error)
 
                    WRITE(filename,'(a13,I5.5,a1,I1.1,a5)') "WAVEFUNCTION_",homo+ivector,"_",ispin,".cube"
                    IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
