@@ -37,23 +37,21 @@ MODULE kg_main
                                         initialize_nhc_baro,  &
                                         initialize_npt_type,  &
                                         assign_extended_parameters
-  USE linklist_types, ONLY : linklist_internal_data_type
   USE initialize_molecule_types, ONLY : initialize_molecule_type
   USE input_types, ONLY : setup_parameters_type
   USE integrator, ONLY : set_integrator
   USE kinds, ONLY : dbl
+  USE kg_debug, ONLY : kg_debug_control => debug_control
   USE kg_environment_types, ONLY : kg_environment_type,  &
                                    kg_thermodynamic_type, &
                                    set_kg_env, init_kg_env
-!gt not yet written!
-!  USE kg_debug, ONLY : kg_debug_control => debug_control
-!gt 
+  USE linklist_types, ONLY : linklist_internal_data_type
   USE mathconstants, ONLY : zero, twopi
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, mdio_parameters_type, virial_type
 !gt not yet written!
-!  USE md_fist_energies, ONLY : set_fist_energies, set_fist_energies_param, &
-!                          md_energy_fist, md_energy_fist_pimd
+!  USE md_kg_energies, ONLY : set_kg_energies, set_kg_energies_param, &
+!                          md_energy_kg
 !gt
   USE md_environment_types, ONLY :  set_md_env, init_md_env, & 
                                     md_environment_type, zero_virial
@@ -162,6 +160,7 @@ SUBROUTINE kg ( globenv )
   CALL timeset ( 'KG_MAIN', 'I', ' ', handle1 )
   CALL timeset ( 'KG_INIT', 'I', ' ', handle2 )
 
+  NULLIFY ( kg_env )
   ALLOCATE ( kg_env, STAT = isos )
   IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'kg_env', 0 )
   
@@ -419,9 +418,8 @@ SUBROUTINE kg ( globenv )
   END IF
     
 ! begin the MD process
-!  gt not yet written
-!  CALL control_work ( globenv, units, simpar, kg_env, md_env, extended_type, &
-!                      setup, mdio )
+  CALL control_work ( globenv, units, simpar, kg_env, md_env, extended_type, &
+                      setup, mdio )
 
 ! deallocate memory for atoms and molecules
   CALL deallocmem ( pnode, molecule )
@@ -431,8 +429,165 @@ SUBROUTINE kg ( globenv )
 END SUBROUTINE kg
 
 !-----------------------------------------------------------------------------!
-! FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST FIST  !
+! KG KG KG KG KG KG KG KG KG KG KG KG KG KG KG  !
 !-----------------------------------------------------------------------------!
+!******************************************************************************
+
+SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
+                          extended_type, setup, mdio )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( unit_convert_type ) :: units
+  TYPE ( simulation_parameters_type ), POINTER :: simpar
+  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+  TYPE ( extended_system_type ) :: extended_type
+  TYPE ( setup_parameters_type ) :: setup
+  TYPE ( mdio_parameters_type ) :: mdio
+
+! Locals
+  INTEGER :: handle, isos
+  TYPE ( structure_type ), DIMENSION (:), POINTER :: struc 
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'CNTL_WORK', 'I', ' ', handle )
+
+! allocate structure_type
+  ALLOCATE ( struc (1) , STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'struc', 1 )
+
+! set up structure_type
+  CALL init_structure_type ( struc (1) )
+  CALL set_structure_type ( struc=struc(1), kg_env=kg_env )
+
+! set the force environment
+  CALL set_force_env ( kg_env_type=kg_env )
+
+! set the integrator environment
+  CALL init_md_env ( md_env )
+  CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
+                            virial=kg_env % thermo % virial,    &
+                            nhc_part=extended_type % nhc_part,    &
+                            nhc_baro=extended_type % nhc_baro,    &
+                            npt=extended_type % npt_info,         &
+                            cell = kg_env % box )
+  ALLOCATE ( md_env % itimes, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'itimes', 0 )
+  ALLOCATE ( md_env % constant, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'constant', 0 )
+
+  SELECT CASE ( setup % run_type )
+  CASE DEFAULT
+     CALL stop_program ( "control_work", "no suitable run_type" &
+                         //  setup % run_type )
+
+  CASE ( "DEBUG" )
+
+! debug the forces
+     CALL control_debug_work ( globenv, kg_env, mdio )
+
+  CASE ( "MD" )
+
+     CALL control_md_work ( globenv, kg_env, md_env, units, mdio )
+
+  END SELECT
+
+  DEALLOCATE ( struc, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( 'deallocstruc', 'struc' )
+  CALL timestop ( zero, handle )
+
+END SUBROUTINE control_work
+
+!******************************************************************************
+
+ SUBROUTINE control_debug_work ( globenv, kg_env, mdio )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( mdio_parameters_type ) :: mdio
+
+!------------------------------------------------------------------------------
+
+! initialize integrator
+  CALL set_integrator ( globenv )
+
+! debug routine
+  CALL kg_debug_control ( globenv, kg_env )
+
+ END SUBROUTINE control_debug_work
+
+!******************************************************************************
+
+ SUBROUTINE control_md_work ( globenv, kg_env, md_env, units, mdio )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+  TYPE ( unit_convert_type ) :: units
+  TYPE ( mdio_parameters_type ) :: mdio
+
+! Locals
+  INTEGER, POINTER :: itimes
+  LOGICAL, PARAMETER :: box_change = .FALSE.
+
+!------------------------------------------------------------------------------
+
+! initialize the environment for md_energies
+!gt to be written
+! CALL set_kg_energies ( globenv, mdio )
+!gt
+
+! initialize integrator
+  CALL set_integrator ( globenv )
+
+! MD
+  itimes => md_env % itimes
+  itimes = 0
+
+  CALL force ( globenv, box_change )
+
+!gt to be written
+! Initial call to md energy
+!  CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
+!                        kg_env % ll_data ( 1 ), &
+!                         md_env % nhc_part ( 1 ), md_env % nhc_baro ( 1 ),  &
+!                         md_env % npt, md_env % simpar,            &
+!                         md_env % struc ( 1 ), kg_env % thermo )
+! Main MD loop
+!  DO itimes = 1, md_env % simpar % nsteps
+
+! Call the integrator
+!     CALL velocity_verlet ( md_env )
+
+! Call the energy routines
+!    CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
+
+! Test for the dump cycle
+!     IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN
+!       CALL dump_variables ( md_env, fist_env % rep_env, mdio % dump_file_name, &
+!                                globenv, fist_env % pimd )
+!    END IF
+
+! END DO
+!  CALL dump_variables ( md_env, fist_env % rep_env, mdio % dump_file_name, globenv,  &
+!                       fist_env % pimd )
+! IF ( globenv % ionode ) CALL close_unit ( 10, 99 )
+!gt to be written
+ 
+END SUBROUTINE control_md_work
+
+!******************************************************************************
+
 
 SUBROUTINE release_mem ( ainp )
   IMPLICIT NONE
