@@ -356,21 +356,16 @@ CONTAINS
           IF ( grid % have_g0 ) &
                gf % cc ( 1 ) = 0.5_dp * fourpi * rlength * rlength
           
-       CASE ( MT2D )
-          CALL stop_program ( "pw_green_fn", " Method not implemented ")
-       CASE ( MT1D )
-          CALL stop_program ( "pw_green_fn", " Method not implemented ")
-       CASE ( MT0D )
+       CASE ( MT2D, MT1D, MT0D )
           alpha   = gftype % MT_alpha   ! alpha is the convergence tuning parameter
           alpha2  = alpha * alpha
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig ) 
              g3d = fourpi / g2
-             gf%cc ( ig ) = g3d +  gftype%screen_function%cc(ig) - &
-                  g3d * EXP( - g2 / (4.0E0_dp * alpha2) )
+             gf%cc ( ig ) = g3d + gftype%screen_function%cc(ig) 
           END DO
           IF ( grid % have_g0 ) &
-               gf%cc(1) = gftype%screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)
+               gf%cc(1) = gftype%screen_function%cc(1) 
        CASE ( HOCKNEY2D )
           CALL stop_program ( "pw_green_fn", " Method not implemented ")
        CASE ( HOCKNEY1D )

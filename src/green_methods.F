@@ -139,7 +139,9 @@ CONTAINS
           CASE(MT0D,MT1D,MT2D)
              CPPrecondition(PRESENT(cell),cp_failure_level,routineP,error,failure)          
              CALL MTin_create_screen_fn(gftype%screen_function,pw_pool=pw_pool,method=gftype%method,&
-                  alpha=gftype%MT_alpha, rel_cutoff=gftype%MT_rel_cutoff, cell=cell, error=error)
+                  alpha=gftype%MT_alpha, rel_cutoff=gftype%MT_rel_cutoff, cell=cell, &
+                  special_dimension=gftype%special_dimension, slab_size=gftype%slab_size, &
+                  error=error)
           END SELECT
           !
        CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
@@ -246,17 +248,17 @@ CONTAINS
                 gftype%radius = 0.5_dp*MINVAL(abc)
              CASE (1)
                 gftype%method = MT1D
+                i = MINLOC(perd,1)
+                gftype%special_dimension = i
+                gftype%slab_size = abc(i)
+             CASE (2)
+                gftype%method = MT2D
                 gftype%special_dimension = MAXLOC(perd,1)
                 gftype%radius = MAXVAL(abc)
                 DO i=1,3
                    IF (i == gftype%special_dimension) CYCLE
                    gftype%radius = MIN(gftype%radius,0.5_dp*abc(i))
                 END DO
-             CASE (2)
-                gftype%method = MT2D
-                i = MINLOC(perd,1)
-                gftype%special_dimension = i
-                gftype%slab_size = abc(i)
              CASE (3)
                 CALL stop_program(routineP,"Illegal combination of periodicity and Poisson solver (MT)")
              CASE DEFAULT

@@ -172,9 +172,9 @@ SUBROUTINE kg_force_control ( kg_env, globenv,error )
     CALL kgpol_calculate_forces ( kg_env, globenv)
   ELSEIF ( dft_control % qs_control % method == "KG_GPW" ) THEN
     ! The qs_forces are calculated therefore kg_forces are not allocated here
-    CALL kg_qs_calculate_forces( kg_env, globenv )
+    CALL kg_qs_calculate_forces( kg_env, globenv, error )
   ELSE
-    CALL kg_calculate_forces ( kg_env, globenv )
+    CALL kg_calculate_forces ( kg_env, globenv, error )
   END IF
   END SUBROUTINE kg_force_control
 
@@ -811,11 +811,12 @@ END SUBROUTINE kg_calculate_forces
 !!
 !!*** *************************************************************************
 
-  SUBROUTINE kg_qs_calculate_forces( kg_env, globenv )
+  SUBROUTINE kg_qs_calculate_forces( kg_env, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "kg_qs_calculate_forces",&
       routineP = module_name//':'//routine_name
@@ -827,7 +828,7 @@ END SUBROUTINE kg_calculate_forces
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_error_type)                      :: error
+
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(particle_type), DIMENSION(:), &

@@ -18,7 +18,8 @@ MODULE mt_util
                                              MT1D,&
                                              MT2D
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi,&
+                                             fourpi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_pw,&
@@ -64,11 +65,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, error)
+  SUBROUTINE MTin_create_screen_fn(screen_function, pw_pool, method, alpha, rel_cutoff, cell, &
+       special_dimension, slab_size, error)
     TYPE(pw_type), POINTER                   :: screen_function
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    INTEGER, INTENT(IN)                      :: method
-    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff
+    INTEGER, INTENT(IN)                      :: method, special_dimension
+    REAL(KIND=dp), INTENT(in)                :: alpha, rel_cutoff, slab_size
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -81,7 +83,9 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: Vloc, Vlocg
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
     TYPE (pw_grid_type), POINTER             :: pw_grid
-    REAL(KIND=dp) :: ecut
+    REAL(KIND=dp) :: ecut, alpha2
+    INTEGER                                  :: ig
+    REAL(KIND=dp)                            :: g2, g3d
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -110,8 +114,30 @@ CONTAINS
        CALL pw_sumup(Vlocg, screen_function )
        CALL pw_pool_give_back_pw(pw_pool_aux, Vloc,  error=error)
        CALL pw_pool_give_back_pw(pw_pool_aux, Vlocg, error=error)
+       !
+       ! Get rid of the analytical FT of the erf(a*r)/r 
+       !
+       alpha2  = alpha * alpha
+       DO ig = screen_function % pw_grid % first_gne0, screen_function % pw_grid % ngpts_cut_local
+          g2  = screen_function % pw_grid % gsq ( ig ) 
+          g3d = fourpi / g2
+          screen_function%cc(ig) = screen_function%cc(ig) - g3d * EXP( - g2 / (4.0E0_dp * alpha2) )
+       END DO
+       IF ( screen_function % pw_grid % have_g0 ) &
+            screen_function%cc(1) = screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)      
     CASE(MT1D)
-       CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
+          
+ !         iz = gftype % special_dimension ! iz is the direction with NO PBC
+ !         zlength = gftype % slab_size    ! zlength is the thickness of the cell
+ !         DO ig = grid % first_gne0, grid % ngpts_cut_local
+ !            nz = grid % g_hat ( iz, ig )
+ !            g2 = grid % gsq ( ig )
+ !            g3d = fourpi / g2
+ !            gg = 0.5_dp * SQRT ( g2 )
+ !            gf % cc ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
+ !         END DO
+ !         IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
+          
     CASE(MT2D)
        CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
     END SELECT
