@@ -16,6 +16,7 @@
 !!     JGH (11 May 2001) : cleaning up of support structures
 !!     CJM & HAF (27 July 2001): fixed bug with handling of cutoff larger than
 !!                               half the boxsize.
+!!     07.02.2005: getting rid of scaled_to_real calls in force loop (MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -25,8 +26,8 @@ MODULE fist_nonbond_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE ewald_environment_types,         ONLY: ewald_environment_type, &
-                                             ewald_env_get
+  USE ewald_environment_types,         ONLY: ewald_env_get,&
+                                             ewald_environment_type
   USE fist_neighbor_list_types,        ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
@@ -37,18 +38,17 @@ MODULE fist_nonbond_force
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
-                                             fist_nonbond_env_get
+  USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
+                                             fist_nonbond_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE message_passing,                 ONLY : mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE pair_potential,                  ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type,&
-                                             scaled_to_real
-  USE splines,                         ONLY: spline_environment_type, &
-                                             spline_data
+  USE simulation_cell,                 ONLY: cell_type
+  USE splines,                         ONLY: spline_data,&
+                                             spline_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -74,34 +74,32 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 ! the pressure tensor
 !
 
-    TYPE ( fist_nonbond_env_type ), POINTER :: fist_nonbond_env
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: particle_set
-    TYPE(cell_type), POINTER                 :: cell 
-    REAL(KIND=dp), INTENT(OUT)                   :: pot_nonbond
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: f_nonbond, ptens_nonbond
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: f_nonbond, ptens_nonbond
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "force_nonbond"
 
-    INTEGER                                  :: ab, atom_a, atom_b, &
-                                                handle, ikind, &
-                                                ilist, inode, jkind, nkinds, &
-                                                nlist, nnode, nexl
-    REAL(KIND=dp)                                :: energy, flops, fscalar, rab2, &
+    INTEGER                                  :: ab, atom_a, atom_b, handle, &
+                                                ikind, ilist, inode, jkind, &
+                                                nkinds, nlist, nnode
+    INTEGER, DIMENSION(:, :), POINTER        :: spltab
+    REAL(KIND=dp)                            :: energy, flops, fscalar, rab2, &
                                                 rab2_max
-    REAL(KIND=dp), DIMENSION(3)                  :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: nonbonded
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    INTEGER, DIMENSION ( :, : ), POINTER     :: spltab
-    INTEGER, DIMENSION ( : ), POINTER        :: list
-    TYPE ( spline_data ),  DIMENSION ( : ), POINTER :: spline_table
-    TYPE ( neighbor_list_set_p_type ), &
-      DIMENSION ( : ),  POINTER                  :: nonbonded
-    REAL(KIND=dp), DIMENSION(:, :), POINTER   :: r_last_update
-    REAL(KIND=dp), DIMENSION(:), POINTER   :: rab_last_update
-    TYPE ( spline_environment_type ), POINTER     :: spline_env
-    TYPE ( pair_potential_type ), POINTER     :: potparm ( :, : )
+    TYPE(pair_potential_type), POINTER       :: potparm( :, : )
+    TYPE(spline_data), DIMENSION(:), POINTER :: spline_table
+    TYPE(spline_environment_type), POINTER   :: spline_env
 
 !------------------------------------------------------------------------------
 
@@ -118,9 +116,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
   spltab => spline_env % spltab
   potparm => spline_env % potparm
 
-!
 ! starting the force loop
-!
+
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
@@ -130,7 +127,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
         IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
 
-        rab2_max = potparm ( ikind, jkind ) % rcutsq 
+        rab2_max = potparm(ikind,jkind)%rcutsq 
 
         CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
                                    nlist=nlist)
@@ -143,8 +140,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set(atom_a)%r(:) - &
-                   scaled_to_real ( r_last_update(:,atom_a), cell )
+          dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
 
           neighbor_node => first_node(neighbor_list)
 
@@ -152,26 +148,33 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=atom_b,&
-                                   s=rab)
+                                   r=rab)
 
-            drb(:) = particle_set(atom_b)%r(:) - &
-                     scaled_to_real ( r_last_update(:,atom_b), cell )
-            rab ( : ) =  scaled_to_real ( rab ( : ), cell ) - dra(:) + drb(:)
+            drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
+
+            rab(:) = rab(:) - dra(:) + drb(:)
+
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
             IF (rab2 <= rab2_max) THEN
-              CALL potential_s ( spline_table, spltab, rab2,  &
-                                ikind, jkind, energy, fscalar )
+
+              CALL potential_s(spline_table,spltab,rab2,ikind,jkind,energy,&
+                               fscalar)
+
               pot_nonbond = pot_nonbond + energy
+
               fr(1) = fscalar*rab(1)
               fr(2) = fscalar*rab(2)
               fr(3) = fscalar*rab(3)
+
               f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
               f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
               f_nonbond(3,atom_a) = f_nonbond(3,atom_a) - fr(3)
+
               f_nonbond(1,atom_b) = f_nonbond(1,atom_b) + fr(1)
               f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
               f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
+
               ptens_nonbond(1,1) = ptens_nonbond(1,1) + rab(1)*fr(1)
               ptens_nonbond(1,2) = ptens_nonbond(1,2) + rab(1)*fr(2)
               ptens_nonbond(1,3) = ptens_nonbond(1,3) + rab(1)*fr(3)
@@ -181,6 +184,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
               ptens_nonbond(3,1) = ptens_nonbond(3,1) + rab(3)*fr(1)
               ptens_nonbond(3,2) = ptens_nonbond(3,2) + rab(3)*fr(2)
               ptens_nonbond(3,3) = ptens_nonbond(3,3) + rab(3)*fr(3)
+
             END IF
 
             neighbor_node => next(neighbor_node)
@@ -214,27 +218,28 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                      v_bonded_corr, pv_bc )
 
 
-    TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
-    TYPE ( distribution_1d_type ), POINTER :: local_particles
-    TYPE ( particle_type ), POINTER :: particle_set ( : )   
-    TYPE(ewald_environment_type), POINTER  :: ewald_env
-    REAL(KIND=dp), INTENT(OUT)                   :: v_bonded_corr
-    REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)  :: pv_bc
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(OUT)                            :: pv_bc
 
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
 
-    INTEGER                                  :: handle, iat, imol, i, j, nmol
-    REAL(KIND=dp)                                :: alpha, arg, const, dij, &
-                                                e_arg_arg, errf, flops, &
+    INTEGER                                  :: group, handle, i, iatom, &
+                                                iexl, ikind, j, jkind, &
+                                                natoms_per_kind, nexl, nkind
+    INTEGER, DIMENSION(:), POINTER           :: list
+    REAL(KIND=dp)                            :: alpha, arg, const, dij, &
+                                                e_arg_arg, eps0, errf, flops, &
                                                 fscalar, idij, ifourpieps0, &
-                                                qi, qj, rijsq, tc, eps0
-    REAL(KIND=dp), DIMENSION(3)                  :: ri, rj, rij
+                                                qi, qj, rijsq, tc
+    REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER                                  :: natoms_per_kind, ikind, nkind, &
-                                                jkind, iexl, nexl, iatom, group
-    INTEGER, DIMENSION ( : ), POINTER        :: list
 
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
 !------------------------------------------------------------------------------
