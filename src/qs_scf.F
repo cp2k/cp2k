@@ -310,13 +310,6 @@ CONTAINS
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-    if (cp_debug .and. debug_this_module) then
-       call cp_sm_output(logger=cp_error_get_logger(error), &
-            outputName="scf_s", &
-            fromWhere=routine, iter=0, matrix=s(1)%matrix,&
-            global_env=globenv,error=error)
-    end if
-
     CALL init_scf_run(mo_set=mo_set,&
                       qs_env=qs_env,&
                       globenv=globenv)
@@ -325,6 +318,19 @@ CONTAINS
     call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
 
     call pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
+
+    if (cp_debug .and. debug_this_module) then
+       call cp_sm_output(logger=cp_error_get_logger(error), &
+            outputName="scf_s", &
+            fromWhere=routine, iter=0, matrix=s(1)%matrix,&
+            global_env=globenv,error=error)
+       if (pao) then
+          call cp_sm_output(logger=cp_error_get_logger(error), &
+               outputName="scf_atomic_ortho",&
+               fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%matrix,&
+               global_env=globenv, error=error)
+       end if
+    end if
 
     CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv, p_old=p_old_rmpv)
     p => p_rmpv(1)
