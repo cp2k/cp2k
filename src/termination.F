@@ -32,6 +32,7 @@ MODULE termination
   USE message_passing,                 ONLY: mp_abort
   USE output_utilities,                ONLY: print_message
   USE string_utilities,                ONLY: compress
+  USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
 
@@ -247,6 +248,7 @@ CONTAINS
     IF (ionode) THEN
       CALL print_message("ERROR in "//TRIM(routine),error_unit,2,2,0)
       CALL print_message(error_message,error_unit,1,1,1)
+      CALL print_stack(error_unit)
       CALL mp_abort()
     END IF
 

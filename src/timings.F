@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE timings
+
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_cputime,&
@@ -28,13 +29,14 @@ MODULE timings
                                              m_walltime,&
                                              print_memory
   USE mathconstants,                   ONLY: zero
-  USE message_passing,                 ONLY: mp_sync,&
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_sync,&
                                              mp_world_setup
   USE string_utilities,                ONLY: compress,&
                                              uppercase,&
                                              xstring
-  USE termination,                     ONLY: stop_program
   USE util,                            ONLY: sort
+
   PRIVATE
 
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
@@ -208,13 +210,20 @@ SUBROUTINE timestop ( perf, handle )
 !------------------------------------------------------------------------------
 
   IF ( handle /= handle_stack (stack_size) ) THEN
-     CALL stop_program ( 'timestop', 'mismatched timestop '//&
-          TRIM(routine_stack(stack_size)) )
+!     CALL stop_program ( 'timestop', 'mismatched timestop '//&
+!          TRIM(routine_stack(stack_size)) )
+! intermediate work-around
+      print*,'mismatched timestop '//TRIM(routine_stack(stack_size))//&
+             ' in routine timestop'
+      CALL mp_abort()
   END IF
   handle_stack (stack_size)=0
-     
+
   IF ( handle > num_timer ) THEN
-     CALL stop_program ( 'timestop', 'handle > num_timer' )
+!    CALL stop_program ( 'timestop', 'handle > num_timer' )
+! intermediate work-around
+     print*,'handle > num_timer in routine timestop'
+     CALL mp_abort()
   ELSE
      cpt = m_cputime ( ) - clock_start ( handle )
      wt = m_walltime ( ) - wallclock_start ( handle )
@@ -388,7 +397,10 @@ SUBROUTINE trace_debug ( set, iw )
   CASE ("STOP")
     trace = .FALSE.
   CASE DEFAULT
-    CALL stop_program("trace_debug","unknown action")
+!   CALL stop_program("trace_debug","unknown action")
+!   intermediate work-around
+    print*,'unknown action requested in routine trace_debug'
+    CALL mp_abort()
   END SELECT
 
   IF ( PRESENT ( iw ) ) iod = iw
@@ -441,9 +453,9 @@ SUBROUTINE print_stack ( iw )
   io = 0
   IF ( PRESENT ( iw ) ) io = iw
 
-  WRITE ( io , '(/,A)') " ===== Routine Calling Stack ===== "
+  WRITE ( io , '(/,A,/)') " ===== Routine Calling Stack ===== "
   DO i = stack_size, 1, -1
-     WRITE ( io, '(T10,I4,A)') i,ADJUSTL( routine_stack ( i ) )
+     WRITE ( io, '(T10,I4,1X,A)') i,ADJUSTL( routine_stack ( i ) )
   END DO
 
 END SUBROUTINE print_stack
