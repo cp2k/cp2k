@@ -47,7 +47,7 @@ MODULE message_passing
 
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
-  PUBLIC :: mp_cart_shift, mp_sendrecv, mp_allgather
+  PUBLIC :: mp_cart_shift
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
 
   ! currently not used
