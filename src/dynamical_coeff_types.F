@@ -470,8 +470,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)
 ! get the kg coefficients' parameters from input structure
 
   NULLIFY(coeff_section)
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
-  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
   call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
   call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
   call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)

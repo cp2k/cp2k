@@ -378,7 +378,7 @@ CONTAINS
        ! Initialize constraints specific to QM/MM, all other constraints will
        ! be specified elsewhere
        !
-       CALL qmmm_setup_constaints(subsys_mm, force_env_section, qm_atom_index,&
+       CALL qmmm_setup_constraints(subsys_mm, force_env_section, qm_atom_index,&
             mm_atom_index, error)
 
        CALL cell_release(qm_cell_small, error)                       
@@ -1667,13 +1667,13 @@ CONTAINS
   !!     02.2005 created [tlaino]
   !!
   !!*************************************************************************
-   SUBROUTINE  qmmm_setup_constaints(subsys_mm, force_env_section, qm_atom_index,&
+   SUBROUTINE  qmmm_setup_constraints(subsys_mm, force_eval_section, qm_atom_index,&
         mm_atom_index, error)
      IMPLICIT NONE
      ! Arguments
      TYPE(cp_subsystem_p_type), &
           DIMENSION(:), POINTER                  :: subsys_mm     
-     TYPE(section_vals_type), POINTER         :: force_env_section, constraint_section     
+     TYPE(section_vals_type), POINTER         :: force_eval_section, constraint_section     
      INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, mm_atom_index
      TYPE(cp_error_type), INTENT(inout), &
           OPTIONAL                            :: error
@@ -1688,7 +1688,7 @@ CONTAINS
      IF (.NOT.failure) THEN
         freeze_mm = .FALSE.
         freeze_qm = .FALSE.
-        constraint_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+        constraint_section => section_vals_get_subs_vals(force_eval_section,"SUBSYS",error=error)
         constraint_section => section_vals_get_subs_vals(constraint_section,"CONSTRAINT",error=error)
         !
         ! Check for fix_atom section.. At the moment the only QM/MM dependent constraint 
@@ -1714,7 +1714,7 @@ CONTAINS
         END IF
      END IF
 
-   END SUBROUTINE qmmm_setup_constaints
+   END SUBROUTINE qmmm_setup_constraints
 
    !!****f* qmmm_init/setup_origin_mm_cell [1.0] *
    !!

@@ -764,7 +764,7 @@ END SUBROUTINE nhc_particle_setup
   iw = globenv % scr
   
   kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
-       "MD_NEW")
+       "MOTION%MD_NEW")
   call section_vals_val_get(kg_coeff_section,"timestep",r_val=dt)
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")

@@ -31,8 +31,14 @@ MODULE input_constants
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
-  INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
-       npt_i_ensemble=103, npt_f_ensemble=104
+  INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,&
+                                nvt_ensemble=102,&
+                                npt_i_ensemble=103,&
+                                npt_f_ensemble=104,&
+                                nph_ensemble=105,&
+                                nph_uniaxial=106,&
+                                nph_uniaxial_damped_ensamble=107,&
+                                isokin_ensemble=108
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
        md_pos_vel_restart=103
@@ -76,6 +82,10 @@ MODULE input_constants
        do_extrpl_linear_wf=5,&
        do_extrpl_linear_p=6,&
        do_extrpl_linear_ps=7
+
+  INTEGER, PARAMETER, PUBLIC :: dump_xyz=0,&
+                                dump_crd=1
+
   integer, parameter, public :: do_qmmm_none=0,&
                                 do_qmmm_grid=1,&
                                 do_qmmm_gauss=2,&

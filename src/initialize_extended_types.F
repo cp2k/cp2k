@@ -293,8 +293,7 @@ SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
 
 !------------------------------------------------------------------------------
   NULLIFY(coeff_section,nose_section) 
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
-  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD_NEW%KG_COEFF")
   nose_section => section_vals_get_subs_vals(coeff_section,"nose")
   call section_vals_val_get(nose_section,"timeconstant",r_val=tau_nhc)
   call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)

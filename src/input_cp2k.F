@@ -121,17 +121,13 @@ contains
        CALL section_create(root_section,name="__ROOT__",&
             description="input file of cp2k",n_keywords=0, n_subsections=10,&
             repeats=.FALSE., required=.FALSE., error=error)
-       nullify(section)
-
-!       CALL create_pippo_section(section,error=error)
-!       CALL section_add_subsection(root_section,section,error=error)
-!       CALL section_release(section,error=error)
+       NULLIFY(section)
 
        CALL create_global_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
-       CALL create_md_section(section,error=error)
+       CALL create_motion_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
@@ -139,12 +135,13 @@ contains
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
-       nullify(keyword)
+       NULLIFY(keyword)
        CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
             description="ignores lines outside sections",&
             usage="", type_of_var=no_t,error=error)
        CALL section_add_keyword(root_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
     END IF
   END SUBROUTINE create_cp2k_root_section
 !***************************************************************************
@@ -232,220 +229,6 @@ contains
        END IF
     END IF
   END FUNCTION parsed_cp2k_input
-!***************************************************************************
-
-!!****f* input_cp2k/create_pippo_section *
-!!
-!!   NAME
-!!     create_pippo_section
-!!
-!!   FUNCTION
-!!     creates a test input section with many combinations of inputs
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: the section that is created
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_pippo_section(section,error)
-    TYPE(section_type), POINTER :: section
-    type(cp_error_type), optional, intent(inout) :: error
-
-    logical :: failure
-    character(len=*), parameter :: routineN='create_pippo_section',&
-         routineP=moduleN//':'//routineN
-    TYPE(section_type), POINTER :: subsection
-    TYPE(keyword_type), pointer :: keyword
-
-    failure=.false.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT.  failure) THEN
-       nullify(section)
-       CALL section_create(section,name="pippo",&
-            description="Test section"//&
-            " bla bla bla bla bla bla blah bla blah bla bla bla bla bla bla blah bla blah",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       nullify(keyword)
-       CALL keyword_create(keyword, name="SINGLE_logical",&
-            description="a logical value ", usage="SINGLE_LOGICAL yes",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.true.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="2_logicals",&
-            description="2 logical values ", usage="2_LOGICALS yes F",&
-            n_var=2,type_of_var=logical_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="n_logicals",&
-            description="many logical values ", usage="n_LOGICALS yes F T",&
-            n_var=-1,type_of_var=logical_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="r_logical",&
-            description="repeated logical value ", usage="r_LOGICAL yes",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,repeats=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       nullify(subsection)
-       CALL section_create(subsection,name="int",&
-            description="Integer test subsection"//&
-            " bla bla bla bla bla bla blah bla blah bla bla bla bla bla bla blah bla blah",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="SINGLE_integer",&
-            description="a integer value ", usage="SINGLE_INTEGER yes",&
-            default_i_val=0,lone_keyword_i_val=1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="2_integers",&
-            description="2 integer values ", usage="2_INTEGERS 3 4",&
-            n_var=2,type_of_var=integer_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="n_integers",&
-            description="many integer values ", usage="n_INTEGERS 1 3 6",&
-            n_var=-1,type_of_var=integer_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="r_integer",&
-            description="repeated integer value ", usage="r_INTEGER 4",&
-            default_i_val=1,lone_keyword_i_val=3,repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       nullify(subsection)
-       CALL section_create(subsection,name="real",&
-            description="Reals test subsection"//&
-            " bla bla bla bla bla bla blah bla blah bla bla bla bla bla bla blah bla blah",&
-            n_keywords=7, n_subsections=0, repeats=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="SINGLE_real",&
-            description="a real value ", usage="SINGLE_REAL yes",&
-            default_r_val=0._dp,lone_keyword_r_val=1._dp,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="2_reals",&
-            description="2 real values ", usage="2_REALS 3 4",&
-            n_var=2,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="n_reals",&
-            description="many real values ", usage="n_REALS 1 3 6",&
-            n_var=-1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="r_real",&
-            description="repeated real value ", usage="r_REAL 4",&
-            default_r_val=1._dp,lone_keyword_r_val=3._dp,repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       nullify(subsection)
-       CALL section_create(subsection,name="char",&
-            description="Chars test subsection"//&
-            " bla bla bla bla bla bla blah bla blah bla bla bla bla bla bla blah bla blah",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.false.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="SINGLE_char",&
-            description="a char value ", usage="SINGLE_CHAR a_word",&
-            default_c_val="dv",lone_keyword_c_val="lv",error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="2_chars",&
-            description="2 char values ", usage='2_CHARS p "bla bla"',&
-            n_var=2,type_of_var=char_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="n_chars",&
-            description="many char values ", usage='n_CHARS t 1 tanti "t r"',&
-            n_var=-1,type_of_var=char_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="r_char",&
-            description="repeated char value ", usage="r_CHAR 4",&
-            default_c_val="default",lone_keyword_c_val="value0",repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-       nullify(subsection)
-       CALL section_create(subsection,name="enum",&
-            description="Enum test subsection"//&
-            " bla bla bla bla bla bla blah bla blah bla bla bla bla bla bla blah bla blah",&
-            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-
-       CALL keyword_create(keyword, name="SINGLE_enum",&
-            description="a enum value ", usage="SINGLE_ENUM pippo0",&
-            default_i_val=0,lone_keyword_i_val=1,&
-            enum_c_vals=(/"pippo0","pippo1","p1    ","p0    "/),&
-            enum_i_vals=(/ 0,1,1,0 /),error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="2_enums",&
-            description="2 enum values ", usage="2_ENUMS p1 p0",&
-            n_var=2,type_of_var=enum_t,&
-            enum_c_vals=(/"pippo0","pippo1","p1    ","p0    "/),&
-            enum_i_vals=(/ 0,1,1,0 /),error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="n_enums",&
-            description="many enum values ", usage="n_ENUMS pippo0 pippo1",&
-            enum_c_vals=(/"pippo0","pippo1","p1    ","p0    "/),&
-            enum_i_vals=(/ 0,1,1,0 /),n_var=-1,type_of_var=enum_t,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="r_enum",&
-            description="repeated enum value ", usage="r_ENUM p1",&
-            enum_c_vals=(/"pippo0","pippo1","p3    ","p0    "/),&
-            enum_i_vals=(/ 0,1,3,0 /),enum_strict=.FALSE.,&
-            default_i_val=1,lone_keyword_i_val=3,&
-            repeats=.TRUE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-  END SUBROUTINE create_pippo_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_global_section [1.0] *
@@ -555,6 +338,23 @@ contains
          error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="OUTPUT",&
+         description="Specifies the format of the output file for geometry and velocity.",&
+         usage="OUTPUT (XYZ|CRD)",&
+         default_i_val=dump_xyz,&
+         enum_c_vals=s2a( "XYZ","CRD"),&
+         enum_i_vals=(/dump_xyz, dump_crd/),&
+         error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)    
+
+     CALL keyword_create(keyword, name="WALLTIME",&
+          variants=(/"WALLTI"/),&
+          description="Maximum execution time for this run. Time in seconds.",&
+          usage="WALLTIME real",  default_r_val=-1.0_dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="ECHO_INPUT",&
          description="If the input should be echoed to the output with all the "//&
@@ -1429,17 +1229,9 @@ SUBROUTINE create_tddfpt_section(section,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-    CALL create_metadyn_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
-    CALL create_geoopt_section(subsection,error)
-    CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)
-
     CALL create_poisson_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
-    CALL section_release(subsection,error=error)    
+    CALL section_release(subsection,error=error)
 
     CALL create_subsys_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -1448,6 +1240,62 @@ SUBROUTINE create_tddfpt_section(section,error)
   END SUBROUTINE create_force_eval_section
 !***************************************************************************
 
+!!****f* input_cp2k/create_metadyn_section *
+!!
+!!   NAME
+!!     create_metadyn_section
+!!
+!!   FUNCTION
+!!     creates the metadynamics section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_motion_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_motion_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(section_type), POINTER :: subsection
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="motion",&
+            description="This section defines a set of tool connected with the motion of the nuclei.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(subsection,keyword)
+
+       CALL create_geoopt_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_md_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_metadyn_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
+    END IF
+
+  END SUBROUTINE create_motion_section
 
 !!****f* input_cp2k/create_geoopt_section *
 !!
@@ -2992,6 +2840,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     CHARACTER(len=*), PARAMETER :: routineN='create_constraint_section',&
          routineP=moduleN//':'//routineN
     TYPE(section_type), POINTER :: subsection
+    TYPE(keyword_type), POINTER :: keyword
     
     failure=.FALSE.
     
@@ -3003,10 +2852,18 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=0, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection)
+       NULLIFY(subsection, keyword)
        !
        ! subsections
        !
+
+       CALL keyword_create(keyword, name="SHAKE",&
+            description="Set the tolerance for the shake constraint algorithm.",&
+            usage="SHAKE real",&
+            default_r_val=1.0E-6_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL create_g3x3_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -3589,13 +3446,14 @@ SUBROUTINE create_tddfpt_section(section,error)
 !!*** **********************************************************************
   SUBROUTINE create_md_section(section,error)
     TYPE(section_type), pointer :: section
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='create_md_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
-    TYPE(section_type), POINTER :: coeff_section, nose_section
+    TYPE(section_type), POINTER :: coeff_section, nose_section,uni_section, baro_section,&
+         subsection, print_key
 
     failure=.false.
 
@@ -3606,15 +3464,17 @@ SUBROUTINE create_tddfpt_section(section,error)
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       nullify(keyword)
+       NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, subsection)
        CALL keyword_create(keyword, name="ensemble",&
             description="The ensemble that you want to sample with the md."//&
             " npt_i uses an isotropic resize of the cell, npt_f a flexible cell.",&
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
-            enum_c_vals=(/"nve  ","nvt  ","npt_i","npt_f"/),&
+            enum_c_vals=s2a("nve  ","nvt  ","npt_i","npt_f","nph","nph_uniaxial",&
+            "nph_uniaxial_damped","isokin"),&
             enum_i_vals=(/nve_ensemble,nvt_ensemble,npt_i_ensemble,&
-            npt_f_ensemble/),error=error)
+            npt_f_ensemble,nph_ensemble,nph_uniaxial,&
+            nph_uniaxial_damped_ensamble,isokin_ensemble/),error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -3661,13 +3521,361 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       nullify(coeff_section)
+       CALL keyword_create(keyword, name="pv_ava",&
+            description="Chris has to provide docs",&
+            usage="pv_ava LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="pv_num",&
+            description="Chris has to provide docs",&
+            usage="pv_num LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CONSTRAINTS",&
+            variants=(/"CONSTRAINT"/),&
+            description="Enables the use of constraints during the MD.",&
+            usage="CONSTRAINTS",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL create_uniaxial_section(uni_section, error=error)
+       CALL section_add_subsection(section, uni_section, error=error)
+       CALL section_release(uni_section,error=error)       
+
+       CALL create_barostat_section(baro_section, error=error)
+       CALL section_add_subsection(section, baro_section, error=error)
+       CALL section_release(baro_section,error=error)
+
+       CALL create_coeff_section(coeff_section, error=error)
+       CALL section_add_subsection(section, coeff_section, error=error)
+       CALL section_release(coeff_section,error=error)
+
+       CALL create_nose_section(nose_section, error=error)
+       CALL section_add_subsection(section, nose_section, error=error)
+       CALL section_release(nose_section,error=error)
+
+       CALL create_qs_md_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(nose_section,error=error)       
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"SCREEN",&
+            description="Controls the printing of MD information on screen.", &
+            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"COORDINATE",&
+            description="Controls the printing of coordinates during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"VELOCITIES",&
+            description="Controls the printing of velocities during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"COEFFICIENTS",&
+            description="Controls the printing of coefficients during an MD run.", &
+            print_level=medium_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"PRESSURE",&
+            description="Controls the printing of the Pressure info during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"ENERGIES",&
+            description="Controls the printing of energies during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"TEMPERATURE",&
+            description="Controls the printing of temperature info during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART",&
+            description="Controls the dumping of the restart file during an MD run.", &
+            print_level=silent_print_level,each=(/1/),&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+    END IF
+END SUBROUTINE create_md_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_qs_md_section *
+!!
+!!   NAME
+!!     create_qs_md_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_qs_md_section(section, error)
+  IMPLICIT NONE
+  TYPE(section_type), POINTER :: section
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='create_qs_md_section',&
+       routineP=moduleN//':'//routineN
+  TYPE(keyword_type), POINTER :: keyword
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+     CALL section_create(section,name="QS_MD",&
+          description="QS specific MD parameters.",&
+          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+       
+     NULLIFY(keyword)
+
+     CALL keyword_create(keyword, name="neighbor_lists_from_scratch",&
+          variants=(/"NEIGH"/),&
+          description="This keyword enables the building of the neighbouring list from scratch."//&
+          " Default .TRUE.",&
+          usage="NEIGH logical",&
+          default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     
+  END IF
+END SUBROUTINE create_qs_md_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_uniaxial_section *
+!!
+!!   NAME
+!!     create_uniaxial_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_uniaxial_section(section, error)
+  IMPLICIT NONE
+  TYPE(section_type), POINTER :: section
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='create_uniaxial_section',&
+       routineP=moduleN//':'//routineN
+  TYPE(keyword_type), POINTER :: keyword
+  TYPE(section_type), POINTER :: subsection
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="uniaxial",&
+            description="Parameters for uniaxial shock.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+       CALL keyword_create(keyword, name="PRESSURE",&
+            description="Initial pressure",&
+            usage="PRESSURE real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)            
+
+        CALL keyword_create(keyword, name="ENERGY",&
+            description="Initial energy",&
+            usage="ENERGY real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)         
+
+       CALL keyword_create(keyword, name="VOLUME",&
+            description="Initial compression",&
+            usage="VOLUME real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)             
+
+       CALL keyword_create(keyword, name="TEMP_B",&
+            description="Temperature of the barostat.",&
+            usage="TEMP_B real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)             
+
+       CALL keyword_create(keyword, name="TIMECO",&
+            description="Barostat time constant",&
+            usage="TIMECO real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)             
+
+       CALL keyword_create(keyword, name="VSHOCK",&
+            description="Velocity of shock front",&
+            usage="VSHOCK real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)             
+
+
+    END IF
+  END SUBROUTINE create_uniaxial_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_barostat_section *
+!!
+!!   NAME
+!!     create_barostat_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_barostat_section(section, error)
+  IMPLICIT NONE
+  TYPE(section_type), POINTER :: section
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='create_barostat_section',&
+       routineP=moduleN//':'//routineN
+  TYPE(keyword_type), POINTER :: keyword
+  TYPE(section_type), POINTER :: subsection
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+       CALL section_create(section,name="barostat",&
+            description="Parameters of barostat.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="PRESSURE",&
+            description="Initial pressure",&
+            usage="PRESSURE real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="TIMECO",&
+            description="Barostat time constant",&
+            usage="TIMECO real",&
+            type_of_var=real_t, n_var=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)        
+
+    END IF
+  END SUBROUTINE create_barostat_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_coeff_section *
+!!
+!!   NAME
+!!     create_coeff_section
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_coeff_section(coeff_section, error)
+  IMPLICIT NONE
+  TYPE(section_type), POINTER :: coeff_section
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='create_coeff_section',&
+       routineP=moduleN//':'//routineN
+  TYPE(keyword_type), POINTER :: keyword
+  TYPE(section_type), POINTER :: nose_section
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(coeff_section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
        CALL section_create(coeff_section,name="kg_coeff",&
             description="coefficent parameters needed to perform a kg-pol md run",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
-
-       call keyword_create(keyword, name="ensemble",&
+       
+       NULLIFY(nose_section, keyword)
+       CALL keyword_create(keyword, name="ensemble",&
             description="md ensemble for KG-POL coefficients", usage="ENSEMBLE NVT", &
             default_i_val=nvt_ensemble,&
             enum_c_vals=(/"nve  ","nvt  "/),&
@@ -3730,21 +3938,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       nullify(nose_section)
        CALL create_nose_section(nose_section, error=error)
        CALL section_add_subsection(coeff_section, nose_section, error=error)
        CALL section_release(nose_section,error=error)
-
-       CALL section_add_subsection(section, coeff_section, error=error)
-       CALL section_release(coeff_section,error=error)
-
-       CALL create_nose_section(nose_section, error=error)
-       CALL section_add_subsection(section, nose_section, error=error)
-       CALL section_release(nose_section,error=error)
-
+       
     END IF
-END SUBROUTINE create_md_section
-
+  END SUBROUTINE create_coeff_section
 !***************************************************************************
 !!****f* input_cp2k/create_nose_section *
 !!
@@ -3954,7 +4153,7 @@ END SUBROUTINE create_ewald_section
     failure=.false.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="subsys",&
             description="a subsystem: coordinates, topology, molecules and cell",&
             n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -3965,118 +4164,11 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="coord",&
-            description="The coordinates for simple systems (like the QM ones)"//&
-            " xyz format by default. More complex systems should be given with"//&
-            " an external pdb file.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
-            description="The atoms coordinates in xyz format.",&
-            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_coord_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-       CALL section_create(subsection,name="kind",&
-            description="The description of the kind of the atoms (mostly for QM)",&
-            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-            error=error)
-       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-            description="The name of the kind described in this section.",&
-            usage="H", default_c_val="DEFAULT", error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="AUX_BASIS_SET",&
-            variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
-            description="The auxliliary basis set (GTO type)",&
-            usage="AUX_BASIS_SET DZVP", type_of_var=char_t, &
-            n_var=1, required=.TRUE., error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="AUX_BASIS_NORMALIZATION",&
-            variants=s2a( "AUXILIARY_BASIS_NORMALIZATION", "AUX_BASIS_NORM"),&
-            description="The normalization of the auxliliary basis set",&
-            usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
-            "DENS","DENSITY","SQUARE","UNDEFINED"),&
-            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
-            default_i_val=-1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="BASIS_SET",&
-            variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
-            description="The basis set (GTO type)",&
-            usage="BASIS_SET DZVP", type_of_var=char_t, &
-            n_var=1, required=.TRUE., error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
-            variants=s2a("ORBITAL_BASIS_NORMALIZATION","ORB_BASIS_NORM"),&
-            description="The normalization of the auxliliary basis set",&
-            usage="AUX_BASIS_NORMALIZATION NO", &
-            enum_c_vals=s2a( "NONE", "NO", "WFN", "WAVEFUNCTION",&
-            "FUNCTION", "DENS", "DENSITY", "SQUARE", "UNDEFINED"),&
-            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
-            default_i_val=-1,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="ELEMENT",&
-            variants=(/ "ELEMENT_SYMBOL" /),&
-            description="The element of the actual kind "//&
-            "(if not given it is inferred from the kind name)",&
-            usage="ELEMENT O", type_of_var=char_t,n_var=1,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="MASS",&
-            variants=s2a("ATOMIC_MASS", "ATOMIC_WEIGHT", "WEIGHT"),&
-            description="The mass of the atom "//&
-            "(if negative or non present it is inferred from the element symbol)",&
-            usage="MASS 2.0", type_of_var=real_t,n_var=1,&
-            required=.FALSE.,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="POTENTIAL",&
-            variants=(/ "POT" /),&
-            description="The element of the actual kind "//&
-            "(if not given it is inferred from the kind name)",&
-            usage="POTENTIAL ghost", type_of_var=char_t, n_var=1,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
-            description="The region where the hard density is supposed to be confined (GAPW)(in Bohr)",&
-            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RHO0_EXP_RADIUS",&
-            description="the radius which defines the atomic region where "//&
-            "the hard compensation density is confined."//&
-            "should be less than HARD_EXP_RADIUS (GAPW)[Bohr]",&
-            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="LEBEDEV_GRID",&
-            description="The number of points for the angular part of "//&
-            "the local grid (GAPW)",&
-            usage="LEBEDEV_GRID 40", default_i_val=50,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="RADIAL_GRID",&
-            description="The number of points for the radial part of "//&
-            "the local grid (GAPW)",&
-            usage="RADIAL_GRID 70", default_i_val=50,&
-            error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
+       CALL create_kind_section(subsection,error=error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
@@ -4088,12 +4180,207 @@ END SUBROUTINE create_ewald_section
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 
-!FM    CALL create_kind_section(subsection,error=error)
-!FM    CALL section_add_subsection(section,subsection,error=error)
-!FM    CALL section_release(subsection,error=error)
-
-    end if
+    END IF
   END SUBROUTINE create_subsys_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_coord_section [1.0] *
+!!
+!!   NAME
+!!     create_coord_section
+!!
+!!   FUNCTION
+!!     Creates the QM/MM section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_coord_section(section,error)
+    TYPE(section_type), POINTER :: section, print_key
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_coord_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="coord",&
+            description="The coordinates for simple systems (like the QM ones)"//&
+            " xyz format by default. More complex systems should be given with"//&
+            " an external pdb file.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+       NULLIFY(keyword)
+       CALL keyword_create(keyword, name="_DEFAULT_KEYWORD_",&
+            description="The atoms coordinates in xyz format.",&
+            usage="H 0.7 0.3 0.3", type_of_var=char_t, n_var=-2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_coord_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_kind_section [1.0] *
+!!
+!!   NAME
+!!     create_kind_section
+!!
+!!   FUNCTION
+!!     Creates the QM/MM section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_kind_section(section,error)
+    TYPE(section_type), POINTER :: section, print_key
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_kind_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
+
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+       CALL section_create(section,name="kind",&
+            description="The description of the kind of the atoms (mostly for QM)",&
+            n_keywords=5, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="The name of the kind described in this section.",&
+            usage="H", default_c_val="DEFAULT", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AUX_BASIS_SET",&
+            variants=s2a("AUXILIARY_BASIS_SET", "AUX_BASIS"),&
+            description="The auxliliary basis set (GTO type)",&
+            usage="AUX_BASIS_SET DZVP", type_of_var=char_t, &
+            n_var=1, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="AUX_BASIS_NORMALIZATION",&
+            variants=s2a( "AUXILIARY_BASIS_NORMALIZATION", "AUX_BASIS_NORM"),&
+            description="The normalization of the auxliliary basis set",&
+            usage="AUX_BASIS_NORMALIZATION NO", &
+            enum_c_vals=s2a( "NONE","NO","WFN","WAVEFUNCTION","FUNCTION",&
+            "DENS","DENSITY","SQUARE","UNDEFINED"),&
+            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BASIS_SET",&
+            variants=s2a("ORBITAL_BASIS_SET","ORB_BASIS"),&
+            description="The basis set (GTO type)",&
+            usage="BASIS_SET DZVP", type_of_var=char_t, &
+            n_var=1, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
+            variants=s2a("ORBITAL_BASIS_NORMALIZATION","ORB_BASIS_NORM"),&
+            description="The normalization of the auxliliary basis set",&
+            usage="AUX_BASIS_NORMALIZATION NO", &
+            enum_c_vals=s2a( "NONE", "NO", "WFN", "WAVEFUNCTION",&
+            "FUNCTION", "DENS", "DENSITY", "SQUARE", "UNDEFINED"),&
+            enum_i_vals=(/0,0,1,1,1,2,2,2,-1/),&
+            default_i_val=-1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ELEMENT",&
+            variants=(/ "ELEMENT_SYMBOL" /),&
+            description="The element of the actual kind "//&
+            "(if not given it is inferred from the kind name)",&
+            usage="ELEMENT O", type_of_var=char_t,n_var=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MASS",&
+            variants=s2a("ATOMIC_MASS", "ATOMIC_WEIGHT", "WEIGHT"),&
+            description="The mass of the atom "//&
+            "(if negative or non present it is inferred from the element symbol)",&
+            usage="MASS 2.0", type_of_var=real_t,n_var=1,&
+            required=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="POTENTIAL",&
+            variants=(/ "POT" /),&
+            description="The element of the actual kind "//&
+            "(if not given it is inferred from the kind name)",&
+            usage="POTENTIAL ghost", type_of_var=char_t, n_var=1,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="HARD_EXP_RADIUS",&
+            description="The region where the hard density is supposed to be confined (GAPW)(in Bohr)",&
+            usage="HARD_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RHO0_EXP_RADIUS",&
+            description="the radius which defines the atomic region where "//&
+            "the hard compensation density is confined."//&
+            "should be less than HARD_EXP_RADIUS (GAPW)[Bohr]",&
+            usage="RHO_EXP_RADIUS 0.9", default_r_val=0.8_dp,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LEBEDEV_GRID",&
+            description="The number of points for the angular part of "//&
+            "the local grid (GAPW)",&
+            usage="LEBEDEV_GRID 40", default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RADIAL_GRID",&
+            description="The number of points for the radial part of "//&
+            "the local grid (GAPW)",&
+            usage="RADIAL_GRID 70", default_i_val=50,&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_kind_section
+
 !***************************************************************************
 !!****f* input_cp2k/create_qmmm_section [1.0] *
 !!
@@ -4221,7 +4508,8 @@ END SUBROUTINE create_ewald_section
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MM_INDEX",&
-            description="The indexes of the mm atoms that have this kind",&
+            description="The indexes of the mm atoms that have this kind. This keyword can be repeated several times "//&
+            "(useful if you have to specify many indexes).",&
             usage="MM_INDEX 1 2",&
             n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
