@@ -164,6 +164,7 @@ MODULE qs_scf
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
+                                             qs_ks_release, &
                                              qs_ks_env_type
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
@@ -1211,6 +1212,7 @@ CONTAINS
     IF (.not.ASSOCIATED(ks_env)) THEN
        CALL qs_ks_create(ks_env,qs_env=qs_env)
        CALL set_qs_env(qs_env, ks_env=ks_env)
+       CALL qs_ks_release(ks_env)
     END IF
 
     CALL timestop(0.0_dp,handle)

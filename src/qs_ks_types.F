@@ -62,6 +62,9 @@ MODULE qs_ks_types
                                              set_matrix,&
                                              symmetrise_diagonal_blocks,&
                                              transfer_matrix
+  USE pw_pool_types,                   ONLY: pw_pool_type,&
+                                             pw_pool_release,&
+                                             pw_pool_give_back_coeff
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -114,6 +117,7 @@ MODULE qs_ks_types
 
      ! hartree is supposed to contain the hartree potential (for cube ouput)
      ! ugly to keep it always around only for a cube output...
+     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
      TYPE(coeff_type) :: v_hartree_rspace
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
 
@@ -194,11 +198,10 @@ CONTAINS
        ks_env%ref_count=ks_env%ref_count-1
 
        IF (ks_env%ref_count<1) THEN
-          ! try to give back the grids?
-          CALL coeff_deallocate(ks_env%v_hartree_rspace)
+          CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_hartree_rspace)
           IF (ASSOCIATED(ks_env%v_rspace)) THEN
              DO ispin=1,SIZE(ks_env%v_rspace)
-                CALL coeff_deallocate(ks_env%v_rspace(ispin))
+                CALL pw_pool_give_back_coeff(ks_env%auxbas_pw_pool,ks_env%v_rspace(ispin))
              END DO
              DEALLOCATE(ks_env%v_rspace,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -212,10 +215,10 @@ CONTAINS
              DEALLOCATE(ks_env%v, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          CALL pw_pool_release(ks_env%auxbas_pw_pool)
           DEALLOCATE(ks_env, stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
-
     END IF
     NULLIFY(ks_env)
   END SUBROUTINE qs_ks_release

@@ -85,6 +85,7 @@ MODULE qs_ks_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
+  USE pw_pool_types,                   ONLY: pw_pool_retain
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -172,7 +173,6 @@ CONTAINS
     TYPE(qs_environment_type), INTENT(in),TARGET :: qs_env
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    INTEGER, PARAMETER :: maxgridpoints = 100
     CHARACTER(len=*), PARAMETER :: routineN='qs_ks_create',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
@@ -210,6 +210,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
+       ks_env%auxbas_pw_pool=>auxbas_pw_pool
+       CALL pw_pool_retain(ks_env%auxbas_pw_pool)
        DO ispin=1,nspins
           CALL pw_pool_init_coeff(auxbas_pw_pool,ks_env%v_rspace(ispin),&
                use_data=REALDATA3D, in_space=REALSPACE,error=error)
