@@ -48,6 +48,8 @@ MODULE qs_collocate_density
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
+  USE qs_blacs,               ONLY: blacs_get_element,blacs_matrix_type
+  USE qs_mo_types,            ONLY: mo_set_type, get_mo_set
   USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
                                     rs_grid_deallocate, &
                                     rs_grid_setup, rs_pw_transfer, rs_grid_zero
@@ -100,7 +102,8 @@ MODULE qs_collocate_density
 ! *** Public subroutines ***
 
   PUBLIC :: calculate_rho_core,&
-            calculate_rho_elec
+            calculate_rho_elec,&
+            calculate_wavefunction
 
 ! *** Public functions ***
 
@@ -636,6 +639,218 @@ CONTAINS
 
   END SUBROUTINE calculate_rho_elec
 
+! *****************************************************************************
+! modified calculate_rho_elec, should write the wavefunction represented by 
+! the vector eigenvector on the grid. Is not efficient, in the sence that 
+! it's presumably dominated by the FFT and the rs->pw and back routines
+! especially in parrallel things are not efficient. 
+! Currently it's only meant to provide a way to plot an MO
+! *****************************************************************************
+  SUBROUTINE calculate_wavefunction(mo_set,ivector,rho,rho_gspace,&
+                                    gridlevel_info,cube_info,l_info,&
+                                    qs_env,globenv)
+
+    TYPE(mo_set_type), POINTER :: mo_set
+    INTEGER :: ivector
+
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: rho,rho_gspace
+    TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+    TYPE(global_environment_type), INTENT(IN)   :: globenv
+    TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
+    TYPE(l_info_type), INTENT(IN)               :: l_info
+    TYPE(qs_environment_type), INTENT(IN)       :: qs_env
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE calculate_wavefunction (MODULE qs_collocate_density)"
+
+!   *** Local variables ***
+    REAL(wp), DIMENSION(:), POINTER   :: eigenvector   
+    TYPE(blacs_matrix_type), POINTER  :: mo_eigenvectors
+
+    TYPE(atomic_kind_type), POINTER   :: atomic_kind
+    TYPE(cell_type), POINTER          :: cell
+    TYPE(dft_control_type), POINTER   :: dft_control
+    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list
+    TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
+    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
+
+    REAL(wp) :: dab,eps_rho_rspace,kind_radius_b,rab2,scale,zetp
+    INTEGER  :: ab,first_pgfb,first_setb,handle,i,iatom,ico,igrid_level,ikind,&
+                ineighbor,ipgf,iset,ishell,istat,j,jatom,jco,jkind,jpgf,jset,&
+                jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
+                nkind,nneighbor,nseta,nsetb,sgfa,sgfb
+    LOGICAL  :: skip_block
+
+    REAL(wp), DIMENSION(3) :: ra,rab,rb
+
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: pab,work
+
+    REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
+    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
+                                         npgfb,nsgfa,nsgfb
+    REAL(wp), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
+                                         sphi_a,sphi_b,zeta,zetb
+    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    INTEGER, DIMENSION(3)             :: nsmax
+    TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
+    INTEGER :: offset,natom,nao
+
+!   ---------------------------------------------------------------------------
+    CALL timeset("calculate_wavefunction","I","",handle)
+
+    CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors,nao=nao)
+    allocate(eigenvector(nao))
+    ! only some processors have non-zero elements. The sum of eigenvector on 
+    ! all cpus is the real eigenvector. combined with the rs->pw this will give the
+    ! real density
+    eigenvector(:)=0.0_wp
+    DO i=1,nao 
+       CALL blacs_get_element(mo_eigenvectors,i,ivector,eigenvector(i))
+    ENDDO
+
+    allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    if (istat.ne.0) then
+       CALL stop_program("calculate_rho_elec","rs_rho")
+    endif
+    ! hard coded for the time being
+    ! gives the minimum thickness of a slice (or related quantity)
+    ! is not yet used in rs_grid_setup
+    nsmax(:)=1000
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       call rs_grid_setup(rs_rho(igrid_level),rho(igrid_level)%pw%pw_grid, & 
+                          nsmax)
+       call rs_grid_allocate(rs_rho(igrid_level))
+       call rs_grid_zero(rs_rho(igrid_level))
+    ENDDO
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    sab_orb=sab_orb)
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+!   *** Allocate work storage ***
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             maxco=maxco,&
+                             natom=natom,&
+                             maxsgf_set=maxsgf_set)
+
+    ALLOCATE (pab(maxco,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*wp_size)
+    ALLOCATE (work(maxco,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*wp_size)
+
+    offset=0
+
+    DO iatom=1,natom
+
+
+      CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                               orb_basis_set=orb_basis_set)
+
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                             first_sgf=first_sgfa,&
+                             lmax=la_max,&
+                             lmin=la_min,&
+                             npgf=npgfa,&
+                             nset=nseta,&
+                             nsgf_set=nsgfa,&
+                             sphi=sphi_a,&
+                             zet=zeta)
+
+      ra(:) = pbc(particle_set(iatom)%r,cell)
+      rb(:) = 0.0_wp
+      rab2  = 0.0_wp
+      dab   = 0.0_wp
+
+
+      DO iset=1,nseta
+
+
+         ncoa = npgfa(iset)*ncoset(la_max(iset))
+         sgfa = first_sgfa(1,iset)
+
+         do i=1,nsgfa(iset)
+            work(i,1)=eigenvector(offset+i)
+         enddo
+
+         CALL dgemm("N","N",ncoa,1,nsgfa(iset),&
+                    1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                    work(1,1),SIZE(work,1),&
+                    0.0_wp,pab(1,1),SIZE(pab,1))
+
+         DO ipgf=1,npgfa(iset)
+
+
+            na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+            na2 = ipgf*ncoset(la_max(iset))
+
+
+            scale = 1.0_wp
+            zetp = zeta(ipgf,iset)
+            igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+
+            CALL collocate_pgf_product_rspace(&
+                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                        0,0.0_wp,0,&
+                        ra,rab,rab2,scale,pab(na1:na2,1:1),&
+                        rs_rho(igrid_level),cube_info(igrid_level),&
+                        l_info,eps_rho_rspace)
+         END DO
+
+         offset=offset+nsgfa(iset)
+
+      END DO
+
+    END DO
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
+       call rs_grid_deallocate(rs_rho(igrid_level))
+    ENDDO
+
+!   *** Get the density on the highest cutoff grid ***
+
+    IF ((gridlevel_info%ngrid_levels > 1).OR.&
+        (rho_gspace(1)%pw%in_use /= COMPLEXDATA3D)) THEN
+      CALL coeff_transform_space(rho(1),rho_gspace(1))
+    END IF
+
+    DO igrid_level=2,gridlevel_info%ngrid_levels
+      CALL coeff_transform_space(rho(igrid_level),rho_gspace(igrid_level))
+      CALL coeff_add(rho_gspace(1),rho_gspace(igrid_level),rho_gspace(1))
+    END DO
+
+!   *** The latter is needed for a consistent density in real and g space ***
+
+    IF ((gridlevel_info%ngrid_levels > 1).OR.&
+        (rho_gspace(1)%pw%in_use/=COMPLEXDATA3D)) THEN
+      CALL coeff_transform_space(rho_gspace(1),rho(1))
+    END IF
+
+!   *** Release work storage ***
+    deallocate(rs_rho)
+    deallocate(eigenvector)
+
+    DEALLOCATE (pab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab")
+
+    DEALLOCATE (work,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"work")
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_wavefunction
 ! *****************************************************************************
 
   FUNCTION calculate_total_rho(rho) RESULT(total_rho)
