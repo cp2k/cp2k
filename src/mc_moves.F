@@ -47,6 +47,7 @@ MODULE mc_moves
                                              set_mc_par
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: write_particle_coordinates
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
@@ -143,7 +144,7 @@ CONTAINS
       routineN = "mc_Quickstep_move"
 
     INTEGER                                  :: handle, iparticle, nchain,&
-      diff,source,group,nunits_tot
+      diff,source,group,nunits_tot,iunit
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 new_energy, rand, w,&
@@ -189,7 +190,19 @@ CONTAINS
 ! now grab the coords
       CALL force_env_get(force_env,subsys=subsys,error=error)
       CALL cp_subsys_get(subsys(1)%subsys, &
-      particles=particles, error=error)
+         particles=particles, error=error)
+
+! write them out in case something bad happens
+      WRITE(diff,*) nnstep
+      WRITE(diff,*) nunits_tot
+      DO iunit=1,nunits_tot,3
+         WRITE(diff,'(A,3X,3(F18.12,3X))') '  O  ',&
+            particles%els(iunit)%r(1:3)*angstrom
+         WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+            particles%els(iunit+1)%r(1:3)*angstrom
+         WRITE(diff,'(A,3X,3(F18.12,3X))') '  H  ',&
+            particles%els(iunit+2)%r(1:3)*angstrom
+      ENDDO
 
 ! accept or reject the move based on Metropolis or the Iftimie rule
       IF (ionode) THEN
