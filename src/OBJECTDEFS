@@ -165,6 +165,7 @@ OBJECTS_GENERIC =\
  mc_control.o\
  mc_ensembles.o\
  mc_environment_types.o\
+ mc_GE_moves.o\
  mc_misc.o\
  mc_move_control.o\
  mc_moves.o\
