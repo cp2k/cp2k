@@ -6,7 +6,7 @@
 !!   NAME
 !!     qs_conductivity
 !!   CVS id
-!!   $id$
+!!   $Id$
 !!
 !!   FUNCTION
 !! 
