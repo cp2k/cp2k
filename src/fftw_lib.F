@@ -207,11 +207,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: zg
     COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      INTENT(INOUT), OPTIONAL, TARGET        :: zg_out
+      INTENT(INOUT), OPTIONAL                :: zg_out
 
-    COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET :: zgout_tmp
-    COMPLEX(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: zgout
+    COMPLEX(KIND=dp), DIMENSION(1, 1, 1)     :: zgout_tmp
     INTEGER                                  :: n1, n2, n3, sign_fft
     INTEGER(KIND=integer_pointer_kind), SAVE :: plan_a_bw = 0, plan_a_fw = 0, &
       plan_b_bw = 0, plan_b_fw = 0, plan_c_bw = 0, plan_c_fw = 0
@@ -235,10 +233,8 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   n3 = n(3)
   IF ( PRESENT ( zg_out ) ) THEN
      fft_in_place = .false.
-     zgout => zg_out
   ELSE
      fft_in_place = .true.
-     zgout => zgout_tmp
   END IF
 
   sign_fft = fsign
@@ -248,23 +244,47 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   IF ( n1a_save == n1 .AND. n2a_save == n2 .AND. n3a_save == n3 &
        .AND. ( fft_in_place .eqv. ffta_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_a_fw, zg, zgout )
+        IF (fft_in_place) THEN
+           CALL fftwnd_f77_one ( plan_a_fw, zg, zgout_tmp )
+        ELSE
+           CALL fftwnd_f77_one ( plan_a_fw, zg, zg_out )
+        ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_a_bw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_a_bw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_a_bw, zg, zg_out )
+        ENDIF
      END IF
   ELSE IF ( n1b_save == n1 .AND. n2b_save == n2 .AND. n3b_save == n3 &
        .AND. ( fft_in_place .eqv. fftb_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_b_fw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_b_fw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_b_fw, zg, zg_out )
+        ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_b_bw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_b_bw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_b_bw, zg, zg_out )
+        ENDIF
      END IF
   ELSE IF ( n1c_save == n1 .AND. n2c_save == n2 .AND. n3c_save == n3 &
        .AND. ( fft_in_place .eqv. fftc_in_place ) ) THEN
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_c_fw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_c_fw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_c_fw, zg, zg_out )
+        ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_c_bw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_c_bw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_c_bw, zg, zg_out )
+        ENDIF
      END IF
   ELSE IF ( n1a_save == -1 .OR. &
        ( n1a_save == n1 .AND. n2a_save == n2 .AND. n3a_save == n3 &
@@ -287,9 +307,17 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      ffta_in_place = fft_in_place
 
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_a_fw, zg, zgout )
+         IF (fft_in_place) THEN
+             CALL fftwnd_f77_one ( plan_a_fw, zg, zgout_tmp )
+         ELSE
+             CALL fftwnd_f77_one ( plan_a_fw, zg, zg_out )
+         ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_a_bw, zg, zgout )
+         IF (fft_in_place) THEN
+             CALL fftwnd_f77_one ( plan_a_bw, zg, zgout_tmp )
+         ELSE
+             CALL fftwnd_f77_one ( plan_a_bw, zg, zg_out )
+         ENDIF
      END IF
 
   ELSE IF ( n1b_save == -1 .OR. &
@@ -313,9 +341,17 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      fftb_in_place = fft_in_place
 
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_b_fw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_b_fw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_b_fw, zg, zg_out )
+        ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_b_bw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_b_bw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_b_bw, zg, zg_out )
+        ENDIF
      END IF
 
   ELSE ! Initialise 'c'
@@ -336,9 +372,17 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      fftc_in_place = fft_in_place
 
      IF ( sign_fft == +1 ) THEN
-        CALL fftwnd_f77_one ( plan_c_fw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_c_fw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_c_fw, zg, zg_out )
+        ENDIF
      ELSE
-        CALL fftwnd_f77_one ( plan_c_bw, zg, zgout )
+        IF (fft_in_place) THEN
+            CALL fftwnd_f77_one ( plan_c_bw, zg, zgout_tmp )
+        ELSE
+            CALL fftwnd_f77_one ( plan_c_bw, zg, zg_out )
+        ENDIF
      END IF
   END IF
 
@@ -352,7 +396,7 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
      IF ( fft_in_place ) THEN
         zg = zg * norm
      ELSE
-        zgout = zgout * norm
+        zg_out = zg_out * norm
      END IF
   END IF
 

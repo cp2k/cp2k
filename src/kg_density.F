@@ -123,7 +123,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)                   :: total_rho
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -338,18 +338,18 @@ CONTAINS
 
   FUNCTION calculate_total_density(rho) RESULT(total_rho)
 
-    TYPE(coeff_type), INTENT(IN), TARGET     :: rho
+    TYPE(coeff_type), INTENT(IN)                 :: rho
     REAL(KIND=dp)                                :: total_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "FUNCTION calculate_total_density (MODULE kg_density)"
 
-    INTEGER, DIMENSION(:), POINTER           :: lb_grid
+    INTEGER, DIMENSION(3) :: lb_grid
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(rho%pw%cc3d)) THEN
-      lb_grid => rho%pw%pw_grid%bounds(1,:)
+      lb_grid = rho%pw%pw_grid%bounds(1,:)
       total_rho = rho%pw%pw_grid%vol*rho%pw%cc3d(lb_grid(1),&
                                                   lb_grid(2),&
                                                   lb_grid(3))

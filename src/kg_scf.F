@@ -251,7 +251,7 @@ CONTAINS
   SUBROUTINE kg_qs_scf(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -314,7 +314,7 @@ CONTAINS
     TYPE(kg_scf_env_type), POINTER             :: scf_env
     TYPE(kg_environment_type), POINTER         :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                               :: globenv
+      POINTER                                  :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                 :: error
 
@@ -810,7 +810,7 @@ CONTAINS
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1555,8 +1555,7 @@ CONTAINS
     TYPE(kg_environment_type), POINTER           :: kg_env
     TYPE(kg_fm_p_type), POINTER                  :: kg_fm
     TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in), TARGET                         :: globenv
+    TYPE(global_environment_type), POINTER       :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                   :: error
 

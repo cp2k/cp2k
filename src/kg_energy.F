@@ -112,7 +112,7 @@ SUBROUTINE kg_energies ( kg_env, globenv )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
 
     TYPE(dft_control_type), POINTER          :: dft_control
 
@@ -312,7 +312,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine = "kg_qs_energies"
 

@@ -154,7 +154,7 @@ SUBROUTINE kg_force_control ( kg_env, globenv,error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -815,7 +815,7 @@ END SUBROUTINE kg_calculate_forces
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "kg_qs_calculate_forces",&

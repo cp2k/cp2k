@@ -71,7 +71,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_kg_neighbor_lists(kg_env,globenv)
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -105,7 +105,7 @@ CONTAINS
 
   SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv)
 
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
@@ -433,7 +433,7 @@ CONTAINS
 
   SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv)
 
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 

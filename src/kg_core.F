@@ -72,7 +72,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -608,8 +608,8 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), INTENT(IN)    :: kg_env
-    REAL(KIND=dp), INTENT(OUT)                   :: ecore_self
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    REAL(KIND=dp), INTENT(OUT)               :: ecore_self
 
     INTEGER                                  :: ikind, natom
     REAL(KIND=dp)                                :: alpha_core_charge, &

@@ -168,8 +168,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), intent(in), &
-      TARGET                                 :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(greens_function_type), POINTER, OPTIONAL :: green
@@ -343,7 +342,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(kg_environment_type), &
-      intent(inout), TARGET                  :: kg_env
+      POINTER                  :: kg_env
     TYPE(atomic_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(greens_function_type), POINTER, OPTIONAL :: green

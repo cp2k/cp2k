@@ -71,7 +71,7 @@ CONTAINS
 !   ***************************************************************************
 
 
-    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     REAL(KIND=dp), intent(out)               :: e_bc

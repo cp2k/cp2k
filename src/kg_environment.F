@@ -437,7 +437,7 @@ CONTAINS
 
 !   We generate a qs_environment for the system
 
-    TYPE(kg_environment_type), INTENT(inout) :: kg_env
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &
