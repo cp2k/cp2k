@@ -860,6 +860,14 @@ CONTAINS
                       start_section_label="KIND",&
                       start_section_name=atomic_kind%name,&
                       section_found=section_found)
+    IF (.NOT.section_found) THEN
+      CALL finish_parser()
+      CALL start_parser(file_name=globenv%input_file_name,&
+                        globenv=globenv,&
+                        start_section_label="KIND",&
+                        start_section_name="DEFAULT",&
+                        section_found=section_found)
+    END IF
 
     IF (section_found) THEN
       DO
