@@ -1448,7 +1448,7 @@ CONTAINS
 
   SUBROUTINE set_elp_potential(potential,name,alpha_core_charge,ccore_charge,&
                                core_charge_radius,cexp_ppl,cerf_ppl,qeff,&
-                               ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl)
+                               ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl,description)
 
 !   Purpose: Set the effective charge in the elp potential data set.
 !   History: creation (22-09-2002, GT)
@@ -1458,6 +1458,8 @@ CONTAINS
     TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length), &
       INTENT(IN), OPTIONAL                   :: name
+    CHARACTER(LEN=default_string_length),&
+         DIMENSION(2), OPTIONAL              :: description
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
@@ -1476,6 +1478,7 @@ CONTAINS
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) potential%name = name
+      IF (PRESENT(description)) potential%description = description
       IF (PRESENT(nalpha_ppl)) potential%nalpha_ppl = nalpha_ppl
       IF (PRESENT(alpha_core_charge))&
         potential%alpha_core_charge = alpha_core_charge

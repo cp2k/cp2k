@@ -2149,6 +2149,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
+    CHARACTER(LEN=default_string_length)     :: my_elp_name, my_elp_description(2)
     INTEGER                                  :: counter, first, i, ikind, &
                                                 istat, iw, j, k, last, natom
     INTEGER, DIMENSION(:), POINTER           :: atomkind,atomlist, kind_of, &
@@ -2440,9 +2441,16 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           EXIT
         END IF
       END DO
+      my_elp_name = TRIM("FIST_"//TRIM(atmname))
+      my_elp_description(1) = "FIST Electrostatic Potential"
+      my_elp_description(2) = "                            "
       NULLIFY(elp_potential)
       CALL allocate_potential(elp_potential)
-      CALL set_potential(potential=elp_potential,qeff=qeff,alpha_core_charge=alpha_core_charge)
+      CALL set_potential(potential=elp_potential,&
+                         qeff=qeff,&
+                         alpha_core_charge=alpha_core_charge,&
+                         name=my_elp_name,&
+                         description=my_elp_description)
       CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
     END DO
   END IF
