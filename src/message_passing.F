@@ -373,7 +373,6 @@ SUBROUTINE mp_perf_env_describe ( perf_env, mp_comm, scr )
      CALL mp_stop ( perf_env%ref_count, "invalid perf_env%ref_count : message_passing @ mp_perf_env_describe" )   
   ENDIF
   CALL mp_environ ( numtask, taskid, mp_comm )
-  IF ( ierr /= 0 ) CALL mp_stop ( ierr, "message_passing @ mp_end" )
   iw = scr
   IF ( taskid == 0 ) THEN
     WRITE ( iw, '( /, 1X, 79("-") )' )
