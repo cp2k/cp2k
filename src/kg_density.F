@@ -32,7 +32,7 @@ MODULE kg_density
   USE basis_set_types,        ONLY: get_gto_basis_set,&
                                     gto_basis_set_type
   USE coefficient_types,      ONLY: coeff_allocate, coeff_deallocate, &
-                                    coeff_add,coeff_sumup,&
+                                    coeff_sumup,&
                                     coeff_copy,&
                                     coeff_transform_space,&
                                     coeff_type,&
@@ -252,7 +252,7 @@ CONTAINS
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
+      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
     CALL coeff_transform_space(rho_gspace,rho)
@@ -578,7 +578,7 @@ CONTAINS
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
+      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
     CALL coeff_transform_space(rho_gspace,rho)

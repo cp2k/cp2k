@@ -38,8 +38,7 @@ MODULE qs_collocate_density
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_allocate,&
+  USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
                                              coeff_sumup,&
@@ -621,12 +620,12 @@ CONTAINS
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
+      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
 !   *** Save real-space density ***
     IF (.NOT. rebuild) THEN
-      CALL coeff_add(rho_gspace,rho_gspace_old,rho_gspace)
+      CALL coeff_sumup(rho_gspace_old,rho_gspace)
     END IF
     CALL coeff_copy(rho_gspace,rho_gspace_old)
 
@@ -837,7 +836,7 @@ CONTAINS
     CALL coeff_zero(rho_gspace)
     DO igrid_level=1,gridlevel_info%ngrid_levels
       CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
+      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
     CALL coeff_transform_space(rho_gspace,rho)
