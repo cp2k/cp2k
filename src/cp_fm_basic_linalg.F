@@ -182,7 +182,7 @@ CONTAINS
     ELSE
 #ifdef __SCALAPACK
        CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="to DO (pdscal,pdcopy,pdaxpy)", error=error)
+            message="to do (pdscal,pdcopy,pdaxpy)", error=error)
 #else
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
@@ -551,14 +551,40 @@ CONTAINS
   END SUBROUTINE cp_fm_schur_product
 
 ! *****************************************************************************
-
+!!****f* cp_fm_basic_linalg/cp_fm_trace [1.0] *
+!!
+!!   NAME
+!!     cp_fm_trace
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_trace(matrix_a, matrix_b, trace, error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix_a, matrix_b
+!!       Real(Kind=wp), Intent (OUT):: trace
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_trace
+!!
+!!   FUNCTION
+!!     returns the trace of matrix_a^T matrix_b, i.e 
+!!     sum_{i,j}(matrix_a(i,j)*matrix_b(i,j))
+!!
+!!   NOTES
+!!     note the transposition of matrix_a!
+!!
+!!   ARGUMENTS
+!!     - matrix_a: a matrix
+!!     - matrix_b: another matrix
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     11.06.2001 Creation (Matthias Krack)
+!!     12.2002 added doc [fawzi]
+!!
+!!*** *********************************************************************
   SUBROUTINE cp_fm_trace(matrix_a,matrix_b,trace,error)
-
-!   Purpose: Calculate the trace of the product of two BLACS matrices.
-
-!   History: - Creation (11.06.2001, Matthias Krack)
-
-!   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER           :: matrix_a,matrix_b
     REAL(wp), INTENT(OUT)                        :: trace

@@ -236,6 +236,8 @@ CONTAINS
        CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools,para_env=para_env)
 
        n_spins = qs_env%dft_control%nspins
+       p_env%n_mo=0
+       p_env%n_ao=0
        DO spin=1, n_spins
           IF (PRESENT(psi0d)) THEN
              CALL cp_fm_get_info(psi0d(spin)%matrix, &
@@ -998,7 +1000,7 @@ END SUBROUTINE p_env_did_change
     IF (.not.failure) THEN
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
-          max_cols=MAXVAL(n_cols)
+          max_cols=MAXVAL(n_cols(1:n_spins))
        ELSE
           max_cols=0
           DO spin=1, n_spins
@@ -1011,7 +1013,7 @@ END SUBROUTINE p_env_did_change
           ! but v_cols * n_mo would suffice
           CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp_matrix,error=error)
        ELSE
-          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=v_cols,&
+          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=max_cols,&
                ncol_global=maxnmo,template_fmstruct=ao_maxmo_fmstruct,&
                error=error)
           CALL cp_fm_create(tmp_matrix,matrix_struct=tmp_fmstruct,&
@@ -1150,7 +1152,7 @@ END SUBROUTINE p_env_did_change
           ! but v_cols * n_mo would suffice
           CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp_matrix,error=error)
        ELSE
-          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=v_cols,&
+          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=max_cols,&
                ncol_global=maxnmo,template_fmstruct=ao_maxmo_fmstruct,&
                error=error)
           CALL cp_fm_create(tmp_matrix,matrix_struct=tmp_fmstruct,&
