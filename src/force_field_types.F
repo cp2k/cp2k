@@ -36,44 +36,43 @@ MODULE force_field_types
   PRIVATE
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "force_field_types"
-  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Define the derived structure types ***
 
   TYPE bond_kind_type
-    CHARACTER(LEN=max_name_length) :: name
+    CHARACTER(LEN=default_string_length) :: name
     REAL(KIND = dp)                :: k,r0
     INTEGER                        :: kind_number
   END TYPE bond_kind_type
 
   TYPE bend_kind_type
-    CHARACTER(LEN=max_name_length) :: name
+    CHARACTER(LEN=default_string_length) :: name
     REAL(KIND = dp)                :: k,theta0
     INTEGER                        :: kind_number
   END TYPE bend_kind_type
 
   TYPE ub_kind_type
-    CHARACTER(LEN=max_name_length) :: name
+    CHARACTER(LEN=default_string_length) :: name
     REAL(KIND = dp)                :: k,r0
     INTEGER                        :: kind_number
   END TYPE ub_kind_type
 
   TYPE torsion_kind_type
-    CHARACTER(LEN=max_name_length) :: name
-    INTEGER ( KIND = dp )          :: m
+    CHARACTER(LEN=default_string_length) :: name
+    INTEGER                        :: m
     REAL(KIND = dp)                :: k,phi0
     REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
 
   TYPE impr_kind_type
-    CHARACTER(LEN=max_name_length) :: name
+    CHARACTER(LEN=default_string_length) :: name
     REAL(KIND = dp)                :: k,phi0
     INTEGER                        :: kind_number
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
-    CHARACTER(LEN=max_name_length)                  :: name
+    CHARACTER(LEN=default_string_length)                  :: name
     TYPE ( spline_environment_type ), POINTER       :: spline_env
     INTEGER                                         :: kind_number
   END TYPE onfo_kind_type
