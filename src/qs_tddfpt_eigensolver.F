@@ -34,6 +34,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_release,&
                                              cp_fm_get_element,&
                                              cp_fm_set_element,&
+                                             cp_fm_set_all,&
                                              cp_fm_to_fm
   USE cp_log_handling,                 ONLY: cp_to_string
   USE qs_mo_types,                     ONLY: get_mo_set
