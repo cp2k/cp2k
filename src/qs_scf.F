@@ -1846,7 +1846,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in), TARGET :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, orthogonal_wf
+    LOGICAL :: failure, orthogonal_wf,ionode
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_initial_rho_setup',&
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nmo, ispin, extrapolation_method_nr
@@ -1857,6 +1857,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(eigenvectors)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%source==logger%para_env%mepos
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1877,6 +1878,7 @@ CONTAINS
              END DO
           END IF
        END IF
+       IF (ionode) &
        WRITE (unit=cp_logger_get_default_unit_nr(logger),&
             fmt="(t3,'extrapolation method:',a)")&
             wfi_get_method_label(extrapolation_method_nr,error=error)
