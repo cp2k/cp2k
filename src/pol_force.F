@@ -20,6 +20,7 @@ MODULE pol_force
   USE atomic_kinds, ONLY : kind_info_type
   USE dg_types, ONLY : dg_type
   USE coefficient_types, ONLY : coeff_type
+  USE empirical_parameters, ONLY : empirical_parameter_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_intra_force, ONLY : force_intra_control
   USE fist_nonbond_force, ONLY : force_nonbond, bonded_correct_gaussian
@@ -35,6 +36,7 @@ MODULE pol_force
   USE message_passing, ONLY : mp_sum
   USE pair_potential, ONLY : potentialparm_type
   USE pol_electrostatics, ONLY : electrostatics
+  USE pol_overlap, ONLY : force_overlap
   USE particle_types, ONLY : particle_type
   USE pol_grids, ONLY : pol_grids_allocate, pol_grids_count, &
        pol_grids_map, pol_grids_initialize, assign_coefs_to_grids  
@@ -74,7 +76,7 @@ CONTAINS
 
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
-     thermo, potparm, ewald_param, ensemble, fc_global, lldata,  debug)
+     thermo, potparm, empparm, ewald_param, ensemble, fc_global, lldata,  debug)
 
   IMPLICIT NONE
 
@@ -91,6 +93,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   TYPE ( coeff_type ), INTENT (inout) :: coef_force
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
+  TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
@@ -193,6 +196,21 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
  IF ( isos /= 0 ) &
      CALL stop_memory ( 'force_control', 'fc_coef',  ncoefs )
 
+ IF ( .NOT. ALLOCATED ( fo_part )  ) &
+         ALLOCATE ( fo_part ( 3,nnodes ), STAT=isos )
+ IF ( isos /= 0 ) &
+      CALL stop_memory ( 'force_control', 'fc_part', 3 * nnodes )
+             
+ IF ( .NOT. ALLOCATED ( fo_coef )  ) &
+         ALLOCATE ( fo_coef ( ncoefs ), STAT=isos )
+ IF ( isos /= 0 ) &
+    CALL stop_memory ( 'force_control', 'fo_coef',  ncoefs )
+
+! get overlap forces
+
+     CALL force_overlap( coef_pos%ao, drho_basis_info, part, pnode, box, thermo, & 
+                       empparm, fo_coef, fo_part, fc_global)
+
 
 ! get electrostatics forces   
 
@@ -205,9 +223,6 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   f_nonbond = zero
   CALL force_nonbond ( ewald_param,pnode,box,potparm, &
        pot_nonbond,f_nonbond,pv_nonbond )
-
-
-!!  CALL pol_overlap_force (STUFF)
 
 !
 ! add up all the potential energies
