@@ -19,12 +19,11 @@
 
 MODULE convert_units
 
-  USE cp2k_units, ONLY : unit_convert_type, time_convert, get_cp2k_units
+  USE cp2k_units, ONLY : unit_convert_type, get_cp2k_units
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : intra_parameters_type
   USE pair_potential_types, ONLY : pair_potential_type
   USE particle_types, ONLY : particle_type
-  USE physcon, ONLY : permittivity
   USE simulation_cell, ONLY : cell_type
 
   IMPLICIT NONE
@@ -97,7 +96,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 ! convert time
      IF ( unit_char == 'FS' ) &
      time = time * units % fs
-     CALL time_convert ( time )
   ENDIF
 
   IF ( PRESENT ( temperature ) ) THEN
@@ -120,7 +118,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   ENDIF
 
   IF ( PRESENT ( eps0 ) ) THEN
-   eps0 = permittivity * units % eps0
+   eps0 = units % eps0
   ENDIF
 
   IF ( PRESENT ( tau_nhc ) ) THEN
@@ -128,7 +126,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
      tau_nhc =  units % wavenum / tau_nhc
      IF ( unit_char == 'FS' ) &
      tau_nhc = tau_nhc * units % fs
-     CALL time_convert ( tau_nhc )
   ENDIF 
 
 !!!!

@@ -23,7 +23,7 @@ MODULE cp2k_units
   USE mathconstants, ONLY : pi
   USE physcon, ONLY : e_charge, angstrom, a_bohr, e_mass, joule, a_mass, &
        c_light, boltzmann, kcalmol, massunit, bohr, evolt, h_bar, wavenum, &
-       hz, permittivity
+       hz, permittivity, femtoseconds
   USE termination, ONLY : stop_memory
 
   PRIVATE
@@ -37,7 +37,7 @@ MODULE cp2k_units
   END TYPE unit_convert_type
   
   TYPE ( unit_convert_type ), POINTER :: units
-  PUBLIC :: convert_to_cp2k_units, unit_convert_type, get_cp2k_units, time_convert, init_cp2k_units
+  PUBLIC :: convert_to_cp2k_units, unit_convert_type, get_cp2k_units, init_cp2k_units
 
 !!*****
 !******************************************************************************
@@ -84,7 +84,7 @@ SUBROUTINE init_cp2k_units ()
 ! amu to mass AU
   units % mass = massunit
 ! fs to time AU
-  units % fs = joule / 1.e15_dbl /  h_bar
+  units % fs = 1._dbl/femtoseconds
 ! 1/cm to time AU
   units % wavenum =  joule * wavenum / hz / h_bar
 ! kcal/mole to energy AU
@@ -96,7 +96,7 @@ SUBROUTINE init_cp2k_units ()
 ! bar to pressure AU
   units % bar = joule / ( a_bohr ** 3 * 1.0E+05_dbl )
 ! permittivity to AU
-  units % eps0 = joule * a_bohr / e_charge ** 2
+  units % eps0 = permittivity * joule * a_bohr / e_charge ** 2
 
 END SUBROUTINE init_cp2k_units
 
@@ -126,30 +126,6 @@ SUBROUTINE get_cp2k_units ( unit_struc )
   unit_struc => units
 
 END SUBROUTINE get_cp2k_units
-
-!******************************************************************************
-!!****** units/time_convert [1.0] *
-!!
-!!   NAME
-!!     time_convert
-!!
-!!   FUNCTION
-!!     Converts time in AU to the internal units of CP2K
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE time_convert ( time )
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( INOUT ) :: time
-  time = time / units % fs * 1.e-15_dbl / ( a_bohr * SQRT ( e_mass / joule ) )
-END SUBROUTINE time_convert 
-
 
 END MODULE cp2k_units
 
