@@ -843,7 +843,7 @@ CONTAINS
              ra(:)     =   pbc(mm_particles(IndMM)%r,mm_cell)
              W         =   mm_charges(LIndMM) * height
              force     =   0.0_dp
-
+             IF (W == 0.0_dp) CYCLE Atoms
              CALL integrate_gf_rspace_NoPBC(zetp=alpha,&
                                             rp=ra,&
                                             scale=-1.0_dp,&
@@ -1024,6 +1024,7 @@ CONTAINS
           IndMM     =   mm_atom_index(LIndMM)
           ra(:)     =   pbc(mm_particles(IndMM)%r,mm_cell)
           qt        =   mm_charges(LIndMM)
+          IF (qt == 0.0_dp) CYCLE Atoms
           rt1 = ra(1)
           rt2 = ra(2)
           rt3 = ra(3)

@@ -73,7 +73,8 @@ MODULE input_cp2k
   INTEGER, PARAMETER, public :: do_qs=1,do_fist=2,do_kg=3,do_qmmm=4,do_atom=5,&
        do_farming=6,do_test=8
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
-                                      ALPHA_IMOMM_DEFAULT = 1.38_dp  
+                                      ALPHA_IMOMM_DEFAULT = 1.38_dp,&
+                                      CHARGE_SCALE_FACTOR = 0.00_dp
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
@@ -2021,6 +2022,17 @@ END SUBROUTINE create_ewald_section
             default_r_val=ALPHA_IMOMM_DEFAULT,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="SCALE_FACTOR",&
+            variants=(/ "CHARGE_SCALE ",&
+                        "CHARGE_FACTOR",&
+                        "SCALE_CHARGE " /),&
+            description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
+            "Default 0.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
+            usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
+            default_r_val=CHARGE_SCALE_FACTOR,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="SUBSYS",&
             description="Specifies which subsystem the qm/mm link atoms belong to.",&

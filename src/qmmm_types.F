@@ -102,6 +102,7 @@ MODULE qmmm_types
   TYPE qmmm_imomm_link_type
      INTEGER  :: qm_index, mm_index
      REAL(KIND=dp) :: alpha
+     REAL(KIND=dp) :: charge_scale_factor
   END TYPE qmmm_imomm_link_type
   
   TYPE qmmm_imomm_link_p_type
@@ -138,6 +139,8 @@ MODULE qmmm_types
      LOGICAL                                                 :: qmmm_link
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER,        DIMENSION(:), POINTER                   :: qm_atom_index
+     INTEGER,        DIMENSION(:), POINTER                   :: mm_link_atoms
+     REAL(KIND=dp),  DIMENSION(:), POINTER                   :: mm_link_scale_factor
      INTEGER,        DIMENSION(:), POINTER                   :: qm_molecule_index
   END TYPE qmmm_env_mm_type
 
@@ -183,8 +186,12 @@ CONTAINS
        qmmm_env%ref_count=1
        last_qmmm_env_id_nr=last_qmmm_env_id_nr+1
        qmmm_env%id_nr=last_qmmm_env_id_nr
-       NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_molecule_index)
+       NULLIFY(qmmm_env%qm_atom_index,&
+               qmmm_env%qm_molecule_index,&
+               qmmm_env%mm_link_atoms,&
+               qmmm_env%mm_link_scale_factor)
        qmmm_env%qmmm_coupl_type=do_qmmm_none
+       qmmm_env%qmmm_link = .FALSE.
     END IF
   END SUBROUTINE qmmm_env_mm_create
   
@@ -270,6 +277,14 @@ CONTAINS
              DEALLOCATE(qmmm_env%qm_molecule_index,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
+          IF (ASSOCIATED(qmmm_env%mm_link_atoms)) THEN
+             DEALLOCATE(qmmm_env%mm_link_atoms,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+          IF (ASSOCIATED(qmmm_env%mm_link_scale_factor)) THEN
+             DEALLOCATE(qmmm_env%mm_link_scale_factor,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
           DEALLOCATE(qmmm_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
@@ -321,6 +336,7 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%aug_pools, qmmm_env%potentials,&
              qmmm_env%qmmm_links)
      qmmm_env%center_qm_subsys = .TRUE.
+     qmmm_env%qmmm_link        = .FALSE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0

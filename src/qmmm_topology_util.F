@@ -106,7 +106,16 @@ CONTAINS
        topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
             TRIM(topology%atom_info%label_resname(qmmm_env%qm_atom_index(iatm)))
     END DO
-
+    !
+    ! Modify type for MM link atoms 
+    !
+    DO iatm = 1, SIZE(qmmm_env%mm_link_atoms)
+       topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)) = "_LNK"//&
+            TRIM(topology%atom_info%label_atmname(qmmm_env%mm_link_atoms(iatm)))
+       topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm)) = "_LNK"//&
+            TRIM(topology%atom_info%label_resname(qmmm_env%mm_link_atoms(iatm))) 
+    END DO
+    !
     IF((globenv%ionode).AND.(globenv%print%level>0))THEN
        WRITE(iw,*) "  Exiting  qmmm_coordinate_control"
     END IF
