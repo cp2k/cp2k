@@ -42,11 +42,9 @@ OBJECTS_GENERIC =\
  cp_lbfgs_optimizer_gerd_f.o\
  cp_lbfgs_optimizer_tests.o\
  cp_linked_list_int.o\
- cp_linked_list_int_ptr.o\
  cp_log_handling.o\
  cp_matrix_utils.o\
  cp_output_handling.o\
- cp_sll_int_ptr_tests.o\
  cp_sll_int_tests.o\
  cp_sparse_matrix.o\
  cs1_functional.o\
@@ -250,4 +248,3 @@ OBJECTS_GENERIC =\
  wf_types.o\
  xalpha_functional.o\
  xc.o
-
