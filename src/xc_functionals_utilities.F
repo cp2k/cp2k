@@ -53,6 +53,7 @@ MODULE xc_functionals_utilities
 
   REAL(dbl) :: eps_rho
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

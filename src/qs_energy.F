@@ -54,6 +54,7 @@ MODULE qs_energy
   PUBLIC :: qs_energies,&
             qs_energies_update
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -47,7 +47,7 @@ MODULE spme
   PRIVATE
   PUBLIC :: spme_evaluate, spme_coeff_calculate
 
-!!*****
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -66,8 +66,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     JGH (03-May-2001) : SPME with charge definition
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
      grid_spme, ewald_param )
@@ -236,7 +235,6 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
 END SUBROUTINE spme_evaluate
 
-!!*****
 !******************************************************************************
 
 SUBROUTINE p3m_update ( gf )
@@ -276,7 +274,6 @@ SUBROUTINE p3m_update ( gf )
 
 END SUBROUTINE p3m_update
 
-!!*****
 !******************************************************************************
 !!****** spme/get_patch [1.0] *
 !!
@@ -292,8 +289,7 @@ END SUBROUTINE p3m_update
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE get_patch ( part, box, npts, p, rhos )
 
@@ -339,8 +335,7 @@ END SUBROUTINE get_patch
 !!   MODIFICATION HISTORY
 !!     DG (29-Mar-2001) : code implemented
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
   IMPLICIT NONE
@@ -404,7 +399,6 @@ SUBROUTINE spme_get_patch ( rhos, n, delta, q, coeff )
 
 END SUBROUTINE spme_get_patch
 
-!!*****
 !******************************************************************************
 !!****** spme/set_list [1.0] *
 !!
@@ -420,8 +414,7 @@ END SUBROUTINE spme_get_patch
 !!   MODIFICATION HISTORY
 !!     JGH (30-Mar-2001) : spme version adapted from pme
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
 
@@ -580,7 +573,6 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
 
 END SUBROUTINE get_delta
 
-!!*****
 !******************************************************************************
 !!****** spme/spme_coeff_calculate [1.0] *
 !!
@@ -596,8 +588,7 @@ END SUBROUTINE get_delta
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE spme_coeff_calculate ( n, coeff )
 
@@ -642,7 +633,6 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
 
 END SUBROUTINE spme_coeff_calculate
 
-!!*****
 !******************************************************************************
 
 END MODULE spme

@@ -536,7 +536,7 @@ CONTAINS
   END SUBROUTINE cp_logger_retain
 !***************************************************************************
 
-!!****f* cp_logger_release *
+!!****f* cp_log_handling/cp_logger_release *
 !!
 !!   NAME
 !!     cp_logger_release

@@ -43,6 +43,7 @@ MODULE orbital_symbols
 
   PUBLIC :: cgf_symbol,sgf_symbol
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -63,6 +63,7 @@ MODULE kg_environment_types
             init_kg_env,&
             set_kg_env
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -17,7 +17,7 @@
 !!     David M. Benoit, Daniel Sebastiani, and Michele Parrinello 
 !!
 !!   NOTES
-!!     At the moment much is hard-coded
+!!     Initialization procedure of qs_env not satisfactory
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -149,16 +149,16 @@ MODULE qs_ep_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_ep_methods'
   INTEGER, PRIVATE, SAVE :: last_ep_env_id=0
 
-  PUBLIC :: qs_ep_calculation
+  PUBLIC :: qs_ep_calculation, qs_ep_create, qs_ep_finish_qs_init
 
 !!***
 !****************************************************************************
 CONTAINS
 
-!!****f* qs_ep_methods/qs_ep_create [1.0] *
+!!****f* qs_ep_methods/qs_ep_calculation [1.0] *
 !!
 !!   NAME
-!!     qs_ep_create
+!!     qs_ep_calculation
 !!
 !!   SYNOPSIS
 !!     Subroutine qs_ep_calculation(qs_env, globenv, error)
@@ -168,11 +168,113 @@ CONTAINS
 !!     End Subroutine qs_ep_calculation
 !!
 !!   FUNCTION
+!!     Perform an ep calculation
+!!
+!!   NOTES
+!!     still in active development, ugly code
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env of the full system as returned after qs_init
+!!     - globenv: globenv, needed for some initializations
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
+  TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_ep_calculation',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: isub, iatom, natoms, handle, stat
+  TYPE(qs_p_projection_p_type), DIMENSION(2) :: sub_proj
+  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+  TYPE(qs_ep_env_type), POINTER :: ep_env
+  TYPE(cp_logger_type), POINTER :: logger
+  TYPE(qs_environment_type), POINTER :: sub_qs
+  INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
+
+  CALL timeset(routineN,"I","",handle)
+  
+  failure=.FALSE.
+  NULLIFY(particle_set,ep_env)
+  logger => cp_error_get_logger(error)
+
+  CALL cp_log(logger,cp_note_level,routineP,&
+       "Finishing initialization of qs_env")
+  CALL qs_ep_finish_qs_init(qs_env, globenv, error)
+  CALL cp_error_check(error,failure)
+
+  ! define projections (i.e. subsystems)
+  IF (.NOT. failure) THEN
+     CALL get_qs_env(qs_env,particle_set=particle_set)
+     natoms=SIZE(particle_set)
+
+     NULLIFY(sub_proj(1)%projection, sub_proj(2)%projection)
+
+     ALLOCATE(atoms(natoms/2),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO iatom=1,natoms/2
+        atoms(iatom)=iatom
+     END DO
+     CALL p_proj_create(sub_proj(1)%projection, atoms=atoms,&
+          particle_set=particle_set, error=error)
+     DEALLOCATE(atoms,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+     ALLOCATE(atoms((natoms+1)/2),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO iatom=1,(natoms+1)/2
+        atoms(iatom)=iatom+natoms/2
+     END DO
+     CALL p_proj_create(sub_proj(2)%projection, atoms=atoms,&
+          particle_set=particle_set, error=error)
+     DEALLOCATE(atoms,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+
+  ! create ep_env
+  IF (.not.failure) THEN
+     CALL qs_ep_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
+          error=error)
+  END IF
+
+  ! energy in subsystem with diag
+  DO isub=1,SIZE(ep_env%sub_qs_env)
+     CALL cp_log(logger,cp_note_level,routineP,&
+          "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub)))
+     sub_qs => ep_env%sub_qs_env(isub)%qs_env
+     CALL qs_energies(sub_qs,globenv)
+  END DO
+  
+  ! perturbative approach for complete system
+  CALL cp_log(logger,cp_note_level,routineP,&
+       "Starting perturbation")
+
+  CALL timestop(0.0_wp, handle)
+END SUBROUTINE qs_ep_calculation
+!***************************************************************************
+
+!!****f* qs_ep_methods/qs_ep_create [1.0] *
+!!
+!!   NAME
+!!     qs_ep_create
+!!
+!!   FUNCTION
 !!     creates the environement to perform an ep perturbation
 !!
 !!   NOTES
-!!     Don't look at the code, it's in development!
-!!     Whole initialization of qs_env should be retought (also for dynamics)
+!!     Could take more advantage of what is calculated in main_qs_env
+!!     (for example the S matrix)
+!!     
 !!
 !!   INPUTS
 !!     - ep_env: the ep_env env to create
@@ -396,115 +498,6 @@ CONTAINS
   END SUBROUTINE qs_ep_create
 !***************************************************************************
 
-!!****f* qs_ep_methods/qs_ep_calculation [1.0] *
-!!
-!!   NAME
-!!     qs_ep_calculation
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ep_calculation(qs_env, globenv, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(global_environment_type), Intent (INOUT), Target:: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ep_calculation
-!!
-!!   FUNCTION
-!!     Perform an ep calculation
-!!
-!!   NOTES
-!!     Don't look at the code, it's in development!
-!!     Whole initialization of qs_env should be retought (also for dynamics)
-!!
-!!   INPUTS
-!!     - qs_env: the qs_env of the full system as returned after qs_init
-!!     - globenv: globenv, needed for some initializations
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     11.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
-  TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
-  TYPE(global_environment_type), INTENT(inout), TARGET :: globenv
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_ep_calculation',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: isub, iatom, natoms, handle, stat
-  TYPE(qs_p_projection_p_type), DIMENSION(2) :: sub_proj
-  TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-  TYPE(qs_ep_env_type), POINTER :: ep_env
-  TYPE(cp_logger_type), POINTER :: logger
-  TYPE(qs_environment_type), POINTER :: sub_qs
-  INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
-
-  CALL timeset(routineN,"I","",handle)
-  
-  failure=.FALSE.
-  NULLIFY(particle_set,ep_env)
-  logger => cp_error_get_logger(error)
-
-  CALL cp_log(logger,cp_note_level,routineP,&
-       "Finishing initialization of qs_env")
-  CALL qs_ep_finish_qs_init(qs_env, globenv, error)
-  CALL cp_error_check(error,failure)
-
-  ! define projections (i.e. subsystems)
-  IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env,particle_set=particle_set)
-     natoms=SIZE(particle_set)
-
-     NULLIFY(sub_proj(1)%projection, sub_proj(2)%projection)
-
-     ALLOCATE(atoms(natoms/2),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DO iatom=1,natoms/2
-        atoms(iatom)=iatom
-     END DO
-     CALL p_proj_create(sub_proj(1)%projection, atoms=atoms,&
-          particle_set=particle_set, error=error)
-     DEALLOCATE(atoms,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
-     ALLOCATE(atoms((natoms+1)/2),stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     DO iatom=1,(natoms+1)/2
-        atoms(iatom)=iatom+natoms/2
-     END DO
-     CALL p_proj_create(sub_proj(2)%projection, atoms=atoms,&
-          particle_set=particle_set, error=error)
-     DEALLOCATE(atoms,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  END IF
-
-  ! create ep_env
-  IF (.not.failure) THEN
-     CALL qs_ep_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
-          error=error)
-  END IF
-
-  ! energy in subsystem with diag
-  DO isub=1,SIZE(ep_env%sub_qs_env)
-     CALL cp_log(logger,cp_note_level,routineP,&
-          "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub)))
-     sub_qs => ep_env%sub_qs_env(isub)%qs_env
-     CALL qs_energies(sub_qs,globenv)
-  END DO
-  
-  ! perturbative approach for complete system
-  CALL cp_log(logger,cp_note_level,routineP,&
-       "Starting perturbation")
-
-  CALL timestop(0.0_wp, handle)
-END SUBROUTINE qs_ep_calculation
-!***************************************************************************
-
 !!****f* qs_ep_methods/qs_ep_finish_qs_init [1.0] *
 !!
 !!   NAME
@@ -620,6 +613,44 @@ SUBROUTINE qs_ep_finish_qs_init(qs_env,globenv,error)
 
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE qs_ep_finish_qs_init
+!***************************************************************************
+
+!!****f* qs_ep_methods/qs_ep_transfer_psi0 [1.0] *
+!!
+!!   NAME
+!!     qs_ep_transfer_psi0
+!!
+!!   FUNCTION
+!!     transfers psi0 from the sub_qs_env to the main_qs_env
+!!     (i.e. sub_qs_env%c are injected into main_qs_env%c)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine qs_ep_transfer_psi0(ep_env, error)
+  type(qs_ep_env_type), pointer :: ep_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='qs_ep_transfer_psi0',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  if (.not. failure) then
+     
+  end if
+end subroutine qs_ep_transfer_psi0
 !***************************************************************************
 
 END MODULE qs_ep_methods

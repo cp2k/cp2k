@@ -88,6 +88,7 @@ MODULE basis_set_types
     MODULE PROCEDURE init_orb_basis_set1,init_orb_basis_set2
   END INTERFACE
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -187,6 +187,7 @@ MODULE qs_core_hamiltonian
 
   PUBLIC :: build_core_hamiltonian_matrix
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

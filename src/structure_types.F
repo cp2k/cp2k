@@ -51,6 +51,7 @@ MODULE structure_types
   PUBLIC :: structure_type, set_structure_type, &
             get_structure_type, init_structure_type
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

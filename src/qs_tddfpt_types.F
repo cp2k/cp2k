@@ -22,7 +22,7 @@
 !!   SEE ALSO
 !!     
 !!
-!!****
+!!***
 MODULE qs_tddfpt_types
   USE cp_error_handling,               ONLY: cp_simple_assert
   USE cp_fm_types,                     ONLY: cp_fm_release,&
@@ -48,7 +48,7 @@ MODULE qs_tddfpt_types
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
   END TYPE fm_p_spins_p_type
 
-!!****s* qs_tddfpt_types
+!!****s* qs_tddfpt_types/qs_tddfpt_types
 !!
 !! NAME
 !!   tddfpt_env_type
@@ -65,7 +65,7 @@ MODULE qs_tddfpt_types
 !!
 !! NOTES
 !!
-!!****
+!!***
   TYPE tddfpt_env_type
      INTEGER                                           :: n_ev   ! number of eigenvalues 
      TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER    :: x      ! right eigenvector     
@@ -118,7 +118,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     08-2002, TCH, created
 !!
-!!****
+!!***
   SUBROUTINE tddfpt_env_init(t_env, p_env, qs_env, n_ev, glob_env)
 
     IMPLICIT NONE
@@ -185,7 +185,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     10-2002, TCH, created
 !!
-!!****
+!!***
   SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env, n_ev, glob_env)
   
     IMPLICIT NONE
@@ -271,7 +271,7 @@ CONTAINS
 !!   SEE ALSO
 !!     
 !!
-!!****
+!!***
   SUBROUTINE tddfpt_env_deallocate(t_env, glob_env)
   
     IMPLICIT NONE

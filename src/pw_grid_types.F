@@ -81,6 +81,7 @@ MODULE pw_grid_types
   
   ! (only for reciprocal grid:) fill in half or full space
   INTEGER, PARAMETER :: HALFSPACE = 211, FULLSPACE = 212
+!!***
   
 END MODULE pw_grid_types
 

@@ -52,6 +52,7 @@ MODULE kg_core
   PUBLIC :: calculate_ecore_rspace,&
             calculate_eself
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

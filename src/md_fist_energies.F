@@ -64,6 +64,7 @@ MODULE md_fist_energies
 
   TYPE ( global_environment_type ) :: glob_env
 
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -87,8 +88,7 @@ CONTAINS
 !!     Call this subroutine before the first call to energy or velocity_verlet
 !!     or if you want to change ionode and/or output files
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE set_fist_energies ( globenv, mdio )
 
@@ -138,8 +138,7 @@ END SUBROUTINE set_fist_energies
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE set_fist_energies_param ( pconv, tempconv, l, vol, e, pres, temp, angl )
 
@@ -179,8 +178,7 @@ END SUBROUTINE set_fist_energies_param
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 
 SUBROUTINE md_energy_fist ( itimes, constant, box, ll_data, nhc_part, nhc_baro, &
@@ -434,8 +432,7 @@ END SUBROUTINE md_energy_fist
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_baro, &
                                  npt, simpar, struc, thermo )
@@ -709,7 +706,6 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
 
 END SUBROUTINE md_energy_fist_pimd
 
-!!*****
 !******************************************************************************
 !!****** md_fist_energies/get_baro_energies [1.0] *
 !!
@@ -725,9 +721,7 @@ END SUBROUTINE md_energy_fist_pimd
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
-!!*****
+!!*** *************************************************************************
 SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot )
   IMPLICIT NONE
 
@@ -780,8 +774,7 @@ END SUBROUTINE get_baro_energies
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin )
   IMPLICIT NONE
   TYPE ( lnhc_parameters_type ), INTENT ( IN ) :: nhc
@@ -823,8 +816,7 @@ END SUBROUTINE get_nhc_energies
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 SUBROUTINE get_part_temp ( thermo, simpar, temperature )
 
   IMPLICIT NONE
@@ -835,7 +827,6 @@ SUBROUTINE get_part_temp ( thermo, simpar, temperature )
   temperature = 2.0_dbl*thermo%kin/float(simpar%nfree)/temp_conv
 
 END SUBROUTINE  get_part_temp
-!!*****
 !******************************************************************************
 !!****** md_fist_energies/get_part_ke [1.0] *
 !!
@@ -851,8 +842,7 @@ END SUBROUTINE  get_part_temp
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE get_part_ke ( struc, thermo )
   IMPLICIT NONE
@@ -909,8 +899,7 @@ END SUBROUTINE get_part_ke
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 !
 !SUBROUTINE get_coef_ke ( coef, inuse, ncoef, ekinc )
 !  IMPLICIT NONE

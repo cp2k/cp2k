@@ -53,7 +53,7 @@ MODULE ao_types
      TYPE ( ao_structure_factor_type ), DIMENSION ( : ),  POINTER :: eigr
   END TYPE ao_type
 
-!!*****
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -73,8 +73,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
 
@@ -158,7 +157,6 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag, eigr_flag )
 
 END SUBROUTINE ao_allocate
 
-!!*****
 !******************************************************************************
 !!****** ao_types/ao_deallocate [1.0] *
 !!
@@ -174,8 +172,7 @@ END SUBROUTINE ao_allocate
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE ao_deallocate ( ao )
 
@@ -234,7 +231,6 @@ SUBROUTINE ao_deallocate ( ao )
 
 END SUBROUTINE ao_deallocate
 
-!!*****
 !******************************************************************************
 !!****** ao_types/ao_zero [1.0] *
 !!
@@ -250,8 +246,7 @@ END SUBROUTINE ao_deallocate
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE ao_zero ( ao )
 

@@ -37,7 +37,7 @@ MODULE nhc
   PRIVATE
   PUBLIC :: nhc_particle_setup, nhc_barostat_setup
 
-!!*****
+!!***
 !******************************************************************************
 CONTAINS
 !******************************************************************************
@@ -56,8 +56,7 @@ CONTAINS
 !!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
 !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! creates the thermostatting maps use global_mod
@@ -166,8 +165,7 @@ END SUBROUTINE nhc_barostat_setup
 !!     CJM, 20-Feb-01  : nhc structure allocated to zero when not in use
 !!     JGH (10-Mar-2001) : set nhc variables to zero when not in use
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
 
@@ -770,7 +768,6 @@ SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
 
 END SUBROUTINE nhc_particle_setup
 
-!!*****
 !******************************************************************************
 
 END MODULE nhc

@@ -72,6 +72,7 @@ MODULE xc_pade
     MODULE PROCEDURE pade_lda, pade_lsd, pade_init, pade_info
   END INTERFACE
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -55,8 +55,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE dump_fist_variables ( int_env, rep_env, dump_file_name, globenv, is_pimd )
 
@@ -180,7 +179,6 @@ SUBROUTINE dump_fist_variables ( int_env, rep_env, dump_file_name, globenv, is_p
 
 END SUBROUTINE dump_fist_variables
 
-!!*****
 !******************************************************************************
 !******************************************************************************
 !!****** dump/dump_kg_variables [1.0] *
@@ -195,8 +193,7 @@ END SUBROUTINE dump_fist_variables
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 SUBROUTINE dump_kg_variables ( int_env, kg_env, dump_file_name, globenv )
 
 ! routine to dump all simulation variables periodically and at the last step.

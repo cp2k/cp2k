@@ -61,6 +61,7 @@ MODULE xc_perdew86
     MODULE PROCEDURE p86_u, p86_p, p86_init, p86_info
   END INTERFACE
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

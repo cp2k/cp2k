@@ -55,6 +55,7 @@ MODULE xc_lyp
     MODULE PROCEDURE lyp_u, lyp_p, lyp_init, lyp_info
   END INTERFACE
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -65,7 +65,7 @@ MODULE pw_grids
   PUBLIC :: pw_grid_setup, pw_grid_change, pw_find_cutoff
 
   INTEGER :: grid_tag = 0
-!!*****
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -85,8 +85,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_construct ( pw_grid )
 
@@ -102,7 +101,6 @@ SUBROUTINE pw_grid_construct ( pw_grid )
 
 END SUBROUTINE pw_grid_construct
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_destruct [1.0] *
 !!
@@ -118,8 +116,7 @@ END SUBROUTINE pw_grid_construct
 !!   MODIFICATION HISTORY
 !!     JGH (22-Mar-2001) : release group communicators
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_destruct ( pw_grid )
 
@@ -204,7 +201,6 @@ SUBROUTINE pw_grid_destruct ( pw_grid )
 
 END SUBROUTINE pw_grid_destruct
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_compare [1.0] *
 !!
@@ -220,8 +216,7 @@ END SUBROUTINE pw_grid_destruct
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
@@ -244,7 +239,6 @@ FUNCTION pw_grid_compare ( grida, gridb ) RESULT ( equal )
 
 END function pw_grid_compare
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_setup [1.1] *
 !!
@@ -266,8 +260,7 @@ END function pw_grid_compare
 !!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
 !!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
                            symm_usage, ref_grid )
@@ -530,7 +523,6 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
 END SUBROUTINE pw_grid_setup
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_distribute [1.0] *
 !!
@@ -547,8 +539,7 @@ END SUBROUTINE pw_grid_setup
 !!     JGH (01-Mar-2001) optional reference grid 
 !!     JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid )
 
@@ -870,7 +861,6 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
 
 END SUBROUTINE pre_tag
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_count [1.1] *
 !!
@@ -887,8 +877,7 @@ END SUBROUTINE pre_tag
 !!   MODIFICATION HISTORY
 !!     JGH (22-12-2000) : Adapted for parallel use
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
@@ -964,7 +953,6 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
 
 END SUBROUTINE pw_grid_count
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_assign [1.1] *
 !!
@@ -981,8 +969,7 @@ END SUBROUTINE pw_grid_count
 !!   MODIFICATION HISTORY
 !!     JGH (29-12-2000) : Adapted for parallel use
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
@@ -1187,7 +1174,6 @@ SUBROUTINE pw_grid_assign ( h_inv, pw_grid, cutoff )
 
 END SUBROUTINE pw_grid_assign
 
-!!*****
 !******************************************************************************
 !!****** pw_grids/pw_grid_set_maps [1.1] *
 !!
@@ -1207,8 +1193,7 @@ END SUBROUTINE pw_grid_assign
 !!   NOTES
 !!     Maps are to full 3D space (not distributed)
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
@@ -1275,7 +1260,6 @@ SUBROUTINE pw_grid_set_maps ( grid_span, g_hat, mapl, mapm, mapn, npts )
 
 END SUBROUTINE pw_grid_set_maps
 
-!!*****
 !****************************************************************************
 !!****** pw_grids/pw_grid_find_bounds [1.1] *
 !!
@@ -1298,8 +1282,7 @@ END SUBROUTINE pw_grid_set_maps
 !!     JGH (28-02-2001) : Only do conditional check for FFT
 !!     JGH (21-05-2002) : Optimise code, remove orthorhombic special case
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
@@ -1352,7 +1335,6 @@ SUBROUTINE pw_grid_find_bounds ( bounds, h_inv, cutoff, fft )
 
 END SUBROUTINE pw_grid_find_bounds
 
-!!*****
 !****************************************************************************
 !!****** pw_grids/pw_grid_allocate [1.1] *
 !!
@@ -1371,8 +1353,7 @@ END SUBROUTINE pw_grid_find_bounds
 !!                        Bounds of arrays now from calling routine, this
 !!                        makes it independent from parallel setup
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds )
   IMPLICIT NONE
@@ -1423,7 +1404,6 @@ SUBROUTINE pw_grid_allocate ( pw_grid, ng, bounds )
 
 END SUBROUTINE pw_grid_allocate
 
-!!*****
 !****************************************************************************
 !!****** pw_grids/pw_grid_sort [1.1] *
 !!
@@ -1447,8 +1427,7 @@ END SUBROUTINE pw_grid_allocate
 !!                        reference grids for non-spherical cutoffs
 !!     JGH (20-06-2001) : do not sort non-spherical grids
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
@@ -1618,7 +1597,6 @@ SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
 END SUBROUTINE redist
 
-!!*****
 !****************************************************************************
 !!****** pw_grids/pw_grid_remap [1.0] *
 !!
@@ -1634,8 +1612,7 @@ END SUBROUTINE redist
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_remap ( pw_grid, yz )
   IMPLICIT NONE
@@ -1724,8 +1701,7 @@ END SUBROUTINE pw_grid_remap
 !!                        PW required.
 !!     JGH (8-Mar-2001) : also update information on volume and grid spaceing
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_grid_change ( cell, pw_grid )
   IMPLICIT NONE
@@ -1772,7 +1748,6 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
 
 END SUBROUTINE pw_grid_change
 
-!!*****
 !****************************************************************************
 !!****** pw_grids/pw_find_cutoff [1.1] *
 !!
@@ -1795,8 +1770,7 @@ END SUBROUTINE pw_grid_change
 !!     of PW on processors.
 !!     npts is the grid size for the full box.
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
@@ -1835,7 +1809,6 @@ SUBROUTINE pw_find_cutoff ( npts, box, cutoff )
 
 END SUBROUTINE pw_find_cutoff
 
-!!*****
 !******************************************************************************
 
 END MODULE pw_grids

@@ -38,6 +38,7 @@ MODULE potentials
           potential_set_zero
   END INTERFACE
   
+!!***
 CONTAINS
 
 !******************************************************************************

@@ -23,9 +23,6 @@
 !!   MODIFICATION HISTORY
 !!     22-08-2002, TCH, started development
 !!
-!!   SEE ALSO
-!!     
-!!
 !!****
 MODULE qs_p_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -490,7 +487,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     10.2002, TCH, extracted single spin calculation
 !!
-!!****
+!!***
   SUBROUTINE p_op_l1(p_env, qs_env, v, res, error)
  
     IMPLICIT NONE
@@ -565,7 +562,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     10.2002, TCH, created
 !!
-!!****
+!!***
   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res, error)
  
     IMPLICIT NONE
@@ -614,7 +611,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* p_op_l2 [1.0] *
+!!****f* qs_p_utils/p_op_l2 [1.0] *
 !!
 !!   NAME
 !!     p_op_l2

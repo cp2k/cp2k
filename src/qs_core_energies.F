@@ -76,6 +76,7 @@ MODULE qs_core_energies
             calculate_ecore_overlap,&
             calculate_ecore_self
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

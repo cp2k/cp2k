@@ -83,7 +83,7 @@ MODULE pw_pool_types
        pw_pool_init_coeff, pw_pool_flush_cache
   PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
        pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
-!***
+!!***
 !****************************************************************************
 
 !!****s* pw_pool_types/pw_pool_type [1.0] *
@@ -668,7 +668,7 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,error)
 END SUBROUTINE pw_pool_give_back_coeff
 !***************************************************************************
 
-!!****f* pw_pools_init_coeffs [1.0] *
+!!****f* pw_pool_types/pw_pools_init_coeffs [1.0] *
 !!
 !!   NAME
 !!     pw_pools_init_coeffs

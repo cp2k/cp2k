@@ -115,6 +115,7 @@ MODULE atomic_kind_types
 
   PUBLIC :: atomic_kind_type
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -45,6 +45,7 @@
   PRIVATE
   PUBLIC :: fpart_gspace_numer, fpart_tf_numer, fpart_xc_numer, &
             fpart_core_rspace_numer
+!!***
 !------------------------------------------------------------------------------!
 !
    CONTAINS

@@ -82,6 +82,7 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: dump_file_name
   END TYPE mdio_parameters_type
 
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -143,8 +144,7 @@ CONTAINS
 !!I                                                                           I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
-!!   SOURCE
-!******************************************************************************
+!!*** ************************************************************************
 
 SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
@@ -454,7 +454,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
 END SUBROUTINE read_md_section
 
-!!*****
 !******************************************************************************
 !!****** md/initialize_velocities [1.0] *
 !!
@@ -470,8 +469,7 @@ END SUBROUTINE read_md_section
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
@@ -569,7 +567,6 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 END SUBROUTINE initialize_velocities
 
-!!*****
 !******************************************************************************
 
 END MODULE md

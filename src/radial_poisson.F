@@ -33,49 +33,49 @@ MODULE radial_poisson
   PRIVATE
   PUBLIC :: rg_poisson
 
-  !!*****
-  !-----------------------------------------------------------------------------!
+!!*****
+!-----------------------------------------------------------------------------!
 
 CONTAINS
 
-  !-----------------------------------------------------------------------------!
-  !!****** radial_poisson/rg_poisson [1.0] *
-  !!
-  !!   NAME
-  !!     rg_poisson
-  !!
-  !!   FUNCTION
-  !!     Poisson solver for radial grids
-  !!
-  !!   AUTHOR
-  !!     JGH 17-NOV-2000
-  !!
-  !!   MODIFICATION HISTORY
-  !!     TCH 09-OCT-2001: - changed the way f is passed to the solvers
-  !!                        f is no longer multiplied by factors of h^2
-  !!                      - changed the name of diff5p to diff6p
-  !!
-  !!   SOURCE
-  !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+!!****** radial_poisson/rg_poisson [1.0] *
+!!
+!!   NAME
+!!     rg_poisson
+!!
+!!   FUNCTION
+!!     Poisson solver for radial grids
+!!
+!!   AUTHOR
+!!     JGH 17-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     TCH 09-OCT-2001: - changed the way f is passed to the solvers
+!!                        f is no longer multiplied by factors of h^2
+!!                      - changed the name of diff5p to diff6p
+!!
+!!***
+!-----------------------------------------------------------------------------!
 
   SUBROUTINE rg_poisson ( rho, vh, nu, rg, method )
 
-    !Arguments
+!Arguments
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: rho  ! the electron density
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( OUT ) :: vh  ! the solution
     INTEGER, INTENT ( IN ) :: nu                          ! variable of angular quantum number type
     TYPE ( radial_grid_type ), INTENT ( IN ) :: rg        ! radial grid for computation
     CHARACTER ( LEN=* ), OPTIONAL :: method               ! string to specify method to use
-                                                          ! 'NUMEROV' or 'DIFF6P'
+! 'NUMEROV' or 'DIFF6P'
 
-    !Locals
+!Locals
     REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f, g
     REAL ( dbl ) :: corr ( 3 )                            ! corrections needed for long range potentials
     REAL ( dbl ) :: rn, res
     INTEGER :: n                                          ! the number of grid points in rg
     INTEGER :: ierr, i
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     n = rg % n
     ALLOCATE ( f ( 0:n+1 ), STAT = ierr )
@@ -100,7 +100,7 @@ CONTAINS
             ( rg % w ( i )**3 * rg % r ( i ) ) 
     END DO
 
-    ! correction needed because of the long range of the potential
+! correction needed because of the long range of the potential
     corr ( 3 ) = vh(n+1) * rg%w(n+1)
 
     IF ( PRESENT ( method ) ) THEN
@@ -113,7 +113,7 @@ CONTAINS
           CALL diff6p ( f, g, rg % w, corr(3) )
        END SELECT
     ELSE
-       !..use Numerov
+!..use Numerov
        CALL numerov ( f, g, rg % w, corr )
     END IF
 
@@ -126,8 +126,7 @@ CONTAINS
 
   END SUBROUTINE rg_poisson
 
-  !!*****
-  !******************************************************************************
+!******************************************************************************
 
 END MODULE radial_poisson
 

@@ -139,8 +139,8 @@ MODULE cp_b_matrix_structure
   INTERFACE cp_next
      MODULE PROCEDURE cp_bs_iter_next
   END INTERFACE
-  !***
-  !****************************************************************************
+!!***
+!****************************************************************************
 
 !!****s* cp_b_matrix_structure/cp_b_distribution_type [1.0] *
 !!
@@ -1450,7 +1450,7 @@ END SUBROUTINE cp_bmstruct_get
 
   !====== block iterator ======
 
-!!****f* cp_bs_iter_init [1.0] *
+!!****f* cp_b_matrix_structure/cp_bs_iter_init [1.0] *
 !!
 !!   NAME
 !!     cp_bs_iter_init

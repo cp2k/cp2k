@@ -87,8 +87,7 @@ CONTAINS
 !!
 !!   CJM SEPT-26-2002 
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE set_particle_properties ( setup, mol_setup, pstat )
   IMPLICIT NONE 
@@ -146,8 +145,7 @@ END SUBROUTINE set_particle_properties
 !!I             b21 b22 b23 &                                                 I
 !!I             b31 b32 b33                                                   I
 !!I---------------------------------------------------------------------------I
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
                            mol_setup, atom_names, pstat, globenv )
@@ -616,7 +614,6 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
 
 END SUBROUTINE read_coord_vel
 
-!!*****
 !******************************************************************************
 
 SUBROUTINE read_file ( filen, atype )

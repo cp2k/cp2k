@@ -120,6 +120,7 @@ MODULE qs_environment
   PUBLIC :: qs_finalize,&
             qs_init
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

@@ -118,6 +118,7 @@ MODULE external_potential_types
             epc_potential_type,&
             gth_potential_type
 
+!!***
 ! *****************************************************************************
 
   INTERFACE allocate_potential

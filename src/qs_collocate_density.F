@@ -124,6 +124,7 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_total_rho
 
+!!***
 ! *****************************************************************************
 
 CONTAINS

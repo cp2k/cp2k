@@ -54,7 +54,7 @@ MODULE library_tests
   INTEGER :: runtest ( 100 )
   REAL ( dbl ) :: max_memory
 
-!!*****
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -74,8 +74,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE lib_test ( globenv )
 
@@ -106,7 +105,6 @@ SUBROUTINE lib_test ( globenv )
 
 END SUBROUTINE lib_test
 
-!!*****
 !******************************************************************************
 !!****** library_tests/test_input [1.0] *
 !!
@@ -136,8 +134,7 @@ END SUBROUTINE lib_test
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE test_input ( globenv )
 
@@ -193,7 +190,6 @@ SUBROUTINE test_input ( globenv )
 
 END SUBROUTINE test_input
 
-!!*****
 !******************************************************************************
 !!****** library_tests/copy_test [1.0] *
 !!
@@ -214,8 +210,7 @@ END SUBROUTINE test_input
 !!     of the CPU. This can be used to optimize the performance of the
 !!     FFTSG library.
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE copy_test ( globenv )
 
@@ -264,7 +259,6 @@ SUBROUTINE copy_test ( globenv )
 
 END SUBROUTINE copy_test
 
-!!*****
 !******************************************************************************
 !!****** library_tests/matmul_test [1.0] *
 !!
@@ -281,8 +275,7 @@ END SUBROUTINE copy_test
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE matmul_test ( globenv )
 
@@ -457,7 +450,6 @@ SUBROUTINE matmul_test ( globenv )
 
 END SUBROUTINE matmul_test
 
-!!*****
 !******************************************************************************
 !!****** library_tests/fft_test [1.0] *
 !!
@@ -473,8 +465,7 @@ END SUBROUTINE matmul_test
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE fft_test ( globenv )
 
@@ -623,8 +614,7 @@ END SUBROUTINE fft_test
 !!   MODIFICATION HISTORY
 !!     JGH  6-Feb-2001 : Test and performance code
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE pw_fft_test ( globenv )
 
@@ -906,7 +896,6 @@ SUBROUTINE pw_fft_test ( globenv )
 
 END SUBROUTINE pw_fft_test
 
-!!*****
 !******************************************************************************
 
 END MODULE library_tests

@@ -109,8 +109,9 @@ MODULE kg_force
      TYPE(l_info_type)         :: l_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
   END TYPE kg_rho_v_type
-!!***
+
   TYPE ( kg_rho_v_type ), POINTER :: kg_rho_v 
+!!***
 !******************************************************************************
 
 CONTAINS
@@ -130,8 +131,7 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!
-!!   SOURCE
-!******************************************************************************
+!!*** *************************************************************************
 
 SUBROUTINE kg_force_control ( kg_env, globenv, debug )
 
@@ -383,7 +383,7 @@ SUBROUTINE kg_force_control ( kg_env, globenv, debug )
 
 END SUBROUTINE kg_force_control
 
-!!*** **********************************************************************
+! *************************************************************************
   SUBROUTINE allocate_kg_densities(kg_rho_v, globenv )
 
 ! Arguments
@@ -459,7 +459,7 @@ END SUBROUTINE kg_force_control
 
 END SUBROUTINE allocate_kg_densities
 
-!!*** **********************************************************************
+! *************************************************************************
   SUBROUTINE deallocate_kg_densities(kg_rho_v, globenv )
 
 ! Arguments
@@ -514,7 +514,7 @@ END SUBROUTINE allocate_kg_densities
 
 END SUBROUTINE deallocate_kg_densities
 
-!!*** **********************************************************************
+! *************************************************************************
 !!**** kg_force/init_kg_force_calculation[1.0] *
 !!
 !!   NAME
@@ -600,7 +600,7 @@ END SUBROUTINE deallocate_kg_densities
   END SUBROUTINE init_kg_force_calculation
 !***************************************************************************
 
-!!****kg_force/release_kg_rho_v [1.0] *
+!!****f* kg_force/release_kg_rho_v [1.0] *
 !!
 !!   NAME
 !!     release_kg_rho_v
@@ -755,7 +755,7 @@ END SUBROUTINE deallocate_kg_densities
   IF ( PRESENT ( ref_grid ) ) ref_grid =  kg_rho_v % auxbas_grid   
 
 END SUBROUTINE get_grids
-!!*** **********************************************************************
+! *************************************************************************
 !!**** kg_force/kg_force_release[1.0] *
 !!
 !!   NAME

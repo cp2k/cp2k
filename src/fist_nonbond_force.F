@@ -52,6 +52,7 @@ MODULE fist_nonbond_force
   PRIVATE
   PUBLIC :: force_nonbond, bonded_correct_gaussian
 
+!!***
 !******************************************************************************
 
 CONTAINS

@@ -51,6 +51,7 @@ MODULE qs_energy_types
             deallocate_qs_energy,&
             init_qs_energy
 
+!!***
 ! *****************************************************************************
 
 CONTAINS
