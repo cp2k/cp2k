@@ -70,10 +70,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     CALL timeset("ot_scf_read_input","I","",handle)
     ! decide default settings
     qs_ot_env%settings%ot_method="DIIS"
+    qs_ot_env%settings%diis_m=7 
     qs_ot_env%settings%preconditioner_type="FULL_KINETIC"
     qs_ot_env%settings%line_search_method="2PNT"
     qs_ot_env%settings%ds_min=0.15_wp
-    qs_ot_env%settings%diis_m=7 
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -91,6 +91,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                     qs_ot_env%settings%ot_method="CG"
                CASE ("DIIS")
                     qs_ot_env%settings%ot_method="DIIS"
+                    qs_ot_env%settings%diis_m=7 
+                    IF (test_object().eq."INT") THEN
+                       CALL read_object(qs_ot_env%settings%diis_m)
+                    ENDIF
                CASE DEFAULT
                     IF (globenv%ionode) write(globenv%scr,*) value
                     CALL stop_program("READ OTSCF MINIMIZER","VALUE UNKNOWN")
@@ -104,6 +108,12 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                     qs_ot_env%settings%line_search_method="2PNT"
                CASE ("3PNT")
                     qs_ot_env%settings%line_search_method="3PNT"
+               CASE ("GOLD")
+                    qs_ot_env%settings%gold_target=0.01 ! 1 percent in the position 
+                    qs_ot_env%settings%line_search_method="GOLD"
+                    IF (test_object().eq."FLT") THEN
+                       CALL read_object(qs_ot_env%settings%gold_target)
+                    ENDIF
                CASE DEFAULT
                     IF (globenv%ionode) write(globenv%scr,*) value
                     CALL stop_program("READ OTSCF LINESEARCH","VALUE UNKNOWN")
@@ -127,8 +137,6 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                END SELECT
           CASE ("STEPSIZE")
                CALL read_object(qs_ot_env%settings%ds_min)
-          CASE ("DIIS_VECTORS")
-               CALL read_object(qs_ot_env%settings%diis_m)
           CASE DEFAULT
                IF (globenv%ionode) write(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")

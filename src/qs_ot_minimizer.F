@@ -128,6 +128,8 @@ SUBROUTINE do_line_search(qs_ot_env,globenv)
    TYPE(qs_ot_type)                          :: qs_ot_env
    TYPE(global_environment_type), INTENT(IN) :: globenv
    SELECT CASE(qs_ot_env%settings%line_search_method)
+   CASE("GOLD")
+       CALL do_line_search_gold(qs_ot_env,globenv)
    CASE("3PNT")
        CALL do_line_search_3pnt(qs_ot_env,globenv)
    CASE("2PNT")
@@ -138,6 +140,112 @@ SUBROUTINE do_line_search(qs_ot_env,globenv)
        CALL stop_program("do_line_search","NYI")
    END SELECT 
 END SUBROUTINE do_line_search
+
+! implements a golden ratio search as a robust way of minimizing 
+SUBROUTINE do_line_search_gold(qs_ot_env,globenv)
+
+   TYPE(qs_ot_type)                          :: qs_ot_env
+   TYPE(global_environment_type), INTENT(IN) :: globenv
+
+   INTEGER                                   :: count
+   REAL(wp), PARAMETER                       :: gold_sec=0.3819_wp ! approx (3-sqrt(5))/2
+   REAL(wp)                                  :: ds
+
+   qs_ot_env%line_search_count=qs_ot_env%line_search_count+1
+   count=qs_ot_env%line_search_count
+   qs_ot_env%line_search_might_be_done=.false.
+   qs_ot_env%energy_only=.true.
+
+   IF (count+1 .gt. size(qs_ot_env%OT_pos)) THEN
+      ! should not happen, we pass with a warning first
+      ! you can increase the size of OT_pos and the like in qs_ot_env
+      CALL stop_program("OT LS","MAX ITER EXCEEDED : FATAL")
+   ENDIF
+
+   IF (qs_ot_env%line_search_count .eq. 1) THEN
+       qs_ot_env%line_search_left   = 1
+       qs_ot_env%line_search_right  = 0
+       qs_ot_env%line_search_mid    = 1
+       qs_ot_env%ot_pos(1)          = 0.0_wp
+       qs_ot_env%ot_energy(1)       = qs_ot_env%etotal
+       qs_ot_env%ot_pos(2)          = qs_ot_env%ds_min/gold_sec
+   ELSE
+       qs_ot_env%ot_energy(count)=qs_ot_env%etotal
+       ! it's essentially a book keeping game.
+       ! keep left on the left, keep (bring) right on the right
+       ! and mid in between these two
+       IF (qs_ot_env%line_search_right .eq. 0) THEN ! we do not yet have the right bracket
+          IF (qs_ot_env%ot_energy(count-1) .lt.  qs_ot_env%ot_energy(count)) THEN
+             qs_ot_env%line_search_right = count
+             qs_ot_env%ot_pos(count+1)  = qs_ot_env%ot_pos(qs_ot_env%line_search_mid)+ & 
+                                  (qs_ot_env%ot_pos(qs_ot_env%line_search_right)- &
+                                   qs_ot_env%ot_pos(qs_ot_env%line_search_mid))*gold_sec 
+          ELSE
+             qs_ot_env%line_search_left = qs_ot_env%line_search_mid
+             qs_ot_env%line_search_mid  = count
+             qs_ot_env%ot_pos(count+1)  = qs_ot_env%ot_pos(count)/gold_sec ! expand
+          ENDIF
+       ELSE
+          ! first determine where we are and construct the new triplet
+          IF (qs_ot_env%ot_pos(count) .lt. qs_ot_env%ot_pos(qs_ot_env%line_search_mid)) THEN
+             IF ( qs_ot_env%ot_energy(count) .lt. qs_ot_env%ot_energy(qs_ot_env%line_search_mid))THEN
+                qs_ot_env%line_search_right = qs_ot_env%line_search_mid 
+                qs_ot_env%line_search_mid   = count
+             ELSE
+                qs_ot_env%line_search_left  = count
+             ENDIF
+          ELSE
+             IF ( qs_ot_env%ot_energy(count) .lt. qs_ot_env%ot_energy(qs_ot_env%line_search_mid))THEN
+                qs_ot_env%line_search_left  = qs_ot_env%line_search_mid 
+                qs_ot_env%line_search_mid   = count
+             ELSE
+                qs_ot_env%line_search_right = count
+             ENDIF
+          ENDIF
+          ! now find the new point in the largest section
+          IF ( (qs_ot_env%ot_pos(qs_ot_env%line_search_right) &
+                -qs_ot_env%ot_pos(qs_ot_env%line_search_mid)) .gt. &
+               (qs_ot_env%ot_pos(qs_ot_env%line_search_mid) & 
+                -qs_ot_env%ot_pos(qs_ot_env%line_search_left)) ) THEN  
+             qs_ot_env%ot_pos(count+1) = & 
+                 qs_ot_env%ot_pos(qs_ot_env%line_search_mid) + &
+                    gold_sec*(qs_ot_env%ot_pos(qs_ot_env%line_search_right) &
+                              -qs_ot_env%ot_pos(qs_ot_env%line_search_mid))
+          ELSE
+             qs_ot_env%ot_pos(count+1) = &
+                 qs_ot_env%ot_pos(qs_ot_env%line_search_left) + &             
+                    gold_sec*(qs_ot_env%ot_pos(qs_ot_env%line_search_mid) &
+                              -qs_ot_env%ot_pos(qs_ot_env%line_search_left))
+          ENDIF
+          ! check for termination
+          IF ( ((qs_ot_env%ot_pos(qs_ot_env%line_search_right) &
+                -qs_ot_env%ot_pos(qs_ot_env%line_search_mid)) .lt. & 
+                 qs_ot_env%ds_min * qs_ot_env%settings%gold_target ) .AND. &
+               ((qs_ot_env%ot_pos(qs_ot_env%line_search_mid) &
+                -qs_ot_env%ot_pos(qs_ot_env%line_search_left)).lt. &
+                 qs_ot_env%ds_min * qs_ot_env%settings%gold_target )   ) THEN
+             qs_ot_env%energy_only=.false.
+             qs_ot_env%line_search_might_be_done=.true.
+          ENDIF
+          IF (count+1 .eq. size(qs_ot_env%OT_pos)) THEN
+	     if (globenv%ionode) write(globenv%scr,*) "WARNING : LS : MAX ITER REACHED"
+             qs_ot_env%energy_only=.false.
+             qs_ot_env%line_search_might_be_done=.true.
+          ENDIF
+       ENDIF
+   ENDIF
+   ds=qs_ot_env%OT_pos(count+1)-qs_ot_env%OT_pos(count)
+   qs_ot_env%ds_min=qs_ot_env%OT_pos(count+1)
+
+   ! now update x to take into account this new step
+   ! either dx of -gx is the direction to use
+   if (qs_ot_env%use_dx) then
+       CALL cp_fm_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx)
+   else
+       CALL cp_fm_add(1.0_wp,qs_ot_env%matrix_x,-ds,qs_ot_env%matrix_gx)
+   endif
+
+END SUBROUTINE do_line_search_gold
 
 SUBROUTINE do_line_search_3pnt(qs_ot_env,globenv)
 

@@ -77,6 +77,7 @@ MODULE qs_ot
        CHARACTER(LEN=12) :: preconditioner_type
        real(wp)          :: ds_min
        integer           :: diis_m
+       real(wp)          :: gold_target
 
        integer           :: n,k,nrow_block,ncol_block
        integer           :: ortho_k
@@ -137,8 +138,8 @@ MODULE qs_ot
      REAL(wp), DIMENSION(:),   POINTER  :: c_diis
      INTEGER,  DIMENSION(:),   POINTER  :: ipivot
 
-     real(kind=wp)    :: ot_pos(53),ot_energy(53),ot_grad(53)
-     LOGICAL          :: ot_pos_valid(53),ot_energy_valid(53),ot_grad_valid(53)
+     real(kind=wp)    :: ot_pos(53),ot_energy(53),ot_grad(53) ! HARD LIMIT FOR THE LS
+     INTEGER :: line_search_left,line_search_right,line_search_mid
      integer          :: line_search_count
      LOGICAL          :: line_search_might_be_done
      real(kind=wp)    :: delta,gnorm,gnorm_old,etotal,gradient
@@ -147,6 +148,7 @@ MODULE qs_ot
      CHARACTER(LEN=8) :: OT_METHOD_FULL
      INTEGER          :: OT_count
      REAL(wp)         :: ds_min
+
 
   END TYPE qs_ot_type
 
@@ -436,9 +438,6 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    qs_ot_env%OT_energy(:)=0.0_wp
    qs_ot_env%OT_pos(:)=0.0_wp
    qs_ot_env%OT_grad(:)=0.0_wp
-   qs_ot_env%OT_energy_valid(:)=.false.
-   qs_ot_env%OT_pos_valid(:)=.false.
-   qs_ot_env%OT_grad_valid(:)=.false.
    qs_ot_env%line_search_count=0
 
    qs_ot_env%energy_only=.false.
