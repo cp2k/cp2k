@@ -51,6 +51,7 @@ MODULE dft_types
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
+  USE cp_fm_types,                     ONLY: cp_full_matrix_p_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -131,19 +132,26 @@ MODULE dft_types
 !!
 !! ATTRIBUTES
 !!   - n_ev      : number of eigenvalues to calculate
-!!   - n_kv_fac  : number to determine the number of krylov space
-!!                 vectors to compute (which is also dependent on n_ev)
 !!   - n_reortho : how many time to reorthogonalize (in the lanczos algorithm)
 !!   - do_kernel : wether to evaluate the kernel (this is a debugging option)
 !!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
 !!                 to calculate
+!!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
+!!   - lumos     : holds the first few lumos (if calculated in QS)
 !!
+!! NOTES  
+!!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
+!!   calculation, since they can be used to construct the solutions of the
+!!   TDDFPT operator without the perturbation kernel.
+!!  
 !!***
   TYPE tddfpt_control_type
      INTEGER :: n_ev
      INTEGER :: n_reortho
      LOGICAL :: do_kernel
      CHARACTER(LEN=7) :: restricted_excitations_type
+     REAL(kind=wp), DIMENSION(:,:), POINTER               :: lumos_eigenvalues
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: lumos
   END TYPE tddfpt_control_type
 
 ! *** Control parameters for a DFT calculation ***

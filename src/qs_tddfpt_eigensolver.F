@@ -38,15 +38,20 @@ MODULE qs_tddfpt_eigensolver
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_create2, &
                                              cp_fm_get_element,&
+                                             cp_fm_get_submatrix, &
+                                             cp_fm_init_random, &
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
+                                             cp_fm_set_submatrix, &
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
                                              copy_rep_vec_to_fm
   USE cp_log_handling,                 ONLY: cp_to_string
+  USE dft_types,                       ONLY: tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_arpack_utils,                 ONLY: arpack_confirm
@@ -58,6 +63,13 @@ MODULE qs_tddfpt_eigensolver
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
+  USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
+                                             qs_ot_type
+  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+  USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
+                                             ot_scf_init,&
+                                             ot_scf_mini,&
+                                             ot_scf_read_input
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l2,&
                                              p_postortho,&
@@ -108,21 +120,24 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! L0CALS
-    INTEGER   :: spin, n_spins, &
-                 n_ev, n_rows, &
-                 n_kv, n_kv_max, &
-                 max_iter, &
-                 n_reortho, &
-                 row, col, &
-                 i, j, index, &
-                 stat, n_kv_fac, &
-                 iteration, handle
-    REAL(dbl) :: tol, &
-                 beta, &
-                 tmp, &
-                 dot_product, &
-                 scale, difference
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE               :: eigenvals
+    INTEGER                                              :: spin, n_spins, &
+                                                            n_ev, max_krylovspace_dim, &
+                                                            n_kv, max_krylovvec, &
+                                                            max_iter, &
+                                                            n_reortho, &
+                                                            row, col, &
+                                                            i, j, index, &
+                                                            stat, &
+                                                            iteration, handle, &
+                                                            start_col, n
+    REAL(dbl)                                            :: tol, &
+                                                            beta, &
+                                                            tmp, &
+                                                            dot_product, &
+                                                            scale_factor, difference
+    REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: tddfpt_eigenvalues, &
+                                                            temp_orbitals
+    REAL(kind=dbl), DIMENSION(:,:), ALLOCATABLE          :: sum_temp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER       :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type)                          :: T, Tev           
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER   :: X, R
@@ -130,44 +145,47 @@ CONTAINS
     TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER     :: kv_fm_struct
     TYPE(cp_fm_struct_type), POINTER                     :: T_fm_struct, &
                                                             Tev_fm_struct
+    TYPE(tddfpt_control_type), POINTER                  :: tddfpt_control
+
 
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_es_lanczos", &
                                    routineP = moduleN//"/"//routineN
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(ao_mo_fm_pools, X, R, kv)
-    n_ev      = qs_env%dft_control%tddfpt_control%n_ev
+    NULLIFY(ao_mo_fm_pools, X, R, kv, tddfpt_control)
+    tddfpt_control => qs_env%dft_control%tddfpt_control
+    n_ev      = tddfpt_control%n_ev
     n_spins   = qs_env%dft_control%nspins
     tol       = 1.0E-10
-    n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
+    n_reortho = tddfpt_control%n_reortho
     iteration = 1
 
     !-----------------------------------------!
     ! determine the size of the problem       !
     ! and how many krylov space vetors to use ! 
     !-----------------------------------------!
-    n_rows = 0
+    max_krylovspace_dim = 0
     DO spin=1, n_spins
-       n_rows = n_rows + p_env%n_ao(spin)*p_env%n_mo(spin)
+       max_krylovspace_dim = max_krylovspace_dim + p_env%n_ao(spin)*p_env%n_mo(spin)
     END DO
     n_kv = MAX(3, n_ev) ! how many vectors per iteration
-    max_iter = MIN(( n_rows / n_kv ) * n_kv, MAX_ITER_GLOBAL)
-    n_kv_max = max_iter * n_kv
+    max_iter = MIN(( max_krylovspace_dim / n_kv ) * n_kv, MAX_ITER_GLOBAL)
+    max_krylovvec = max_iter * n_kv
 
     !----------------------!
     ! allocate the vectors !
     !----------------------!
-    ALLOCATE(eigenvals(n_kv_max, max_iter))
+    ALLOCATE(tddfpt_eigenvalues(max_krylovvec, max_iter))
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
                                  name=routineP//":X")
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, &
                                  name=routineP//":R")
-    ALLOCATE(kv(1:n_kv_max,n_spins), stat=stat)
+    ALLOCATE(kv(max_krylovvec,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of kv failed", glob_env)
-    ALLOCATE(opkv(n_kv_max,n_spins), stat=stat)
+    ALLOCATE(opkv(max_krylovvec,n_spins), stat=stat)
     IF (stat /= 0) CALL stop_program(routineP, &
                                      "allocation of opkv failed", glob_env)
     ALLOCATE(kv_fm_struct(n_spins), stat=stat)
@@ -184,10 +202,12 @@ CONTAINS
     END DO
     CALL allocate_krylov_vectors(kv, opkv, iteration, n_kv, n_spins, kv_fm_struct)
 
-    DO spin=1, n_spins
-       CALL copy_blacs_to_blacs_matrix(t_env%X(1)%spins(spin)%matrix, &
-                                       X(spin)%matrix)
-    END DO
+
+    !-----------------------!
+    ! provide initial guess !
+    !-----------------------!
+    CALL calc_initial_guess(X, qs_env, p_env, n_kv)
+
 
     IF (glob_env%ionode) THEN
        WRITE (glob_env%scr, &
@@ -236,7 +256,7 @@ CONTAINS
              ELSE
                 ! already converged
                 index = index-1
-                n_kv_max = index
+                max_krylovvec = index
                 IF (glob_env%ionode) THEN
                    WRITE (*,*)
                    WRITE (*,*) "Converged with ", index," krylov vectors!"
@@ -326,11 +346,12 @@ CONTAINS
        !---------------------------!
        ! calc the eigenvalues of T !
        !---------------------------!
-       CALL blacs_syevd(T%matrix, Tev%matrix, eigenvals(:,iteration))
+       CALL blacs_syevd(T%matrix, Tev%matrix, tddfpt_eigenvalues(:,iteration))
 
 
        IF (iteration /= 1) THEN
-          difference = ABS(eigenvals(n_ev,iteration)-eigenvals(n_ev,iteration-1))
+          difference = ABS(tddfpt_eigenvalues(n_ev,iteration) - &
+                           tddfpt_eigenvalues(n_ev,iteration-1))
        ELSE
           difference = 9.9999E99_dbl
        END IF
@@ -342,7 +363,7 @@ CONTAINS
           EXIT restart
        END IF
 
-       IF (index == n_kv_max) THEN
+       IF (index == max_krylovvec) THEN
           WRITE (*,*) "MAXIMUM NUMBER OF KRYLOV SPACE VECTORS REACHED"
           EXIT restart
        END IF
@@ -365,10 +386,11 @@ CONTAINS
        WRITE (glob_env%scr, *)
        WRITE (glob_env%scr, '(1X,A,T19,A,T45,A)') &
             "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
-       DO i=1, MIN(n_ev+1,n_kv_max)
-          WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
-               i, eigenvals(i, iteration), eigenvals(i, iteration)*27.211_dbl  
+       DO i=1, MIN(n_ev,max_krylovvec)
           ! this should use the physcons library !
+          WRITE (glob_env%scr, '(1X,I3,T20,F19.10,2X,F19.10)') &
+                                i, tddfpt_eigenvalues(i, iteration), &
+                                tddfpt_eigenvalues(i, iteration)*27.211_dbl  
        END DO
        WRITE (glob_env%scr, *)
     END IF
@@ -383,10 +405,11 @@ CONTAINS
           CALL cp_fm_release(kv(i,spin)%matrix)
           CALL cp_fm_release(opkv(i,spin)%matrix)
        END DO
+!       CALL cp_fm_release(lumos(spin)%matrix)
     END DO
     IF (ASSOCIATED(T%matrix)) CALL cp_fm_release(T%matrix)
     IF (ASSOCIATED(Tev%matrix)) CALL cp_fm_release(Tev%matrix)
-    DEALLOCATE(kv, opkv, eigenvals)
+    DEALLOCATE(kv, opkv, tddfpt_eigenvalues)
     NULLIFY(X, R, kv, opkv)
     
     CALL timestop(0.0_dbl, handle)
@@ -625,6 +648,79 @@ CONTAINS
     END DO
 
   END SUBROUTINE calc_norm
+
+! *****************************************************************************
+
+  SUBROUTINE calc_initial_guess(matrices, qs_env, p_env, n_kv)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER  :: matrices
+    TYPE(qs_environment_type), INTENT(IN)               :: qs_env
+    TYPE(qs_p_env_type), POINTER                        :: p_env
+    INTEGER, INTENT(IN)                                 :: n_kv
+
+    ! locals
+    TYPE(tddfpt_control_type), POINTER          :: tddfpt_control
+    REAL(KIND=DBL), DIMENSION(:,:), ALLOCATABLE :: lumos, one_lumo
+    REAL(KIND=DBL)                              :: scale_factor
+    INTEGER                                     :: spin, n_spins
+    INTEGER                                     :: n_rows, n_cols ! of the matrices
+    INTEGER                                     :: n_ev, n_lumos
+    INTEGER                                     :: stat           ! error flags and such
+    INTEGER                                     :: i, j           ! loop indices
+
+    CHARACTER(len=*), PARAMETER :: routineN="calc_initial_guess", &
+                                   routineP=moduleN//"/"//routineN
+
+
+    tddfpt_control => qs_env%dft_control%tddfpt_control
+    n_spins = qs_env%dft_control%nspins
+    n_ev    = tddfpt_control%n_ev
+
+    DO spin=1, n_spins
+
+       n_cols = matrices(spin)%matrix%matrix_struct%ncol_global
+       n_rows = matrices(spin)%matrix%matrix_struct%nrow_global
+
+       CALL cp_fm_set_all(matrices(spin)%matrix, 0.0_dbl)
+
+       IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
+
+          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
+
+          ALLOCATE(lumos(n_rows, n_lumos), one_lumo(n_rows, 1), stat=stat)
+
+          CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
+                                   start_col=1, n_cols=n_lumos)
+
+          DO i=1, n_ev
+             CALL dcopy(n_rows, 0.0_dbl, 0, one_lumo(:,1), 1)
+             DO j=1, n_lumos
+                scale_factor = 0.8_dbl
+                IF (j==i) scale_factor = REAL(n_ev,dbl)
+                scale_factor = scale_factor/(REAL(i,dbl)**2)
+                CALL daxpy(n_rows, scale_factor, lumos(:,j), 1, one_lumo(:,1), 1)
+             END DO
+             CALL cp_fm_set_submatrix(matrices(spin)%matrix, &
+                                      one_lumo(:,1:1), &
+                                      start_col=(n_cols-i+1))
+          END DO
+
+          DEALLOCATE(lumos, one_lumo)
+
+       ELSE
+
+          CALL cp_fm_init_random(matrices(spin)%matrix,  n_kv, start_col=n_cols-n_kv+1)
+
+       END IF
+
+    END DO
+    CALL p_preortho(p_env, qs_env, matrices)
+    ! normalization not necessary since it is done in the krylov routine
+
+  END SUBROUTINE calc_initial_guess
 
 ! *****************************************************************************
 

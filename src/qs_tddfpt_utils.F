@@ -187,16 +187,6 @@ CONTAINS
 
     n_spins = qs_env%dft_control%nspins
 
-    !------------------!
-    ! initialize the x !
-    !------------------!
-    ev = 1 ! we only need the first vector as starting point
-    DO spin=1, n_spins
-       CALL cp_fm_init_random(t_env%X(ev)%spins(spin)%matrix, p_env%n_mo(spin))
-    END DO
-
-    CALL p_preortho(p_env, qs_env, t_env%X(ev)%spins)
-
     !-------------------------------------------------------!
     ! Compute the inverse of S using cholesky factorization !
     !-------------------------------------------------------!

@@ -2216,6 +2216,19 @@ CONTAINS
                 ENDDO
              ENDIF
           ENDDO
+
+          !--------------------------------------!
+          ! save the info for tddfpt calculation !
+          !--------------------------------------!
+          IF (dft_control%do_tddfpt_calculation) THEN
+             ALLOCATE(dft_control%tddfpt_control%lumos_eigenvalues(nlumos,dft_control%nspins))
+             DO ispin=1, dft_control%nspins
+                dft_control%tddfpt_control%lumos_eigenvalues(1:nlumos,ispin) = &
+                     unoccupied_evals(ispin)%evals(1:nlumos)
+             END DO
+             dft_control%tddfpt_control%lumos => unoccupied_orbs
+          END IF
+
        ENDIF
 
        IF ((globenv%print%lumos .OR. globenv%print%homos) .AND. globenv%print%cubes) THEN
@@ -2302,10 +2315,12 @@ CONTAINS
        IF (globenv%print%lumos) THEN
         DO ispin=1,dft_control%nspins
            DEALLOCATE(unoccupied_evals(ispin)%evals)
-           CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
+           IF (.NOT.dft_control%do_tddfpt_calculation) &
+                CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
         ENDDO
         DEALLOCATE(unoccupied_evals)
-        DEALLOCATE(unoccupied_orbs)
+        IF (.NOT.dft_control%do_tddfpt_calculation) &
+             DEALLOCATE(unoccupied_orbs)
        ENDIF
 
     END IF
