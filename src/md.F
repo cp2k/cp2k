@@ -64,6 +64,7 @@ MODULE md
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: ptens, pv_kin, pv, pv_const
      REAL ( dbl ) :: kin, pot, gspace, e_self, e_neut, e_bonded
      REAL ( dbl ) :: e_overlap, e_thk, e_class, e_electro         
+     REAL ( dbl ) :: e_electro_0, e_electro_1, e_electro_2          
      LOGICAL :: ptens_aval
   END TYPE thermodynamic_type
 
