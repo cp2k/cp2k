@@ -422,17 +422,22 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
         IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
         CASE (use_qmmm)
-          CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-               potential_energy=penergy_mm,&
-               cell=cell,error=error)
-          CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-               potential_energy=penergy_qm,error=error)
+          IF (PRESENT(cell)) THEN
+               CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+                                           cell=cell,error=error)
+          ENDIF
           IF (PRESENT(kinetic_energy)) THEN
              CALL force_env_get(force_env%sub_force_env(1)%force_env,&
                   kinetic_energy=kinetic_energy,error=error)
           END IF
-          IF (PRESENT(potential_energy)) potential_energy = &
-              penergy_qm+penergy_mm
+          IF (PRESENT(potential_energy)) THEN
+               CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+                                           potential_energy=penergy_mm,&
+                                           cell=cell,error=error)
+               CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+                                 potential_energy=penergy_qm,error=error)
+               potential_energy = penergy_qm+penergy_mm
+          ENDIF
      CASE (use_list_force)
         CPPrecondition(ASSOCIATED(force_env%force_env_list),cp_failure_level,routineP,error,failure)
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
