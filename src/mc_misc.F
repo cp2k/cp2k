@@ -574,8 +574,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
       WRITE(unit,*) 
       WRITE(unit,10000) "&DFT"
 !!!!!!!!!!!!!!!!!!!!!! for different functionals
-!      WRITE(unit,*) ' FUNCTIONAL   Pade'
-      WRITE(unit,10000) ' FUNCTIONAL   BLYP'
+      WRITE(unit,*) ' FUNCTIONAL   Pade'
+!      WRITE(unit,10000) ' FUNCTIONAL   BLYP'
 
 !      WRITE(unit,*) ' XC_SMOOTH_RHO   ',&
 !         ADJUSTR(xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id))
@@ -619,17 +619,17 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
       WRITE(unit,*) 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  for different functionals
       WRITE(unit,10000) "&KIND H"
-!      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q1'
-      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q1'
+      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
+      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q1'
+!      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q1'
       WRITE(unit,10000) "&END"
       WRITE(unit,*)  
       WRITE(unit,10000) "&KIND O"
-!      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
-!      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q6'
-      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
-      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q6'
+      WRITE(unit,10000) ' BASIS_SET    DZVP-GTH-PADE'
+      WRITE(unit,10000) ' POTENTIAL    GTH-PADE-q6'
+!      WRITE(unit,10000) ' BASIS_SET    TZV2P-GTH-BLYP'
+!      WRITE(unit,10000) ' POTENTIAL    GTH-BLYP-q6'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
       WRITE(unit,10000) "&CELL"
