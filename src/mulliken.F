@@ -137,6 +137,7 @@ CONTAINS
        CASE DEFAULT
        write(scr,'(A)') "  Atom |    Charge | Spin diff charge"
        END SELECT
+       total_charge = 0.0_wp
        DO iblock=1,nblock
           SELECT CASE (nspin)
           CASE(1)
