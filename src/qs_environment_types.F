@@ -524,7 +524,7 @@ CONTAINS
     END IF
     IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
        CALL scf_env_retain(scf_env,error=error)
-       CALL scf_env_release(scf_env, error=error)
+       CALL scf_env_release(qs_env%scf_env, error=error)
        qs_env%scf_env => scf_env
     END IF
   END SUBROUTINE set_qs_env

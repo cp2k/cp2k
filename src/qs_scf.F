@@ -438,6 +438,8 @@ CONTAINS
 
 
     failure=.FALSE.
+    nullify(scf_env,my_qs_env)
+
 !CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
@@ -528,6 +530,11 @@ CONTAINS
     t1 = m_cputime()
     failure=.FALSE.
 
+    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          dft_control=dft_control,&
@@ -915,8 +922,14 @@ CONTAINS
          ortho,scf_work2, mo_eigenvectors)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
-
-    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env, error=error)
+    
+    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    
+    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
+         error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
@@ -1122,6 +1135,9 @@ CONTAINS
     NULLIFY(k,ao_mo_fm_pools, s, ao_mo_fmstruct, ao_ao_fmstruct,&
          eigenvectors, dft_control, c, S_sm_pools, ks_env)
     failure=.FALSE.
+
+    CPPrecondition(associated(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
