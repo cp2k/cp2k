@@ -33,10 +33,15 @@ dir_triplet=Linux-i686-nag
 cp2k_prefix=${dir_base}/cp2k/exe/${dir_triplet}/cp2k.${cp2k_version}
 cp2k_postfix=
 make=make
-
-# *** should be automatic
+awk=awk
 datum_full=`date --iso-8601="seconds"`
 datum_short=`date --iso-8601`
+#make=gmake
+#awk=nawk
+#datum_full=`date '+%Y-%m-%dT%H:%M:%S+0100'`
+#datum_short=`date '+%Y-%m-%d'`
+
+# *** should be automatic
 dir_last=${dir_base}/LAST-${dir_triplet}-${cp2k_version}
 dir_out=${dir_base}/TEST-${dir_triplet}-${cp2k_version}-${datum_short}
 changelog_diff=${dir_out}/ChangeLog.diff
@@ -59,9 +64,9 @@ function do_test_1(){
  output_new=$1
  output_old=$2
  error_file=$3
- e1=`grep "Total energy:" ${output_old} | tail -1 | awk '{print $3}'`
- e2=`grep "Total energy:" ${output_new} | tail -1 | awk '{print $3}'`
- big=`echo "${e1} ${e2}" | awk '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
+ e1=`grep "Total energy:" ${output_old} | tail -1 | ${awk} '{print $3}'`
+ e2=`grep "Total energy:" ${output_new} | tail -1 | ${awk} '{print $3}'`
+ big=`echo "${e1} ${e2}" | ${awk} '{v=sqrt((($1-$2)/$2)^2); if (v>1.0E-14) printf("%16.8e",v); else printf("0") ;}'`
  case ${big} in
  0)
   # ok, same energy
@@ -115,7 +120,7 @@ echo "error happened : no cvs update ... bailing out"
 end_test 1
 fi
 echo "cvs src update went fine"
-cp2k_lines=`wc *.F | tail -1 |  awk '{print $1}'`
+cp2k_lines=`wc *.F | tail -1 |  ${awk} '{print $1}'`
 echo "cp2k is now ${cp2k_lines} lines .F"
 ${dir_base}/cp2k/tools/cvs2cl.pl &> out
 diff ChangeLog ${dir_last}/ChangeLog > ${changelog_diff}
@@ -162,7 +167,7 @@ echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
 echo "error happened : make VERSION=${cp2k_version} "
 end_test 4
 else
-compile_warnings=`grep "Warning:" out | wc | tail -1 |  awk '{print $1}'`
+compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
 echo "make VERSION=${cp2k_version} went fine (${compile_warnings} warnings)"
 fi
 echo "-------------------------regtesting cp2k----------------------------------"
@@ -187,14 +192,14 @@ do
   mkdir -p ${dir_last}/${dir}
 
   echo "Running tests in ${dir_base}/cp2k/tests/${dir}"
-  ntest=`grep -v "#" TEST_FILES | awk '{c=c+1}END{print c}'`
+  ntest=`grep -v "#" TEST_FILES | ${awk} '{c=c+1}END{print c}'`
   for ((itest=1;itest<=ntest;itest++));
   do
      n_tests=$((n_tests+1))
      this_test=""
-     input_file=`grep -v "#" TEST_FILES | awk -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
+     input_file=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $1}'`
      # just one test right now, but this should generalize
-     test_types=`grep -v "#" TEST_FILES | awk -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
+     test_types=`grep -v "#" TEST_FILES | ${awk} -v itest=$itest '{c=c+1;if (c==itest) print $2}'`
      output_file=${dir_out}/${dir}/${input_file}.out
      output_last=${dir_last}/${dir}/${input_file}.out
      ${cp2k_prefix} ${input_file} ${cp2k_postfix} &> ${output_file}
@@ -210,7 +215,7 @@ do
         failed_tests="${failed_tests} ${output_file}"
      else 
         # *** but didn't end !?
-        grep -q "PROGRAM ENDED AT" ${output_file}
+        grep "PROGRAM ENDED AT" ${output_file} &> /dev/null
         if (( $? )); then
            echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
            echo ${output_file} >> ${error_description_file}
@@ -247,7 +252,7 @@ do
      case ${this_test} in
      "OK" | "NEW" )
         cp ${output_file} ${output_last} 
-        timing=`grep "CP2K   " ${output_file} | awk '{printf("%6.2f",$4)}'`
+        timing=`grep "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
      printf "%40s %20s\n" "${dir}/${input_file}" "${this_test}"
