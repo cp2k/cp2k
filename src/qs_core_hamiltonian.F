@@ -794,6 +794,7 @@ CONTAINS
 !$OMP private(sac_ppnl_neighbor_list,ncol,sac_ppnl_neighbor_node,rac,rac2,dac,nrow) &
 !$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
+!$OMP private(reduced_3c_oce,reduced_3c_rho0)&
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
@@ -802,7 +803,7 @@ CONTAINS
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,matrix_w,globenv,matrix_p,matrix_h,matrix_t,iab) &
-!$OMP shared(oce,sac_oce,sac_3c,sbc_3c,VH_3c_list,oce_present)&
+!$OMP shared(oce,sac_oce,sbc_oce,sac_3c,sbc_3c,VH_3c_list,oce_present)&
 !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
