@@ -15,6 +15,7 @@
 !!   MODIFICATION HISTORY
 !!     - print keys, basis_set_file name and potential_file_name added to the
 !!       global type (27.02.2001, MK)
+!!     JGH (28.11.2001) : added pp_library_path to type
 !!
 !!   SOURCE
 !******************************************************************************
@@ -34,7 +35,8 @@ MODULE global_types
      CHARACTER ( LEN = 200 ) :: basis_set_file_name,&
                                 input_file_name,&
                                 potential_file_name,&
-                                restart_file_name
+                                restart_file_name,&
+                                pp_library_path
      CHARACTER ( LEN = 200 ) :: program_name
      CHARACTER ( LEN = 200 ) :: project_name
      CHARACTER ( LEN = 200 ) :: default_fft_library

@@ -60,6 +60,7 @@ CONTAINS
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
 !!I coord_file       "filename"                                               I
+!!I topo_file        "filename"                                               I
 !!I symmetry         [on,off]                                                 I
 !!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
@@ -104,6 +105,7 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
   CALL xstring(globenv % project_name,ia,ie)
   setup % set_file_name = globenv % project_name(ia:ie) // '.set'
   setup % coord_file_name = globenv % project_name(ia:ie) // '.dat'
+  setup % topology_file_name = globenv % project_name(ia:ie) // '.top'
 
   iw = globenv % scr
 
@@ -194,6 +196,9 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
         CASE ( 'INPUT_FI')
            ilen = 40
            CALL get_next(setup % coord_file_name,ilen)
+        CASE ( 'TOPO_FIL')
+           ilen = 40
+           CALL get_next(setup % topology_file_name,ilen)
         END SELECT
 
 ! check for trailing rubbish
@@ -231,6 +236,8 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
              ADJUSTR ( setup % set_file_name )
         WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Data file name (if any)', &
              ADJUSTR ( setup % coord_file_name )
+        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Topology file name (if any)', &
+             ADJUSTR ( setup % topology_file_name )
         WRITE ( iw, '( A, T76, I5 )' ) &
              ' CONTROL| Print level ', globenv % print_level
         WRITE ( iw, '( )' )

@@ -14,7 +14,7 @@
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (28.11.2001) : Input of basis set, external potential and PP library
 !!
 !!   SOURCE
 !******************************************************************************
@@ -62,6 +62,9 @@ CONTAINS
 !!I project name                                                              I
 !!I iolevel n                                                                 I
 !!I fftlib  default_fft_library                                               I
+!!I basis_set_file   filename                                                 I
+!!I potential_file   filename                                                 I
+!!I pp_library_path  filename                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -78,7 +81,7 @@ SUBROUTINE read_cp2k_section ( globenv )
 ! Locals
   INTEGER :: ierror, ilen, iw, source, allgrp, i1, i2, n(3), stat
   COMPLEX ( dbl ) :: zz(4,4,4)
-  CHARACTER ( LEN = 6 ) :: string
+  CHARACTER ( LEN = 15 ) :: string
   CHARACTER ( LEN = 5 ) :: label
 
 ! ..defaults
@@ -101,7 +104,7 @@ SUBROUTINE read_cp2k_section ( globenv )
 
       CALL read_line()
       DO WHILE ( test_next() /= 'X' )
-         ilen = 6
+         ilen = 15
          CALL get_next ( string, ilen )
          CALL uppercase ( string )
 
@@ -110,22 +113,34 @@ SUBROUTINE read_cp2k_section ( globenv )
             CALL p_error()
             CALL stop_program('input_cntl','unknown option')
 
-         CASE ( 'PROGRA' )
+         CASE ( 'PROGRAM' )
             ilen = 0
             CALL get_next ( globenv % program_name, ilen )
             CALL uppercase ( globenv % program_name )
 
-         CASE ( 'PROJEC' )
+         CASE ( 'PROJECT' )
             ilen = 0
             CALL get_next ( globenv % project_name, ilen )
 
-         CASE ( 'IOLEVE' )
+         CASE ( 'IOLEVEL' )
             CALL get_next ( globenv%print_level )
 
          CASE ( 'FFTLIB' )
             ilen = 0
             CALL get_next ( globenv % default_fft_library, ilen )
             CALL uppercase ( globenv % default_fft_library )
+
+         CASE ( 'BASIS_SET_FILE' )
+            ilen = 0
+            CALL get_next ( globenv % basis_set_file_name, ilen )
+
+         CASE ( 'POTENTIAL_FILE' )
+            ilen = 0
+            CALL get_next ( globenv % potential_file_name, ilen )
+
+         CASE ( 'PP_LIBRARY_PATH' )
+            ilen = 0
+            CALL get_next ( globenv % pp_library_path, ilen )
 
          END SELECT
 
@@ -160,6 +175,14 @@ SUBROUTINE read_cp2k_section ( globenv )
           ADJUSTR ( globenv % project_name ( 1:40 ) )
      WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default FFT library ', &
           ADJUSTR ( globenv % default_fft_library ( 1:40 ) )
+     IF ( globenv % print_level >= 1 ) THEN
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Basis set file ', &
+            ADJUSTR ( globenv % basis_set_file_name ( 1:40 ) )
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| External potential file ', &
+            ADJUSTR ( globenv % potential_file_name ( 1:40 ) )
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Pseudopotential library path', &
+            ADJUSTR ( globenv % pp_library_path ( 1:40 ) )
+     ENDIF
      WRITE ( iw, '( A, T77, I4 )' ) ' CP2K| Global print level ', &
           globenv % print_level
      WRITE ( iw, '( A, T75, I6 )' ) ' CP2K| Total number of processors ', &

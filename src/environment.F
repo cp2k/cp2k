@@ -16,9 +16,6 @@
 !!   MODIFICATION HISTORY
 !!     - init_mathcon is now called (27.02.2001, MK)
 !!
-!!   USED BY
-!!     cp2k
-!!
 !!   SOURCE
 !******************************************************************************
 
@@ -66,7 +63,7 @@ CONTAINS
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (28.11.2001) : default for pp_library_path
 !!
 !!   SOURCE
 !******************************************************************************
@@ -95,6 +92,7 @@ SUBROUTINE initialisation ( globenv )
 
   globenv%basis_set_file_name = "BASIS_SET"
   globenv%potential_file_name = "POTENTIAL"
+  globenv%pp_library_path     = "./"
 
   IF ( globenv % ionode ) THEN
      iw = globenv % scr
