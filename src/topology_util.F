@@ -8,13 +8,13 @@
 !!     topology_util
 !!
 !!   FUNCTION
-!!     Control for reading in different topologies
+!!     Collection of subroutine needed for topology related things
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     
 !!
 !!   SOURCE
 !******************************************************************************
@@ -98,26 +98,15 @@ CONTAINS
 !!   NAME
 !!     topology_generate_molecule
 !!
-!!   SYNOPSIS
-!!     Subroutine topology_generate_molecule(natom, atm_mol_name, nbond,&
-!!         bond_a, bond_b, map_mol_typ, map_mol_num)
-!!       Implicit None
-!!       Integer:: natom, nbond
-!!       Character(Len=20), Pointer:: atm_mol_name(:)
-!!       Integer, Pointer:: bond_a(:)
-!!       Integer, Pointer:: bond_b(:)
-!!       Integer, Pointer:: map_mol_typ(:)
-!!       Integer, Pointer:: map_mol_num(:)
-!!     End Subroutine topology_generate_molecule
 !!
 !!   FUNCTION
 !!     Use information from bond list to generate molecule. (ie clustering)
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -130,6 +119,7 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
 
 ! Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   INTEGER :: natom,nbond
   INTEGER :: iatom,iiatom,ibond
   INTEGER :: first,last
@@ -144,13 +134,20 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
        routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  iw = globenv%scr
-
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Entering topology_generate_molecule"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  IF(PM1)  WRITE(iw,*) "    Entering topology_generate_molecule"
 
   ntype = 1
   itype = 0
@@ -187,9 +184,7 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   DO itype=1,ntype
     !search for first atom in the type list and last to cut down time
     CALL find_boundary(topology%map_mol_typ,natom,first,last,itype)
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>=2))THEN
-      WRITE(iw,*) "      itype ",itype,first,last
-    END IF
+    IF(PM2) WRITE(iw,*) "      itype ",itype,first,last
 
     inum = 0
 
@@ -241,7 +236,7 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   DEALLOCATE(checkme,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_generate_molecule','checkme')
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>=4))THEN
+  IF(PM4) THEN
     DO iatom=1,natom
       WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
                  topology%map_mol_typ(iatom),topology%map_mol_num(iatom)
@@ -249,10 +244,11 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
   END IF
 
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Exiting  topology_generate_molecule"
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_molecule"
+
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
   END IF
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
 END SUBROUTINE topology_generate_molecule
 
 !******************************************************************************
@@ -262,20 +258,15 @@ END SUBROUTINE topology_generate_molecule
 !!     find_boundary
 !!
 !!   SYNOPSIS
-!!     Subroutine find_boundary(num_array, ntot, first, last, search)
-!!       Implicit None
-!!       Integer, Pointer:: num_array(:)
-!!       Integer:: ntot, first, last, search
-!!     End Subroutine find_boundary
 !!
 !!   FUNCTION
 !!     find get the indices for the element that matches in the array
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -323,10 +314,10 @@ END SUBROUTINE find_boundary
 !!     find get the indices for the element that matches in the array
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -377,10 +368,10 @@ END SUBROUTINE find_boundary2
 !!     find get the indices for the element that matches in the array
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -428,20 +419,15 @@ END SUBROUTINE find_boundary3
 !!     sort_bond
 !!
 !!   SYNOPSIS
-!!     Subroutine sort_bond(nbond, bond_a, bond_b)
-!!       Implicit None
-!!       Integer:: nbond
-!!       Integer, Pointer:: bond_a(:), bond_b(:)
-!!     End Subroutine sort_bond
 !!
 !!   FUNCTION
 !!     sort_the bonds lists
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -499,20 +485,15 @@ END SUBROUTINE sort_bond
 !!     sort_bend
 !!
 !!   SYNOPSIS
-!!     Subroutine sort_bend(ntheta, theta_a, theta_b, theta_c)
-!!       Implicit None
-!!       Integer:: ntheta
-!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
-!!     End Subroutine sort_bend
 !!
 !!   FUNCTION
 !!     sort_the bends lists
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -592,20 +573,13 @@ END SUBROUTINE sort_bend
 !!     sort_dihe
 !!
 !!   SYNOPSIS
-!!     Subroutine sort_dihe(nphi, phi_a, phi_b, phi_c, phi_d)
-!!       Implicit None
-!!       Integer:: nphi
-!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
-!!     End Subroutine sort_dihe
 !!
 !!   FUNCTION
 !!     sort_the dihe lists
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -716,25 +690,15 @@ END SUBROUTINE sort_dihe
 !!     topology_generate_bond
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_generate_bond(cell, r, label_atmname, bond_a,&
-!!         bond_b, atm_mass, atm_charge)
-!!       Implicit None
-!!       Type(cell_type), Pointer:: cell
-!!       Real(Kind=dbl), Dimension(:,:), Pointer:: r
-!!       Character(Len=20), Pointer:: label_atmname(:)
-!!       Integer, Pointer:: bond_a(:), bond_b(:)
-!!       Real(Kind=dbl), Pointer:: atm_charge(:)
-!!       Real(Kind=dbl), Pointer:: atm_mass(:)
-!!     End Subroutine topology_generate_bond
 !!
 !!   FUNCTION
 !!     Use info from periodic table and assumptions to generate bonds
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 SUBROUTINE topology_generate_bond(topology,globenv)
@@ -744,6 +708,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
 
 !Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   INTEGER :: i,j,k
   INTEGER :: natom
   INTEGER :: nbond
@@ -759,15 +724,23 @@ SUBROUTINE topology_generate_bond(topology,globenv)
        routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  iw = globenv%scr
-
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Entering topology_generate_bond"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
 
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_bond"
+
   natom = topology%natoms
+
 
   !Get the temporary array that we need
   ALLOCATE(tbond_a(4*natom))
@@ -893,11 +866,11 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   DEALLOCATE(covalent_radius)
 
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Exiting  topology_generate_bond"
-  END IF
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bond"
 
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 END SUBROUTINE topology_generate_bond
@@ -911,21 +884,13 @@ END SUBROUTINE topology_generate_bond
 !!     topology_generate_bend
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_generate_bend(bond_a, bond_b, theta_a, theta_b,&
-!!         theta_c)
-!!       Implicit None
-!!       Integer, Pointer:: bond_a(:), bond_b(:)
-!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
-!!     End Subroutine topology_generate_bend
 !!
 !!   FUNCTION
 !!     Using a list of bonds, generate a list of bends
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -937,6 +902,7 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
 
 !Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   INTEGER :: ntheta
   INTEGER :: first,last,search,countme
   INTEGER :: nbond
@@ -947,13 +913,20 @@ SUBROUTINE topology_generate_bend(topology,globenv)
        routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  iw = globenv%scr
-
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Entering topology_generate_bend"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_bend"
 
   nbond = SIZE(topology%bond_a)
   !WRITE(*,*) "nbond = ",nbond
@@ -1040,11 +1013,11 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   DEALLOCATE(tmp_b)
   DEALLOCATE(tmp_c)
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Exiting  topology_generate_bend"
-  END IF
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bend"
 
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -1060,21 +1033,13 @@ END SUBROUTINE topology_generate_bend
 !!     topology_generate_dihe
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_generate_dihe(theta_a, theta_b, theta_c, phi_a,&
-!!         phi_b, phi_c, phi_d)
-!!       Implicit None
-!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
-!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
-!!     End Subroutine topology_generate_dihe
 !!
 !!   FUNCTION
 !!     Using a list of dihe, generate a list of dihe
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -1087,6 +1052,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
   TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
 
 !Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   INTEGER :: nphi
   INTEGER :: first,last,search
   INTEGER :: firstb,lastb,searchb
@@ -1098,13 +1064,20 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
        routineP=moduleN//':'//routineN
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-
-  iw = globenv % scr
-
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Entering topology_generate_dihe"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  IF(PM1) WRITE(iw,*) "    Entering topology_generate_dihe"
 
   ntheta = SIZE(topology%theta_a)
   nphi = 0
@@ -1133,11 +1106,11 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
   DEALLOCATE(tmp_d)
 
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "    Exiting  topology_generate_dihe"
-  END IF
+  IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_dihe"
 
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 END SUBROUTINE topology_generate_dihe
@@ -1152,33 +1125,15 @@ END SUBROUTINE topology_generate_dihe
 !!     topology_connectivity_pack
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_connectivity_pack(bond_a, bond_b, theta_a, theta_b, theta_c,&
-!!         phi_a, phi_b, phi_c, phi_d, label_atmname, label_resname,&
-!!         atm_mass, atm_charge, map_mol_typ, map_mol_num, molecule_set, setup,&
-!!         globenv)
-!!       Implicit None
-!!       Type(molecule_type), Dimension(:), Pointer:: molecule_set
-!!       Type(setup_parameters_type), Intent (IN):: setup
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!       Character(Len=20), Pointer:: label_resname(:)
-!!       Character(Len=20), Pointer:: label_atmname(:)
-!!       Real(Kind=dbl), Pointer:: atm_charge(:)
-!!       Real(Kind=dbl), Pointer:: atm_mass(:)
-!!       Integer, Pointer:: map_mol_typ(:)
-!!       Integer, Pointer:: map_mol_num(:)
-!!       Integer, Pointer:: bond_a(:), bond_b(:)
-!!       Integer, Pointer:: theta_a(:), theta_b(:), theta_c(:)
-!!       Integer, Pointer:: phi_a(:), phi_b(:), phi_c(:), phi_d(:)
-!!     End Subroutine topology_connectivity_pack
 !!
 !!   FUNCTION
 !!     topology connectivity pack
 !!
 !!   AUTHOR
-!!     IKUO 08.17.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -1195,6 +1150,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN ) :: globenv
 
 ! Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   TYPE (molecule_kind_type), POINTER                 :: molecule_kind
   TYPE (molecule_type), POINTER                      :: molecule
   TYPE (local_molecule_type), POINTER                :: lmi
@@ -1215,11 +1171,20 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  iw = globenv%scr
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Entering topology_connectivity_pack"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering topology_connectivity_pack"
 
 
   !-----------------------------------------------------------------------------
@@ -1243,10 +1208,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   ELSE
     NULLIFY(molecule_kind_set)
     CALL allocate_molecule_kind_set(molecule_kind_set,topology%nmol_type)
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    Allocated molecule_kind_set, dimenstion of ",&
+    IF(PM2) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
                   topology%nmol_type
-    END IF
   END IF
 
 
@@ -1259,10 +1222,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   ELSE
     NULLIFY(molecule_set)
     CALL allocate_molecule_set(molecule_set,topology%nmol)
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    Allocated molecule_set, dimenstion of ",&
+    IF(PM2) WRITE(iw,*) "    Allocated molecule_set, dimenstion of ",&
                   topology%nmol
-    END IF
   END IF
 
 
@@ -1293,9 +1254,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     nmol=topology%map_mol_num(last)
     ALLOCATE(molecule_list(nmol),STAT=istat)
     IF(istat/=0) CALL stop_memory('coordinate_pack','molecule_list',nmol)
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,'(5X,A,I5,I5)') "ikind,nmol",i,nmol
-    END IF
+    IF(PM2) WRITE(iw,'(5X,A,I5,I5)') "ikind,nmol",i,nmol
     DO j=1,nmol
       counter=counter+1
       molecule_list(j)=counter
@@ -1303,11 +1262,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     molecule_kind => molecule_kind_set(i)
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            molecule_list=molecule_list)
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "      molecule_list",molecule_list(:)
-    END IF
-    !DEALLOCATE(molecule_list,STAT=istat)
-    IF(istat/=0) CALL stop_memory('coordinate_pack','molecule_list')
+    IF(PM2) WRITE(iw,*) "      molecule_list",molecule_list(:)
   END DO
 
 
@@ -1326,9 +1281,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       CALL find_boundary2(topology%map_mol_typ,topology%map_mol_num,&
                           natom,first,last,i,j)
       first_list(counter)=first
-      IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-        WRITE(iw,'(5X,A,I5,I5,I5)') "first_list=ikind,nmol,first_atom",i,j,first
-      END IF
+      IF(PM2) WRITE(iw,'(5X,A,I5,I5,I5)') "first_list=ikind,nmol,first_atom",&
+                    i,j,first
     END DO
   END DO
   CALL set_molecule_set(molecule_set,first_list)
@@ -1366,9 +1320,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       !Atomic kind information will be filled in (PART 2)
       NULLIFY(atom_list(j)%atomic_kind)
       atom_list(j)%name=topology%label_atmname(j+first-1)
-      IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-        WRITE(iw,'(5X,A,I5,I5,1X,A5)') "atom_list ",i,j,atom_list(j)%name
-      END IF
+      IF(PM2) WRITE(iw,'(5X,A,I5,I5,1X,A5)') "atom_list ",i,j,atom_list(j)%name
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
   END DO
@@ -1412,9 +1364,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         checkme(j) = 1
       END IF
     END DO
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    Total number bonds for molecule type ",SUM(checkme)
-    END IF
+    IF(PM2) WRITE(iw,*) "    Total number bonds for molecule type ",SUM(checkme)
     ALLOCATE(bond_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bond_list',SUM(checkme))
     counter=0
@@ -1425,8 +1375,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         bond_list(counter)%b=topology%bond_b(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(bond_list(j)%bond_kind)
-        IF( PRESENT(globenv).AND.(globenv%ionode).AND.&
-            (globenv%print%level>1) )THEN
+        IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,1X,A,I5,I5)') "molecule_kind",i,"bond",&
                       topology%bond_a(j),&
                       topology%bond_b(j),&
@@ -1449,9 +1398,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     counter=counter+nbond*j
   END DO
   IF(counter/=SIZE(topology%bond_a)) THEN
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    checksum vs nbond ",counter,SiZE(topology%bond_a)
-    END IF
+    IF(PM2) WRITE(iw,*) "    checksum vs nbond ",counter,SiZE(topology%bond_a)
     CALL stop_program ( "connectivity_pack", "nbond counting error")
   END IF
 
@@ -1480,9 +1427,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         checkme(j) = 1
       END IF
     END DO
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    Total number bends for molecule type ",SUM(checkme)
-    END IF
+    IF(PM2) WRITE(iw,*) "    Total number bends for molecule type ",SUM(checkme)
     ALLOCATE(bend_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',SUM(checkme))
     counter=0
@@ -1494,8 +1439,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         bend_list(counter)%c=topology%theta_c(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(bend_list(j)%bend_kind)
-        IF( PRESENT(globenv).AND.(globenv%ionode).AND.&
-            (globenv%print%level>1) )THEN
+        IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,1X,A,I5,I5,I5)') &
                       "molecule_kind",i,"bend",&
                       topology%theta_a(j),&
@@ -1521,9 +1465,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     counter=counter+ntheta*j
   END DO
   IF(counter/=SIZE(topology%theta_a)) THEN
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    checksum vs nbend ",counter,SiZE(topology%theta_a)
-    END IF
+    IF(PM2) WRITE(iw,*) "    checksum vs nbend ",counter,SiZE(topology%theta_a)
     CALL stop_program ( "connectivity_pack", "nbend counting error")
   END IF
 
@@ -1555,9 +1497,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         checkme(j) = 1
       END IF
     END DO
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    Total number torsions for molecule type ",SUM(checkme)
-    END IF
+    IF(PM2) WRITE(iw,*) "    Total torsions for molecule type ",SUM(checkme)
     ALLOCATE(torsion_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) &
       CALL stop_memory('connectivity_pack','torsion_list',SUM(checkme))
@@ -1571,8 +1511,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         torsion_list(counter)%d=topology%phi_d(j)-first+1
         !point this to the right bond_kind_type if using force field
         NULLIFY(torsion_list(j)%torsion_kind)
-        IF( PRESENT(globenv).AND.(globenv%ionode).AND.&
-            (globenv%print%level>1) )THEN
+        IF(PM2) THEN
           WRITE(iw,'(7X,A,I3,1X,A,I5,I5,I5,I5,1X,A,I5,I5,I5,I5)') &
                       "molecule_kind",i,"torsion",&
                       topology%phi_a(j),&
@@ -1600,9 +1539,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     counter=counter+nphi*j
   END DO
   IF(counter/=SIZE(topology%phi_a)) THEN
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(topology%phi_a)
-    END IF
+    IF(PM2) WRITE(iw,*) "    checksum vs nphi ",counter,SiZE(topology%phi_a)
     CALL stop_program ( "connectivity_pack", "nphi counting error")
   END IF
 
@@ -1622,11 +1559,11 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     !---------------------------------------------------------------------------
 
 
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Exiting  topology_connectivity_pack"
-  END IF
+  IF(PM1) WRITE(iw,*) "  Exiting  topology_connectivity_pack"
 
-  CALL write_checkpoint_information("leaving "//routineN,globenv)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("leaving "//routineN,globenv)
+  END IF
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -1642,17 +1579,6 @@ END SUBROUTINE topology_connectivity_pack
 !!     topology_coordinate_pack
 !!
 !!   SYNOPSIS
-!!     Subroutine topology_coordinate_pack(r, label_atmname, particle_set,&
-!!         atomic_kind_set, molecule_set, setup, globenv)
-!!       Implicit None
-!!       Real(Kind=dbl), Dimension(:,:), Pointer:: r
-!!       Character(Len=20), Pointer:: label_atmname(:)
-!!       Type(global_environment_type), Intent (IN):: globenv
-!!       Type(atomic_kind_type), Dimension(:), Pointer:: atomic_kind_set
-!!       Type(particle_type), Dimension(:), Pointer:: particle_set
-!!       Type(molecule_type), Dimension(:), Intent (IN):: molecule_set
-!!       Type(setup_parameters_type):: setup
-!!     End Subroutine topology_coordinate_pack
 !!
 !!   FUNCTION
 !!     Take info readin from different file format and stuff it into
@@ -1682,6 +1608,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   TYPE ( topology_parameters_type ), INTENT (INOUT)         :: topology
 
 ! Locals
+  LOGICAL :: PM1,PM2,PM3,PM4
   INTEGER :: counter,i,j,k,first,last
   INTEGER :: istat,iw,handle
   INTEGER :: ikind,natom
@@ -1705,11 +1632,20 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  iw = globenv % scr
-  CALL write_checkpoint_information("entering "//routineN,globenv)
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Entering topology_coordinate_pack"
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering topology_coordinate_pack"
 
 
   !-----------------------------------------------------------------------------
@@ -1730,11 +1666,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
          counter = counter + 1
          work(counter) = atom_list(j)%name
          mass(counter) = topology%atm_mass(first+j-1)
-        IF( PRESENT(globenv).AND.(globenv%ionode).AND.&
-            (globenv%print%level>1) ) THEN
-          WRITE(iw,'(7X,A,1X,A5,F10.5)') &
+        IF(PM2) WRITE(iw,'(7X,A,1X,A5,F10.5)') &
                 "NEW ATOMIC KIND",work(counter),mass(counter)
-        END IF
       END IF
     END DO
   END DO
@@ -1745,9 +1678,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   DEALLOCATE(work,STAT=istat)
   IF (istat/=0) CALL stop_memory ('coordinate_pack','work')
   CALL reallocate(mass,1,counter)
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
+  IF(PM2) &
     WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
-  END IF
   
 
   !-----------------------------------------------------------------------------
@@ -1815,10 +1747,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         atomlist(counter)=j
       END IF
     END DO
-    IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>1))THEN
-      WRITE(iw,*) &
-            "      Atomic kind",i,"contain particle",atomlist(:)
-    END IF
+    IF(PM2) &  
+      WRITE(iw,*) "      Atomic kind",i,"contain particle",atomlist(:)
     CALL set_atomic_kind(atomic_kind=atomic_kind,&
                          natom=natom_of_kind(i),atom_list=atomlist)
     DEALLOCATE(atomlist,STAT=istat)
@@ -1887,9 +1817,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  IF(PRESENT(globenv).AND.(globenv%ionode).AND.(globenv%print%level>0))THEN
-    WRITE(iw,*) "  Exiting  topology_coordinate_pack"
-  END IF
+  IF(PM1) WRITE(iw,*) "  Exiting  topology_coordinate_pack"
   CALL write_checkpoint_information("leaving "//routineN,globenv)
   !CALL stop_program("topology_coordinate_pack","checkpoint end")
 
