@@ -169,7 +169,7 @@ CONTAINS
 !   *** Load MO set (QS wavefunction) ***
     ALLOCATE(matrix_w(SIZE(c)))
     DO ispin=1,SIZE(c)
-
+       NULLIFY(matrix_w(ispin)%matrix)
        CALL replicate_matrix_structure(s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
        mo_set => c(ispin)%mo_set
 

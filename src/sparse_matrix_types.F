@@ -1906,17 +1906,18 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE replicate_real_matrix_structure (MODULE sparse_matrix_types)"
+      "replicate_real_matrix_structure"
 
 !   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: block_node
     CHARACTER(LEN=40)                   :: matrix_symmetry
-    INTEGER                             :: iblock_col,iblock_row
+    INTEGER                             :: iblock_col,iblock_row,handle
 
 !   ---------------------------------------------------------------------------
 
 !   *** Check the association status of the source matrix ***
+    CALL timeset(routine,"I","",handle)
 
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routine,"The source matrix pointer is not associated")
@@ -1929,7 +1930,6 @@ END SUBROUTINE cp_sm_scale_and_add
     END IF
 
 !   *** Allocate a new matrix structure ***
-
     CALL allocate_matrix(matrix=TARGET,&
                          nrow=source%nrow,&
                          ncol=source%ncol,&
@@ -1962,6 +1962,8 @@ END SUBROUTINE cp_sm_scale_and_add
       END DO
 
     END DO
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE replicate_real_matrix_structure
 
