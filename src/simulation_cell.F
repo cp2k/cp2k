@@ -701,7 +701,7 @@ CONTAINS
 !     section_found=.FALSE.
          IF (section_found) THEN
 !     trip a flag
-            use_ref_cell=.TRUE.
+            IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
             
 !     read in the reference cell info in the same way as the cell info was read in
             cell_ref%unit_of_length_name = "BOHR"
@@ -772,77 +772,78 @@ CONTAINS
          ELSE
 ! read in the ref_cell from the &CELL section...to make sure ref_counting is fine
             CALL finish_parser()
-            CALL start_parser(file_name=globenv%input_file_name,&
-               globenv=globenv,start_section_label="CELL",&
-               section_found=section_found)
+!            CALL start_parser(file_name=globenv%input_file_name,&
+!               globenv=globenv,start_section_label="CELL",&
+!               section_found=section_found)
 
-            use_ref_cell=.FALSE.
-            
 ! read in the reference cell info in the same way as the cell info was read in
-            cell_ref%unit_of_length_name = "BOHR"
-            cell_ref%deth = 0.0_dp
-            cell_ref%unit_of_length = 1.0_dp
-            cell_ref%orthorhombic = .TRUE.
-            cell_ref%scaled_coordinates = .FALSE.
-            cell_ref%subcells = 2.0_dp
-            cell_ref%perd(:) = 1
-            cell_ref%hmat(:,:) = 0.0_dp
-            cell_ref%h_inv(:,:) = 0.0_dp
+!            cell_ref%unit_of_length_name = "BOHR"
+!            cell_ref%deth = 0.0_dp
+!            cell_ref%unit_of_length = 1.0_dp
+!            cell_ref%orthorhombic = .TRUE.
+!            cell_ref%scaled_coordinates = .FALSE.
+!            cell_ref%subcells = 2.0_dp
+!            cell_ref%perd(:) = 1
+!            cell_ref%hmat(:,:) = 0.0_dp
+!            cell_ref%h_inv(:,:) = 0.0_dp
             
-            DO WHILE (test_object(newline=.TRUE.) /= "EOS")
-               CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-               SELECT CASE (TRIM(keyword))
-               CASE ("A")
-                  CALL read_object(cell_ref%hmat(1,1))
-                  CALL read_object(cell_ref%hmat(2,1))
-                  CALL read_object(cell_ref%hmat(3,1))
-               CASE ("ABC")
-                  CALL read_object(cell_ref%hmat(1,1))
-                  CALL read_object(cell_ref%hmat(2,2))
-                  CALL read_object(cell_ref%hmat(3,3))
-               CASE ("B")
-                  CALL read_object(cell_ref%hmat(1,2))
-                  CALL read_object(cell_ref%hmat(2,2))
-                  CALL read_object(cell_ref%hmat(3,2))
-               CASE ("C")
-                  CALL read_object(cell_ref%hmat(1,3))
-                  CALL read_object(cell_ref%hmat(2,3))
-                  CALL read_object(cell_ref%hmat(3,3))
-               CASE ("SUBCELLS")
-                  CALL read_object(cell_ref%subcells)
-               CASE ("UNIT","UNITS")
-                  CALL read_object(string,lower_to_upper=.TRUE.)
-                  SELECT CASE (TRIM(string))
-                  CASE ("ANGSTROM")
-                     cell_ref%unit_of_length = bohr
-                     cell_ref%unit_of_length_name = "ANGSTROM"
-                     cell_ref%scaled_coordinates = .FALSE.
-                  CASE ("BOHR")
-                     cell_ref%unit_of_length = 1.0_dp
-                     cell_ref%unit_of_length_name = "BOHR"
-                     cell_ref%scaled_coordinates = .FALSE.
-                  CASE ("SCALED_ANGSTROM")
-                     cell_ref%unit_of_length = bohr
-                     cell_ref%unit_of_length_name = "ANGSTROM"
-                     cell_ref%scaled_coordinates = .TRUE.
-                  CASE ("SCALED_BOHR")
-                     cell_ref%unit_of_length = 1.0_dp
-                     cell_ref%unit_of_length_name = "BOHR"
-                     cell_ref%scaled_coordinates = .TRUE.
-                  CASE DEFAULT
-                     CALL stop_parser(routine,&
-                     "Invalid name for the cell_ref unit of length <"//&
-                     TRIM(string)//"> found")
-                  END SELECT
-               CASE DEFAULT
-                  CALL stop_parser(routine,"Invalid keyword found")
-               END SELECT
-            END DO
+!            DO WHILE (test_object(newline=.TRUE.) /= "EOS")
+!               CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+!               SELECT CASE (TRIM(keyword))
+!               CASE ("A")
+!                  CALL read_object(cell_ref%hmat(1,1))
+!                  CALL read_object(cell_ref%hmat(2,1))
+!                  CALL read_object(cell_ref%hmat(3,1))
+!               CASE ("ABC")
+!                  CALL read_object(cell_ref%hmat(1,1))
+!                  CALL read_object(cell_ref%hmat(2,2))
+!                  CALL read_object(cell_ref%hmat(3,3))
+!               CASE ("B")
+!                  CALL read_object(cell_ref%hmat(1,2))
+!                  CALL read_object(cell_ref%hmat(2,2))
+!                  CALL read_object(cell_ref%hmat(3,2))
+!               CASE ("C")
+!                  CALL read_object(cell_ref%hmat(1,3))
+!                  CALL read_object(cell_ref%hmat(2,3))
+!                  CALL read_object(cell_ref%hmat(3,3))
+!               CASE ("SUBCELLS")
+!                  CALL read_object(cell_ref%subcells)
+!               CASE ("UNIT","UNITS")
+!                  CALL read_object(string,lower_to_upper=.TRUE.)
+!                  SELECT CASE (TRIM(string))
+!                  CASE ("ANGSTROM")
+!                     cell_ref%unit_of_length = bohr
+!                     cell_ref%unit_of_length_name = "ANGSTROM"
+!                     cell_ref%scaled_coordinates = .FALSE.
+!                  CASE ("BOHR")
+!                     cell_ref%unit_of_length = 1.0_dp
+!                     cell_ref%unit_of_length_name = "BOHR"
+!                     cell_ref%scaled_coordinates = .FALSE.
+!                  CASE ("SCALED_ANGSTROM")
+!                     cell_ref%unit_of_length = bohr
+!                     cell_ref%unit_of_length_name = "ANGSTROM"
+!                     cell_ref%scaled_coordinates = .TRUE.
+!                  CASE ("SCALED_BOHR")
+!                     cell_ref%unit_of_length = 1.0_dp
+!                     cell_ref%unit_of_length_name = "BOHR"
+!                     cell_ref%scaled_coordinates = .TRUE.
+!                  CASE DEFAULT
+!                     CALL stop_parser(routine,&
+!                     "Invalid name for the cell_ref unit of length <"//&
+!                     TRIM(string)//"> found")
+!                  END SELECT
+!               CASE DEFAULT
+!                  CALL stop_parser(routine,"Invalid keyword found")
+!               END SELECT
+!            END DO
             
-            cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
+!            cell_ref%hmat(:,:) = cell_ref%hmat(:,:)*cell_ref%unit_of_length
             
-            CALL init_cell_new(cell_ref)
-            CALL finish_parser()
+!            CALL init_cell_new(cell_ref)
+!            CALL finish_parser()
+            cell_ref=>cell
+            CALL cell_retain(cell_ref)
+
         ENDIF
          
       ENDIF
