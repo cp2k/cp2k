@@ -127,6 +127,9 @@ SUBROUTINE coef_electrostatics_numer ( delta, dg_part, part, &
 ! starting the force loop
 !
    ncoeff = SIZE ( pw % cc )
+!dbg
+   ncoeff = ncoeff/100
+!dbg
    DO i = 1, ncoeff
 ! ags
       pw % cc ( i ) = CMPLX ( REAL ( pw % cc ( i ), dbl ) + delta, &
@@ -248,6 +251,9 @@ SUBROUTINE coef_overlap_numer ( delta, dg, pw, ao, drho_basis_info, part, pnode,
    ncoeff = SIZE ( pw % cc )
    energy_numer = 0.0_dbl
    f_coef = 0.0_dbl
+!dbg
+   ncoeff = ncoeff/100
+!dbg
 
 !
 ! starting the force loop
@@ -372,6 +378,9 @@ SUBROUTINE coef_thk_numer ( delta, dg, pw, ao, part, box, empparm, grid_s,  &
    ncoeff = SIZE ( pw % cc )
    energy_numer = 0.0_dbl
    f_coef = 0.0_dbl
+!dbg
+   ncoeff = ncoeff/100 
+!dbg
 
 !
 ! starting the force loop
