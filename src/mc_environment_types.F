@@ -144,9 +144,7 @@ CONTAINS
     IF ( PRESENT ( blacs_env ) ) mc_env % blacs_env => blacs_env
     IF ( PRESENT ( force_env )) THEN
        CALL force_env_retain( force_env ) ! accept null pointers?
-       IF ( ASSOCIATED( mc_env%force_env )) THEN
-         CALL force_env_release( mc_env % force_env )
-       ENDIF
+       CALL force_env_release( mc_env % force_env )
        mc_env % force_env => force_env
     END IF
     
