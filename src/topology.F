@@ -107,10 +107,11 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   INTEGER                                          :: handle, iw
   TYPE(topology_parameters_type)                   :: topology
-
+  LOGICAL                                          :: my_qmmm
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
-
+  my_qmmm = .FALSE.
+  IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   iw = globenv%scr
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)
@@ -158,7 +159,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 6. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
-  CALL connectivity_control(topology,globenv,qmmm, qmmm_env, error)
+  CALL connectivity_control(topology,globenv,my_qmmm, qmmm_env, error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -174,40 +175,23 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 7.bis. Set up the QM/MM linkage (if any)
   !-----------------------------------------------------------------------------
-  IF (PRESENT(qmmm)) THEN
-     IF (qmmm) THEN
-        IF (.NOT.PRESENT(qmmm_env)) &
-             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")     
+  IF (my_qmmm) THEN
         CALL qmmm_connectivity_control(topology, globenv, molecule_set, &
              qmmm_env, error)
-     END IF
   END IF
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 8. Pack everything into the atomic types
   !-----------------------------------------------------------------------------
-  IF (PRESENT(qmmm)) THEN
-     !
-     ! A little bit pedant but just to be sure that in the future everything will
-     ! be used in a proper manner...
-     !
-     IF (qmmm) THEN
-        IF (.NOT.PRESENT(qmmm_env)) &
-             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")
-        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-                                      molecule_kind_set,molecule_set,&
-                                      topology,globenv, qmmm, qmmm_env, error=error)
-     ELSE 
-        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-                                      molecule_kind_set,molecule_set,&
-                                      topology,globenv)
-     END IF
-  ELSE
+  IF (my_qmmm) THEN
+     CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
+                                   molecule_kind_set,molecule_set,&
+                                   topology,globenv, my_qmmm, qmmm_env, error=error)
+  ELSE 
      CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
                                    molecule_kind_set,molecule_set,&
                                    topology,globenv)
   END IF
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 9. Deal with the constraint stuff if requested
