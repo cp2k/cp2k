@@ -1988,7 +1988,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   DO i=1,topology%natom_type
     atomic_kind => atomic_kind_set(i)
-    mass = mass * massunit
+    mass(i) = mass(i) * massunit
     CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=i,&
                          name=atom_info%atom_names(i),mass=mass(i)) 
   END DO
