@@ -3,7 +3,7 @@
 
 ! The following macros are here to facilitate the use of error handling 
 ! proposed in qs_error_handling.
-! they assume at least 'use qs_error_handling, only: qs_assert'
+! they assume at least 'use qs_error_handling, only: qs_assert, qs_error_type'
 ! and 'use qs_log_handling, only: qs_to_string'
 ! They ere useful because they give a reference to the file and line
 ! number in the error message.
@@ -15,7 +15,6 @@
 ! obviously then the error messages will not give the filename.
 ! (otherwise make the file reference in the makefile relative vs. absolute)
 #define QSSourceFileRef() __FILE__//' line '//qs_to_string(__LINE__)
-
 
 ! #define FD_ASSERT_WITH_FILE_NAME
 
