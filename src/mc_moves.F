@@ -33,7 +33,8 @@ MODULE mc_moves
   USE force_env_methods,               ONLY: force_env_calculate_energy
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
-                                             dp
+                                             dp,&
+                                             dp_size
   USE mc_misc,                         ONLY: get_center_of_mass,&
                                              mc_classical_energy,&
                                              mc_coordinate_fold,&
@@ -47,6 +48,7 @@ MODULE mc_moves
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -126,8 +128,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: nnstep
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
@@ -163,7 +164,8 @@ CONTAINS
       ENDIF
 
 ! calculate the new energy of the system
-      CALL force_env_calculate_energy(force_env)
+!!!!!!!!!
+!      CALL force_env_calculate_energy(force_env)
 
 ! now grab the coords and the energy
       CALL force_env_get(force_env,subsys=subsys,&
@@ -178,7 +180,8 @@ CONTAINS
             CALL mc_classical_energy(force_env,&
                classical_energy_new,&
                mc_par,1,mc_par%nchain,6.211D0/angstrom)
-!            new_energy=classical_energy_new
+!!!!!!!!
+            new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
             w=dexp(-mc_par%BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
@@ -189,6 +192,7 @@ CONTAINS
 !                classical_energy_new,classical_energy_old,mc_par%BETA
                  
 !!!!!!!!!!!!!!!!!!!!!!!
+!            w=1.0D0
 !            w=0.0D0
 !!!!!!!!!!!!!!!!!!!!!!!
          ELSE
@@ -313,18 +317,20 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_atom_translation"
 
-    INTEGER                                  :: handle, i, imol, ipart
+    INTEGER                                  :: handle, i, imol, ipart,&
+                                                istat
     LOGICAL                                  :: bond_flag
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 dis_length, rand, w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r, r_new
+    REAL(KIND=dp), DIMENSION(:, :),&
+      ALLOCATABLE                            :: r, r_new
     TYPE(particle_list_type), POINTER        :: particles
 
 !   ---------------------------------------------------------------------------
+
 ! begin the timing of the subroutine
 
   CALL timeset(routineN,'I','',handle)
@@ -332,6 +338,14 @@ CONTAINS
 ! nullify some pointers
       NULLIFY(particles,subsys)
       bond_flag=.FALSE.
+
+! do some allocation
+      ALLOCATE (r(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r",3*mc_par%nunits_tot*dp_size)
+      ALLOCATE (r_new(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_new",3*mc_par%nunits_tot*dp_size)
 
 ! find the old classical energy of the moving mol if we're biasing classically
       imol = (mol+2)/3
@@ -444,6 +458,13 @@ CONTAINS
 
       ENDIF
 
+! deallocate some stuff
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r")
+      DEALLOCATE(r_new,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_new")
 
 ! end the timing
   CALL timestop(0.0d0,handle)
@@ -496,14 +517,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_translation"
 
     INTEGER                                  :: handle, i, imol, ipart, &
-                                                iparticle
+                                                iparticle,istat
     REAL(KIND=dp)                            :: classical_energy_new, &
                                                 classical_energy_old, &
                                                 dis_mol, rand, w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    REAL(KIND=dp), DIMENSION(:, :),&
+      ALLOCATABLE                            :: r
     TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
@@ -514,6 +535,11 @@ CONTAINS
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
+
+! do some allocation
+      ALLOCATE (r(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r",3*mc_par%nunits_tot*dp_size)
 
 ! find the old classical energy of the moving mol if we're biasing classically
       imol = (mol+2)/3
@@ -608,6 +634,11 @@ CONTAINS
       ENDIF
 
 
+! deallocate some stuff
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r")
+
 ! end the timing
   CALL timestop(0.0d0,handle)
 
@@ -663,15 +694,15 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: masstot = 18.01D0
 
     INTEGER                                  :: dir, handle, ii, imol, ipart, &
-                                                iunit
+                                                iunit,istat
     LOGICAL                                  :: lx, ly
     REAL(KIND=dp) :: classical_energy_new, classical_energy_old, cosdg, &
       dgamma, nxcm, nycm, nzcm, rand, rx, rxnew, ry, rynew, rz, rznew, sindg, &
       w
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
+    REAL(KIND=dp), DIMENSION(:, :),&
+      ALLOCATABLE                            :: r
     TYPE(particle_list_type), POINTER        :: particles
 
 !   *** Local Counters ***
@@ -682,6 +713,11 @@ CONTAINS
 
 ! nullify some pointers
       NULLIFY(particles,subsys)
+
+! do some allocation
+      ALLOCATE (r(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r",3*mc_par%nunits_tot*dp_size)
 
 ! initialize some stuff
       lx =.FALSE.
@@ -841,6 +877,11 @@ CONTAINS
 
       ENDIF
 
+! deallocate some stuff
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r")
+
 ! end the timing
   CALL timestop(0.0d0,handle)
 
@@ -896,8 +937,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: old_energy
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(INOUT)             :: energy_check
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp),DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -909,7 +949,7 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
     INTEGER                                  :: handle, i, iatom, &
-                                                ivolmove
+                                                ivolmove,istat
     REAL(KIND=dp) :: classical_energy_diff, classical_energy_new, &
       classical_energy_original, classical_energy_test, new_cell_length, &
       new_energy, old_cell_length, rand, test_cell_length, vol_dis, w
@@ -919,10 +959,8 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys, testsys
     TYPE(cell_type), POINTER                 :: cell_old
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot)    :: r_mol
+    REAL(KIND=dp), DIMENSION(:, :),&
+      ALLOCATABLE                            :: r,r_mol
     TYPE(particle_list_type), POINTER        :: particles_old, particles_test
 
 !   ---------------------------------------------------------------------------
@@ -934,10 +972,26 @@ CONTAINS
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
          testsys,test_env)
 
+! do some allocation
+      ALLOCATE (r(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r",3*mc_par%nunits_tot*dp_size)
+      ALLOCATE (r_mol(1:3,1:mc_par%nunits_tot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_mol",3*mc_par%nunits_tot*dp_size)
+
       IF (mc_par%ionode) THEN
 ! record the attempt
-         moves%volume%attempts=moves%volume%attempts+1
-         move_updates%volume%attempts=move_updates%volume%attempts+1
+         IF(mc_par%nvolmoves .EQ. 1) THEN
+            move_updates%classical_volume%attempts=&
+               move_updates%classical_volume%attempts+1
+            moves%classical_volume%attempts=&
+               moves%classical_volume%attempts+1
+         ENDIF
+         moves%volume%attempts= &
+            moves%volume%attempts+1
+         move_updates%volume%attempts=&
+            move_updates%volume%attempts+1
       ENDIF
 
 ! now let's grab the cell length and particle positions
@@ -990,10 +1044,10 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
-!!!!!
+!!!!!!!!!!!!
             vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
 !            vol_dis=5.0d0/angstrom**3
-!!!!!
+
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)
             DO iatom=1,mc_par%nunits_tot
@@ -1113,17 +1167,18 @@ CONTAINS
       ENDIF
 
 ! set the coordinates and the energy
-      CALL force_env_release(test_env,error=error)
       CALL cp_subsys_release(testsys(1)%subsys)
+      CALL force_env_release(test_env,error=error)
 
       globenv%input_file_name=mc_par%dat_file
       CALL quickstep_create_force_env(test_env, globenv, error=error)
 
-      CALL force_env_calculate_energy(test_env)
+!!!!!!!!!!!!!!!!!!
+!      CALL force_env_calculate_energy(test_env)
 
 ! now grab the coords and the energy
-      CALL force_env_get(test_env,&
-          potential_energy=new_energy,error=error)
+!      CALL force_env_get(test_env,&
+!          potential_energy=new_energy,error=error)
 
       IF (mc_par%ionode) THEN
 ! accept or reject the move
@@ -1171,8 +1226,16 @@ CONTAINS
                vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
                
 ! accept the move
-            moves%volume%successes=moves%volume%successes+1
-            move_updates%volume%successes=move_updates%volume%successes+1
+            IF(mc_par%nvolmoves .EQ. 1) THEN
+               move_updates%classical_volume%successes=&
+                  move_updates%classical_volume%successes+1
+               moves%classical_volume%successes=&
+                  moves%classical_volume%successes+1
+            ENDIF
+            moves%volume%successes=&
+               moves%volume%successes+1
+            move_updates%volume%successes=&
+               move_updates%volume%successes+1
 
 ! update energies
             energy_check=energy_check+(new_energy-old_energy)
@@ -1194,8 +1257,8 @@ CONTAINS
          ENDIF
 
 ! switch the force env to the new env
-         CALL force_env_release(force_env,error=error)
          CALL cp_subsys_release(oldsys(1)%subsys)
+         CALL force_env_release(force_env,error=error)
          force_env => test_env
 
       ELSE
@@ -1216,10 +1279,17 @@ CONTAINS
 
 ! release some memory
          CALL force_env_release(test_env,error=error)
-         CALL cp_subsys_release(testsys(1)%subsys)
 
       ENDIF
 
+
+! deallocate some stuff
+      DEALLOCATE(r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r")
+      DEALLOCATE(r_mol,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
+                       "r_mol")
 
 ! end the timing
       CALL timestop(0.0d0,handle)
@@ -1257,11 +1327,9 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp),DIMENSION(:,:), &
       INTENT(OUT)                            :: r_new
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_old
     INTEGER, INTENT(IN)                      :: mol
     REAL(KIND=dp), INTENT(OUT)               :: dis_length
@@ -1341,11 +1409,9 @@ CONTAINS
 
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: r_new
-    REAL(KIND=dp), &
-      DIMENSION(1:3, 1:mc_par%nunits_tot), &
+    REAL(KIND=dp), DIMENSION(:,:), &
       INTENT(IN)                             :: r_old
     INTEGER, INTENT(IN)                      :: mol
 
@@ -1421,3 +1487,4 @@ CONTAINS
 END MODULE mc_moves
 
 !**********************************************************************
+

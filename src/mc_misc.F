@@ -1010,7 +1010,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) 'RUN_TYPE     MC'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
-      WRITE(unit,*) "&PRINT silent"
+      WRITE(unit,*) "&PRINT low"
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
       WRITE(unit,*) "&MC"
@@ -1030,6 +1030,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
       WRITE(unit,*) ' GUESS        ATOMIC'
       WRITE(unit,*) "&END"
       WRITE(unit,*) 
+!!!!!!!!!!!!!!!!!!!!!!!!!!
+!      WRITE(unit,*) "&TOPOLOGY"
+!      WRITE(unit,*) ' BONDPARM COVALENT 1.6'
+!      WRITE(unit,*) "&END"
+!      WRITE(unit,*) 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       WRITE(unit,*) "&KIND H"
       WRITE(unit,*) ' BASIS_SET    TZV2P-GTH-BLYP'
       WRITE(unit,*) ' POTENTIAL    GTH-BLYP-q1'
@@ -1050,7 +1056,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
 !      WRITE(unit,*) "&CELL_REF"
 !      WRITE(unit,*) ' UNIT         ANGSTROM'
 !      WRITE(unit,'(A,A)') ' ABC          ',&
-!         '13.422  13.422  13.422  '
+!         '9.0  9.0  9.0  '
 !      WRITE(unit,*) "&END"
 !      WRITE(unit,*) 
 !!!!!!!!!!!!!!
@@ -1062,6 +1068,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename)
             coordinates(1:3,iatom+1)*angstrom,'  H2O'
          WRITE(unit,'(A,3(F24.18,2X),A)') ' H  ',&
             coordinates(1:3,iatom+2)*angstrom,'  H2O'
+!         WRITE(unit,'(A,3(F24.18,2X))') ' O  ',&
+!            coordinates(1:3,iatom)*angstrom
+!         WRITE(unit,'(A,3(F24.18,2X))') ' H  ',&
+!            coordinates(1:3,iatom+1)*angstrom
+!         WRITE(unit,'(A,3(F24.18,2X))') ' H  ',&
+!            coordinates(1:3,iatom+2)*angstrom
       ENDDO
       WRITE(unit,*) "&END"
 
@@ -1138,3 +1150,4 @@ END SUBROUTINE mc_coordinate_fold
 END MODULE mc_misc
 
 !******************************************************************************
+

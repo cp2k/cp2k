@@ -69,7 +69,8 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "init_mc_moves"
 
     INTEGER                                  :: handle, stat
 
@@ -183,7 +184,8 @@ CONTAINS
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "mc_moves_release"
 
     INTEGER                                  :: handle, stat
 
@@ -267,7 +269,8 @@ SUBROUTINE move_q_reinit ( moves )
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "move_q_reinit"
 
     INTEGER                                  :: handle
 
@@ -312,7 +315,8 @@ SUBROUTINE q_move_accept(moves)
 
     TYPE(mc_moves_type), POINTER             :: moves
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "q_move_accept"
 
     INTEGER                                  :: handle
 
@@ -375,7 +379,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep, unit
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_mc_moves"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "write_move_stats"
 
     INTEGER                                  :: handle
 
@@ -457,7 +462,8 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
     CHARACTER(LEN=*), INTENT(IN)             :: flag
     INTEGER, INTENT(IN)                      :: nnstep
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "mc_move_update"
+    CHARACTER(LEN=*), PARAMETER              :: &
+      routineN = "mc_move_update"
 
     INTEGER                                  :: handle
     REAL(KIND=dp)                            :: test_ratio
@@ -627,28 +633,37 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
                     mc_par%rmrot/pi*180.0d0,' degrees'
          ENDIF
             
-     CASE ("volume")
+      CASE ("volume")
 
 ! update the maximum displacement for volume displacement
+         IF ( move_updates%classical_volume%attempts .NE. 0) THEN
 
 ! first account for the extreme cases
-         IF ( move_updates%classical_volume%successes == 0 ) THEN
-            mc_par%rmvolume=mc_par%rmvolume/2.0d0
-
-         ELSEIF ( move_updates%classical_volume%successes == &
-                 move_updates%classical_volume%attempts ) THEN
-            mc_par%rmvolume=mc_par%rmvolume*2.0d0
-         ELSE
+            IF ( move_updates%classical_volume%successes == 0 ) THEN
+               mc_par%rmvolume=mc_par%rmvolume/2.0d0
+               
+            ELSEIF ( move_updates%classical_volume%successes == &
+                  move_updates%classical_volume%attempts ) THEN
+               mc_par%rmvolume=mc_par%rmvolume*2.0d0
+            ELSE
 ! now for the middle case
-            mc_par%rmvolume=mc_par%rmvolume*((&
-                REAL(move_updates%classical_volume%successes,dbl)&
-               /REAL(move_updates%classical_volume%attempts,dbl))/0.5d0)
-         ENDIF
+               test_ratio=REAL(move_updates%classical_volume%successes,dbl)/&
+                  REAL(move_updates%classical_volume%attempts,dbl)/0.5d0
+               IF (test_ratio .GT. 2.0d0) test_ratio=2.0D0
+               IF (test_ratio .LT. 0.5d0) test_ratio=0.5D0
+               mc_par%rmvolume=mc_par%rmvolume*test_ratio
+
+            ENDIF
 
 ! clear the counters
-         move_updates%classical_volume%attempts=0
-         move_updates%classical_volume%successes=0
+            move_updates%classical_volume%attempts=0
+            move_updates%classical_volume%successes=0
 
+! write the new displacement to a file
+            WRITE(mc_par%rm,*) nnstep,' rmvolume = ',&
+                    mc_par%rmvolume*angstrom**3,' angstroms^3'
+
+         ENDIF
       END SELECT
 
 ! end the timing
@@ -663,3 +678,4 @@ SUBROUTINE write_move_stats(moves,move_updates,nnstep,unit)
 END MODULE mc_move_control
 
 !**********************************************************************
+

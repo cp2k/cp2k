@@ -5,7 +5,7 @@
 !!****** cp2k/mc_ge_moves [1.0] *
 !!
 !!   NAME
-!!     mc_moves
+!!     mc_ge_moves
 !!
 !!   FUNCTION
 !!     the various moves in Gibbs ensemble Monte Carlo (GEMC) simulations,
@@ -212,10 +212,12 @@ CONTAINS
             CALL mc_classical_energy(force_env_1,&
                classical_energy_new(1),&
                mc_par_1,1,mc_par_1%nchain,6.211D0/angstrom)
+!!!!!!!!!!!!
             new_energy(1)=classical_energy_new(1)
             CALL mc_classical_energy(force_env_2,&
                classical_energy_new(2),&
                mc_par_2,1,mc_par_2%nchain,6.211D0/angstrom)
+!!!!!!!!!!!!
             new_energy(2)=classical_energy_new(2)
             
             classical_energy_old(1)=moves_1%classical_energy
@@ -731,8 +733,8 @@ CONTAINS
 ! calculate the energies
 !!!!!!!!!!!!!!!!!!!!
 !      CALL force_env_calculate_energy(insert_env)
-!      CALL force_env_get(insert_env,&
-!         potential_energy=new_energy(insert_box),error=error)
+      CALL force_env_get(insert_env,&
+         potential_energy=new_energy(insert_box),error=error)
 ! now change the total number of units and chains in the mc_par
       mc_par(insert_box)%mc_par%nchain=&
          mc_par(insert_box)%mc_par%nchain+1
@@ -757,8 +759,8 @@ CONTAINS
       ELSE
 !!!!!!!!!!!!!!!!!
 !         CALL force_env_calculate_energy(remove_env)
-!         CALL force_env_get(remove_env,&
-!            potential_energy=new_energy(remove_box),error=error)
+         CALL force_env_get(remove_env,&
+            potential_energy=new_energy(remove_box),error=error)
          mc_par(remove_box)%mc_par%nchain=&
             mc_par(remove_box)%mc_par%nchain-1
          mc_par(remove_box)%mc_par%nunits_tot=&
@@ -1060,6 +1062,12 @@ CONTAINS
       IF (mc_par(1)%mc_par%ionode) THEN
 ! record the attempt
          DO i=1,2
+            IF(mc_par(1)%mc_par%nvolmoves .EQ. 1) THEN
+               move_updates(i)%moves%classical_volume%attempts=&
+                  move_updates(i)%moves%classical_volume%attempts+1
+               moves(i)%moves%classical_volume%attempts=&
+                  moves(i)%moves%classical_volume%attempts+1
+            ENDIF
             moves(i)%moves%volume%attempts= &
                moves(i)%moves%volume%attempts+1
             move_updates(i)%moves%volume%attempts=&
@@ -1291,6 +1299,7 @@ CONTAINS
          IF (lempty(i)) THEN
             new_energy(i)=0.0d0
          ELSE
+!!!!!!!!!!!!!!!!!!!!!!!!!!
 !           CALL force_env_calculate_energy(test_env(i)%force_env)
 
 ! now grab the energy
@@ -1307,12 +1316,10 @@ CONTAINS
                classical_energy_diff(1)-classical_energy_diff(2)))
          ELSE
 
-            volume_new(1:2)=new_cell_length(1:2)**3
-            volume_old(1:2)=test_cell_length(1:2)**3
-            prefactor=(volume_new(1)**mc_par(1)%mc_par%nchain*&
-               volume_new(2)**mc_par(2)%mc_par%nchain)/&
-               (volume_old(1)**mc_par(1)%mc_par%nchain*&
-               volume_old(2)**mc_par(2)%mc_par%nchain)
+            volume_new(1:2)=test_cell_length(1:2)**3
+            volume_old(1:2)=old_cell_length(1:2)**3
+            prefactor=(volume_new(1)/volume_old(1))**mc_par(1)%mc_par%nchain*&
+               (volume_new(2)/volume_old(2))**mc_par(2)%mc_par%nchain
             w=prefactor*dexp(-mc_par(1)%mc_par%BETA*&
                (new_energy(1)+new_energy(2)-&
                old_energy(1)-old_energy(2)))
@@ -1350,6 +1357,12 @@ CONTAINS
 
             DO i=1,2
 ! accept the move
+               IF(mc_par(1)%mc_par%nvolmoves .EQ. 1) THEN
+                  move_updates(i)%moves%classical_volume%successes=&
+                     move_updates(i)%moves%classical_volume%successes+1
+                  moves(i)%moves%classical_volume%successes=&
+                     moves(i)%moves%classical_volume%successes+1
+               ENDIF
                moves(i)%moves%volume%successes=&
                   moves(i)%moves%volume%successes+1
                move_updates(i)%moves%volume%successes=&
@@ -1545,3 +1558,4 @@ END SUBROUTINE check_for_overlap
 END MODULE mc_ge_moves
 
 !**********************************************************************
+
