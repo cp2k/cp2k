@@ -12,13 +12,16 @@
 !!     Literature: S. Goedecker, M. Teter and J. Hutter,
 !!                 Phys. Rev. B 54, 1703 (1996)
 !!
+!!   NOTES
+!!     Order of derivatives is: LDA 0; 1; 2; 3;
+!!                              LSD 0; a  b; aa ab bb; aaa aab abb bbb;
+!!
 !!   AUTHOR
 !!     JGH (15.02.2002)
 !!
 !!   MODIFICATION HISTORY
-!!     - none
+!!     none
 !!
-!!   SOURCE
 !******************************************************************************
 
 MODULE pade_functional
@@ -134,6 +137,8 @@ CONTAINS
        calc(1) = .TRUE.
        mt = 2
     END IF
+    IF ( ABS ( order ) > 3 ) CALL stop_program ( "pade_lda", &
+       "order of derivative too high" )
     IF ( mt > mp ) CALL stop_program ( "pade_lda", &
        "Size of POT array too small" )
 
@@ -212,6 +217,8 @@ CONTAINS
        calc(1) = .TRUE.
        mt = 3
     END IF
+    IF ( ABS ( order ) > 3 ) CALL stop_program ( "pade_lda", &
+       "order of derivative too high" )
     IF ( mt > mp ) CALL stop_program ( "pade_lsd", &
        "Size of POT array too small" )
 
@@ -786,10 +793,10 @@ CONTAINS
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = 0._dbl
-         pot(ip,2) = 0._dbl
-         pot(ip,3) = 0._dbl
-         pot(ip,4) = 0._dbl
+         pot(ip,1) = 1._dbl
+         pot(ip,2) = 1._dbl
+         pot(ip,3) = 1._dbl
+         pot(ip,4) = 1._dbl
 
       END IF
 

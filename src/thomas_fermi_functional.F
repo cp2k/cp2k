@@ -2,27 +2,27 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xalpha_functional [1.0] *
+!!****** cp2k/thomas_fermi_functional [1.0] *
 !!
 !!   NAME
-!!     xalpha_functional
+!!     thomas_fermi_functional
 !!
 !!   FUNCTION
-!!     Calculate the local exchange functional
+!!     Calculate the Thomas-Fermi kinetic energy functional
 !!
 !!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3; 
+!!     Order of derivatives is: LDA 0; 1; 2; 3;
 !!                              LSD 0; a  b; aa bb; aaa bbb;
 !!
 !!   AUTHOR
-!!     JGH (17.02.2002)
+!!     JGH (18.02.2002)
 !!
 !!   MODIFICATION HISTORY
 !!     none
 !!
 !******************************************************************************
 
-MODULE xalpha_functional
+MODULE thomas_fermi_functional
 
 ! *****************************************************************************
 
@@ -39,17 +39,19 @@ MODULE xalpha_functional
   REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
   REAL(dbl), PARAMETER :: f13 = 1._dbl/3._dbl, &
                           f23 = 2._dbl*f13, &
-                          f43 = 4._dbl*f13
+                          f43 = 4._dbl*f13, &
+                          f53 = 5._dbl*f13
 
-  PUBLIC :: xalpha
+  PUBLIC :: thomas_fermi
 
-  REAL(dbl) :: xparam, flda, flsd
+  REAL(dbl) :: cf, flda, flsd
   REAL(dbl) :: eps_rho
 
 ! *****************************************************************************
 
-  INTERFACE xalpha
-    MODULE PROCEDURE xalpha_lda, xalpha_lsd, xalpha_init, xalpha_info
+  INTERFACE thomas_fermi
+    MODULE PROCEDURE thomas_fermi_lda, thomas_fermi_lsd, &
+                     thomas_fermi_init, thomas_fermi_info
   END INTERFACE
 
 ! *****************************************************************************
@@ -58,44 +60,38 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_init ( cutoff, parameter )
+  SUBROUTINE thomas_fermi_init ( cutoff )
 
     REAL(dbl), INTENT(IN) :: cutoff
-    REAL(dbl), INTENT(IN), OPTIONAL :: parameter
 
     eps_rho = cutoff
     CALL set_util ( cutoff )
-    IF ( PRESENT ( parameter ) ) THEN
-      xparam = parameter
-    ELSE
-      xparam = 2._dbl / 3._dbl
-    END IF
 
-    flda = -9._dbl/8._dbl * xparam * (3._dbl/pi)**f13
-    flsd = flda * 2._dbl**f13
+    cf = 0.3_dbl*(3._dbl*pi*pi)**f23
+    flda = cf
+    flsd = flda * 2._dbl**f23
 
-  END SUBROUTINE xalpha_init
+  END SUBROUTINE thomas_fermi_init
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_info ( reference, shortform )
+  SUBROUTINE thomas_fermi_info ( reference, shortform )
 
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-       WRITE (reference,'(A,F8.4)') &
-         "Dirac/Slater local exchange; parameter=",xparam
+      reference = "Thomas-Fermi kinetic energy functional: see Parr and Yang"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-       WRITE (shortform,'(A,F8.4)') "Dirac/Slater exchange",xparam
+      shortform = "Thomas-Fermi kinetic energy functional"
     END IF
 
-  END SUBROUTINE xalpha_info
+  END SUBROUTINE thomas_fermi_info
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda ( rho, pot, order )
+  SUBROUTINE thomas_fermi_lda ( rho, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -128,41 +124,41 @@ CONTAINS
        calc(1) = .TRUE.
        mt = 2
     END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "xalpha_lda", &
+    IF ( ABS ( order ) > 3 ) CALL stop_program ( "thomas_fermi_lda", &
        "order of derivative too high" )
-    IF ( mt > mp ) CALL stop_program ( "xalpha_lda", &
+    IF ( mt > mp ) CALL stop_program ( "thomas_fermi_lda", &
        "Size of POT array too small" )
 
     n = SIZE ( rho )
     ALLOCATE ( r13(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lda", "r13", n )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lda", "r13", n )
     
     m = 1
     CALL calc_rho13 ( rho, r13 )
     IF ( calc(0) ) THEN
-       CALL xalpha_lda_0 ( rho, r13, pot(:,1) )
+       CALL thomas_fermi_lda_0 ( rho, r13, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        IF ( allcalc ) m = 2
-       CALL xalpha_lda_1 ( rho, r13, pot(:,m) )
+       CALL thomas_fermi_lda_1 ( rho, r13, pot(:,m) )
     END IF
     IF ( calc(2) ) THEN
        IF ( allcalc ) m = 3
-       CALL xalpha_lda_2 ( rho, r13, pot(:,m) )
+       CALL thomas_fermi_lda_2 ( rho, r13, pot(:,m) )
     END IF
     IF ( calc(3) ) THEN
        IF ( allcalc ) m = 4
-       CALL xalpha_lda_3 ( rho, r13, pot(:,m) )
+       CALL thomas_fermi_lda_3 ( rho, r13, pot(:,m) )
     END IF
 
     DEALLOCATE ( r13, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lda", "rs" )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lda", "rs" )
 
-  END SUBROUTINE xalpha_lda
+  END SUBROUTINE thomas_fermi_lda
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd ( rhoa, rhob, pot, order )
+  SUBROUTINE thomas_fermi_lsd ( rhoa, rhob, pot, order )
 
 !   ---------------------------------------------------------------------------
 
@@ -206,46 +202,46 @@ CONTAINS
        calc(1) = .TRUE.
        mt = 3
     END IF
-    IF ( ABS ( order ) > 3 ) CALL stop_program ( "xalpha_lsd", &
+    IF ( ABS ( order ) > 3 ) CALL stop_program ( "thomas_fermi_lsd", &
        "order of derivative too high" )
-    IF ( mt > mp ) CALL stop_program ( "xalpha_lsd", &
+    IF ( mt > mp ) CALL stop_program ( "thomas_fermi_lsd", &
        "Size of POT array too small" )
 
     n = SIZE ( rhoa )
     ALLOCATE ( r13a(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13a", n )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lsd", "r13a", n )
     ALLOCATE ( r13b(n), STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13b", n )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lsd", "r13b", n )
 
     m = 1
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
     IF ( calc(0) ) THEN
-       CALL xalpha_lsd_0 ( rhoa, rhob, r13a, r13b, pot(:,1) )
+       CALL thomas_fermi_lsd_0 ( rhoa, rhob, r13a, r13b, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        IF ( allcalc ) m = 2
-       CALL xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       CALL thomas_fermi_lsd_1 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
     END IF
     IF ( calc(2) ) THEN
        IF ( allcalc ) m = 4
-       CALL xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       CALL thomas_fermi_lsd_2 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
     END IF
     IF ( calc(3) ) THEN
        IF ( allcalc ) m = 6
-       CALL xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
+       CALL thomas_fermi_lsd_3 ( rhoa, rhob, r13a, r13b, pot(:,m:m+1) )
     END IF
 
     DEALLOCATE ( r13a, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13a" )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lsd", "r13a" )
     DEALLOCATE ( r13b, STAT=error )
-    IF ( error /= 0 ) CALL stop_memory ( "xalpha_lsd", "r13b" )
+    IF ( error /= 0 ) CALL stop_memory ( "thomas_fermi_lsd", "r13b" )
 
-  END SUBROUTINE xalpha_lsd
+  END SUBROUTINE thomas_fermi_lsd
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_0 ( rho, r13, pot )
+  SUBROUTINE thomas_fermi_lda_0 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -255,7 +251,7 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_0", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lda_0", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
@@ -265,50 +261,17 @@ CONTAINS
 
       ELSE
 
-         pot(ip) = flda*r13(ip)*rho(ip)
+         pot(ip) = flda*r13(ip)*r13(ip)*rho(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lda_0
+  END SUBROUTINE thomas_fermi_lda_0
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_1 ( rho, r13, pot )
-
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
-
-    INTEGER :: ip, npoints
-    REAL ( dbl ) :: f
-!   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rho )
-    IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_1", "Inconsistent array sizes" )
-
-    f = f43 * flda
-
-    DO ip = 1, npoints
-
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
-
-         pot(ip) = f * r13(ip)
-
-      END IF
-
-    END DO
-
-  END SUBROUTINE xalpha_lda_1
-
-! *****************************************************************************
-
-  SUBROUTINE xalpha_lda_2 ( rho, r13, pot )
+  SUBROUTINE thomas_fermi_lda_1 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -319,9 +282,9 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_2", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lda_1", "Inconsistent array sizes" )
 
-    f = f13 * f43 * flda
+    f = f53 * flda
 
     DO ip = 1, npoints
 
@@ -331,17 +294,17 @@ CONTAINS
 
       ELSE
 
-         pot(ip) = f * r13(ip) / rho(ip)
+         pot(ip) = f * r13(ip)*r13(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lda_2
+  END SUBROUTINE thomas_fermi_lda_1
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lda_3 ( rho, r13, pot )
+  SUBROUTINE thomas_fermi_lda_2 ( rho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -352,9 +315,9 @@ CONTAINS
 
     npoints = SIZE ( rho )
     IF ( npoints > SIZE(pot) ) &
-       CALL stop_program ( "xalpha_lda_3", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lda_2", "Inconsistent array sizes" )
 
-    f = -f23 * f13 * f43 * flda
+    f = f23 * f53 * flda
 
     DO ip = 1, npoints
 
@@ -364,17 +327,50 @@ CONTAINS
 
       ELSE
 
-         pot(ip) = f * r13(ip) / ( rho(ip) * rho(ip) )
+         pot(ip) = f / r13(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lda_3
+  END SUBROUTINE thomas_fermi_lda_2
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_0 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE thomas_fermi_lda_3 ( rho, r13, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13
+    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL ( dbl ) :: f
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rho )
+    IF ( npoints > SIZE(pot) ) &
+       CALL stop_program ( "thomas_fermi_lda_3", "Inconsistent array sizes" )
+
+    f = -f13 * f23 * f53 * flda
+
+    DO ip = 1, npoints
+
+      IF ( rho(ip) < eps_rho ) THEN
+
+         pot(ip) = 0.0_dbl
+
+      ELSE
+
+         pot(ip) = f / ( r13(ip) * rho(ip) )
+
+      END IF
+
+    END DO
+
+  END SUBROUTINE thomas_fermi_lda_3
+
+! *****************************************************************************
+
+  SUBROUTINE thomas_fermi_lsd_0 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -385,26 +381,26 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_0", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lsd_0", "Inconsistent array sizes" )
 
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
          pot(ip) = 0.0_dbl
       ELSE
-         pot(ip) = flsd * r13a(ip) * rhoa(ip)
+         pot(ip) = flsd * r13a(ip) * r13a(ip) * rhoa(ip)
       END IF
       IF ( rhob(ip) > eps_rho ) THEN
-         pot(ip) = pot(ip) + flsd * r13b(ip) * rhob(ip)
+         pot(ip) = pot(ip) + flsd * r13b(ip) * r13b(ip) * rhob(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lsd_0
+  END SUBROUTINE thomas_fermi_lsd_0
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_1 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE thomas_fermi_lsd_1 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
@@ -415,30 +411,30 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_1", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lsd_1", "Inconsistent array sizes" )
 
-    f = f43 * flsd
+    f = f53 * flsd
 
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
          pot(ip,1) = 0.0_dbl
       ELSE
-         pot(ip,1) = f * r13a(ip)
+         pot(ip,1) = f * r13a(ip) * r13a(ip)
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
          pot(ip,2) = 0.0_dbl
       ELSE
-         pot(ip,2) = f * r13b(ip)
+         pot(ip,2) = f * r13b(ip) * r13b(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lsd_1
+  END SUBROUTINE thomas_fermi_lsd_1
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_2 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE thomas_fermi_lsd_2 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
@@ -449,30 +445,30 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_2", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lsd_2", "Inconsistent array sizes" )
 
-    f = f13 * f43 * flsd
+    f = f23 * f53 * flsd
 
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
          pot(ip,1) = 0.0_dbl
       ELSE
-         pot(ip,1) = f * r13a(ip)/rhoa(ip)
+         pot(ip,1) = f / r13a(ip)
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
          pot(ip,2) = 0.0_dbl
       ELSE
-         pot(ip,2) = f * r13b(ip)/rhob(ip)
+         pot(ip,2) = f / r13b(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lsd_2
+  END SUBROUTINE thomas_fermi_lsd_2
 
 ! *****************************************************************************
 
-  SUBROUTINE xalpha_lsd_3 ( rhoa, rhob, r13a, r13b, pot )
+  SUBROUTINE thomas_fermi_lsd_3 ( rhoa, rhob, r13a, r13b, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, r13a, r13b
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
@@ -483,29 +479,29 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "xalpha_lsd_3", "Inconsistent array sizes" )
+       CALL stop_program ( "thomas_fermi_lsd_3", "Inconsistent array sizes" )
 
-    f = -f23 * f13 * f43 * flsd
+    f = -f13 * f23 * f53 * flsd
 
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
          pot(ip,1) = 0.0_dbl
       ELSE
-         pot(ip,1) = f * r13a(ip)/(rhoa(ip)*rhoa(ip))
+         pot(ip,1) = f / ( r13a(ip)*rhoa(ip))
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
          pot(ip,2) = 0.0_dbl
       ELSE
-         pot(ip,2) = f * r13b(ip)/(rhob(ip)*rhob(ip))
+         pot(ip,2) = f / ( r13b(ip)*rhob(ip))
       END IF
 
     END DO
 
-  END SUBROUTINE xalpha_lsd_3
+  END SUBROUTINE thomas_fermi_lsd_3
 
 ! *****************************************************************************
 
-END MODULE xalpha_functional
+END MODULE thomas_fermi_functional
 
 ! *****************************************************************************
