@@ -184,7 +184,7 @@ CONTAINS
     END DO
 
     ! release stuff
-    ! CALL deallocate_molecule_kind_set(molecule_kind_set) seems buggy right now
+    CALL deallocate_molecule_kind_set(molecule_kind_set)
     CALL deallocate_molecule_set(molecule_set)
     CALL deallocate_particle_set(particle_set)
     CALL deallocate_atomic_kind_set(atomic_kind_set)
