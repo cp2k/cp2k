@@ -23,7 +23,7 @@ MODULE force_control
 
   USE brillouin, ONLY : kpoint_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE dft_structure_control, ONLY : dft_force_control
+!!!!  USE dft_structure_control, ONLY : dft_force_control
   USE dft_types, ONLY : dft_control_type
   USE fist_force, ONLY : fist_force_control => force_control
   USE pol_force, ONLY : pol_force_control => force_control
@@ -108,10 +108,10 @@ SUBROUTINE force_1 ( struc, inter, thermo, simpar, ewald_param, box_change, &
           box_change, globenv , struc%ll_data (1) )
      
   CASE ( 'WAVE' )
-     CALL dft_force_control ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, thermo, inter % potparm, ewald_param, &
-          box_change, struc % ll_data (1), dft_control, kp, &
-          dftpar = globenv, wavepar = globenv )
+!!!! CALL dft_force_control ( struc % molecule, struc % pnode, struc % part, &
+!!!!      struc % box, thermo, inter % potparm, ewald_param, &
+!!!!      box_change, struc % ll_data (1), dft_control, kp, &
+!!!!      dftpar = globenv, wavepar = globenv )
      
   END SELECT
 
