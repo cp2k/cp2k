@@ -2,18 +2,13 @@
  PROGRAM      Quickstep
  PROJECT      molecular_states
  IOLEVEL      10
- FFTLIB       FFTESSL
+ FFTLIB       FFTSG
 &END
 
-&IO
- COORD_FILE sample_pdb/water_32.pdb
-&END
-
-&CNTL
- SIMULATION     md
- input_file     sample_pdb/water_32.pdb
+&TOPOL
+ connectivity   generate
+ coord_file     sample_pdb/water_32.pdb
  coordinate     pdb
- topology generate
 &END
 
 &SETUP
@@ -38,18 +33,11 @@
  EPS_SCF      1.0E-5
 &END
 
-&PRINT low
+&PRINT LOW
  LOCALIZATION
  MOLECULAR_STATES
 &END
-
-&MOLECULE TIP3
- ATOMS
- O O
- H H
- H H
- END
-&END
+ DISTRIBUTION
 
 &KIND H
  BASIS_SET    DZV-GTH-PADE

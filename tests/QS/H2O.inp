@@ -14,13 +14,10 @@
   end cell
 &END
 
-&MOLECULE
-&END
-
 &MD
  ensemble:     nve                     (nve,nvt,npt_i,npt_f)
  steps:        5
- timestep:     0.5 fs                  time step [fs]
+ timestep:     0.1 fs                  time step [fs]
  temperature:  300.0                   temperature [K]
  restart:      init                    start type (pos,posvel)
  constraints:  off
@@ -56,14 +53,6 @@
 &KIND O
  BASIS_SET    DZVP-GTH-PADE
  POTENTIAL    GTH
-&END
-
-&MOLECULE H2O
-ATOMS
- O Ow
- H Hw1
- H Hw2
-END
 &END
 
 &CELL
