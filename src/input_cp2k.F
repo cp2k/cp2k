@@ -45,7 +45,6 @@ MODULE input_cp2k
        enum_t
   USE cp_output_handling, only: silent_print_level, low_print_level,&
        medium_print_level, high_print_level, debug_print_level
-  USE xc_derivatives, only: create_xc_fun_section
   USE cp_control_types, only: xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
        xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
        xc_deriv_spline3, xc_deriv_spline2,&
@@ -72,6 +71,30 @@ MODULE input_cp2k
        hockney2d,&
        hockney1d,&
        hockney0d 
+  USE xc_exchange_gga_new,             ONLY: xgga_b88,&
+                                             xgga_eval,&
+                                             xgga_info,&
+                                             xgga_opt,&
+                                             xgga_pbe,&
+                                             xgga_pw86,&
+                                             xgga_pw91,&
+                                             xgga_revpbe
+  USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
+                                             ke_gga_lda_eval,&
+                                             ke_gga_lsd_eval,&
+                                             ke_lc,&
+                                             ke_llp,&
+                                             ke_ol1,&
+                                             ke_ol2,&
+                                             ke_pw86,&
+                                             ke_pw91,&
+                                             ke_t92
+  USE xc_perdew_wang_new,              ONLY: pw_dmc,&
+                                             pw_orig,&
+                                             pw_vmc
+  USE xc_perdew_zunger_new,            ONLY: pz_dmc,&
+                                             pz_orig,&
+                                             pz_vmc
   USE string_utilities, ONLY: s2a
   implicit none
   private
@@ -730,13 +753,16 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_create(keyword, name="METHOD",&
           description="What method should be employed",&
           usage="METHOD GAPW",&
-          enum_c_vals=s2a("GAPW","GPW","KG_POL","KG_NOPOL","KG_GPW"),&
+          enum_c_vals=s2a("GAPW","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT","MNDO","AM1","PM3"),&
           enum_desc=s2a("Gaussian and augmented plane waves method",&
                         "Gaussian and plane waves method",&
                         "Polarisable Kim-Gordon method",&
-                        "Non-polarisable Kim-Gordon method", " ? "),&
+                        "Non-polarisable Kim-Gordon method", " ? ",&
+                        "EHT semiempirical","MNDO semiempirical","AM1 semiempirical",&
+                        "PM3 semiempirical"),&
           enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
-                         do_method_kg_nopol, do_method_kg_gpw/),&
+                         do_method_kg_nopol, do_method_kg_gpw, do_method_eht,&
+                         do_method_mndo, do_method_am1, do_method_pm3/),&
           default_i_val=do_method_gpw, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -745,6 +771,231 @@ SUBROUTINE create_qs_section(section,error)
 
 END SUBROUTINE create_qs_section
 
+!!****f* xc_derivatives/create_xc_fun_section [1.0] *
+!!
+!!   NAME
+!!     create_xc_fun_section
+!!
+!!   FUNCTION
+!!     creates the structure of the section needed to select the xc functional
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section that will be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_xc_fun_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_xc_fun_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,name="xc_functional",&
+         description="The xc functional to use",&
+         n_keywords=0, n_subsections=4, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+     
+     NULLIFY(subsection,keyword)
+     CALL section_create(subsection,name="BECKE88",&
+          description="Uses the Becke 88 exchange functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="LYP",&
+          description="Uses the LYP functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PADE",&
+          description="Uses the PADE functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="HCTH",&
+          description="Uses the HCTH class of functionals",&
+          n_keywords=0, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETER_SET",&
+          description="Which version of the parameters should be used",&
+          usage="PARAMETER_SET 407",&
+          enum_c_vals=(/"93 ","120","147","407"/),&
+          enum_i_vals=(/93,120,147,407/),&
+          default_i_val=120,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="OPTX",&
+          description="Uses the OPTX functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="CS1",&
+          description="Uses the CS1 functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="XGGA",&
+          description="Uses one of the XGGA functionals (optimized versions of "//&
+          "some of these functionals might be available outside this section).",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="FUNCTIONAL",&
+          description="Which one of the XGGA functionals should be used",&
+          usage="FUNCTIONAL PW86X",&
+          enum_c_vals=(/&
+          "BECKE88X",&
+          "PW86X   ",&
+          "PW91X   ",&
+          "PBEX    ",&
+          "REV_PBEX",&
+          "OPTX    "/),&
+          enum_i_vals=(/xgga_b88,xgga_pw86,xgga_pw91,xgga_pbe,xgga_revpbe,xgga_opt/),&
+          default_i_val=xgga_b88,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="KE_GGA",&
+          description="Uses one of the KE_GGA functionals (optimized versions of "//&
+          "some of these functionals might be available outside this section).",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="FUNCTIONAL",&
+          description="Which one of the KE_GGA functionals should be used",&
+          usage="FUNCTIONAL LLP",&
+          enum_c_vals=(/"OL1 ","OL2 ","LLP ","PW86","PW91","LC  ","T92 "/),&
+          enum_i_vals=(/ke_ol1,ke_ol2,ke_llp,ke_pw86,ke_pw91,ke_lc,ke_t92/),&
+          default_i_val=ke_ol1,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="P86C",&
+          description="Uses the P86C functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PW92",&
+          description="Uses the PerdewWang correlation functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETRIZATION",&
+          description="Which one of parametrizations should be used",&
+          usage="PARAMETRIZATION DMC",&
+          enum_c_vals=(/&
+          "ORIGINAL",&
+          "DMC     ",&
+          "VMC     "/),&
+          enum_i_vals=(/pw_orig,pw_dmc,pw_vmc/),&
+          default_i_val=pw_orig,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="PZ81",&
+          description="Uses the PZ functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="PARAMETRIZATION",&
+          description="Which one of parametrizations should be used",&
+          usage="PARAMETRIZATION DMC",&
+          enum_c_vals=(/&
+          "ORIGINAL",&
+          "DMC     ",&
+          "VMC     "/),&
+          enum_i_vals=(/pz_orig,pz_dmc,pz_vmc/),&
+          default_i_val=pz_orig,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+
+     CALL section_create(subsection,name="TFW",&
+          description="Uses the TFW functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="TF",&
+          description="Uses the TF functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="VWN",&
+          description="Uses the VWN functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="XALPHA",&
+          description="Uses the XALPHA (SLATER) functional.",&
+          n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+     CALL keyword_create(keyword,name="XA",&
+          description="Value of the xa parameter (this does not change the exponent, "//&
+          "just the mixing)",&
+          usage="XA 0.7", default_r_val=2._dp/3._dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="TPSS",&
+          description="Uses the TPSS functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+     
+     CALL section_create(subsection,name="PBE",&
+          description="Uses the PBE functional",&
+          n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+     CALL section_add_subsection(section,subsection,error=error)
+     CALL section_release(subsection,error=error)
+          
+  END IF
+END SUBROUTINE create_xc_fun_section
+
+!***************************************************************************
 !!****f* input_cp2k/create_tddfpt_section [1.0] *
 !!
 !!   NAME
@@ -3097,7 +3348,6 @@ SUBROUTINE create_tddfpt_section(section,error)
 
   END SUBROUTINE create_fixed_atom_section
 
-
 !***************************************************************************
 !!****f* input_cp2k/create_g3x3_section [1.0] *
 !!
@@ -3230,9 +3480,6 @@ SUBROUTINE create_tddfpt_section(section,error)
     END IF
 
   END SUBROUTINE create_g4x6_section
-
-
-
 
 !***************************************************************************
 !!****f* input_cp2k/create_topology_section [1.0] *

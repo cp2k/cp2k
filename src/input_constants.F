@@ -66,7 +66,11 @@ MODULE input_constants
        do_method_gpw=2,&
        do_method_kg_pol=3,&
        do_method_kg_nopol=4,&
-       do_method_kg_gpw=5
+       do_method_kg_gpw=5,&
+       do_method_eht=6,&
+       do_method_mndo=7,&
+       do_method_am1=8,&
+       do_method_pm3=9
    integer, parameter, public :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&
