@@ -808,7 +808,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
   endif
   ddum = max (abs (fold), abs (f), one)  
-  if ( (fold-f) .le.tol * ddum) then  
+  if ( abs (fold-f) .le.tol * ddum) then  
      !                                        terminate the algorithm.
      task = 'CONVERGENCE: REL_REDUCTION_OF_F <= FACTR*EPSMCH'  
      if (iback.ge.10) info = - 5  
