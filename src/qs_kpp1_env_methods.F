@@ -458,12 +458,15 @@ CONTAINS
           CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
                            v_rspace_new(ispin)%pw%cr3d,1)
 
-          IF (dft_control%do_tddfpt_calculation) THEN
+          IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
              IF (dft_control%tddfpt_control%restricted_excitations_type == "SINGLET") THEN
+                ! add 2 times the hartree term in the singlet case
                 CALL daxpy(ntot, 2.0_wp*v_hartree_rspace%pw%pw_grid%dvol, &
                      v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
              END IF
+             ! do not add the hartree term for triplets
           ELSE
+             ! just add it if not tddfpt
              CALL daxpy(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
                   v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
           END IF
