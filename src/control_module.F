@@ -314,6 +314,14 @@ SUBROUTINE control ( globenv )
 ! initialize working units
   CALL set_units ( setup % unit_type, units )
 
+!..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
+  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
+        simpar % temp_ext * boltzmann / h_planck
+  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
+  CALL convert ( units = units, simpar = simpar, &
+                pstat = pstat, potparm = inter % potparm,  &
+                intra_param = intra_param, ewald_param = ewald_param )
+
   CALL xstring ( setup % input_file_name, ia, ib )
   DO ibead = 1, beads
 
@@ -391,11 +399,6 @@ SUBROUTINE control ( globenv )
 
   END DO
 
-!..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
-  simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
-        simpar % temp_ext * boltzmann / h_planck
-  simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
-
 !..K-Points
   IF ( SUM ( struc ( 1 ) % box % perd ) == 0 ) THEN
     kp % scheme = "NULL"
@@ -408,17 +411,6 @@ SUBROUTINE control ( globenv )
   CALL set_energy_parm ( units % pconv, units % econv, units % l_label, &
        units % vol_label, units % e_label, units % pres_label, &
        units % temp_label, units % angl_label )
-
-!..convert the units ( includes part and box ONLY when read_type is 'INIT' )
-  IF ( simpar % read_type == 'INIT' ) THEN
-    CALL convert ( units = units, simpar = simpar, &
-                  pstat = pstat, potparm = inter % potparm,  &
-                  intra_param = intra_param, ewald_param = ewald_param )
-  ELSE
-    CALL convert ( units = units, simpar = simpar, &
-                 pstat = pstat, potparm = inter%potparm, &
-                 intra_param = intra_param, ewald_param = ewald_param )
-  ENDIF
 
   IF ( pimd ) THEN
 !..initialize pimd_data (transformation related variables)
