@@ -47,6 +47,7 @@ MODULE environment
                                              m_getuid,&
                                              m_hostnm
   USE mathconstants,                   ONLY: init_mathcon
+  USE message_passing,                 ONLY: mp_bcast
   USE parallel,                        ONLY: end_parallel,&
                                              start_parallel
   USE physcon,                         ONLY: init_physcon,&
@@ -180,6 +181,8 @@ CONTAINS
       END SELECT
 
     END IF
+
+    CALL mp_bcast(globenv%input_file_name,globenv%source,globenv%group)
 
 !   *** Initialize timing ***
 
