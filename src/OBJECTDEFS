@@ -213,6 +213,7 @@ OBJECTS_GENERIC =\
  qs_neighbor_lists.o\
  qs_ot.o\
  qs_ot_eigensolver.o\
+ preconditioner.o\
  qs_overlap.o\
  qs_p_build_kernel.o\
  qs_p_types.o\

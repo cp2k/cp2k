@@ -193,7 +193,11 @@ MODULE qs_scf
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p,               &
                                       qs_ot_mini,                &
-                                      qs_ot_use_preconditioner
+                                      qs_ot_new_preconditioner
+  USE preconditioner,           ONLY: init_preconditioner, &
+                                      destroy_preconditioner, &
+                                      make_preconditioner, &
+                                      preconditioner_type
   USE qs_ot_eigensolver,        ONLY: ot_eigensolver
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
@@ -285,6 +289,7 @@ CONTAINS
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos
     CHARACTER(LEN=60)  :: filename
+    type(preconditioner_type), TARGET :: ot_preconditioner
 
 
 !   ---------------------------------------------------------------------------
@@ -426,6 +431,8 @@ CONTAINS
        !CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
        !CALL symmetrise_diagonal_blocks(p%matrix)
        CALL calculate_density_matrix(mo_set,p%matrix,globenv)
+
+       CALL init_preconditioner(ot_preconditioner,globenv)
 
     ENDIF
 
@@ -595,8 +602,11 @@ CONTAINS
         ENDIF
 
         IF (iscf==1) THEN
-           CALL qs_ot_use_preconditioner(ks%matrix,s(1)%matrix,-0.06_wp,0.2_wp, &
-                                         qs_ot_env,globenv) 
+           CALL make_preconditioner(ot_preconditioner,"FULL", &
+                                    ks%matrix,s(1)%matrix, &
+                                    -0.06_wp,0.2_wp) 
+           
+           CALL qs_ot_new_preconditioner(qs_ot_env,ot_preconditioner) 
         ENDIF
 
         qs_ot_env%etotal=energy%total
@@ -641,6 +651,7 @@ CONTAINS
 
     IF (use_ot) THEN
      call qs_ot_destroy(qs_ot_env,globenv)
+     call destroy_preconditioner(ot_preconditioner)
     END IF
 
     IF (ionode.AND.globenv%print%scf) THEN
