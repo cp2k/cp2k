@@ -88,6 +88,8 @@ CONTAINS
   TYPE ( coeff_type ) :: coeff_dummy, rho_tot
   LOGICAL :: match, first_time
 
+  ngt = SIZE ( grid_b )
+
 ! allocating the structure factor vector to the number of grid_types
   ngrids = SIZE ( dg )
   ALLOCATE ( exp_igr ( ngrids ), STAT=allocstat )
@@ -201,7 +203,7 @@ CONTAINS
   IF ( PRESENT ( f_coef ) ) THEN
    
     rho_tot % pw % cc = CONJG ( rho_tot % pw % cc )
-    f_coef = CMPLX ( 2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
+    f_coef = CMPLX (-2._dbl * REAL ( rho_tot % pw % cc, dbl ), &
                     -2._dbl * AIMAG ( rho_tot % pw % cc ), dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
