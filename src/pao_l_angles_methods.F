@@ -1807,7 +1807,7 @@ subroutine pao_guarantee_owned_NUi(glob_angles, qs_env,&
      call cp_sp_get(NUi_injection, n_block_rows=n_block_rows,error=error)
      do i=1,n_block_rows
         if (NUi_injection%matrix_struct%distribution%block_owner(i,i) == &
-             NUi_injection%matrix_struct%distribution%mpi_env%mepos) then
+             NUi_injection%matrix_struct%distribution%para_env%mepos) then
            call pao_l_ang_set(local_angles, atom_nr=i,error=error)
            NUi_block => pao_l_ang_get_NUi_injection(local_angles,error=error)
         end if

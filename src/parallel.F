@@ -23,6 +23,7 @@ MODULE parallel
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_start, mp_world_setup, mp_end
+  USE cp_para_env, ONLY: cp_para_env_type, cp_para_create
 
   PRIVATE
   PUBLIC :: start_parallel, end_parallel
@@ -46,6 +47,9 @@ SUBROUTINE start_parallel ( globenv )
   CALL mp_world_setup ( globenv % num_pe, globenv % mepos, globenv % group )
   globenv % source = 0
   globenv % ionode = (globenv % mepos==globenv % source)
+  nullify(globenv%para_env)
+  call cp_para_create (globenv%para_env, group=globenv%group,&
+      owns_group=.false.,source=globenv%source)
 
 END SUBROUTINE start_parallel
 

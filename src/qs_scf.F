@@ -194,7 +194,7 @@ MODULE qs_scf
                                       qs_ot_mini
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
 
   IMPLICIT NONE
 
@@ -339,12 +339,12 @@ CONTAINS
        call cp_sm_output(logger=cp_error_get_logger(error), &
             outputName="scf_s", &
             fromWhere=routine, iter=0, matrix=s(1)%matrix,&
-            mpi_env=cp_mpi_get_from_glob(globenv),error=error)
+            para_env=globenv%para_env,error=error)
        if (pao) then
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="scf_atomic_ortho",&
                fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%matrix,&
-               mpi_env=cp_mpi_get_from_glob(globenv), error=error)
+               para_env=globenv%para_env, error=error)
        end if
     end if
 
@@ -466,11 +466,11 @@ CONTAINS
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_ks", &
                  fromWhere=routine, iter=iscf, matrix=ks%matrix,&
-                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
+                 para_env=globenv%para_env,error=error)
             call cp_sm_output(logger=cp_error_get_logger(error),&
                  outputName="scf_p", &
                  fromWhere=routine, iter=iscf, matrix=p%matrix,&
-                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
+                 para_env=globenv%para_env,error=error)
          end if
          call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
          do ! optimize angles
@@ -509,7 +509,7 @@ CONTAINS
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_new_p", &
                  fromWhere=routine, iter=iscf, matrix=p_new%matrix,&
-                 mpi_env=cp_mpi_get_from_glob(globenv),error=error)
+                 para_env=globenv%para_env,error=error)
          end if
 
          t2 = cputime()

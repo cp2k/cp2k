@@ -48,7 +48,7 @@ module pao_proj_methods
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use message_passing, only: mp_sum
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   implicit none
   private
 

@@ -33,7 +33,7 @@ module cp_b_matrix_structure
   use kinds, only: wp=>dp
   use timings, only: timeset, timestop
   use message_passing, only: mp_sum
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type, cp_para_retain, cp_para_release
   implicit none
   private
 
@@ -139,7 +139,7 @@ module cp_b_matrix_structure
 !!     initialized: true if the structure is initialized (bug catcher)
 !!     block_owner: a matrix with the mpi id of the processor that has the
 !!                  corresponding block.
-!!     mpi_env: the mpi communicator, owner ids refer to this environment
+!!     para_env: the mpi communicator, owner ids refer to this environment
 !!     ref_count: an integer that keeps track of how many matrices are
 !!                sharing this structure
 !!
@@ -154,7 +154,7 @@ module cp_b_matrix_structure
   !***************************************************************************
   type cp_b_distribution_type
      logical :: initialized
-     type(cp_mpi_env_type) :: mpi_env
+     type(cp_para_env_type), pointer :: para_env
      integer, dimension(:,:), pointer :: block_owner
      integer :: ref_count, id_nr
   end type cp_b_distribution_type
@@ -295,10 +295,10 @@ contains
 !!     cp_dstruct_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_dstruct_create(d_struct, mpi_env, n_block_rows,&
+!!     Subroutine cp_dstruct_create(d_struct, para_env, n_block_rows,&
 !!         n_block_cols, error)
 !!       Type(cp_b_distribution_type), Pointer:: d_struct
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Integer, Intent (IN):: n_block_rows, n_block_cols
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_dstruct_create
@@ -311,7 +311,7 @@ contains
 !!
 !!   INPUTS
 !!     d_struct: the distribution structure
-!!     mpi_env: the mpi environment for communication
+!!     para_env: the mpi environment for communication
 !!     n_block_rows: the number of block rows
 !!     n_block_cols: the number of block columns
 !!     error: variable to control error logging, stopping,... 
@@ -325,10 +325,10 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_dstruct_create(d_struct,mpi_env,n_block_rows,n_block_cols,&
+  subroutine cp_dstruct_create(d_struct,para_env,n_block_rows,n_block_cols,&
        error)
     type(cp_b_distribution_type), pointer :: d_struct
-    type(cp_mpi_env_type), intent(in) :: mpi_env
+    type(cp_para_env_type), pointer :: para_env
     integer, intent(in) :: n_block_rows, n_block_cols
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -347,10 +347,11 @@ contains
     end if
     if (.not. failure) then
        last_id_nr=last_id_nr+1
-       d_struct%mpi_env = mpi_env
+       d_struct%para_env => para_env
+       call cp_para_retain(para_env,error=error)
        allocate(d_struct%block_owner(n_block_rows,n_block_cols),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       d_struct%block_owner=mpi_env%source
+       d_struct%block_owner=para_env%source
        d_struct%ref_count=1
        d_struct%id_nr=last_id_nr
        d_struct%initialized=.true.
@@ -403,6 +404,7 @@ contains
        if (.not. failure) then
           CPPreconditionNoFail(d_struct%ref_count==0,cp_warning_level,routineP,error)
           d_struct%ref_count=-1
+          call cp_para_release(d_struct%para_env,error=error)
           if (associated(d_struct%block_owner)) then
              deallocate(d_struct%block_owner,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -528,10 +530,10 @@ contains
 !!     cp_dstruct_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_dstruct_get(d_struct, block_owner, mpi_env, error)
+!!     Subroutine cp_dstruct_get(d_struct, block_owner, para_env, error)
 !!       Type(cp_b_distribution_type), Intent (IN):: d_struct
 !!       Integer, Dimension(:,:), Pointer, Optional:: block_owner
-!!       Type(cp_mpi_env_type), Intent (OUT), Optional:: mpi_env
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_dstruct_get
 !!
@@ -544,7 +546,7 @@ contains
 !!   INPUTS
 !!     d_struct: the object you waht info about
 !!     block_owner: the array with the block owners
-!!     mpi_env: the mpi environement
+!!     para_env: the mpi environement
 !!     error: variable to control error logging, stopping,... 
 !!            see module cp_error_handling 
 !!
@@ -556,10 +558,10 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_dstruct_get(d_struct, block_owner, mpi_env, error)
+  subroutine cp_dstruct_get(d_struct, block_owner, para_env, error)
     type(cp_b_distribution_type), intent(in) :: d_struct
     integer, dimension(:,:), pointer, optional :: block_owner
-    type(cp_mpi_env_type), intent(out), optional :: mpi_env
+    type(cp_para_env_type), pointer, optional :: para_env
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -570,7 +572,7 @@ contains
     CPPrecondition(d_struct%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
        if (present(block_owner)) block_owner => d_struct%block_owner
-       if (present(mpi_env)) mpi_env = d_struct%mpi_env
+       if (present(para_env)) para_env = d_struct%para_env
     end if
   end subroutine cp_dstruct_get
   !***************************************************************************
@@ -820,14 +822,15 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_bmstruct_create(m_struct, symmetric, d_struct, b_dims,&
-!!         sparsity, no_sparsity, mpi_env, b_row_sizes, b_col_sizes, error)
+!!         sparsity, no_sparsity, para_env, b_row_sizes, b_col_sizes,&
+!!         error)
 !!       Type(cp_b_matrix_struct_type), Pointer:: m_struct
 !!       Type(cp_b_distribution_type), Target, Intent (INOUT), Optional::&
 !!         d_struct
 !!       Type(cp_b_dims_type), Target, Intent (INOUT), Optional:: b_dims
 !!       Logical, Dimension(:,:), Optional:: sparsity
 !!       Logical, Intent (IN), Optional:: no_sparsity, symmetric
-!!       Type(cp_mpi_env_type), Intent (IN), Optional:: mpi_env
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Integer, Dimension(:), Intent (IN), Optional:: b_row_sizes,&
 !!         b_col_sizes
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -846,7 +849,7 @@ contains
 !!     sparsity: the spasity structure
 !!     no_sparsity: if true there is no sparsity stucture (the same as
 !!            passing a non associated sparsity pointer), defaults to false
-!!     mpi_env: the mpi environement
+!!     para_env: the mpi environement
 !!     symmetric: if the matrix is symmetric (defaults to true)
 !!     b_row_sizes: sizes of the rows of the blocks
 !!     b_col_sizes: sizes of the cols of the blocks
@@ -862,13 +865,13 @@ contains
 !!
 !!*** **********************************************************************
   subroutine cp_bmstruct_create(m_struct,symmetric,d_struct,b_dims, &
-       sparsity, no_sparsity, mpi_env, b_row_sizes, b_col_sizes,error)
+       sparsity, no_sparsity, para_env, b_row_sizes, b_col_sizes,error)
     type(cp_b_matrix_struct_type), pointer :: m_struct
     type(cp_b_distribution_type), target, intent(inout), optional :: d_struct
     type(cp_b_dims_type), target, intent(inout), optional :: b_dims
     logical, dimension(:,:), optional :: sparsity !, intent(in)
     logical, intent(in), optional :: no_sparsity, symmetric
-    type(cp_mpi_env_type), intent(in), optional :: mpi_env
+    type(cp_para_env_type), pointer, optional :: para_env
     integer, dimension(:), intent(in), optional :: b_row_sizes, b_col_sizes
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -895,18 +898,18 @@ contains
           m_struct%distribution => d_struct
           call cp_retain(m_struct%distribution, error=error)
        else
-          CPPrecondition(present(mpi_env),cp_failure_level,routineP,error,failure)
+          CPPrecondition(present(para_env),cp_failure_level,routineP,error,failure)
           if (.not.present(b_dims)) then
              CPPrecondition(present(b_col_sizes),cp_failure_level,routineP,error,failure)
              CPPrecondition(present(b_row_sizes),cp_failure_level,routineP,error,failure)
              if (.not.failure) then
-                call cp_dstruct_create(m_struct%distribution,mpi_env=mpi_env,&
+                call cp_dstruct_create(m_struct%distribution,para_env=para_env,&
                      n_block_rows=size(b_row_sizes),&
                      n_block_cols=size(b_col_sizes),&
                      error=error)
              end if
           else
-             call cp_dstruct_create(m_struct%distribution,mpi_env=mpi_env,&
+             call cp_dstruct_create(m_struct%distribution,para_env=para_env,&
                   n_block_rows=size(b_dims%block_begins_at_row)-1,&
                   n_block_cols=size(b_dims%block_begins_at_col)-1,&
                   error=error)
@@ -1025,11 +1028,11 @@ contains
 !!     cp_bmstruct_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_bmstruct_get(m_struct, mpi_env, sparsity,&
+!!     Subroutine cp_bmstruct_get(m_struct, para_env, sparsity,&
 !!         sparsity_frozen, symmetric, b_dims, distribution, id_nr,&
 !!         ref_count, error)
 !!       Type(cp_b_matrix_struct_type), Intent (IN):: m_struct
-!!       Type(cp_mpi_env_type), Intent (OUT), Optional:: mpi_env
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_b_dims_type), Pointer, Optional:: b_dims
 !!       Type(cp_b_distribution_type), Pointer, Optional:: distribution
 !!       Logical, Dimension(:,:), Pointer, Optional:: sparsity
@@ -1055,11 +1058,11 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_bmstruct_get(m_struct, mpi_env, sparsity, sparsity_frozen,&
+subroutine cp_bmstruct_get(m_struct, para_env, sparsity, sparsity_frozen,&
      symmetric,&
      b_dims, distribution, id_nr, ref_count, error)
   type(cp_b_matrix_struct_type), intent(in) :: m_struct
-  type(cp_mpi_env_type), intent(out), optional :: mpi_env
+  type(cp_para_env_type), pointer, optional :: para_env
   type(cp_b_dims_type), pointer, optional :: b_dims
   type(cp_b_distribution_type), pointer, optional :: distribution
   logical, dimension(:,:), pointer, optional :: sparsity
@@ -1140,7 +1143,7 @@ end subroutine cp_bmstruct_get
        if (present(no_sync)) sync=.not.no_sync
        if (sync) then
           where (matrix_struct%distribution%block_owner /= &
-               matrix_struct%distribution%mpi_env%mepos) matrix_struct%sparsity = .false.
+               matrix_struct%distribution%para_env%mepos) matrix_struct%sparsity = .false.
           ! would be nice to do this directly with logical (or at least use
           ! the bits of the integer
           allocate (tmp_distr(size(matrix_struct%sparsity,1),&
@@ -1151,7 +1154,7 @@ end subroutine cp_bmstruct_get
           elsewhere
              tmp_distr = 1
           end where
-          call mp_sum(tmp_distr,matrix_struct%distribution%mpi_env%group)
+          call mp_sum(tmp_distr,matrix_struct%distribution%para_env%group)
           where (tmp_distr == 0)
              matrix_struct%sparsity = .false.
           elsewhere

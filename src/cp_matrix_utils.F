@@ -46,7 +46,7 @@ module cp_matrix_utils
        cp_2d_logical_guarantee_size, cp_2d_r_output
   use mathlib, only: symmetrize_matrix
   use cp_output_handling, only: cp_would_output
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   !use qs_blacs, only:
   implicit none
   private
@@ -635,12 +635,12 @@ contains
 !!     cp_sm_diag_trace
 !!
 !!   SYNOPSIS
-!!     Function cp_sm_diag_trace(diagonal, matrix, mpi_env, error)&
+!!     Function cp_sm_diag_trace(diagonal, matrix, para_env, error)&
 !!         Result(res)
 !!       Real(Kind=wp):: res
 !!       Real(Kind=wp), Dimension(:), Intent (IN):: diagonal
 !!       Type(real_matrix_type), Intent (IN), Target:: matrix
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function cp_sm_diag_trace
 !!
@@ -665,11 +665,11 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_diag_trace(diagonal, matrix, mpi_env, error) result(res)
+function cp_sm_diag_trace(diagonal, matrix, para_env, error) result(res)
   real(kind=wp) :: res
   real(kind=wp), dimension(:), intent(in) :: diagonal
   type(real_matrix_type), intent(in), target :: matrix
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -699,7 +699,7 @@ function cp_sm_diag_trace(diagonal, matrix, mpi_env, error) result(res)
         end do
      end if
   end do
-  call mp_sum(res,mpi_env%group)
+  call mp_sum(res,para_env%group)
   call timestop(0.0_wp,handle)
 end function cp_sm_diag_trace
 !***************************************************************************
@@ -820,9 +820,9 @@ end function cp_sm_diag_trace
 !!     none
 !!
 !!*** **********************************************************************
-subroutine cp_d_struct_create(d_struct, matrix, n_blocks, mpi_env, error)
+subroutine cp_d_struct_create(d_struct, matrix, n_blocks, para_env, error)
   integer, dimension(:), pointer :: d_struct
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(real_matrix_type), intent(in), target, optional :: matrix
   integer, optional, intent(in) :: n_blocks
   type(cp_error_type), optional, intent(inout) :: error
@@ -854,11 +854,11 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, mpi_env, error)
            if (.not.cp_next(iterator)) exit
            call cp_get(iterator,block_row=i,block_col=j,error=error)
            if (i==j) then
-              d_struct(i)=mpi_env%mepos
+              d_struct(i)=para_env%mepos
            end if
         end do
         call cp_dealloc_ref(iterator,error=error)
-        call mp_sum(d_struct,mpi_env%group)
+        call mp_sum(d_struct,para_env%group)
      end if
   else
      CPPrecondition(present(n_blocks),cp_failure_level,routineP,error,failure)
@@ -867,14 +867,14 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, mpi_env, error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      end if
      if (.not.failure) then
-        nmin= n_blocks/mpi_env%num_pe
-        rest=mod(n_blocks,mpi_env%num_pe)
+        nmin= n_blocks/para_env%num_pe
+        rest=mod(n_blocks,para_env%num_pe)
         do j=0,(rest-1)
            do i=1,nmin+1
               d_struct(j*(nmin+1)+i)=j
            end do
         end do
-        do j=rest,(mpi_env%num_pe-1)
+        do j=rest,(para_env%num_pe-1)
            do i=1,nmin+1
               d_struct(rest+j*nmin+i)=j
            end do
@@ -892,10 +892,10 @@ end subroutine cp_d_struct_create
 !!     cp_sm_init_diagonal_blocks
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sm_init_diagonal_blocks(matrix, mpi_env, d_struct,&
+!!     Subroutine cp_sm_init_diagonal_blocks(matrix, para_env, d_struct,&
 !!         default_value, diagonal_value, error)
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Integer, Optional, Dimension(:), Intent (IN), Target:: d_struct
 !!       Real(Kind=wp), Intent (IN), Optional:: default_value,&
 !!         diagonal_value
@@ -926,10 +926,10 @@ end subroutine cp_d_struct_create
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sm_init_diagonal_blocks(matrix, mpi_env, d_struct, &
+  subroutine cp_sm_init_diagonal_blocks(matrix, para_env, d_struct, &
        default_value, diagonal_value, error)
     type(real_matrix_type), intent(inout), target :: matrix
-    type(cp_mpi_env_type), intent(in) :: mpi_env
+    type(cp_para_env_type), pointer :: para_env
     integer, optional, dimension(:), intent(in), target :: d_struct
     real(kind=wp), intent(in), optional :: default_value, diagonal_value
     type(cp_error_type), optional, intent(inout) :: error
@@ -956,12 +956,12 @@ end subroutine cp_d_struct_create
           my_d_struct => d_struct
        else
           call cp_d_struct_create(my_d_struct, n_blocks=ncols, &
-               mpi_env=mpi_env, error=error)
+               para_env=para_env, error=error)
        end if
        CPPostcondition(associated(my_d_struct),cp_failure_level,routineP,error,failure)
        if (.not.failure) then
           do i=1,size(my_d_struct)
-             if (mpi_env%mepos==my_d_struct(i)) then
+             if (para_env%mepos==my_d_struct(i)) then
                 m_block => find_block_node(matrix_ptr,i,i)
                 nullify(block_val)
                 if (.not.associated(m_block)) then
@@ -985,7 +985,7 @@ end subroutine cp_d_struct_create
           end do
        end if
        if (cp_debug.and.debug_this_module) then ! test if diag
-          call cp_assert(cp_is_block_diagonal(matrix,mpi_env),&
+          call cp_assert(cp_is_block_diagonal(matrix,para_env),&
                cp_failure_level,&
                cp_assertion_failed,routineP, "matrix is not diagonal in "//&
                CPSourceFileRef,&
@@ -1002,10 +1002,11 @@ end subroutine cp_sm_init_diagonal_blocks
 !!     cp_sm_is_block_diagonal
 !!
 !!   SYNOPSIS
-!!     Function cp_sm_is_block_diagonal(matrix, mpi_env, error) Result(res)
+!!     Function cp_sm_is_block_diagonal(matrix, para_env, error)&
+!!         Result(res)
 !!       Logical:: res
 !!       Type(real_matrix_type), Intent (INOUT), Target:: matrix
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function cp_sm_is_block_diagonal
 !!
@@ -1028,10 +1029,10 @@ end subroutine cp_sm_init_diagonal_blocks
 !!     none
 !!
 !!*** **********************************************************************
-function cp_sm_is_block_diagonal(matrix, mpi_env, error) result(res)
+function cp_sm_is_block_diagonal(matrix, para_env, error) result(res)
   logical :: res
   type(real_matrix_type), intent(inout), target :: matrix
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(cp_error_type), optional, intent(inout) :: error
 
   logical :: failure
@@ -1068,7 +1069,7 @@ function cp_sm_is_block_diagonal(matrix, mpi_env, error) result(res)
         end if
      end do
      call cp_dealloc_ref(iterator,error=error)
-     call mp_sum(myDiag,mpi_env%group)
+     call mp_sum(myDiag,para_env%group)
      ! there are off diagonal blocks
      CPAssertNoFail(all(myDiag<100),cp_warning_level,routineP,error)
      do i=1,size(myDiag)
@@ -1089,10 +1090,10 @@ end function cp_sm_is_block_diagonal
 !!     cp_sm_set_dist_sparsity_from_sm
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
+!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, para_env,&
 !!         sample_matrix, error)
 !!       Type(cp_b_matrix_struct_type), Intent (INOUT):: m_struct
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(real_matrix_type), Pointer:: sample_matrix
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_set_dist_sparsity_from_sm
@@ -1106,7 +1107,7 @@ end function cp_sm_is_block_diagonal
 !!
 !!   INPUTS
 !!     - m_struct: the matrix structure to be initialized
-!!     - mpi_env: the mpi environment
+!!     - para_env: the mpi environment
 !!     - sample_matrix: the matrix you get the info from
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1118,10 +1119,10 @@ end function cp_sm_is_block_diagonal
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
+subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, para_env,&
      sample_matrix,error)
   type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(real_matrix_type), pointer :: sample_matrix
   type(cp_error_type), optional, intent(inout) :: error
   
@@ -1150,17 +1151,17 @@ subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
      do
         if (.not.cp_sm_b_i_next(b_iterator,block_row=block_row, &
              block_col=block_col,error=error)) exit
-        b_owner(block_row,block_col)=mpi_env%mepos+1
+        b_owner(block_row,block_col)=para_env%mepos+1
      end do
      call cp_sm_b_i_dealloc_ref(b_iterator,error=error)
-     call mp_sum(b_owner,mpi_env%group)
+     call mp_sum(b_owner,para_env%group)
      do j=1,size(b_owner,2)
       do i=1,size(b_owner,1)
         if (b_owner(i,j)==0) then
-          b_owner(i,j)= mod(j,mpi_env%num_pe)
+          b_owner(i,j)= mod(j,para_env%num_pe)
           m_struct%sparsity(i,j)=.false.
-        else if (b_owner(i,j)==mpi_env%mepos+1) then
-          b_owner(i,j)=mpi_env%mepos
+        else if (b_owner(i,j)==para_env%mepos+1) then
+          b_owner(i,j)=para_env%mepos
           if (cp_debug .and. debug_this_module) then
             call get_block_node(sample_matrix,block_row=i,&
                 block_col=j,block_node=block_node)
@@ -1168,7 +1169,7 @@ subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, mpi_env,&
           end if
         else
           b_owner(i,j)=b_owner(i,j)-1
-          CPPostcondition(b_owner(i,j)<mpi_env%num_pe,cp_failure_level,routineP,error,failure)
+          CPPostcondition(b_owner(i,j)<para_env%num_pe,cp_failure_level,routineP,error,failure)
         end if
       end do
      end do
@@ -1198,7 +1199,7 @@ end subroutine cp_sm_set_dist_sparsity_from_sm
 !!
 !!   INPUTS
 !!     - m_struct: the matrix structure to be initialized
-!!     - mpi_env: the mpi environment
+!!     - para_env: the mpi environment
 !!     - sample_matrix: the matrix you get the info from
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1210,10 +1211,10 @@ end subroutine cp_sm_set_dist_sparsity_from_sm
 !!     5.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, mpi_env,&
+subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
      error)
   type(cp_b_matrix_struct_type), intent(inout) :: m_struct
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(real_matrix_type), pointer :: matrix
   type(cp_error_type), optional, intent(inout) :: error
   
@@ -1261,7 +1262,7 @@ subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, mpi_env,&
   if (.not.failure) then
      do i=1,nblock_rows
         do j=1,nblock_cols
-           if (sparsity(i,j).and.b_owner(i,j)==mpi_env%mepos.and.&
+           if (sparsity(i,j).and.b_owner(i,j)==para_env%mepos.and.&
                 .not.associated(find_block_node(matrix,&
                 block_row=i,block_col=j))) then
               nullify(block_val)
@@ -1282,14 +1283,14 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_sm_output(logger, outputname, fromwhere, iter, matrix,&
-!!         mpi_env, comment, el_format, error)
+!!         para_env, comment, el_format, error)
 !!       Type(cp_logger_type):: logger
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
 !!       Type(real_matrix_type), Pointer:: matrix
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_mpi_env_type), Intent (IN):: mpi_env
+!!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_output
 !!
@@ -1322,7 +1323,7 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!
 !!*** **********************************************************************
 subroutine cp_sm_output(logger, outputName, &
-       fromWhere, iter, matrix,mpi_env,&
+       fromWhere, iter, matrix,para_env,&
        comment, el_format, error)
     type(cp_logger_type) ::logger
     character(len=*) , intent(in) :: outputName
@@ -1330,7 +1331,7 @@ subroutine cp_sm_output(logger, outputName, &
     integer, intent(in) :: iter
     type(real_matrix_type), pointer :: matrix
     character(len=*), intent(in),optional :: comment, el_format
-    type(cp_mpi_env_type), intent(in) :: mpi_env
+    type(cp_para_env_type), pointer:: para_env
     type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -1361,7 +1362,7 @@ subroutine cp_sm_output(logger, outputName, &
                 error=error)
         end if
         
-        call mp_sum(full_matrix,mpi_env%group)
+        call mp_sum(full_matrix,para_env%group)
         
         if (present(comment)) then
            call cp_2d_r_output(logger=logger, outputName=outputName, &

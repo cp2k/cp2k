@@ -39,7 +39,7 @@ module cp_block_matrix
        cp_matrix_block_iterator, cp_sm_b_i_init, cp_sm_b_i_next, &
        cp_sm_b_i_dealloc_ref, cp_sm_set_to
   use qs_blacs, only:sparse_times_blacs, blacs_matrix_type, get_blacs_matrix_info
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   implicit none
   private
 
@@ -593,7 +593,7 @@ contains
     if (.not.failure) then
        if (.not.matrix%b_rep_is_primary) then
           if (cp_debug .and. debug_this_module) then
-             call mp_sync(matrix%matrix_struct%distribution%mpi_env%group)
+             call mp_sync(matrix%matrix_struct%distribution%para_env%group)
           end if
           matrix%b_rep_is_primary=.true.
        end if
@@ -641,7 +641,7 @@ contains
     if (.not.failure) then
        if (matrix%b_rep_is_primary) then
           if (cp_debug .and. debug_this_module) then
-             call mp_sync(matrix%matrix_struct%distribution%mpi_env%group)
+             call mp_sync(matrix%matrix_struct%distribution%para_env%group)
           end if
           matrix%b_rep_is_primary=.false.
        end if
@@ -693,7 +693,7 @@ contains
     if (.not. failure) then
        call cp_sm_b_i_init(b_iterator,matrix=matrix%matrix,error=error)
        distribution => matrix%matrix_struct%distribution
-       mepos=matrix%matrix_struct%distribution%mpi_env%mepos
+       mepos=matrix%matrix_struct%distribution%para_env%mepos
        CPPrecondition(associated(distribution),cp_failure_level,routineP,error,failure)
        do
           if (.not.cp_sm_b_i_next(b_iterator,block_row=brow,&
@@ -898,7 +898,7 @@ end subroutine cp_sp_block_handle_init
        if (present(local_owner)) then
           local_owner=matrix%matrix_struct%distribution%block_owner&
                (block_handle%block_row,block_handle%block_col)==&
-               matrix%matrix_struct%distribution%mpi_env%mepos
+               matrix%matrix_struct%distribution%para_env%mepos
        end if
        if (present(owner)) then
           owner=matrix%matrix_struct%distribution%block_owner&
@@ -1346,7 +1346,7 @@ subroutine cp_sp_alloc_nonsparse_blocks(matrix,error)
   if (.not. failure) then
      call cp_sm_alloc_nonsparse_blocks(matrix%matrix,&
           m_struct=matrix%matrix_struct,&
-          mpi_env=matrix%matrix_struct%distribution%mpi_env,&
+          para_env=matrix%matrix_struct%distribution%para_env,&
           error=error)
   end if
 end subroutine cp_sp_alloc_nonsparse_blocks
@@ -1765,7 +1765,7 @@ end subroutine cp_sp_set_to
     
     call get_blacs_matrix_info(matrix_b,ncol_global=ncol)
     call sparse_times_blacs(matrix_a%matrix, matrix_b, matrix_c,ncol,&
-         mpi_env=matrix_a%matrix_struct%distribution%mpi_env,&
+         para_env=matrix_a%matrix_struct%distribution%para_env,&
          alpha=alpha, beta=beta,&
          block_owner=matrix_a%matrix_struct%distribution%block_owner)
   end subroutine cp_sp_multiplies_blacs

@@ -22,6 +22,7 @@
 !******************************************************************************
 
 MODULE global_types
+  use cp_para_types, only: cp_para_env_type
 
   IMPLICIT NONE
 
@@ -112,6 +113,7 @@ MODULE global_types
      INTEGER :: nprow        !! BLACS process grid: number of rows
      INTEGER :: npcol        !! BLACS process grid: number of columns
      LOGICAL :: ionode       !! this processor performs global output
+     type(cp_para_env_type), pointer :: para_env
   END TYPE global_environment_type
 
 ! *** Public parameters ***

@@ -47,7 +47,7 @@ module pao_env_methods
        get_atomic_kind_set
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, &
        cp_bmstruct_create, cp_bmstruct_release
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   implicit none
   private
 
@@ -210,31 +210,31 @@ contains
        if (.not.failure) then
           call cp_bmstruct_create(pao_env%min_bas_m_struct,&
                symmetric=.true.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_row_sizes=min_bas_sizes,&
                b_col_sizes=min_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_bas_m_struct,&
                symmetric=.false.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
                symmetric=.false.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=min_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
                symmetric=.false.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_row_sizes=min_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)
           call cp_bmstruct_create(pao_env%full_bas_diag_m_struct,&
                symmetric=.false.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_row_sizes=full_bas_sizes,&
                b_col_sizes=full_bas_sizes,&
                error=error)

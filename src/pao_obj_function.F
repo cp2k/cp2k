@@ -68,7 +68,7 @@ module pao_obj_function
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use cp_array_utils, only: cp_1d_r_output, cp_2d_r_output
   use cp_output_handling, only: cp_write_output
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   implicit none
   private
   
@@ -298,10 +298,10 @@ contains
             matrix_structure=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
             matrix=full_overlap_m(1)%matrix,&
-            mpi_env=cp_mpi_get_from_glob(global_env),error=error)
+            para_env=global_env%para_env,error=error)
        diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
        call cp_init_diagonal_blocks(diagMatrix,&
-            mpi_env=cp_mpi_get_from_glob(global_env),&
+            para_env=global_env%para_env,&
             default_value=0.0_wp,&
             d_struct=gf_env%d_struct)
        call cp_sp_create(gf_env%min_work_m,&
@@ -563,16 +563,16 @@ contains
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_h", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=h_matrix%matrix,&
-               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+               para_env=g_env%para_env,error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_s", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%matrix,&
-               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+               para_env=g_env%para_env,error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_nui", &
                fromWhere=routineP, iter=gf_env%n_eval, &
                matrix=pao_env%angles_att%NUi_injection%matrix,&
-               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+               para_env=g_env%para_env,error=error)
        end if
 
 
@@ -618,7 +618,7 @@ contains
                   outputName="obj_f_min_p", &
                   fromWhere=routineP, iter=gf_env%n_eval,&
                   matrix=min_density_m,&
-                  mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+                  para_env=g_env%para_env,error=error)
              call cp_write_output(logger=cp_error_get_logger(error),&
                   fromWhere=routineP,&
                   outputName="obj_f_f", iter=gf_env%n_eval,&
@@ -654,11 +654,11 @@ contains
                outputName="obj_f_BPpi", &
                fromWhere=routineP, iter=gf_env%n_eval, &
                matrix=cp_get_matrix(gf_env%full_work_m),&
-               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+               para_env=g_env%para_env,error=error)
              call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_2HBPpi", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
-               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+               para_env=g_env%para_env,error=error)
           end if
           ! 2 S B P minH P i^*
           call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
@@ -699,7 +699,7 @@ contains
              call cp_sm_output(logger=cp_error_get_logger(error), &
                   outputName="obj_f_df_du", &
                   fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
-                  mpi_env=cp_mpi_get_from_glob(g_env),error=error)
+                  para_env=g_env%para_env,error=error)
           end if
           
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k

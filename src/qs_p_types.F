@@ -49,7 +49,7 @@ module qs_p_types
   use qs_p_build_kernel, only: qs_K_P_P1_env_type, kpp1_calculate
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
        get_matrix_info
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   implicit none
   private
@@ -293,7 +293,7 @@ contains
             global_env)
        call sparse_times_blacs(s(1)%matrix,p_env%tmp_aomo_1, &
             p_env%r(1)%blacs_matrix,p_env%n_mo,&
-            mpi_env=cp_mpi_get_from_glob(global_env),alpha=1.0_wp,beta=1.0_wp)
+            para_env=global_env%para_env,alpha=1.0_wp,beta=1.0_wp)
     end if
   end subroutine p_env_eval_l1
 !***************************************************************************
@@ -583,7 +583,7 @@ contains
        call get_qs_env(p_env%qs_env, s=S)
        call sparse_times_blacs(S(1)%matrix,p_env%r(1)%blacs_matrix,&
             p_env%S_psi0(1)%blacs_matrix,&
-            p_env%n_mo,mpi_env=cp_mpi_get_from_glob(global_env))
+            p_env%n_mo,para_env=global_env%para_env)
 
        call qs_ks_update_qs_env(p_env%ks_env,qs_env=p_env%qs_env,&
             global_env=global_env)
@@ -595,7 +595,7 @@ contains
             1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
             0.0_wp,p_env%m_epsilon(1)%blacs_matrix,global_env)
        call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
-            mpi_env=cp_mpi_get_from_glob(global_env),&
+            para_env=global_env%para_env,&
             scale=-1.0_wp)
     end if
   end subroutine p_env_psi0_changed

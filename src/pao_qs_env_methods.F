@@ -50,7 +50,7 @@ module pao_qs_env_methods
   use cp_array_utils, only: cp_2d_r_output
   use particle_types, only: particle_type
   use dft_types, only: dft_control_type
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
   implicit none
   private
 
@@ -331,7 +331,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
   type(real_matrix_p_type), dimension(:), pointer :: overlap_rmpv
   type(cp_b_dims_type), pointer :: b_dims
   type(cp_b_matrix_struct_type), pointer :: old_m_struct
-  type(cp_mpi_env_type) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   failure=.false.
   s_c=.false.; full_r=.false.
   
@@ -356,21 +356,21 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         old_m_struct => pao_env%min_bas_m_struct
         call cp_bmstruct_create(pao_env%min_bas_m_struct,&
                symmetric=.true.,&
-               mpi_env=cp_mpi_get_from_glob(global_env),&
+               para_env=global_env%para_env,&
                b_dims=b_dims,&
                error=error)
         call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
-             mpi_env=cp_mpi_get_from_glob(global_env),&
+             para_env=global_env%para_env,&
              sample_matrix=overlap_rmpv(1)%matrix,&
              error=error)
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%full_bas_m_struct,&
-             mpi_env=mpi_env, b_dims=b_dims, error=error)
+             para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_bas_m_struct
         call cp_bmstruct_create(pao_env%full_bas_m_struct,&
              symmetric=.false.,&
-             mpi_env=mpi_env,&
+             para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
@@ -378,11 +378,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%full_min_bas_m_struct,&
-             mpi_env=mpi_env, b_dims=b_dims, error=error)
+             para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_min_bas_m_struct
         call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
              symmetric=.false.,&
-             mpi_env=mpi_env,&
+             para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
@@ -390,11 +390,11 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         call cp_bmstruct_release(old_m_struct,error=error)
 
         call cp_bmstruct_get(pao_env%min_full_bas_m_struct,&
-             mpi_env=mpi_env, b_dims=b_dims, error=error)
+             para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%min_full_bas_m_struct
         call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
              symmetric=.false.,&
-             mpi_env=mpi_env,&
+             para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&

@@ -38,7 +38,7 @@ MODULE qs_environment_types
        cp_note_level
   use cp_error_handling, only: cp_assert, cp_error_type, cp_assertion_failed
   use cp_matrix_utils, only: cp_sm_set_dist_sparsity_from_sm
-  use cp_mpi_env, only: cp_mpi_env_type
+  use cp_para_env, only: cp_para_env_type
        
 
   IMPLICIT NONE
@@ -241,7 +241,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - qs_env: the environment to update
-!!     - mpi_env: the mpi environment
+!!     - para_env: the mpi environment
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -252,9 +252,9 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine qs_env_update_s_struct(qs_env,mpi_env,error)
+subroutine qs_env_update_s_struct(qs_env,para_env,error)
   type(qs_environment_type), intent(inout) :: qs_env
-  type(cp_mpi_env_type), intent(in) :: mpi_env
+  type(cp_para_env_type), pointer :: para_env
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -272,7 +272,7 @@ subroutine qs_env_update_s_struct(qs_env,mpi_env,error)
   block_sizes=qs_env%particle_set(:)%last_sgf-qs_env%particle_set(:)%first_sgf
   call cp_bmstruct_create(qs_env%s_struct,&
        symmetric=.true.,&
-       mpi_env=mpi_env,&
+       para_env=para_env,&
        b_row_sizes=block_sizes,&
        b_col_sizes=block_sizes,&
        error=error)
@@ -304,7 +304,7 @@ subroutine qs_env_update_s_struct(qs_env,mpi_env,error)
   ! at the moment read from s, maybe in the future s will take its structure
   ! from this
   call cp_sm_set_dist_sparsity_from_sm(qs_env%s_struct,&
-       mpi_env=mpi_env,&
+       para_env=para_env,&
        sample_matrix=qs_env%s(1)%matrix,&
        error=error)
 end subroutine qs_env_update_s_struct

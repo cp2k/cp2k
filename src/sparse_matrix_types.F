@@ -34,7 +34,7 @@ MODULE sparse_matrix_types
                          timestop
   USE global_types,        ONLY: global_environment_type
   USE message_passing,     ONLY: mp_sum
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
 
   IMPLICIT NONE
 
@@ -746,11 +746,11 @@ CONTAINS
 ! it is still assumed that the diagonal blocks are symmetric (and hence full)
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,mpi_env,block_owner)
+  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
-    TYPE(cp_mpi_env_type), INTENT(IN) :: mpi_env
+    TYPE(cp_para_env_type), pointer   :: para_env
     integer, dimension(:,:), optional :: block_owner
 
 !   *** Local parameters ***
@@ -808,11 +808,11 @@ CONTAINS
         
         owner=.true.
         if (present(block_owner)) then
-           owner = (block_owner(iblock_row,iblock_col)==mpi_env%mepos)
+           owner = (block_owner(iblock_row,iblock_col)==para_env%mepos)
         end if
         
         if (owner) then
-           ! write(17+mpi_env%mepos,*) maxval(abs(sparse_block))
+           ! write(17+para_env%mepos,*) maxval(abs(sparse_block))
            
            sbnrow=sparse_matrix%last_row(iblock_row)- &
                 sparse_matrix%first_row(iblock_row)+1
@@ -848,7 +848,7 @@ CONTAINS
     CALL timestop(flops,handle)
 
 #if defined(__parallel)
-    CALL mp_sum(rep_v_out,mpi_env%group)
+    CALL mp_sum(rep_v_out,para_env%group)
 #endif
 
   END SUBROUTINE sparse_times_replicated

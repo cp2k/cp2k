@@ -59,7 +59,7 @@ MODULE qs_blacs
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level
   use cp_matrix_utils, only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
-  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
+  use cp_para_env, only: cp_para_env_type
 
   IMPLICIT NONE
 
@@ -570,13 +570,13 @@ end subroutine allocate_blacs_matrix_vect
 
 ! *****************************************************************************
   SUBROUTINE sparse_times_blacs(sparse_matrix,v_in,v_out,ncol, &
-       globenv,alpha,beta,mpi_env,block_owner)
+       globenv,alpha,beta,para_env,block_owner)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(blacs_matrix_type) , POINTER :: v_in
     TYPE(blacs_matrix_type) , POINTER :: v_out
     INTEGER, INTENT(IN)               :: ncol
     TYPE(global_environment_type), INTENT(IN),optional :: globenv
-    type(cp_mpi_env_type), intent(in),optional :: mpi_env
+    type(cp_para_env_type), pointer, optional :: para_env
     real(kind=wp), intent(in), optional :: alpha, beta
     integer, intent(in), dimension(:,:), optional :: block_owner
 
@@ -588,16 +588,16 @@ end subroutine allocate_blacs_matrix_vect
 !   *** Local variables ***
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     integer i,nrow_in,nrow_out,ncol_block,handle
-    type(cp_mpi_env_type) :: mpienv
+    type(cp_para_env_type), pointer :: mpienv
 !   ---------------------------------------------------------------------------
     CALL timeset("sparse_times_blacs","I","",handle)
-    if (present(mpi_env)) then
-       mpienv=mpi_env
+    if (present(para_env)) then
+       mpienv => para_env
     else if (present(globenv)) then
-       mpienv=cp_mpi_get_from_glob(globenv)
+       mpienv => globenv%para_env
     else
        call cp_assert(.false.,cp_failure_level,cp_assertion_failed,routine,&
-            "either globenv or mpi_env must be given")
+            "either globenv or para_env must be given")
     end if
     nrow_in=v_in%nrow_global
     nrow_out=v_out%nrow_global
@@ -607,13 +607,13 @@ end subroutine allocate_blacs_matrix_vect
     DO i=1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
        call blacs_get_submatrix(v_in,rep_v_in,start_col=i,n_cols=ncol_block,&
-            transpose_target_m=.true.,mpi_env=mpienv)
+            transpose_target_m=.true.,para_env=mpienv)
        !FM call blacs_replicated_copy(v_in,rep_v_in,i,ncol_block,blocksize,"B2R",globenv)
        call sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol_block, &
                                     blocksize,mpienv, block_owner)
        !FM call blacs_replicated_copy(v_out,rep_v_out,i,ncol_block,blocksize,"R2B",globenv)
        call blacs_set_submatrix(v_out,rep_v_out,&
-            mpi_env=mpienv,&
+            para_env=mpienv,&
             start_col=i,n_cols=ncol_block,transpose_new_val=.true.,&
             alpha=alpha,beta=beta)
             
@@ -1540,7 +1540,7 @@ end subroutine allocate_blacs_matrix_vect
   !!   INPUTS
   !!     - new_values: a replicated full matrix with the new values
   !!     - blacs_matrix: the blacs to change
-  !!     - mpi_env: the mpi environment
+  !!     - para_env: the mpi environment
   !!     - start_row: the starting row of b_matrix (defaults to 1)
   !!     - start_col: the starting col of b_matrix (defaults to 1)
   !!     - n_rows: the number of row to change in b (defaults to
@@ -1562,11 +1562,11 @@ end subroutine allocate_blacs_matrix_vect
   !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
   !!
   !!*** *********************************************************************
-  subroutine blacs_set_submatrix(blacs_matrix,new_values,mpi_env, start_row,&
+  subroutine blacs_set_submatrix(blacs_matrix,new_values,para_env, start_row,&
        start_col, n_rows, n_cols, alpha, beta, transpose_new_val, error)
     type(blacs_matrix_type) , pointer :: blacs_matrix
     real(wp), dimension(:,:), pointer :: new_values
-    type(cp_mpi_env_type), intent(in)      :: mpi_env
+    type(cp_para_env_type), pointer :: para_env
     integer, intent(in), optional :: start_row, start_col,&
          n_rows, n_cols
     real(kind=wp), intent(in), optional :: alpha, beta
@@ -1601,7 +1601,7 @@ end subroutine allocate_blacs_matrix_vect
     if (present(n_rows)) nrow=n_rows
     if (present(n_cols)) ncol=n_cols
 
-    source =mpi_env%source
+    source =para_env%source
     context=blacs_matrix%context
 
 #if defined(__parallel)
@@ -1616,7 +1616,7 @@ end subroutine allocate_blacs_matrix_vect
          nrow_block =nrow_block ,ncol_block =ncol_block , &
          nrow_local =nrow_local ,ncol_local =ncol_local , &
          row_indices=row_indices,col_indices=col_indices,&
-         mpi_env=mpi_env)
+         para_env=para_env)
 
 
     if (al==1.0.and.be==0.0) then
@@ -1720,11 +1720,11 @@ end subroutine allocate_blacs_matrix_vect
   !!     07.2002 created borrowing from Joost's blacs_replicated_copy [fawzi]
   !!
   !!*** *********************************************************************
-  subroutine blacs_get_submatrix(blacs_matrix,target_m,mpi_env, start_row,&
+  subroutine blacs_get_submatrix(blacs_matrix,target_m,para_env, start_row,&
        start_col, n_rows, n_cols, transpose_target_m, error)
     type(blacs_matrix_type) , pointer :: blacs_matrix
     real(wp), dimension(:,:), pointer :: target_m
-    type(cp_mpi_env_type), intent(in)      :: mpi_env
+    type(cp_para_env_type), pointer :: para_env
     integer, intent(in), optional :: start_row, start_col,&
          n_rows, n_cols
     logical, intent(in), optional :: transpose_target_m
@@ -1755,7 +1755,7 @@ end subroutine allocate_blacs_matrix_vect
     if (present(n_rows)) nrow=n_rows
     if (present(n_cols)) ncol=n_cols
 
-    source =mpi_env%source
+    source =para_env%source
     context=blacs_matrix%context
 
 #if defined(__parallel)
@@ -1772,7 +1772,7 @@ end subroutine allocate_blacs_matrix_vect
          nrow_block =nrow_block ,ncol_block =ncol_block , &
          nrow_local =nrow_local ,ncol_local =ncol_local , &
          row_indices=row_indices,col_indices=col_indices,&
-         mpi_env=mpi_env)
+         para_env=para_env)
 
 
     do j=1,ncol_local
@@ -1809,7 +1809,7 @@ end subroutine allocate_blacs_matrix_vect
     end do
     deallocate(row_indices,col_indices)
 
-    call mp_sum(target_m,mpi_env%group)
+    call mp_sum(target_m,para_env%group)
     
     call timestop(0.0_wp,handle)
 
@@ -3469,7 +3469,7 @@ end subroutine deallocate_blacs_matrix_vect
 
   SUBROUTINE get_blacs_matrix_info(matrix,name,nrow_global,ncol_global,&
                                    nrow_block,ncol_block,nrow_local,ncol_local,&
-                                   row_indices,col_indices,globenv, mpi_env)
+                                   row_indices,col_indices,globenv, para_env)
 
 !   Purpose: Return informations about the specified BLACS matrix.
 !   always allocates the indices vector if present.
@@ -3486,7 +3486,7 @@ end subroutine deallocate_blacs_matrix_vect
                                                nrow_local,ncol_local
     INTEGER, OPTIONAL, DIMENSION(:), POINTER:: row_indices,col_indices
     TYPE(global_environment_type), INTENT(IN), OPTIONAL :: globenv
-    type(cp_mpi_env_type), intent(in), optional :: mpi_env
+    type(cp_para_env_type), pointer, optional :: para_env
 
     INTEGER source,i,nprow,npcol,myprow,mypcol,context
 #if defined(__parallel)
@@ -3505,13 +3505,13 @@ end subroutine deallocate_blacs_matrix_vect
         source=globenv%source
         context=globenv%context
     ENDIF
-    if (present(mpi_env)) then
-       source=mpi_env%source
+    if (present(para_env)) then
+       source=para_env%source
        context=matrix%context
     end if
 
     IF (present(nrow_local)) THEN
-      IF (.not. present(globenv).and..not.present(mpi_env)) then
+      IF (.not. present(globenv).and..not.present(para_env)) then
          CALL stop_program("get_blacs_matrix_info","globenv")
       END IF
 #if defined(__parallel)
@@ -3523,7 +3523,7 @@ end subroutine deallocate_blacs_matrix_vect
     ENDIF
 
     IF (present(ncol_local)) THEN
-      IF (.not. present(globenv).and..not.present(mpi_env)) then
+      IF (.not. present(globenv).and..not.present(para_env)) then
          CALL stop_program("get_blacs_matrix_info","globenv")
       END IF
 #if defined(__parallel)
@@ -3535,7 +3535,7 @@ end subroutine deallocate_blacs_matrix_vect
     ENDIF
 
     IF (present(row_indices)) THEN
-      IF (.not. present(globenv).and..not.present(mpi_env)) then
+      IF (.not. present(globenv).and..not.present(para_env)) then
          CALL stop_program("get_blacs_matrix_info","globenv")
       END IF
 #if defined(__parallel)
@@ -3553,7 +3553,7 @@ end subroutine deallocate_blacs_matrix_vect
     ENDIF
 
     IF (present(col_indices)) THEN
-      IF (.not. present(globenv).and..not.present(mpi_env)) then
+      IF (.not. present(globenv).and..not.present(para_env)) then
          CALL stop_program("get_blacs_matrix_info","globenv")
       END IF
 #if defined(__parallel)
@@ -4927,9 +4927,9 @@ end subroutine deallocate_blacs_matrix_vect
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine blacs_scale_and_d(blacs_matrix,mpi_env,scale, diagonal_add,error)
+subroutine blacs_scale_and_d(blacs_matrix,para_env,scale, diagonal_add,error)
     type(blacs_matrix_type), pointer :: blacs_matrix
-    type(cp_mpi_env_type), intent(in) :: mpi_env
+    type(cp_para_env_type), pointer :: para_env
     real(kind=wp), intent(in), optional :: scale, diagonal_add
     type(cp_error_type), intent(inout), optional :: error
     
@@ -4946,7 +4946,7 @@ subroutine blacs_scale_and_d(blacs_matrix,mpi_env,scale, diagonal_add,error)
     call blacs_gridinfo(blacs_matrix%context,nprow,npcol,myprow,mypcol)
     blacs_block => blacs_matrix%p(myprow,mypcol)%block
 #else
-    blacs_block => blacs_matrix%p(mpi_env%source,mpi_env%source)%block
+    blacs_block => blacs_matrix%p(para_env%source,para_env%source)%block
 #endif
     if (diag==0.0_wp) then
       blacs_block=sc*blacs_block
@@ -4954,7 +4954,7 @@ subroutine blacs_scale_and_d(blacs_matrix,mpi_env,scale, diagonal_add,error)
       call get_blacs_matrix_info(matrix=blacs_matrix, &
           nrow_local =nrow_local ,ncol_local =ncol_local , &
           row_indices=row_indices,col_indices=col_indices,&
-          mpi_env=mpi_env)
+          para_env=para_env)
       if (sc==0.0) then
         call dcopy(size(blacs_block,1)*size(blacs_block,2),0.0_wp,0,blacs_block,1)
         do j=1,ncol_local
