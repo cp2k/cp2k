@@ -89,6 +89,7 @@ MODULE qs_ks_methods
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
@@ -319,7 +320,6 @@ CONTAINS
       CALL prepare_gapw_den(qs_env,error=error)
     ENDIF
 
-
 ! *** calculate the hartree potential on the pw density ***
     IF (.NOT. failure) THEN
 
@@ -502,7 +502,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
-
 
 ! *****************************************************************************
 
@@ -704,12 +703,19 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
           energy%core=energy%core+ecore
         END DO
 
-        CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-             ks_matrix=matrix_ks,&
-             rho=rho,&
+        IF ( dft_control%qs_control%semi_empirical ) THEN
+          CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
+               ks_matrix=matrix_ks,rho=rho,energy=energy,&
+               calculate_forces=c_forces,just_energy=energy_only,&
+               error=error)
+        ELSE
+          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+               ks_matrix=matrix_ks,&
+               rho=rho,&
              energy=energy,&
-             calculate_forces=c_forces,just_energy=energy_only,&
-             error=error)
+               calculate_forces=c_forces,just_energy=energy_only,&
+               error=error)
+        END IF
         IF(.NOT.energy_only) THEN
            ks_env%rho_changed=.FALSE.
            ks_env%s_mstruct_changed=.FALSE.

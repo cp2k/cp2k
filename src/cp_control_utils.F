@@ -821,15 +821,19 @@ CONTAINS
             CASE ("EHT")
               qs_control%method = "EHT"
               qs_control%semi_empirical = .TRUE.
+              qs_control%se_control%orthogonal_basis = .FALSE.
             CASE ("MNDO")
               qs_control%method = "MNDO"
               qs_control%semi_empirical = .TRUE.
+              qs_control%se_control%orthogonal_basis = .TRUE.
             CASE ("AM1")
               qs_control%method = "AM1"
               qs_control%semi_empirical = .TRUE.
+              qs_control%se_control%orthogonal_basis = .TRUE.
             CASE ("PM3")
               qs_control%method = "PM3"
               qs_control%semi_empirical = .TRUE.
+              qs_control%se_control%orthogonal_basis = .TRUE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")
@@ -989,13 +993,23 @@ CONTAINS
     ! set defaults for cutoff and multigrids if not yet done
     IF ( .NOT. cutoff_set ) THEN
       IF ( .NOT. multgrid_set ) THEN
-        qs_control%cutoff = MAX(0.01_dp,0.5_dp*280._dp) ! give a 280 Ry default cutoff. 
-                                                        ! should be very fine
+        IF ( qs_control%semi_empirical ) THEN
+          qs_control%cutoff = 5._dp ! to be adjusted later
+        ELSE
+          qs_control%cutoff = MAX(0.01_dp,0.5_dp*280._dp) ! give a 280 Ry default cutoff. 
+                                                          ! should be very fine
+        END IF
       ELSE
         qs_control%cutoff = qs_control%e_cutoff(1)
       END IF
     END IF
-    IF ( .NOT. ngrid_set ) ngrid_level = 4
+    IF ( .NOT. ngrid_set ) THEN
+      IF ( qs_control%semi_empirical ) THEN
+        ngrid_level = 1
+      ELSE
+        ngrid_level = 4
+      END IF
+    END IF
     IF ( .NOT. multgrid_set ) THEN
       ALLOCATE (qs_control%e_cutoff(ngrid_level),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&

@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/qs_semi_empirical_hamiltonian [1.1] *
 !!
 !!   FUNCTION
@@ -20,7 +23,24 @@ MODULE qs_semi_empirical_hamiltonian
                                              get_atomic_kind,&
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: gto_basis_set_type
+  USE simulation_cell,                 ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: evolt
@@ -29,6 +49,9 @@ MODULE qs_semi_empirical_hamiltonian
   USE qs_environment_types,            ONLY: qs_environment_type,&
                                              get_qs_env,&
                                              set_qs_env
+  USE qs_core_energies,                ONLY: calculate_ecore
+  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
@@ -38,6 +61,7 @@ MODULE qs_semi_empirical_hamiltonian
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_integrals,        ONLY: rotint
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_param
@@ -45,16 +69,27 @@ MODULE qs_semi_empirical_hamiltonian
                                              allocate_matrix_set,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure
+                                             replicate_matrix_structure,&
+                                             transfer_matrix
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_semi_empirical_hamiltonian"
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_semi_empirical_hamiltonian"
 
-  PUBLIC :: build_se_core_matrix
+  PUBLIC :: build_se_core_matrix, build_se_fock_matrix
+
+  INTERFACE fock1
+    MODULE PROCEDURE rfock1, ufock1
+  END INTERFACE
+
+  INTERFACE fock2
+    MODULE PROCEDURE rfock2, ufock2
+  END INTERFACE
 
 ! *****************************************************************************
 
@@ -69,7 +104,7 @@ CONTAINS
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_se_core_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "build_se_core_matrix"
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
                                POINTER       :: matrix_h,matrix_s
@@ -86,18 +121,19 @@ CONTAINS
 
     INTEGER                                  :: i,j,k,ikind,jkind,nkind
     INTEGER                                  :: iab,ilist,nlist,iatom,jatom,&
-                                                inode,nnode,last_jatom,&
+                                                inode,nnode,&
                                                 irow,icol,natorb_a,natorb_b
-    LOGICAL                                  :: new_atom_b,defined
+    LOGICAL                                  :: defined
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,s_block
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_blocka,h_blockb
     REAL(KIND = dp), DIMENSION(:), POINTER   :: beta_a,beta_b
     REAL(KIND = dp), DIMENSION(16)           :: ha,hb,ua
-    INTEGER                                  :: za,zb,kr,itype,natom
+    INTEGER                                  :: za,zb,itype,natom
     REAL(KIND = dp)                          :: kh,enuc,uss,upp,udd,uff
     REAL(KIND = dp), DIMENSION(3)            :: rij
-    REAL(KIND = dp), DIMENSION(72)           :: wint
+    REAL(KIND = dp), DIMENSION(100)          :: wint
     REAL(KIND = dp), DIMENSION(10)           :: e1b,e2a
+    REAL(KIND = dp)                          :: enuclear,eisol,eheat,econst
 
 !   ---------------------------------------------------------------------------
 
@@ -142,6 +178,8 @@ CONTAINS
      kh = 0.5_dp * kh
 
      nkind = SIZE(atomic_kind_set)
+     enuclear = 0._dp
+     econst = 0._dp
 
      DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -152,9 +190,12 @@ CONTAINS
                           defined=defined,&
                           natorb=natorb_a,&
                           beta=beta_a,&
-                          uss=uss,upp=upp,udd=udd,uff=uff)
+                          uss=uss,upp=upp,udd=udd,uff=uff,&
+                          eisol=eisol,eheat=eheat)
 
         IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+
+        econst=econst-eisol+eheat
 
         ha(1) = beta_a(0)
         ha(2:4) = beta_a(1)
@@ -201,7 +242,6 @@ CONTAINS
                                     nnode=nnode)
 
              sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
-             last_jatom = 0
 
              SELECT CASE (dft_control%qs_control%method)
                CASE ("EHT")
@@ -212,7 +252,7 @@ CONTAINS
                                      block_col=iatom,&
                                      block=h_blocka)
                  IF (.NOT.ASSOCIATED(h_blocka)) THEN
-                   CALL stop_program(routine_name,module_name,__LINE__,&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                                     "A hmatrix block is missing",globenv)
                  END IF
              END SELECT
@@ -225,7 +265,7 @@ CONTAINS
 
                  SELECT CASE (dft_control%qs_control%method)
                     CASE DEFAULT
-                      CALL stop_program(routine_name,module_name,__LINE__,&
+                      CALL stop_program(routineN,moduleN,__LINE__,&
                                       "Method not available",globenv)
                     CASE ("EHT")
                       DO i=1,SIZE(h_blocka,1)
@@ -239,29 +279,21 @@ CONTAINS
 
                ELSE
 
-                 IF (jatom /= last_jatom) THEN
-                   new_atom_b = .TRUE.
-                   last_jatom = jatom
+                 IF (iatom <= jatom) THEN
+                   irow = iatom
+                   icol = jatom
                  ELSE
-                   new_atom_b = .FALSE.
+                   irow = jatom
+                   icol = iatom
                  END IF
-                 IF (new_atom_b) THEN
-                   IF (iatom <= jatom) THEN
-                     irow = iatom
-                     icol = jatom
-                   ELSE
-                     irow = jatom
-                     icol = iatom
-                   END IF
-                   NULLIFY (h_block)
-                   CALL get_block_node(matrix=matrix_h(1)%matrix,&
-                                       block_row=irow,&
-                                       block_col=icol,&
-                                       block=h_block)
-                   IF (.NOT.ASSOCIATED(h_blocka)) THEN
-                     CALL stop_program(routine_name,module_name,__LINE__,&
-                                      "A hmatrix block is missing",globenv)
-                   END IF
+                 NULLIFY (h_block)
+                 CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                                     block_row=irow,&
+                                     block_col=icol,&
+                                     block=h_block)
+                 IF (.NOT.ASSOCIATED(h_block)) THEN
+                   CALL stop_program(routineN,moduleN,__LINE__,&
+                                    "A hmatrix block is missing",globenv)
                  END IF
 
                  ! two-centre one-electron term
@@ -271,52 +303,67 @@ CONTAINS
                                      block_col=icol,&
                                      block=s_block)
                  IF (.NOT.ASSOCIATED(s_block)) THEN
-                   CALL stop_program(routine_name,module_name,__LINE__,&
+                   CALL stop_program(routineN,moduleN,__LINE__,&
                                      "A overlap matrix block is missing",&
                                      globenv)
                  END IF
-                 DO i=1,SIZE(h_block,1)
-                   DO j=1,SIZE(h_block,2)
-                     h_block(i,j)=h_block(i,j)+kh*(ha(i)+hb(j))*s_block(i,j)
+                 IF ( irow == iatom ) THEN
+                   DO i=1,SIZE(h_block,1)
+                     DO j=1,SIZE(h_block,2)
+                       h_block(i,j)=h_block(i,j)+kh*(ha(i)+hb(j))*s_block(i,j)
+                     END DO
                    END DO
-                 END DO
+                 ELSE
+                   DO i=1,SIZE(h_block,1)
+                     DO j=1,SIZE(h_block,2)
+                       h_block(i,j)=h_block(i,j)+kh*(ha(j)+hb(i))*s_block(i,j)
+                     END DO
+                   END DO
+                 END IF
+
                  SELECT CASE (dft_control%qs_control%method)
                    CASE ("EHT")
                    CASE ("MNDO","AM1","PM3")
-                   CALL rotint (se_kind_a,se_kind_b,rij,wint,kr,e1b,e2a,&
-                                enuc,itype)
-                   ! one-centre one-electron terms
-                   NULLIFY(h_blockb)
-                   CALL get_block_node(matrix=matrix_h(1)%matrix,&
-                                       block_row=jatom,&
-                                       block_col=jatom,&
-                                       block=h_blockb)
-                   IF (.NOT.ASSOCIATED(h_blockb)) THEN
-                     CALL stop_program(routine_name,module_name,__LINE__,&
-                                      "A hmatrix block is missing",globenv)
-                   END IF
-                   ! contribution to iatom
-                   k=0
-                   DO i=1,SIZE(h_blocka,1)
-                     DO j=1,i-1
+                     IF ( irow == iatom ) THEN
+                       CALL rotint (se_kind_a,se_kind_b,rij,wint,e1b,e2a,&
+                                    enuc,itype)
+                     ELSE
+                       CALL rotint (se_kind_b,se_kind_a,-rij,wint,e2a,e1b,&
+                                    enuc,itype)
+                     END IF
+                     enuclear = enuclear + enuc
+                     ! one-centre one-electron terms
+                     NULLIFY(h_blockb)
+                     CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         block=h_blockb)
+                     IF (.NOT.ASSOCIATED(h_blockb)) THEN
+                       CALL stop_program(routineN,moduleN,__LINE__,&
+                                        "A hmatrix block is missing",globenv)
+                     END IF
+                     ! contribution to iatom
+                     k=0
+                     DO i=1,SIZE(h_blocka,1)
+                       DO j=1,i-1
+                         k=k+1
+                         h_blocka(j,i)=h_blocka(j,i)+e1b(k)
+                         h_blocka(i,j)=h_blocka(i,j)+e1b(k)
+                       END DO
                        k=k+1
-                       h_blocka(j,i)=h_blocka(j,i)+e1b(k)
-                       h_blocka(i,j)=h_blocka(i,j)+e1b(k)
+                       h_blocka(i,i)=h_blocka(i,i)+e1b(k)
                      END DO
-                     k=k+1
-                     h_blocka(i,i)=h_blocka(i,i)+e1b(k)
-                   END DO
-                   ! contribution to jatom
-                   k=0
-                   DO i=1,SIZE(h_blockb,1)
-                     DO j=1,i-1
+                     ! contribution to jatom
+                     k=0
+                     DO i=1,SIZE(h_blockb,1)
+                       DO j=1,i-1
+                         k=k+1
+                         h_blockb(j,i)=h_blockb(j,i)+e2a(k)
+                         h_blockb(i,j)=h_blockb(i,j)+e2a(k)
+                       END DO
                        k=k+1
-                       h_blockb(j,i)=h_blockb(j,i)+e2a(k)
-                       h_blockb(i,j)=h_blockb(i,j)+e2a(k)
+                       h_blockb(i,i)=h_blockb(i,i)+e2a(k)
                      END DO
-                     k=k+1
-                     h_blockb(i,i)=h_blockb(i,i)+e2a(k)
-                   END DO
 
                  END SELECT
 
@@ -335,15 +382,583 @@ CONTAINS
      CALL set_qs_env(qs_env=qs_env,&
                      matrix_h=matrix_h)
 
-!deb
-     CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,scale=evolt)
-!deb
+     qs_env%energy%core_overlap = enuclear
+     qs_env%energy%core_self    = econst
 
-!deb
-     WRITE(6,*) "FINISH HCORE &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"
-!deb
+     IF (globenv%print%core_hamiltonian_matrix) THEN
+       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,&
+             scale=evolt)
+     END IF
+
+     !deallocate overlap matrix and initialize with unit matrix 
+     !for orthogonal methods
+     IF ( dft_control%qs_control%se_control%orthogonal_basis ) THEN
+       !
+     END IF
 
   END SUBROUTINE build_se_core_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE build_se_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
+               calculate_forces,just_energy,error)
+
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+        POINTER                              :: ks_matrix
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), INTENT(inout), &
+      TARGET                                 :: energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'build_se_fock', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure,ionode,defined
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: handle,nspins,output_unit,&
+                                                ispin,itype,ikind,nkind,jkind
+    INTEGER                                  :: za,natorb_a,zb,natorb_b,&
+                                                ilist,nlist,iatom,jatom,&
+                                                inode,nnode,iab,irow,icol
+    REAL ( dp ), DIMENSION (3)               :: rij
+    REAL ( dp )                              :: ecoulomb
+    REAL ( dp )                              :: gss,gsp,gpp,gp2,hsp
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h,matrix_p
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+                               POINTER       :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(neighbor_list_set_p_type), &
+                       DIMENSION(:), POINTER :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list,&
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: p_block_a,p_block_b,&
+                                                pa_block_a,pa_block_b,&
+                                                pb_block_a,pb_block_b,&
+                                                ks_block_a,ks_block_b,&
+                                                ksa_block_a,ksa_block_b,&
+                                                ksb_block_a,ksb_block_b
+
+!   ----------------------------------------------------------------------------
+
+!deb
+    write(6,*) " START BUILD FOCK MATRIX "
+!deb
+    failure=.FALSE.
+    NULLIFY(matrix_h,matrix_p,dft_control,cell,logger)
+
+    CALL timeset(routineN,"I","",handle)
+
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         dft_control=dft_control,&
+         matrix_h=matrix_h,&
+         cell=cell,&
+         para_env=para_env)
+
+    nspins=dft_control%nspins
+    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+
+    IF ( .NOT. failure ) THEN
+
+       matrix_p => rho%rho_ao
+
+       CALL get_qs_env(qs_env=qs_env,&
+                       sab_orb=sab_orb,&
+                       atomic_kind_set=atomic_kind_set)
+
+       SELECT CASE (dft_control%qs_control%method)
+         CASE DEFAULT
+           itype=0
+         CASE ("EHT")
+           itype=0
+         CASE ("AM1")
+           itype=2
+         CASE ("PM3")
+           itype=3
+         CASE ("MNDO")
+           itype=1
+       END SELECT
+
+       nkind = SIZE(atomic_kind_set)
+       ecoulomb = 0._dp
+
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,&
+                            zeff=za,&
+                            defined=defined,&
+                            natorb=natorb_a,&
+                            gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp)
+
+          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+
+          DO jkind=1,nkind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                  se_parameter=se_kind_b)
+             CALL get_se_param(se_kind_b,&
+                               zeff=zb,&
+                               defined=defined,&
+                               natorb=natorb_b)
+
+             IF (.NOT.defined .OR. natorb_b < 1) CYCLE
+
+             iab = ikind + nkind*(jkind - 1)
+             IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
+             CALL get_neighbor_list_set(neighbor_list_set=&
+                                        sab_orb(iab)%neighbor_list_set,&
+                                        nlist=nlist)
+             NULLIFY(sab_orb_neighbor_list)
+
+             DO ilist=1,nlist
+               IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+                 sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+               ELSE
+                 sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+               END IF
+               sab_orb_neighbor_list_local => sab_orb_neighbor_list
+               CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
+                                      atom=iatom,&
+                                      nnode=nnode)
+
+               sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
+
+               IF ( nspins >= 1 ) THEN
+                 CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     block=pa_block_a)
+                 CPPrecondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                 CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     block=ksa_block_a)
+                 CPPrecondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+               END IF
+               IF ( nspins >= 2 ) THEN
+                 CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     block=pa_block_b)
+                 CPPrecondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                 CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     block=ksa_block_b)
+                 CPPrecondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
+               END IF
+               CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+
+               DO inode=1,nnode
+                 CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
+                                        neighbor=jatom,r=rij)
+
+                 IF ( iatom == jatom ) THEN
+                   IF ( nspins == 1 ) THEN
+                     CALL fock1(gss,gsp,gpp,gp2,hsp,pa_block_a,ksa_block_a,error)
+                   ELSE IF ( nspins == 2 ) THEN
+                     CALL fock1(gss,gsp,gpp,gp2,hsp,pa_block_a,ksa_block_a,&
+                                pa_block_b,ksa_block_b,error)
+                   END IF
+                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+
+                 ELSE
+
+                   IF ( nspins >= 1 ) THEN
+                     CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         block=pb_block_a)
+                     CPPrecondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         block=ksb_block_a)
+                     CPPrecondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                   IF ( nspins >= 2 ) THEN
+                     CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         block=pb_block_b)
+                     CPPrecondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         block=ksb_block_b)
+                     CPPrecondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
+                   END IF
+                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+
+                   IF (iatom <= jatom) THEN
+                     irow = iatom
+                     icol = jatom
+                   ELSE
+                     irow = jatom
+                     icol = iatom
+                   END IF
+                   IF ( nspins >= 1 ) THEN
+                     CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                         block_row=irow,&
+                                         block_col=icol,&
+                                         block=ks_block_a)
+                     CPPrecondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                         block_row=irow,&
+                                         block_col=icol,&
+                                         block=p_block_a)
+                     CPPrecondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+                   END IF
+                   IF ( nspins >= 2 ) THEN
+                     CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                                         block_row=irow,&
+                                         block_col=icol,&
+                                         block=ks_block_b)
+                     CPPrecondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                                         block_row=irow,&
+                                         block_col=icol,&
+                                         block=p_block_b)
+                     CPPrecondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
+                   END IF
+                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+
+                   IF ( nspins == 1 ) THEN
+                     IF ( irow == iatom ) THEN
+                       CALL fock2(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,p_block_a,&
+                                  ksa_block_a,ksb_block_a,ks_block_a,itype,error)
+                     ELSE
+                       CALL fock2(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,p_block_a,&
+                                  ksb_block_a,ksa_block_a,ks_block_a,itype,error)
+                     ENDIF
+                   ELSE IF ( nspins == 2 ) THEN
+                     IF ( irow == iatom ) THEN
+                       CALL fock2(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,p_block_a,&
+                                  ksa_block_a,ksb_block_a,ks_block_a,&
+                                  pa_block_b,pb_block_b,p_block_b,&
+                                  ksa_block_b,ksb_block_b,ks_block_b,itype,error)
+                     ELSE
+                       CALL fock2(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,p_block_a,&
+                                  ksb_block_a,ksa_block_a,ks_block_a,&
+                                  pb_block_a,pa_block_a,p_block_a,&
+                                  ksb_block_a,ksa_block_a,ks_block_a,itype,error)
+                     ENDIF
+                   END IF
+                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                 END IF
+
+                 END IF
+
+               END DO
+
+             END DO
+
+          END DO
+
+       END DO
+
+       IF (qs_env%qmmm) THEN
+       END IF
+
+       IF ( .NOT. just_energy) THEN
+          DO ispin=1,nspins
+             ! copy the core matrix into the fock matrix
+             CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+          END DO
+       END IF
+
+       energy%mulliken = 0.0_dp
+
+       energy%total = energy%core + energy%hartree + energy%exc + &
+            energy%core_overlap + &
+            energy%qmmm_el + energy%mulliken
+
+       IF (ionode.AND.logger%print_keys%scf_energies) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange energy:                               ",energy%exc
+       END IF
+       IF (qs_env%qmmm) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+       END IF
+
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+!deb
+    write(6,*) " END BUILD FOCK MATRIX "
+!deb
+
+  END SUBROUTINE build_se_fock_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE rfock1 (gss,gsp,gpp,gp2,hsp,pmat,fmat,error)
+    REAL(dp), INTENT (IN)                    :: gss,gsp,gpp,gp2,hsp
+    REAL(dp), DIMENSION(:,:), INTENT (IN)    :: pmat
+    REAL(dp), DIMENSION(:,:), INTENT (INOUT) :: fmat
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'rfock1', &
+      routineP = moduleN//':'//routineN
+    INTEGER     :: n
+
+    n = SIZE ( pmat,1 )
+
+    CPPrecondition(n<=4,cp_failure_level,routineP,error,failure)
+    IF ( n == 1 ) THEN
+      fmat(1,1) = fmat(1,1) + 0.5_dp * pmat(1,1)*gss
+    END IF
+    IF ( n == 4 ) THEN
+      fmat(1,1) = fmat(1,1) + 0.5_dp * pmat(1,1)*gss + &
+         (pmat(2,2)+pmat(3,3)+pmat(4,4))*(hsp-0.5_dp*gsp)
+      fmat(2,2) = fmat(2,2) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
+                              0.5_dp * pmat(2,2)*gpp - &
+                              0.5_dp * (pmat(3,3)+pmat(4,4))*gp2
+      fmat(3,3) = fmat(3,3) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
+                              0.5_dp * pmat(3,3)*gpp - &
+                              0.5_dp * (pmat(2,2)+pmat(4,4))*gp2
+      fmat(4,4) = fmat(4,4) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
+                              0.5_dp * pmat(4,4)*gpp - &
+                              0.5_dp * (pmat(2,2)+pmat(3,3))*gp2
+
+      fmat(1,2) = fmat(1,2) + 0.5_dp * pmat(1,2)*(3._dp*gsp-hsp)
+      fmat(2,1) = fmat(1,2)
+      fmat(1,3) = fmat(1,3) + 0.5_dp * pmat(1,3)*(3._dp*gsp-hsp)
+      fmat(3,1) = fmat(1,3)
+      fmat(1,4) = fmat(1,4) + 0.5_dp * pmat(1,4)*(3._dp*gsp-hsp)
+      fmat(4,1) = fmat(1,4)
+
+      fmat(2,3) = fmat(2,3) + 1.5_dp * pmat(2,3)*gp2
+      fmat(3,2) = fmat(2,3)
+      fmat(2,4) = fmat(2,4) + 1.5_dp * pmat(2,4)*gp2
+      fmat(4,2) = fmat(2,4)
+      fmat(3,4) = fmat(3,4) + 1.5_dp * pmat(3,4)*gp2
+      fmat(4,3) = fmat(3,4)
+    END IF
+
+  END SUBROUTINE rfock1
+
+  SUBROUTINE ufock1 (gss,gsp,gpp,gp2,hsp,pmata,fmata,pmatb,fmatb,error)
+    REAL(dp), INTENT (IN)                    :: gss,gsp,gpp,gp2,hsp
+    REAL(dp), DIMENSION(:,:), INTENT (IN)    :: pmata,pmatb
+    REAL(dp), DIMENSION(:,:), INTENT (INOUT) :: fmata,fmatb
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'ufock1', &
+      routineP = moduleN//':'//routineN
+    INTEGER     :: n
+
+    n = SIZE ( pmata,1 )
+
+    CPPrecondition(n<=4,cp_failure_level,routineP,error,failure)
+    IF ( n == 1 ) THEN
+      fmata(1,1) = fmata(1,1) + pmatb(1,1)*gss
+      fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss
+    END IF
+    IF ( n == 4 ) THEN
+      fmata(1,1) = fmata(1,1) + pmatb(1,1)*gss + &
+         (pmata(2,2)+pmata(3,3)+pmata(4,4))*(hsp-gsp) + &
+         (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*hsp
+      fmatb(1,1) = fmatb(1,1) + pmata(1,1)*gss + &
+         (pmatb(2,2)+pmatb(3,3)+pmatb(4,4))*(hsp-gsp) + &
+         (pmata(2,2)+pmata(3,3)+pmata(4,4))*hsp
+      fmata(2,2) = fmata(2,2) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
+         pmatb(2,2)*gpp - (pmata(3,3)+pmata(4,4))*gp2                          
+      fmata(3,3) = fmata(3,3) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
+         pmatb(3,3)*gpp - (pmata(2,2)+pmata(4,4))*gp2                          
+      fmata(4,4) = fmata(4,4) + (pmata(1,1)+pmatb(1,1))*hsp - pmata(1,1)*gsp +&
+         pmatb(4,4)*gpp - (pmata(2,2)+pmata(3,3))*gp2                          
+      fmatb(2,2) = fmatb(2,2) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
+         pmata(2,2)*gpp - (pmatb(3,3)+pmatb(4,4))*gp2                          
+      fmatb(3,3) = fmatb(3,3) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
+         pmata(3,3)*gpp - (pmatb(2,2)+pmatb(4,4))*gp2                          
+      fmatb(4,4) = fmatb(4,4) + (pmata(1,1)+pmatb(1,1))*hsp - pmatb(1,1)*gsp +&
+         pmata(4,4)*gpp - (pmatb(2,2)+pmatb(3,3))*gp2                          
+      fmata(1,2) = fmata(1,2) + (pmata(1,2)+2._dp*pmatb(1,2))*gsp - pmata(1,2)*hsp
+      fmata(2,1) = fmata(1,2)
+      fmata(1,3) = fmata(1,3) + (pmata(1,3)+2._dp*pmatb(1,3))*gsp - pmata(1,3)*hsp
+      fmata(3,1) = fmata(1,3)
+      fmata(1,4) = fmata(1,4) + (pmata(1,4)+2._dp*pmatb(1,4))*gsp - pmata(1,4)*hsp
+      fmata(4,1) = fmata(1,4)
+      fmatb(1,2) = fmatb(1,2) + (pmatb(1,2)+2._dp*pmata(1,2))*gsp - pmatb(1,2)*hsp
+      fmatb(2,1) = fmatb(1,2)
+      fmatb(1,3) = fmatb(1,3) + (pmatb(1,3)+2._dp*pmata(1,3))*gsp - pmatb(1,3)*hsp
+      fmatb(3,1) = fmatb(1,3)
+      fmatb(1,4) = fmatb(1,4) + (pmatb(1,4)+2._dp*pmata(1,4))*gsp - pmatb(1,4)*hsp
+      fmatb(4,1) = fmatb(1,4)
+      fmata(2,3) = fmata(2,3) + (pmata(2,3)+2._dp*pmatb(2,3))*gp2
+      fmata(3,2) = fmata(2,3)
+      fmata(2,4) = fmata(2,4) + (pmata(2,4)+2._dp*pmatb(2,4))*gp2
+      fmata(4,2) = fmata(2,4)
+      fmata(3,4) = fmata(3,4) + (pmata(3,4)+2._dp*pmatb(3,4))*gp2
+      fmata(4,3) = fmata(3,4)
+      fmatb(2,3) = fmatb(2,3) + (pmatb(2,3)+2._dp*pmata(2,3))*gp2
+      fmatb(3,2) = fmatb(2,3)
+      fmatb(2,4) = fmatb(2,4) + (pmatb(2,4)+2._dp*pmata(2,4))*gp2
+      fmatb(4,2) = fmatb(2,4)
+      fmatb(3,4) = fmatb(3,4) + (pmatb(3,4)+2._dp*pmata(3,4))*gp2
+      fmatb(4,3) = fmatb(3,4)
+    END IF
+   
+  END SUBROUTINE ufock1
+
+! *****************************************************************************
+  SUBROUTINE rfock2(sepa,sepb,rij,pa,pb,pab,fa,fb,fab,itype,error)
+    TYPE(semi_empirical_type), INTENT (IN)   :: sepa,sepb
+    REAL(dp), DIMENSION(:), INTENT (IN)      :: rij
+    REAL(dp), DIMENSION(:,:), INTENT (IN)    :: pa,pb,pab
+    REAL(dp), DIMENSION(:,:), INTENT (INOUT) :: fa,fb,fab
+    INTEGER, INTENT (IN)                     :: itype
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'rfock2', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND = dp)                          :: enuc
+    REAL(KIND = dp), DIMENSION(100)          :: wint
+    REAL(KIND = dp), DIMENSION(10)           :: e1b,e2a
+    REAL(KIND = dp), DIMENSION(10)           :: ppa,ppb,ppab
+    INTEGER                                  :: na,nb
+
+    na = SIZE ( pa, 1 )
+    nb = SIZE ( pb, 1 )
+
+    CALL rotint (sepa,sepb,rij,wint,e1b,e2a,enuc,itype)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      fa(1,1) = fa(1,1) + pb(1,1)*wint(1)
+      fb(1,1) = fb(1,1) + pa(1,1)*wint(1)
+      fab(1,1) = fab(1,1) - 0.5_dp * pab(1,1)*wint(1)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
+      CALL contract( pb, ppb )
+      fa(1,1) = fa(1,1) + SUM ( ppb(1:10)*wint(1:10) )
+      ppa(1:10) = pa(1,1)*wint(1:10)
+      CALL expand( fb, ppa )
+      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
+        wint(2)*pab(1,4) + wint(3)*pab(1,2) + wint(7)*pab(1,3) )
+      fab(1,2) = fab(1,2) - 0.5_dp*( wint(4)*pab(1,1) +&
+        wint(5)*pab(1,4) + wint(6)*pab(1,2) + wint(9)*pab(1,3) )
+      fab(1,3) = fab(1,3) - 0.5_dp*( wint(7)*pab(1,1) +&
+        wint(8)*pab(1,4) + wint(9)*pab(1,2) + wint(10)*pab(1,3) )
+      fab(1,4) = fab(1,4) - 0.5_dp*( wint(2)*pab(1,1) +&
+        wint(3)*pab(1,4) + wint(5)*pab(1,2) + wint(8)*pab(1,3) )
+    ELSE IF ( na==4 .AND. nb==1 ) THEN
+      CALL contract( pa, ppa )
+      fb(1,1) = fb(1,1) + SUM ( ppa(1:10)*wint(1:10) )
+      ppb(1:10) = pb(1,1)*wint(1:10)
+      CALL expand( fa, ppb )
+      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
+        wint(2)*pab(4,1) + wint(3)*pab(2,1) + wint(7)*pab(3,1) )
+      fab(2,1) = fab(2,1) - 0.5_dp*( wint(4)*pab(1,1) +&
+        wint(5)*pab(4,1) + wint(6)*pab(2,1) + wint(9)*pab(3,1) )
+      fab(3,1) = fab(3,1) - 0.5_dp*( wint(7)*pab(1,1) +&
+        wint(8)*pab(4,1) + wint(9)*pab(2,1) + wint(10)*pab(3,1) )
+      fab(4,1) = fab(4,1) - 0.5_dp*( wint(2)*pab(1,1) +&
+        wint(3)*pab(4,1) + wint(5)*pab(2,1) + wint(8)*pab(3,1) )
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL contract( pa, ppa )
+      CALL contract( pb, ppb )
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE rfock2
+
+  SUBROUTINE ufock2(sepa,sepb,rij,pa_a,pb_a,pab_a,fa_a,fb_a,fab_a,&
+                    pa_b,pb_b,pab_b,fa_b,fb_b,fab_b,itype,error)
+    TYPE(semi_empirical_type), INTENT (IN)   :: sepa,sepb
+    REAL(dp), DIMENSION(:), INTENT (IN)      :: rij
+    REAL(dp), DIMENSION(:,:), INTENT (IN)    :: pa_a,pb_a,pab_a
+    REAL(dp), DIMENSION(:,:), INTENT (IN)    :: pa_b,pb_b,pab_b
+    REAL(dp), DIMENSION(:,:), INTENT (INOUT) :: fa_a,fb_a,fab_a
+    REAL(dp), DIMENSION(:,:), INTENT (INOUT) :: fa_b,fb_b,fab_b
+    INTEGER, INTENT (IN)                     :: itype
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    REAL(KIND = dp)                          :: enuc
+    REAL(KIND = dp), DIMENSION(100)          :: wint
+    REAL(KIND = dp), DIMENSION(10)           :: e1b,e2a
+
+    LOGICAL                                  :: failure
+    CHARACTER(len=*), PARAMETER :: routineN = 'ufock2', &
+      routineP = moduleN//':'//routineN
+    INTEGER                                  :: na,nb
+
+    na = SIZE ( pa_a, 1 )
+    nb = SIZE ( pb_a, 1 )
+
+    CALL rotint (sepa,sepb,rij,wint,e1b,e2a,enuc,itype)
+
+  END SUBROUTINE ufock2
+
+! *****************************************************************************
+  SUBROUTINE contract ( amat, avec )
+    REAL ( dp ), INTENT ( IN ), DIMENSION (:,:)    :: amat
+    REAL ( dp ), INTENT ( OUT ), DIMENSION (:)     :: avec
+
+    avec( 1) = amat(1,1) 
+    avec( 2) = amat(4,1) + amat(1,4)
+    avec( 3) = amat(4,4) 
+    avec( 4) = amat(2,1) + amat(1,2)
+    avec( 5) = amat(2,4) + amat(4,2)
+    avec( 6) = amat(2,2) 
+    avec( 7) = amat(3,1) + amat(1,3)
+    avec( 8) = amat(3,4) + amat(4,3)
+    avec( 9) = amat(3,2) + amat(2,3)
+    avec(10) = amat(3,3) 
+
+  END SUBROUTINE contract 
+
+  SUBROUTINE expand ( amat, avec )
+    REAL ( dp ), INTENT ( OUT ), DIMENSION (:,:)  :: amat
+    REAL ( dp ), INTENT ( IN ), DIMENSION (:)     :: avec
+
+    amat(1,1) = amat(1,1) + avec( 1)
+    amat(4,1) = amat(4,1) + avec( 2)
+    amat(1,4) = amat(1,4) + avec( 2)
+    amat(4,4) = amat(4,4) + avec( 3)
+    amat(2,1) = amat(2,1) + avec( 4)
+    amat(1,2) = amat(1,2) + avec( 4)
+    amat(2,4) = amat(2,3) + avec( 5)
+    amat(4,2) = amat(4,2) + avec( 5)
+    amat(2,2) = amat(2,2) + avec( 6)
+    amat(3,1) = amat(3,1) + avec( 7)
+    amat(1,3) = amat(1,3) + avec( 7)
+    amat(3,4) = amat(3,4) + avec( 8)
+    amat(4,3) = amat(4,3) + avec( 8)
+    amat(3,2) = amat(3,2) + avec( 9)
+    amat(2,3) = amat(2,3) + avec( 9)
+    amat(3,3) = amat(3,3) + avec(10)
+
+  END SUBROUTINE expand
 
 ! *****************************************************************************
 

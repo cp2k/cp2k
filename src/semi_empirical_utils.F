@@ -105,6 +105,16 @@ CONTAINS
     se_parameter % alp = 0._dp
     se_parameter % eisol = 0._dp
 
+    se_parameter % gss = 0._dp
+    se_parameter % gsp = 0._dp
+    se_parameter % gpp = 0._dp
+    se_parameter % gp2 = 0._dp
+    se_parameter % hsp = 0._dp
+
+    se_parameter % gsd = 0._dp
+    se_parameter % gpd = 0._dp
+    se_parameter % gdd = 0._dp
+
   END SUBROUTINE allocate_se_param
 
 ! *****************************************************************************
@@ -141,7 +151,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,ngauss)
+                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
+                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
 
     TYPE(semi_empirical_type), POINTER     :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -158,6 +169,8 @@ CONTAINS
                    OPTIONAL                :: sto_exponents
     REAL(KIND = dp), OPTIONAL              :: uss,upp,udd,uff
     REAL(KIND = dp), OPTIONAL              :: alp,eisol
+    REAL(KIND = dp), OPTIONAL              :: gss,gsp,gpp,gp2,hsp
+    REAL(KIND = dp), OPTIONAL              :: gsd,gpd,gdd
     INTEGER, INTENT(OUT), OPTIONAL         :: ngauss
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_se_param"
@@ -182,6 +195,14 @@ CONTAINS
       IF (PRESENT(uff)) uff = se_parameter%uff
       IF (PRESENT(alp)) alp = se_parameter%alp
       IF (PRESENT(eisol)) eisol = se_parameter%eisol
+      IF (PRESENT(gss)) gss = se_parameter%gss
+      IF (PRESENT(gsp)) gsp = se_parameter%gsp
+      IF (PRESENT(gpp)) gpp = se_parameter%gpp
+      IF (PRESENT(gp2)) gp2 = se_parameter%gp2
+      IF (PRESENT(hsp)) hsp = se_parameter%hsp
+      IF (PRESENT(gsd)) gsd = se_parameter%gsd
+      IF (PRESENT(gpd)) gpd = se_parameter%gpd
+      IF (PRESENT(gdd)) gdd = se_parameter%gdd
 
     ELSE
 
@@ -269,7 +290,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
-                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,ngauss)
+                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
+                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
 
     TYPE(semi_empirical_type), POINTER     :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -286,6 +308,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL         :: ngauss
     REAL(KIND = dp), OPTIONAL             :: uss,upp,udd,uff
     REAL(KIND = dp), OPTIONAL             :: alp,eisol
+    REAL(KIND = dp), OPTIONAL             :: gss,gsp,gpp,gp2,hsp
+    REAL(KIND = dp), OPTIONAL             :: gsd,gpd,gdd
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_se_param"
 
@@ -309,6 +333,14 @@ CONTAINS
       IF (PRESENT(uff)) se_parameter%uff = uff
       IF (PRESENT(alp)) se_parameter%alp = alp
       IF (PRESENT(eisol)) se_parameter%eisol = eisol
+      IF (PRESENT(gss)) se_parameter%gss = gss
+      IF (PRESENT(gsp)) se_parameter%gsp = gsp
+      IF (PRESENT(gpp)) se_parameter%gpp = gpp
+      IF (PRESENT(gp2)) se_parameter%gp2 = gp2
+      IF (PRESENT(hsp)) se_parameter%hsp = hsp
+      IF (PRESENT(gsd)) se_parameter%gsd = gsd
+      IF (PRESENT(gpd)) se_parameter%gpd = gpd
+      IF (PRESENT(gdd)) se_parameter%gdd = gdd
 
     ELSE
 
@@ -337,6 +369,7 @@ CONTAINS
     INTEGER                                :: ngauss,lm
     INTEGER                                :: output_unit, l
     REAL(KIND = dp)                        :: uss,upp,udd,uff
+    REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
     REAL(KIND = dp), DIMENSION(0:3)        :: u
     REAL(KIND = dp)                        :: alp,eisol,eheat
 
@@ -344,8 +377,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-!   REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
-!   REAL(KIND = dp)                        :: gsd,gpd,gdd
 !   REAL(KIND = dp)                        :: dd,qq,am,ad,aq
 !   REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
 
@@ -356,6 +387,7 @@ CONTAINS
                         z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
                         sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
                         alp=alp,eisol=eisol,&
+                        gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
                         ngauss=ngauss)
       output_unit = globenv%scr
 
@@ -414,6 +446,9 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
+               " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"
@@ -441,6 +476,9 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
+               " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"
@@ -467,6 +505,9 @@ CONTAINS
             WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
                "alp [A^-1]      :",alp/angstrom,&
                "eisol [eV]      :",eisol*evolt
+            WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F7.3)") &
+               "One-centre-two-electron integrals","gss=",gss," gsp=",gsp,&
+               " gpp=",gpp," gp2=",gp2," hsp=",hsp
           ELSE
             WRITE (UNIT=output_unit,FMT="(T55,A)")&
                "Parameters are not defined"

@@ -271,8 +271,12 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        nspins=dft_control%nspins,particle_set=particle_set,&
        para_env=para_env, error=error)
 
-  IF(.NOT. dft_control%qs_control%gapw) THEN
-  ! *** updates rho core ***
+  IF(dft_control%qs_control%gapw) THEN
+    qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+  ELSE IF(dft_control%qs_control%semi_empirical) THEN
+    !??
+  ELSE
+    ! *** updates rho core ***
     CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -280,8 +284,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        CALL calculate_rho_core(qs_env%rho_core, &
             qs_env%qs_charges%total_rho_core_rspace,qs_env,error=error)
     END IF
-  ELSE
-    qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
   END IF
 
   ! *** tell ks_env ***
@@ -354,8 +356,6 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   NULLIFY(dft_control)
   CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
 
-  IF ( dft_control%qs_control%semi_empirical ) RETURN
-
   IF (.NOT.ASSOCIATED(new_pw_env)) THEN
      CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
      CALL set_qs_env(qs_env,pw_env=new_pw_env)
@@ -373,6 +373,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
        DEALLOCATE(rho_core,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
+  ELSE IF (dft_control%qs_control%semi_empirical) THEN
   ELSE
     IF (ASSOCIATED(rho_core)) THEN
        CALL coeff_deallocate(rho_core)

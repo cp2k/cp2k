@@ -50,8 +50,9 @@ MODULE semi_empirical_types
     REAL(KIND = dp)                        :: uss,upp,udd,uff
     REAL(KIND = dp)                        :: alp
     REAL(KIND = dp)                        :: eisol
-    REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
+    REAL(KIND = dp)                        :: gss,gsp,gpp,gp2
     REAL(KIND = dp)                        :: gsd,gpd,gdd
+    REAL(KIND = dp)                        :: hsp
     REAL(KIND = dp)                        :: dd,qq,am,ad,aq
     REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
   END TYPE semi_empirical_type

@@ -348,13 +348,17 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
   IF (.NOT.failure) THEN
      ! get tmp grids
 !!     IF(dft_control%qs_control%gapw) rho_struct%soft_valid = .TRUE. 
-     DO ispin=1,nspins
-        CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
+     IF(dft_control%qs_control%semi_empirical) THEN
+       !
+     ELSE
+       DO ispin=1,nspins
+          CALL calculate_rho_elec(matrix_p=rho_struct%rho_ao(ispin)%matrix,&
              rho=rho_struct%rho_r(ispin),&
              rho_gspace=rho_struct%rho_g(ispin),&
              total_rho=rho_struct%tot_rho_r(ispin),&
              qs_env=qs_env,soft_valid=my_gapw,error=error)
-     END DO
+       END DO
+     END IF
      rho_struct%rho_r_valid=.TRUE.
      rho_struct%rho_g_valid=.TRUE.
 
@@ -373,6 +377,9 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
      ENDIF
   END IF
 END SUBROUTINE qs_rho_update_rho
+
 !***************************************************************************
 
 END MODULE qs_rho_methods
+
+!***************************************************************************

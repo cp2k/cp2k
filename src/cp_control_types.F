@@ -54,6 +54,11 @@ MODULE cp_control_types
      LOGICAL :: fullspace
   END TYPE pw_grid_option
 
+! *** Control parameters for semi empirical calculations
+  TYPE semi_empirical_control_type
+     LOGICAL :: orthogonal_basis
+  END TYPE semi_empirical_control_type
+
 ! *** Control parameters for GAPW method within QUICKSTEP ***
 
   TYPE gapw_control_type
@@ -101,6 +106,7 @@ MODULE cp_control_types
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
     TYPE (mulliken_restraint_type)  :: mulliken_restraint_control
+    TYPE (semi_empirical_control_type)  :: se_control
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE (gapw_control_type), POINTER :: gapw_control
@@ -196,8 +202,9 @@ MODULE cp_control_types
   PUBLIC :: dft_control_type, xc_grid_type,&
             qs_control_type,&
             gapw_control_type,&
-            wave_control_type, tddfpt_control_type, &
-            pw_grid_option, xc_control_type, mulliken_restraint_type
+            wave_control_type, tddfpt_control_type,&
+            pw_grid_option, xc_control_type, mulliken_restraint_type,&
+            semi_empirical_control_type
 
 ! *** Public parameters ***
 
@@ -420,6 +427,7 @@ SUBROUTINE qs_control_init(qs_control, error)
 
   NULLIFY(qs_control%e_cutoff)
   NULLIFY(qs_control%gapw_control)
+  CALL se_control_init(qs_control%se_control, error=error)
 END SUBROUTINE qs_control_init
 
 SUBROUTINE qs_control_dealloc_ref(qs_control, error)
@@ -512,5 +520,14 @@ SUBROUTINE xc_control_dealloc_ref(xc_control, error)
       OPTIONAL                               :: error
 
 END SUBROUTINE xc_control_dealloc_ref
+
+SUBROUTINE se_control_init(se_control, error)
+    TYPE(semi_empirical_control_type), INTENT(out)       :: se_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    se_control%orthogonal_basis = .FALSE.
+
+END SUBROUTINE se_control_init
 
 END MODULE cp_control_types

@@ -648,7 +648,6 @@ CONTAINS
     sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
     sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
 
-
     SELECT CASE (z)
       CASE DEFAULT
         CALL stop_program(routine_name,module_name,__LINE__,&
@@ -807,7 +806,6 @@ CONTAINS
         sep%fn1(1) = 0.2809620_dp; sep%fn2(1) = 5.0000000_dp; sep%fn3(1) = 0.8479180_dp
         sep%fn1(2) = 0.0814300_dp; sep%fn2(2) = 7.0000000_dp; sep%fn3(2) = 1.4450710_dp
       CASE (9)
-      CASE (10)
       !Fluorine
         sep%defined = .TRUE.
         sep%alp   =    5.5178000_dp
@@ -830,6 +828,7 @@ CONTAINS
         sep%hsp   =    4.8300000_dp
         sep%fn1(1) = 0.2420790_dp; sep%fn2(1) = 4.8000000_dp; sep%fn3(1) = 0.9300000_dp
         sep%fn1(2) = 0.0036070_dp; sep%fn2(2) = 4.6000000_dp; sep%fn3(2) = 1.6600000_dp
+      CASE (10)
       CASE (11)
         !Sodium
         sep%defined = .TRUE.

@@ -37,7 +37,7 @@ MODULE semi_empirical_integrals
 CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE rotint (sepi,sepj,rijv,w,kr,e1b,e2a,enuc,itype)
+  SUBROUTINE rotint (sepi,sepj,rijv,w,e1b,e2a,enuc,itype)
   !
   ! routine adapted from mopac7 (rotate)
   ! written by Ernest R. Davidson, Indiana University.
@@ -60,10 +60,9 @@ CONTAINS
   !***********************************************************************
 
       TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
-      REAL ( dp ), DIMENSION (3),INTENT ( IN )         :: rijv
-      INTEGER, INTENT ( INOUT )                        :: kr
+      REAL ( dp ), DIMENSION (:),INTENT ( IN )         :: rijv
       REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: w,e1b,e2a
-      REAL ( dp )                                      :: enuc
+      REAL ( dp ), INTENT ( OUT )                      :: enuc
       INTEGER, INTENT ( IN )                           :: itype
 
       REAL ( dp ), DIMENSION (22)  :: ri
@@ -88,9 +87,9 @@ CONTAINS
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
       IF (rij < 0.00002_dp) THEN
          ! SMALL RIJ CASE
-         e1b(1:10)=0._dp
-         e2a(1:10)=0._dp
-         w(kr)=0._dp
+         e1b(:)=0._dp
+         e2a(:)=0._dp
+         w(:)=0._dp
          enuc=0._dp
  
       ELSE
@@ -166,7 +165,6 @@ CONTAINS
  
 !     (S S/S S)
          W(1)=RI(1)
-         KI = 1
          IF (SJ) THEN
 !     (S S/PX S)
             W(2)=RI(5)*X(1)
@@ -186,7 +184,6 @@ CONTAINS
             W(9)=RI(11)*XX32+RI(12)*ZZ32
 !     (S S/PZ PZ)
             W(10)=RI(11)*XX33+RI(12)*ZZ33
-            KI = 10
          ENDIF
  
          IF (SI) THEN
@@ -558,7 +555,6 @@ CONTAINS
             (RI(16)*XX33+RI(17)*ZZ33)*XX33 &
            +(RI(18)*XX33+RI(19)*ZZ33)*ZZ33 &
            +RI(20)*XZ33*XZ33
-               KI = 100
             ELSE
 !     (PX S/S S)
                W(2)=RI(2)*X(1)
@@ -578,45 +574,44 @@ CONTAINS
                W(9)=RI(3)*XX32+RI(4)*ZZ32
 !     (PZ PZ/S S)
                W(10)=RI(3)*XX33+RI(4)*ZZ33
-               KI = 10
             END IF
          END IF
  
          ! Now rotate the nuclear attraction integrals.
          ! The storage of the nuclear attraction integrals  core(kl/ij) is
          ! (SS/)=1,   (SO/)=2,   (OO/)=3,   (PP/)=4
-         CSS1  = CCORE(1,1)
-         CSP1  = CCORE(2,1)
-         CPPS1 = CCORE(3,1)
-         CPPP1 = CCORE(4,1)
-         CSS2  = CCORE(1,2)
-         CSP2  = CCORE(2,2)
-         CPPS2 = CCORE(3,2)
-         CPPP2 = CCORE(4,2)
+         css1  = ccore(1,1)
+         csp1  = ccore(2,1)
+         cpps1 = ccore(3,1)
+         cppp1 = ccore(4,1)
+         css2  = ccore(1,2)
+         csp2  = ccore(2,2)
+         cpps2 = ccore(3,2)
+         cppp2 = ccore(4,2)
  
-         E1B(1)=-CSS1
+         e1b(1)=-css1
          IF(sepi%natorb == 4) THEN
-            E1B(2) = -CSP1 *X(1)
-            E1B(3) = -CPPS1*XX11-CPPP1*YYZZ11
-            E1B(4) = -CSP1 *X(2)
-            E1B(5) = -CPPS1*XX21-CPPP1*YYZZ21
-            E1B(6) = -CPPS1*XX22-CPPP1*YYZZ22
-            E1B(7) = -CSP1 *X(3)
-            E1B(8) = -CPPS1*XX31-CPPP1*ZZ31
-            E1B(9) = -CPPS1*XX32-CPPP1*ZZ32
-            E1B(10)= -CPPS1*XX33-CPPP1*ZZ33
+            e1b(2) = -csp1 *x(1)
+            e1b(3) = -cpps1*xx11-cppp1*yyzz11
+            e1b(4) = -csp1 *x(2)
+            e1b(5) = -cpps1*xx21-cppp1*yyzz21
+            e1b(6) = -cpps1*xx22-cppp1*yyzz22
+            e1b(7) = -csp1 *x(3)
+            e1b(8) = -cpps1*xx31-cppp1*zz31
+            e1b(9) = -cpps1*xx32-cppp1*zz32
+            e1b(10)= -cpps1*xx33-cppp1*zz33
          END IF
-         E2A(1)=-CSS2
+         e2a(1)=-css2
          IF(sepj%natorb == 4) THEN
-            E2A(2) = -CSP2 *X(1)
-            E2A(3) = -CPPS2*XX11-CPPP2*YYZZ11
-            E2A(4) = -CSP2 *X(2)
-            E2A(5) = -CPPS2*XX21-CPPP2*YYZZ21
-            E2A(6) = -CPPS2*XX22-CPPP2*YYZZ22
-            E2A(7) = -CSP2 *X(3)
-            E2A(8) = -CPPS2*XX31-CPPP2*ZZ31
-            E2A(9) = -CPPS2*XX32-CPPP2*ZZ32
-            E2A(10)= -CPPS2*XX33-CPPP2*ZZ33
+            e2a(2) = -csp2 *x(1)
+            e2a(3) = -cpps2*xx11-cppp2*yyzz11
+            e2a(4) = -csp2 *x(2)
+            e2a(5) = -cpps2*xx21-cppp2*yyzz21
+            e2a(6) = -cpps2*xx22-cppp2*yyzz22
+            e2a(7) = -csp2 *x(3)
+            e2a(8) = -cpps2*xx31-cppp2*zz31
+            e2a(9) = -cpps2*xx32-cppp2*zz32
+            e2a(10)= -cpps2*xx33-cppp2*zz33
          END IF
 
          rij = rij
@@ -653,9 +648,6 @@ CONTAINS
          ENDIF
          enuc=enuc+scale
  
-         IF(sepi%natorb*sepi%natorb == 0) ki=0
-         kr=kr+ki
- 
       ENDIF
 
   END SUBROUTINE rotint
@@ -690,19 +682,22 @@ CONTAINS
 
       TYPE ( semi_empirical_type ), INTENT ( IN )      :: sepi, sepj
       REAL ( dp ), INTENT ( IN )                       :: rij
-      REAL ( dp ), DIMENSION (22), INTENT ( OUT )      :: ri
-      REAL ( dp ), DIMENSION (4,2),INTENT ( OUT )      :: core
+      REAL ( dp ), DIMENSION (:), INTENT ( OUT )       :: ri
+      REAL ( dp ), DIMENSION (:,:),INTENT ( OUT )      :: core
 
       LOGICAL        :: si,sj
       REAL ( dp )    :: r
       REAL ( dp )    :: ami,amj,adi,adj,aqi,aqj
       REAL ( dp )    :: zi,zj,ddi,ddj,qqi,qqj
-      REAL ( dp )    :: aee,da,qa,ade,aqe,rsq,xxx,ee,db,qb,aed,aeq,&
-                        axx,adq,aqd,aqq,yyy,zzz,www,&
+      REAL ( dp )    :: aee,da,qa,ade,aqe,rsq,ee,db,qb,aed,aeq,&
+                        axx,adq,aqd,aqq,xxx,yyy,zzz,www,&
                         dze,qzze,qxxe,edz,eqzz,eqxx,dxdx,dzdz,dzqxx,&
                         qxxdz,dzqzz,qzzdz,qxxqxx,qxxqyy,qxxqzz,qzzqxx,&
                         qzzqzz,dxqxz,qxzdx,qxzqxz
       REAL ( dp ), DIMENSION ( 72 ) :: arg,sqr
+!deb
+      REAL ( dp )    :: ev
+!deb
 
       ri = 0._dp
       core = 0._dp
@@ -813,11 +808,18 @@ CONTAINS
          !  heavy atom - heavy atom
          !
          !  define charge separations.
-         da=sepi%dd
-         db=sepj%dd
-         qa=sepi%qq * 2._dp
-         qb=sepj%qq * 2._dp
+         da=ddi
+         db=ddj
+         qa=qqi * 2._dp
+         qb=qqj * 2._dp
  
+         ami = sepi%am
+         amj = sepj%am
+         adi = sepi%ad
+         adj = sepj%ad
+         aqi = sepi%aq
+         aqj = sepj%aq
+
          aee = 0.5_dp/ami + 0.5_dp/amj
          aee = aee * aee
          ade = 0.5_dp/adi + 0.5_dp/amj
@@ -842,7 +844,7 @@ CONTAINS
          arg(2) = xxx * xxx + ade
          xxx = r - da
          arg(3) = xxx*xxx + ade
-         xxx = r - qA
+         xxx = r - qa
          arg(4) = xxx*xxx + aqe
          xxx = r + qa
          arg(5) = xxx*xxx + aqe

@@ -960,14 +960,16 @@ CONTAINS
     ortho => scf_env%ortho
 
 ! update ecore
-    CALL calculate_ecore_self(qs_env)
-    CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
-    IF (ionode.AND.logger%print_keys%scf_energies) THEN
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-            "Overlap energy of the core charge distribution:",&
-            qs_env%energy%core_overlap,&
-            "Self energy of the core charge distribution:   ",&
-            qs_env%energy%core_self
+    IF ( .NOT. dft_control%qs_control%semi_empirical ) THEN
+      CALL calculate_ecore_self(qs_env)
+      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces)
+      IF (ionode.AND.logger%print_keys%scf_energies) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+              "Overlap energy of the core charge distribution:",&
+              qs_env%energy%core_overlap,&
+              "Self energy of the core charge distribution:   ",&
+              qs_env%energy%core_self
+      END IF
     END IF
 
 ! updates the total number of electrons
@@ -994,7 +996,9 @@ CONTAINS
 
 ! calc ortho matrix
     ndep = 0
-    IF (scf_env%method /= ot_method_nr) THEN
+    IF (scf_env%method /= ot_method_nr .AND. &
+        ( .NOT. dft_control%qs_control%semi_empirical .OR. &
+          .NOT. dft_control%qs_control%se_control%orthogonal_basis ) ) THEN
        IF (scf_control%use_cholesky ) THEN
           CALL copy_sm_to_fm(matrix_s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
@@ -1047,7 +1051,8 @@ CONTAINS
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
        
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
-             ! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
+             ! constuct the preconditioner based on the first spin set. 
+             ! this might or might not be reasonable. Presumably it is.
              CALL get_mo_set(mo_set=mos(1)%mo_set,&
                   eigenvectors=mo_eigenvectors)
              CALL make_preconditioner(scf_env%ot_preconditioner, &
