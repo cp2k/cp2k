@@ -789,7 +789,7 @@ SUBROUTINE input_distance_constraints ( constraint_distance, set_fn )
         WRITE ( iw, '( A )' ) ' FORCE FIELD| Distance constraints '
         DO i = 1, nb
           IF ( constraint_distance ( i ) /= 0.0_dbl ) THEN
-            WRITE ( iw, '( A, T30, A, T37, I, T71, F10.4 )' ) &
+            WRITE ( iw, '( A, T30, A, T37, I6, T71, F10.4 )' ) &
               ' FORCE FIELD| Constraint: ', ' distcon nr. ',i, &
                       constraint_distance ( i )
           END IF
