@@ -545,7 +545,7 @@ CONTAINS
           END DO
         END IF
         IF (pao) THEN
-           CALL cp_get(atomic_kind%pao_bas_proj,&
+           CALL cp_proj_get(atomic_kind%pao_bas_proj,&
                 size_min_bas=p_min_bas,&
                 size_excl_bas=p_excl_bas, size_full_bas=p_full_bas)
            p_min_bas_max=MAX(p_min_bas_max,p_min_bas)
