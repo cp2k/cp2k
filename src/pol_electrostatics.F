@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pol_electrostatics [1.0] *
+!!****** cp2k/pol_electrostatics_ao [1.0] *
 !!
 !!   NAME
-!!     pol_electrostatics
+!!     pol_electrostatics   
 !!
 !!   FUNCTION
 !!
@@ -17,7 +17,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE pol_electrostatics
+MODULE pol_electrostatics    
 
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
        coeff_deallocate, coeff_zero, coeff_transform_space, &
@@ -39,7 +39,7 @@ MODULE pol_electrostatics
   USE pw_types, ONLY :  pw_type, pw_add, pw_allocate, pw_copy, pw_deallocate
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
        rs_grid_deallocate, rs_grid_setup, rs_pw_transfer
-  USE simulation_cell, ONLY : cell_type, get_hinv
+  USE simulation_cell, ONLY : cell_type
   USE structure_factors, ONLY : structure_factor_allocate, &
        structure_factor_deallocate
   USE structure_factor_types, ONLY : structure_factor_type
@@ -57,7 +57,7 @@ MODULE pol_electrostatics
 CONTAINS
 
 !******************************************************************************
-!!****** pol_electrostatics/electrostatics [1.0] *
+!!****** pol_electrostatics_ao/electrostatics [1.0] *
 !!
 !!   NAME
 !!     electrostatics
@@ -93,8 +93,8 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 
 ! Locals
   INTEGER :: handle
-  INTEGER :: ig, allocstat, ngrids
-  INTEGER :: npart, ncoef, gt, i
+  INTEGER :: ig, igtot, allocstat, ngrids
+  INTEGER :: npart, ncoef, gt, i, ngt
   TYPE ( realspace_grid_type ) :: rho0_rs, drpot1 ( 3 )
   TYPE ( realspace_grid_type ) :: drho_rs, drpot2 ( 3 )
   TYPE ( realspace_grid_type ) :: phi1_rs, phi2_rs
@@ -106,6 +106,7 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
   TYPE ( coeff_type ) :: rho0_ref, drho_ref, coeff_dummy 
   REAL ( dbl ) :: inv_fourpi_eps0
   REAL ( dbl ) :: e_rho0_rho0, e_drho_rho0, e_drho_drho
+  LOGICAL :: first_time, match
 
 !------------------------------------------------------------------------------
 
@@ -114,19 +115,18 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 ! allocating the structure factor vector to the number of grid_types
   ngrids = SIZE ( dg_coef )
   ALLOCATE ( exp_igr_coef ( ngrids ), STAT=allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics", &
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics_ao", &
    "exp_igr_coef", ngrids )
 
   ngrids = SIZE ( dg_part )
   ALLOCATE ( exp_igr_part ( ngrids ), STAT=allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics", &
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics_ao", &
    "exp_igr_part", ngrids )
-
   DO ig = 1, SIZE ( dg_coef )
 
     ncoef = dg_coef ( ig ) % ncoefs
 
-    gt = dg_coef (ig)% grid_index
+    gt = dg_coef ( ig )% grid_index
 
     CALL structure_factor_allocate ( grid_s ( gt ) % bounds, ncoef,  &
           exp_igr_coef ( ig ), allocate_centre = .TRUE. )
@@ -160,105 +160,122 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 
 !-------------- DENSITY CALCULATION ---------------------
 
-  DO ig = 1, SIZE ( dg_coef )   ! DRHO
-  
-    gt = dg_coef ( ig ) % grid_index
+  ngt = SIZE ( grid_b )
 
+! coefficients
+  DO gt = 1, ngt
+    first_time = .TRUE.
+    igtot = SIZE ( dg_coef )
+    IF ( igtot == 0 ) EXIT
+    match = .FALSE.
+    DO ig = 1, igtot
+      IF ( gt == dg_coef ( ig ) % grid_index ) THEN
+        match = .TRUE.
+        IF ( first_time ) THEN
 ! Allocate small coefficient types
-    CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
-    CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
+          CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
+          CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 
 ! Allocate large real-space structure based on grid_b
-    CALL rs_grid_setup ( drho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
-    CALL rs_grid_allocate ( drho_rs )
-    drho_rs % r = 0._dbl
-
-! Parrallelization
-    IF (  drho_rs % parallel .AND. drho_rs % group_dim ( 1 ) /= 1 )  THEN
-      CALL get_center ( part, box, exp_igr_coef ( ig ) % centre, &
+          CALL rs_grid_setup ( drho_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_allocate ( drho_rs )
+          drho_rs % r = 0._dbl
+          first_time = .FALSE.
+        ENDIF
+        IF (  drho_rs % parallel .AND. drho_rs % group_dim ( 1 ) /= 1 )  THEN
+          CALL get_center ( part, box, exp_igr_coef ( ig ) % centre, &
                         grid_b ( gt ) % npts )
-    END IF
-
+        END IF
 ! Get density drho
-    CALL drho_evaluate ( dg_coef ( ig ), drho_rs, part, coeff, box,  &
-              exp_igr_coef ( ig ), grid_s ( gt ), grid_b ( gt ), rhos1, rhos2 ) 
-
+        CALL drho_evaluate ( dg_coef ( ig ), drho_rs, part, coeff, box,  &
+                  exp_igr_coef ( ig ), grid_s ( gt ), grid_b ( gt ), rhos1, rhos2 ) 
+      ELSE
+        CYCLE
+      ENDIF
+    ENDDO
 ! Allocate large coefficient structure based on grid_b  
-    CALL coeff_allocate ( drhob_r, grid_b ( gt ), use_data = PW_COMPLEXDATA3D )
-    CALL coeff_allocate ( drhob_g, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+    IF ( match ) THEN
+      CALL coeff_allocate ( drhob_r, grid_b ( gt ), use_data = PW_COMPLEXDATA3D )
+      CALL coeff_allocate ( drhob_g, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
 
-    drhob_r % pw % in_space = PW_REALSPACE
+      drhob_r % pw % in_space = PW_REALSPACE
 
 ! Transfer from real-space -> coefficient_type
-    CALL rs_pw_transfer ( drho_rs, drhob_r % pw, "FORWARD" )
+      CALL rs_pw_transfer ( drho_rs, drhob_r % pw, "FORWARD" )
  
 ! DO FFT from drhob_r => drhob_g 
-    CALL coeff_transform_space ( drhob_r, drhob_g )
+      CALL coeff_transform_space ( drhob_r, drhob_g )
 
 ! Copy present drho_ref to coeff_dummy
-    CALL pw_copy ( drho_ref % pw, coeff_dummy % pw )
+      CALL pw_copy ( drho_ref % pw, coeff_dummy % pw )
 
 ! Sum to the reference grid
-    CALL pw_add ( drhob_g % pw, coeff_dummy % pw, drho_ref % pw )
-
+      CALL pw_add ( drhob_g % pw, coeff_dummy % pw, drho_ref % pw )
 ! do a little cleaning
-    CALL coeff_deallocate ( drhob_g )
-    CALL coeff_deallocate ( drhob_r )
-    CALL rs_grid_deallocate ( drho_rs )
-    CALL coeff_deallocate ( rhos2 )
-    CALL coeff_deallocate ( rhos1 )
-
+      CALL coeff_deallocate ( drhob_g )
+      CALL coeff_deallocate ( drhob_r )
+      CALL rs_grid_deallocate ( drho_rs )
+      CALL coeff_deallocate ( rhos2 )
+      CALL coeff_deallocate ( rhos1 )
+    ENDIF
   ENDDO
 
-  DO ig = 1, SIZE ( dg_part )  ! RHO0
-  
-    gt = dg_part ( ig ) % grid_index
-
+! particles
+  DO gt = 1, ngt
+    first_time = .TRUE.
+    igtot = SIZE ( dg_part )
+    IF ( igtot == 0 ) EXIT
+    match = .FALSE.
+    DO ig = 1, igtot
+      IF ( gt == dg_part ( ig ) % grid_index ) THEN
+        match = .TRUE.
+        IF ( first_time ) THEN
 ! Allocate small coefficient types
-    CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
-    CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
+          CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
+          CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
 
 ! Allocate large real-space structure based on grid_b
-    CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), grid_s ( gt ) % npts )
-
-    CALL rs_grid_allocate ( rho0_rs )
-
-    rho0_rs % r = 0._dbl
-
-! Parrallelization
-    IF (  rho0_rs % parallel .AND. rho0_rs % group_dim ( 1 ) /= 1 )  THEN
-      CALL get_center ( part, box, exp_igr_part ( ig ) % centre, grid_b ( gt ) % npts )
-    END IF
-
-! Get density rho0
-    CALL rho0_evaluate ( dg_part ( ig ), rho0_rs, part, box, exp_igr_part ( ig ), &
+          CALL rs_grid_setup ( rho0_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+          CALL rs_grid_allocate ( rho0_rs )
+          rho0_rs % r = 0._dbl
+          first_time = .FALSE.
+        ENDIF
+        IF (  rho0_rs % parallel .AND. rho0_rs % group_dim ( 1 ) /= 1 )  THEN
+          CALL get_center ( part, box, exp_igr_part ( ig ) % centre, &
+                        grid_b ( gt ) % npts )
+        END IF
+! Get density drho
+        CALL rho0_evaluate ( dg_part ( ig ), rho0_rs, part, box, exp_igr_part ( ig ), &
                              grid_s ( gt ), grid_b ( gt ), rhos1, rhos2 ) 
+      ELSE
+        CYCLE
+      ENDIF
+    ENDDO
+    IF ( match ) THEN
+! Allocate large coefficient structure based on grid_b  
+      CALL coeff_allocate ( rho0b_r, grid_b ( gt ), use_data = PW_COMPLEXDATA3D )
+      CALL coeff_allocate ( rho0b_g, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
 
-! Allocate large coefficient structure based on grid_b
-    CALL coeff_allocate ( rho0b_r, grid_b ( gt ), use_data = PW_COMPLEXDATA3D )
-    CALL coeff_allocate ( rho0b_g, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-
-    rho0b_r % pw % in_space = PW_REALSPACE
+      rho0b_r % pw % in_space = PW_REALSPACE
 
 ! Transfer from real-space -> coefficient_type
-    CALL rs_pw_transfer ( rho0_rs, rho0b_r % pw, "FORWARD" )
+      CALL rs_pw_transfer ( rho0_rs, rho0b_r % pw, "FORWARD" )
  
 ! DO FFT from rho0b_r => rho0b_g 
-    CALL coeff_transform_space ( rho0b_r, rho0b_g )
+      CALL coeff_transform_space ( rho0b_r, rho0b_g )
 
-! Copy present rho0_ref to coeff_dummy
-    CALL pw_copy ( rho0_ref % pw, coeff_dummy % pw )
+! Copy present rho_ref to coeff_dummy
+      CALL pw_copy ( rho0_ref % pw, coeff_dummy % pw )
 
 ! Sum to the reference grid
-    CALL pw_add ( rho0b_g % pw, coeff_dummy % pw, rho0_ref % pw )
-
+      CALL pw_add ( rho0b_g % pw, coeff_dummy % pw, rho0_ref % pw )
 ! do a little cleaning
-    CALL coeff_deallocate ( rho0b_g )
-    CALL coeff_deallocate ( rho0b_r )
-    CALL rs_grid_deallocate ( rho0_rs )
-    CALL coeff_deallocate ( rhos2 )
-    CALL coeff_deallocate ( rhos1 )
-
+      CALL coeff_deallocate ( rho0b_g )
+      CALL coeff_deallocate ( rho0b_r )
+      CALL rs_grid_deallocate ( rho0_rs )
+      CALL coeff_deallocate ( rhos2 )
+      CALL coeff_deallocate ( rhos1 )
+    ENDIF
   ENDDO
 
   CALL coeff_deallocate ( coeff_dummy )
@@ -296,160 +313,183 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
 !-------------- FORCE CALCULATION ---------------------
 
   IF ( PRESENT ( f_coef ) )  THEN 
-    DO ig = 1, SIZE ( dg_coef )  ! DRHO
-      gt = dg_coef ( ig ) % grid_index
-
+    DO gt = 1, ngt
+      first_time = .TRUE.
+      igtot = SIZE ( dg_coef )
+      IF ( igtot == 0 ) EXIT
+      match = .FALSE.
+      DO ig = 1, igtot
+        IF ( gt == dg_coef ( ig ) % grid_index ) THEN
+          match = .TRUE. 
+          IF ( first_time ) THEN
 ! set up real-space structure for the derivative of the potential
 ! on the reference grid
-      CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
-      CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
 
-      CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
-      CALL rs_grid_allocate ( drpot2 ( 1 : 3 ) )
+            CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
+            CALL rs_grid_allocate ( drpot2 ( 1 : 3 ) )
 
 ! Create real_space structure of phi1_r and phi2_r to use in the
 ! force calculation sum_patch_force only acts on real_space types
 
-      CALL rs_grid_setup ( phi1_rs, grid_b ( gt ), grid_s ( gt ) % npts )
-      CALL rs_grid_setup ( phi2_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( phi1_rs, grid_b ( gt ), grid_s ( gt ) % npts )
+            CALL rs_grid_setup ( phi2_rs, grid_b ( gt ), grid_s ( gt ) % npts )
 
-      CALL rs_grid_allocate ( phi1_rs )
-      CALL rs_grid_allocate ( phi2_rs )
+            CALL rs_grid_allocate ( phi1_rs )
+            CALL rs_grid_allocate ( phi2_rs )
 
-      CALL coeff_allocate ( phi1_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-      phi1_r % pw % in_space = PW_RECIPROCALSPACE
+            CALL coeff_allocate ( phi1_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+            phi1_r % pw % in_space = PW_RECIPROCALSPACE
 
-      CALL coeff_allocate ( phi2_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-      phi2_r % pw % in_space = PW_RECIPROCALSPACE
+            CALL coeff_allocate ( phi2_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+            phi2_r % pw % in_space = PW_RECIPROCALSPACE
 
 ! reallocate coeff with REALDATA3D to use as a dummy variable
 ! to transfer dphi -> drpot and phi_r -> phi_rs
-      CALL coeff_allocate ( coeff_dummy , grid_b ( gt ), use_data = PW_REALDATA3D )
-      coeff_dummy % pw % in_space = PW_REALSPACE
+            CALL coeff_allocate ( coeff_dummy , grid_b ( gt ), use_data = PW_REALDATA3D )
+            coeff_dummy % pw % in_space = PW_REALSPACE
 
 ! allocate intermediate coefficient arrays on the reference grid for
 ! the derivative of the potential due to rho0 and drho separately
-      DO i = 1, 3
-         CALL coeff_allocate ( dphi1_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-         dphi1_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+            DO i = 1, 3
+               CALL coeff_allocate ( dphi1_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+               dphi1_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
  
-         CALL coeff_allocate ( dphi2_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-         dphi2_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
-      END DO
+               CALL coeff_allocate ( dphi2_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+               dphi2_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+            END DO
 
+            CALL calculate_hartree ( rho0_ref, vhartree = phi1_r, dvhartree = dphi1_g )
 
-      CALL calculate_hartree ( rho0_ref, vhartree = phi1_r, dvhartree = dphi1_g )
+            CALL calculate_hartree ( drho_ref, vhartree = phi2_r, dvhartree = dphi2_g )
 
-      CALL calculate_hartree ( drho_ref, vhartree = phi2_r, dvhartree = dphi2_g )
+            CALL coeff_transform_space ( phi1_r, coeff_dummy )
+            CALL rs_pw_transfer ( phi1_rs, coeff_dummy % pw, "BACKWARD" )
 
-      CALL coeff_transform_space ( phi1_r, coeff_dummy )
-      CALL rs_pw_transfer ( phi1_rs, coeff_dummy % pw, "BACKWARD" )
+            CALL coeff_transform_space ( phi2_r, coeff_dummy )
+            CALL rs_pw_transfer ( phi2_rs, coeff_dummy % pw, "BACKWARD" )
 
-      CALL coeff_transform_space ( phi2_r, coeff_dummy )
-      CALL rs_pw_transfer ( phi2_rs, coeff_dummy % pw, "BACKWARD" )
+            DO i = 1, 3
+               CALL coeff_transform_space ( dphi2_g ( i ), coeff_dummy )
+               CALL coeff_deallocate ( dphi2_g ( i ) )
+               CALL rs_pw_transfer ( drpot2 ( i ), coeff_dummy % pw, "BACKWARD" )
+            END DO
 
+            DO i = 1, 3
+               CALL coeff_transform_space ( dphi1_g ( i ), coeff_dummy )
+               CALL coeff_deallocate ( dphi1_g ( i ) )
+               CALL rs_pw_transfer ( drpot1 ( i ), coeff_dummy % pw, "BACKWARD" )
+            END DO
+            CALL coeff_deallocate ( coeff_dummy )
 
-      DO i = 1, 3
-         CALL coeff_transform_space ( dphi2_g ( i ), coeff_dummy )
-         CALL coeff_deallocate ( dphi2_g ( i ) )
-         CALL rs_pw_transfer ( drpot2 ( i ), coeff_dummy % pw, "BACKWARD" )
-      END DO
-
-      DO i = 1, 3
-         CALL coeff_transform_space ( dphi1_g ( i ), coeff_dummy )
-         CALL coeff_deallocate ( dphi1_g ( i ) )
-         CALL rs_pw_transfer ( drpot1 ( i ), coeff_dummy % pw, "BACKWARD" )
-      END DO
-
-      CALL coeff_deallocate ( coeff_dummy )
-
-      CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
-      CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
-
+            CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
+            CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
+            first_time = .FALSE.
+          ENDIF
 ! force on coefs and ions
-      CALL force_coef_evaluate ( dg_coef ( ig ), drpot1, drpot2, phi1_rs,  &
-           phi2_rs, part, coeff, f_part, f_coef, box, rhos1, rhos2,  &
-           exp_igr_coef ( ig ), grid_s ( gt ), ewald_param )
-
+          CALL force_coef_evaluate ( dg_coef ( ig ), drpot1, drpot2, phi1_rs,  &
+          phi2_rs, part, coeff, f_part, f_coef, box, rhos1, rhos2,  &
+          exp_igr_coef ( ig ), grid_s ( gt ), ewald_param )
+          CALL structure_factor_deallocate ( exp_igr_coef ( ig ) )
+        ELSE
+         CYCLE
+        ENDIF
+      ENDDO
 ! clean up
-      CALL coeff_deallocate ( rhos2 )
-      CALL coeff_deallocate ( rhos1 )
-      CALL coeff_deallocate ( phi2_r )
-      CALL coeff_deallocate ( phi1_r )
-      CALL rs_grid_deallocate ( phi2_rs )
-      CALL rs_grid_deallocate ( phi1_rs )
-      CALL rs_grid_deallocate ( drpot2 ( 1 : 3 ) )
-      CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
-      CALL structure_factor_deallocate ( exp_igr_coef ( ig ) )
+      IF ( match ) THEN
+        CALL coeff_deallocate ( rhos2 )
+        CALL coeff_deallocate ( rhos1 )
+        CALL coeff_deallocate ( phi2_r )
+        CALL coeff_deallocate ( phi1_r )
+        CALL rs_grid_deallocate ( phi2_rs )
+        CALL rs_grid_deallocate ( phi1_rs )
+        CALL rs_grid_deallocate ( drpot2 ( 1 : 3 ) )
+        CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
+      ENDIF
     ENDDO
   ENDIF 
-
+ 
   IF ( PRESENT ( f_part ) ) THEN
-    DO ig = 1, SIZE ( dg_part )  ! RHO0
-      gt = dg_part ( ig ) % grid_index
+    DO gt = 1, ngt
+      first_time = .TRUE.
+      igtot = SIZE ( dg_part )
+      IF ( igtot == 0 ) EXIT
+      match = .FALSE. 
+      DO ig = 1, igtot 
+        IF ( gt == dg_part ( ig ) % grid_index ) THEN
+          match = .TRUE.
+          IF ( first_time ) THEN
 
 ! set up real-space structure for the derivative of the potential
 ! on the reference grid
-      CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
-      CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
+             CALL rs_grid_setup ( drpot1, grid_b ( gt ) , grid_s ( gt ) % npts )
+             CALL rs_grid_setup ( drpot2, grid_b ( gt ) , grid_s ( gt ) % npts )
 
-      CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
-      CALL rs_grid_allocate ( drpot2 ( 1 : 3 ) )
+             CALL rs_grid_allocate ( drpot1 ( 1 : 3 ) )
+             CALL rs_grid_allocate ( drpot2 ( 1 : 3 ) )
 
-      CALL coeff_allocate ( phi1_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-      phi1_r % pw % in_space = PW_RECIPROCALSPACE
+             CALL coeff_allocate ( phi1_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+             phi1_r % pw % in_space = PW_RECIPROCALSPACE
 
-      CALL coeff_allocate ( phi2_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-      phi2_r % pw % in_space = PW_RECIPROCALSPACE
+             CALL coeff_allocate ( phi2_r, grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+             phi2_r % pw % in_space = PW_RECIPROCALSPACE
 
 ! reallocate coeff with REALDATA3D to use as a dummy variable
 ! to transfer dphi -> drpot
-      CALL coeff_allocate ( coeff_dummy , grid_b ( gt ), use_data = PW_REALDATA3D )
-      coeff_dummy % pw % in_space = PW_REALSPACE
+             CALL coeff_allocate ( coeff_dummy , grid_b ( gt ), use_data = PW_REALDATA3D )
+             coeff_dummy % pw % in_space = PW_REALSPACE
 
 ! allocate intermediate coefficient arrays on the reference grid for
 ! the derivative of the potential due to rho0 and drho separately
-      DO i = 1, 3
-         CALL coeff_allocate ( dphi1_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-         dphi1_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+             DO i = 1, 3
+                CALL coeff_allocate ( dphi1_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+                dphi1_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
  
-         CALL coeff_allocate ( dphi2_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
-         dphi2_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
-      END DO
+                CALL coeff_allocate ( dphi2_g ( i ), grid_b ( gt ), use_data = PW_COMPLEXDATA1D )
+                dphi2_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+             END DO
 
-      CALL calculate_hartree ( rho0_ref, vhartree = phi1_r, dvhartree = dphi1_g )
+             CALL calculate_hartree ( rho0_ref, vhartree = phi1_r, dvhartree = dphi1_g )
 
-      CALL calculate_hartree ( drho_ref, vhartree = phi2_r, dvhartree = dphi2_g )
+             CALL calculate_hartree ( drho_ref, vhartree = phi2_r, dvhartree = dphi2_g )
 
-      DO i = 1, 3
-         CALL coeff_transform_space ( dphi2_g ( i ), coeff_dummy )
-         CALL coeff_deallocate ( dphi2_g ( i ) )
-         CALL rs_pw_transfer ( drpot2 ( i ), coeff_dummy % pw, "BACKWARD" )
-      END DO
+             DO i = 1, 3
+                CALL coeff_transform_space ( dphi2_g ( i ), coeff_dummy )
+                CALL coeff_deallocate ( dphi2_g ( i ) )
+                CALL rs_pw_transfer ( drpot2 ( i ), coeff_dummy % pw, "BACKWARD" )
+             END DO
 
-      DO i = 1, 3
-         CALL coeff_transform_space ( dphi1_g ( i ), coeff_dummy )
-         CALL coeff_deallocate ( dphi1_g ( i ) )
-         CALL rs_pw_transfer ( drpot1 ( i ), coeff_dummy % pw, "BACKWARD" )
-      END DO
+             DO i = 1, 3
+                CALL coeff_transform_space ( dphi1_g ( i ), coeff_dummy )
+                CALL coeff_deallocate ( dphi1_g ( i ) )
+                CALL rs_pw_transfer ( drpot1 ( i ), coeff_dummy % pw, "BACKWARD" )
+             END DO
 
-      CALL coeff_deallocate ( coeff_dummy )
-
-      CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
-      CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
+             CALL coeff_deallocate ( coeff_dummy )
+ 
+             CALL coeff_allocate ( rhos1,  grid_s ( gt ), use_data = PW_REALDATA3D )
+             CALL coeff_allocate ( rhos2,  grid_s ( gt ), use_data = PW_REALDATA3D )
+             first_time = .FALSE.
+          ENDIF
 
 ! force on coefs
-      CALL force_part_evaluate ( dg_part ( ig ), drpot1, drpot2, part, &
-         f_part, box, rhos1, rhos2, exp_igr_part ( ig ), grid_s ( gt ), &
-         ewald_param )
-
-      CALL coeff_deallocate ( rhos2 )
-      CALL coeff_deallocate ( rhos1 )
-      CALL coeff_deallocate ( phi2_r ) 
-      CALL coeff_deallocate ( phi1_r ) 
-      CALL rs_grid_deallocate ( drpot2 ( 1 : 3 ) )
-      CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
-      CALL structure_factor_deallocate ( exp_igr_part ( ig ) )
+          CALL force_part_evaluate ( dg_part ( ig ), drpot1, drpot2, part, &
+            f_part, box, rhos1, rhos2, exp_igr_part ( ig ), grid_s ( gt ), &
+            ewald_param )
+          CALL structure_factor_deallocate ( exp_igr_part ( ig ) )
+        ELSE
+          CYCLE
+        ENDIF
+      ENDDO
+      IF ( match ) THEN
+        CALL coeff_deallocate ( rhos2 )
+        CALL coeff_deallocate ( rhos1 )
+        CALL coeff_deallocate ( phi2_r ) 
+        CALL coeff_deallocate ( phi1_r ) 
+        CALL rs_grid_deallocate ( drpot2 ( 1 : 3 ) )
+        CALL rs_grid_deallocate ( drpot1 ( 1 : 3 ) )
+      ENDIF
     ENDDO
   ENDIF
 
@@ -458,17 +498,17 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
   CALL coeff_deallocate ( rho0_ref )
 
   DEALLOCATE ( exp_igr_part, STAT=allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics", &
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics_ao", &
    "exp_igr_part" )
 
   DEALLOCATE ( exp_igr_coef, STAT=allocstat )
-  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics", &
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pol_electrostatics_ao", &
    "exp_igr_coef" )
 
 END SUBROUTINE electrostatics
 
 !******************************************************************************
-!!****** pol_electrostatics/drho_evaluate [1.0] *
+!!****** pol_electrostatics_ao/drho_evaluate [1.0] *
 !!
 !!   NAME
 !!     rho0_evaluate
@@ -544,7 +584,7 @@ SUBROUTINE drho_evaluate ( dg, rden, part, coeff, box, exp_igr, grid_s,  &
 END SUBROUTINE drho_evaluate
 
 !******************************************************************************
-!!****** pol_electrostatics/rho0_evaluate [1.0] *
+!!****** pol_electrostatics_ao/rho0_evaluate [1.0] *
 !!
 !!   NAME
 !!     rho0_evaluate
@@ -621,7 +661,7 @@ SUBROUTINE rho0_evaluate ( dg, rden, part, box, exp_igr, grid_s,  &
 END SUBROUTINE rho0_evaluate
 
 !******************************************************************************
-!!****** pol_electrostatics/force_part_evaluate [1.0] *
+!!****** pol_electrostatics_ao/force_part_evaluate [1.0] *
 !!
 !!   NAME
 !!     force_evaluate_part
@@ -708,7 +748,7 @@ SUBROUTINE force_part_evaluate ( dg,  drpot1, drpot2, part, force, box, &
 END SUBROUTINE force_part_evaluate
 
 !******************************************************************************
-!!****** pol_electrostatics/force_coef_evaluate [1.0] *
+!!****** pol_electrostatics_ao/force_coef_evaluate [1.0] *
 !!
 !!   NAME
 !!     force_coef_evaluate
@@ -819,7 +859,7 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
 END SUBROUTINE force_coef_evaluate
 
 !******************************************************************************
-!!****** pol_electrostatics/set_list_drho [1.0] *
+!!****** pol_electrostatics_ao/set_list_drho [1.0] *
 !!
 !!   NAME
 !!     set_list_drho
@@ -866,7 +906,7 @@ SUBROUTINE set_list_drho ( clist, p1, p2, ip1, ip2, c1, c2 )
 END SUBROUTINE set_list_drho
 
 !******************************************************************************
-!!****** pol_electrostatics/set_list_rho0 [1.0] *
+!!****** pol_electrostatics_ao/set_list_rho0 [1.0] *
 !!
 !!   NAME
 !!     set_list_rho0
@@ -1048,6 +1088,6 @@ END SUBROUTINE get_center
 
 !******************************************************************************
 
-END MODULE pol_electrostatics
+END MODULE pol_electrostatics   
 
 !******************************************************************************
