@@ -313,6 +313,9 @@ CONTAINS
             vxc=my_vxc, exc=exc, dft_control=dft_control,&
             cell=cell, pw_pool=pw_pool, error=error)
     END IF
+    IF (ASSOCIATED(my_rho_r)) DEALLOCATE(my_rho_r)
+    IF (ASSOCIATED(my_rho_g)) DEALLOCATE(my_rho_g)
+    IF (ASSOCIATED(my_vxc))   DEALLOCATE(my_vxc )
   END SUBROUTINE xc_calculate_pw2
   !***************************************************************************
 
