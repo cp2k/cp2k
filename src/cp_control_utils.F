@@ -124,13 +124,15 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_EPSRHO0=22
 INTEGER, PARAMETER, PRIVATE :: qs_key_QUADRATURE=23
 INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=24
 INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=25
-INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=26
-INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=27
-INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=28
-INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=29
-INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=30
-INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=31
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 32
+INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_H=26
+INTEGER, PARAMETER, PRIVATE :: qs_key_ALPHA0_S=27
+INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=28
+INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=29
+INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=30
+INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=31
+INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=32
+INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=33
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 33
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 
@@ -220,7 +222,7 @@ CONTAINS
                                        "NGRID_LEVEL","","")
      qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
                                        "EPSFIT real",&
-                                       "GAPW : precision to determine the gaussian radius",&
+                                       "GAPW : precision to give the extention of a hard gaussian ",&
                                        "EPS_FIT","","")
      qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
                                        "EPSISO real",&
@@ -242,6 +244,14 @@ CONTAINS
                                        "LADDN0 integer",&
                                        "GAPW : XXXXXXXXXX",&
                                        "","","")
+     qs_keywords(qs_key_ALPHA0_H)=keyword_type("ALPHA0_HARD", &
+                                       "ALPHA0_HARD real ",&
+                                       "GAPW : Exponent for hard compensation charge",&
+                                       "ALPHA0_H","","")
+     qs_keywords(qs_key_ALPHA0_S)=keyword_type("ALPHA0_SOFT", &
+                                       "ALPHA0_SOFT real ",&
+                                       "GAPW : Exponent for soft compensation charge",&
+                                       "ALPHA0_S","","")
      qs_keywords(qs_key_PAO)=keyword_type("PAO", &
                                        "PAO",&
                                        "Use the PAO method",&
@@ -659,6 +669,10 @@ CONTAINS
     qs_control%gapw_control%quadrature = 1
     qs_control%gapw_control%quadrature_name = "Gauss-Chebyshev"
     qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
+    qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
+    qs_control%gapw_control%alpha0_soft_from_input = .FALSE.
+    qs_control%gapw_control%alpha0_hard = 0.0_dp
+    qs_control%gapw_control%alpha0_soft = 0.0_dp
 
     qs_control%mulliken_restraint_control%strength=0.1_dp
     qs_control%mulliken_restraint_control%target=1.0_dp
@@ -836,6 +850,14 @@ CONTAINS
           CASE (qs_key_LADDN0)
             CALL read_object(ivalue)
             qs_control%gapw_control%ladd_rho0 = ivalue
+          CASE (qs_key_ALPHA0_H)
+            CALL read_object(value)
+            qs_control%gapw_control%alpha0_hard = value
+            qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
+          CASE (qs_key_ALPHA0_S)
+            CALL read_object(value)
+            qs_control%gapw_control%alpha0_soft = value
+            qs_control%gapw_control%alpha0_soft_from_input = .TRUE.
           CASE (qs_key_PAO)
             qs_control%pao = .TRUE.
           CASE (qs_key_MULLIKEN_RESTRAINT)

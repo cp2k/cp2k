@@ -62,6 +62,9 @@ MODULE cp_control_types
                                        lmax_sphere, quadrature
     CHARACTER(LEN=30)               :: quadrature_name
     LOGICAL                         :: lrho1_eq_lrho0
+    LOGICAL                         :: alpha0_hard_from_input, &
+                                       alpha0_soft_from_input
+    REAL(KIND = dp)                 :: alpha0_hard, alpha0_soft
   END TYPE gapw_control_type
 
 ! *** some parameters useful for mulliken_restraints

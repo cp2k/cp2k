@@ -545,7 +545,8 @@ CONTAINS
                                  elp_potential_present,paw_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ldaCoreRadius,max_ngrid_rad,&
-                                 max_sph_harm,maxg_iso_not0,lmax_rho0)
+                                 max_sph_harm,maxg_iso_not0,lmax_rho0,&
+                                 zetsoft_max)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -572,22 +573,28 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: max_ldaCoreRadius
+    REAL(kind=dp),  &
+      INTENT(out), OPTIONAL                  :: zetsoft_max
     INTEGER, INTENT(out), OPTIONAL           :: lmax_rho0
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER :: atom_a, iatom, ikind, imax, lmax_rho0_kind, max_iso_not0, &
+    INTEGER :: atom_a, iatom, ikind, imax, ipgf, iset, &
+      lmax_rho0_kind, max_iso_not0, &
       max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
+    INTEGER, DIMENSION(:), POINTER           :: npgf_kind
     LOGICAL                                  :: pao, paw_atom
     REAL(kind=dp), DIMENSION(4)              :: ldaCoreRadius
+    REAL(kind=dp), DIMENSION(:,:), POINTER   :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set, orb_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: soft_basis_set
     TYPE(paw_proj_set_type),  POINTER        :: paw_proj_set
 
 !   ---------------------------------------------------------------------------
@@ -624,6 +631,7 @@ CONTAINS
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
+      IF (PRESENT(zetsoft_max))  zetsoft_max = 0.0_dp
       pao=.FALSE.
       IF (PRESENT(pao_max_excl_bas) .OR. PRESENT(pao_max_full_bas) .OR.&
            PRESENT(pao_max_min_bas).OR. PRESENT(pao_tot_min_bas).OR.&
@@ -659,6 +667,7 @@ CONTAINS
                              gth_potential=gth_potential,&
                              aux_basis_set=aux_basis_set,&
                              orb_basis_set=orb_basis_set,&
+                             soft_basis_set=soft_basis_set,&
                              ldaCoreRadius=ldaCoreRadius,&
                              ngrid_rad=ngrid_rad,&
                              max_s_harm=max_s_harm, &
@@ -896,12 +905,21 @@ CONTAINS
         IF(PRESENT(max_sph_harm)) THEN
           max_sph_harm = MAX(max_sph_harm,max_s_harm)
         ENDIF
-         IF(PRESENT(maxg_iso_not0)) THEN
-           maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
-         END IF
-          IF( PRESENT(lmax_rho0) ) THEN
-           lmax_rho0 = MAX(lmax_rho0,lmax_rho0_kind)
-          END IF
+        IF(PRESENT(maxg_iso_not0)) THEN
+          maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
+        END IF
+        IF( PRESENT(lmax_rho0) ) THEN
+          lmax_rho0 = MAX(lmax_rho0,lmax_rho0_kind)
+        END IF
+        IF( PRESENT(zetsoft_max) ) THEN
+          CALL  get_gto_basis_set(gto_basis_set=soft_basis_set, &
+                nset = n, npgf = npgf_kind, zet = zet_kind )
+          DO iset = 1,n
+            DO ipgf = 1,npgf_kind(iset)
+               zetsoft_max= MAX(zetsoft_max,zet_kind(ipgf,iset))
+            END DO
+          END DO 
+        END IF
       END DO
       IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
       IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max

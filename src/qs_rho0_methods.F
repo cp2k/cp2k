@@ -346,7 +346,9 @@ MODULE qs_rho0_methods
     REAL(dp)                                 :: alpha_core,&
                                                 ecut, eps_fit, eps_Vrho0,&
                                                 gcut, radius,&
-                                                rc_orb, rc_min, total_rho_core_rspace
+                                                rc_orb, rc_min, &
+                                                total_rho_core_rspace, &
+                                                zetsoft_max
     INTEGER  ::  iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, max_nr, maxl, maxso, nat, &
                  natom, nchan_c, nchan_s, nkind, nr, nset, nsotot,  zeff
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -371,14 +373,15 @@ MODULE qs_rho0_methods
 
     ecut = dft_control%qs_control%cutoff 
     nkind = SIZE(atomic_kind_set,1)
-    eps_Vrho0 = dft_control%qs_control%gapw_control%eps_Vrho0
+    eps_Vrho0 = gapw_control%eps_Vrho0
 
 !   Initialize rhoz total to zero
 !   in gapw rhoz is calculated on local the lebedev grids
     total_rho_core_rspace = 0.0_dp
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                             natom=natom,max_ngrid_rad=max_nr)
+                             natom=natom,max_ngrid_rad=max_nr,&
+                             zetsoft_max=zetsoft_max)
 
 !   Initialize the multipole and the compensation charge type 
     CALL allocate_rho0_mpole(rho0_mpole)
@@ -462,27 +465,48 @@ MODULE qs_rho0_methods
     END DO   ! ikind
     total_rho_core_rspace = - total_rho_core_rspace
 
-!   Calculate the hard and soft exponents for the spherical gaussians
-!   used for the construction of the compensation charge densities (g0_lm_h,g0_lm_s)
+    IF(gapw_control%alpha0_hard_from_input) THEN
+!   The Exponent for the compensation charge rho0_hard is read from input
 
-    rho0_mpole%zet0_h =  0.1_dp
-    DO
-      radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
-      IF (radius<=rc_min) EXIT
-      rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
-    END DO
+      rho0_mpole%zet0_h = gapw_control%alpha0_hard
+
+    ELSE
+!   Calculate the exponent for the compensation charge rho0_hard 
+
+      rho0_mpole%zet0_h =  0.1_dp
+      DO
+        radius=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_h,eps_fit,1.0_dp)
+        IF (radius<=rc_min) EXIT
+        rho0_mpole%zet0_h=rho0_mpole%zet0_h+0.1_dp 
+      END DO
 
 !dbg
-    rho0_mpole%zet0_h = 10._dp
+      rho0_mpole%zet0_h = 10._dp
 !dbg
+    END IF
 
-    rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
-    DO
-      gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
-      IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
-      rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
-    END DO
-    rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
+    IF(gapw_control%alpha0_soft_from_input) THEN
+!   The Exponent for the compensation charge rho0_soft is read from input
+
+      rho0_mpole%zet0_s = gapw_control%alpha0_soft
+
+    ELSE
+!   Calculate the exponent for the compensation charge rho0_soft
+
+      rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h
+      DO
+        gcut=exp_radius(rho0_mpole%lmax_0,rho0_mpole%zet0_s,eps_fit,1.0_dp)
+        IF (gcut<=SQRT(2.0_dp*ecut)) EXIT
+        rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
+      END DO
+      rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
+
+!     rho0_mpole%zet0_s can be as big as the largest exponent of the soft density
+!     that is collocated on the grid
+      IF(rho0_mpole%zet0_s < zetsoft_max) rho0_mpole%zet0_s = zetsoft_max
+
+    END IF
+
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
     CALL reallocate(rho0_mpole%norm_g0l_s,0,rho0_mpole%lmax_0)
