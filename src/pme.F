@@ -33,7 +33,8 @@ MODULE pme
   USE mathconstants, ONLY : fourpi, pi
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
-  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b
+  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b, &
+                  cleanup_pw_poisson_solver
   USE pw_types, ONLY : pw_transfer, pw_type, REALSPACE, RECIPROCALSPACE, NOSPACE
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_allocate, &
        rs_grid_deallocate, rs_grid_setup, rs_pw_transfer
@@ -235,6 +236,7 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
   CALL coeff_deallocate ( rhos1 )
   CALL coeff_deallocate ( rhos2 )
   CALL structure_factor_deallocate ( exp_igr )
+  CALL cleanup_pw_poisson_solver ( box % green )
 
   CALL timestop ( 0.0_dbl, handle )
 

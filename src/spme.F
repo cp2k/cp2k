@@ -35,7 +35,8 @@ MODULE spme
   USE particle_types, ONLY : particle_type
   USE pw_types, ONLY : pw_type
   USE pw_grid_types, ONLY : pw_grid_type
-  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b
+  USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b, &
+                  cleanup_pw_poisson_solver
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup, &
       rs_grid_allocate, rs_grid_deallocate, rs_pw_transfer
   USE simulation_cell, ONLY : cell_type
@@ -230,6 +231,7 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos" )
   DEALLOCATE ( centre, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre" )
+  CALL cleanup_pw_poisson_solver ( box % green )
 
   CALL timestop ( 0.0_dbl, handle )
 
