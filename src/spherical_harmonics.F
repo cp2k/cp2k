@@ -39,7 +39,6 @@ MODULE spherical_harmonics
   USE kinds,         ONLY: dbl
   USE mathconstants, ONLY: pi, fac, maxfac
   USE termination,   ONLY: stop_memory, stop_program
-  USE global_types, ONLY : global_environment_type
 
   IMPLICIT NONE
 
