@@ -594,8 +594,7 @@ CONTAINS
                                         error=error)
 
     ! RealSpace Interpolation
-
-    IF (.true.) THEN
+    IF (.TRUE.) THEN
        ! Linear Interpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_prolongate_NoPBC(tmp_grid(Ilevel  )%pw,&
@@ -603,6 +602,7 @@ CONTAINS
                                    error)
        END DO
     ELSE
+       ! Spline Iterpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&
                             tmp_grid(Ilevel-1)%pw,&

@@ -112,7 +112,7 @@ MODULE qmmm_methods
   USE qmmm_electrostatic_methods,      ONLY: qmmm_electrostatic_on_grid,&
                                              qmmm_elec_with_gaussian,&
                                              qmmm_elec_with_gaussian_LR
-
+  USE pw_spline_utils,                 ONLY: pw_project_s3
   IMPLICIT NONE
   
   PRIVATE
@@ -622,12 +622,24 @@ CONTAINS
     grids(auxbas_grid) % pw % cr3d(lb(1):ub(1),&
                                    lb(2):ub(2),&
                                    lb(3):ub(3) )= rho % cr3d
-    DO Igrid = auxbas_grid, SIZE(grids)-1
-       CALL pw_inject_NoPBC(grids(Igrid  ) % pw,&
-                            grids(igrid+1) % pw,&
-                            error)
-       grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dbl)
-    END DO
+    ! RealSpace Interpolation
+    IF (.TRUE.) THEN
+       ! Linear Interpolator
+       DO Igrid = auxbas_grid, SIZE(grids)-1
+          CALL pw_inject_NoPBC(grids(Igrid  ) % pw,&
+                               grids(Igrid+1) % pw,&
+                               error)
+          grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dbl)
+       END DO
+    ELSE
+       ! Spline Interpolator
+       DO Igrid =  auxbas_grid, SIZE(grids)-1
+          CALL pw_project_s3(grids(Igrid  ) % pw,&
+                             grids(Igrid+1) % pw,&
+                             aug_pools(Igrid+1)%pool,&
+                             error)
+       END DO
+    END IF
 
     CALL qmmm_forces_with_gaussian_low( grids, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
