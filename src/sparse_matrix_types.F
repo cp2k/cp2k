@@ -37,7 +37,9 @@ MODULE sparse_matrix_types
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE distribution_2D_types,           ONLY: distribution_2D_type
+  USE distribution_2D_types,           ONLY: distribution_2D_type, &
+                                             distribution_2D_retain, &
+                                             distribution_2D_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
@@ -629,10 +631,12 @@ END SUBROUTINE cp_sm_scale_and_add
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
                                   first_row,last_row,first_col,last_col,&
-                                  matrix_name,matrix_symmetry)
+                                  matrix_name,matrix_symmetry,distribution_2D)
 
 !   Purpose: Allocate and initialize a real matrix at the real_matrix_type
 !            level.
+
+!   distribution_2D if present and not NULL, implies that this matrix has a distribution_2D compatible shape
 
 !   History: - Creation (16.06.2000, MK)
 
@@ -644,6 +648,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER, DIMENSION(nblock_row), INTENT(IN) :: first_row,last_row
     INTEGER, DIMENSION(nblock_col), INTENT(IN) :: first_col,last_col
+    TYPE(distribution_2D_type), OPTIONAL, POINTER :: distribution_2D
 
 !   *** Local parameters ***
 
@@ -665,7 +670,9 @@ END SUBROUTINE cp_sm_scale_and_add
     ALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
 
-    NULLIFY(matrix%distribution_2D)
+    NULLIFY(matrix%distribution_2D) 
+    IF (present(distribution_2D)) matrix%distribution_2D=>distribution_2D
+    CALL distribution_2D_retain(matrix%distribution_2D)
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
@@ -1235,6 +1242,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
     DEALLOCATE (matrix%last_col,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (last_col)")
+
+    CALL distribution_2D_release(matrix%distribution_2D)
 
     DEALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name)
