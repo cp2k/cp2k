@@ -54,7 +54,7 @@ MODULE qs_integrate_potential
   USE l_utils,                ONLY: l_info_type,&
                                     return_l_info
   USE mathconstants,          ONLY: pi,twopi
-  USE message_passing,        ONLY: mp_sum
+  USE message_passing,        ONLY: mp_sum,mp_max
   USE orbital_pointers,       ONLY: coset,indco,ncoset,nso
   USE particle_types,         ONLY: particle_type
   USE pw_types,               ONLY: pw_type
@@ -275,8 +275,14 @@ CONTAINS
       vratio = 1.0_wp
     ELSE
       maxvnew = MAXVAL(ABS(v_rspace(1)%pw%cr3d))
+#if defined(__parallel)
+      call mp_max(maxvnew,v_rspace(1)%pw%pw_grid%para%group)
+#endif
       v_rspace(1)%pw%cr3d = v_rspace(1)%pw%cr3d - v_rspace_old%pw%cr3d
       maxvdiff = MAXVAL(ABS(v_rspace(1)%pw%cr3d))
+#if defined(__parallel)
+      call mp_max(maxvdiff,v_rspace(1)%pw%pw_grid%para%group)
+#endif
       vratio = maxvdiff/maxvnew
     END IF
 
