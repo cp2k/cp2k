@@ -131,6 +131,9 @@ CONTAINS
   energy = 0._dbl
   deriv = .FALSE.
 
+! initialize energy
+  energy=0._dbl
+
   DO ikind = 1, nkind
      nat = nat + size (kind_info(ikind) % atom_list)
   END DO
