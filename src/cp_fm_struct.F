@@ -312,7 +312,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 
      IF (PRESENT(descriptor)) THEN
         fmstruct%descriptor=descriptor
-     ELSE IF (.NOT.PRESENT(template_fmstruct)) THEN
+     ELSE
         fmstruct%descriptor=0
 #if defined(__SCALAPACK)
         CALL descinit(fmstruct%descriptor,fmstruct%nrow_global,&
