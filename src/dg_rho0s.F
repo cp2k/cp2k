@@ -239,7 +239,7 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
      const = 1.0_dbl / ( 4.0_dbl * zet ( icg ) )
      coef  = ( gcc ( icg ) * pi ** 1.5 ) / zet ( icg )**1.5
 
-     charge  =  charge  + coef * 1._dbl
+     rho0(l0,m0,n0)  =  rho0(l0,m0,n0)  + coef * 1._dbl / pw_grid % vol
 
      DO gpt = 1, pw_grid % ngpts_cut
         ghat => pw_grid % g_hat ( :, gpt )
@@ -261,6 +261,7 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
         mn = mn + bds ( 1, 2 )
         nn = nn + bds ( 1, 3 )
 
+        IF ( lp == l0 .AND. mp == m0 .AND. np == n0 ) CYCLE
         rho0 ( lp, mp, np ) = rho0 ( lp, mp, np ) + e_gsq * coef
         rho0 ( ln, mn, nn ) = rho0 ( ln, mn, nn ) + e_gsq * coef
 
@@ -354,8 +355,6 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
      const = 1.0_dbl / ( 4.0_dbl * zet ( icg ) )
      coef  = ( gcc ( icg ) * pi**1.5 ) / ( 2.0_dbl * zet ( icg )**2.5 )
 
-     charge  =  charge  + coef * 1._dbl
-
      DO gpt = 1, pw_grid % ngpts_cut
         ghat => pw_grid % g_hat ( :, gpt )
 
@@ -375,6 +374,8 @@ SUBROUTINE dg_rho0_p_cgf ( dg_rho0, zet, gcc, type )
         ln = ln + bds ( 1, 1 )
         mn = mn + bds ( 1, 2 )
         nn = nn + bds ( 1, 3 )
+
+        IF ( lp == l0 .AND. mp == m0 .AND. np == n0 ) CYCLE
 
         SELECT CASE (type)
 	 
