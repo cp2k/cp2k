@@ -157,10 +157,12 @@ CONTAINS
     dft_control % xc_control % crossterms = .FALSE.
 
     SELECT CASE (globenv%run_type)
-    CASE ("WAVEFUNCTION OPTIMIZATION")
+    CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO")
       dft_control%forces = .FALSE.
-    CASE DEFAULT
+    CASE ("MOLECULAR DYNAMICS","GEOMETRY OPTIMIZATION")
       dft_control%forces = .TRUE.
+    CASE DEFAULT
+      CALL stop_program(routine,"unknown run type "//TRIM(globenv%run_type))
     END SELECT
 
 !   *** Read the input section ***
