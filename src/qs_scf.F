@@ -126,7 +126,8 @@ MODULE qs_scf
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type,&
                                       set_qs_env
-  USE qs_integrate_potential,   ONLY: integrate_v_rspace
+  USE qs_integrate_potential,   ONLY: integrate_v_rspace, &
+                                      integrate_v_core_rspace
   USE qs_mo_types,              ONLY: allocate_mo_set,&
                                       calculate_density_matrix,&
                                       correct_mo_eigenvalues,&
@@ -351,6 +352,7 @@ CONTAINS
 
     CALL calculate_rho_core(rho_core,cube_info(1),l_info,&
                             total_rho_core_rspace,qs_env,globenv)
+
     
     etotal = 0.0_wp
     iscf = 0
@@ -583,6 +585,11 @@ CONTAINS
     CALL pw_fft_wrap(work_gspace%pw,work_rspace%pw,&
                      debug=(globenv%print%level == DEBUG))
 
+    ! work_rspace is the hartee potential in rspace
+    CALL integrate_v_core_rspace(work_rspace,cube_info(1),l_info,qs_env,globenv)
+
+    ! this following line is actually a bit ugly, since the volume element
+    ! is only for the integration.
     v_rspace(1)%pw%cr3d(:,:,:) = v_rspace(1)%pw%pw_grid%dvol*&
                                  (v_rspace(1)%pw%cr3d(:,:,:) +&
                                   work_rspace%pw%cr3d(:,:,:))
