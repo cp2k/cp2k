@@ -850,7 +850,7 @@ CONTAINS
   real(wp) polycoef(0:60),coef(0:20,3),bini,binj,s1,s2
   integer d,i,j,k
 
-  CALL timeset("rad","I","",handle)
+  !CALL timeset("rad","I","",handle)
   radius=0.0_wp
   polycoef(:)=0.0_wp
   DO lxa=0,la_max
@@ -897,7 +897,7 @@ CONTAINS
   DO i=0,la_max+lb_max
         radius=max(radius,exp_radius(i,zetp,eps,polycoef(i)) )
   ENDDO
-  CALL timestop(0.0_wp,handle)
+  !CALL timestop(0.0_wp,handle)
   END FUNCTION
 
 ! *****************************************************************************

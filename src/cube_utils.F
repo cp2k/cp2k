@@ -61,11 +61,12 @@ CONTAINS
   RETURN
   END SUBROUTINE
 
-  SUBROUTINE init_cube_info(info,dr,max_radius)
+  SUBROUTINE init_cube_info(info,dr,max_radius,cmax)
   IMPLICIT NONE
     TYPE (cube_info_type) :: info 
     real(wp)       :: dr(3)
     real(wp)       :: max_radius
+    integer        :: cmax
   
     real(wp)       :: drmin,drsafe,dxi,dyi,dzi,dz2,dy2
     real(wp)       :: radius,radius2
@@ -75,7 +76,7 @@ CONTAINS
     info%dr = dr
     drmin = MINVAL(dr)
     info%drmin=drmin
-    drsafe=1.01*sqrt(dr(1)**2+dr(2)**2+dr(3)**2)
+    drsafe=0
     info%drsafe=drsafe
     imr=CEILING((max_radius+drsafe)/drmin)
     info%max_radius=imr
@@ -89,37 +90,21 @@ CONTAINS
             info%sphere_bounds_count,info%sphere_bounds)
     allocate(info%lb_cube(3,imr),info%ub_cube(3,imr), &
              info%sphere_bounds_count(imr),info%sphere_bounds(imr))
-
+    cmax=0
 !   count and allocate
     DO i=1,imr
       k=1
       radius=imr*drmin
       radius2=radius**2
-      kgmin=FLOOR(-dzi*radius)
-      kgmax=-kgmin+1
+      kgmin=CEILING(-dzi*radius)
       k=k+1
-      k=k+1
-      DO kg=kgmin,kgmax,2
-         kg2=MIN(kg*kg,(kg+1)*(kg+1))
-           if (radius2-kg2*dz2.le.0) then
-          jgmin=0
-          jgmax=1
-         else
-            jgmin=FLOOR(-dyi*sqrt(radius2-kg2*dz2))
-          jgmax=-jgmin+1
-         endif
+      DO kg=kgmin,0
+         kg2=kg*kg
+         jgmin=CEILING(-dyi*sqrt(radius2-kg2*dz2))
          k=k+1
-         k=k+1
-         DO jg=jgmin,jgmax,2
-          jg2=MIN(jg*jg,(jg+1)*(jg+1))
-          if (radius2-kg2*dz2-jg2*dy2.le.0) then
-               igmin=0
-             igmax=1
-            else
-             igmin=FLOOR(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
-             igmax=-igmin+1
-          endif
-          k=k+1
+         DO jg=jgmin,0
+          jg2=jg*jg
+          igmin=CEILING(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
           k=k+1
          ENDDO
       ENDDO
@@ -131,44 +116,26 @@ CONTAINS
     do i=1,imr 
       k=1
       radius=i*drmin
-      info%lb_cube(:,i)=FLOOR(-radius/dr(:))-2
-      info%ub_cube(:,i)=CEILING(radius/dr(:))+3
+      info%lb_cube(:,i)=CEILING(-radius/dr(:))-1 ! take care in case of rounding
+      info%ub_cube(:,i)=1-info%lb_cube(:,i)
       radius2=radius**2
-      kgmin=FLOOR(-dzi*radius)
-      kgmax=-kgmin+1
+      kgmin=CEILING(-dzi*radius)
       info%sphere_bounds(i)%p(k)=kgmin
       k=k+1
-      info%sphere_bounds(i)%p(k)=kgmax
-      k=k+1
-      DO kg=kgmin,kgmax,2
-         kg2=MIN(kg*kg,(kg+1)*(kg+1))
-         if (radius2-kg2*dz2.le.0) then
-          jgmin=0
-          jgmax=1
-         else
-          jgmin=FLOOR(-dyi*sqrt(radius2-kg2*dz2))
-          jgmax=-jgmin+1
-         endif
+      DO kg=kgmin,0
+         kg2=kg*kg
+         jgmin=CEILING(-dyi*sqrt(radius2-kg2*dz2))
          info%sphere_bounds(i)%p(k)=jgmin
          k=k+1
-         info%sphere_bounds(i)%p(k)=jgmax
-         k=k+1
-         DO jg=jgmin,jgmax,2
-          jg2=MIN(jg*jg,(jg+1)*(jg+1))
-          if (radius2-kg2*dz2-jg2*dy2.le.0) then
-             igmin=0
-             igmax=1
-          else
-             igmin=FLOOR(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
-             igmax=-igmin+1
-          endif
+         DO jg=jgmin,0
+          jg2=jg*jg
+          igmin=CEILING(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
           info%sphere_bounds(i)%p(k)=igmin
-          k=k+1
-          info%sphere_bounds(i)%p(k)=igmax
           k=k+1
          ENDDO
       ENDDO
     enddo
+    cmax=MAXVAL(info%ub_cube)
   CALL timestop(0.0_wp,handle)
   RETURN
   END SUBROUTINE

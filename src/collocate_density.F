@@ -19,6 +19,8 @@
 !!     1) rewrote collocate for increased accuracy and speed
 !!     2) introduced the PGI hack for increased speed with that compiler (22.02.02)
 !!     3) Added Multiple Grid feature
+!!     4) new way to get over the grid (01.03.02)
+!!     5) removed timing calls since they were getting expensive
 !!
 !!   SOURCE
 !******************************************************************************
@@ -191,9 +193,6 @@ CONTAINS
         endif
     ENDDO
 
-
-
-
     npgf_product = 0
 
 !   *** Allocate work storage ***
@@ -332,6 +331,7 @@ CONTAINS
             endif
 
 
+
             DO ipgf=1,npgfa
 
               IF (rpgfa(ipgf) + radius_set_b < dab) CYCLE
@@ -380,6 +380,7 @@ CONTAINS
 
             END DO
 
+
           END DO
 
         END DO
@@ -389,6 +390,7 @@ CONTAINS
       orb_neighbor_list => next_neighbor_list(orb_neighbor_list)
 
     ENDDO
+
 
 !   *** storage ***
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -431,6 +433,7 @@ CONTAINS
     total_rho = calculate_total_rho(rho(1))
 
     CALL timestop(0.0_wp,handle)
+
 
   END SUBROUTINE calculate_rho_elec
 
@@ -669,9 +672,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,pij,prefactor,radius,yz,z,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
-                lb_cube_min,ub_cube_max
+    REAL(wp) :: f,prefactor,radius,zetp
+    INTEGER  :: i,ico,ig,j,jco,jg,k,kg
 
     REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
     INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
@@ -679,33 +681,20 @@ CONTAINS
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
     INTEGER lxyz_max,lxy_max,lx_max,lx,lxb,lya,lyb,lza,lzb,lz,ly,icoef,lxy
-    INTEGER coef_max,lxa,lxyz,l,gridbounds(2,3),lar(3),lbr(3)
+    INTEGER coef_max,lxa,lxyz,l,gridbounds(2,3)
     INTEGER, pointer,dimension(:) :: ly_max,lz_max
-    REAL(wp), allocatable :: pzyx(:), alpha(:,:), pa(:), pb(:)
-    REAL(wp), allocatable :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:),polx2(:,:)
     REAL(wp) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
-    REAL(wp) , allocatable :: dpx(:,:)
-    REAL(wp)  :: xa,xb,xap,xbp,radius2,polypart,radius_l,cutoff
-    REAL(wp) :: dx2,dy2,dz2,dxi,dyi,dzi
-    INTEGER  :: kgmax,jgmax,jgmin,igmax,j2,jg2,handle2,start,length,offset
+
+    REAL(wp), pointer :: dpx(:,:)
+    REAL(wp), pointer :: pzyx(:), alpha(:,:)
+    REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
     INTEGER, pointer, dimension(:)  :: sphere_bounds
+    REAL(wp)  :: xa,xb,xap,xbp,polypart,cutoff
+    INTEGER  :: start,length,offset,cmax
+
 !   ---------------------------------------------------------------------------
 
     coef_max=la_max+lb_max+1
-    SELECT CASE (coef_max)
-    CASE(1)
-      CALL timeset("collocate_pgf_rspace_1","I","",handle)
-    CASE(2)
-      CALL timeset("collocate_pgf_rspace_2","I","",handle)
-    CASE(3)
-      CALL timeset("collocate_pgf_rspace_3","I","",handle)
-    CASE(4)
-      CALL timeset("collocate_pgf_rspace_4","I","",handle)
-    CASE(5)
-      CALL timeset("collocate_pgf_rspace_5","I","",handle)
-    CASE DEFAULT
-      CALL timeset("collocate_pgf_rspace_SLOW","I","",handle)
-    END SELECT
 
     zetp      = zeta + zetb
     f         = zetb/zetp
@@ -720,21 +709,8 @@ CONTAINS
                    zetp,eps_rho_rspace,prefactor,cutoff)
 
     IF (radius .eq. 0.0_wp ) THEN
-      CALL timestop(0.0_wp,handle)
       RETURN
     END IF
-
-
-!   *** irrelevant ? ***
-    npgf_product = npgf_product + (ncoset(la_max) - ncoset(la_min-1))*&
-                                  (ncoset(lb_max) - ncoset(lb_min-1))
-
-!   *** get the sub grid properties for the given radius ***
-    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-
-!   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max, &
-                                     lxy_max,lxyz_max,ly_max,lz_max)
 
 !   *** properties of the grid ***
     dr(:) = pw%pw_grid%dr(:)
@@ -748,22 +724,22 @@ CONTAINS
     gridbounds(1,3)=LBOUND(GRID,3)
     gridbounds(2,3)=UBOUND(GRID,3)
 
+!   *** irrelevant ? ***
+    npgf_product = npgf_product + (ncoset(la_max) - ncoset(la_min-1))*&
+                                  (ncoset(lb_max) - ncoset(lb_min-1))
+
+!   *** get the sub grid properties for the given radius ***
+    CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
+
+!   *** get the l_info logic and arrays ***
+    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max, &
+                       lxy_max,lxyz_max,ly_max,lz_max, &
+                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
+
 !   *** position of the gaussian product
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:)    = rp(:) - REAL(cubecenter(:),wp)*dr(:)
-    lb_cube_min   = MINVAL(lb_cube(:))
-    ub_cube_max   = MAXVAL(ub_cube(:))
-
-    NULLIFY(map)
-    map => reallocate(map,lb_cube_min,ub_cube_max,1,3)
-    allocate(pzyx(lxyz_max),&
-    polz(lxyz_max,lb_cube(3):ub_cube(3)),&
-    poly(lxy_max,lb_cube(2):ub_cube(2)),&
-    polx(coef_max,lb_cube(1):ub_cube(1)),&
-    alpha(coef_max,lx_max),&
-    dpz(0:lb_max,0:la_max),&
-    dpy(0:lb_max,0:la_max))
 
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
@@ -772,7 +748,7 @@ CONTAINS
          offset=MODULO(cubecenter(i)+start,ng(i))+1-start
          length=MIN(ub_cube(i),ng(i)-offset)-start
          DO ig=start,start+length
-          map(ig,i) = ig+offset
+            map(ig,i) = ig+offset
          END DO
          if (start+length.ge.ub_cube(i)) EXIT
          start=start+length+1
@@ -894,33 +870,29 @@ CONTAINS
 
     CALL collocate_core(pzyx,polx,poly,polz,grid,alpha,lx_max,lxy_max,&
                 lxyz_max,coef_max, &
-                lb_cube,ub_cube,ly_max,lz_max,gridbounds,lb_cube_min,&
-                ub_cube_max,map,sphere_bounds,cubecenter,ng)
+                cmax,ly_max,lz_max,gridbounds,&
+                map,sphere_bounds)
 
-    deallocate(map,&
-    pzyx,alpha,&
-    polz,&
-    dpz,&
-    dpy,poly,polx)
-
-    CALL timestop(0.0_wp,handle)
   END SUBROUTINE collocate_pgf_product_rspace
 
 ! ***********************************************************************************************
   SUBROUTINE collocate_core(pzyx,polx,   &
                 poly,polz,grid,alpha,lx_max,lxy_max,lxyz_max,coef_max, &
-                lb_cube,ub_cube,ly_max,lz_max,gridbounds,lb_cube_min,&
-                ub_cube_max,map,sphere_bounds,cubecenter,ng)
+                cmax,ly_max,lz_max,gridbounds,&
+                map,sphere_bounds)
   IMPLICIT NONE
-    integer, INTENT(IN) ::  lx_max,lxy_max,lxyz_max,coef_max,lb_cube(3),ub_cube(3)
+    integer, INTENT(IN) ::  lx_max,lxy_max,lxyz_max,coef_max,cmax
     integer, INTENT(IN) ::  ly_max(lx_max),lz_max(lxy_max)
-    integer, INTENT(IN) ::  lb_cube_min,ub_cube_max,map(lb_cube_min:ub_cube_max,1:3)
-    integer, INTENT(IN) ::  gridbounds(2,3),cubecenter(3),ng(3)
+    integer, INTENT(IN) ::  map(-cmax:cmax,1:3)
+    integer, INTENT(IN) ::  gridbounds(2,3)
+    integer, INTENT(IN) :: sphere_bounds(:)
     real(wp), INTENT(IN) :: pzyx(lxyz_max)
-    real(wp), INTENT(IN) :: polz(lxyz_max,lb_cube(3):ub_cube(3))
-    real(wp), INTENT(IN) :: poly(lxy_max,lb_cube(2):ub_cube(2))
-    real(wp), INTENT(IN) :: polx(coef_max,lb_cube(1):ub_cube(1)) 
+    real(wp), INTENT(IN) :: polz(lxyz_max,-cmax:cmax)
+    real(wp), INTENT(IN) :: poly(lxy_max,-cmax:cmax)
+    real(wp), INTENT(IN) :: polx(coef_max,-cmax:cmax)
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
+    real(wp) ::  coef(coef_max,4)
+    real(wp) ::  pyx(2,lxy_max)
 ! help the compiler not to copy the array, but allow optimization on other machines
 #ifdef __PGI
     real(wp), DIMENSION(:,:,:), POINTER :: grid
@@ -928,25 +900,20 @@ CONTAINS
     real(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),gridbounds(1,2):gridbounds(2,2),gridbounds(1,3):gridbounds(2,3))
 #endif
 
-    real(wp) coef(coef_max,4)
-    real(wp) pyx(2,lxy_max)
-    integer :: sphere_bounds(:)
-
-    integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2
+    integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,i2,jg2,kg2
     integer lx,ly,lz,lxy,lxyz,icoef,sci
-    integer length,start,offset
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2,g3
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
     real(wp) r1,r2,r3,r4,r5,r6,r7,r8
+
 !    call f_hpmstart(11,"collo")
     sci=1
     kgmin=sphere_bounds(sci)
     sci=sci+1
-    kgmax=sphere_bounds(sci)
-    sci=sci+1
-    DO kg=kgmin,kgmax,2
+    DO kg=kgmin,0
+       kg2=1-kg
        k=map(kg,3)
-       k2=map(kg+1,3)
+       k2=map(kg2,3)
        lxyz=0
        DO lxy=1,lxy_max
           pyx(1,lxy)=0.0_wp
@@ -954,20 +921,18 @@ CONTAINS
           DO lz=1,lz_max(lxy)
              lxyz=lxyz+1
              pyx(1,lxy)=pyx(1,lxy)+pzyx(lxyz)*polz(lxyz,kg)
-             pyx(2,lxy)=pyx(2,lxy)+pzyx(lxyz)*polz(lxyz,kg+1)
+             pyx(2,lxy)=pyx(2,lxy)+pzyx(lxyz)*polz(lxyz,kg2)
           ENDDO
        ENDDO
        jgmin=sphere_bounds(sci)
        sci=sci+1
-       jgmax=sphere_bounds(sci)
-       sci=sci+1
-       DO jg=jgmin,jgmax,2
+       DO jg=jgmin,0
+          jg2=1-jg
           j=map(jg,2)
-          j2=map(jg+1,2)
+          j2=map(jg2,2)
           igmin=sphere_bounds(sci)
           sci=sci+1
-          igmax=sphere_bounds(sci)
-          sci=sci+1
+          igmax=1-igmin
           SELECT CASE (coef_max)
           CASE(1)
              s1=0.0_wp
@@ -978,9 +943,9 @@ CONTAINS
              DO ly=1,ly_max(1)
                 lxy=lxy+1
                 s1=s1+pyx(1,lxy)*poly(lxy,jg)
-                s2=s2+pyx(1,lxy)*poly(lxy,jg+1)
+                s2=s2+pyx(1,lxy)*poly(lxy,jg2)
                 s1k=s1k+pyx(2,lxy)*poly(lxy,jg)
-                s2k=s2k+pyx(2,lxy)*poly(lxy,jg+1)
+                s2k=s2k+pyx(2,lxy)*poly(lxy,jg2)
              ENDDO
              s1=alpha(1,1)*s1
              s2=alpha(1,1)*s2
@@ -1036,7 +1001,7 @@ CONTAINS
                  r1=pyx(1,lxy)
                  r2=pyx(2,lxy)
                  r3=poly(lxy,jg)
-                 r4=poly(lxy,jg+1)
+                 r4=poly(lxy,jg2)
                  g1=g1+r1*r3
                  g2=g2+r1*r4
                  g1k=g1k+r2*r3
@@ -1101,7 +1066,7 @@ CONTAINS
                  r1=pyx(1,lxy)
                  r2=pyx(2,lxy)
                  r3=poly(lxy,jg)
-                 r4=poly(lxy,jg+1)
+                 r4=poly(lxy,jg2)
                  g1=g1+r1*r3
                  g2=g2+r1*r4
                  g1k=g1k+r2*r3
@@ -1185,7 +1150,7 @@ CONTAINS
                  r1=pyx(1,lxy)
                  r2=pyx(2,lxy)
                  r3=poly(lxy,jg)
-                 r4=poly(lxy,jg+1)
+                 r4=poly(lxy,jg2)
                  g1=g1+r1*r3
                  g2=g2+r1*r4
                  g1k=g1k+r2*r3
@@ -1288,7 +1253,7 @@ CONTAINS
                  r1=pyx(1,lxy)
                  r2=pyx(2,lxy)
                  r3=poly(lxy,jg)
-                 r4=poly(lxy,jg+1)
+                 r4=poly(lxy,jg2)
                  g1=g1+r1*r3
                  g2=g2+r1*r4
                  g1k=g1k+r2*r3
@@ -1386,9 +1351,9 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  g1=g1+pyx(1,lxy)*poly(lxy,jg)
-                 g2=g2+pyx(1,lxy)*poly(lxy,jg+1)
+                 g2=g2+pyx(1,lxy)*poly(lxy,jg2)
                  g1k=g1k+pyx(2,lxy)*poly(lxy,jg)
-                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg+1)
+                 g2k=g2k+pyx(2,lxy)*poly(lxy,jg2)
               ENDDO
               DO icoef=1,coef_max
                  coef(icoef,1)=coef(icoef,1)+alpha(icoef,lx)*g1

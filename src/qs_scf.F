@@ -198,7 +198,7 @@ CONTAINS
     PARAMETER (maxgridpoints=40)
     integer  :: maxl
     PARAMETER (maxl=4)
-    INTEGER  :: context,handle,iscf,output_unit,igrid_level
+    INTEGER  :: context,handle,iscf,output_unit,igrid_level,cmax,cmaxl
     LOGICAL  :: diis_step,ionode
 
 !   ---------------------------------------------------------------------------
@@ -214,18 +214,21 @@ CONTAINS
 
     CALL init_functionals()
 
-    CALL init_l_info(l_info,maxl)
 
     CALL init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
 
     CALL init_grid(globenv)
     
     allocate(cube_info(ngrid_levels)) 
+    cmax=0
     do igrid_level=1,ngrid_levels
       maxradius=maxgridpoints*MAXVAL(rho_rspace(igrid_level)%pw%pw_grid%dr)
       CALL init_cube_info(cube_info(igrid_level), &
-           rho_rspace(igrid_level)%pw%pw_grid%dr(:),maxradius)
+           rho_rspace(igrid_level)%pw%pw_grid%dr(:),maxradius,cmaxl)
+      cmax=MAX(cmax,cmaxl)
     enddo
+
+    CALL init_l_info(l_info,maxl,cmax)
 
 
     IF (ionode.AND.globenv%print%scf) THEN

@@ -48,7 +48,7 @@ MODULE cell_parameters
   LOGICAL          :: scaled_coordinates = .FALSE.
 
 
-  REAL(wp), DIMENSION(:), pointer :: cutoff => NULL()
+  REAL(wp), DIMENSION(:), pointer :: cutoff 
   REAL(wp)                        :: rel_cutoff,progression_factor
   INTEGER          :: ngrid_levels
 
@@ -223,7 +223,7 @@ CONTAINS
          ngrid_levels=MAX(1,1+CEILING(log(cutoff(1)/(0.05*rel_cutoff))/log(progression_factor)))
          if (ngrid_levels.gt.1) then
             tmp=cutoff(1)
-            deallocate(cutoff)
+	    deallocate(cutoff)
             allocate(cutoff(ngrid_levels)) 
             cutoff(1)=tmp
             do i=2,ngrid_levels

@@ -19,6 +19,7 @@
 !!           1) rewrote collocate_pgf for increased accuracy and speed
 !!           2) collocate_core hack for PGI compiler
 !!           3) added multiple grid feature
+!!           4) new way to go over the grid
 !!
 !!   SOURCE
 !******************************************************************************
@@ -122,16 +123,16 @@ CONTAINS
     vratio=maxvdiff/maxvnew 
 
 !   *** get the potential on the subgrids in real space, via fft
-    IF (gridlevel_info%ngrid_levels .gt. 1) then
+    if (gridlevel_info%ngrid_levels .gt. 1) then
        CALL coeff_transform_space(v_rspace(1),v_gspace(1)) ! we have the gspace potential
-       DO igrid_level=2,gridlevel_info%ngrid_levels
-          CALL coeff_copy(v_gspace(1),v_gspace(igrid_level)) 
+       do igrid_level=2,gridlevel_info%ngrid_levels
+          call coeff_copy(v_gspace(1),v_gspace(igrid_level)) 
           CALL coeff_transform_space(v_gspace(igrid_level),v_rspace(igrid_level))
           !*** multiply by the grid volume element ratio ...
           scaling_factor=v_rspace(igrid_level)%pw%pw_grid%dvol/v_rspace(1)%pw%pw_grid%dvol
           v_rspace(igrid_level)%pw%cr3d=v_rspace(igrid_level)%pw%cr3d*scaling_factor
-       ENDDO
-    ENDIF
+       enddo
+    endif
 
 !   *** Allocate work storage ***
 
@@ -409,28 +410,21 @@ CONTAINS
 
 
     INTEGER, pointer, dimension(:) :: ly_max,lz_max
-    REAL(wp), allocatable :: pzyx(:), alpha(:,:)
-    REAL(wp), allocatable :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    REAL(wp) , allocatable :: dpx(:,:)
+    REAL(wp), pointer :: pzyx(:), alpha(:,:)
+    REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
+    REAL(wp), pointer :: dpx(:,:)
     INTEGER, pointer, dimension(:)  :: sphere_bounds
+    INTEGER :: cmax
 
 !   ---------------------------------------------------------------------------
 
     coef_max=la_max+lb_max+1
-    SELECT CASE(coef_max)
-    CASE(1)
-      CALL timeset("integrate_pgf_rspace_1","I","",handle)
-    CASE(2)
-      CALL timeset("integrate_pgf_rspace_2","I","",handle)
-    CASE(3)
-      CALL timeset("integrate_pgf_rspace_3","I","",handle)
-    CASE(4)
-      CALL timeset("integrate_pgf_rspace_4","I","",handle)
-    CASE(5)
-      CALL timeset("integrate_pgf_rspace_5","I","",handle)
-    CASE DEFAULT
-      CALL timeset("integrate_pgf_rspace_SLOW","I","",handle)
-    END SELECT
+    !SELECT CASE(coef_max)
+    !CASE(1:5)
+    !  CALL timeset("integrate_pgf_rspace","I","",handle)
+    !CASE DEFAULT
+    !  CALL timeset("integrate_pgf_rspace_SLOW","I","",handle)
+    !END SELECT
     zetp = zeta + zetb
     f = zetb/zetp
     prefactor = EXP(-zeta*f*rab2)
@@ -449,14 +443,15 @@ CONTAINS
                                 eps_gvg,prefactor*vratio,cutoff)
 
     IF (radius == 0.0_wp) THEN
-      CALL timestop(0.0_wp,handle)
+      !CALL timestop(0.0_wp,handle)
       RETURN
     END IF
 
     
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
     CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max,lxy_max, &
-                         lxyz_max,ly_max,lz_max)
+                         lxyz_max,ly_max,lz_max,&
+                         map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax)
 
 
 !   *** irrelevant ? ***
@@ -480,15 +475,15 @@ CONTAINS
     lb_cube_min = MINVAL(lb_cube(:))
     ub_cube_max = MAXVAL(ub_cube(:))
 
-    NULLIFY(map)
-    map => reallocate(map,lb_cube_min,ub_cube_max,1,3)
-    allocate(pzyx(lxyz_max), &
-             polz(lxyz_max,lb_cube(3):ub_cube(3)), &
-             dpz(0:lb_max,0:la_max), &
-             poly(lxy_max,lb_cube(2):ub_cube(2)), &
-             dpy(0:lb_max,0:la_max), &
-             alpha(coef_max,lx_max), &
-             polx(coef_max,lb_cube(1):ub_cube(1)))
+    !NULLIFY(map)
+    !map => reallocate(map,lb_cube_min,ub_cube_max,1,3)
+    !allocate(pzyx(lxyz_max), &
+    !         polz(lxyz_max,lb_cube(3):ub_cube(3)), &
+    !         dpz(0:lb_max,0:la_max), &
+    !         poly(lxy_max,lb_cube(2):ub_cube(2)), &
+    !         dpy(0:lb_max,0:la_max), &
+    !         alpha(coef_max,lx_max), &
+    !         polx(coef_max,lb_cube(1):ub_cube(1)))
 
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
@@ -599,29 +594,30 @@ CONTAINS
 !   *** do the loop over the grid
 
     call integrate_core(polx,poly,polz,grid,alpha, &
-                        lx_max,lxy_max,lxyz_max,coef_max,lb_cube,ub_cube, &
-                        ly_max,lz_max,gridbounds,lb_cube_min,ub_cube_max,map,hab, &
+                        lx_max,lxy_max,lxyz_max,coef_max,cmax, &
+                        ly_max,lz_max,gridbounds,map,hab, &
                         la_min,la_max,lb_min,lb_max,sphere_bounds)
 
-    DEALLOCATE (map,pzyx,alpha,polz,dpz,dpy,poly,polx)
+    !DEALLOCATE (map,pzyx,alpha,polz,dpz,dpy,poly,polx)
 
-    CALL timestop(0.0_wp,handle)
+    !CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE integrate_pgf_product_rspace
 
   SUBROUTINE integrate_core(polx,poly,polz,grid,alpha,lx_max,lxy_max,lxyz_max,&
-                            coef_max,lb_cube,ub_cube,ly_max,lz_max,gridbounds,&
-                            lb_cube_min,ub_cube_max,map,hab,la_min,la_max,&
+                            coef_max,cmax,ly_max,lz_max,gridbounds,&
+                            map,hab,la_min,la_max,&
                             lb_min,lb_max,sphere_bounds)
-    integer,  INTENT(IN) :: sphere_bounds(:)
+
+    integer,  INTENT(IN) :: sphere_bounds(:),cmax
     integer,  INTENT(IN) :: lx_max,lxy_max,lxyz_max,coef_max,&
-                            lb_cube(3),ub_cube(3),la_min,la_max,lb_min,lb_max
+                            la_min,la_max,lb_min,lb_max
     integer,  INTENT(IN) :: ly_max(lx_max),lz_max(lxy_max)
-    integer,  INTENT(IN) :: lb_cube_min,ub_cube_max,map(lb_cube_min:ub_cube_max,1:3)
+    integer,  INTENT(IN) :: map(-cmax:cmax,1:3)
     integer,  INTENT(IN) :: gridbounds(2,3)
-    real(wp), INTENT(IN) :: polz(lxyz_max,lb_cube(3):ub_cube(3))
-    real(wp), INTENT(IN) :: poly(lxy_max,lb_cube(2):ub_cube(2))
-    real(wp), INTENT(IN) :: polx(coef_max,lb_cube(1):ub_cube(1))
+    real(wp), INTENT(IN) :: polz(lxyz_max,-cmax:cmax)
+    real(wp), INTENT(IN) :: poly(lxy_max,-cmax:cmax)
+    real(wp), INTENT(IN) :: polx(coef_max,-cmax:cmax)
     real(wp), INTENT(IN) :: alpha(coef_max,lx_max)
 ! help the compiler not to copy the array, but allow optimization on other machines
 #ifdef __PGI
@@ -631,11 +627,12 @@ CONTAINS
                             gridbounds(1,2):gridbounds(2,2),&
                             gridbounds(1,3):gridbounds(2,3)) 
 #endif
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
     real(wp) coef(coef_max,4)
-    real(wp) pyx(4,lxy_max),pzyx(lxyz_max),radius2,dz2,dy2
+    real(wp) pyx(4,lxy_max),pzyx(lxyz_max)
+    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
 
-    integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2
+    real(wp) radius2,dz2,dy2
+    integer kg,kgmax,k,jgmax,jgmin,jg,j,j2,igmax,ig,i,kgmin,igmin,k2,kg2,jg2
     integer lx,ly,lz,lxy,lxyz,icoef,lxa,lxb,lya,lyb,lza,lzb,ico,jco,i2,sci
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
@@ -647,24 +644,21 @@ CONTAINS
     sci=1
     kgmin=sphere_bounds(sci)
     sci=sci+1
-    kgmax=sphere_bounds(sci)
-    sci=sci+1
 
-    DO kg=kgmin,kgmax,2
+    DO kg=kgmin,0
+       kg2=1-kg
        k=map(kg,3)
-       k2=map(kg+1,3)
+       k2=map(kg2,3)
        pyx(:,:)=0.0_wp
        jgmin=sphere_bounds(sci)
        sci=sci+1
-       jgmax=sphere_bounds(sci)
-       sci=sci+1
-       DO jg=jgmin,jgmax,2
+       DO jg=jgmin,0
+          jg2=1-jg
           j=map(jg,2)
-          j2=map(jg+1,2)
+          j2=map(jg2,2)
           igmin=sphere_bounds(sci)
           sci=sci+1
-          igmax=sphere_bounds(sci)
-          sci=sci+1
+          igmax=1-igmin
           SELECT CASE (coef_max)
           CASE (1)
              s1=0.0_wp
@@ -691,7 +685,7 @@ CONTAINS
              END DO
              r3=alpha(1,1)
              r1=poly(1,jg)*r3
-             r2=poly(1,jg+1)*r3
+             r2=poly(1,jg2)*r3
              pyx(1,1)=pyx(1,1)+(s1+s3)*r1
              pyx(2,1)=pyx(2,1)+(s2+s4)*r2
              pyx(3,1)=pyx(3,1)+(s1k+s3k)*r1
@@ -733,7 +727,7 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  r1=poly(lxy,jg)
-                 r2=poly(lxy,jg+1)
+                 r2=poly(lxy,jg2)
                  pyx(1,lxy)=pyx(1,lxy)+g1*r1
                  pyx(2,lxy)=pyx(2,lxy)+g2*r2
                  pyx(3,lxy)=pyx(3,lxy)+g1k*r1
@@ -787,7 +781,7 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  r1=poly(lxy,jg)
-                 r2=poly(lxy,jg+1)
+                 r2=poly(lxy,jg2)
                  pyx(1,lxy)=pyx(1,lxy)+g1*r1
                  pyx(2,lxy)=pyx(2,lxy)+g2*r2
                  pyx(3,lxy)=pyx(3,lxy)+g1k*r1
@@ -839,9 +833,9 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  pyx(1,lxy)=pyx(1,lxy)+g1*poly(lxy,jg)
-                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg+1)
+                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg2)
                  pyx(3,lxy)=pyx(3,lxy)+g1k*poly(lxy,jg)
-                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg+1)
+                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg2)
               ENDDO
              ENDDO
            CASE (5)
@@ -927,7 +921,7 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  r1=poly(lxy,jg)
-                 r2=poly(lxy,jg+1)
+                 r2=poly(lxy,jg2)
                  pyx(1,lxy)=pyx(1,lxy)+g1*r1
                  pyx(2,lxy)=pyx(2,lxy)+g2*r2
                  pyx(3,lxy)=pyx(3,lxy)+g1k*r1
@@ -960,9 +954,9 @@ CONTAINS
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
                  pyx(1,lxy)=pyx(1,lxy)+g1*poly(lxy,jg)
-                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg+1)
+                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg2)
                  pyx(3,lxy)=pyx(3,lxy)+g1k*poly(lxy,jg)
-                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg+1)
+                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg2)
               ENDDO
              ENDDO
           END SELECT
@@ -973,7 +967,7 @@ CONTAINS
           s1k=pyx(3,lxy)+pyx(4,lxy)
           DO lz=1,lz_max(lxy)
              lxyz=lxyz+1
-             pzyx(lxyz)=pzyx(lxyz)+s1*polz(lxyz,kg)+s1k*polz(lxyz,kg+1)
+             pzyx(lxyz)=pzyx(lxyz)+s1*polz(lxyz,kg)+s1k*polz(lxyz,kg2)
           ENDDO
        ENDDO
     END DO ! loop over z, kg
