@@ -26,7 +26,7 @@ PROGRAM main
   
   INTEGER, PARAMETER  :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER  :: dp = SELECTED_REAL_KIND ( 14, 200 )
-  CHARACTER (LEN=80)  :: file_dcd, file_pdb, file_xsc, out_file
+  CHARACTER (LEN=80)  :: file_dcd, file_pdb, file_xsc, file_xyz, out_file
   CHARACTER (LEN=80)  :: sel1, sel2
   LOGICAL             :: verbose
   REAL (KIND=sp), POINTER, DIMENSION(:,:,:)   :: coord
@@ -43,15 +43,18 @@ PROGRAM main
 
   NULLIFY( coord, name, atom, element, residue, num, numres, isel1, isel2, gval, cell)
 
-  CALL read_command_line(file_pdb, file_dcd, file_xsc, out_file, sel1, sel2, skip_frame,&
-       start_frame, end_frame, verbose)
+  CALL read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, &
+                         out_file, sel1, sel2, skip_frame,&
+                         start_frame, end_frame, verbose)
   
   OPEN ( 9, file=file_pdb, status='old', form='formatted'  )
-  OPEN (10, file=file_dcd, status='old', form='unformatted')
+  IF (INDEX(file_dcd,"NULL") == 0) OPEN (10, file=file_dcd, status='old', form='unformatted')
+  IF (INDEX(file_xyz,"NULL") == 0) OPEN (10, file=file_xyz, status='old', form='formatted')
   OPEN (11, file=file_xsc, status='old', form='formatted'  )
   
   CALL read_pdb( 9, name, atom, residue, num, numres, element, ntap)
-  CALL read_dcd(coord, ntap, nframe,10)
+  IF (INDEX(file_dcd,"NULL") == 0) CALL read_dcd(coord, ntap, nframe,10)
+  IF (INDEX(file_xyz,"NULL") == 0) CALL read_xyz(coord, ntap, nframe,10)
   CALL read_xsc(cell,11)
   ! Evaluate g(r)
   CALL makeSel(atom, residue, num, numres, element, ntap, sel1, isel1, verbose)
@@ -83,7 +86,8 @@ CONTAINS
                             //" -sel selection [options]"
     WRITE(*,'(A)')"Options:"
     WRITE(*,'(2X,A,T20,A)')"-pdb","PDB file specifying types, resname"
-    WRITE(*,'(2X,A,T20,A)')"-dcd","DCD file containing trajectory data"
+    WRITE(*,'(2X,A,T20,A)')"-dcd","DCD file containing trajectory data (or XYZ)"
+    WRITE(*,'(2X,A,T20,A)')"-xyz","XYZ file containing trajectory data (or DCD)"
     WRITE(*,'(2X,A,T20,A)')"-xsc","XSC file containing cell information"
     WRITE(*,'(2X,A,T20,A)')"-out","Optional. Specify the file name of the output data"
     WRITE(*,'(2X,A,T20,A)')"    ","Default is the pdb file's root name"
@@ -99,11 +103,10 @@ CONTAINS
     STOP
   END SUBROUTINE print_help_banner
 
-  SUBROUTINE read_command_line(file_pdb, file_dcd, file_xsc, out_file,&
-                              sel1, sel2, skip_frame, start_frame,    &
-                              end_frame, verbose)
+  SUBROUTINE read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, out_file,&
+                              sel1, sel2, skip_frame, start_frame, end_frame, verbose)
     IMPLICIT NONE
-    CHARACTER(len=80)  :: file_dcd, file_pdb, file_xsc, out_file
+    CHARACTER(len=80)  :: file_dcd, file_pdb, file_xsc, out_file, file_xyz
     CHARACTER(len=80)  :: sel1, sel2, argval
     INTEGER            :: skip_frame, start_frame, end_frame, narg, I
     LOGICAL            :: sel_set, verbose
@@ -115,6 +118,7 @@ CONTAINS
     file_pdb    = "NULL"
     file_dcd    = "NULL"
     file_xsc    = "NULL"
+    file_xyz    = "NULL"
     out_file    = "NULL"
     sel1        = "NULL"
     sel2        = "NULL"
@@ -131,6 +135,8 @@ CONTAINS
           CALL getarg(i+1, file_pdb)
        CASE ("-dcd")
           CALL getarg(i+1, file_dcd)
+       CASE ("-xyz")
+          CALL getarg(i+1, file_xyz)
        CASE ("-xsc")
           CALL getarg(i+1, file_xsc)
        CASE ("-out")
@@ -159,7 +165,8 @@ CONTAINS
     END DO
     
     IF (INDEX(file_pdb,"NULL") /= 0) CALL print_help_banner
-    IF (INDEX(file_dcd,"NULL") /= 0) CALL print_help_banner
+    IF (INDEX(file_dcd,"NULL") /= 0 .AND. INDEX(file_xyz,"NULL") /= 0 ) CALL print_help_banner
+    IF (INDEX(file_dcd,"NULL") == 0 .AND. INDEX(file_xyz,"NULL") == 0 ) CALL print_help_banner
     IF (INDEX(file_xsc,"NULL") /= 0) CALL print_help_banner
     IF (INDEX(    sel1,"NULL") /= 0) CALL print_help_banner
     IF (INDEX(    sel2,"NULL") /= 0) CALL print_help_banner
@@ -342,6 +349,60 @@ CONTAINS
 200 WRITE(*,*)"ERROR READING DCD FILE..."
     STOP
   END SUBROUTINE read_dcd
+
+  SUBROUTINE read_xyz(coord, ntap, nframe, unit)
+    IMPLICIT NONE
+    INTEGER  :: ntap,unit,nframe
+    INTEGER  :: i, idum, m
+    INTEGER  :: iframe, ind
+    CHARACTER (LEN=80):: car
+    REAL(KIND=sp), POINTER, DIMENSION(:,:,:) :: coord
+    REAL(KIND=sp), POINTER, DIMENSION(:,:)   :: ax, ay, az
+    
+    REWIND(unit)
+    READ (unit,*,END=100,ERR=200) ntap
+    REWIND(unit)
+    iframe = 0
+    DO WHILE (.TRUE.)
+       READ (unit,*,END=99,ERR=200) idum
+       IF (idum /= ntap) GOTO 200
+       READ (unit,fmt='(A)',ERR=200)car
+       DO i = 1, ntap
+          READ (unit,fmt='(A)',ERR=200)car          
+       END DO
+       iframe = iframe + 1
+       WRITE(*,'(A,I10)')" XYZINFO :: frame number ::",iframe 
+    END DO
+99  REWIND(unit)
+    nframe = iframe
+    WRITE(*,'(A,I5)')" XYZINFO :: Number of Atoms  ::",ntap,&
+                     " XYZINFO :: Number of Frames ::",nframe
+    ALLOCATE( coord(ntap, nframe, 3) )
+    ax => coord(:,:,1)
+    ay => coord(:,:,2)
+    az => coord(:,:,3)
+
+    DO iframe = 1, nframe
+       READ (unit,*,END=100,ERR=200) ntap
+       READ (unit,fmt='(A)',END=100,ERR=200) car
+       DO i = 1, ntap
+          READ(unit,fmt='(A)',END=100,ERR=200) car
+          ind = INDEX(car," ")
+          IF (ind == 1) THEN
+             DO m = 2, LEN(car)
+                IF (car(m:m) /= " ") EXIT
+             END DO
+             IF (m == LEN(car)+1) GOTO 200
+             ind = m + INDEX(car(m+1:)," ")
+          END IF
+          IF (ind /= 1) READ(car(ind:),*)ax(i,iframe),ay(i,iframe),az(i,iframe)
+       END DO
+    END DO
+    
+100 RETURN
+200 WRITE(*,*)"ERROR READING XYZ FILE..."
+    STOP
+  END SUBROUTINE read_xyz
   
   SUBROUTINE read_pdb(unit, name, atom, residue, num, numres, element, numatom)
     IMPLICIT NONE
@@ -544,7 +605,7 @@ RECURSIVE SUBROUTINE makeSel(atom, residue, num, numres, element, ntap, sel, ise
           iselarg(1)%psel%myselarg, iselarg(1)%psel%isel, verbose)
      iselsize = ntap -  SIZE(iselarg(1)%psel%isel)
      IF (verbose) WRITE(*,*)whitespaces(1:itab),&
-          "Selection performed with array dimension :: ", SIZE(iselarg(I)%psel%isel)
+          "Selection performed with array dimension :: ", SIZE(iselarg(1)%psel%isel)
      IF (verbose) WRITE(*,*)whitespaces(1:itab),"Definitive Overall NOT size dimension :: ",iselsize
   END IF
   
