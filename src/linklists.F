@@ -463,8 +463,7 @@ SUBROUTINE bond_link_list ( pnode, molecule, mol_setup, bond_parm )
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bond_parameters_type ), INTENT ( IN ), DIMENSION ( : ), &
-       TARGET :: bond_parm
+  TYPE ( bond_parameters_type ), DIMENSION ( : ), POINTER :: bond_parm
 
 ! Locals
   INTEGER :: imol, jmol, nmol, ibond, nb, atombase, pTYPE
@@ -538,8 +537,7 @@ SUBROUTINE bend_link_list ( pnode, molecule, mol_setup, bend_parm )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( bend_parameters_type ), DIMENSION (:), INTENT ( IN ), &
-       TARGET :: bend_parm
+  TYPE ( bend_parameters_type ), DIMENSION (:), POINTER :: bend_parm
 
 ! Locals
   INTEGER :: imol, jmol, nmol, ibend, nb, atombase, pTYPE
@@ -615,8 +613,7 @@ SUBROUTINE torsion_link_list ( pnode, molecule, mol_setup, torsion_parm )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  TYPE ( torsion_parameters_type ), INTENT ( IN ), DIMENSION (:), &
-       TARGET :: torsion_parm
+  TYPE ( torsion_parameters_type ), DIMENSION (:), POINTER :: torsion_parm
 
 ! Locals
   INTEGER :: imol, jmol, nmol, itorsion, nb, atombase, pTYPE
@@ -697,8 +694,7 @@ SUBROUTINE distconst_link_list ( pnode, molecule, mol_setup, &
   TYPE ( molecule_structure_type ), INTENT ( INOUT ), DIMENSION ( : ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ), TARGET :: &
-       constraint_distance
+  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
 
 ! Locals
   INTEGER :: imol, jmol, nmol, idcon, nb, atombase, pTYPE
@@ -776,8 +772,7 @@ SUBROUTINE g3x3_link_list ( pnode, molecule, mol_setup, constraint_distance )
   TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
        molecule
   TYPE ( molecule_type ), INTENT ( IN ) :: mol_setup ( : )
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( : ), TARGET :: &
-       constraint_distance
+  REAL ( dbl ), DIMENSION ( : ), POINTER :: constraint_distance
 ! Locals
   INTEGER :: imol, jmol, nmol, ig3x3, nb, atombase, pTYPE ( 3 )
   INTEGER :: index ( 3 ), ios
