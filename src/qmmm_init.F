@@ -98,6 +98,7 @@ MODULE qmmm_init
                                              start_parser,&
                                              stop_parser,&
                                              test_object
+  USE fist_main, only:fist_create_force_env
 
   IMPLICIT NONE
   PRIVATE
@@ -180,8 +181,8 @@ CONTAINS
        CALL qmmm_env_create(qmmm_env,error=error)
 
        ! quando sara' pronto fist bisogna modificare questa chiamata...
-       globenv%program_name="QS"       
-       CALL quickstep_create_force_env(sub_force_env(1)%force_env, &
+       globenv%program_name="FIST"       
+       CALL fist_create_force_env(sub_force_env(1)%force_env, &
             globenv, error=error)
  
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
@@ -208,15 +209,19 @@ CONTAINS
        Write(iw,'(A,I6)')"Number of MM atoms: ",qmmm_env%num_mm_atoms
  
 !TL Preliminary code - da cambiare quando ci sara' FIST
-       CALL get_mm_charges(mm_chrg=mm_atom_chrg,&
-                           mm_radius=mm_el_pot_radius,&
-                           mm_atom_index=mm_atom_index,&
-                           globenv=globenv)
+!FM       CALL get_mm_charges(mm_chrg=mm_atom_chrg,&
+!FM                           mm_radius=mm_el_pot_radius,&
+!FM                           mm_atom_index=mm_atom_index,&
+!FM                           globenv=globenv)
+       ALLOCATE(mm_atom_chrg(SIZE(mm_atom_index)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       mm_atom_chrg=0._dp
+       mm_el_pot_radius=1._dp
        qmmm_env%mm_atom_chrg => mm_atom_chrg
        qmmm_env%mm_el_pot_radius => mm_el_pot_radius
 !TL Preliminary code
 
-       globenv%program_name="QS"
+      globenv%program_name="QS"
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&

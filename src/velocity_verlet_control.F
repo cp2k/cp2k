@@ -96,7 +96,7 @@ SUBROUTINE velocity_verlet ( md_env )
      CASE ( 'NPT_F')
        ! CALL npt_f ( md_env )
      END SELECT
-  CASE ( use_qs_force )
+ CASE default
     SELECT CASE (TRIM(simpar%ensemble))
     CASE ("NVE")
       CALL nve(md_env)
@@ -104,17 +104,9 @@ SUBROUTINE velocity_verlet ( md_env )
       CALL nvt(md_env)
     CASE DEFAULT
       CALL stop_program("velocity_verlet",&
-                        "integrator not implemented for QUICKSTEP")
+                        "integrator not implemented for a generic force_env")
     END SELECT
-  CASE ( use_kg_force )
-    SELECT CASE ( simpar % ensemble )
-    CASE DEFAULT
-       CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
-    CASE ( 'NVE')
-       CALL nve ( md_env )
-    CASE ( 'NVT')
-       CALL nvt ( md_env )
-    END SELECT
+    
   END SELECT
 
   CALL timestop ( zero, handle )

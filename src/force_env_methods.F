@@ -88,7 +88,8 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_forces
   USE simulation_cell,                 ONLY: cell_type
   USE virial_types,                    ONLY: virial_create, &
-                                             virial_type
+                                             virial_type,&
+                                             virial_retain
 
   IMPLICIT NONE
 
@@ -327,7 +328,6 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(dyn_coeff_set_p_type), DIMENSION(:),POINTER :: sub_dyn_coeff
-    TYPE ( virial_type ), POINTER :: virial
 
 
   failure=.FALSE.
@@ -373,7 +373,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
            force_env%in_use=use_fist_force
            force_env%fist_env => fist_env
            CALL fist_env_retain ( fist_env, error = error )
-           CALL virial_create ( virial, virial_in_use = .TRUE. )
+           CALL virial_create ( force_env%virial, virial_in_use = .TRUE. )
         END IF
      END IF
      IF (PRESENT(kg_env)) THEN
@@ -382,7 +382,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
            force_env%in_use=use_kg_force
            force_env%kg_env => kg_env
            CALL kg_env_retain(kg_env,error=error)
-           CALL virial_create ( virial, virial_in_use = .FALSE. )
+           CALL virial_create ( force_env%virial, virial_in_use = .FALSE. )
         END IF
      END IF
      IF (PRESENT(qs_env)) THEN
@@ -393,7 +393,7 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
            force_env%in_use=use_qs_force
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
-           CALL virial_create ( virial, virial_in_use = .FALSE. )
+           CALL virial_create ( force_env%virial, virial_in_use = .FALSE. )
         END IF
      END IF
      IF (PRESENT(qmmm_env)) THEN
@@ -401,7 +401,8 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
         force_env%in_use=use_qmmm
         force_env%qmmm_env => qmmm_env
         CALL qmmm_env_retain(qmmm_env,error=error)
-        CALL virial_create ( virial, virial_in_use = .FALSE. )
+        force_env%virial => sub_force_env(1)%force_env%virial
+        CALL virial_retain(force_env%virial,error=error)
      END IF
      CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)
 
@@ -690,9 +691,9 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
   IF (PRESENT(calculate_force).and.calculate_force) THEN
      !TL
      ! Fist: isubsys = 1
-     !  isubsys = 1
-     !  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-     !       box_change=box_change,error=error)
+     isubsys = 1
+     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error)
      isubsys = 2
      CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
           box_change=box_change,error=error)
@@ -713,10 +714,10 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,box_change,calculate_force
      END DO
   ELSE
      !TL
-     ! Fist: isubsys = 1
-     !  isubsys = 1
-     !  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-     !       box_change=box_change,error=error) 
+     !Fist: isubsys = 1
+     isubsys = 1
+     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error) 
      isubsys = 2
      CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
           box_change=box_change,error=error) 

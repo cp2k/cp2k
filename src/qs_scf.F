@@ -713,7 +713,7 @@ CONTAINS
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-       WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+       WRITE (UNIT=output_unit,FMT="(T3,A,T44,2F18.10)")&
             "Total soft electronic density (r-space): ",&
             SUM(rho_soft%tot_rho_r),&
             SUM(rho_soft%tot_rho_r)+ REAL(scf_env%nelectron,dp)
