@@ -12,5 +12,5 @@
    FUNCTIONALS    1
    Clebsch-Gordon 1
    RS_GRID        1
+   MPI            6
 &END
-
