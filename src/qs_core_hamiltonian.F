@@ -307,6 +307,10 @@ CONTAINS
     NULLIFY (t)
     NULLIFY (w)
     NULLIFY (distribution_2d)
+    NULLIFY (sabt)
+    NULLIFY (habt)
+    NULLIFY (pabt)
+    NULLIFY (workt)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
