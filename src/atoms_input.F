@@ -55,7 +55,6 @@ MODULE atoms_input
   USE physcon,                  ONLY : massunit
   USE simulation_cell,          ONLY : cell_type
   USE string_utilities,         ONLY : xstring,&
-                                       uppercase, &
                                        integer_to_string, &
                                        string_to_integer, &
                                        str_search
@@ -166,7 +165,6 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
           current_label = ptable ( z ) % symbol
        END IF
 
-       CALL uppercase(current_label)
        natom = natom + 1
 
        IF (natom > SIZE(atom_list,2)) THEN
@@ -181,13 +179,11 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
        CALL get_next(r(2,natom))
        CALL get_next(r(3,natom))
        label = current_label
-       CALL uppercase(label)
 
        new_kind = .TRUE.
 
        DO ikind=1,nkind
          CALL integer_to_string(kind_label(:,ikind),string)
-         CALL uppercase(string)
          IF (string == label) THEN
            new_kind = .FALSE.
            EXIT
@@ -283,14 +279,14 @@ SUBROUTINE read_atoms_input ( particle_set, atomic_kind_set, &
           mass(n)= mol_setup(i) % molpar % aweight(j)
 ! gt
         ikind = particle_set ( iat) % kind        
-        IF (ikind/=n) CALL stop_program ( 'read_coord_vel', &
+        IF (ikind/=n) CALL stop_program ( 'read_atoms_input', &
              'kind label ordering in &COORD and &MOL dont match ')
         CALL integer_to_string(kind_label(:,ikind),string)
-        IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_coord_vel', &
+        IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_atoms_input', &
               'inconsistent kind labels in &COORD and &MOL- check input')
         natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
         iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
-        IF (iatom/=iat) CALL stop_program ( 'read_coord_vel', &
+        IF (iatom/=iat) CALL stop_program ( 'read_atoms_input', &
              'atom lists in &COORD and &MOL dont match ')
      END DO
    END DO
