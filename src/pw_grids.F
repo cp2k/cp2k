@@ -130,9 +130,24 @@ SUBROUTINE pw_grid_construct ( pw_grid )
   pw_grid % bounds = 0
   pw_grid % cutoff = 0._dbl
   pw_grid % grid_span = FULLSPACE
+  pw_grid % para % mode = 0
   pw_grid % para % rs_dims = 0
   pw_grid % reference = 0
   pw_grid % ref_count = 1
+  NULLIFY ( pw_grid % g )
+  NULLIFY ( pw_grid % gsq )
+  NULLIFY ( pw_grid % g_hat )
+  NULLIFY ( pw_grid % gidx )
+  NULLIFY ( pw_grid % mapl % pos )
+  NULLIFY ( pw_grid % mapl % neg )
+  NULLIFY ( pw_grid % mapm % pos )
+  NULLIFY ( pw_grid % mapm % neg )
+  NULLIFY ( pw_grid % mapn % pos )
+  NULLIFY ( pw_grid % mapn % neg )
+  NULLIFY ( pw_grid % para % yzp )
+  NULLIFY ( pw_grid % para % yzq )
+  NULLIFY ( pw_grid % para % nyzray )
+  NULLIFY ( pw_grid % para % bo )
 
 END SUBROUTINE pw_grid_construct
 
