@@ -29,9 +29,6 @@
 
 MODULE pw_types
 
-! dbg
-  USE machine_aix, ONLY : print_memory
-! dbg
   USE kinds, ONLY : dbl
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE fft_tools, ONLY : fft3d, FWFFT, BWFFT
