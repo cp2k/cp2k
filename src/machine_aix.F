@@ -48,9 +48,12 @@ END FUNCTION m_cputime
 FUNCTION m_walltime() RESULT (wt)
   REAL (dbl) :: wt,omp_get_wtime
   integer count,count_rate
-  ! CALL system_clock(count=count,count_rate=count_rate)
-  ! wt = DBLE(count)/count_rate
+#if defined(__OMPWTIME)
   wt = omp_get_wtime() ! this should not work in serial, or so but seems to work, presumably xlf_r
+#else
+  CALL system_clock(count=count,count_rate=count_rate)
+  wt = DBLE(count)/count_rate
+#endif
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
