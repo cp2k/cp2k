@@ -2219,7 +2219,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       !
       IF (only_qm) THEN
          bond_list(j)%name = "UNSET"
-!         bond_list(j)%bond_kind%k  = 0.0_dp
+         bond_list(j)%bond_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2322,7 +2322,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       !
       IF (only_qm) THEN
          bend_list(j)%name = "UNSET"
-!         bend_list(j)%bend_kind%k  = 0.0_dp
+         bend_list(j)%bend_kind%k  = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2426,6 +2426,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       !
       IF (only_qm) THEN
          ub_list(j)%name = "UNSET"
+         ub_list(j)%ub_kind%k = 0.0_dp
       END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
@@ -2573,7 +2574,14 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       ! QM/MM modifications
       !
       IF (only_qm) THEN
-        torsion_list(j)%name = "UNSET"
+         torsion_list(j)%name = "UNSET"
+         IF (torsion_list(j)%torsion_kind%nmul .NE. 0) THEN
+            DO imul = 1, torsion_list(j)%torsion_kind%nmul
+               torsion_list(j)%torsion_kind%k(imul) = 0.0_dp
+            END DO                                 
+         ELSE                                       
+            torsion_list(j)%torsion_kind%k = 0.0_dp
+         END IF
       END IF
      END IF
 
@@ -2692,7 +2700,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
      ! QM/MM modifications
      !
      IF (only_qm) THEN
-        impr_list(j)%name = "UNSET"
+        impr_list(j)%name = "UNSET"           
+        impr_list(j)%impr_kind%k = 0.0_dp
      END IF
 
     END DO
