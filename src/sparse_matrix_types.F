@@ -556,6 +556,7 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_memory(routineP,"new_block_node%block",dp_size*nrow*ncol)
     END IF
 
+    new_block_node%block(:,:) = 0.0_dp
     IF (PRESENT(BLOCK)) THEN
       IF (ASSOCIATED(BLOCK)) THEN
         IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
@@ -564,7 +565,6 @@ END SUBROUTINE cp_sm_scale_and_add
           CALL stop_program(routineP,"Incompatible block dimensions")
         END IF
       ELSE
-        new_block_node%block(:,:) = 0.0_dp
         BLOCK => new_block_node%block
       END IF
     END IF
