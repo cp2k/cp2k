@@ -51,17 +51,21 @@ MODULE pol_force
   USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type
+  PUBLIC :: force_control, debug_variables_type, get_pol_grids
 
   TYPE debug_variables_type
-     REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
-     REAL ( dbl ) :: pot_overlap, pot_thk, pot_electro
-     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: &
-          f_nonbond, f_g, f_bond, f_bend, f_torsion, fc_part, fo_part
-     REAL ( dbl ), DIMENSION ( : ), POINTER :: fc_coef, fo_coef, fthk
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
-          pv_bend, pv_torsion
+     REAL ( dbl ) :: pot_electrostatics, pot_overlap
+     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: f_ovlp_part, f_elec_part
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: f_ovlp_coef, f_elec_coef
+     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_electrostatic, pv_overlap
   END TYPE debug_variables_type
+
+! globals to module
+  TYPE ( pw_grid_type ),POINTER, DIMENSION ( : ) :: big_grid, small_grid
+  TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_coef
+  TYPE ( dg_type ), POINTER, DIMENSION ( : ) :: dg_atom
+  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_nonbond
+  INTEGER :: iref
 
 !!*****
 !******************************************************************************
@@ -79,7 +83,7 @@ CONTAINS
 
 SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
-     thermo, potparm, empparm, ewald_param, ensemble, fc_global, lldata,  debug)
+     thermo, potparm, empparm, ewald_param, fc_global, lldata, debug)
 
   IMPLICIT NONE
 
@@ -98,28 +102,23 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   TYPE ( potentialparm_type ), DIMENSION ( :,: ), INTENT ( IN ) :: potparm
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  CHARACTER ( LEN = * ), INTENT ( IN ) :: ensemble
   TYPE ( global_environment_type ), INTENT ( IN ) :: fc_global
   TYPE ( linklist_internal_data_type), DIMENSION (:), INTENT (INOUT) :: lldata
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
 
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, ncoefs
-  INTEGER :: ng, igrid, ng_coef, ng_atom, nt_coef, nt_atom, iref
+  INTEGER :: ng, igrid, ng_coef, ng_atom, nt_coef, nt_atom
   REAL ( dbl ) :: pot_nonbond                                                
-  REAL ( dbl ) :: pot_overlap                                                
+  REAL ( dbl ) :: pot_overlap, pot_electrostatics 
   REAL ( dbl ) :: pot_thk                                                
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
-  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fc_part
+  REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
-  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fc_coef
+  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fe_coef
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fo_coef
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fthk
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond
-  TYPE ( pw_grid_type ),POINTER, DIMENSION (:), SAVE :: big_grid, small_grid
-  TYPE ( dg_type ), POINTER, DIMENSION (:), SAVE :: dg_coef
-  TYPE ( dg_type ), POINTER, DIMENSION (:), SAVE :: dg_atom
   LOGICAL :: first_time
 
 !------------------------------------------------------------------------------
@@ -142,7 +141,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   ELSE IF ( SIZE ( f_nonbond ( 1, : ) ) < natoms ) THEN
     DEALLOCATE ( f_nonbond, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
-    ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
+    ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
     IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
   END IF
@@ -193,48 +192,46 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   thermo % pv = 0.0_dbl
 
 
- IF ( .NOT. ALLOCATED ( fc_part )  ) &
-        ALLOCATE ( fc_part ( 3,nnodes ), STAT=isos )
- IF ( isos /= 0 ) &
-     CALL stop_memory ( 'force_control', 'fc_part', 3 * nnodes )
+  IF ( .NOT. ALLOCATED ( fe_part )  ) &
+         ALLOCATE ( fe_part ( 3, nnodes ), STAT=isos )
+  IF ( isos /= 0 ) &
+      CALL stop_memory ( 'force_control', 'fe_part', 3 * nnodes )
 
- IF ( .NOT. ALLOCATED ( fc_coef )  ) &
-        ALLOCATE ( fc_coef ( ncoefs ), STAT=isos )
- IF ( isos /= 0 ) &
-     CALL stop_memory ( 'force_control', 'fc_coef',  ncoefs )
+  IF ( .NOT. ALLOCATED ( fo_part )  ) &
+         ALLOCATE ( fo_part ( 3, nnodes ), STAT=isos )
+  IF ( isos /= 0 ) &
+    CALL stop_memory ( 'force_control', 'fo_part',  3 * nnodes )
 
- IF ( .NOT. ALLOCATED ( fo_part )  ) &
-         ALLOCATE ( fo_part ( 3,nnodes ), STAT=isos )
- IF ( isos /= 0 ) &
-      CALL stop_memory ( 'force_control', 'fc_part', 3 * nnodes )
+  IF ( .NOT. ALLOCATED ( fe_coef )  ) &
+         ALLOCATE ( fe_coef ( ncoefs ), STAT=isos )
+  IF ( isos /= 0 ) &
+    CALL stop_memory ( 'force_control', 'fe_coef',  ncoefs )
 
- IF ( .NOT. ALLOCATED ( fo_coef )  ) &
+  IF ( .NOT. ALLOCATED ( fo_coef )  ) &
          ALLOCATE ( fo_coef ( ncoefs ), STAT=isos )
- IF ( isos /= 0 ) &
+  IF ( isos /= 0 ) &
     CALL stop_memory ( 'force_control', 'fo_coef',  ncoefs )
 
- IF ( .NOT. ALLOCATED ( fthk )  ) &
+  IF ( .NOT. ALLOCATED ( fthk )  ) &
          ALLOCATE ( fthk ( ncoefs ), STAT=isos )
- IF ( isos /= 0 ) &
+  IF ( isos /= 0 ) &
     CALL stop_memory ( 'force_control', 'fthk',  ncoefs )
 
 ! get overlap forces
 
-    CALL force_overlap( coef_pos%ao, drho_basis_info, part, pnode, box, thermo, & 
+  CALL force_overlap( coef_pos % ao, drho_basis_info, part, pnode, box, thermo, & 
                        empparm, fo_coef, fo_part, pot_overlap, fc_global)
 
 ! get first order hk contribution
 
-    CALL force_thk( coef_pos%ao, empparm, fthk, pot_thk)
+  CALL force_thk( coef_pos % ao, empparm, fthk, pot_thk)
 
 ! get electrostatics forces   
 
-   CALL electrostatics (dg_atom, dg_coef, thermo, part, coef_pos, box,  &
-               small_grid, big_grid, ewald_param, iref, fc_coef, fc_part )
+   CALL electrostatics (dg_atom, dg_coef, part, coef_pos, box,  &
+                        small_grid, big_grid, ewald_param, iref, &
+                        pot_electrostatics, fe_coef, fe_part )
 
-   DO i = 1, ncoefs
-     coef_force % ao % cr (i)  = fo_coef (i) + fthk (i) + fc_coef (i)  
-   END DO
  
 !
 ! get real-space non-bonded forces:
@@ -246,33 +243,55 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! add up all the potential energies
 !
+  
+! add up all the forces:
+   DO i = 1, ncoefs
+     coef_force % ao % cr ( i )  = fo_coef ( i ) + fthk ( i ) + fe_coef ( i )  
+   END DO
 
-! add up all the forces
-! nonbonded forces might be calculated for atoms not on this node
-! ewald forces are strictly local -> sum only over pnode
+! Nonbonded forces might be calculated for atoms not on this node
+! electrostatic forces are strictly local -> sum only over pnode
 ! We first sum the forces in f_nonbond, this allows for a more efficient
 ! global sum in the parallel code and in the end copy them back to part
+
   isos = 0
   IF ( .NOT. ALLOCATED ( f_total ) ) ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total', 3 * natoms )
+
   DO i = 1, natoms
      f_total ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
      f_total ( 3, i ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
-     DO i = 1, nnodes
-        ii = pnode ( i ) % p % iatom
-        f_total ( 1, ii ) = f_total ( 1, ii ) + fc_part ( 1, i )
-        f_total ( 2, ii ) = f_total ( 2, ii ) + fc_part ( 2, i )
-        f_total ( 3, ii ) = f_total ( 3, ii ) + fc_part ( 3, i )
-     END DO
+
+  DO i = 1, nnodes
+     ii = pnode ( i ) % p % iatom
+     f_total ( 1, ii ) = f_total ( 1, ii ) + fe_part ( 1, i )
+     f_total ( 2, ii ) = f_total ( 2, ii ) + fe_part ( 2, i )
+     f_total ( 3, ii ) = f_total ( 3, ii ) + fe_part ( 3, i )
+  END DO
+
+  IF ( PRESENT ( debug )  ) THEN
+     debug % pot_electrostatics = pot_electrostatics
+     debug % pot_overlap  = pot_overlap
+     debug % f_ovlp_part = fo_part
+     debug % f_ovlp_coef = fo_coef
+     debug % f_elec_part = fe_part
+     debug % f_elec_coef = fe_coef
+  END IF
+
+#if defined ( __parallel )
+  CALL mp_sum ( f_total, fc_global % group )
+#endif
+
+  DO i = 1, natoms
+    part ( i ) % f ( 1 ) = f_total ( 1, i )
+    part ( i ) % f ( 2 ) = f_total ( 2, i )
+    part ( i ) % f ( 3 ) = f_total ( 3, i )
+  END DO
 
 
 ! deallocating all local variables
-  isos = 0
-  IF ( ALLOCATED ( fc_part )  ) DEALLOCATE ( fc_part, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fc_part' )
-  isos = 0
   IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
 
@@ -280,6 +299,30 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
 END SUBROUTINE force_control
 
+!******************************************************************************
+!!****** pol_force/get_pol_grids [1.0] *
+!!
+!!   NAME
+!!     get_pol_grids
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE get_pol_grids ( pw_big, pw_small, dg1, dg2, ii )
+  IMPLICIT NONE
+  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ), OPTIONAL :: pw_big
+  TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ), OPTIONAL :: pw_small
+  TYPE ( dg_type ), POINTER, DIMENSION ( : ), OPTIONAL :: dg1
+  TYPE ( dg_type ), POINTER, DIMENSION ( : ), OPTIONAL :: dg2
+  INTEGER, INTENT ( OUT ), OPTIONAL :: ii
+  
+  IF ( PRESENT ( pw_big ) ) pw_big  => big_grid 
+  IF ( PRESENT ( pw_small ) ) pw_small => small_grid 
+  IF ( PRESENT ( dg1 ) ) dg1 => dg_atom 
+  IF ( PRESENT ( dg2 ) ) dg2 => dg_coef 
+  IF ( PRESENT ( ii ) ) ii = iref
+
+END SUBROUTINE get_pol_grids
 !!*****
 !******************************************************************************
 
