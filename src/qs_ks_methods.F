@@ -443,7 +443,7 @@ CONTAINS
              energy%hartree_3c = 0.0_dp
              DO ispin = 1,nspins
                 CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
-                    energy,.FALSE.,calculate_forces,error=error)
+                    ispin,energy,.FALSE.,calculate_forces,error=error)
              END DO
 
 !         ***  Single atom contributions in the KS matrix ***

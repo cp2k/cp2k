@@ -163,9 +163,8 @@ CONTAINS
 
    nspins = dft_control%nspins
    gradient_f=ANY(dft_control%xc_control%gradient_functionals)
-   cross_term = ANY (dft_control%xc_control%crossterms) .AND. nspins>1
    lsd = (nspins==2)
-   
+
    nkind = SIZE(atomic_kind_set)
 
 !  Put to 0 the energy contribution from the one center XC terms 
@@ -209,6 +208,10 @@ CONTAINS
      END DO
      ! allocate the required 3d arrays where to store rho and drho
      CALL xc_rho_set_atom_update(rho_set,needs,nspins,na)
+
+     IF(lsd) THEN
+       cross_term = needs%norm_drho .OR. needs%drhoa_drhob
+     END IF
 
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
@@ -368,7 +371,7 @@ CONTAINS
                   ELSE
                     oodrho_h(ia,ispin) =  0.0_dp
                   END IF
-!                  oodrho_h(ia,ispin) = -1.0_dp/MIN(-drho_h(4,ia,ir,ispin),-1.E-12_dp)
+
                   drho_s(4,ia,ir,ispin) = SQRT(&
                                drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
                                drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
@@ -378,7 +381,7 @@ CONTAINS
                   ELSE
                     oodrho_s(ia,ispin) =  0.0_dp
                   END IF
-!                  oodrho_s(ia,ispin) = -1.0_dp/MIN(-drho_s(4,ia,ir,ispin),-1.E-12_dp)
+
                 END DO  ! ia
              END DO  ! iso
 !  WRITE(*,*) 'iatom ', iatom, 'ir=10', grid_atom%rad(ir)
@@ -486,7 +489,6 @@ CONTAINS
     TYPE(rho_atom_type),  POINTER         :: rho_atom
 
     REAL(dp), DIMENSION(:,:,:),POINTER    :: vxc_h,vxc_s
-    REAL(dp), DIMENSION(:,:), POINTER     :: vx
     INTEGER, INTENT(IN)                   :: nspins
 
     CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_noGC"
@@ -498,17 +500,18 @@ CONTAINS
                            POINTER        :: harmonics
     TYPE(rho_atom_coeff),  DIMENSION(:), &
                            POINTER        :: int_h, int_s
-    REAL(dp), DIMENSION(:,:,:), POINTER   :: my_CG
 
     REAL(dp), DIMENSION(:), ALLOCATABLE   :: g1,g2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE :: gg,&
                                              gVg_h, gVg_s,&
                                              matso_h, matso_s
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE :: vx
     REAL(dp), DIMENSION(:,:), POINTER     :: zet
+    REAL(dp), DIMENSION(:,:,:), POINTER   :: my_CG
     INTEGER, DIMENSION(:), POINTER        :: lmin,lmax,npgf
 
     INTEGER                               :: ia,ic,icg,&
-                                             ipgf1,ipgf2,iset1,&
+                                             ipgf1,ipgf2,ir,iset1,&
                                              iset2,iso,iso1,iso2,&
                                              ispin,istat,l,ld,&
                                              lmin12,lmax12,maxso, maxl, m1,&
@@ -533,16 +536,20 @@ CONTAINS
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "g1,g2,gg",(2*nr+2*maxl*nr)*dp_size)
+                                    "g1,g2,gg",(2*nr+2*maxl*nr)*dp_size)
 
     ALLOCATE(gVg_h(na,0:2*maxl),gVg_s(na,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "gVg_h,gVg_s",4*na*maxl*dp_size)
+                                        "gVg_h,gVg_s",4*na*maxl*dp_size)
 
     ALLOCATE(matso_h(nsoset(maxl),nsoset(maxl)),&
              matso_s(nsoset(maxl),nsoset(maxl)),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                    "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
+                  "matso_h,matso_s",2*nsoset(maxl)*nsoset(maxl)*dp_size)
+
+    ALLOCATE(vx(na,nr), STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                                     "vx",na*nr*dp_size)
 
     NULLIFY(int_h,int_s)
 
@@ -582,10 +589,14 @@ CONTAINS
 
             DO ispin=1,nspins
               ld = lmax12+1
-              vx => vxc_h(:,:,ispin)
+              DO ir =1,nr
+                vx(1:na,ir) = vxc_h(1:na,ir,ispin)
+              END DO
               CALL dgemm('N','N',na,ld,nr,1.0_dp,vx(1:na,1:nr),na,&
                           gg(1:nr,0:lmax12),nr,0.0_dp,gVg_h(1:na,0:lmax12),na)
-              vx => vxc_s(:,:,ispin)
+              DO ir =1,nr
+                vx(1:na,ir) = vxc_s(1:na,ir,ispin)
+              END DO
               CALL dgemm('N','N',na,ld,nr,1.0_dp,vx(1:na,1:nr),na,&
                           gg(1:nr,0:lmax12),nr,0.0_dp,gVg_s(1:na,0:lmax12),na)
 
@@ -628,7 +639,7 @@ CONTAINS
       m1 = m1 + maxso
     END DO  ! iset1
 
-   DEALLOCATE(g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h,STAT=istat)
+   DEALLOCATE(g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h,vx,STAT=istat)
    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                        "g1,g2,gg,matso_h,matso_s,gVg_s,gVg_h")
  END SUBROUTINE gaVxcgb_noGC

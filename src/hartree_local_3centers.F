@@ -90,13 +90,14 @@ MODULE  hartree_local_3centers
   CONTAINS
  
 !******************************************************************************
-  SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,energy,just_energy,&
+  SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,ispin,energy,just_energy,&
                                 calculate_forces,error)
 
     TYPE(qs_energy_type), INTENT(INOUT)        :: energy
     TYPE(real_matrix_p_type), INTENT(IN)       :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)    :: h
     TYPE(qs_environment_type), POINTER         :: qs_env
+    INTEGER, INTENT(IN)                        :: ispin
     LOGICAL, INTENT(IN)                        :: calculate_forces,&
                                                   just_energy
     TYPE(cp_error_type), INTENT(inout), &
@@ -743,7 +744,7 @@ MODULE  hartree_local_3centers
 
          NULLIFY(aVh3c0b)
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=katom,aVh3c0b=aVh3c0b)
-         aVh3c0b = 0.0_dp
+         IF(ispin==1) aVh3c0b = 0.0_dp
 
 !        IF PARALLEL sum up the contributions to sum_ab_car coming from
 !        ab pairs handled by different processors
