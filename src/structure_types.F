@@ -25,12 +25,13 @@ MODULE structure_types
   USE atomic_kinds, ONLY :  kind_info_type
   USE coefficient_types, ONLY : coeff_type
   USE empirical_parameters, ONLY : empirical_parameter_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
-  USE pair_potential, ONLY : potentialparm_type
-  USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
   USE linklist_types, ONLY : linklist_internal_data_type
+  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
+  USE pair_potential, ONLY : potentialparm_type
+  USE particle_types, ONLY : particle_type
+  USE pw_grid_types, ONLY : pw_grid_type
+  USE simulation_cell, ONLY : cell_type
+  USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
 
   IMPLICIT NONE
 
@@ -65,6 +66,8 @@ MODULE structure_types
      TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_pos         
      TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_vel         
      TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_force         
+     TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: projector
+     TYPE ( pw_grid_type ), POINTER, DIMENSION ( : )  :: pw_grid
   END TYPE structure_type
 
   TYPE interaction_type
