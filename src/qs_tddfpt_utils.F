@@ -236,14 +236,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE co_initial_guess(matrices, n_v, qs_env, p_env, energies)
+  SUBROUTINE co_initial_guess(matrices, energies, n_v, qs_env, p_env)
 
 
     TYPE(cp_fm_p_type), DIMENSION(:,:),pointer :: matrices
     INTEGER, INTENT(IN)                      :: n_v ! number of vectors to initialize
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    REAL(kind=DP), DIMENSION(:, 0:), &
+    REAL(kind=DP), DIMENSION(:), &
       INTENT(OUT)                            :: energies
 
     INTEGER                                  :: i, j, n_cols, n_lumos, &
@@ -336,13 +336,13 @@ CONTAINS
                              guess(:,sorter_iterator%orbit),1)
           CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
                                    guess(:,1:n_orbits))
-          energies(i,0) = sorter_iterator%value
+          energies(i) = sorter_iterator%value
           sorter_iterator=>sorter_iterator%next
        END DO
        IF (n_v > n_orbits*n_lumos) THEN
           DO i=n_orbits*n_lumos+1, n_v
              CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-             energies(i,0)=1.0E38_dp
+             energies(i)=1.0E38_dp
           END DO
        END IF
 
