@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/environment [1.0] *
 !!
@@ -660,7 +660,7 @@ CONTAINS
     globenv%print_level = 0
     globenv%program_name = " "
     globenv%project_name = "(not specified)"
-    globenv%run_type = "WAVEFUNCTION_OPTIMIZATION"
+    globenv%run_type = "default"
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -732,6 +732,22 @@ CONTAINS
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
     CASE ("EP")
       globenv%run_type = "EP"
+    CASE ("default")
+       SELECT CASE (globenv%program_name)
+       CASE ("ATOM")
+          globenv%run_type = "NONE"
+       CASE ("FIST")
+          globenv%run_type = "NONE"
+       CASE ("KIM-GORDON","KG")
+          globenv%run_type = "NONE"
+       CASE ("QUICKSTEP","QS")
+          globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
+       CASE ("TEST")
+          globenv%run_type = "NONE"
+       CASE DEFAULT
+         CALL stop_program(routine,"Invalid program name <"//&
+                                 TRIM(globenv%program_name)//"> found",globenv)
+       END SELECT
     CASE (" ")
       CALL stop_program(routine,"No RUN_TYPE was specified in the "//&
                                 TRIM(start_section_label)//" section",globenv)
