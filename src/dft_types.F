@@ -95,6 +95,7 @@ MODULE dft_types
     REAL(KIND = dp)                 :: eps_core_charge,&
                                        eps_pgf_aux,&
                                        eps_pgf_orb,&
+                                       eps_ppl,&
                                        eps_rho_gspace,&
                                        eps_rho_rspace,&
                                        eps_gvg_rspace,&
@@ -104,6 +105,7 @@ MODULE dft_types
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE ( pw_grid_option )         :: pw_grid_opt
+    LOGICAL                         :: rs_distributed
   END TYPE kg_control_type
 
 ! *** Control parameters for a QUICKSTEP calculation ***
@@ -500,6 +502,7 @@ CONTAINS
     kg_control%eps_core_charge = 1.0E-12_dp
     kg_control%eps_pgf_aux = 1.0E-6_dp
     kg_control%eps_pgf_orb = 1.0E-6_dp
+    kg_control%eps_ppl = 1.0E-6_dp
     kg_control%eps_rho_gspace = 1.0E-8_dp
     kg_control%eps_rho_rspace = 1.0E-8_dp
     kg_control%eps_gvg_rspace = 1.0E-6_dp
@@ -508,6 +511,7 @@ CONTAINS
     kg_control%polarization = .FALSE.
     kg_control%pw_grid_opt% spherical = .FALSE.
     kg_control%pw_grid_opt%fullspace = .TRUE. 
+    kg_control%rs_distributed = .FALSE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -545,9 +549,10 @@ CONTAINS
         multgrid_set = .TRUE.
       CASE ("EPS_DEFAULT")
         CALL read_object(value)
-        kg_control%eps_core_charge = value
+        kg_control%eps_core_charge = value/100
         kg_control%eps_pgf_aux = value
         kg_control%eps_pgf_orb = value
+        kg_control%eps_ppl = value/100
         kg_control%eps_rho_gspace = value
         kg_control%eps_rho_rspace = value
         kg_control%eps_gvg_rspace = value
@@ -559,6 +564,8 @@ CONTAINS
         CALL read_object(kg_control%eps_pgf_aux)
       CASE ("EPS_PGF_ORB")
         CALL read_object(kg_control%eps_pgf_orb)
+      CASE ("EPS_PPL")
+        CALL read_object(kg_control%eps_ppl)
       CASE ("EPS_RHO")
         CALL read_object(value)
         kg_control%eps_rho_gspace = value
@@ -609,6 +616,18 @@ CONTAINS
                            "Invalid method <"//TRIM(keyword)//&
                            "> specified for KG")
           END SELECT
+
+          CASE ("RS_GRID")
+            CALL read_object(string,lower_to_upper=.TRUE.)
+            SELECT CASE (string)
+            CASE ("DISTRIBUTED")
+                 kg_control%rs_distributed = .TRUE.
+            CASE ("REPLICATED")
+                 kg_control%rs_distributed = .FALSE.
+            CASE DEFAULT
+                CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
+                                         "> specified for RS_GRID")
+            END SELECT
         CASE DEFAULT
           CALL stop_parser(routine,&
                            "Invalid method <"//TRIM(keyword)//&

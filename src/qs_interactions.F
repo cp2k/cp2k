@@ -32,7 +32,7 @@ MODULE qs_interactions
   USE dft_types,                ONLY: kg_control_type,&
                                       qs_control_type
   USE external_potential_types, ONLY: all_potential_type,&
-                                      epc_potential_type,&
+                                      elp_potential_type,&
                                       get_potential,&
                                       gth_potential_type,&
                                       set_potential
@@ -87,22 +87,27 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(epc_potential_type), POINTER :: epc_potential
+    TYPE(elp_potential_type), POINTER :: elp_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set
 
     REAL(KIND = dp) :: alpha_core_charge,alpha_ppl,ccore_charge,cerf_ppl,&
                 core_charge_radius,gcca,kind_radius,ppl_radius,zeta
-    INTEGER  :: iexp_ppl,ikind,ipgf,iset,ishell,l,lppl,nexp_ppl,nkind,nset
+    INTEGER  :: iexp_ppl,ikind,ipgf,iset,ishell,l,lppl,nexp_ppl,nkind,nset,i
 
-    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl
-    INTEGER, DIMENSION(:), POINTER      :: npgf,nshell
-    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pgf_radius,zet
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: set_radius,cexp_ppl,&
+                                                  alpha_ppl_elp
+    INTEGER, DIMENSION(:), POINTER      :: npgf,nshell,nexp_ppl_elp
+    REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pgf_radius,zet,cexp_ppl_elp
     INTEGER, DIMENSION(:,:), POINTER    :: lshell
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
 
 !   ---------------------------------------------------------------------------
+
+    NULLIFY(atomic_kind,elp_potential,gth_potential,orb_basis_set,aux_basis_set)
+    NULLIFY(alpha_ppl_elp,cexp_ppl,set_radius,npgf,nshell,nexp_ppl_elp)
+    NULLIFY(pgf_radius,zet,cexp_ppl_elp,lshell,gcc)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -113,16 +118,20 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           epc_potential=epc_potential,&
+                           elp_potential=elp_potential,&
                            gth_potential=gth_potential,&
                            aux_basis_set=aux_basis_set,&
                            orb_basis_set=orb_basis_set)
 
-      IF (ASSOCIATED(epc_potential)) THEN
+      IF (ASSOCIATED(elp_potential)) THEN
 
-        CALL get_potential(potential=epc_potential,&
+        CALL get_potential(potential=elp_potential,&
                            alpha_core_charge=alpha_core_charge,&
-                           ccore_charge=ccore_charge)
+                           ccore_charge=ccore_charge,&
+                           alpha_ppl=alpha_ppl_elp,&
+                           cerf_ppl=cerf_ppl,&
+                           nexp_ppl=nexp_ppl_elp,&
+                           cexp_ppl=cexp_ppl_elp)
 
 !       *** Calculate the radius of the core charge distribution ***
 
@@ -130,8 +139,25 @@ CONTAINS
                                         kg_control%eps_core_charge,&
                                         ccore_charge)
 
-        CALL set_potential(potential=epc_potential,&
-                           core_charge_radius=core_charge_radius)
+!       *** Calculate the radii of the  ***
+!       *** effective local pseudopotential (elp) ***
+
+        ppl_radius = exp_radius(0,alpha_ppl_elp(1),kg_control%eps_ppl,cerf_ppl)
+
+        DO i=1,size(nexp_ppl_elp)
+          DO iexp_ppl=1,nexp_ppl_elp(i)
+            lppl = 2*(iexp_ppl - 1)
+            ppl_radius = MAX(ppl_radius,&
+                           exp_radius(lppl,alpha_ppl_elp(i),&
+                                      kg_control%eps_core_charge,&
+                                      cexp_ppl_elp(i,iexp_ppl)))
+          END DO
+        END DO
+
+
+        CALL set_potential(potential=elp_potential,&
+                           core_charge_radius=core_charge_radius,&
+                           ppl_radius=ppl_radius)
 
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
@@ -153,7 +179,7 @@ CONTAINS
 !       *** Calculate the radii of the local part  ***
 !       *** of the Goedecker pseudopotential (GTH) ***
 
-        ppl_radius = exp_radius(0,alpha_ppl,kg_control%eps_core_charge,cerf_ppl)
+        ppl_radius = exp_radius(0,alpha_ppl,kg_control%eps_ppl,cerf_ppl)
 
         DO iexp_ppl=1,nexp_ppl
           lppl = 2*(iexp_ppl - 1)
@@ -452,7 +478,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(epc_potential_type), POINTER :: epc_potential
+    TYPE(elp_potential_type), POINTER :: elp_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
     CHARACTER(LEN=60)                 :: name
     CHARACTER(LEN=8)                  :: unit_of_length_name
@@ -480,15 +506,15 @@ CONTAINS
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name,&
                              all_potential=all_potential,&
-                             epc_potential=epc_potential,&
+                             elp_potential=elp_potential,&
                              gth_potential=gth_potential)
         IF (ASSOCIATED(all_potential)) THEN
           CALL get_potential(potential=all_potential,&
                              core_charge_radius=core_charge_radius)
           WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length
-        ELSE IF (ASSOCIATED(epc_potential)) THEN
-          CALL get_potential(potential=epc_potential,&
+        ELSE IF (ASSOCIATED(elp_potential)) THEN
+          CALL get_potential(potential=elp_potential,&
                              core_charge_radius=core_charge_radius)
           WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length

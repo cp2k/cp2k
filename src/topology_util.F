@@ -28,7 +28,7 @@ MODULE topology_util
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE external_potential_types,        ONLY: epc_potential_type,&
+  USE external_potential_types,        ONLY: elp_potential_type,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
   USE input_types,                     ONLY: setup_parameters_type
@@ -1666,7 +1666,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   CHARACTER(LEN=default_string_length),POINTER       :: work(:)
 
   TYPE(atomic_kind_type), POINTER                    :: atomic_kind
-  TYPE(epc_potential_type), POINTER                  :: epc_potential
+  TYPE(elp_potential_type), POINTER                  :: elp_potential
   TYPE(molecule_kind_type), POINTER                  ::molecule_kind
   TYPE(molecule_type), POINTER                       :: molecule
   TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list
@@ -1848,8 +1848,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     DO ikind=1,topology%natom_type
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                        epc_potential=epc_potential) 
-      CALL set_potential(potential=epc_potential,&
+                        elp_potential=elp_potential) 
+      CALL set_potential(potential=elp_potential,&
                         qeff=charge(ikind))
     END DO
   END IF

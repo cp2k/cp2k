@@ -57,7 +57,7 @@ MODULE atomic_kind_types
   USE external_potential_types,        ONLY: all_potential_type,&
                                              allocate_potential,&
                                              deallocate_potential,&
-                                             epc_potential_type,&
+                                             elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type,&
                                              init_potential,&
@@ -94,7 +94,7 @@ MODULE atomic_kind_types
   TYPE atomic_kind_type
     PRIVATE
     TYPE(all_potential_type), POINTER      :: all_potential
-    TYPE(epc_potential_type), POINTER      :: epc_potential
+    TYPE(elp_potential_type), POINTER      :: elp_potential
     TYPE(gth_potential_type), POINTER      :: gth_potential
     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
@@ -163,7 +163,7 @@ CONTAINS
 
     DO ikind=1,nkind
       NULLIFY (atomic_kind_set(ikind)%all_potential)
-      NULLIFY (atomic_kind_set(ikind)%epc_potential)
+      NULLIFY (atomic_kind_set(ikind)%elp_potential)
       NULLIFY (atomic_kind_set(ikind)%gth_potential)
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
@@ -209,8 +209,8 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%all_potential)) THEN
           CALL deallocate_potential(atomic_kind_set(ikind)%all_potential)
         END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%epc_potential)) THEN
-          CALL deallocate_potential(atomic_kind_set(ikind)%epc_potential)
+        IF (ASSOCIATED(atomic_kind_set(ikind)%elp_potential)) THEN
+          CALL deallocate_potential(atomic_kind_set(ikind)%elp_potential)
         END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%gth_potential)) THEN
           CALL deallocate_potential(atomic_kind_set(ikind)%gth_potential)
@@ -245,7 +245,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,epc_potential,&
+  SUBROUTINE get_atomic_kind(atomic_kind,all_potential,elp_potential,&
                              gth_potential,aux_basis_set,orb_basis_set,&
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
@@ -260,7 +260,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER                  :: atomic_kind
     TYPE(all_potential_type), OPTIONAL, POINTER      :: all_potential
-    TYPE(epc_potential_type), OPTIONAL, POINTER      :: epc_potential
+    TYPE(elp_potential_type), OPTIONAL, POINTER      :: elp_potential
     TYPE(gth_potential_type), OPTIONAL, POINTER      :: gth_potential
     TYPE(gto_basis_set_type), OPTIONAL, POINTER      :: aux_basis_set,&
                                                         orb_basis_set
@@ -285,7 +285,7 @@ CONTAINS
     IF (ASSOCIATED(atomic_kind)) THEN
 
       IF (PRESENT(all_potential)) all_potential => atomic_kind%all_potential
-      IF (PRESENT(epc_potential)) epc_potential => atomic_kind%epc_potential
+      IF (PRESENT(elp_potential)) elp_potential => atomic_kind%elp_potential
       IF (PRESENT(gth_potential)) gth_potential => atomic_kind%gth_potential
       IF (PRESENT(aux_basis_set)) aux_basis_set => atomic_kind%aux_basis_set
       IF (PRESENT(orb_basis_set)) orb_basis_set => atomic_kind%orb_basis_set
@@ -299,8 +299,8 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%all_potential)) THEN
           CALL get_potential(potential=atomic_kind%all_potential,&
                              alpha_core_charge=alpha_core_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%epc_potential)) THEN
-          CALL get_potential(potential=atomic_kind%epc_potential,&
+        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+          CALL get_potential(potential=atomic_kind%elp_potential,&
                              alpha_core_charge=alpha_core_charge)
         ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
           CALL get_potential(potential=atomic_kind%gth_potential,&
@@ -313,8 +313,8 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%all_potential)) THEN
           CALL get_potential(potential=atomic_kind%all_potential,&
                              ccore_charge=ccore_charge)
-        ELSE IF (ASSOCIATED(atomic_kind%epc_potential)) THEN
-          CALL get_potential(potential=atomic_kind%epc_potential,&
+        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+          CALL get_potential(potential=atomic_kind%elp_potential,&
                              ccore_charge=ccore_charge)
         ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
           CALL get_potential(potential=atomic_kind%gth_potential,&
@@ -327,8 +327,8 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%all_potential)) THEN
           CALL get_potential(potential=atomic_kind%all_potential,&
                              core_charge_radius=core_charge_radius)
-        ELSE IF (ASSOCIATED(atomic_kind%epc_potential)) THEN
-          CALL get_potential(potential=atomic_kind%epc_potential,&
+        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+          CALL get_potential(potential=atomic_kind%elp_potential,&
                              core_charge_radius=core_charge_radius)
         ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
           CALL get_potential(potential=atomic_kind%gth_potential,&
@@ -372,8 +372,8 @@ CONTAINS
         END IF
       END IF
       IF (PRESENT(qeff)) THEN
-        IF (ASSOCIATED(atomic_kind%epc_potential)) THEN
-          CALL get_potential(potential=atomic_kind%epc_potential,qeff=qeff)
+        IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+          CALL get_potential(potential=atomic_kind%elp_potential,qeff=qeff)
         ELSE
           qeff = 0
         END IF
@@ -400,7 +400,7 @@ CONTAINS
                                  natom,nelectron,ncgf,ncgf_aux,&
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
-                                 epc_potential_present,&
+                                 elp_potential_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder)
 
 !   Purpose: Get informations about an atomic kind set.
@@ -425,7 +425,7 @@ CONTAINS
                                                      nelectron,&
                                                      npgf,nset,nsgf,nshell
     LOGICAL, OPTIONAL, INTENT(OUT)                :: all_potential_present,&
-                                                     epc_potential_present,&
+                                                     elp_potential_present,&
                                                      gth_potential_present
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(OUT)  :: atom_of_kind,kind_of,&
                                                      natom_of_kind
@@ -439,7 +439,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(all_potential_type), POINTER :: all_potential
-    TYPE(epc_potential_type), POINTER :: epc_potential
+    TYPE(elp_potential_type), POINTER :: elp_potential
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: aux_basis_set,orb_basis_set
     INTEGER                           :: atom_a,iatom,ikind,imax,n,nkind,zeff,&
@@ -475,7 +475,7 @@ CONTAINS
       IF (PRESENT(nsgf)) nsgf = 0
       IF (PRESENT(nshell)) nshell = 0
       IF (PRESENT(all_potential_present)) all_potential_present = .FALSE.
-      IF (PRESENT(epc_potential_present)) epc_potential_present = .FALSE.
+      IF (PRESENT(elp_potential_present)) elp_potential_present = .FALSE.
       IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
       IF (PRESENT(atom_of_kind)) atom_of_kind(:) = 0
       IF (PRESENT(kind_of)) kind_of(:) = 0
@@ -504,7 +504,7 @@ CONTAINS
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              all_potential=all_potential,&
-                             epc_potential=epc_potential,&
+                             elp_potential=elp_potential,&
                              gth_potential=gth_potential,&
                              aux_basis_set=aux_basis_set,&
                              orb_basis_set=orb_basis_set)
@@ -519,8 +519,8 @@ CONTAINS
           CALL get_potential(potential=gth_potential,lprj_ppnl_max=imax)
           maxlppnl = MAX(maxlppnl,imax)
         END IF
-        IF (ASSOCIATED(epc_potential)) THEN
-          CALL get_potential(potential=epc_potential)
+        IF (ASSOCIATED(elp_potential)) THEN
+          CALL get_potential(potential=elp_potential)
         END IF
         IF (PRESENT(maxcgf)) THEN
           IF (ASSOCIATED(aux_basis_set)) THEN
@@ -664,9 +664,9 @@ CONTAINS
             all_potential_present = .TRUE.
           END IF
         END IF
-        IF (PRESENT(epc_potential_present)) THEN
-          IF (ASSOCIATED(epc_potential)) THEN
-            epc_potential_present = .TRUE.
+        IF (PRESENT(elp_potential_present)) THEN
+          IF (ASSOCIATED(elp_potential)) THEN
+            elp_potential_present = .TRUE.
           END IF
         END IF
         IF (PRESENT(gth_potential_present)) THEN
@@ -753,7 +753,7 @@ CONTAINS
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
       ELSE IF (globenv%program_name == "FIST") THEN
-        CALL allocate_potential(atomic_kind%epc_potential)
+        CALL allocate_potential(atomic_kind%elp_potential)
       END IF
 
     ELSE
@@ -816,7 +816,7 @@ CONTAINS
 !   Purpose: Read an atomic kind data set from the input file.
 
 !   History: - Creation (09.02.2002,MK)
-!            - 20.09.2002,gt: adapted for POL/KG use (epc_potential)
+!            - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 
 !   ***************************************************************************
 
@@ -1001,10 +1001,10 @@ CONTAINS
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,globenv)
-      CASE ("EPC")
-        CALL allocate_potential(atomic_kind%epc_potential)
+      CASE ("ELP")
+        CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%epc_potential,globenv)
+                            atomic_kind%elp_potential,globenv)
       CASE DEFAULT
         CALL stop_program(routine_name,module_name,__LINE__,&
                           "An invalid potential type <"//&
@@ -1179,7 +1179,7 @@ CONTAINS
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,globenv)
         CALL write_aux_basis_set(atomic_kind%aux_basis_set,globenv)
         CALL write_potential(atomic_kind%all_potential,globenv)
-        CALL write_potential(atomic_kind%epc_potential,globenv)
+        CALL write_potential(atomic_kind%elp_potential,globenv)
         CALL write_potential(atomic_kind%gth_potential,globenv)
         IF (ASSOCIATED(atomic_kind%pao_bas_proj).AND.globenv%ionode) THEN
           CALL cp_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)

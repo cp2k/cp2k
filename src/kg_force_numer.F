@@ -33,12 +33,13 @@
   USE kg_density, ONLY : calculate_density, calculate_epc_density,&
                      calculate_p_density 
   USE kg_environment_types, ONLY : get_kg_env, kg_environment_type
+  USE kg_energy_types, ONLY : kg_energy_type 
 !gt
 ! kg intra temporarily removed from OBJECT file
 !    USE kg_intra, ONLY : calculate_ebond_corr
 !gt
   USE kg_kxc, ONLY : calculate_kxc_potential
-  USE kg_neighbor_lists, ONLY : rebuild_neighbor_lists
+  USE kg_neighbor_lists, ONLY : build_kg_neighbor_lists
   USE kg_ppl, ONLY : calculate_rho0_ppl, calculate_drho_ppl
   USE kinds, ONLY : dbl
   USE pw_grid_types, ONLY : pw_grid_type
@@ -462,9 +463,9 @@ END SUBROUTINE  fpart_core_rspace_numer
      "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
    INTEGER :: i, j
    INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy
    REAL (dbl) :: energy_plus, energy_minus
    TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
+   TYPE(kg_energy_type), POINTER :: energy
    LOGICAL :: calculate_forces
 
    energy_numer = 0.0_dbl
@@ -472,7 +473,7 @@ END SUBROUTINE  fpart_core_rspace_numer
    energy_minus = 0.0_dbl
    f_part = 0.0_dbl
    calculate_forces = .FALSE.
-   NULLIFY (particle_set)
+   NULLIFY (particle_set,energy)
    CALL get_kg_env(kg_env=kg_env,particle_set=particle_set)
 !
 ! starting the force loop
@@ -484,12 +485,16 @@ END SUBROUTINE  fpart_core_rspace_numer
      DO id = 1,3
 
        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
-       CALL rebuild_neighbor_lists(kg_env,globenv)
-       CALL calculate_rho0_ppl(kg_env,globenv,energy_plus,calculate_forces)
+       CALL build_kg_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+       CALL get_kg_env(kg_env=kg_env,energy=energy)
+       energy_plus=energy%pseudo
 
        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
-       CALL rebuild_neighbor_lists(kg_env,globenv)
-       CALL calculate_rho0_ppl(kg_env,globenv,energy_minus,calculate_forces)
+       CALL build_kg_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+       CALL get_kg_env(kg_env=kg_env,energy=energy)
+       energy_minus=energy%pseudo
 
        f_part ( id, i ) = energy_minus - energy_plus
 
@@ -500,8 +505,10 @@ END SUBROUTINE  fpart_core_rspace_numer
   END DO
 
   f_part = f_part / 2._dbl / delta
-  CALL rebuild_neighbor_lists(kg_env,globenv)
-  CALL calculate_rho0_ppl(kg_env,globenv,energy_numer,calculate_forces)
+  CALL build_kg_neighbor_lists(kg_env,globenv)
+  CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+  CALL get_kg_env(kg_env=kg_env,energy=energy)
+  energy_numer=energy%pseudo
 
   RETURN
 
@@ -527,9 +534,10 @@ END SUBROUTINE  fpart_ppl_numer
      "SUBROUTINE fpart_ppl_numer (MODULE kg_force_numer)"
    INTEGER :: i, j
    INTEGER :: id,  natoms, istat
-   REAL (dbl) :: energy,energy2
+   REAL (dbl) :: energy2
    REAL (dbl) :: energy_plus, energy_minus
    LOGICAL :: calculate_forces
+   TYPE (kg_energy_type), POINTER :: energy
    TYPE (particle_type), DIMENSION(:), POINTER :: particle_set
    TYPE ( coeff_type ), POINTER :: coef_pos
    TYPE ( coeff_type ), POINTER :: coef_vel
@@ -539,7 +547,7 @@ END SUBROUTINE  fpart_ppl_numer
 !   coef_vel => kg_env % coef_vel (1)
 !   coef_force => kg_env % coef_force (1)
 
-   NULLIFY (particle_set)
+   NULLIFY (particle_set,energy)
    energy_numer = 0.0_dbl
    energy_plus = 0.0_dbl
    energy_minus = 0.0_dbl
@@ -556,19 +564,21 @@ END SUBROUTINE  fpart_ppl_numer
      DO id = 1,3
 
        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta
-       CALL rebuild_neighbor_lists(kg_env,globenv)
-       CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+       CALL build_kg_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+       CALL get_kg_env(kg_env=kg_env,energy=energy)
        CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
             kg_env,globenv,energy2,calculate_forces)
-       energy_plus=energy+energy2
+       energy_plus=energy%pseudo+energy2
        
 
        particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2._dbl * delta
-       CALL rebuild_neighbor_lists(kg_env,globenv)
-       CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+       CALL build_kg_neighbor_lists(kg_env,globenv)
+       CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+       CALL get_kg_env(kg_env=kg_env,energy=energy)
        CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
                                 kg_env,globenv,energy2,calculate_forces)
-       energy_minus=energy+energy2
+       energy_minus=energy%pseudo+energy2
 
        f_part ( id, i ) = energy_minus - energy_plus
 
@@ -579,11 +589,12 @@ END SUBROUTINE  fpart_ppl_numer
   END DO
 
   f_part = f_part / 2._dbl / delta
-  CALL rebuild_neighbor_lists(kg_env,globenv)
-  CALL calculate_rho0_ppl(kg_env,globenv,energy,calculate_forces)
+  CALL build_kg_neighbor_lists(kg_env,globenv)
+  CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+  CALL get_kg_env(kg_env=kg_env,energy=energy)
   CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
                         kg_env,globenv,energy2,calculate_forces)
-  energy_numer=energy+energy2
+  energy_numer=energy%pseudo +energy2
 
   RETURN
 
@@ -1543,13 +1554,13 @@ END SUBROUTINE  fcoef_p_gspace_numer
 
       coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) + delta
 
-      CALL rebuild_neighbor_lists(kg_env,globenv)
+      CALL build_kg_neighbor_lists(kg_env,globenv)
       CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,kg_env, &
                 globenv,energy_plus,calculate_forces)
        
       coef_pos % ao % cr ( i ) = coef_pos % ao % cr ( i ) - 2._dbl*delta
 
-      CALL rebuild_neighbor_lists(kg_env,globenv)
+      CALL build_kg_neighbor_lists(kg_env,globenv)
       CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,kg_env,&
                  globenv,energy_minus,calculate_forces)
 
@@ -1560,7 +1571,7 @@ END SUBROUTINE  fcoef_p_gspace_numer
    END DO
 
    f_coef = f_coef / 2._dbl / delta
-   CALL rebuild_neighbor_lists(kg_env,globenv)
+   CALL build_kg_neighbor_lists(kg_env,globenv)
    CALL calculate_drho_ppl(coef_pos%ao%cr,coef_force%ao%cr,&
          kg_env,globenv,energy_numer,calculate_forces)
 

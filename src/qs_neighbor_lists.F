@@ -111,6 +111,7 @@ MODULE qs_neighbor_lists
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_subcell,&
+            build_gth_ppl_neighbor_lists,&
             build_qs_neighbor_lists,&
             deallocate_subcell,&
             write_distribution,&

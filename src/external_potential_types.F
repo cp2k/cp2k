@@ -14,7 +14,7 @@
 !!     Matthias Krack (04.07.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     GT, 22.09.2002: added epc_potential_types
+!!     GT, 22.09.2002: added elp_potential_types
 !!
 !!   SOURCE
 !******************************************************************************
@@ -97,16 +97,21 @@ MODULE external_potential_types
 
 ! *** Define the effective point charge potential type ***
 
-  TYPE epc_potential_type
+  TYPE elp_potential_type
     PRIVATE
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=default_string_length),&
       DIMENSION(2) :: description
     REAL(KIND = dp)                        :: alpha_core_charge,&
                                               ccore_charge,&
+                                              cerf_ppl,&
                                               core_charge_radius,&
-                                              qeff
-  END TYPE epc_potential_type
+                                              ppl_radius,qeff 
+    INTEGER                                :: nalpha_ppl
+    INTEGER,DIMENSION (:), POINTER         :: nexp_ppl               
+    REAL(KIND = dp),DIMENSION(:), POINTER  :: alpha_ppl
+    REAL(KIND = dp),DIMENSION(:,:),POINTER :: cexp_ppl   
+  END TYPE elp_potential_type
 
 ! *** Public subroutines ***
 
@@ -121,7 +126,7 @@ MODULE external_potential_types
 ! *** Public data types ***
 
   PUBLIC :: all_potential_type,&
-            epc_potential_type,&
+            elp_potential_type,&
             gth_potential_type
 
 !!***
@@ -129,19 +134,19 @@ MODULE external_potential_types
 
   INTERFACE allocate_potential
     MODULE PROCEDURE allocate_all_potential,&
-                     allocate_epc_potential,&
+                     allocate_elp_potential,&
                      allocate_gth_potential
   END INTERFACE
 
   INTERFACE deallocate_potential
     MODULE PROCEDURE deallocate_all_potential,&
-                     deallocate_epc_potential,&
+                     deallocate_elp_potential,&
                      deallocate_gth_potential
   END INTERFACE
 
   INTERFACE get_potential
     MODULE PROCEDURE get_all_potential,&
-                     get_epc_potential,&
+                     get_elp_potential,&
                      get_gth_potential
   END INTERFACE
 
@@ -151,19 +156,19 @@ MODULE external_potential_types
 
   INTERFACE read_potential
     MODULE PROCEDURE read_all_potential,&
-                     read_epc_potential,&
+                     read_elp_potential,&
                      read_gth_potential
   END INTERFACE
 
   INTERFACE set_potential
     MODULE PROCEDURE set_all_potential,&
-                     set_epc_potential,&
+                     set_elp_potential,&
                      set_gth_potential
   END INTERFACE
 
   INTERFACE write_potential
     MODULE PROCEDURE write_all_potential,&
-                     write_epc_potential,&
+                     write_elp_potential,&
                      write_gth_potential
   END INTERFACE
 
@@ -209,18 +214,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_epc_potential(potential)
+  SUBROUTINE allocate_elp_potential(potential)
 
 !   Purpose: Allocate an effective charge potential data set.
 !   History: Creation (22.09.2002, gt)
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER :: potential
+    TYPE(elp_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_epc_potential"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_elp_potential"
 
 !   *** Local variables ***
 
@@ -233,10 +238,13 @@ CONTAINS
     ALLOCATE (potential,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "potential",0)
+    NULLIFY (potential%alpha_ppl)
+    NULLIFY (potential%cexp_ppl)
+    NULLIFY (potential%nexp_ppl)  
 
-    potential%description(1) = "effective point charge potential"
+    potential%description(1) = "Local pseudopotential for KG-MD"
 
-  END SUBROUTINE allocate_epc_potential
+  END SUBROUTINE allocate_elp_potential
 
 ! *****************************************************************************
 
@@ -327,18 +335,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_epc_potential(potential)
+  SUBROUTINE deallocate_elp_potential(potential)
 
 !   Purpose: deallocate an effective charge potential data set.
 !   History: Creation (22.09.2002, gt)
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER :: potential
+    TYPE(elp_potential_type), POINTER :: potential
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_epc_potential"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_elp_potential"
 
 !   *** Local variables ***
 
@@ -347,6 +355,24 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
+
+      IF (ASSOCIATED(potential%nexp_ppl)) THEN
+        DEALLOCATE (potential%nexp_ppl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "potential%nexp_ppl")
+      END IF
+
+      IF (ASSOCIATED(potential%cexp_ppl)) THEN
+        DEALLOCATE (potential%cexp_ppl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "potential%cexp_ppl")
+      END IF
+
+      IF (ASSOCIATED(potential%alpha_ppl)) THEN
+        DEALLOCATE (potential%alpha_ppl,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "potential%alpha_ppl")
+      END IF
 
       DEALLOCATE (potential,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -359,7 +385,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE deallocate_epc_potential
+  END SUBROUTINE deallocate_elp_potential
 
 ! *****************************************************************************
 
@@ -494,25 +520,35 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_epc_potential(potential,name,alpha_core_charge,&
-                               ccore_charge,core_charge_radius,qeff)
+  SUBROUTINE get_elp_potential(potential,name,alpha_core_charge,&
+                               alpha_ppl,cerf_ppl,cexp_ppl,nalpha_ppl,&
+                               ccore_charge,core_charge_radius,&
+                               nexp_ppl,ppl_radius,ppl_present,qeff)
 
 !   Purpose: Get informations about effective pint charge potential.
-!   History: 22-09-2002 GT
+!   History: 22-09-2002 GT 
+!            28-11-2003 gt: supports a local gth-like analytical form
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER        :: potential
+    TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length),&
       OPTIONAL, INTENT(OUT)                  :: name
     REAL(KIND = dp), OPTIONAL, INTENT(OUT)   :: alpha_core_charge,&
                                                 ccore_charge,&
+                                                cerf_ppl,&
                                                 core_charge_radius,&
+                                                ppl_radius,&
                                                 qeff
+    INTEGER,DIMENSION (:),OPTIONAL, POINTER         :: nexp_ppl               
+    REAL(KIND = dp),DIMENSION(:),OPTIONAL,POINTER   :: alpha_ppl
+    REAL(KIND = dp),DIMENSION(:,:),OPTIONAL,POINTER :: cexp_ppl  
+    INTEGER, OPTIONAL                             :: nalpha_ppl
+    LOGICAL, OPTIONAL, INTENT(OUT)                :: ppl_present
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_epc_potential"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_elp_potential"
 
 !   ---------------------------------------------------------------------------
 
@@ -520,11 +556,18 @@ CONTAINS
 
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(qeff)) qeff = potential%qeff
+      IF (PRESENT(nalpha_ppl)) nalpha_ppl=potential%nalpha_ppl
+      IF (PRESENT(alpha_ppl)) alpha_ppl => potential%alpha_ppl
       IF (PRESENT(alpha_core_charge))&
         alpha_core_charge = potential%alpha_core_charge
+      IF (PRESENT(cerf_ppl)) cerf_ppl=potential%cerf_ppl
+      IF (PRESENT(cexp_ppl)) cexp_ppl => potential%cexp_ppl
       IF (PRESENT(ccore_charge)) ccore_charge = potential%ccore_charge
       IF (PRESENT(core_charge_radius))&
         core_charge_radius = potential%core_charge_radius
+      IF (PRESENT(ppl_radius)) ppl_radius=potential%ppl_radius
+      IF (PRESENT(nexp_ppl)) nexp_ppl => potential%nexp_ppl
+      IF (PRESENT(ppl_present)) ppl_present = (ASSOCIATED(potential%nexp_ppl) )
 
     ELSE
 
@@ -533,7 +576,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE get_epc_potential
+  END SUBROUTINE get_elp_potential
 
 ! *****************************************************************************
 
@@ -880,7 +923,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_epc_potential(element_symbol,potential_name,potential,&
+  SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,&
                                 globenv)
 
 !   Purpose: Read an effective charge potential data set.
@@ -888,13 +931,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER         :: potential
+    TYPE(elp_potential_type), POINTER         :: potential
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=*), INTENT(IN)              :: element_symbol,potential_name
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_epc_potential"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_elp_potential"
 
 !   *** Local variables ***
 
@@ -906,6 +949,7 @@ CONTAINS
     CHARACTER(LEN=LEN(element_symbol)+2) :: symbol2
     REAL(KIND = dp)                      :: alpha,qeff
     INTEGER                              :: istat,strlen1,strlen2
+    INTEGER                              :: nalpha_ppl,n,nmax,i,j,maxlppl
     LOGICAL                              :: found
 
 !   ---------------------------------------------------------------------------
@@ -913,6 +957,9 @@ CONTAINS
     line2 = ""
     symbol2 = ""
     apname2 = ""
+    nmax=0
+    nalpha_ppl=0
+    
 
     potential%name = potential_name
 
@@ -956,7 +1003,38 @@ CONTAINS
           CALL read_object(alpha,newline=.TRUE.)
 
           potential%alpha_core_charge = alpha
-          potential%ccore_charge = REAL(potential%qeff,dp)*SQRT((alpha/pi)**3)
+          potential%ccore_charge = potential%qeff*SQRT((alpha/pi)**3)
+          potential%cerf_ppl = potential%qeff*SQRT((alpha/pi)**3)
+
+          CALL read_object(nalpha_ppl,newline=.TRUE.)
+
+          potential%nalpha_ppl=nalpha_ppl
+          IF (nalpha_ppl>0) THEN
+            CALL reallocate(potential%alpha_ppl,1,nalpha_ppl)
+            CALL reallocate(potential%nexp_ppl,1,nalpha_ppl)
+            DO i=1,nalpha_ppl
+              CALL read_object(potential%alpha_ppl(i),newline=.TRUE.)
+              CALL read_object(n)
+              potential%nexp_ppl(i)=n
+              IF (n>nmax) THEN
+                nmax=n
+                CALL reallocate(potential%cexp_ppl,1,nalpha_ppl,1,nmax)
+              END IF
+              DO j=1,n
+                 CALL read_object(potential%cexp_ppl(i,j))
+                 potential%cexp_ppl(i,j) = (2.0_dp*potential%alpha_ppl(i))**(j - 1)*&
+                                   potential%cexp_ppl(i,j)
+              END DO
+            END DO
+! check if alpha_core_charge=alpha_ppl(1) 
+            IF(potential%alpha_core_charge/=potential%alpha_ppl(1)) THEN
+               CALL stop_program(routine_name,module_name,__LINE__,&
+                       "exponent of the core charge and alpha_ppl(1) must be equal") 
+            END IF
+            maxlppl = 2*(nmax - 1)
+
+            CALL init_orbital_pointers(maxlppl)
+          END IF 
 
           EXIT search_loop
 
@@ -978,7 +1056,7 @@ CONTAINS
 
     CALL finish_parser()
 
-  END SUBROUTINE read_epc_potential
+  END SUBROUTINE read_elp_potential
 
 ! *****************************************************************************
 
@@ -1283,37 +1361,49 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_epc_potential(potential,name,alpha_core_charge,ccore_charge,&
-                               core_charge_radius,qeff)
+  SUBROUTINE set_elp_potential(potential,name,alpha_core_charge,ccore_charge,&
+                               core_charge_radius,cexp_ppl,cerf_ppl,qeff,&
+                               ppl_radius,alpha_ppl,nexp_ppl,nalpha_ppl)
 
-!   Purpose: Set the effective charge in the epc potential data set.
+!   Purpose: Set the effective charge in the elp potential data set.
 !   History: creation (22-09-2002, GT)
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER        :: potential
+    TYPE(elp_potential_type), POINTER        :: potential
     CHARACTER(LEN=default_string_length),&
       OPTIONAL, INTENT(IN)                   :: name
     REAL(KIND = dp), OPTIONAL, INTENT(IN)    :: alpha_core_charge,&
                                                 ccore_charge,&
+                                                cerf_ppl,&
                                                 core_charge_radius,&
-                                                qeff
+                                                qeff, ppl_radius
+    REAL(KIND=dp),OPTIONAL,DIMENSION(:,:),POINTER   :: cexp_ppl
+    REAL(KIND=dp),OPTIONAL,DIMENSION(:),POINTER     :: alpha_ppl
+    INTEGER,OPTIONAL,DIMENSION(:),POINTER     :: nexp_ppl
+    INTEGER,OPTIONAL     :: nalpha_ppl
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_epc_potential"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_elp_potential"
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) potential%name = name
+      IF (PRESENT(nalpha_ppl)) potential%nalpha_ppl = nalpha_ppl
       IF (PRESENT(alpha_core_charge))&
         potential%alpha_core_charge = alpha_core_charge
       IF (PRESENT(ccore_charge)) potential%ccore_charge = ccore_charge
       IF (PRESENT(core_charge_radius))&
         potential%core_charge_radius = core_charge_radius
       IF (PRESENT(qeff)) potential%qeff = qeff
+      IF (PRESENT(alpha_ppl)) potential%alpha_ppl => alpha_ppl
+      IF (PRESENT(cexp_ppl)) potential%cexp_ppl => cexp_ppl
+      IF (PRESENT(nexp_ppl)) potential%nexp_ppl => nexp_ppl
+      IF (PRESENT(cerf_ppl)) potential%cerf_ppl = cerf_ppl
+      IF (PRESENT(ppl_radius)) potential%ppl_radius = ppl_radius
 
     ELSE
 
@@ -1322,7 +1412,7 @@ CONTAINS
 
     END IF
 
-  END SUBROUTINE set_epc_potential
+  END SUBROUTINE set_elp_potential
 
 ! *****************************************************************************
 
@@ -1448,7 +1538,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_epc_potential(potential,globenv)
+  SUBROUTINE write_elp_potential(potential,globenv)
 
 !   Purpose: Write an effective-point-charge potential data set to the output
 !            unit.
@@ -1457,12 +1547,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(epc_potential_type), POINTER         :: potential
+    TYPE(elp_potential_type), POINTER         :: potential
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
     INTEGER :: output_unit
+    INTEGER :: i,j
+    REAL(KIND = dp) :: r 
 
 !   ---------------------------------------------------------------------------
 
@@ -1483,9 +1575,21 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
         "Gaussian exponent of the core charge distribution: ",&
         potential%alpha_core_charge
+
+      IF (potential%nalpha_ppl>0) THEN
+        DO I=1,potential%nalpha_ppl
+           r=sqrt(1.0_dp/(2.0_dp*potential%alpha_ppl(i)))
+           WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,6F12.6)")&
+           "Parameters of the local pseudopotential:",&
+           "alpha     rloc        C1          C2          C3          C4",&
+           potential%alpha_ppl(i), r, &
+           (potential%cexp_ppl(i,j)*r**(2*(i-1)),j=1,potential%nexp_ppl(i))
+        END DO
+      END IF
+
     END IF
 
-  END SUBROUTINE write_epc_potential
+  END SUBROUTINE write_elp_potential
 
 ! *****************************************************************************
 

@@ -33,8 +33,6 @@ MODULE atoms_input
                                        init_atomic_kind_set,&
                                        set_atomic_kind
   USE convert_units,            ONLY : convert_to_cp2k_units
-  USE external_potential_types, ONLY : epc_potential_type,&
-                                       set_potential
   USE global_types,             ONLY : global_environment_type
   USE input_types,              ONLY : setup_parameters_type
   USE kinds,                    ONLY : dbl,&
@@ -103,7 +101,6 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   INTEGER :: ierror, ilen, iw
   INTEGER, PARAMETER :: nblock_atom = 1000
 
-  TYPE(epc_potential_type), POINTER :: epc_potential
   CHARACTER(LEN=6)  :: label
   INTEGER                         :: iatom,istat,natom
 
