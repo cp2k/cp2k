@@ -75,12 +75,12 @@ SUBROUTINE dg_rho0_setup ( dg_rho0, pw_grid )
     CALL stop_program ( 'dg_rho0_setup', 'type not implemented' )
   CASE ( "S" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_REALDATA3D )
-    CALL dg_rho0_s_cgf ( dg_rho0 % density, dg_rho0 % zet , &
-                              dg_rho0 % gcc)
+     CALL dg_rho0_s_cgf ( dg_rho0 % density, dg_rho0 % zet , &
+                          dg_rho0 % gcc)
   CASE ( "PX", "PY", "PZ" )
     CALL coeff_allocate ( dg_rho0 % density, pw_grid, PW_COMPLEXDATA3D )
     CALL dg_rho0_p_cgf ( dg_rho0 % density, dg_rho0 % zet, & 
-                              dg_rho0 % gcc, dg_rho0 % type)
+                         dg_rho0 % gcc, dg_rho0 % type)
   CASE DEFAULT
     CALL stop_program ( 'dg_rho0_setup', 'type not implemented' )
   END SELECT
@@ -198,8 +198,8 @@ SUBROUTINE dg_rho0_s_cgf ( dg_rho0, zet, gcc )
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   INTEGER :: l0, m0, n0
   INTEGER, PARAMETER :: IMPOSSIBLE = 10000
-  REAL ( dbl ) :: const, e_gsq, charge
-  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg, coef
+  REAL ( dbl ) :: const, e_gsq, charge, coef
+  INTEGER :: lp, mp, np, ln, mn, nn, gpt, ncg, icg
   INTEGER, DIMENSION ( :, : ), POINTER :: bds
   INTEGER, DIMENSION ( : ), POINTER :: ghat
   REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
