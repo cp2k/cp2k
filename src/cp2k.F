@@ -50,14 +50,18 @@ PROGRAM cp2k
   USE kg_main,                         ONLY: kg
   USE library_tests,                   ONLY: lib_test
   USE qs_main,                         ONLY: quickstep
+  USE timings,                         ONLY: trace_debug
 
   IMPLICIT NONE
 
   CHARACTER(LEN=*), PARAMETER :: routine = "PROGRAM cp2k"
 
   TYPE(global_environment_type), TARGET :: globenv
+  INTEGER :: handle
 
 ! -----------------------------------------------------------------------------
+
+  ! CALL trace_debug("START",handle)
 
   CALL cp2k_init(globenv)
 

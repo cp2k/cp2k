@@ -260,12 +260,7 @@ MODULE qs_scf
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-  INTEGER :: nelectron
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
-
-! *** Public variables ***
-
-  PUBLIC :: nelectron
 
 ! *** Public subroutines ***
 
@@ -339,6 +334,7 @@ CONTAINS
     TYPE(cell_type), POINTER          :: cell ! is this one used here 
     INTEGER :: ispin
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
+    INTEGER :: nelectron
 
 !   ---------------------------------------------------------------------------
 
@@ -705,7 +701,7 @@ CONTAINS
         SUM(rho%tot_rho_r)+ REAL(nelectron,wp),&
         "Total core charge density (r-space):",&
         qs_charges%total_rho_core_rspace,&
-        qs_charges%total_rho_core_rspace - REAL(nelectron,wp)
+        qs_charges%total_rho_core_rspace - REAL(nelectron+dft_control%charge,wp)
       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
         "Total charge density (r-space):     ",&
         SUM(rho%tot_rho_r)+&
@@ -738,9 +734,11 @@ CONTAINS
     rho%rho_ao_valid=.TRUE.
 !deb hack for SGI
 
-!   *** Write last wavefunction ***
+!   *** Write last wavefunction to screen ??????? ***
 
-    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
+    do ispin=1,dft_control%nspins
+       CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+    ENDDO
 
 !   *** write additional information about the converged system
     IF (globenv%print%e_density_cube) THEN
@@ -923,8 +921,7 @@ CONTAINS
 
 !   *** Write restart file ***
 
-    ! CALL write_mo_set(mo_set,globenv)
-    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,globenv,&
+    CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
          id_nr=qs_env%id_nr)
 
 !    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
@@ -1153,20 +1150,13 @@ CONTAINS
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
 
-    ! XXXXXXXXXX
-    IF (dft_control%nspins.ne.1) THEN
-    WRITE(6,*) "calculate first dm not yet ok CORE and RANDOM might work"
-    ENDIF
-    ! XXXXXXXXXX
+    ! we need a copy the core matrix for every spin..
     IF (dft_control%nspins.eq.2) THEN
        CALL copy_blacs_to_blacs_matrix(scf_work1(1)%matrix,scf_work1(2)%matrix)
     ENDIF
-    DO ispin=1,dft_control%nspins
-       mo_set => c(ispin)%mo_set
-       CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(ispin),s(1), &
-            scf_work1(ispin)%matrix,scf_work2,globenv,&
+    CALL calculate_first_density_matrix(ortho,c,p_rmpv,s(1), &
+             scf_work1,scf_work2,globenv,&
              scf_control=scf_control, id_nr=qs_env%id_nr)
-    ENDDO
 
     CALL timestop(0.0_wp,handle)
 
@@ -1407,13 +1397,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,s_sparse,&
+  SUBROUTINE calculate_first_density_matrix(ortho,mo_array,p_rmpv,s_sparse,&
        work1,work2,globenv,scf_control,id_nr)
 
-    TYPE(cp_full_matrix_type), POINTER        :: ortho,work1,work2
+    TYPE(cp_full_matrix_type), POINTER        :: ortho,work2
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER        :: work1
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(real_matrix_p_type), INTENT(INOUT)   :: p,s_sparse
+    TYPE(mo_set_p_type),  DIMENSION(:), POINTER               :: mo_array
+    TYPE(real_matrix_p_type), INTENT(INOUT)   :: s_sparse
+    TYPE(real_matrix_p_type), DIMENSION(:), INTENT(INOUT)   :: p_rmpv
     TYPE(scf_control_type), POINTER           :: scf_control
     INTEGER, INTENT(in)                       :: id_nr!FM ugly, should be removed
 
@@ -1440,9 +1432,11 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER   :: atom_list,elec_conf,nshell
     INTEGER, DIMENSION(:,:), POINTER :: first_sgf,l,last_sgf
+    INTEGER :: nspin,ispin,nelectron
 
 !   ---------------------------------------------------------------------------
 
+    nspin=size(mo_array)
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
@@ -1455,174 +1449,181 @@ CONTAINS
 
     IF (scf_control%density_guess == "RESTART") THEN
 
-      ! CALL read_mo_set(mo_set,globenv)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-      ! particle set should be already init here
-      CALL read_mo_set(mo_set,atomic_kind_set,particle_set,globenv,&
+      CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
            id_nr=id_nr)
-
-      IF (scf_control%level_shift /= 0.0_wp) THEN
-        CALL get_mo_set(mo_set=mo_set,&
+      
+      DO ispin=1,nspin
+         IF (scf_control%level_shift /= 0.0_wp) THEN
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                         eigenvectors=mo_eigenvectors)
-        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
-      END IF
+             CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+         END IF
 
-      CALL get_mo_set(mo_set=mo_set,&
-                        eigenvectors=mo_eigenvectors, nmo=nmo)
-      ! ortho so that one can restart for different positions (basis sets?)
-      CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
-      CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
-           para_env=globenv%para_env)
-      CALL blacs_make_basis(mo_eigenvectors,nmo, &
-                             ortho=sv,otype="SV")
-      CALL cp_fm_release(sv)
-      CALL calculate_density_matrix(mo_set,p%matrix,globenv)
+         CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                           eigenvectors=mo_eigenvectors, nmo=nmo)
+         ! ortho so that one can restart for different positions (basis sets?)
+         CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+         CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+                                para_env=globenv%para_env)
+         CALL blacs_make_basis(mo_eigenvectors,nmo, &
+                                    ortho=sv,otype="SV")
+         CALL cp_fm_release(sv)
+         CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+      ENDDO
 
      ELSE IF (scf_control%density_guess == "RANDOM") THEN
 
-      CALL get_mo_set(mo_set=mo_set,&
-                        eigenvectors=mo_eigenvectors, nmo=nmo)
-      CALL cp_fm_init_random(mo_eigenvectors,nmo)
-      ! ortho so that one can restart for different positions (basis sets?)
-      CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
-      CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
-           para_env=globenv%para_env)
-      CALL blacs_make_basis(mo_eigenvectors,nmo, &
-                             ortho=sv,otype="SV")
-      CALL cp_fm_release(sv)
-      CALL calculate_density_matrix(mo_set,p%matrix,globenv)
+      DO ispin=1,nspin
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                            eigenvectors=mo_eigenvectors, nmo=nmo)
+          CALL cp_fm_init_random(mo_eigenvectors,nmo)
+          ! ortho so that one can restart for different positions (basis sets?)
+          CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+          CALL cp_sm_fm_multiply(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+               para_env=globenv%para_env)
+          CALL blacs_make_basis(mo_eigenvectors,nmo, &
+                                 ortho=sv,otype="SV")
+          CALL cp_fm_release(sv)
+          CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+      ENDDO
 
      ELSE IF (scf_control%density_guess == "CORE") THEN
 
-      CALL eigensolver(work1,mo_set,ortho,work2,.FALSE.,0.0_wp,globenv,&
-           use_arpack=scf_control%use_arpack, &
-           use_cholesky=scf_control%use_cholesky, &
-           work_syevx=scf_control%work_syevx,&
-           use_jacobi=.FALSE.,&
-           eps_jacobi=scf_control%eps_jacobi,&
-           jacobi_threshold=scf_control%jacobi_threshold)
-      IF (scf_control%level_shift /= 0.0_wp) THEN
-        CALL get_mo_set(mo_set=mo_set,&
-                        eigenvectors=mo_eigenvectors)
-        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
-      END IF
-      CALL calculate_density_matrix(mo_set,work1,globenv)
-      CALL copy_full_matrix_to_real_matrix(work1,p%matrix)
-      CALL symmetrise_diagonal_blocks(p%matrix)
+      DO ispin=1,nspin
+         CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
+              .FALSE.,0.0_wp,globenv,&
+              use_arpack=scf_control%use_arpack, &
+              use_cholesky=scf_control%use_cholesky, &
+              work_syevx=scf_control%work_syevx,&
+              use_jacobi=.FALSE.,&
+              eps_jacobi=scf_control%eps_jacobi,&
+              jacobi_threshold=scf_control%jacobi_threshold)
+         IF (scf_control%level_shift /= 0.0_wp) THEN
+           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                           eigenvectors=mo_eigenvectors)
+           CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+         END IF
+         CALL calculate_density_matrix(mo_array(ispin)%mo_set,p_rmpv(ispin)%matrix,globenv)
+      ENDDO
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
 
-      CALL cp_fm_set_all(work1,0.0_wp)
+      DO ispin=1,nspin
+          CALL get_mo_set(mo_array(ispin)%mo_set,nelectron=nelectron)
+          CALL cp_fm_set_all(work1(ispin)%matrix,0.0_wp)
 
-      sum = 0.0_wp
+          sum = 0.0_wp
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxl=maxl)
 
-      ALLOCATE (econf(0:maxl),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
+          ALLOCATE (econf(0:maxl),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
 
-      CALL copy_real_matrix_to_full_matrix(s_sparse%matrix,work2)
+          CALL copy_real_matrix_to_full_matrix(s_sparse%matrix,work2)
 
-      DO ikind=1,SIZE(atomic_kind_set)
+          DO ikind=1,SIZE(atomic_kind_set)
 
-        atomic_kind => atomic_kind_set(ikind)
+            atomic_kind => atomic_kind_set(ikind)
 
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             natom=natom,&
-                             atom_list=atom_list,&
-                             all_potential=all_potential,&
-                             gth_potential=gth_potential,&
-                             orb_basis_set=orb_basis_set)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 natom=natom,&
+                                 atom_list=atom_list,&
+                                 all_potential=all_potential,&
+                                 gth_potential=gth_potential,&
+                                 orb_basis_set=orb_basis_set)
 
-        IF (ASSOCIATED(all_potential)) THEN
-          CALL get_potential(potential=all_potential,elec_conf=elec_conf)
-        ELSE IF (ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
-        ELSE
-          CYCLE
-        END IF
-
-        maxl = SIZE(elec_conf) - 1
-        econf(:) = 0
-        econf(0:maxl) = elec_conf(0:maxl)
-
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               l=l,&
-                               first_sgf=first_sgf,&
-                               last_sgf=last_sgf)
-
-        DO iset=1,nset
-          DO ishell=1,nshell(iset)
-            la = l(ishell,iset)
-            nelec = 4*la + 2
-            IF (econf(la) > 0) THEN
-              IF (econf(la) >= nelec) THEN
-                paa = 2.0_wp
-                econf(la) = econf(la) - nelec
-              ELSE
-                paa = REAL(2*econf(la),wp)/REAL(nelec,wp)
-                econf(la) = 0
-              END IF
-              first_sgfa = first_sgf(ishell,iset)
-              last_sgfa = last_sgf(ishell,iset)
-              DO isgfa=first_sgfa,last_sgfa
-                DO iatom=1,natom
-                  atom_a = atom_list(iatom)
-                  isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                  CALL cp_fm_set_element(work1,isgf,isgf,paa)
-                  CALL blacs_get_element(work2,isgf,isgf,saa)
-                  sum = sum + paa*saa
-                END DO
-              END DO
+            IF (ASSOCIATED(all_potential)) THEN
+              CALL get_potential(potential=all_potential,elec_conf=elec_conf)
+            ELSE IF (ASSOCIATED(gth_potential)) THEN
+              CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+            ELSE
+              CYCLE
             END IF
+
+            maxl = SIZE(elec_conf) - 1
+            econf(:) = 0
+            econf(0:maxl) = elec_conf(0:maxl)
+
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=l,&
+                                   first_sgf=first_sgf,&
+                                   last_sgf=last_sgf)
+
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                la = l(ishell,iset)
+                nelec = 4*la + 2
+                IF (econf(la) > 0) THEN
+                  IF (econf(la) >= nelec) THEN
+                    paa = 2.0_wp
+                    econf(la) = econf(la) - nelec
+                  ELSE
+                    paa = REAL(2*econf(la),wp)/REAL(nelec,wp)
+                    econf(la) = 0
+                  END IF
+                  first_sgfa = first_sgf(ishell,iset)
+                  last_sgfa = last_sgf(ishell,iset)
+                  DO isgfa=first_sgfa,last_sgfa
+                    DO iatom=1,natom
+                      atom_a = atom_list(iatom)
+                      isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                      CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
+                      CALL blacs_get_element(work2,isgf,isgf,saa)
+                      sum = sum + paa*saa
+                    END DO
+                  END DO
+                END IF
+              END DO
+            END DO
+
           END DO
-        END DO
 
-      END DO
+          DEALLOCATE (econf,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"econf")
 
-      DEALLOCATE (econf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"econf")
+          CALL mp_sum(sum,globenv%group)
+    
+          saa = REAL(nelectron,wp)/sum
 
-      CALL mp_sum(sum,globenv%group)
+          DO ikind=1,SIZE(atomic_kind_set)
 
-      saa = REAL(nelectron,wp)/sum
+            atomic_kind => atomic_kind_set(ikind)
 
-      DO ikind=1,SIZE(atomic_kind_set)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 natom=natom,&
+                                 atom_list=atom_list,&
+                                 orb_basis_set=orb_basis_set)
+    
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=l,&
+                                   first_sgf=first_sgf,&
+                                   last_sgf=last_sgf)
 
-        atomic_kind => atomic_kind_set(ikind)
-
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             natom=natom,&
-                             atom_list=atom_list,&
-                             orb_basis_set=orb_basis_set)
-
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               l=l,&
-                               first_sgf=first_sgf,&
-                               last_sgf=last_sgf)
-
-        DO iset=1,nset
-          DO ishell=1,nshell(iset)
-            first_sgfa = first_sgf(ishell,iset)
-            last_sgfa = last_sgf(ishell,iset)
-            DO isgfa=first_sgfa,last_sgfa
-              DO iatom=1,natom
-                atom_a = atom_list(iatom)
-                isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                CALL blacs_get_element(work1,isgf,isgf,paa)
-                paa = paa*saa
-                CALL cp_fm_set_element(work1,isgf,isgf,paa)
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                first_sgfa = first_sgf(ishell,iset)
+                last_sgfa = last_sgf(ishell,iset)
+                DO isgfa=first_sgfa,last_sgfa
+                  DO iatom=1,natom
+                    atom_a = atom_list(iatom)
+                    isgf = particle_set(atom_a)%first_sgf + isgfa - 1
+                    CALL blacs_get_element(work1(ispin)%matrix,isgf,isgf,paa)
+                    paa = paa*saa
+                    CALL cp_fm_set_element(work1(ispin)%matrix,isgf,isgf,paa)
+                  END DO
+                END DO
               END DO
             END DO
           END DO
-        END DO
-      END DO
 
-      CALL copy_full_matrix_to_real_matrix(work1,p%matrix)
+          CALL copy_full_matrix_to_real_matrix(work1(ispin)%matrix,p_rmpv(ispin)%matrix)
+
+      ENDDO
 
     ELSE
 

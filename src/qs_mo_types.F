@@ -141,12 +141,11 @@ MODULE qs_mo_types
 ! *****************************************************************************
 
   INTERFACE write_mo_set
-    MODULE PROCEDURE write_mo_set_to_output_unit,write_mo_set_to_restart_unit,&
-                     write_mo_set_to_restart_new
+    MODULE PROCEDURE write_mo_set_to_output_unit,&
+                     write_mo_set_to_restart_new 
   END INTERFACE
   INTERFACE read_mo_set
-    MODULE PROCEDURE read_mo_set_old, &
-                     read_mo_set_from_restart_new
+    MODULE PROCEDURE read_mo_set_from_restart_new
   END INTERFACE
 
   INTERFACE calculate_density_matrix
@@ -798,53 +797,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_mo_set_old(mo_set,globenv)
-
-!   Purpose: Read the MO eigenvectors from the restart file.
-
-!   History: - Creation (15.05.2001,MK)
-!            - Parallel input (19.05.2001, MK)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=6)   :: extension
-    CHARACTER(LEN=200) :: file_name
-    INTEGER            :: mype,npe,restart_unit
-
-!   ---------------------------------------------------------------------------
-
-    CALL get_blacs_info(globenv=globenv,&
-                        my_process_number=mype,&
-                        number_of_processes=npe)
-
-    IF (npe > 1) THEN
-      WRITE (UNIT=extension,FMT="(I6)") mype
-      file_name = TRIM(globenv%restart_file_name)//"."//ADJUSTL(extension)
-    ELSE
-      file_name = globenv%restart_file_name
-    END IF
-
-    CALL open_file(file_name=file_name,&
-                   file_action="READ",&
-                   file_form="UNFORMATTED",&
-                   file_status="OLD",&
-                   unit_number=restart_unit)
-
-    CALL read_blacs_matrix(matrix=mo_set%eigenvectors,&
-                           lunit=restart_unit,&
-                           globenv=globenv)
-
-    CALL close_file(unit_number=restart_unit)
-
-  END SUBROUTINE read_mo_set_old
-
-! *****************************************************************************
-
   SUBROUTINE set_mo_occupation(mo_set,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
@@ -933,58 +885,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_restart_unit(mo_set,globenv)
-
-!   Purpose: Write the MO eigenvectors to the restart file.
-
-!   History: - Creation (15.05.2001,MK)
-
-!   ***************************************************************************
-
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
-
-!   *** Local variables ***
-
-    CHARACTER(LEN=6)   :: extension
-    CHARACTER(LEN=200) :: file_name
-    INTEGER            :: mype,npe,restart_unit
-
-!   ---------------------------------------------------------------------------
-
-    CALL get_blacs_info(globenv=globenv,&
-                        my_process_number=mype,&
-                        number_of_processes=npe)
-
-    IF (npe > 1) THEN
-      WRITE (UNIT=extension,FMT="(I6)") mype
-      file_name = TRIM(globenv%restart_file_name)//"."//ADJUSTL(extension)
-    ELSE
-      file_name = globenv%restart_file_name
-    END IF
-
-    CALL open_file(file_name=file_name,&
-                   file_action="WRITE",&
-                   file_form="UNFORMATTED",&
-                   file_status="REPLACE",&
-                   unit_number=restart_unit)
-
-    CALL write_blacs_matrix(matrix=mo_set%eigenvectors,&
-                            lunit=restart_unit,&
-                            globenv=globenv)
-
-    CALL close_file(unit_number=restart_unit)
-
-  END SUBROUTINE write_mo_set_to_restart_unit
-
-! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart_new(mo_set,atomic_kind_set,particle_set,globenv, id_nr)
+  SUBROUTINE write_mo_set_to_restart_new(mo_array,atomic_kind_set,particle_set,globenv, id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(mo_set_type), POINTER                    :: mo_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, INTENT(in)                           :: id_nr
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: mo_array
 
 !   *** Local variables ***
     CHARACTER(LEN=6)   :: extension
@@ -993,7 +900,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
                          left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
-                         nao,nmo,i,nset_max,nshell_max
+                         nao,nmo,i,nset_max,nshell_max,ispin,nspin
                          
     INTEGER, DIMENSION(:), POINTER          :: nshell
     REAL(wp), DIMENSION(:,:), POINTER       :: matrix
@@ -1005,8 +912,9 @@ CONTAINS
 
     REAL(wp) , DIMENSION(:,:), POINTER :: vecbuffer
 
-    nmo=mo_set%nmo
-    nao=mo_set%nao
+    nspin=size(mo_array)
+
+    nao=mo_array(1)%mo_set%nao
 
     IF (globenv%ionode) THEN
 
@@ -1075,7 +983,7 @@ CONTAINS
 
       ! write the bs information
 
-      WRITE(restart_unit) natom,nmo,nao,nset_max,nshell_max
+      WRITE(restart_unit) natom,nspin,nao,nset_max,nshell_max
       WRITE(restart_unit) nset_info
       WRITE(restart_unit) nshell_info
       WRITE(restart_unit) nso_info
@@ -1086,9 +994,13 @@ CONTAINS
 
 
     ALLOCATE(vecbuffer(1,nao))
-    DO i=1,nmo
-       CALL blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
-       IF (globenv%ionode) WRITE(restart_unit) vecbuffer
+    DO ispin=1,nspin
+        nmo=mo_array(ispin)%mo_set%nmo
+        write(restart_unit) nmo
+        DO i=1,nmo
+           CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
+           IF (globenv%ionode) WRITE(restart_unit) vecbuffer
+        ENDDO
     ENDDO
     DEALLOCATE(vecbuffer)
 
@@ -1099,13 +1011,13 @@ CONTAINS
 ! *****************************************************************************
 
 ! *****************************************************************************
-  SUBROUTINE read_mo_set_from_restart_new(mo_set,atomic_kind_set,particle_set,globenv, id_nr)
+  SUBROUTINE read_mo_set_from_restart_new(mo_array,atomic_kind_set,particle_set,globenv, id_nr)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(global_environment_type), INTENT(IN)     :: globenv
-    TYPE(mo_set_type), POINTER                    :: mo_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, INTENT(in)                           :: id_nr
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: mo_array
 
 !   *** Local variables ***
     CHARACTER(LEN=6)   :: extension
@@ -1114,7 +1026,8 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     INTEGER           :: iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
                          left,lshell,natom,ncol,nset,nsgf,output_unit,right, &
-                         nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,nmo_read
+                         nao,nmo,i,nset_max,nshell_max,natom_read,nao_read,nmo_read, &
+                         nspin_read,nspin,ispin
                          
     INTEGER, DIMENSION(:), POINTER          :: nshell
     REAL(wp), DIMENSION(:,:), POINTER       :: matrix
@@ -1129,8 +1042,8 @@ CONTAINS
     INTEGER :: irow_read,nset_read,ishell_read,iset_read,offset_read
     LOGICAL :: use_this,did_change
 
-    nmo=mo_set%nmo
-    nao=mo_set%nao
+    nspin=size(mo_array)
+    nao=mo_array(1)%mo_set%nao
 
     IF (globenv%ionode) THEN
 
@@ -1149,10 +1062,12 @@ CONTAINS
                      file_status="OLD",&
                      unit_number=restart_unit)
 
-      READ(restart_unit) natom_read,nmo_read,nao_read,nset_max,nshell_max
+      READ(restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
 
-      IF (nmo_read.NE.nmo) &
-         CALL stop_program("read_mo_set_from_restart","incorrect nmo")
+      ! we should allow for restarting with different spin settings
+      IF (nspin_read.NE.nspin) &
+         CALL stop_program("read_mo_set_from_restart","nspin is not equal (program this !!)")
+
       IF (natom_read.NE.natom) &
          CALL stop_program("read_mo_set_from_restart","incorrect natom")
 
@@ -1185,65 +1100,73 @@ CONTAINS
 
     ENDIF
 
-
     ALLOCATE(vecbuffer(1,nao))
-    DO i=1,nmo
-       IF (globenv%ionode) THEN 
-            READ(restart_unit) vecbuffer_read
-            ! now, try to assign the read to the real vector
-            ! in case the basis set changed this involves some guessing
-            irow=1
-            DO iatom=1,natom
-               CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                                    orb_basis_set=orb_basis_set)
-               CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                      nset=nset,&
-                                      nshell=nshell,&
-                                      l=l)
 
-               use_this=.TRUE.
-               iset_read=1
-               DO iset=1,nset
-                  ishell_read=1
-                  DO ishell=1,nshell(iset)
-                     lshell = l(ishell,iset)
-                     IF (iset_read.GT.nset_info(iatom)) use_this=.FALSE.
-                     IF (use_this .AND. nso(lshell).EQ.nso_info(ishell_read,iset_read,iatom)) THEN
-                         offset_read=offset_info(ishell_read,iset_read,iatom)
-                         ishell_read=ishell_read+1
-                         IF (ishell_read.GT.nshell_info(iset,iatom)) THEN
-                            ishell_read=1
-                            iset_read=iset_read+1
+    DO ispin=1,nspin
+        nmo=mo_array(ispin)%mo_set%nmo
+        IF (globenv%ionode) THEN
+           READ(restart_unit) nmo_read
+           IF (nmo_read.NE.nmo) &
+               CALL stop_program("read_mo_set_from_restart","incorrect nmo")
+        ENDIF
+        DO i=1,nmo
+           IF (globenv%ionode) THEN 
+                READ(restart_unit) vecbuffer_read
+                ! now, try to assign the read to the real vector
+                ! in case the basis set changed this involves some guessing
+                irow=1
+                DO iatom=1,natom
+                   CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                                        orb_basis_set=orb_basis_set)
+                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                          nset=nset,&
+                                          nshell=nshell,&
+                                          l=l)
+    
+                   use_this=.TRUE.
+                   iset_read=1
+                   DO iset=1,nset
+                      ishell_read=1
+                      DO ishell=1,nshell(iset)
+                         lshell = l(ishell,iset)
+                         IF (iset_read.GT.nset_info(iatom)) use_this=.FALSE.
+                         IF (use_this .AND. nso(lshell).EQ.nso_info(ishell_read,iset_read,iatom)) THEN
+                             offset_read=offset_info(ishell_read,iset_read,iatom)
+                             ishell_read=ishell_read+1
+                             IF (ishell_read.GT.nshell_info(iset,iatom)) THEN
+                                ishell_read=1
+                                iset_read=iset_read+1
+                             ENDIF
+                         ELSE
+                             use_this=.FALSE.
                          ENDIF
-                     ELSE
-                         use_this=.FALSE.
-                     ENDIF
-                     DO iso=1,nso(lshell)
-                        IF (use_this) THEN
-                            IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
-                               ! this indicates a bug
-                               IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
-                               vecbuffer(1,irow)=0.0_wp
+                         DO iso=1,nso(lshell)
+                            IF (use_this) THEN
+                                IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
+                                   ! this indicates a bug
+                                   IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
+                                   vecbuffer(1,irow)=0.0_wp
+                                ELSE
+                                   vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
+                                   IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
+                                ENDIF
                             ELSE
-                               vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                               IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
+                                vecbuffer(1,irow)=0.0_wp
                             ENDIF
-                        ELSE
-                            vecbuffer(1,irow)=0.0_wp
-                        ENDIF
-                        irow=irow+1
-                     ENDDO
-                     use_this=.TRUE.
-                  ENDDO
-               ENDDO
-            ENDDO
+                            irow=irow+1
+                         ENDDO
+                         use_this=.TRUE.
+                      ENDDO
+                   ENDDO
+                ENDDO
 
-       ELSE
-            vecbuffer(1,:)=0.0_wp
-       ENDIF
-       CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
-       CALL blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
-       did_change=.FALSE.
+           ELSE
+                vecbuffer(1,:)=0.0_wp
+           ENDIF
+           CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
+           CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
+           did_change=.FALSE.
+        ENDDO
     ENDDO
     DEALLOCATE(vecbuffer)
 

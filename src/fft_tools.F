@@ -455,7 +455,6 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   INTEGER :: sign, ld(3), lo(3), handle
 
 !------------------------------------------------------------------------------
-
   CALL timeset("fft3d_s","I","Mflops",handle)
 
   IF ( PRESENT ( scale ) ) THEN
