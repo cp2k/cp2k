@@ -56,3 +56,5 @@ H2O-tpss.inp       1
 farming.inp        0
 # isokinetic ensemble
 H2O-5.inp          1
+# the added_MOs keyword
+H2O-6.inp          1
