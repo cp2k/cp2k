@@ -204,20 +204,20 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 !
 ! Initializing pw coefficients from scratch if needed
 !
-     CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
-                           big_grid, ewald_param )
-  END IF
-
+!     CALL initialize_coef_pw ( dg_proj, coef_pos % pw, part, box, small_grid,  &
+!                           big_grid, ewald_param )
 !dbg 
 ! initialize coeffs with a gaussian (for debugging purposes)
-!  DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
-!    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
-!    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
+   DO i = 1, coef_pos % pw % pw_grid % ngpts_cut
+    e_gsq = exp ( .25 *  coef_pos % pw % pw_grid % gsq ( i ) )
+    coef_pos % pw % cc (i) = CMPLX ( e_gsq, 0 )
 !    coef_pos % pw % cc (1) = CMPLX ( 0.0, 0 )
-!  ENDDO
+  ENDDO
 !dbg 
 
 !
+  END IF
+
 ! first check with list_control to update neighbor lists
 !
   CALL list_control ( lldata ( 1 ), pnode, part, box )
