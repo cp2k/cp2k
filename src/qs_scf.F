@@ -1585,13 +1585,14 @@ CONTAINS
              CALL cp_fm_to_fm(mo_eigenvectors,ortho)
           END IF
 
+          ! make all nmo vectors present orthonormal
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-               eigenvectors=mo_eigenvectors, homo=homo)
-! ortho so that one can restart for different positions (basis sets?)
+               eigenvectors=mo_eigenvectors, nmo=nmo, homo=homo)
+          ! ortho so that one can restart for different positions (basis sets?)
           CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,homo,&
+          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
                para_env=qs_env%para_env)
-          CALL make_basis(mo_eigenvectors,homo, &
+          CALL make_basis(mo_eigenvectors,nmo, &
                ortho=sv,otype="SV")
           CALL cp_fm_release(sv)
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&

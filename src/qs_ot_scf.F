@@ -20,9 +20,12 @@
 
 MODULE qs_ot_scf
 ! *****************************************************************************
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
+                                             cp_fm_column_scale, &
+                                             cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
+                                             cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
@@ -88,6 +91,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
     qs_ot_env(1)%settings%max_taylor=4 
     qs_ot_env(1)%settings%gold_target=0.01_dp
+    qs_ot_env(1)%settings%do_rotation=.FALSE.
     ! should be removed
     qs_ot_env(1)%settings%n=0
     qs_ot_env(1)%settings%k=0
@@ -175,6 +179,8 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
                CALL read_object(qs_ot_env(1)%settings%eps_taylor)
           CASE ("MAX_TAYLOR")
                CALL read_object(qs_ot_env(1)%settings%max_taylor)
+          CASE ("ROTATION")
+               qs_ot_env(1)%settings%do_rotation=.TRUE.
           CASE DEFAULT
                IF (globenv%ionode) WRITE(globenv%scr,*) keyword
                CALL stop_program("READ OTSCF","KEYWORD UNKNOWN")
@@ -191,6 +197,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     WRITE(globenv%scr,'(A)') "  Joost VandeVondele and Juerg Hutter"
     WRITE(globenv%scr,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
     WRITE(globenv%scr,'(A)') " "
+    WRITE(globenv%scr,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
          WRITE(globenv%scr,'(A)') "  minimizer      : SD             : steepest descent"
@@ -243,6 +250,7 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     WRITE(globenv%scr,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
     WRITE(globenv%scr,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
     WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
+    WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
     WRITE(globenv%scr,'(A)') "  "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
@@ -277,6 +285,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
 
     INTEGER                                  :: handle, ispin, nspin
     TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor
+    INTEGER                                  :: k,n
 
     CALL timeset("ot_scf_mini","I","",handle)
 
@@ -284,19 +295,25 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
 
     IF ( .NOT. energy_only) THEN
        DO ispin=1,nspin
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+          n=qs_ot_env(ispin)%settings%n
+          k=qs_ot_env(ispin)%settings%k
+          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+                          occupation_numbers=occupation_numbers )
+
           CALL cp_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_eigenvectors,&
                                        qs_ot_env(ispin)%matrix_hc,&
-                                       qs_ot_env(ispin)%settings%k,&
-                                       para_env=globenv%para_env)
-          SELECT CASE (nspin)
-          CASE (1)
-               CALL cp_fm_scale_and_add(4.0_dp,qs_ot_env(ispin)%matrix_hc)
-          CASE (2)            
-               CALL cp_fm_scale_and_add(2.0_dp,qs_ot_env(ispin)%matrix_hc)
-          CASE DEFAULT 
-               CALL stop_program("OT_SCF_MINI","NSPIN NYI")
-          END SELECT 
+                                       k, para_env=globenv%para_env)
+
+          ALLOCATE(scaling_factor(SIZE(occupation_numbers))) 
+          scaling_factor=2.0_dp*occupation_numbers
+          CALL cp_fm_column_scale(qs_ot_env(ispin)%matrix_hc,scaling_factor) 
+          write(6,'(5F10.5)') scaling_factor
+          DEALLOCATE(scaling_factor)
+
+          IF (qs_ot_env(1)%settings%do_rotation) THEN
+             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_eigenvectors,qs_ot_env(ispin)%matrix_hc, &
+                                      0.0_dp,qs_ot_env(ispin)%rot_mat_chcf)
+          ENDIF
        ENDDO
     ENDIF
 
@@ -369,6 +386,10 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        ! set x
        CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_x,0.0_dp)
        CALL cp_fm_set_all(qs_ot_env(ispin)%matrix_sx,0.0_dp)
+
+       IF (qs_ot_env(ispin)%settings%do_rotation) THEN
+           CALL cp_fm_set_all(qs_ot_env(ispin)%rot_mat_x,0.0_dp)
+       ENDIF
    
        ! get c
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
