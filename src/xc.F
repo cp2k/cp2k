@@ -746,7 +746,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL :: failure, gradient_f, crossterms, do_lsd
+    LOGICAL :: failure, gradient_f, crossterms, do_lsd, do_tddfpt
     CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv',&
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
@@ -772,21 +772,24 @@ END SUBROUTINE xc_prep_2nd_deriv1
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-!       gradient_f=dft_control%gradient_functional ! ????
-       gradient_f = ANY(dft_control%ftags(1,:))
 
-       nspins=dft_control%nspins
+       nspins     = dft_control%nspins
+       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
+       gradient_f = ANY(dft_control%ftags(1,:)) ! gradient_f=dft_control%gradient_functional
+       do_lsd     = (nspins==2) .OR. do_tddfpt
+       crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
 
-       crossterms = ANY(dft_control%ftags(2,:))
-       IF (.NOT. dft_control%do_tddfpt_calculation) &
-            crossterms = crossterms .AND. nspins>1
-
-       do_lsd = nspins > 1 .OR. dft_control%do_tddfpt_calculation
+!TC       IF (do_lsd) THEN
+!TC          crossterms = ANY(dft_control%ftags(2,:))
+!TC       ELSE
+!TC          crossterms = .FALSE.
+!TC       END IF
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        END IF       
     END IF
+
     CALL cp_assert(dft_control%integration_grid%pw_default,&
          cp_failure_level,cp_unimplemented_error_nr,routineP,&
          "calculation on a special grid unimplemented "//&
@@ -822,6 +825,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
              END DO
           END DO
        END DO
+       IF (do_tddfpt) CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
+       
 
        IF (gradient_f) THEN
 ! calc drho_r=grad rho
@@ -857,6 +862,8 @@ END SUBROUTINE xc_prep_2nd_deriv1
                 END DO
              END DO
           END DO
+          IF (do_tddfpt) CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
+          
        END IF
     END IF
 
@@ -874,6 +881,11 @@ END SUBROUTINE xc_prep_2nd_deriv1
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
 
        IF (nspins == 1) THEN
+
+          !-----------------------------------------------!
+          ! do lsd but with rhoa=1/2*rho and rhob=1/2*rho !
+          ! and drhoa=1/2*drho and drhob=1/2*rhob         !
+          !-----------------------------------------------!
           IF (dft_control%do_tddfpt_calculation) THEN
              IF (gradient_f) THEN
                 CALL xc_lsd ( dft_control%functional,&
@@ -889,6 +901,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                      pot, order, &
                      error=error )
              END IF
+
           ELSE
              IF (gradient_f) THEN
                 CALL xc_lda ( functional=dft_control%functional,&
@@ -908,6 +921,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
                CPSourceFileRef,&
                error=error)
        END IF
+
 !TC       SELECT CASE ( nspins )
 !TC       CASE (1)
 !TC          IF (gradient_f) THEN
@@ -1218,30 +1232,41 @@ END SUBROUTINE xc_calc_2nd_deriv1
 !!     12.2002 many bugfixes, split in prep and calc [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_calc_2nd_deriv(rho_r,drho_r,rho1_r,rho1_g,&
-       pot,spin_pot,grad_pot,ndiag_term,dft_control,&
-       v_rspace_new,pw_pool,error)
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r, rho1_r, rho1_g
-    TYPE(pw_p_type), DIMENSION(:,:),POINTER :: drho_r
-    REAL ( kind=wp ) , DIMENSION (:,:), POINTER :: pot
-    INTEGER, DIMENSION(:,:), POINTER :: spin_pot
-    LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
-    LOGICAL, DIMENSION(:), POINTER :: ndiag_term
-    TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new
-    TYPE(pw_pool_type), POINTER :: pw_pool
+  SUBROUTINE xc_calc_2nd_deriv(rho_r, drho_r, rho1_r, rho1_g, &
+                               pot, spin_pot, grad_pot, ndiag_term, dft_control, &
+                               v_rspace_new, pw_pool, error)
+
+    IMPLICIT NONE
+    
+    ! arguments
+    TYPE(pw_p_type), DIMENSION(:), POINTER       :: rho_r, rho1_r, rho1_g
+    TYPE(pw_p_type), DIMENSION(:,:),POINTER      :: drho_r
+    REAL ( kind=wp ) , DIMENSION (:,:), POINTER  :: pot
+    INTEGER, DIMENSION(:,:), POINTER             :: spin_pot
+    LOGICAL, DIMENSION(:,:), POINTER             :: grad_pot
+    LOGICAL, DIMENSION(:), POINTER               :: ndiag_term
+    TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(coeff_type), DIMENSION(:), POINTER      :: v_rspace_new
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, gradient_f, crossterms
+    ! locals
+    LOGICAL                                      :: failure, gradient_f, &
+                                                    crossterms, do_tddfpt
+    INTEGER                                      :: handle, &
+                                                    nspins, spin, &
+                                                    ii, i,j,k, &
+                                                    n(3), n_tot, ntot, &
+                                                    idir, ipot, &
+                                                    stat
+    TYPE(pw_type), POINTER                       :: tmp_g, tmp_r, v_deriv_g
+    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE   :: v_r_to_deriv, drho1_r
+    INTEGER, DIMENSION (3,3)                     :: nd 
+    INTEGER, DIMENSION (2,3)                     :: bounds
+    TYPE(cp_logger_type), POINTER                :: logger
+
     CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv',&
          routineP=moduleN//':'//routineN
-    INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
-         stat
-    TYPE(pw_type), POINTER :: tmp_g, tmp_r, v_deriv_g
-    TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE :: v_r_to_deriv, drho1_r
-    INTEGER, DIMENSION (3,3) :: nd 
-    INTEGER, DIMENSION (2,3) :: bo
-    TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1259,9 +1284,12 @@ END SUBROUTINE xc_calc_2nd_deriv1
     CPPrecondition(ASSOCIATED(grad_pot),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(ndiag_term),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       gradient_f=dft_control%gradient_functional
-       nspins=dft_control%nspins
-       crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
+
+       nspins     = dft_control%nspins
+       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
+       gradient_f = ANY(dft_control%ftags(1,:)) ! gradient_f=dft_control%gradient_functional
+       do_lsd     = (nspins==2) .OR. do_tddfpt
+       crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
@@ -1277,7 +1305,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     IF (.NOT.failure) THEN
        n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
-       bo = rho_r(1)%pw%pw_grid%bounds_local  
+       bounds = rho_r(1)%pw%pw_grid%bounds_local  
        ntot = PRODUCT ( n )
     END IF
     
@@ -1307,9 +1335,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
                 IF (idir==1) THEN
 !$omp parallel do private(k,j,i)
-                   DO k = bo(1,3), bo(2,3)
-                      DO j = bo(1,2), bo(2,2)
-                         DO i = bo(1,1), bo(2,1)
+                   DO k = bounds(1,3), bounds(2,3)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
                             drho1_r(spin)%pw%cr3d(i,j,k) = &
                                  tmp_r%cr3d(i,j,k)*&
                                  drho_r(idir,spin)%pw%cr3d(i,j,k)
@@ -1318,9 +1346,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
                    END DO
                 ELSE
 !$omp parallel do private(k,j,i)
-                   DO k = bo(1,3), bo(2,3)
-                      DO j = bo(1,2), bo(2,2)
-                         DO i = bo(1,1), bo(2,1)
+                   DO k = bounds(1,3), bounds(2,3)
+                      DO j = bounds(1,2), bounds(2,2)
+                         DO i = bounds(1,1), bounds(2,1)
                             drho1_r(spin)%pw%cr3d(i,j,k) = &
                                  drho1_r(spin)%pw%cr3d(i,j,k)+&
                                  tmp_r%cr3d(i,j,k)*&
@@ -1354,8 +1382,8 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
 ! calc v_rspace_new and v_r_to_deriv
     IF (.NOT.failure) THEN
-       DO ipot=1,SIZE(pot,2)
-          IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
+       DO ipot=1, SIZE(pot,2)
+          IF (grad_pot(1,ipot) .AND. grad_pot(2,ipot)) THEN
              CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
                 CALL cp_assert(spin_pot(1,ipot)/=spin_pot(2,ipot),&
@@ -1365,10 +1393,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      error,failure)
 
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
@@ -1379,10 +1407,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                 END DO
 
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1399,10 +1427,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      error,failure)
 
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1416,10 +1444,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
 !$omp parallel do private(k,j,i,ii)
-             DO k = bo(1,3), bo(2,3)
-                ii = (k-bo(1,3))*n(1)*n(2)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
+             DO k = bounds(1,3), bounds(2,3)
+                ii = (k-bounds(1,3))*n(1)*n(2)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
                       ii=ii+1
                       v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                            v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
@@ -1430,10 +1458,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
              END DO
 
 !$omp parallel do private(k,j,i,ii)
-             DO k = bo(1,3), bo(2,3)
-                ii = (k-bo(1,3))*n(1)*n(2)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
+             DO k = bounds(1,3), bounds(2,3)
+                ii = (k-bounds(1,3))*n(1)*n(2)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
                       ii=ii+1
                       v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                            v_r_to_deriv(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1446,10 +1474,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
 !$omp parallel do private(k,j,i,ii)
-             DO k = bo(1,3), bo(2,3)
-                ii = (k-bo(1,3))*n(1)*n(2)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
+             DO k = bounds(1,3), bounds(2,3)
+                ii = (k-bounds(1,3))*n(1)*n(2)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
                       ii=ii+1
                       v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                            v_r_to_deriv(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
@@ -1460,10 +1488,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
              END DO
 
 !$omp parallel do private(k,j,i,ii)
-             DO k = bo(1,3), bo(2,3)
-                ii = (k-bo(1,3))*n(1)*n(2)
-                DO j = bo(1,2), bo(2,2)
-                   DO i = bo(1,1), bo(2,1)
+             DO k = bounds(1,3), bounds(2,3)
+                ii = (k-bounds(1,3))*n(1)*n(2)
+                DO j = bounds(1,2), bounds(2,2)
+                   DO i = bounds(1,1), bounds(2,1)
                       ii=ii+1
                       v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                            v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1482,10 +1510,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      error,failure)
 
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k) = &
                               v_rspace_new(spin_pot(2,ipot))%pw%cr3d(i,j,k)+&
@@ -1496,10 +1524,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                 END DO
 
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1515,10 +1543,10 @@ END SUBROUTINE xc_calc_2nd_deriv1
                      CPSourceFileRef,&
                      error,failure)
 !$omp parallel do private(k,j,i,ii)
-                DO k = bo(1,3), bo(2,3)
-                   ii = (k-bo(1,3))*n(1)*n(2)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   ii = (k-bounds(1,3))*n(1)*n(2)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          ii=ii+1
                          v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k) = &
                               v_rspace_new(spin_pot(1,ipot))%pw%cr3d(i,j,k)+&
@@ -1562,9 +1590,9 @@ END SUBROUTINE xc_calc_2nd_deriv1
              DO idir=1,3
                 
 !$omp parallel do private(k,j,i)
-                DO k = bo(1,3), bo(2,3)
-                   DO j = bo(1,2), bo(2,2)
-                      DO i = bo(1,1), bo(2,1)
+                DO k = bounds(1,3), bounds(2,3)
+                   DO j = bounds(1,2), bounds(2,2)
+                      DO i = bounds(1,1), bounds(2,1)
                          v_rspace_new(spin)%pw%cr3d(i,j,k)= &
                               -v_r_to_deriv(spin)%pw%cr3d(i,j,k)* &
                               drho_r(idir,spin)%pw%cr3d(i,j,k)
