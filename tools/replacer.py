@@ -4,18 +4,23 @@ import re
 import sys
 
 repl={
-    'blacs_cholesky_decompose':'cp_fm_cholesky_decompose',
-    'blacs_triangular_multiply':'cp_fm_triangular_multiply',
-    'blacs_cholesky_invert':'cp_fm_cholesky_invert',
-    'blacs_cholesky_reduce':'cp_fm_cholesky_reduce',
-    'blacs_cholesky_restore':'cp_fm_cholesky_restore',
-    'cp_fm_pool':'cp_fm_pool_types',
-    'cp_f_matrix_struct':'cp_fm_struct',
-    'cp_full_matrix':'cp_fm_types'
+    'force_control':'force_env_types',
+    'fragment':'subsys',
+    'cp_fragment_types':'cp_subsystem_types',
+    'cp_fragment_type':'cp_subsystem_type',
+    'cp_fragment_p_type':'cp_subsystem_p_type',
+    'fragment_create':'cp_subsys_create',
+    'fragment_retain':'cp_subsys_retain',
+    'fragment_release':'cp_subsys_release',
+    'fragment_get':'cp_subsys_get',
+    'fragment_set':'cp_subsys_set',
+    'qs_geoopt':'geo_opt',
+    'qs_md':'md_run',
+    'md_qs_energies':'md_energies',
     }
 
 specialRepl=None
-# {re.compile(r"%blacs_matrix(\W)",flags=re.IGNORECASE):r"%matrix\1"}
+# { re.compile(r"%fragment",flags=re.IGNORECASE):r"%subsys" }
 
 def replaceWords(infile,outfile,replacements=repl,
                  specialReplacements=specialRepl,
