@@ -44,6 +44,9 @@ MODULE machine
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : m_walltime, m_cputime, m_datum,  &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+#elif defined ( __SUN )
+  USE machine_sun, ONLY : m_walltime, m_cputime, m_datum,  &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 #endif
 
   IMPLICIT NONE
