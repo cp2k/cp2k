@@ -26,7 +26,7 @@
 
 MODULE message_passing
   USE kinds,                           ONLY: dbl
-  USE machine,                         ONLY: m_cputime
+  USE machine,                         ONLY: m_cputime, m_abort
   USE parallel_include
 
   IMPLICIT NONE
@@ -374,7 +374,7 @@ SUBROUTINE mp_abort ( )
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
   WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
 
-  CALL abort()
+  CALL m_abort()
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else
