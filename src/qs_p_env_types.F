@@ -254,8 +254,10 @@ END SUBROUTINE p_env_retain
           IF (ASSOCIATED(p_env%oce)) CALL deallocate_oce_set(p_env%oce)
           IF (ASSOCIATED(p_env%local_rho_set)) &
                CALL local_rho_set_release(p_env%local_rho_set)
-          IF (ASSOCIATED(p_env%hartree_local)) &
-               CALL hartree_local_release(p_env%hartree_local)
+          IF (ASSOCIATED(p_env%hartree_local)) THEN
+             NULLIFY(p_env%hartree_local%vtriple) ! we must not deallocate this
+             CALL hartree_local_release(p_env%hartree_local)
+          END IF
        END IF
        DEALLOCATE(p_env,stat=stat)
        CPPostcondition((stat==0),cp_failure_level,routineP,error,failure)

@@ -152,19 +152,12 @@ MODULE  hartree_local_methods
       END DO
     END DO
 
-!    ALLOCATE (vtriple(nkind,natom),STAT=istat)
-!    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
-!    DO iat = 1,natom
-!      DO ikind = 1,nkind
-!        NULLIFY(vtriple(ikind,iat)%neighbor)
-!      ENDDO
-!    ENDDO
-
     IF (.NOT.my_tddft) THEN
        CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c) !,VH_3c_list=vtriple)
     ELSE
        p_env%hartree_local%ecoul_1c => ecoul_1c
-!       p_env%hartree_local%vtriple => vtriple
+       ! take the 3c list from the ground state calculation
+       p_env%hartree_local%vtriple => qs_env%hartree_local%vtriple
     END IF
 
   END SUBROUTINE init_coulomb_local
