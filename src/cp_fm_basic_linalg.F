@@ -80,7 +80,8 @@ MODULE cp_fm_basic_linalg
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum,&
-                                             mp_sync
+                                             mp_sync, &
+                                             mp_shift
   USE parallel,                        ONLY: cp2k_is_parallel
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
@@ -228,6 +229,9 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER i,nrow_in,nrow_out,ncol_block,handle,blocksize, stat
 !   ---------------------------------------------------------------------------
+    CALL  cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env,alpha,beta,error)
+    RETURN
+
     CALL timeset("cp_sm_fm_multiply","I","",handle)
 
     failure=.FALSE.
@@ -268,6 +272,170 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE cp_sm_fm_multiply
 
+!******************************************************************************
+!
+! new version of the cp_sm_fm_multiply, optimized communication, 
+!
+!*******************************************************************************
+  SUBROUTINE cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env, &
+       alpha,beta,error)
+! to do: better interface
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    TYPE(cp_full_matrix_type) , POINTER :: v_in
+    TYPE(cp_full_matrix_type) , POINTER :: v_out
+    INTEGER, INTENT(IN)               :: ncol
+    TYPE(cp_para_env_type), POINTER :: para_env ! of the sparse matrix
+    REAL(kind=wp), INTENT(in), OPTIONAL :: alpha, beta
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine = "cp_sm_fm_multiply_new"
+
+!   *** Local variables ***
+    LOGICAL :: failure
+    REAL(wp), DIMENSION(:,:), POINTER :: local_v_in, local_v_out
+    INTEGER :: i,j,info,nrow_global,handle,num_pe,mepos,ncol_max,stat,ishift
+    INTEGER, DIMENSION(:), POINTER :: ncol_loc
+    INTEGER :: ictxt_loc, im,in, myprow,mypcol,nprow,npcol,desc(9),rb,cb
+    REAL(wp), POINTER, DIMENSION(:,:) :: newdat
+    REAL(wp) :: alpha_l,beta_l
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL :: NUMROC
+#endif
+!   ---------------------------------------------------------------------------
+#if defined(__parallel) && ! defined(__SCALAPACK)
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+     routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
+     CPSourceFileRef,&
+     error)
+#endif
+    CALL timeset("cp_sm_fm_multiply_new","I","",handle)
+
+    IF (PRESENT(alpha)) THEN
+       alpha_l=alpha
+    ELSE
+       alpha_l=1.0_wp
+    ENDIF
+    IF (PRESENT(beta)) THEN
+       beta_l=beta
+    ELSE
+       beta_l=0.0_wp
+    ENDIF
+
+    failure=.FALSE.
+    NULLIFY(local_v_in,local_v_out,newdat)
+
+    CALL cp_fm_get_info(v_in,nrow_global=nrow_global)
+    num_pe=para_env%num_pe
+    mepos =para_env%mepos
+    rb=nrow_global
+    cb=1
+    im=nrow_global
+    ALLOCATE(ncol_loc(0:num_pe-1))
+    ncol_loc=0
+#if defined(__SCALAPACK)
+    CALL blacs_get(-1,0,ictxt_loc)
+    CALL blacs_gridinit(ictxt_loc,'R',1,num_pe)
+    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
+    CALL descinit(desc,nrow_global,ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
+    CPPostcondition(info==0,cp_failure_level,routine,error,failure)
+    in=numroc(ncol,cb,mypcol,0,npcol)
+
+    allocate(newdat(im,MAX(1,in)))
+
+    ! do the actual scalapack to cols reordering
+    CALL pdgemr2d(nrow_global,ncol,v_in%local_data(1,1),1,1,&
+                  v_in%matrix_struct%descriptor, &
+                  newdat(1,1),1,1,desc,ictxt_loc)
+ 
+    ! obtain data in transposed structures
+    ncol_loc(mepos)=in
+    CALL mp_sum(ncol_loc,para_env%group)
+    ncol_max=MAXVAL(ncol_loc)
+
+    ALLOCATE(local_v_in(ncol_max,nrow_global),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    ALLOCATE(local_v_out(ncol_max,nrow_global),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    DO j=1,in
+       DO i=1,im
+              local_v_in(j,i)=newdat(i,j)
+       END DO
+    END DO
+#else
+    in=ncol
+    ncol_loc(mepos)=in
+    ncol_max=MAXVAL(ncol_loc)
+    ALLOCATE(local_v_in(ncol_max,nrow_global),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    ALLOCATE(local_v_out(ncol_max,nrow_global),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    DO j=1,in
+       DO i=1,im
+              local_v_in(j,i)=v_in%local_data(i,j)
+       END DO
+    END DO
+#endif
+
+    IF (beta_l.EQ.0.0_wp) THEN
+       CALL dcopy(size(local_v_out),0.0_wp,0,local_v_out(1,1),1) ! zero output vector
+    ELSE ! this rather expensive and should probably not be used. Anyway, not tested
+#if defined(__SCALAPACK)
+         CALL pdgemr2d(nrow_global,ncol,v_out%local_data(1,1),1,1,&
+                       v_out%matrix_struct%descriptor, &
+                       newdat(1,1),1,1,desc,ictxt_loc)
+         DO j=1,in
+            DO i=1,im
+                local_v_out(j,i)=beta_l*newdat(i,j)
+            END DO
+         END DO
+#else
+       DO j=1,in
+          DO i=1,im
+                 local_v_out(j,i)=beta_l*v_out%local_data(i,j)
+          END DO
+       END DO
+#endif
+    ENDIF
+
+    ! now we shift around the data in a ring, multiplying the v_in with the local sparse matrix
+    ! adding the results to v_out, we need to do num_pe shifts
+
+    do ishift=0,num_pe-1
+       CALL sparse_times_local(sparse_matrix,local_v_in,local_v_out,&
+            ncol_loc(MOD(mepos-ishift+num_pe,num_pe)), ncol_max, para_env=para_env,alpha=alpha_l)
+       CALL mp_shift(local_v_in,para_env%group)
+       CALL mp_shift(local_v_out,para_env%group)
+    enddo
+
+#if defined(__SCALAPACK)
+    ! copy the result back into the scalapack data structure
+    DO j=1,in
+       DO i=1,im
+              newdat(i,j)=local_v_out(j,i)
+       END DO
+    END DO
+    ! shuffle around the data
+    CALL pdgemr2d(nrow_global,ncol, &
+                  newdat(1,1),1,1,desc, &
+                  v_out%local_data(1,1),1,1,v_out%matrix_struct%descriptor, &
+                  ictxt_loc)
+    ! give the grid back
+    CALL blacs_gridexit(ictxt_loc)
+    DEALLOCATE(newdat)
+#else
+    DO j=1,in
+       DO i=1,im
+              v_out%local_data(i,j)=local_v_out(j,i)
+       END DO
+    END DO
+#endif
+
+    DEALLOCATE(local_v_in,local_v_out,ncol_loc)
+
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE cp_sm_fm_multiply_new
+
 ! *****************************************************************************
 ! computes sparse=sparse+alpha*v*g^T 
 ! only v*v^T tested
@@ -293,6 +461,9 @@ CONTAINS
     INTEGER col1,i,nrow,ncol_block,handle,blocksize
     LOGICAL g_present
 !   ---------------------------------------------------------------------------
+    CALL cp_sm_plus_fm_fm_t_new(sparse_matrix,matrix_v,matrix_g,ncol, &
+                                first_col,alpha,error)
+    RETURN
     CALL timeset("cp_sm_plus_fm_fm_t","I","",handle)
 
     IF (PRESENT(first_col)) THEN
@@ -300,6 +471,7 @@ CONTAINS
     ELSE
        col1 = 1
     END IF
+
     blocksize=MIN(max_blocksize,ncol-col1+1)
     g_present=.FALSE.
     IF (PRESENT(matrix_g)) g_present=.TRUE.
@@ -319,16 +491,11 @@ CONTAINS
        prefactor = 1.0_wp
     END IF
 
-
     DO i=col1,ncol,blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
-!CALL blacs_replicated_copy(matrix_v,rep_v,i,ncol_block, &
-!                                 blocksize,"B2R")
        CALL cp_fm_get_submatrix(matrix_v,rep_v,start_col=i,n_cols=ncol_block,&
             transpose_target_m=.TRUE., error=error)
        IF (g_present) THEN
-!CALL blacs_replicated_copy(matrix_g,rep_g,i,ncol_block, &
-!                                 blocksize,"B2R")
           CALL cp_fm_get_submatrix(matrix_g,rep_g,start_col=i,&
                n_cols=ncol_block,&
                transpose_target_m=.TRUE., error=error)
@@ -343,9 +510,166 @@ CONTAINS
        DEALLOCATE(rep_v)
     ENDIF
 
+
     CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE cp_sm_plus_fm_fm_t
 
+! *****************************************************************************
+! computes sparse=sparse+alpha*v*g^T 
+! only v*v^T tested
+! *****************************************************************************
+  SUBROUTINE cp_sm_plus_fm_fm_t_new(sparse_matrix,matrix_v,matrix_g,last_col,&
+       first_col,alpha,error)
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    TYPE(cp_full_matrix_type) , POINTER :: matrix_v
+    TYPE(cp_full_matrix_type) , POINTER, OPTIONAL :: matrix_g
+    INTEGER, INTENT(IN)               :: last_col
+    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
+    INTEGER, OPTIONAL, INTENT(IN)     :: first_col
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+         "SUBROUTINE cp_sm_plus_fm_fm_t_new (MODULE qs_blacs)"
+
+!   *** Local variables ***
+    REAL(wp), DIMENSION(:,:), POINTER :: loc_v,loc_g,newdat
+    REAL(wp) :: prefactor
+    INTEGER :: col1,i,j,handle,nrow_global,num_pe,mepos,ictxt_loc,desc(9)
+    INTEGER :: nprow,npcol,myprow,mypcol,rb,cb,ncol_max,ishift,in,im,info,handle2,ncol
+    INTEGER, DIMENSION(:), POINTER :: ncol_loc
+    LOGICAL g_present,FAILURE
+
+#if defined(__SCALAPACK)
+    INTEGER, EXTERNAL :: numroc
+#endif
+!   ---------------------------------------------------------------------------
+#if defined(__parallel) && ! defined(__SCALAPACK)
+     CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+     routineP,"cp_sm_plus_fm_fm_t would be most happy to use scalapack libraries"//&
+     CPSourceFileRef,&
+     error)
+#endif
+    CALL timeset("cp_sm_plus_fm_fm_t_new","I","",handle)
+    NULLIFY(newdat,ncol_loc)
+
+
+    IF (PRESENT(first_col)) THEN
+       col1 = first_col
+    ELSE
+       col1 = 1
+    END IF
+
+    ncol=last_col-col1+1
+
+    g_present=.FALSE.
+    IF (PRESENT(matrix_g)) g_present=.TRUE. 
+    ! we start with te easiest case
+
+    CALL cp_fm_get_info(matrix_v,nrow_global=nrow_global)
+    num_pe=matrix_v%matrix_struct%para_env%num_pe
+    mepos =matrix_v%matrix_struct%para_env%mepos
+    rb=nrow_global
+    cb=1
+    im=nrow_global
+    ALLOCATE(ncol_loc(0:num_pe-1))
+
+#if defined(__SCALAPACK)
+    CALL blacs_get(-1,0,ictxt_loc)
+    CALL blacs_gridinit(ictxt_loc,'R',1,num_pe)
+    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
+    CALL descinit(desc,nrow_global,ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
+    CPPostcondition(info==0,cp_failure_level,routine,error,failure)
+    in=numroc(ncol,cb,mypcol,0,npcol)
+    allocate(newdat(im,MAX(1,in)))
+    ncol_loc=0
+    ncol_loc(mepos)=in
+    CALL mp_sum(ncol_loc,matrix_v%matrix_struct%para_env%group)
+    ncol_max=MAXVAL(ncol_loc)
+    ALLOCATE(loc_v(ncol_max,nrow_global))
+
+    ! do the actual scalapack to cols reordering
+    CALL timeset("cp_sm_plus_fm_fm_t_pdgemr2d","I","",handle2)
+    CALL pdgemr2d(nrow_global,ncol,matrix_v%local_data(1,1),1,col1, &
+                  matrix_v%matrix_struct%descriptor, &
+                  newdat(1,1),1,1,desc,ictxt_loc)
+    CALL timestop(0.0_wp,handle2)
+    DO j=1,in
+       DO i=1,im
+          loc_v(j,i)=newdat(i,j)
+       END DO
+    END DO
+
+    IF (g_present) THEN
+       ALLOCATE(loc_g(ncol_max,nrow_global))
+       ! do the actual scalapack to cols reordering
+       CALL timeset("cp_sm_plus_fm_fm_t_pdgemr2d","I","",handle2)
+       CALL pdgemr2d(nrow_global,ncol,matrix_g%local_data(1,1),1,col1, &
+                     matrix_g%matrix_struct%descriptor, &
+                     newdat(1,1),1,1,desc,ictxt_loc)
+       CALL timestop(0.0_wp,handle2)
+       DO j=1,in
+          DO i=1,im
+             loc_g(j,i)=newdat(i,j)
+          END DO
+       END DO
+    ELSE
+       loc_g=>loc_v
+    ENDIF
+    DEALLOCATE(newdat)
+    ! EXIT THE GRID 
+    CALL blacs_gridexit(ictxt_loc)
+#else
+    in=ncol
+    ncol_loc=0
+    ncol_loc(mepos)=in
+    ncol_max=MAXVAL(ncol_loc)
+    ALLOCATE(loc_v(ncol_max,nrow_global))
+    DO j=1,in
+       DO i=1,im
+          loc_v(j,i)=matrix_v%local_data(i,col1-1+j)
+       END DO
+    END DO
+    IF (g_present) THEN
+       ALLOCATE(loc_g(ncol_max,nrow_global))
+       DO j=1,in
+          DO i=1,im
+             loc_g(j,i)=matrix_g%local_data(i,col1-1+j)
+          END DO
+       END DO
+    ELSE
+       loc_g=>loc_v
+    ENDIF
+#endif
+
+    IF (PRESENT(alpha)) THEN
+       prefactor = alpha
+    ELSE
+       prefactor = 1.0_wp
+    END IF
+
+    DO ishift=0,num_pe-1
+       CALL sparse_plus_loc_loct(sparse_matrix,loc_v,loc_g,&
+                                 ncol_loc(MOD(mepos-ishift+num_pe,num_pe)), &
+                                 ncol_max,alpha=prefactor)
+       IF (g_present) THEN
+          CALL mp_shift(loc_g,matrix_g%matrix_struct%para_env%group)
+          CALL mp_shift(loc_v,matrix_v%matrix_struct%para_env%group)
+       ELSE
+          CALL mp_shift(loc_v,matrix_v%matrix_struct%para_env%group)
+       ENDIF
+    ENDDO
+
+    IF (g_present) THEN
+       DEALLOCATE(loc_v,loc_g)
+    ELSE
+       DEALLOCATE(loc_v)
+    ENDIF
+
+    DEALLOCATE(ncol_loc)
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE cp_sm_plus_fm_fm_t_new
 ! *****************************************************************************
 ! computes the LU decomposition of a given matrix
 ! the actual purpose right now is to compute the determinant of a given matrix
@@ -486,6 +810,7 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow
+    REAL(kind=wp) :: flops
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
@@ -494,7 +819,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_symm","I","",handle)
+    CALL timeset("cp_fm_symm","I","Gflops",handle)
 
     context => matrix_a%matrix_struct%context
     myprow=context%mepos(1)
@@ -506,6 +831,7 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
+    flops=(2.0E-9_wp*m*m*n)/(nprow*npcol)
 #if defined(__SCALAPACK)
 
     desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -523,7 +849,7 @@ CONTAINS
     CALL dsymm(side,uplo,m,n,alpha,a(1,1),lda,b(1,1),ldb,beta,c(1,1),ldc)
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(flops,handle)
 
   END SUBROUTINE cp_fm_symm
 

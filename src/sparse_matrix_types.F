@@ -872,18 +872,20 @@ END SUBROUTINE cp_sm_scale_and_add
   END SUBROUTINE copy_sparse_to_full_matrix
 
 ! *****************************************************************************
-! multiplies a sparse matrix times ncol replicated vectors
+! multiplies a sparse matrix times ncol local vectors, adding it the the output
 ! (that are stored as rows ! in v_in leading dimension nblock )
 ! if the sparse_matrix is symmetric, off diagonal blocks will be used twice
 ! it is still assumed that the diagonal blocks are symmetric (and hence full)
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner)
+  ! notice, adding a beta is incompatible with the definition of this function
+  SUBROUTINE sparse_times_local(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,para_env,block_owner,                                alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
     TYPE(cp_para_env_type), POINTER   :: para_env
     INTEGER, DIMENSION(:,:), OPTIONAL :: block_owner
+    REAL(wp), OPTIONAL :: alpha
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
@@ -896,12 +898,20 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
     LOGICAL :: owner, symmetric
-    REAL(wp) :: flops
+    REAL(wp) :: flops,alpha_l
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
     INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads
 
 !   ---------------------------------------------------------------------------
+
+    IF (ncol.EQ.0) RETURN
+
+    IF (PRESENT(alpha)) THEN
+        alpha_l=alpha
+    ELSE
+        alpha_l=1.0_wp
+    ENDIF
 
 !   *** Check the association status of the input matrix ***
     CALL timeset("sparse_times_local","I","Gflops",handle)
@@ -957,7 +967,7 @@ END SUBROUTINE cp_sm_scale_and_add
                 sparse_matrix%first_col(iblock_col)+1
            IF (MOD(iblock_row,nthread).eq.ithread) THEN
               flops=flops+2.0_wp*sbnrow*sbncol*ncol
-              CALL DGEMM('N','T',ncol,sbnrow,sbncol,1.0_wp, &
+              CALL DGEMM('N','T',ncol,sbnrow,sbncol,alpha_l, &
                          rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
                          nblock, &
                          sparse_block(1,1),sbnrow, &
@@ -968,7 +978,7 @@ END SUBROUTINE cp_sm_scale_and_add
            IF (iblock_col .NE. iblock_row .AND. symmetric) THEN
               IF (MOD(iblock_col,nthread).eq.ithread) THEN 
                  flops=flops+2.0_wp*sbnrow*sbncol*ncol
-                 CALL DGEMM('N','N',ncol,sbncol,sbnrow,1.0_wp, &
+                 CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l, &
                       rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
                       nblock, &
                       sparse_block(1,1),sbnrow, &
@@ -1021,6 +1031,8 @@ END SUBROUTINE cp_sm_scale_and_add
 !   ---------------------------------------------------------------------------
 
 !   *** Check the association status of the input matrix ***
+
+    IF (ncol.EQ.0) RETURN
 
     IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
       CALL stop_program(routine,"The input matrix pointer is not associated")
