@@ -33,7 +33,11 @@ MODULE mathconstants
        zero, one, half, degree, radians, gaussi, fac, dfac, gamma0, gamma1, &
        euler
 
+#if defined(__SGL)
+  INTEGER, PARAMETER :: maxfac = 24
+#else
   INTEGER, PARAMETER :: maxfac = 30
+#endif
 
   REAL (KIND=dp), PARAMETER :: pi = 3.14159265358979323846264338_dp
   REAL (KIND=dp), PARAMETER :: pio2 = 1.57079632679489661923132169_dp

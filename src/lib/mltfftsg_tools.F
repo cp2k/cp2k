@@ -1,6 +1,10 @@
 MODULE mltfftsg_tools
 
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
   PRIVATE
   PUBLIC :: matmov, zgetmo, get_cache_size

@@ -3,7 +3,11 @@
                 cmax,ly_max,lz_max,gridbounds,&
                 map,sphere_bounds)
     IMPLICIT NONE
-    INTEGER, PARAMETER   :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#if defined(__SGL)
+  INTEGER, PARAMETER :: wp = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#endif
     integer, INTENT(IN)  :: lx_max,lxy_max,lxyz_max,coef_max,cmax
     integer, INTENT(IN)  :: ly_max(lx_max),lz_max(lxy_max)
     integer, INTENT(IN)  :: map(-cmax:cmax,1:3)
@@ -512,7 +516,12 @@
                             map,pzyx,la_min,la_max,&
                             lb_min,lb_max,sphere_bounds)
     IMPLICIT NONE
-    INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#if defined(__SGL)
+  INTEGER, PARAMETER :: wp = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#endif
+
 
     integer,  INTENT(IN) :: sphere_bounds(*),cmax
     integer,  INTENT(IN) :: lx_max,lxy_max,lxyz_max,coef_max,&
@@ -877,7 +886,11 @@
   SUBROUTINE collocate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub)
     IMPLICIT NONE
     ! Arguments
-    INTEGER, PARAMETER      :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#if defined(__SGL)
+  INTEGER, PARAMETER :: wp = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#endif
     INTEGER, INTENT(IN)     :: gridbounds(2,3)
     INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
     REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),&
@@ -902,7 +915,11 @@
   SUBROUTINE integrate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub,force)
     IMPLICIT NONE
     ! Arguments
-    INTEGER, PARAMETER      :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#if defined(__SGL)
+  INTEGER, PARAMETER :: wp = KIND(0.0)
+#else
+  INTEGER, PARAMETER :: wp = SELECTED_REAL_KIND ( 14, 200 )
+#endif
     INTEGER, INTENT(IN)     :: gridbounds(2,3)
     INTEGER, INTENT(IN)     :: zlb,zub,ylb,yub,xlb,xub
     REAL(wp), INTENT(INOUT) :: grid(gridbounds(1,1):gridbounds(2,1),&

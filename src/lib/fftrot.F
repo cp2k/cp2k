@@ -9,7 +9,12 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
 
   IMPLICIT NONE
 
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
+
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: mm, nfft, m, nn, n, now, after, before, isign

@@ -206,7 +206,7 @@ CONTAINS
     if (present(epsin)) then
        epsiter=epsin
     else
-       epsiter=1.0E-12_dp
+       epsiter=EPSILON(epsiter)*(1.0E-12_dp / 2.22044604925031E-16_dp)
     endif
 
 !   *** Initialize function value ***

@@ -8,9 +8,11 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
 
   USE mltfftsg_tools
 
-  IMPLICIT NONE
-
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
 ! Arguments
   CHARACTER ( LEN = 1 ), INTENT ( IN ) :: transa*1, transb*1

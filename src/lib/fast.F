@@ -6,7 +6,11 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
 ! cmat(i,j,k) <- za * cmat(i,j,k) + ex(i) * ey(j) * ez(k)
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
   
   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
   COMPLEX ( dbl ), INTENT ( IN ) :: za, zb
@@ -42,7 +46,11 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
 ! cden(i) <- cden(i) * cden2(i)
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( IN ) :: cvec2 (2,*)
@@ -70,7 +78,11 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
 ! cden(i) <- cden(i) * rden(i)
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( IN ) :: rvec (*)
@@ -94,7 +106,11 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 ! r2 = imag ( z )
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( OUT ) :: r1(*), r2(*)
@@ -117,7 +133,11 @@ SUBROUTINE copy_cr ( n, z, r1 )
 ! r1 = real ( z )
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( OUT ) :: r1(n)
@@ -138,7 +158,12 @@ SUBROUTINE copy_rc ( n, r1, z )
 ! z = r1
 !
   IMPLICIT NONE
+#if defined(__SGL)
+  INTEGER, PARAMETER :: dbl = KIND(0.0)
+#else
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+#endif
+
 
   INTEGER, INTENT ( IN ) :: n
   REAL ( dbl ), INTENT ( IN ) :: r1(n)
