@@ -4372,7 +4372,7 @@ END FUNCTION xc_exc_calc
   SUBROUTINE xc_calc_2nd_deriv_new(v_xc, &
        deriv_set, rho_set, rho1_set, pw_pool, dft_control, error)
 
-
+    ! ARGUMENTS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: v_xc
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_set_type), POINTER           :: rho_set, rho1_set
@@ -4381,9 +4381,11 @@ END FUNCTION xc_exc_calc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    ! PARAMETER
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calc_2nd_deriv_new', &
       routineP = moduleN//':'//routineN
 
+    ! LOCALS
     INTEGER                                  :: handle, i, idir, ispin, j, k, &
                                                 nspins, stat
     INTEGER, DIMENSION(2, 3)                 :: bounds
@@ -4410,10 +4412,12 @@ END FUNCTION xc_exc_calc
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho1_set),cp_failure_level,routineP,error,failure)
-    CPPrecondition(.NOT.ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(v_xc),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+
     IF (.NOT. failure) THEN
+
        gradient_f = .FALSE.
        nspins     = dft_control%nspins
        lsd = (nspins /= 1)
@@ -4423,14 +4427,10 @@ END FUNCTION xc_exc_calc
           lsd = .TRUE.
        END IF
 
-       ALLOCATE(v_xc(nspins),tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
+       ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, nspins
-          NULLIFY(v_xc(ispin)%pw, tmp_r(ispin)%pw, tmp_b(nspins)%pw)
-          CALL pw_pool_create_pw(pw_pool,v_xc(ispin)%pw,&
-                                 use_data = REALDATA3D,&
-                                 in_space = REALSPACE, error=error)
-          CALL pw_zero(v_xc(ispin)%pw)
+          NULLIFY(tmp_r(ispin)%pw, tmp_b(nspins)%pw)
        END DO
     END IF
 

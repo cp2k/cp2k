@@ -17,7 +17,8 @@
 !****************************************************************************
 MODULE xc_atom 
 
-  USE cp_control_types,                ONLY: xc_control_type
+  USE cp_control_types,                ONLY: dft_control_type, &
+                                             xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -38,6 +39,7 @@ MODULE xc_atom
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc,                              ONLY: divide_by_norm_drho
   USE xc_functionals,                  ONLY: xc_calculate_lda,&
                                              xc_calculate_lsd,&
                                              xc_get_pot_size,&
@@ -374,19 +376,19 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE xc_2nd_deriv_of_r(xc_control, rho_set, rho1_set, deriv_set, needs, &
+  SUBROUTINE xc_2nd_deriv_of_r(dft_control, rho_set, rho1_set, deriv_set, needs, &
                                rho, drho, oodrho, rho1, drho1, oodrho1, &
-                               w, lsd, nspins, na, ir_pnt, exc, vxc, vxg, vxg_cross, error)
+                               w, ir, exc, vxc, vxg, vxg_cross, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid. 
-! The grid is the angular grid corresponding to a given point ir_pnt on the radial grid.
+! The grid is the angular grid corresponding to a given point ir on the radial grid.
 ! The derivatives are calculated on this one dimensional grid, the results are stored in 
-! exc, vxc(1:na,ir_pnt,ispin), vxg(1:na,ir_pnt,ispin), vxg_cross(1:na,ir_pnt,ispin)
+! exc, vxc(1:na,ir,ispin), vxg(1:na,ir,ispin), vxg_cross(1:na,ir,ispin)
 ! Afterwords the arrays containing the derivatives are put to zero so that the routine
-! can safely be called for the next radial point ir_pnt
+! can safely be called for the next radial point ir
 
     ! ARGUMENTS
-    TYPE(xc_control_type), POINTER                :: xc_control
+    TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(xc_rho_set_type), POINTER                :: rho_set
     TYPE(xc_rho_set_type), POINTER                :: rho1_set
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
@@ -395,30 +397,26 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho, drho1 
     REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho, oodrho1 
     REAL(dp), DIMENSION(:),  POINTER              :: w 
-    LOGICAL, INTENT(IN)                           :: lsd
-    INTEGER, INTENT(IN)                           :: nspins
-    INTEGER, INTENT(IN)                           :: na,ir_pnt
+    INTEGER, INTENT(IN)                           :: ir
     REAL(dp)                                      :: exc
     REAL(dp), DIMENSION(:,:,:), POINTER           :: vxc,vxg
     REAL(dp), DIMENSION(:,:), POINTER             :: vxg_cross
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                                    :: error
+         OPTIONAL                                 :: error
 
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_2nd_deriv_of_r",&
                                                      routineP = module_name//':'//routine_name
 
 
     TYPE(cp_sll_xc_deriv_type), POINTER           :: pos
+    TYPE(xc_control_type), POINTER                :: xc_control
     TYPE(xc_derivative_type), POINTER             :: deriv_att
     REAL(KIND=dp), PARAMETER                      :: f13 = (1.0_dp/3.0_dp)
     REAL(dp)                                      :: drho_cutoff
     REAL(dp), DIMENSION(:,:,:), POINTER           :: deriv_data, norm_drho
-    INTEGER                                       :: handle, i, ia, idir, ispin, n_deriv, order
-    LOGICAL                                       :: failure, gradient_f, tddft
-    CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH)     :: desc
-    CHARACTER(len=30), DIMENSION(2), PARAMETER    :: &
-         norm_drho_spin_name = (/ "(norm_drhoa)", "(norm_drhob)" /)
-
+    INTEGER                                       :: handle, i, ia, idir, ispin, nspins, n_deriv, order
+    INTEGER, DIMENSION(2,3)                       :: bounds
+    LOGICAL                                       :: failure, gradient_f, lsd, tddft
 
     !   ***************************************************************************
 
@@ -428,8 +426,18 @@ CONTAINS
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
-    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir_pnt,error)
-    CALL fill_rho_set(rho1_set,lsd,nspins,needs,rho1,drho1,oodrho1,w,na,ir_pnt,error)
+    nspins = dft_control%nspins
+    xc_control => dft_control%xc_control
+    lsd = (nspins==2)
+    IF (dft_control%do_tddfpt_calculation) THEN
+       ! TDDFT needs an unrestricted 2nd derivative in any case
+       lsd = .TRUE. 
+       xc_control => dft_control%tddfpt_control%xc_control
+    END IF
+    bounds = rho_set%local_bounds
+
+    CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,bounds(2,1),ir,error)
+    CALL fill_rho_set(rho1_set,lsd,nspins,needs,rho1,drho1,oodrho1,w,bounds(2,1),ir,error)
 
     !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
@@ -441,13 +449,15 @@ CONTAINS
                                error=error)
     END DO
 
+    CALL divide_by_norm_drho(deriv_set, rho_set, bounds, lsd, error)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE xc_2nd_deriv_of_r
 
 !   ***************************************************************************
 
-  SUBROUTINE xc_rho_set_atom_update(rho_set,needs,nspins,na)
+  SUBROUTINE xc_rho_set_atom_update(rho_set,needs,nspins,bo)
 
 !   This routine allocates the storage arrays for rho and drho
 !   In calculate_vxc_atom this is called once for each atomic_kind, 
@@ -458,7 +468,8 @@ CONTAINS
 
     TYPE(xc_rho_set_type), POINTER      :: rho_set
     TYPE(xc_rho_cflags_type)            :: needs
-    INTEGER, INTENT(IN)                 :: nspins, na
+    INTEGER, INTENT(IN)                 :: nspins
+    INTEGER, DIMENSION(2,3), INTENT(IN) :: bo
 
     CHARACTER(LEN=*), PARAMETER                   :: routine_name = "xc_rho_set_atom_update",&
                                          routineP = module_name//':'//routine_name
@@ -471,21 +482,21 @@ CONTAINS
 !     What is this for?
       IF (needs%rho_1_3) THEN
         NULLIFY(rho_set%rho_1_3)
-        CALL reallocate(rho_set%rho_1_3,1,na,1,1,1,1)
+        CALL reallocate(rho_set%rho_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3= .FALSE.
       END IF
 !     Allocate the storage space for the density 
       IF (needs%rho) THEN
         NULLIFY(rho_set%rho)
-        CALL reallocate(rho_set%rho,1,na,1,1,1,1)
+        CALL reallocate(rho_set%rho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%rho=.TRUE.
         rho_set%has%rho=.FALSE.
       END IF
 !     Allocate the storage space for  the norm of the gradient of the density
       IF (needs%norm_drho) THEN
         NULLIFY(rho_set%norm_drho)
-        CALL reallocate(rho_set%norm_drho,1,na,1,1,1,1) 
+        CALL reallocate(rho_set%norm_drho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
         rho_set%owns%norm_drho=.TRUE.
         rho_set%has%norm_drho=.FALSE.
       END IF
@@ -493,7 +504,7 @@ CONTAINS
       IF (needs%drho) THEN
         DO idir = 1,3
           NULLIFY (rho_set%drho(idir)%array)
-          CALL reallocate(rho_set%drho(idir)%array,1,na,1,1,1,1)
+          CALL reallocate(rho_set%drho(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         END DO
         rho_set%owns%drho=.TRUE.
         rho_set%has%drho=.FALSE.
@@ -503,52 +514,52 @@ CONTAINS
       IF (needs%rho) THEN
      ! this should never be the case unless you use LDA functionals with LSD
         NULLIFY(rho_set%rho)
-        CALL reallocate(rho_set%rho,1,na,1,1,1,1)
+        CALL reallocate(rho_set%rho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%rho=.TRUE.
         rho_set%has%rho=.FALSE.
       END IF
 !     What is this for?
       IF (needs%rho_1_3) THEN
         NULLIFY(rho_set%rho_1_3)
-        CALL reallocate(rho_set%rho_1_3,1,na,1,1,1,1) 
+        CALL reallocate(rho_set%rho_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
         rho_set%owns%rho_1_3=.TRUE.
         rho_set%has%rho_1_3=.FALSE.
       END IF
 !     What is this for?
       IF (needs%rho_spin_1_3) THEN
         NULLIFY(rho_set%rhoa_1_3,rho_set%rhob_1_3)
-        CALL reallocate(rho_set%rhoa_1_3,1,na,1,1,1,1)
-        CALL reallocate(rho_set%rhob_1_3,1,na,1,1,1,1) 
+        CALL reallocate(rho_set%rhoa_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        CALL reallocate(rho_set%rhob_1_3,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3)) 
         rho_set%owns%rho_spin_1_3=.TRUE.
         rho_set%has%rho_spin_1_3=.FALSE.
       END IF
 !     Allocate the storage space for the spin densities rhoa and rhob
       IF (needs%rho_spin) THEN
         NULLIFY(rho_set%rhoa,rho_set%rhob)
-        CALL reallocate(rho_set%rhoa,1,na,1,1,1,1)
-        CALL reallocate(rho_set%rhob,1,na,1,1,1,1)
+        CALL reallocate(rho_set%rhoa,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        CALL reallocate(rho_set%rhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%rho_spin=.TRUE.
         rho_set%has%rho_spin=.FALSE.
       END IF
 !     Allocate the storage space for the norm of the gradient of the total density
       IF (needs%norm_drho) THEN
         NULLIFY(rho_set%norm_drho)
-        CALL reallocate(rho_set%norm_drho,1,na,1,1,1,1)
+        CALL reallocate(rho_set%norm_drho,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%norm_drho=.TRUE.
         rho_set%has%norm_drho=.FALSE.
       END IF
 !     Allocate the storage space for the norm of the gradient of rhoa and of rhob separatedly
       IF (needs%norm_drho_spin) THEN
         NULLIFY(rho_set%norm_drhoa,rho_set%norm_drhob)
-        CALL reallocate(rho_set%norm_drhoa,1,na,1,1,1,1)
-        CALL reallocate(rho_set%norm_drhob,1,na,1,1,1,1)
+        CALL reallocate(rho_set%norm_drhoa,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+        CALL reallocate(rho_set%norm_drhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%norm_drho_spin=.TRUE.
         rho_set%has%norm_drho_spin=.FALSE.
       END IF
 !
       IF (needs%drhoa_drhob) THEN
         NULLIFY(rho_set%drhoa_drhob)
-        CALL reallocate(rho_set%drhoa_drhob,1,na,1,1,1,1)
+        CALL reallocate(rho_set%drhoa_drhob,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         rho_set%owns%drhoa_drhob=.TRUE.
         rho_set%has%drhoa_drhob=.FALSE.
       END IF
@@ -556,7 +567,7 @@ CONTAINS
       IF (needs%drho) THEN
         DO idir = 1,3
           NULLIFY(rho_set%drho(idir)%array)
-          CALL reallocate(rho_set%drho(idir)%array,1,na,1,1,1,1)
+          CALL reallocate(rho_set%drho(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         END DO
         rho_set%owns%drho=.TRUE.        
         rho_set%has%drho=.FALSE.
@@ -565,8 +576,8 @@ CONTAINS
       IF (needs%drho_spin) THEN
         DO idir = 1,3
           NULLIFY(rho_set%drhoa(idir)%array,rho_set%drhob(idir)%array)
-          CALL reallocate(rho_set%drhoa(idir)%array,1,na,1,1,1,1)
-          CALL reallocate(rho_set%drhob(idir)%array,1,na,1,1,1,1)
+          CALL reallocate(rho_set%drhoa(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+          CALL reallocate(rho_set%drhob(idir)%array,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
         END DO
         rho_set%owns%drho_spin=.TRUE.        
         rho_set%has%drho_spin=.FALSE.
@@ -581,13 +592,13 @@ CONTAINS
     END IF
     IF (needs%tau) THEN
       NULLIFY(rho_set%tau)
-      CALL reallocate(rho_set%tau,1,na,1,1,1,1)
+      CALL reallocate(rho_set%tau,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
       rho_set%owns%tau=.TRUE.
     END IF
     IF (needs%tau_spin) THEN
       NULLIFY(rho_set%tau_a,rho_set%tau_b)
-      CALL reallocate(rho_set%tau_a,1,na,1,1,1,1)
-      CALL reallocate(rho_set%tau_b,1,na,1,1,1,1)
+      CALL reallocate(rho_set%tau_a,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
+      CALL reallocate(rho_set%tau_b,bo(1,1),bo(2,1),bo(1,2),bo(2,2),bo(1,3),bo(2,3))
       rho_set%owns%tau_spin=.TRUE.
       rho_set%has%tau_spin=.FALSE.
     END IF

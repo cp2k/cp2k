@@ -219,7 +219,7 @@ CONTAINS
              needs=needs, error=error)
      END DO
      ! allocate the required 3d arrays where to store rho and drho
-     CALL xc_rho_set_atom_update(rho_set,needs,nspins,na)
+     CALL xc_rho_set_atom_update(rho_set,needs,nspins,bounds)
      
      cross_term = .FALSE.
      IF(lsd) THEN
@@ -447,13 +447,16 @@ CONTAINS
                    atomic_kind_set=atomic_kind_set)
    rho_atom_set => qs_env%local_rho_set%rho_atom_set
    rho1_atom_set => p_env%local_rho_set%rho_atom_set
-   xc_control => dft_control%tddfpt_control%xc_control
+   xc_control => dft_control%xc_control
 
    nspins = dft_control%nspins
    gradient_functional = ANY(xc_control%gradient_functionals)
    lsd = (nspins==2)
-   ! TDDFT needs an unrestricted 2nd derivative in any case
-   IF (dft_control%do_tddfpt_calculation) lsd = .TRUE. 
+   IF (dft_control%do_tddfpt_calculation) THEN
+      ! TDDFT needs an unrestricted 2nd derivative in any case
+      lsd = .TRUE. 
+      xc_control => dft_control%tddfpt_control%xc_control
+   END IF
    nkind = SIZE(atomic_kind_set)
 
 !  Here starts the loop over all the atoms
@@ -508,11 +511,11 @@ CONTAINS
 
       ! allocate the required 3d arrays where to store rho and drho
       IF (.NOT.dft_control%do_tddfpt_calculation) THEN
-         CALL xc_rho_set_atom_update(rho_set, needs, nspins, na)
-         CALL xc_rho_set_atom_update(rho1_set, needs, nspins, na)
+         CALL xc_rho_set_atom_update(rho_set, needs, nspins, bounds)
+         CALL xc_rho_set_atom_update(rho1_set, needs, nspins, bounds)
       ELSE
-         CALL xc_rho_set_atom_update(rho_set, needs, 2, na)
-         CALL xc_rho_set_atom_update(rho1_set, needs, 2, na)
+         CALL xc_rho_set_atom_update(rho_set, needs, 2, bounds)
+         CALL xc_rho_set_atom_update(rho1_set, needs, 2, bounds)
       END IF
 
       !! Will I need to change this??
@@ -597,24 +600,24 @@ CONTAINS
             weight(1:na) = grid_atom%wr(ir)*grid_atom%wa(1:na)
 
             ! hard atom density 
-            CALL xc_2nd_deriv_of_r(xc_control=xc_control, &
+            CALL xc_2nd_deriv_of_r(dft_control=dft_control, &
                                    rho_set=rho_set, rho1_set=rho1_set, &
                                    deriv_set=deriv_set, needs=needs, &
                                    rho=rho_h, drho=drho_h, oodrho=oodrho_h, &
-                                   rho1=rho1_h, drho1=drho1_h, oodrho1=oodrho1_h, w=weight,&
-                                   lsd=lsd, nspins=nspins, na=na, ir_pnt=ir, &
+                                   rho1=rho1_h, drho1=drho1_h, oodrho1=oodrho1_h, &
+                                   w=weight, ir=ir, &
                                    exc=exc, vxc=vxc_h, vxg=vxg_h, vxg_cross=vxgc_h, error=error)
 
             ! Sum up the exc contribution  to exc_h
             rho_atom%exc_h = rho_atom%exc_h + exc
 
             ! atom density
-            CALL xc_2nd_deriv_of_r(xc_control=xc_control,&
+            CALL xc_2nd_deriv_of_r(dft_control=dft_control,&
                                    rho_set=rho_set, rho1_set=rho1_set, &
                                    deriv_set=deriv_set, needs=needs,&
                                    rho=rho_s, drho=drho_s, oodrho=oodrho_s, &
-                                   rho1=rho1_s, drho1=drho1_s, oodrho1=oodrho1_s, w=weight,&
-                                   lsd=lsd, nspins=nspins, na=na, ir_pnt=ir,&
+                                   rho1=rho1_s, drho1=drho1_s, oodrho1=oodrho1_s, &
+                                   w=weight, ir=ir,&
                                    exc=exc, vxc=vxc_s, vxg=vxg_s, vxg_cross=vxgc_s, error=error)
 
             ! Sum up the exc contribution  to exc_s

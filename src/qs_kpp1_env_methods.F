@@ -53,7 +53,8 @@ MODULE qs_kpp1_env_methods
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
@@ -64,7 +65,8 @@ MODULE qs_kpp1_env_methods
                                              pw_create,&
                                              pw_p_type,&
                                              pw_release,&
-                                             pw_transfer
+                                             pw_transfer,&
+                                             pw_zero
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_collocate_density,            ONLY: calculate_total_rho
@@ -400,6 +402,16 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
                               dft_control, cell, auxbas_pw_pool, atoms, error)
 
+
+       ALLOCATE(v_xc(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1, nspins
+          NULLIFY(v_xc(ispin)%pw)
+          CALL pw_pool_create_pw(auxbas_pw_pool,v_xc(ispin)%pw,&
+                                 use_data = REALDATA3D,&
+                                 in_space = REALSPACE, error=error)
+          CALL pw_zero(v_xc(ispin)%pw)
+       END DO
        CALL  xc_calc_2nd_deriv_new(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
             rho1_set, auxbas_pw_pool, dft_control, error=error)
        do ispin=1,nspins
