@@ -202,6 +202,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY ( molecule_kinds, particles, local_molecules, cell, cell_ref,&
          simpar,struc,virial,constant,itimes,subsys,nhc_part, nhc_baro )
+    NULLIFY (molecule_kinds_new)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
