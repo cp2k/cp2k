@@ -1,0 +1,997 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/cp_lbfgs_optimizer_[nametype1] [1.0] *
+!!
+!!   NAME
+!!     cp_lbfgs_optimizer_[nametype1]
+!!
+!!   FUNCTION
+!!     routines that optimize a functional using the limited memory bfgs
+!!     quasi-newton method.
+!!     The process set up so that a master runs the real optimizer and the
+!!     others help then to calculate the objective function. 
+!!     The arguments for the objective function are physicaly present in 
+!!     every processor (nedeed in the actual implementation of pao).
+!!     In the future tha arguments themselves could be distributed.
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!*****************************************************************************
+module cp_lbfgs_optimizer_[nametype1]
+  use cp_lbfgs
+  use cp_log_handling
+  use cp_error_handling
+  use kinds, only: wp=>dp
+  use global_types, only: global_environment_type
+  use timings, only: timeset, timestop
+  use message_passing, only: mp_bcast
+  [use]
+  implicit none
+  private
+
+  logical, private, parameter :: debug_this_module=.true.
+  character(len=*), private, parameter :: moduleN='cp_lbfgs_optimizer_[nametype1]'
+
+  ! types
+  public :: cp_lbfgs_opt_[nametype1]_type
+
+  ! core methods
+  public :: cp_init, cp_dealloc_ref, cp_get, cp_next
+
+  ! special methos
+  public :: cp_step, cp_stop
+
+  ! underlying functions
+  public :: cp_opt_[nametype1]_init, cp_opt_[nametype1]_dealloc_ref,&
+       cp_opt_[nametype1]_get, cp_opt_[nametype1]_next,&
+       cp_opt_[nametype1]_step, cp_opt_[nametype1]_stop
+
+  ! initalize the object 
+  interface cp_init 
+     module procedure cp_opt_[nametype1]_init
+  end interface
+  ! deallocates the memory used by the object
+  interface cp_dealloc_ref
+     module procedure cp_opt_[nametype1]_dealloc_ref
+  end interface
+  ! returns attributes about the object
+  interface cp_get
+     module procedure cp_opt_[nametype1]_get
+  end interface
+  ! goes to the next point, returns true if not converged or error
+  interface cp_next
+     module procedure cp_opt_[nametype1]_next
+  end interface
+  ! goes to the next point
+  interface cp_step
+     module procedure cp_opt_[nametype1]_step
+  end interface
+  ! stops the iteration
+  interface cp_stop
+     module procedure cp_opt_[nametype1]_stop
+  end interface
+
+!!***
+  !****************************************************************************
+
+!!****s* cp_lbfgs_optimizer_[nametype1]/cp_lbfgs_opt_[nametype1]_type [1.0] *
+!!
+!!   NAME
+!!     cp_lbfgs_optimizer_[nametype1]_type
+!!
+!!   FUNCTION
+!!     info for the optimizer (see the description of this module)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     task: the actual task of the optimizer (in the master it is up to
+!!           date, in case of error also the slaves one get updated. 
+!!     csave: internal character string used by the lbfgs optimizer,
+!!           present only in the master  
+!!     lsave: logical array used by the lbfgs optimizer, updated only 
+!!           in the master
+!!           On exit with task = 'NEW_X', the following information is
+!!           available:
+!!           lsave(1) = .true.  the initial x did not satisfy the bounds;
+!!           lsave(2) = .true.  the problem contains bounds;
+!!           lsave(3) = .true.  each variable has upper and lower bounds.
+!!     initialized: true if initialized (bug catcher)
+!!     m: the dimension of the subspace used to approximate the second 
+!!           derivative
+!!     print_every: every how many iterations output should be written.
+!!	       if 0 only at end, if print_every<0 never
+!!     master: the pid of the master processor
+!!     max_f_per_iter: the maximum number of function evaluations per
+!!           iteration
+!!     status: 0: just initialized, 1: f g calculation, 
+!!             2: begin new iteration, 3: ended iteration,
+!!             4: normal (converged) exit, 5: abnormal (error) exit,
+!!             6: daellocated
+!!     n_iter: the actual iteration number
+!!     kind_of_bound: an array with 0 (no bound), 1 (lower bound),
+!!             2 (both bounds), 3 (upper bound), to describe the bounds
+!!             of every variable
+!!     i_work_array: an integer workarray of dimension 3*n, present only
+!!             the master
+!!     isave is an INTEGER working array of dimension 44.
+!!         On exit with task = 'NEW_X', it contains information that
+!!         the user may want to access:
+!!          isave(30) = the current iteration number;
+!!          isave(34) = the total number of function and gradient
+!!                          evaluations;
+!!          isave(36) = the number of function value or gradient
+!!                                   evaluations in the current iteration;
+!!          isave(38) = the number of free variables in the current
+!!                          iteration;
+!!          isave(39) = the number of active constraints at the current
+!!                          iteration;
+!!   real(kind=wp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
+!!        last_f, projected_gradient
+!!   real(kind=wp), dimension(:), pointer :: x,lower_bound,upper_bound,&
+  !        gradient,dsave,work_array
+  !   type(global_environment_type), pointer :: global_env
+  !   [type1], pointer :: obj_funct
+
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+  !***************************************************************************
+  type cp_lbfgs_opt_[nametype1]_type
+     character (len=60) :: task
+     character (len=60), pointer :: csave  
+     logical :: lsave (4), initialized
+     integer :: m, print_every, master, max_f_per_iter, status, n_iter
+     integer, dimension(:), pointer :: kind_of_bound, i_work_array, isave
+     real(kind=wp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
+          last_f, projected_gradient
+     real(kind=wp), dimension(:), pointer :: x,lower_bound,upper_bound,&
+          gradient,dsave,work_array
+     type(global_environment_type), pointer :: global_env
+     [type1], pointer :: obj_funct
+  end type cp_lbfgs_opt_[nametype1]_type
+!!***
+  !****************************************************************************
+
+contains
+
+!!****f* cp_lbfgs_opt_[nametype1]/cp_opt_[nametype1]_init [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_init
+!!
+!!   FUNCTION
+!!     initializes the optimizer
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_init(optimizer, global_env, &
+       obj_funct, x0, m, print_every, &
+       wanted_relative_f_delta, wanted_projected_gradient,&
+       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter, error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(out) :: optimizer
+    type(global_environment_type), intent(in), target :: global_env
+    [type1], intent(in), target :: obj_funct
+    real(kind=wp), dimension(:), intent(in) :: x0
+    integer, intent(in), optional :: m,print_every, master, max_f_per_iter
+    real(kind=wp), intent(in), optional ::wanted_projected_gradient,&
+         wanted_relative_f_delta
+    real(kind=wp), intent(in), dimension(size(x0)), optional :: lower_bound,&
+         upper_bound
+    integer, intent(in), dimension(size(x0)), optional :: kind_of_bound
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle,n, lenwa, stat
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_init',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    call timeset(routineN//','//moduleN,'I',"",handle)
+
+    if (.not. failure) then
+       n=size(x0)
+       optimizer%m=4
+       if (present(m)) optimizer%m=m
+       optimizer%master= 0
+       optimizer%global_env => global_env
+       optimizer%obj_funct => obj_funct
+       optimizer%max_f_per_iter=6
+       optimizer%print_every=1
+       optimizer%n_iter=0
+       optimizer%f=-1.0_wp
+       optimizer%last_f=-1.0_wp
+       optimizer%projected_gradient=-1.0_wp
+       if(present(print_every)) optimizer%print_every=print_every
+       if (present(master)) optimizer%master=master
+       if (optimizer%master==optimizer%global_env%mepos) then
+          lenwa= 2 * optimizer%m * n + 4 * n + &
+               11 * optimizer%m * optimizer%m + 8 * optimizer%m
+          allocate( optimizer%csave, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          allocate( optimizer%kind_of_bound(n), optimizer%i_work_array(3*n),&
+               optimizer%isave(44), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          allocate( optimizer%x(n), optimizer%lower_bound(n), &
+               optimizer%upper_bound(n), optimizer%gradient(n), &
+               optimizer%dsave(29), optimizer%work_array(lenwa), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          optimizer%x=x0
+          optimizer%task='START'
+          optimizer%wanted_relative_f_delta=wanted_relative_f_delta
+          optimizer%wanted_projected_gradient=wanted_projected_gradient
+          optimizer%kind_of_bound=0
+          if (present(kind_of_bound)) optimizer%kind_of_bound=kind_of_bound
+          if (present(lower_bound)) optimizer%lower_bound=lower_bound
+          if (present(upper_bound)) optimizer%upper_bound=upper_bound
+
+          call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+               optimizer%lower_bound, optimizer%upper_bound, &
+               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+               optimizer%wanted_relative_f_delta, &
+               optimizer%wanted_projected_gradient, optimizer%work_array, &
+               optimizer%i_work_array, optimizer%task, optimizer%print_every,&
+               optimizer%csave, optimizer%lsave, optimizer%isave, &
+               optimizer%dsave)
+       else
+          nullify( optimizer%csave, &
+               optimizer%kind_of_bound, optimizer%i_work_array, optimizer%isave,&
+               optimizer%lower_bound, optimizer%upper_bound, optimizer%gradient,&
+               optimizer%dsave, optimizer%work_array)
+          allocate (optimizer%x(n),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       end if
+       call mp_bcast(optimizer%x,optimizer%master,&
+            optimizer%global_env%group)
+       optimizer%status=0
+       optimizer%initialized=.true.
+    end if
+    call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_init
+  !***************************************************************************
+
+!!****f* cp_lbfgs_optimizer_[nametype1]/cp_opt_[nametype1]_dealloc_ref [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_dealloc_ref
+!!
+!!   FUNCTION
+!!     deallocates teh memory used by the optimizer
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     optimizer: the object that should be freed
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_dealloc_ref(optimizer,error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(inout) :: optimizer
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle, stat
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_dealloc_ref',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    !call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       optimizer%status=6
+       if (associated(optimizer%csave)) then
+          deallocate(optimizer%csave, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%kind_of_bound)) then
+          deallocate(optimizer%kind_of_bound, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%i_work_array)) then
+          deallocate(optimizer%i_work_array, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%isave)) then
+          deallocate(optimizer%isave, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%x)) then
+          deallocate(optimizer%x, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%lower_bound)) then
+          deallocate(optimizer%lower_bound, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%upper_bound)) then
+          deallocate(optimizer%upper_bound, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%gradient)) then
+          deallocate(optimizer%gradient, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%dsave)) then
+          deallocate(optimizer%dsave, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(optimizer%work_array)) then
+          deallocate(optimizer%work_array, stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       nullify(optimizer%global_env, optimizer%obj_funct)
+    end if
+    !call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_dealloc_ref
+  !***************************************************************************
+
+
+!!****f* cp_lbfgs_optimizer_[nametype1]/cp_opt_[nametype1]_get [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_get
+!!
+!!   FUNCTION
+!!     takes different valuse from the optimizer
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_get(optimizer, global_env, &
+       obj_funct, m, print_every, &
+       wanted_relative_f_delta, wanted_projected_gradient,&
+       x, lower_bound, upper_bound, kind_of_bound, master,&
+       actual_projected_gradient, &
+       n_var, n_iter, status, max_f_per_iter,at_end,&
+       is_master, last_f, f, error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(in) :: optimizer
+    type(global_environment_type), pointer, optional :: global_env
+    [type1], pointer, optional :: obj_funct
+    real(kind=wp), dimension(:), pointer, optional :: x
+    integer, intent(out), optional :: m, print_every, n_var, n_iter, master,&
+         status, max_f_per_iter
+    logical, intent(out), optional :: is_master, at_end
+    real(kind=wp), intent(out), optional ::wanted_projected_gradient,&
+         wanted_relative_f_delta, actual_projected_gradient, &
+         last_f, f
+    real(kind=wp), pointer, dimension(:), optional :: lower_bound,&
+         upper_bound
+    integer, pointer, dimension(:), optional :: kind_of_bound
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_get',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       if (present(is_master)) is_master=optimizer%master==optimizer%global_env%mepos
+       if (present(master)) master=optimizer%master
+       if (present(status)) status=optimizer%status
+       if (present(global_env)) global_env=optimizer%global_env
+       if (present(obj_funct)) obj_funct=optimizer%obj_funct
+       if (present(m)) m=optimizer%m
+       if (present(max_f_per_iter)) max_f_per_iter=optimizer%max_f_per_iter
+       if (present(wanted_projected_gradient)) &
+            wanted_projected_gradient=optimizer%wanted_projected_gradient
+       if (present(wanted_relative_f_delta)) &
+            wanted_relative_f_delta=optimizer%wanted_relative_f_delta
+       if (present(print_every)) print_every=optimizer%print_every
+       if (present(x)) x => optimizer%x
+       if (present(n_var)) n_var=size(x)
+       if (present(lower_bound)) lower_bound => optimizer%lower_bound
+       if (present(upper_bound)) upper_bound => optimizer%upper_bound
+       if (present(kind_of_bound)) kind_of_bound => optimizer%kind_of_bound
+       if (present(n_iter)) n_iter= optimizer%n_iter
+       if (present(last_f)) last_f = optimizer%last_f
+       if (present(f)) f= optimizer%f
+       if (present(at_end)) at_end=optimizer%status>3
+       if (present(actual_projected_gradient))&
+            actual_projected_gradient=optimizer%projected_gradient
+       if (optimizer%master==optimizer%global_env%mepos) then
+          if (optimizer%isave(30)>1 .and. (optimizer%task(1:5)=="NEW_X".or.&
+               optimizer%task(1:4)=="STOP".and.optimizer%task(7:9)=="CPU")) then 
+             ! nr iterations >1 .and. dsave contains the wanted data
+             if (present(last_f)) last_f = optimizer%dsave(2)
+             if (present(actual_projected_gradient))&
+                  actual_projected_gradient=optimizer%dsave(13)
+          else
+             CPPrecondition(.not.present(last_f),cp_warning_level,routineP,error,failure)
+             CPPrecondition(.not.present(actual_projected_gradient),cp_warning_level,routineP,error,failure)
+          end if
+       else
+          call cp_assert(.not.(present(lower_bound).or.&
+               present(upper_bound).or.present(kind_of_bound)),&
+               cp_warning_level,cp_assertion_failed,&
+               routineP, "asked undefined types in "//&
+               CPSourceFileRef(),error,failure)
+       end if
+
+    end if
+    !  call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_get
+  !***************************************************************************
+
+!!****f* cp_lbfgs_optimizer_[nametype1]/cp_opt_[nametype1]_step [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_step
+!!
+!!   FUNCTION
+!!     does one optimization step
+!!
+!!   NOTES
+!!     use directly mainlb in place of setulb ??
+!!
+!!   INPUTS
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_step(optimizer,n_iter,f,last_f,&
+       projected_gradient, converged, error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(inout) :: optimizer
+    integer, intent(out), optional :: n_iter
+    real(kind=wp), intent(out), optional :: f, last_f, projected_gradient
+    logical, intent(out), optional :: converged
+
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure, justEntred, is_master
+    integer :: handle
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_step',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+    justEntred=.true.
+
+    call timeset(routineN//','//moduleN,'I',"",handle)
+    converged = optimizer%status==4
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    CPPrecondition(optimizer%status<4,cp_warning_level,routineP,error,failure)
+    if (.not. failure) then
+       is_master=optimizer%master==optimizer%global_env%mepos
+       do
+          ifMaster: if (is_master) then
+             if (optimizer%task(1:2)=='FG') then
+                if (optimizer%isave(36)>optimizer%max_f_per_iter) then
+                   optimizer%task='STOP: CPU, hit max f eval in iter'
+                   optimizer%status=5 ! anormal exit
+                   call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+                        optimizer%lower_bound, optimizer%upper_bound, &
+                        optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                        optimizer%wanted_relative_f_delta, &
+                        optimizer%wanted_projected_gradient, optimizer%work_array, &
+                        optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                        optimizer%csave, optimizer%lsave, optimizer%isave, &
+                        optimizer%dsave)
+                else
+                   optimizer%status=1
+                end if
+             else if (optimizer%task(1:5)=='NEW_X') then
+                if (justEntred) then
+                   optimizer%status=2
+                   call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+                        optimizer%lower_bound, optimizer%upper_bound, &
+                        optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                        optimizer%wanted_relative_f_delta, &
+                        optimizer%wanted_projected_gradient, optimizer%work_array, &
+                        optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                        optimizer%csave, optimizer%lsave, optimizer%isave, &
+                        optimizer%dsave)
+                else
+                   optimizer%status=3
+                end if
+             else if (optimizer%task(1:4)=='CONV') then
+                optimizer%status=4
+             else if (optimizer%task(1:4)=='STOP') then
+                optimizer%status=5
+                call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+                     routineP,"task became stop in an unknown way in "//&
+                     CPSourceFileRef(),error)
+             else if (optimizer%task(1:5)=='ERROR') then
+                optimizer%status=5
+             else
+                call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+                     routineP,"unknown task '"//optimizer%task//"' in "//&
+                     CPSourceFileRef(),error)
+             end if
+          end if ifMaster
+          call mp_bcast(optimizer%status,optimizer%master, &
+               optimizer%global_env%group)
+          select case (optimizer%status)
+          case (1)
+             !op=1 evaluate f and g
+             call cp_eval_at(optimizer%obj_funct, x=optimizer%x,&
+                  f=optimizer%f,&
+                  gradient=optimizer%gradient, error=error) ! do not use keywords?
+             if (is_master) then
+                call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+                     optimizer%lower_bound, optimizer%upper_bound, &
+                     optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+                     optimizer%wanted_relative_f_delta, &
+                     optimizer%wanted_projected_gradient, optimizer%work_array, &
+                     optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+                     optimizer%csave, optimizer%lsave, optimizer%isave, &
+                     optimizer%dsave)
+             end if
+             call mp_bcast(optimizer%x,optimizer%master,&
+                  optimizer%global_env%group)
+          case (2)
+             !op=2 begin new iter
+             call mp_bcast(optimizer%x,optimizer%master,&
+                  optimizer%global_env%group)
+          case (3)
+             !op=3 ended iter
+             exit
+          case (4)
+             !op=4 (convergence - normal exit)     
+             converged=.true.
+             exit
+          case (5)
+             ! op=5 abnormal exit (error)
+             call mp_bcast(optimizer%task,optimizer%master,&
+                  optimizer%global_env%group)
+          case (6)
+             ! deallocated
+             call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"step on a deallocated opt structure "//&
+                  CPSourceFileRef(),error,failure)           
+          case default
+             call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+                  routineP,"unknown status "//cp_to_string(optimizer%status)//&
+                  " in "//CPSourceFileRef(),error,failure)
+             optimizer%status=5
+             exit
+          end select
+       end do
+       call mp_bcast(optimizer%x,optimizer%master,&
+            optimizer%global_env%group)
+       call cp_opt_[nametype1]_bcast_res(optimizer,&
+            n_iter=optimizer%n_iter,&
+            f=optimizer%f, last_f=optimizer%last_f,&
+            projected_gradient=optimizer%projected_gradient)
+    end if
+    if (present(f)) f=optimizer%f
+    if (present(last_f)) last_f=optimizer%last_f
+    if (present(projected_gradient)) &
+         projected_gradient=optimizer%projected_gradient
+    if (present(n_iter)) n_iter=optimizer%n_iter
+    call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_step
+  !***************************************************************************
+
+!!****f* m/cp_opt_[nametype1]_bcast_res [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_bcast_res
+!!
+!!   FUNCTION
+!!     returns the results (and broadcasts them)
+!!
+!!   NOTES
+!!     private routine
+!!
+!!   INPUTS
+!!     optimizer: the optimizer object the info is taken from
+!!     n_iter: the number of iterations
+!!     f: the actual value of the objective function (f)
+!!     last_f: the last value of f
+!!     projected_gradient: the infinity norm of the projected gradient
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_bcast_res(optimizer, n_iter,f,last_f,&
+       projected_gradient,error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(in) :: optimizer
+    integer, optional, intent(out) :: n_iter
+    real(kind=wp), optional, intent(out) :: f, last_f, projected_gradient
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle
+    real(kind=wp), dimension(4) :: results
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_bcast_res',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       if (optimizer%master==optimizer%global_env%mepos) then
+          results=(/ real(optimizer%isave(30), kind=wp), &
+               optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
+       end if
+       call mp_bcast(results,optimizer%master, &
+            optimizer%global_env%group)
+       if (present(n_iter)) n_iter= nint(results(1))
+       if (present(f)) f=results(2)
+       if (present(last_f)) last_f=results(3)
+       if (present(projected_gradient)) &
+            projected_gradient=results(4)
+    end if
+    !  call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_bcast_res
+  !***************************************************************************
+
+!!****f* cp_lbfgs_optimizer_[nametype1]/cp_opt_[nametype1]_next [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_next
+!!
+!!   FUNCTION
+!!     goes to the next optimal point (after an optimizer iteration)
+!!     returns true if converged
+!!
+!!   NOTES
+!!     if you deactivate convergence control it returns never false
+!!
+!!   INPUTS
+!!     optimizer: the optimizer that goes to the next point
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  function cp_opt_[nametype1]_next(optimizer,error) result(res)
+    logical ::res
+    type(cp_lbfgs_opt_[nametype1]_type), intent(inout) :: optimizer
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_next',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    !call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       call cp_opt_[nametype1]_step(optimizer,error=error)
+       res= optimizer%status<4
+    else
+       res=.false.
+    end if
+    !call timestop(0.0_wp,handle)
+  end function cp_opt_[nametype1]_next
+  !***************************************************************************
+
+
+!!****f* cp_lbfgs_optimizer_[nametype1]/cp_opt_[nametype1]_stop [1.0] *
+!!
+!!   NAME
+!!     cp_opt_[nametype1]_stop
+!!
+!!   FUNCTION
+!!     stops the optimization
+!!
+!!   NOTES
+!!     necessary???
+!!
+!!   INPUTS
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*** **********************************************************************
+  subroutine cp_opt_[nametype1]_stop(optimizer, error)
+    type(cp_lbfgs_opt_[nametype1]_type), intent(inout) :: optimizer
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle
+    character(len=*), parameter :: routineN='cp_opt_[nametype1]_stop',&
+         routineP=moduleN//':'//routineN
+    failure=.false.
+
+    !  call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       optimizer%task='STOPPED on user request'
+       optimizer%status=4 ! normal exit
+       if (optimizer%master==optimizer%global_env%mepos) then
+          call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+               optimizer%lower_bound, optimizer%upper_bound, &
+               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+               optimizer%wanted_relative_f_delta, &
+               optimizer%wanted_projected_gradient, optimizer%work_array, &
+               optimizer%i_work_array, optimizer%task, optimizer%print_every, &
+               optimizer%csave, optimizer%lsave, optimizer%isave, &
+               optimizer%dsave)
+       end if
+    end if
+    ! call timestop(0.0_wp,handle)
+  end subroutine cp_opt_[nametype1]_stop
+  !***************************************************************************
+
+  ! template def put here so that line numbers in template and derived 
+  ! files are almost the same (multi-line use change it a bit)
+  ! [template(type1,nametype1,use)]
+
+  !                            INFO FROM:
+  !                             DRIVER 1
+  !     --------------------------------------------------------------
+  !                SIMPLE DRIVER FOR L-BFGS-B (version 2.3)
+  !     --------------------------------------------------------------
+  !
+  !        L-BFGS-B is a code for solving large nonlinear optimization
+  !        problems with simple bounds on the variables.
+  !
+  !        The code can also be used for unconstrained problems and is
+  !        as efficient for these problems as the earlier limited memory
+  !        code L-BFGS.
+  !
+  !        This is the simplest driver in the package. It uses all the
+  !        default settings of the code.
+  !
+  !
+  !     References:
+  !
+  !        [1] R. H. Byrd, P. Lu, J. Nocedal and C. Zhu, ``A limited
+  !        memory algorithm for bound constrained optimization'',
+  !        SIAM J. Scientific Computing 16 (1995), no. 5, pp. 1190--1208.
+  !
+  !        [2] C. Zhu, R.H. Byrd, P. Lu, J. Nocedal, ``L-BFGS-B: FORTRAN
+  !        Subroutines for Large Scale Bound Constrained Optimization''
+  !        Tech. Report, NAM-11, EECS Department, Northwestern University,
+  !        1994.
+  !
+  !        (Postscript files of these papers are available via anonymous
+  !        ftp to ece.nwu.edu in the directory pub/lbfgs/lbfgs_bcm.)
+  !
+  !                              *  *  *
+  !
+  !        NEOS, November 1994. (Latest revision April 1997.)
+  !        Optimization Technology Center.
+  !        Argonne National Laboratory and Northwestern University.
+  !        Written by
+  !                           Ciyou Zhu
+  !        in collaboration with R.H. Byrd, P. Lu-Chen and J. Nocedal.
+  !
+  !     NOTE: The user should adapt the subroutine 'timer' if 'etime' is
+  !           not available on the system.  An example for system
+  !           AIX Version 3.2 is available at the end of this driver.
+  !
+  !     **************
+  !     nmax  is the dimension of the largest problem to be solved.
+  !     mmax  is the maximum number of limited memory corrections.
+  !     lenwa is the corresponding real workspace required.
+  !     Declare the variables needed by the code.
+  !     A description of all these variables is given at the end of
+  !     the driver.
+  !
+  !call setulb (n, m, x, l, u, nbd, f, g, factr, pgtol, wa, iwa, &
+  ! task, iprint, csave, lsave, isave, dsave)
+  !
+  !     --------------------------------------------------------------
+  !             DESCRIPTION OF THE VARIABLES IN L-BFGS-B
+  !     --------------------------------------------------------------
+  !
+  !     n is an INTEGER variable that must be set by the user to the
+  !       number of variables.  It is not altered by the routine.
+  !
+  !     m is an INTEGER variable that must be set by the user to the
+  !       number of corrections used in the limited memory matrix.
+  !       It is not altered by the routine.  Values of m < 3  are
+  !       not recommended, and large values of m can result in excessive
+  !       computing time. The range  3 <= m <= 20 is recommended. 
+  !
+  !     x is a DOUBLE PRECISION array of length n.  On initial entry
+  !       it must be set by the user to the values of the initial
+  !       estimate of the solution vector.  Upon successful exit, it
+  !       contains the values of the variables at the best point
+  !       found (usually an approximate solution).
+  !
+  !     l is a DOUBLE PRECISION array of length n that must be set by
+  !       the user to the values of the lower bounds on the variables. If
+  !       the i-th variable has no lower bound, l(i) need not be defined.
+  !
+  !     u is a DOUBLE PRECISION array of length n that must be set by
+  !       the user to the values of the upper bounds on the variables. If
+  !       the i-th variable has no upper bound, u(i) need not be defined.
+  !
+  !     nbd is an INTEGER array of dimension n that must be set by the
+  !       user to the type of bounds imposed on the variables:
+  !       nbd(i)=0 if x(i) is unbounded,
+  !              1 if x(i) has only a lower bound,
+  !              2 if x(i) has both lower and upper bounds, 
+  !              3 if x(i) has only an upper bound.
+  !
+  !     f is a DOUBLE PRECISION variable.  If the routine setulb returns
+  !       with task(1:2)= 'FG', then f must be set by the user to
+  !       contain the value of the function at the point x.
+  !
+  !     g is a DOUBLE PRECISION array of length n.  If the routine setulb
+  !       returns with taskb(1:2)= 'FG', then g must be set by the user to
+  !       contain the components of the gradient at the point x.
+  !
+  !     factr is a DOUBLE PRECISION variable that must be set by the user.
+  !       It is a tolerance in the termination test for the algorithm.
+  !       The iteration will stop when
+  !
+  !        (f^k - f^{k+1})/max{|f^k|,|f^{k+1}|,1} <= factr*epsmch
+  !
+  !       where epsmch is the machine precision which is automatically
+  !       generated by the code. Typical values for factr on a computer
+  !       with 15 digits of accuracy in double precision are:
+  !       factr=1.d+12 for low accuracy;
+  !             1.d+7  for moderate accuracy; 
+  !             1.d+1  for extremely high accuracy.
+  !       The user can suppress this termination test by setting factr=0.
+  !
+  !     pgtol is a double precision variable.
+  !       On entry pgtol >= 0 is specified by the user.  The iteration
+  !         will stop when
+  !
+  !                 max{|proj g_i | i = 1, ..., n} <= pgtol
+  !
+  !         where pg_i is the ith component of the projected gradient.
+  !       The user can suppress this termination test by setting pgtol=0.
+  !
+  !     wa is a DOUBLE PRECISION  array of length 
+  !       (2mmax + 4)nmax + 11mmax^2 + 8mmax used as workspace.
+  !       This array must not be altered by the user.
+  !
+  !     iwa is an INTEGER  array of length 3nmax used as
+  !       workspace. This array must not be altered by the user.
+  !
+  !     task is a CHARACTER string of length 60.
+  !       On first entry, it must be set to 'START'.
+  !       On a return with task(1:2)='FG', the user must evaluate the
+  !         function f and gradient g at the returned value of x.
+  !       On a return with task(1:5)='NEW_X', an iteration of the
+  !         algorithm has concluded, and f and g contain f(x) and g(x)
+  !         respectively.  The user can decide whether to continue or stop
+  !         the iteration. 
+  !       When
+  !         task(1:4)='CONV', the termination test in L-BFGS-B has been 
+  !           satisfied;
+  !         task(1:4)='ABNO', the routine has terminated abnormally
+  !           without being able to satisfy the termination conditions,
+  !           x contains the best approximation found,
+  !           f and g contain f(x) and g(x) respectively;
+  !         task(1:5)='ERROR', the routine has detected an error in the
+  !           input parameters;
+  !       On exit with task = 'CONV', 'ABNO' or 'ERROR', the variable task
+  !         contains additional information that the user can print.
+  !       This array should not be altered unless the user wants to
+  !          stop the run for some reason.  See driver2 or driver3
+  !          for a detailed explanation on how to stop the run 
+  !          by assigning task(1:4)='STOP' in the driver.
+  !
+  !     iprint is an INTEGER variable that must be set by the user.
+  !       It controls the frequency and type of output generated:
+  !        iprint<0    no output is generated;
+  !        iprint=0    print only one line at the last iteration;
+  !        0<iprint<99 print also f and |proj g| every iprint iterations;
+  !        iprint=99   print details of every iteration except n-vectors;
+  !        iprint=100  print also the changes of active set and final x;
+  !        iprint>100  print details of every iteration including x and g;
+  !       When iprint > 0, the file iterate.dat will be created to
+  !                        summarize the iteration.
+  !
+  !     csave  is a CHARACTER working array of length 60.
+  !
+  !     lsave is a LOGICAL working array of dimension 4.
+  !       On exit with task = 'NEW_X', the following information is
+  !         available:
+  !       lsave(1) = .true.  the initial x did not satisfy the bounds;
+  !       lsave(2) = .true.  the problem contains bounds;
+  !       lsave(3) = .true.  each variable has upper and lower bounds.
+  !
+  !     isave is an INTEGER working array of dimension 44.
+  !       On exit with task = 'NEW_X', it contains information that
+  !       the user may want to access:
+  !         isave(30) = the current iteration number;
+  !         isave(34) = the total number of function and gradient
+  !                         evaluations;
+  !         isave(36) = the number of function value or gradient
+  !                                  evaluations in the current iteration;
+  !         isave(38) = the number of free variables in the current
+  !                         iteration;
+  !         isave(39) = the number of active constraints at the current
+  !                         iteration;
+  !
+  !       See the subroutine setulb.f for a description of other 
+  !       information contained in isave.
+  !
+  !     dsave is a DOUBLE PRECISION working array of dimension 29.
+  !       On exit with task = 'NEW_X', it contains information that
+  !       the user may want to access:
+  !         dsave(2) = the value of f at the previous iteration;
+  !         dsave(5) = the machine precision epsmch generated by the code;
+  !         dsave(13) = the infinity norm of the projected gradient;
+  !
+  !       See the subroutine setulb.f for a description of other 
+  !       information contained in dsave.
+  !
+  !     --------------------------------------------------------------
+  !           END OF THE DESCRIPTION OF THE VARIABLES IN L-BFGS-B
+  !     --------------------------------------------------------------
+  !-----------------------------------------------------------------------
+
+end module cp_lbfgs_optimizer_[nametype1]
