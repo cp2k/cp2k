@@ -191,7 +191,7 @@ MODULE pol_coefs
         c_pos % ao % cr ( : ) =  1.0_dbl
       CASE ( PLANEWAVES )
         ncoef = size (c_pos%pw%cc(:))
-        c_pos % pw % cc ( : ) =  CMPLX ( 1.0_dbl, 1.0_dbl )
+        c_pos % pw % cc ( : ) =  CMPLX ( 0.0_dbl, 0.0_dbl )
         c_pos % pw % cc ( 1 ) =  CMPLX ( 0.0_dbl, 0.0_dbl )
       END SELECT 
       
