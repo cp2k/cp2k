@@ -132,11 +132,14 @@ CONTAINS
                     error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     Write(6,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
+    ! Zeroing v_qmmm_rspace 
+    CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
+    !
+    ! Electrostatic Interaction type...
+    !
     SELECT CASE(qmmm_env%qmmm_coupl_type)
     CASE("GRID")
        Write(6,'(T3,A)')"QM/MM Coupling computed on GRID."
-       ! Zeroing v_qmmm_rspace 
-       CALL coeff_zero(coeff=ks_qmmm_env_loc%v_qmmm_rspace)
        ! Compute the MM electrostatic potential on GRID
        CALL qmmm_electrostatic_on_grid( v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                         mm_particles=particles_mm,&
