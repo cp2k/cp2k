@@ -42,6 +42,7 @@ MODULE qs_mo_types
                                   blacs_matrix_type,&
                                   blacs_set_all,&
                                   blacs_syrk, &
+                                  blacs_syevd, &
                                   blacs_gemm, &
                                   copy_blacs_to_full_matrix,&
                                   deallocate_blacs_matrix,&
@@ -104,7 +105,8 @@ MODULE qs_mo_types
             get_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
-            write_mo_set
+            write_mo_set, &
+            calculate_occupied_eigenvalues
 
 ! *****************************************************************************
 
@@ -355,6 +357,96 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_w_matrix_sparse
+! *****************************************************************************
+  SUBROUTINE calculate_occupied_eigenvalues(mo_set,ks_matrix,globenv)
+
+!   Purpose: Calculates the eigenvalues for a set of orbitals spanning the 
+!            ground state of ks_matrix
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(blacs_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
+    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
+
+!   *** Local variables ***
+
+    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_occupied_eigenvalues","I","",handle)
+
+    NULLIFY(weighted_vectors,h_block,e_vectors)
+    CALL get_blacs_matrix_info(matrix=mo_set%eigenvectors, &
+                                 ncol_global=ncol_global, &
+                                 nrow_global=nrow_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block)
+
+    allocate(evals(ncol_global))
+
+    CALL allocate_blacs_matrix(new_matrix=weighted_vectors,&
+                                 nrow_global=nrow_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="weighted_vectors", & 
+                                 globenv=globenv)
+
+    CALL allocate_blacs_matrix(new_matrix=h_block,&
+                                 nrow_global=ncol_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="h block", &
+                                 globenv=globenv)
+
+    CALL allocate_blacs_matrix(new_matrix=e_vectors,&
+                                 nrow_global=ncol_global, &
+                                 ncol_global=ncol_global, &
+                                 nrow_block=nrow_block, &
+                                 ncol_block=ncol_block, &
+                                 name="e_vectors", &
+                                 globenv=globenv)
+
+    CALL sparse_times_blacs(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
+                                       mo_set%homo,para_env=globenv%para_env)
+
+
+    CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
+                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
+
+    CALL blacs_syevd(h_block,e_vectors,evals)
+
+    if (globenv%ionode) then
+       write(globenv%scr,*) ""
+       write(globenv%scr,*) " eigenvalues of the occupied subspace"
+       do i=1,ncol_global,4
+          j=MIN(3,ncol_global-i)
+          select case (j)
+          case(3)
+           write(globenv%scr,'(X4F12.8)') evals(i:i+j)
+          case(2)
+           write(globenv%scr,'(X3F12.8)') evals(i:i+j)
+          case(1)
+           write(globenv%scr,'(X2F12.8)') evals(i:i+j)
+          case(0)
+           write(globenv%scr,'(X1F12.8)') evals(i:i+j)
+          end select
+       enddo
+    endif
+
+    CALL deallocate_blacs_matrix(weighted_vectors)
+    CALL deallocate_blacs_matrix(h_block)
+    CALL deallocate_blacs_matrix(e_vectors)
+
+    deallocate(evals)
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_occupied_eigenvalues
+! *****************************************************************************
 
 ! *****************************************************************************
 
