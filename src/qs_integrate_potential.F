@@ -105,10 +105,17 @@ MODULE qs_integrate_potential
                                              neighbor_node_type,&
                                              next
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             realspace_grid_p_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
                                              rs_grid_setup,&
                                              rs_pw_transfer
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
+                                             cp_rs_pool_type,&
+                                             rs_pool_create_rs,&
+                                             rs_pool_give_back_rs,&
+                                             rs_pools_create_rs_vect,&
+                                             rs_pools_give_back_rs_vect
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -161,7 +168,7 @@ CONTAINS
     TYPE(cell_type), POINTER        :: cell
     TYPE(dft_control_type), POINTER :: dft_control
 
-    TYPE(realspace_grid_type) :: rs_v
+    TYPE(realspace_grid_type), POINTER :: rs_v
     REAL(wp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
     INTEGER                   :: atom_a,handle,i,iatom,ikind,istat,&
                                  natom_of_kind
@@ -174,16 +181,19 @@ CONTAINS
     REAL(wp), DIMENSION(3)     :: force_a,force_b,ra
     INTEGER, DIMENSION(3)      :: nsmax
     REAL(wp), DIMENSION(:,:), POINTER   :: hab,pab
+    TYPE(pw_env_type), POINTER                    :: pw_env
+    TYPE(cp_rs_pool_type), POINTER               :: auxbas_rs_pool
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
-
+    NULLIFY(pw_env,auxbas_rs_pool)
     ALLOCATE(hab(1,1),pab(1,1))
 
-    nsmax(:) = 1000
-    CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
-    CALL rs_grid_allocate(rs_v)
+    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+    CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
+
     CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -248,7 +258,7 @@ CONTAINS
 
     END DO
 
-    CALL rs_grid_deallocate(rs_v)
+    CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
 
     DEALLOCATE(hab,pab)
 
@@ -375,15 +385,17 @@ CONTAINS
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
     INTEGER, DIMENSION(3)             :: nsmax
 
-    TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
+    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
     INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads,handle2
     REAL(wp) :: time_a_1,time_a_2,time_b_1,time_b_2,time_c_1,time_c_2,time_a,time_b,time_c
     REAL(wp) :: mytimings(10)
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_rspace","I","",handle)
-
+    NULLIFY(pw_env,rs_pools)
 !   *** Get difference potential ***
     IF (.NOT.PRESENT(v_rspace_old) .AND. .NOT.rebuild) THEN
        CALL stop_program("integrate_v_rspace","need v_rspace_old for rebuild")
@@ -402,6 +414,14 @@ CONTAINS
 #endif
       vratio = maxvdiff/maxvnew
     END IF
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    particle_set=particle_set,&
+                    sab_orb=sab_orb,&
+                    force=force,pw_env=pw_env)
 
 !   *** Get the potential on the subgrids in real space, via fft ***
 
@@ -422,26 +442,12 @@ CONTAINS
 
     END DO
 
-    ALLOCATE(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    IF (istat.ne.0) THEN
-        CALL stop_memory("integrate_potential","rs_v")
-    ENDIF
-    nsmax(:)=1000 ! should be temprorary fix
+    CALL pw_env_get(pw_env, rs_pools=rs_pools)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v)
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
-            nsmax)
-       CALL rs_grid_allocate(rs_v(igrid_level))
-       CALL rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
+       CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,mgrid_rspace(igrid_level)%pw,&
                            "BACKWARD")
     ENDDO
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    sab_orb=sab_orb,&
-                    force=force)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -705,7 +711,7 @@ CONTAINS
                               CALL integrate_pgf_product_rspace(&
                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                                ra,rab,rab2,rs_v(igrid_level),&
+                                ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                                 cube_info(igrid_level),l_info,&
                                 ! hab(na1:na2,nb1:nb2),pab=pab(na1:na2,nb1:nb2),&
                                 hab,pab=pab,o1=na1-1,o2=nb1-1, &
@@ -716,7 +722,7 @@ CONTAINS
                               CALL integrate_pgf_product_rspace(&
                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                                rb,-rab,rab2,rs_v(igrid_level),&
+                                rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
                                 cube_info(igrid_level),l_info,&
                                 !hab(nb1:nb2,na1:na2),pab=pab(nb1:nb2,na1:na2),&
                                 hab,pab=pab,o1=nb1-1,o2=na1-1, &
@@ -729,7 +735,7 @@ CONTAINS
                               CALL integrate_pgf_product_rspace(&
                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                                ra,rab,rab2,rs_v(igrid_level),&
+                                ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
                                 cube_info(igrid_level),l_info,&
                                 !hab(na1:na2,nb1:nb2),&   
                                 hab,o1=na1-1,o2=nb1-1,&
@@ -740,7 +746,7 @@ CONTAINS
                               CALL integrate_pgf_product_rspace(&
                                 lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                                 la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                                rb,-rab,rab2,rs_v(igrid_level),&
+                                rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
                                 cube_info(igrid_level),l_info,&
                                 ! hab(nb1:nb2,na1:na2),&
                                 hab,o1=nb1-1,o2=na1-1,&
@@ -834,10 +840,7 @@ CONTAINS
     !write(6,*) "mytiming 2",mytimings(2)
     !write(6,*) "mytiming 3",mytimings(3)
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_deallocate(rs_v(igrid_level))
-    ENDDO
-
+    CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
 
     IF (calculate_forces) THEN
       DEALLOCATE (atom_of_kind,STAT=istat)
@@ -867,8 +870,7 @@ CONTAINS
                                             vratio,eps_gvg_rspace,&
                                             calculate_forces,force_a,force_b,ithread,mytimings)
 
-    TYPE(realspace_grid_type), TARGET, INTENT(IN) :: rsgrid
-    ! TYPE(realspace_grid_type), INTENT(IN) :: rsgrid
+    TYPE(realspace_grid_type), POINTER    :: rsgrid
     REAL(wp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
     REAL(wp), DIMENSION(3), INTENT(IN)    :: ra,rab

@@ -108,9 +108,6 @@ MODULE qs_collocate_density
                                              next
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
-                                             rs_grid_allocate,&
-                                             rs_grid_deallocate,&
-                                             rs_grid_setup,&
                                              rs_grid_zero,&
                                              rs_pw_transfer
   USE simulation_cell,                 ONLY: cell_type,&
@@ -607,7 +604,6 @@ CONTAINS
 
                        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
                        igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-!XXXXX                 IF (MOD(igrid_level,nthread).eq.ithread) THEN   
                        IF (iatom <= jatom) THEN
                             CALL collocate_pgf_product_rspace(&
                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
@@ -623,7 +619,6 @@ CONTAINS
                            rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
                            l_info,eps_rho_rspace,ithread=ithread)
                        END IF
-!XXXXX                 ENDIF
 
                      END DO
 
