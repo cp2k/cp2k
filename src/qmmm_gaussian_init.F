@@ -111,7 +111,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
     ! Statements
-    NULLIFY(radius,mypgf, maxradius, gridlevel_info)
+    NULLIFY(radius,mypgf, maxradius, gridlevel_info, qmmm_gaussian_fns)
     mm_el_pot_radius => qmmm_env%mm_el_pot_radius 
     qmmm_coupl_type  = qmmm_env%qmmm_coupl_type  
     eps_mm_rspace = qmmm_env%eps_mm_rspace
