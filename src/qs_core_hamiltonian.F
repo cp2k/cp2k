@@ -1775,15 +1775,15 @@ CONTAINS
                   f0 = 2.0_wp
                 END IF
                 CALL get_block_node(matrix=p(1)%matrix,&
-                                    block_row=iatom,&
-                                    block_col=jatom,&
+                                    block_row=jatom,&
+                                    block_col=iatom,&
                                     BLOCK=tmp_block)
                 ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
                 p_block(:,:)=tmp_block(:,:)
                 DO ispin=2,size(p)
                    CALL get_block_node(matrix=p(ispin)%matrix,&
-                                       block_row=iatom,&
-                                       block_col=jatom,&
+                                       block_row=jatom,&
+                                       block_col=iatom,&
                                        BLOCK=tmp_block)
                    p_block(:,:)=p_block(:,:)+tmp_block(:,:)
                 ENDDO
