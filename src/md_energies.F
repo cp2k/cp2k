@@ -393,8 +393,6 @@ END SUBROUTINE set_energies
                cons
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
-!          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
-!               econs, econs_avg/REAL(delta_t,dbl)
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
                 econs, econs_avg/REAL( delta_t,dbl)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
@@ -455,7 +453,7 @@ END SUBROUTINE set_energies
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
             itimes,t,ekin,temp,epot,&
-            econs, econs_avg/REAL(itimes,dbl)
+            econs, econs_avg/REAL(delta_t,dbl)
           CALL m_flush(ene)
         END IF
 
