@@ -792,7 +792,7 @@ END SUBROUTINE qs_ks_did_change
     IF ( .NOT. failure ) THEN
 
       ! for gradient corrected functional we need the density in g space
-      IF ( qs_env%dft_control%gradient_functional ) THEN
+      IF ( ANY(qs_env%dft_control%ftags(1,:)) ) THEN
          IF ( .NOT. rho_struct%rho_g_valid ) THEN
             DO i=1,SIZE(rho_struct%rho_r)
                CALL coeff_transform_space(rho_struct%rho_r(i),rho_struct%rho_g(i))

@@ -166,14 +166,13 @@ MODULE dft_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
   END TYPE tddfpt_control_type
 
-! *** Control parameters for a DFT calculation ***
-
   TYPE xc_grid_type
      LOGICAL                   :: pw_default
      TYPE ( pw_grid_type )     :: pw_grid
      INTEGER                   :: pw_mesh ( 3 )
      REAL ( wp )               :: pw_cutoff
   END TYPE xc_grid_type
+
 
   TYPE dft_control_type
      TYPE(band_structure_type)       :: band
@@ -191,10 +190,10 @@ MODULE dft_types
                                         xc_rho_smooth_id,&
                                         xc_deriv_method_id
      LOGICAL                         :: forces,&
-                                        gradient_functional,&
                                         do_tddfpt_calculation, &
                                         derive_function_rho
      LOGICAL, DIMENSION (2,3)        :: ftags
+     LOGICAL, DIMENSION(3)           :: grad_functional
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "dft_types"
@@ -289,7 +288,6 @@ CONTAINS
     dft_control % gradient_cut = 1.0E-8_wp
     dft_control % nspins = 1
     dft_control % ftags = .FALSE.
-    dft_control % gradient_functional = .FALSE.
     dft_control % xc_rho_smooth_id = xc_rho_no_smooth
     dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
@@ -421,9 +419,6 @@ CONTAINS
     END IF
 
     CALL finish_parser()
-
-    ! set derived information
-    dft_control % gradient_functional = ANY ( dft_control % ftags ( 1, : ) )
 
   END SUBROUTINE read_dft_control
 

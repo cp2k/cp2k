@@ -204,7 +204,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(rho_r),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(vxc),cp_failure_level,routineP,error,failure)
 
-    IF (dft_control%gradient_functional) THEN
+    IF (ANY(dft_control%ftags(1,:))) THEN
        CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        ALLOCATE(my_rho_g(1), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -408,7 +408,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
 !FM    CPPrecondition(associated(vxc),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       gradient_f=dft_control%gradient_functional
+       gradient_f=ANY(dft_control%ftags(1,:))
        nspins=dft_control%nspins
        ngrad_spins=nspins
        crossterms=ANY(dft_control%ftags(2,:)).and.nspins>1
@@ -737,7 +737,7 @@ CONTAINS
           END DO
        END DO
 
-       IF ( dft_control%gradient_functional .OR.&
+       IF ( ANY(dft_control%ftags(1,:)) .OR.&
             rho_r(1)%pw%pw_grid%spherical.OR.&
             dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
           CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA1D,&
@@ -752,7 +752,7 @@ CONTAINS
                 CALL pw_zero(vxc_g)
              END IF
 
-             IF (dft_control%gradient_functional) THEN ! partial integration
+             IF (ANY(dft_control%ftags(1,:))) THEN ! partial integration
                 CALL pw_pool_create_pw ( pw_pool, tmp_g,&
                      use_data=COMPLEXDATA1D,&
                      in_space=RECIPROCALSPACE, error=error)
@@ -1178,7 +1178,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
              ELSE
                 CALL xc_lsd ( functional, ftags, &
                               rgrid(:,1), rgrid(:,1), &
-                              pot(:,1:npot), order, &
+                              pot, order, &
                               error=error )
             END IF
              

@@ -214,7 +214,6 @@ OBJECTS_GENERIC =\
  pw_pool_types.o\
  pw_spline_utils.o\
  pw_types.o\
- pw_xc.o\
  pws.o\
  qs_charges_types.o\
  qs_collocate_density.o\
@@ -302,6 +301,7 @@ OBJECTS_GENERIC =\
  wf_types.o\
  xc.o \
  xc_cs1.o\
+ xc_derivatives.o\
  xc_derivative_desc.o\
  xc_derivative_types.o\
  xc_exchange_gga.o\
