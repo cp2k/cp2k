@@ -173,10 +173,8 @@
 		};
 		F550D6600269D10B01A8001C = {
 			children = (
-				F550D69F0269D10B01A8001C,
 				F550D68A0269D10B01A8001C,
 				F550D6610269D10B01A8001C,
-				F550D6620269D10B01A8001C,
 			);
 			isa = PBXGroup;
 			name = matrix;
@@ -187,22 +185,14 @@
 			path = cp_b_matrix_structure.F;
 			refType = 4;
 		};
-		F550D6620269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = blacs.F;
-			refType = 4;
-		};
 		F550D6630269D10B01A8001C = {
 			children = (
 				F550D6640269D10B01A8001C,
 				F550D6650269D10B01A8001C,
 				F550D6660269D10B01A8001C,
-				F550D6670269D10B01A8001C,
 				F550D6680269D10B01A8001C,
 				F550D6690269D10B01A8001C,
 				F550D66A0269D10B01A8001C,
-				F550D66B0269D10B01A8001C,
-				F550D66C0269D10B01A8001C,
 				F550D66D0269D10B01A8001C,
 				F550D66E0269D10B01A8001C,
 				F550D66F0269D10B01A8001C,
@@ -219,12 +209,10 @@
 				F550D67A0269D10B01A8001C,
 				F550D67B0269D10B01A8001C,
 				F550D67C0269D10B01A8001C,
-				F550D67D0269D10B01A8001C,
 				F550D67E0269D10B01A8001C,
 				F550D67F0269D10B01A8001C,
 				F550D6800269D10B01A8001C,
 				F550D6810269D10B01A8001C,
-				F550D6820269D10B01A8001C,
 				F550D6830269D10B01A8001C,
 				F550D6840269D10B01A8001C,
 				F550D6A00269D10B01A8001C,
@@ -239,7 +227,6 @@
 				F550D6A90269D10B01A8001C,
 				F550D6AA0269D10B01A8001C,
 				F550D6AB0269D10B01A8001C,
-				F550D6AC0269D10B01A8001C,
 				F550D6AD0269D10B01A8001C,
 				F550D6AE0269D10B01A8001C,
 				F550D6AF0269D10B01A8001C,
@@ -288,10 +275,7 @@
 				F550D6DC0269D10B01A8001C,
 				F550D6DD0269D10B01A8001C,
 				F550D6DE0269D10B01A8001C,
-				F550D6DF0269D10B01A8001C,
-				F550D6E00269D10B01A8001C,
 				F550D6E10269D10B01A8001C,
-				F550D6E20269D10B01A8001C,
 				F550D6E30269D10B01A8001C,
 				F550D6E40269D10B01A8001C,
 				F550D6E50269D10B01A8001C,
@@ -323,23 +307,17 @@
 				F550D7070269D10B01A8001C,
 				F550D7080269D10B01A8001C,
 				F550D7090269D10B01A8001C,
-				F550D70A0269D10B01A8001C,
 				F550D70B0269D10B01A8001C,
 				F550D70C0269D10B01A8001C,
 				F550D70D0269D10B01A8001C,
 				F550D70E0269D10B01A8001C,
-				F550D70F0269D10B01A8001C,
 				F550D7100269D10B01A8001C,
 				F550D7110269D10B01A8001C,
 				F550D7120269D10B01A8001C,
-				F550D7130269D10B01A8001C,
 				F550D7140269D10B01A8001C,
-				F550D7150269D10B01A8001C,
-				F550D7160269D10B01A8001C,
 				F550D7170269D10B01A8001C,
 				F550D7180269D10B01A8001C,
 				F550D71A0269D10B01A8001C,
-				F550D71B0269D10B01A8001C,
 				F550D71C0269D10B01A8001C,
 				F550D71D0269D10B01A8001C,
 				F550D71E0269D10B01A8001C,
@@ -383,7 +361,6 @@
 				F550D7440269D10B01A8001C,
 				F550D7450269D10B01A8001C,
 				F550D7460269D10B01A8001C,
-				F550D7470269D10B01A8001C,
 				F550D7480269D10B01A8001C,
 				F550D7490269D10B01A8001C,
 				F550D74A0269D10B01A8001C,
@@ -397,7 +374,6 @@
 				F550D7520269D10B01A8001C,
 				F550D7530269D10B01A8001C,
 				F550D7540269D10B01A8001C,
-				F550D7550269D10B01A8001C,
 				F550D7560269D10B01A8001C,
 				F550D7570269D10B01A8001C,
 				F550D7580269D10B01A8001C,
@@ -407,7 +383,6 @@
 				F550D75C0269D10B01A8001C,
 				F550D75D0269D10B01A8001C,
 				F550D75E0269D10B01A8001C,
-				F550D75F0269D10B01A8001C,
 				F550D7600269D10B01A8001C,
 				F550D7610269D10B01A8001C,
 				F550D7620269D10B01A8001C,
@@ -433,6 +408,23 @@
 				F550D7760269D10B01A8001C,
 				F550D7770269D10B01A8001C,
 				F550D7780269D10B01A8001C,
+				F555ED2402753D6501C8702E,
+				F555ED2502753D6501C8702E,
+				F555ED2602753D6501C8702E,
+				F555ED2702753D6501C8702E,
+				F555ED2802753D6501C8702E,
+				F555ED2902753D6501C8702E,
+				F555ED2A02753D6501C8702E,
+				F555ED2B02753D6501C8702E,
+				F555ED2C02753D6501C8702E,
+				F555ED2D02753D6501C8702E,
+				F555ED2E02753D6501C8702E,
+				F555ED2F02753D6501C8702E,
+				F555ED3002753D6501C8702E,
+				F555ED3102753D6501C8702E,
+				F555ED3202753D6501C8702E,
+				F555ED3302753D6501C8702E,
+				F555ED3402753D6501C8702E,
 			);
 			isa = PBXGroup;
 			name = others;
@@ -453,11 +445,6 @@
 			path = coefficients.F;
 			refType = 4;
 		};
-		F550D6670269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = collocate_density.F;
-			refType = 4;
-		};
 		F550D6680269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = constraint.F;
@@ -471,16 +458,6 @@
 		F550D66A0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = convert_units.F;
-			refType = 4;
-		};
-		F550D66B0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = core_energies.F;
-			refType = 4;
-		};
-		F550D66C0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = core_hamiltonian.F;
 			refType = 4;
 		};
 		F550D66D0269D10B01A8001C = {
@@ -563,11 +540,6 @@
 			path = atoms_input.F;
 			refType = 4;
 		};
-		F550D67D0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = atoms.F;
-			refType = 4;
-		};
 		F550D67E0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = band.F;
@@ -586,11 +558,6 @@
 		F550D6810269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = brillouin.F;
-			refType = 4;
-		};
-		F550D6820269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cell_parameters.F;
 			refType = 4;
 		};
 		F550D6830269D10B01A8001C = {
@@ -638,76 +605,6 @@
 			path = cp_output_handling.F;
 			refType = 4;
 		};
-		F550D68C0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_env_methods.F;
-			refType = 4;
-		};
-		F550D68D0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_glob_angles_methods.F;
-			refType = 4;
-		};
-		F550D68E0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_l_angles_methods.F;
-			refType = 4;
-		};
-		F550D68F0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_matrix_methods.F;
-			refType = 4;
-		};
-		F550D6900269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_obj_function.F;
-			refType = 4;
-		};
-		F550D6910269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_plain_rot_tests.F;
-			refType = 4;
-		};
-		F550D6920269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_plain_rot.F;
-			refType = 4;
-		};
-		F550D6930269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_proj_methods.F;
-			refType = 4;
-		};
-		F550D6940269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_projection.F;
-			refType = 4;
-		};
-		F550D6950269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_read_section.F;
-			refType = 4;
-		};
-		F550D6960269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_types_tests.F;
-			refType = 4;
-		};
-		F550D6970269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_types.F;
-			refType = 4;
-		};
-		F550D6980269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_unitary_t.F;
-			refType = 4;
-		};
-		F550D6990269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_pao_utils.F;
-			refType = 4;
-		};
 		F550D69A0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = cp_prep_globals.h;
@@ -731,11 +628,6 @@
 		F550D69E0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = cp_sll_int_tests.F;
-			refType = 4;
-		};
-		F550D69F0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = cp_sparse_matrix.F;
 			refType = 4;
 		};
 		F550D6A00269D10B01A8001C = {
@@ -796,11 +688,6 @@
 		F550D6AB0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = dgs.F;
-			refType = 4;
-		};
-		F550D6AC0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = diis.F;
 			refType = 4;
 		};
 		F550D6AD0269D10B01A8001C = {
@@ -1043,24 +930,9 @@
 			path = input_types.F;
 			refType = 4;
 		};
-		F550D6DF0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = input_utilities.F;
-			refType = 4;
-		};
-		F550D6E00269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = integrate_potential.F;
-			refType = 4;
-		};
 		F550D6E10269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = integrator.F;
-			refType = 4;
-		};
-		F550D6E20269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = interactions.F;
 			refType = 4;
 		};
 		F550D6E30269D10B01A8001C = {
@@ -1268,11 +1140,6 @@
 			path = mathlib.F;
 			refType = 4;
 		};
-		F550D70A0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = matrix_types.F;
-			refType = 4;
-		};
 		F550D70B0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = md.F;
@@ -1293,11 +1160,6 @@
 			path = method_specifications.F;
 			refType = 4;
 		};
-		F550D70F0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = mo_types.F;
-			refType = 4;
-		};
 		F550D7100269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = mol_force.F;
@@ -1313,24 +1175,9 @@
 			path = molecule_types.F;
 			refType = 4;
 		};
-		F550D7130269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = neighbor_list_types.F;
-			refType = 4;
-		};
 		F550D7140269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = nhc.F;
-			refType = 4;
-		};
-		F550D7150269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = nl_utilities.F;
-			refType = 4;
-		};
-		F550D7160269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = nl.F;
 			refType = 4;
 		};
 		F550D7170269D10B01A8001C = {
@@ -1351,11 +1198,6 @@
 		F550D71A0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = occupations.F;
-			refType = 4;
-		};
-		F550D71B0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = om_utilities.F;
 			refType = 4;
 		};
 		F550D71C0269D10B01A8001C = {
@@ -1573,11 +1415,6 @@
 			path = potentials.F;
 			refType = 4;
 		};
-		F550D7470269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = print_keys.F;
-			refType = 4;
-		};
 		F550D7480269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = pw_grid_types.F;
@@ -1643,11 +1480,6 @@
 			path = read_pimd.F;
 			refType = 4;
 		};
-		F550D7550269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = readin.F;
-			refType = 4;
-		};
 		F550D7560269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = realspace_grid_types.F;
@@ -1691,11 +1523,6 @@
 		F550D75E0269D10B01A8001C = {
 			isa = PBXFileReference;
 			path = spme.F;
-			refType = 4;
-		};
-		F550D75F0269D10B01A8001C = {
-			isa = PBXFileReference;
-			path = start_program_run.F;
 			refType = 4;
 		};
 		F550D7600269D10B01A8001C = {
@@ -1825,20 +1652,20 @@
 		};
 		F550D7790269D20501A8001C = {
 			children = (
-				F550D68C0269D10B01A8001C,
-				F550D68D0269D10B01A8001C,
-				F550D68E0269D10B01A8001C,
-				F550D68F0269D10B01A8001C,
-				F550D6900269D10B01A8001C,
-				F550D6910269D10B01A8001C,
-				F550D6920269D10B01A8001C,
-				F550D6930269D10B01A8001C,
-				F550D6940269D10B01A8001C,
-				F550D6950269D10B01A8001C,
-				F550D6960269D10B01A8001C,
-				F550D6970269D10B01A8001C,
-				F550D6980269D10B01A8001C,
-				F550D6990269D10B01A8001C,
+				F555ED1602753D2801C8702E,
+				F555ED1702753D2801C8702E,
+				F555ED1802753D2801C8702E,
+				F555ED1902753D2801C8702E,
+				F555ED1A02753D2801C8702E,
+				F555ED1B02753D2801C8702E,
+				F555ED1C02753D2801C8702E,
+				F555ED1D02753D2801C8702E,
+				F555ED1E02753D2801C8702E,
+				F555ED1F02753D2801C8702E,
+				F555ED2002753D2801C8702E,
+				F555ED2102753D2801C8702E,
+				F555ED2202753D2801C8702E,
+				F555ED2302753D2801C8702E,
 			);
 			isa = PBXGroup;
 			name = pao;
@@ -1881,12 +1708,12 @@
 				F550D7810269DEBD01A8001C,
 				F550D7820269DEBD01A8001C,
 				F550D7830269DEBD01A8001C,
-				F550D7840269DEBD01A8001C,
 				F550D7850269DEBD01A8001C,
 				F550D7860269DEBD01A8001C,
 				F550D7870269DEBD01A8001C,
 				F550D7880269DEBD01A8001C,
 				F550D7890269DEBD01A8001C,
+				F555ED1502753D2801C8702E,
 			);
 			isa = PBXGroup;
 			name = tools;
@@ -1921,11 +1748,6 @@
 		F550D7830269DEBD01A8001C = {
 			isa = PBXExecutableFileReference;
 			path = get_arch_code;
-			refType = 4;
-		};
-		F550D7840269DEBD01A8001C = {
-			isa = PBXExecutableFileReference;
-			path = instatiateTemplates.py;
 			refType = 4;
 		};
 		F550D7850269DEBD01A8001C = {
@@ -2217,6 +2039,166 @@
 			name = macCompResult.txt;
 			path = /Volumes/Big/Users/fawzi/cp2k/macCompResult.txt;
 			refType = 0;
+		};
+		F555ED1502753D2801C8702E = {
+			isa = PBXExecutableFileReference;
+			path = instantiateTemplates.py;
+			refType = 4;
+		};
+		F555ED1602753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_env_methods.F;
+			refType = 4;
+		};
+		F555ED1702753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_glob_angles_methods.F;
+			refType = 4;
+		};
+		F555ED1802753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_l_angles_methods.F;
+			refType = 4;
+		};
+		F555ED1902753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_matrix_methods.F;
+			refType = 4;
+		};
+		F555ED1A02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_obj_function.F;
+			refType = 4;
+		};
+		F555ED1B02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_plain_rot_tests.F;
+			refType = 4;
+		};
+		F555ED1C02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_plain_rot.F;
+			refType = 4;
+		};
+		F555ED1D02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_proj_methods.F;
+			refType = 4;
+		};
+		F555ED1E02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_projection.F;
+			refType = 4;
+		};
+		F555ED1F02753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_read_section.F;
+			refType = 4;
+		};
+		F555ED2002753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_types_tests.F;
+			refType = 4;
+		};
+		F555ED2102753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_types.F;
+			refType = 4;
+		};
+		F555ED2202753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_unitary_t.F;
+			refType = 4;
+		};
+		F555ED2302753D2801C8702E = {
+			isa = PBXFileReference;
+			path = pao_utils.F;
+			refType = 4;
+		};
+		F555ED2402753D6501C8702E = {
+			isa = PBXFileReference;
+			path = atomic_kind_types.F;
+			refType = 4;
+		};
+		F555ED2502753D6501C8702E = {
+			isa = PBXFileReference;
+			path = pol_initialize_coef_pw.F;
+			refType = 4;
+		};
+		F555ED2602753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_blacs.F;
+			refType = 4;
+		};
+		F555ED2702753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_collocate_density.F;
+			refType = 4;
+		};
+		F555ED2802753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_core_energies.F;
+			refType = 4;
+		};
+		F555ED2902753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_core_hamiltonian.F;
+			refType = 4;
+		};
+		F555ED2A02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_diis.F;
+			refType = 4;
+		};
+		F555ED2B02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_environment_types.F;
+			refType = 4;
+		};
+		F555ED2C02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_init.F;
+			refType = 4;
+		};
+		F555ED2D02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_integrate_potential.F;
+			refType = 4;
+		};
+		F555ED2E02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_interactions.F;
+			refType = 4;
+		};
+		F555ED2F02753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_mo_types.F;
+			refType = 4;
+		};
+		F555ED3002753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_neighbor_list_types.F;
+			refType = 4;
+		};
+		F555ED3102753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_neighbor_lists.F;
+			refType = 4;
+		};
+		F555ED3202753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_overlap.F;
+			refType = 4;
+		};
+		F555ED3302753D6501C8702E = {
+			isa = PBXFileReference;
+			path = qs_parser.F;
+			refType = 4;
+		};
+		F555ED3402753D6501C8702E = {
+			isa = PBXFileReference;
+			path = sparse_matrix_types.F;
+			refType = 4;
 		};
 	};
 	rootObject = F550D64A0269A02501A8001C;

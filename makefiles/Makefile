@@ -3,7 +3,7 @@
 CP2KHOME  = $(HOME)/cp2k
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
 VERSION   = sopt
-SMAKE     = gmake -r
+SMAKE     = $(MAKE) -r
 PMAKE     = $(SMAKE) -j 1
 LIB1      = cp2klib
 
