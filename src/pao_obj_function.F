@@ -160,10 +160,11 @@ contains
 !!     pao_gerd_f_init
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_gerd_f_init(gf_env, pao_env, scf_work1, scf_work2,&
-!!         scf_work3, mo_orbital, error)
+!!     Subroutine pao_gerd_f_init(gf_env, qs_env, global_env, scf_work1,&
+!!         scf_work2, scf_work3, mo_orbital, error)
 !!       Type(pao_gerd_functional_type), Intent (OUT):: gf_env
-!!       Type(pao_env_type), Intent (INOUT), Target:: pao_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(blacs_matrix_type), Intent (IN), Target:: scf_work1,&
 !!         scf_work2, scf_work3
 !!       Type(mo_set_type), Target, Intent (IN):: mo_orbital
@@ -287,8 +288,7 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_gerd_f_dealloc_ref(gf_env, error)
-!!       Type(pao_gerd_functional_type), Optional, Intent (INOUT)::&
-!!         gf_env
+!!       Type(pao_gerd_functional_type), Optional, Intent (INOUT):: gf_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_gerd_f_dealloc_ref
 !!

@@ -91,10 +91,12 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles,&
-!!         error)
-!!       Type(pao_matrix_type), Intent (IN):: source_m
-!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!         qs_env, global_env, error)
+!!       Type(real_matrix_type), Pointer:: source_m
+!!       Type(real_matrix_type), Pointer:: target_m
 !!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_m_m2f_with_b_m_pi
 !!
@@ -241,12 +243,14 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine sp_matrix_transf_to_f(source_m, target_m, glob_angles,&
-!!         error)
-!!       Type(pao_matrix_type), Intent (IN):: source_m
-!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!         qs_env, global_env, error)
+!!       Type(real_matrix_type), Pointer:: source_m
+!!       Type(real_matrix_type), Pointer:: target_m
 !!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_matrix_transf_to_f
+!!     End Subroutine sp_matrix_transf_to_f
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the full basis.
@@ -396,12 +400,14 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine sp_matrix_transf_to_m(source_m, target_m, glob_angles,&
-!!         error)
-!!       Type(pao_matrix_type), Intent (IN):: source_m
-!!       Type(pao_matrix_type), Intent (INOUT):: target_m
+!!         qs_env, global_env, error)
+!!       Type(real_matrix_type), Pointer:: source_m
+!!       Type(real_matrix_type), Pointer:: target_m
 !!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_matrix_transf_to_m
+!!     End Subroutine sp_matrix_transf_to_m
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the minimal basis.
@@ -546,11 +552,15 @@ contains
 !!     pao_g_ang_get_min_m
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_get_min_m(glob_angles, min_overlap_m,&
-!!         min_hamiltonian_m, error)
+!!     Subroutine pao_g_ang_get_min_m(glob_angles, qs_env, global_env,&
+!!         min_overlap_m, min_hamiltonian_m, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(pao_matrix_type), Pointer, Optional:: min_hamiltonian_m
-!!       Type(pao_matrix_type), Pointer:: min_overlap_m
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_sparse_matrix_p_type), Pointer, Optional, Dimension(:)::&
+!!         min_hamiltonian_m
+!!       Type(cp_sparse_matrix_p_type), Pointer, Dimension(:)::&
+!!         min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get_min_m
 !!

@@ -133,11 +133,10 @@ contains
 !!     pao_calc_u_du_init
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_calc_u_du_init(c_env, local_angles, min_bas,&
-!!         excl_bas, u, error)
+!!     Subroutine pao_calc_u_du_init(c_env, local_angles, min_bas, excl_bas,&
+!!         u, error)
 !!       Type(pao_calc_u_du_type), Intent (OUT):: c_env
-!!       Type(pao_local_angles_type), Intent (INOUT), Target::&
-!!         local_angles
+!!       Type(pao_local_angles_type), Intent (INOUT), Target:: local_angles
 !!       Integer, Optional, Intent (IN):: min_bas, excl_bas
 !!       Real(Kind=wp), Dimension(:,:), Optional, Intent (IN):: u
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error

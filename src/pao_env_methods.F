@@ -109,19 +109,14 @@ contains
 !!     pao_env_init
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_env_init(pao_env, nr_min_bas, nr_full_bas,&
-!!         global_env, full_overlap_sm, full_hamiltonian_sm,&
+!!     Subroutine pao_env_init(pao_env, qs_env, global_env,&
 !!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
-!!         projection, error)
+!!         error)
 !!       Type(pao_env_type), Intent (OUT):: pao_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Integer, Dimension(:), Intent (IN):: nr_min_bas, nr_full_bas
-!!       Type(real_matrix_type), Target, Intent (IN), Optional::&
-!!         full_hamiltonian_sm, full_overlap_sm
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Real(Kind=wp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
-!!       Type(cp_1d_i_array), Dimension(:), Optional, Intent (IN)::&
-!!         projection
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_init
 !!
@@ -254,8 +249,10 @@ contains
 !!     pao_env_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_env_dealloc_ref(pao_env, error)
+!!     Subroutine pao_env_dealloc_ref(pao_env, qs_env, global_env, error)
 !!       Type(pao_env_type), Intent (INOUT):: pao_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_dealloc_ref
 !!
@@ -312,10 +309,12 @@ contains
 !!     pao_env_validate
 !!
 !!   SYNOPSIS
-!!     Function pao_env_validate(pao_env, test_pos_att, error)&
-!!         Result(res)
+!!     Function pao_env_validate(pao_env, qs_env, global_env, test_pos_att,&
+!!         error) Result(res)
 !!       Logical:: res
-!!       Type(pao_env_type), Intent (IN):: pao_env
+!!       Type(pao_env_type), Intent (IN), Target:: pao_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Logical, Optional:: test_pos_att
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_env_validate
@@ -464,15 +463,17 @@ contains
 !!     pao_env_set
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_env_set(pao_env, wanted_subspace_pos_precision,&
-!!         wanted_in_subspace_precision, angles_att, min_density_m,&
-!!         full_overlap_m, full_hamiltonian_m, min_d_valid, error)
+!!     Subroutine pao_env_set(pao_env, qs_env, global_env,&
+!!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
+!!         angles_att, min_density_m, min_d_valid, error)
 !!       Type(pao_env_type), Target, Intent (INOUT):: pao_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Real(Kind=wp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: angles_att
-!!       Type(pao_matrix_type), Optional, Intent (IN):: min_density_m,&
-!!         full_hamiltonian_m, full_overlap_m
+!!       Type(cp_sparse_matrix_p_type), Optional, Intent (IN), Dimension(:),&
+!!         Target:: min_density_m
 !!       Logical, Optional:: min_d_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_set

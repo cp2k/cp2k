@@ -55,11 +55,11 @@ contains
 !!     pao_env_init_from_file
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_env_init_from_file(pao_env, global_env,&
-!!         section_label, error)
-!!       Type(pao_env_type), Intent (OUT):: pao_env
+!!     Subroutine pao_env_init_from_file(qs_env, global_env, section_label,&
+!!         error)
+!!       Type(qs_environment_type), Intent (INOUT):: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Character(Len=*), Intent (IN):: section_label
+!!       Character(Len=*), Intent (IN), Optional:: section_label
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_init_from_file
 !!
@@ -151,6 +151,8 @@ contains
              call cp_init(newErr,logger=fileLogger)
              call cp_log(cp_error_get_logger(error),cp_note_level,&
                   routineP," performing pao tests")
+             ! if it crashes while testing use error instread of newErr
+             ! to log to sdtout (often output to a file is cached and lost)
              if (.not.cp_test_pao(global_env,newErr)) then
                 call cp_error_message(cp_warning_level,routineP,&
                      '+++++ some of the pao tests FAILED ++++',error)
@@ -199,7 +201,6 @@ contains
 !!       Use pao_plain_rot_tests, Only: pao_test_plain_rot
 !!       Use pao_types_tests, Only: cp_test_pao_types
 !!       Use cp_sll_int_tests, Only: cp_test_int_sll
-!!       Use cp_sll_int_ptr_tests, Only: cp_test_int_ptr_sll
 !!       Use cp_lbfgs_optimizer_tests, Only: cp_lbfgs_e_rosen_test
 !!       Type(global_environment_type):: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error

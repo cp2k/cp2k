@@ -257,12 +257,13 @@ contains
 !!     pao_l_ang_init
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_l_ang_init(local_angles, atom_nr, glob_angles,&
-!!         source, error)
+!!     Subroutine pao_l_ang_init(local_angles, qs_env, global_env, atom_nr,&
+!!         glob_angles, error)
 !!       Type(pao_local_angles_type), Intent (OUT):: local_angles
-!!       Integer, Optional, Intent (IN):: atom_nr
-!!       Type(pao_glob_angles_type), Optional, Target:: glob_angles
-!!       Type(pao_local_angles_type), Intent (IN), Optional:: source
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Integer, Intent (IN):: atom_nr
+!!       Type(pao_glob_angles_type), Target:: glob_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_l_ang_init
 !!
@@ -444,12 +445,9 @@ contains
 !!     pao_l_ang_set
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_l_ang_set(local_angles, atom_nr, glob_angles,&
-!!         source, error)
+!!     Subroutine pao_l_ang_set(local_angles, atom_nr, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
-!!       Integer, Optional, Intent (IN):: atom_nr
-!!       Type(pao_glob_angles_type), Optional, Target:: glob_angles
-!!       Type(pao_local_angles_type), Intent (IN), Optional:: source
+!!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_l_ang_set
 !!
@@ -535,15 +533,20 @@ contains
 !!     pao_l_ang_get
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_l_ang_get(local_angles, atom_nr, n_min_bas,&
-!!         n_full_bas, pao_env, n_excl_bas, unitary_t, cache_valid, error)
+!!     Subroutine pao_l_ang_get(local_angles, atom_nr, pao_env, unitary_t,&
+!!         cache_valid, size_min_bas, size_full_bas, size_excl_bas,&
+!!         proj_indexes, non_proj_indexes, projection, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
-!!       Integer, Optional, Intent (OUT):: atom_nr, n_min_bas, n_full_bas,&
-!!         n_excl_bas
+!!       Integer, Optional, Intent (OUT):: atom_nr
+!!       Integer, Optional, Intent (OUT):: size_excl_bas, size_full_bas,&
+!!         size_min_bas
+!!       Integer, Optional, Dimension(:), Pointer:: proj_indexes,&
+!!         non_proj_indexes
 !!       Type(pao_env_type), Optional, Pointer:: pao_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Real(Kind=wp), Dimension(:,:), Pointer, Optional:: unitary_t
 !!       Logical, Intent (OUT), Optional:: cache_valid
+!!       Type(pao_bas_projection_type), Pointer, Optional:: projection
 !!     End Subroutine pao_l_ang_get
 !!
 !!   FUNCTION
@@ -674,13 +677,11 @@ contains
 !!     pao_l_ang_get_p_indexes
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_p_index(local_angles, i, error)&
-!!         Result(res)
-!!       Integer:: res
+!!     Function pao_l_ang_get_p_indexes(local_angles, error) Result(res)
+!!       Integer, Dimension(:), Pointer:: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
-!!       Integer, Intent (IN):: i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function pao_l_ang_get_p_index
+!!     End Function pao_l_ang_get_p_indexes
 !!
 !!   FUNCTION
 !!     returns the indexes of the projection
@@ -730,13 +731,12 @@ contains
 !!     pao_l_ang_get_non_p_indexes
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_non_p_index(local_angles, i, error)&
+!!     Function pao_l_ang_get_non_p_indexes(local_angles, error)&
 !!         Result(res)
-!!       Integer:: res
+!!       Integer, Dimension(:), Pointer:: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
-!!       Integer, Intent (IN):: i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function pao_l_ang_get_non_p_index
+!!     End Function pao_l_ang_get_non_p_indexes
 !!
 !!   FUNCTION
 !!     returns the indexes of the excluded basis
@@ -785,11 +785,11 @@ contains
 !!     pao_l_ang_get_p_index
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_p_index(local_angles, i, error)&
+!!     Function pao_l_ang_get_p_index(local_angles, min_bas, error)&
 !!         Result(res)
 !!       Integer:: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
-!!       Integer, Intent (IN):: i
+!!       Integer, Intent (IN):: min_bas
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_l_ang_get_p_index
 !!
@@ -845,11 +845,11 @@ contains
 !!     pao_l_ang_get_non_p_index
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_non_p_index(local_angles, i, error)&
+!!     Function pao_l_ang_get_non_p_index(local_angles, excl_bas, error)&
 !!         Result(res)
 !!       Integer:: res
+!!       Integer, Intent (IN):: excl_bas
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
-!!       Integer, Intent (IN):: i
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_l_ang_get_non_p_index
 !!
@@ -904,8 +904,8 @@ contains
 !!     pao_l_ang_get_angle
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_angle(local_angles, min_bas, excl_bas,&
-!!         error) Result(res)
+!!     Function pao_l_ang_get_angle(local_angles, min_bas, excl_bas, error)&
+!!         Result(res)
 !!       Real(Kind=wp):: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Integer, Intent (IN):: min_bas, excl_bas
@@ -1120,8 +1120,7 @@ contains
 !!     pao_l_ang_get_size_min_bas
 !!
 !!   SYNOPSIS
-!!     Function pao_l_ang_get_size_min_bas(local_angles, error)&
-!!         Result(res)
+!!     Function pao_l_ang_get_size_min_bas(local_angles, error) Result(res)
 !!       Integer:: res
 !!       Type(pao_local_angles_type), Intent (IN):: local_angles
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -1272,8 +1271,7 @@ contains
 !!     pao_l_ang_set_unitary_t
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_l_ang_set_unitary_t(local_angles, unitary_t,&
-!!         error)
+!!     Subroutine pao_l_ang_set_unitary_t(local_angles, unitary_t, error)
 !!       Type(pao_local_angles_type), Intent (INOUT):: local_angles
 !!       Real(Kind=wp), Dimension(:,:), Intent (IN), Target:: unitary_t
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error

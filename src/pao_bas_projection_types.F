@@ -122,6 +122,14 @@ contains
 !!   NAME
 !!     cp_proj_create
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_create(proj, proj_indexes, size_full_bas, error)
+!!       Type(pao_bas_projection_type), Pointer:: proj
+!!       Integer, Dimension(:), Intent (IN):: proj_indexes
+!!       Integer, Intent (IN):: size_full_bas
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_create
+!!
 !!   FUNCTION
 !!     allocates and initianizes a pao_bas_projection
 !!
@@ -163,6 +171,14 @@ end subroutine cp_proj_create
 !!
 !!   NAME
 !!     cp_proj_create2
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_create2(proj, proj_indexes, size_full_bas, error)
+!!       Type(pao_bas_projection_type), Pointer:: proj
+!!       Type(cp_sll_int_type), Pointer:: proj_indexes
+!!       Integer, Intent (IN):: size_full_bas
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_create2
 !!
 !!   FUNCTION
 !!     allocates and initianizes a pao_bas_projection (from a linked list)
@@ -206,6 +222,12 @@ end subroutine cp_proj_create2
 !!   NAME
 !!     cp_proj_dealloc
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_dealloc(proj, error)
+!!       Type(pao_bas_projection_type), Pointer:: proj
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_dealloc
+!!
 !!   FUNCTION
 !!     deallocates a projection
 !!
@@ -246,6 +268,14 @@ end subroutine cp_proj_dealloc
 !!
 !!   NAME
 !!     cp_proj_init
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_init(proj, proj_indexes, size_full_bas, error)
+!!       Type(pao_bas_projection_type), Intent (OUT):: proj
+!!       Integer, Dimension(:), Intent (IN):: proj_indexes
+!!       Integer, Intent (IN):: size_full_bas
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_init
 !!
 !!   FUNCTION
 !!     initializes the given projection
@@ -318,6 +348,14 @@ end subroutine cp_proj_dealloc
 !!
 !!   NAME
 !!     cp_proj_init2
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_init2(proj, proj_indexes, size_full_bas, error)
+!!       Type(pao_bas_projection_type), Intent (OUT):: proj
+!!       Type(cp_sll_int_type), Pointer:: proj_indexes
+!!       Integer, Intent (IN):: size_full_bas
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_init2
 !!
 !!   FUNCTION
 !!     initializes the given projection using a linked list
@@ -400,6 +438,12 @@ end subroutine cp_proj_dealloc
 !!   NAME
 !!     cp_proj_dealloc_ref
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_dealloc_ref(proj, error)
+!!       Type(pao_bas_projection_type), Intent (INOUT):: proj
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_dealloc_ref
+!!
 !!   FUNCTION
 !!     releases the memory allocated by this object
 !!
@@ -445,6 +489,13 @@ end subroutine cp_proj_dealloc
 !!   NAME
 !!     cp_proj_valid
 !!
+!!   SYNOPSIS
+!!     Function cp_proj_valid(proj, error) Result(res)
+!!       Type(pao_bas_projection_type), Intent (IN):: proj
+!!       Logical:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_proj_valid
+!!
 !!   FUNCTION
 !!     returns true if the projection is valid (minimal tests)
 !!
@@ -485,6 +536,17 @@ end subroutine cp_proj_dealloc
 !!
 !!   NAME
 !!     cp_proj_get
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_get(proj, size_min_bas, size_full_bas,&
+!!         size_excl_bas, proj_indexes, non_proj_indexes, error)
+!!       Type(pao_bas_projection_type), Intent (IN):: proj
+!!       Integer, Optional, Intent (OUT):: size_excl_bas, size_full_bas,&
+!!         size_min_bas
+!!       Integer, Optional, Dimension(:), Pointer:: proj_indexes,&
+!!         non_proj_indexes
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_get
 !!
 !!   FUNCTION
 !!     returns various attributes about the given projection
@@ -543,6 +605,13 @@ end subroutine cp_proj_dealloc
 !!   NAME
 !!     cp_proj_get_proj_indexes
 !!
+!!   SYNOPSIS
+!!     Function cp_proj_get_proj_indexes(proj, error) Result(res)
+!!       Type(pao_bas_projection_type), Intent (IN):: proj
+!!       Integer, Dimension(:), Pointer:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_proj_get_proj_indexes
+!!
 !!   FUNCTION
 !!     returns the projection indexes
 !!
@@ -588,6 +657,13 @@ end subroutine cp_proj_dealloc
 !!   NAME
 !!     cp_proj_get_non_proj_indexes
 !!
+!!   SYNOPSIS
+!!     Function cp_proj_get_non_proj_indexes(proj, error) Result(res)
+!!       Type(pao_bas_projection_type), Intent (IN):: proj
+!!       Integer, Dimension(:), Pointer:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_proj_get_non_proj_indexes
+!!
 !!   FUNCTION
 !!     returns the indexes excluded by th projection
 !!
@@ -632,6 +708,13 @@ end subroutine cp_proj_dealloc
 !!
 !!   NAME
 !!     cp_proj_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_proj_write(proj, unit_nr, error)
+!!       Type(pao_bas_projection_type), Intent (IN), Target:: proj
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_proj_write
 !!
 !!   FUNCTION
 !!     writes a description of the projection to the given unit

@@ -192,25 +192,19 @@ contains
 !!     pao_env_get
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_env_get(pao_env, global_env,&
-!!         wanted_subspace_pos_precision, wanted_in_subspace_precision,&
-!!         nr_min_bas, nr_full_bas, angles_att, subspace_att, n_atom,&
-!!         ntot_full_bas, ntot_min_bas, projection, min_density_m,&
-!!         full_overlap_m, full_hamiltonian_m, error)
+!!     Subroutine pao_env_get(pao_env, wanted_subspace_pos_precision,&
+!!         wanted_in_subspace_precision, angles_att, min_density_m,&
+!!         min_bas_m_struct, full_bas_m_struct, error)
 !!       Type(pao_env_type), Target, Intent (IN):: pao_env
-!!       Type(global_environment_type), Optional, Pointer:: global_env
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         wanted_subspace_pos_precision
 !!       Real(Kind=wp), Optional, Intent (OUT)::&
 !!         wanted_in_subspace_precision
-!!       Integer, Optional, Dimension(:), Pointer:: nr_min_bas
-!!       Integer, Optional, Dimension(:), Pointer:: nr_full_bas
 !!       Type(pao_glob_angles_type), Optional, Pointer:: angles_att
-!!       Type(pao_matrix_type), Optional, Pointer:: subspace_att,&
-!!         min_density_m, full_hamiltonian_m, full_overlap_m
-!!       Integer, Optional, Intent (OUT):: n_atom, ntot_min_bas,&
-!!         ntot_full_bas
-!!       Type(cp_1d_i_array), Dimension(:), Pointer, Optional:: projection
+!!       Type(cp_sparse_matrix_p_type), Dimension(:), Optional, Pointer::&
+!!         min_density_m
+!!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
+!!         min_bas_m_struct, full_bas_m_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_env_get
 !!

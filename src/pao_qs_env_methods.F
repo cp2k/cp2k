@@ -58,13 +58,13 @@ contains
 !!     pao_qs_env_get_b_projection
 !!
 !!   SYNOPSIS
-!!     Function pao_qs_env_get_p_index(pao_qs_env, atom_nr, i, error)&
+!!     Function pao_qs_env_get_b_projection(qs_env, atom_nr, error)&
 !!         Result(res)
-!!       Integer:: res
-!!       Type(pao_env_type), Intent (IN):: pao_env
-!!       Integer, Intent (IN):: atom_nr, i
+!!       Type(pao_bas_projection_type), Pointer:: res
+!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Integer, Intent (IN):: atom_nr
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Function pao_env_get_p_index
+!!     End Function pao_qs_env_get_b_projection
 !!
 !!   FUNCTION
 !!     returns the base projection projection on atom_nr
@@ -108,6 +108,18 @@ contains
 !!
 !!   NAME
 !!     pao_qs_env_get
+!!
+!!   SYNOPSIS
+!!     Subroutine pao_qs_env_get(qs_env, global_env, pao_max_min_bas,&
+!!         pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
+!!         pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas, error)
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Integer, Intent (OUT), Optional:: pao_max_min_bas,&
+!!         pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
+!!         pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pao_qs_env_get
 !!
 !!   FUNCTION
 !!     returns pao related info from the qs_environment_type

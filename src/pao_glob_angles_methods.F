@@ -132,16 +132,19 @@ contains
 !!     pao_g_ang_init
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_init(glob_angles, pao_env, angles, source,&
-!!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
-!!         error)
+!!     Subroutine pao_g_ang_init(glob_angles, qs_env, global_env, angles,&
+!!         source, ut_calculated, unitary_t, min_overlap_m,&
+!!         min_hamiltonian_m, error)
 !!       Type(pao_glob_angles_type), Intent (OUT):: glob_angles
-!!       Type(pao_env_type), Intent (IN), Target:: pao_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN), Optional:: ut_calculated
-!!       Type(pao_matrix_type), Intent (IN), Optional:: unitary_t,&
-!!         min_hamiltonian_m, min_overlap_m
+!!       Type(cp_sparse_matrix_type), Intent (IN), Optional, Target::&
+!!         unitary_t, min_overlap_m
+!!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
+!!         Optional:: min_hamiltonian_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_init
 !!
@@ -204,8 +207,9 @@ contains
 !!     pao_g_ang_dealloc_ref
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_dealloc_ref(glob_angles, error)
+!!     Subroutine pao_g_ang_dealloc_ref(glob_angles, global_env, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_dealloc_ref
 !!
@@ -262,8 +266,9 @@ contains
 !!     pao_g_ang_dealloc
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_dealloc(glob_angles, error)
+!!     Subroutine pao_g_ang_dealloc(glob_angles, global_env, error)
 !!       Type(pao_glob_angles_type), Pointer:: glob_angles
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_dealloc
 !!
@@ -314,16 +319,19 @@ contains
 !!     pao_g_ang_create
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_create(glob_angles, pao_env, angles, source,&
-!!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
-!!         error)
+!!     Subroutine pao_g_ang_create(glob_angles, qs_env, global_env, angles,&
+!!         source, ut_calculated, unitary_t, min_overlap_m,&
+!!         min_hamiltonian_m, error)
 !!       Type(pao_glob_angles_type), Pointer:: glob_angles
-!!       Type(pao_env_type), Intent (IN), Target:: pao_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN):: ut_calculated
-!!       Type(pao_matrix_type), Intent (IN):: unitary_t,&
-!!         min_hamiltonian_m, min_overlap_m
+!!       Type(cp_sparse_matrix_type), Intent (IN), Target:: unitary_t,&
+!!         min_overlap_m
+!!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
+!!         Optional:: min_hamiltonian_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_create
 !!
@@ -382,9 +390,12 @@ contains
 !!     pao_g_ang_validate
 !!
 !!   SYNOPSIS
-!!     Function pao_g_ang_validate(glob_angles, error) Result(res)
+!!     Function pao_g_ang_validate(glob_angles, qs_env, global_env, error)&
+!!         Result(res)
 !!       Logical:: res
 !!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_g_ang_validate
 !!
@@ -481,15 +492,18 @@ contains
 !!     pao_g_ang_set
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_set(glob_angles, pao_env, angles, source,&
-!!         ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m,&
-!!         m_s_m_valid, m_h_m_valid, error)
+!!     Subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,&
+!!         source, ut_calculated, unitary_t, min_overlap_m,&
+!!         min_hamiltonian_m, m_s_m_valid, m_h_m_valid, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(pao_env_type), Optional, Intent (IN), Target:: pao_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
-!!       Type(pao_matrix_type), Optional, Intent (IN)::&
-!!         min_hamiltonian_m, min_overlap_m, unitary_t
+!!       Type(cp_sparse_matrix_type), Optional, Intent (IN), Target::&
+!!         min_overlap_m, unitary_t
+!!       Type(cp_sparse_matrix_p_type), Dimension(:), Intent (IN),&
+!!         Optional:: min_hamiltonian_m
 !!       Logical, Dimension(:), Optional, Intent (IN):: ut_calculated
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -630,14 +644,15 @@ contains
 !!     pao_g_ang_get
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_get(glob_angles, pao_env, angles,&
+!!     Subroutine pao_g_ang_get(glob_angles, qs_env, global_env, angles,&
 !!         m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
-!!       Type(pao_env_type), Optional, Pointer:: pao_env
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Pointer:: angles
 !!       Logical, Intent (OUT), Optional:: m_h_m_valid, m_s_m_valid
 !!       Logical, Dimension(:), Pointer, Optional:: ut_calculated
-!!       Type(pao_matrix_type), Pointer, Optional:: unitary_t
+!!       Type(cp_sparse_matrix_type), Pointer, Optional:: unitary_t
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get
 !!
@@ -728,9 +743,12 @@ contains
 !!     pao_g_ang_valid
 !!
 !!   SYNOPSIS
-!!     Function pao_g_ang_valid(glob_angles, error) Result(res)
+!!     Function pao_g_ang_valid(glob_angles, qs_env, global_env, error)&
+!!         Result(res)
 !!       Logical:: res
 !!       Type(pao_glob_angles_type), Intent (IN):: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function pao_g_ang_valid
 !!
