@@ -2,11 +2,10 @@ PERL     = perl
 CC       = cc
 CPP      = cpp -traditional
 FC       = f90 -ffree
-FC_fixed = f90 -ffixed
 LD       = f90
 AR       = ar -r
 RANLIB   = ranlib
-CPPFLAGS = -C -D__ABSOFT -D__FFTSG -DFD_DEBUG
+CPPFLAGS = -C -P -D__ABSOFT -D__FFTSG -DFD_DEBUG
 FCFLAGS  = -g -en -N11 -YEXT_SFX=_ -YEXT_NAMES=LCS
 LDFLAGS  = $(FCFLAGS) -L/Applications/Absoft/lib -X -Y -X 10
 LIBS     = -llapack -lblas -lU77
