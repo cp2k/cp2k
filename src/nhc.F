@@ -68,7 +68,7 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 ! begin local definitions
   INTEGER :: i, iw
-  INTEGER :: isos, number
+  INTEGER :: isos, number, ncoef
 !
   iw = globenv % scr
 !
@@ -92,6 +92,7 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
       number = SIZE ( coeff % ao % cr )
       nhc % num_nhc = number
     ENDIF
+    ncoef = SIZE ( coeff % ao % cr )
 
 ! Now we can allocate the target array s_kin and p_kin
 
@@ -101,22 +102,22 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
     ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_ao_setup', &
       'failed to allocate nhc%v_scale' )
-    ALLOCATE ( nhc % p_kin ( 1, number ), STAT = isos )
+    ALLOCATE ( nhc % p_kin ( 1, ncoef ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_ao_setup', &
       'failed to allocate nhc%p_kin' )
-    ALLOCATE ( nhc % p_scale ( 1, number ), STAT = isos )
+    ALLOCATE ( nhc % p_scale ( 1, ncoef ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_ao_setup', &
       'failed to allocate nhc%p_scale')
 
 ! Begin the mapping loop
 
     IF ( simpar % pol_option == 'GLOBAL' )  THEN
-      DO i = 1, number
+      DO i = 1, ncoef
         nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
         nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
       END DO
     ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
-      DO i = 1, number
+      DO i = 1, ncoef
         nhc % p_kin ( 1, i ) % point => nhc % s_kin ( i )
         nhc % p_scale ( 1, i ) % point => nhc % v_scale ( i )
       END DO
@@ -131,7 +132,11 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
 ! (number of degrees of freedom times k_B T )
 
     DO i = 1, nhc % num_nhc
-      nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * number
+      IF ( simpar % pol_option == 'GLOBAL' )  THEN
+         nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * number
+      ELSEIF (simpar % pol_option == 'MASSIVE' ) THEN
+         nhc % nvt ( 1, i ) % nkt = simpar % pol_temp 
+      ENDIF
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain
