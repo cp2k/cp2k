@@ -17,6 +17,7 @@ H2O-OT-4.inp       1
 Ar-2.inp           1
 Ar-3.inp           1
 H2O_tddfpt.inp     0
+H2O-tddfpt-saop.inp 1
 Ar-4.inp           1
 Ar-5.inp           1
 pyridine.inp       1
