@@ -41,16 +41,16 @@ MODULE linklist_types
   END TYPE subcell_data_type
 
   TYPE linklist_internal_data_type
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: nonbonded
      TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ), POINTER :: sab_ppnl
      TYPE ( subcell_data_type ), DIMENSION ( :, : ), POINTER :: ll_cell
      TYPE ( global_environment_type ) :: globenv
      INTEGER :: natom_types
      INTEGER :: counter, last_update, num_update
      INTEGER :: print_level
-     INTEGER :: subcells
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: rlist_cut
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: rlist_cutsq
-     REAL ( dbl ) :: verlet_skin
+     REAL ( dbl ) :: subcells, verlet_skin
      REAL ( dbl ) :: lup, aup
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: r_last_update
   END TYPE linklist_internal_data_type
@@ -68,9 +68,8 @@ SUBROUTINE set_linklist_internal_data ( internal_data, globenv, vskin, &
 ! Arguments
   TYPE ( linklist_internal_data_type ), INTENT ( INOUT ) :: internal_data
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: vskin
+  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: subcells, vskin
   REAL ( dbl ), INTENT ( IN ), OPTIONAL :: rcut ( :, : )
-  INTEGER, INTENT ( IN ), OPTIONAL :: subcells
   INTEGER, INTENT ( IN ), OPTIONAL :: natype
   INTEGER, INTENT ( IN ), OPTIONAL :: count
   INTEGER, INTENT ( IN ), OPTIONAL :: printlevel
@@ -155,6 +154,7 @@ SUBROUTINE initialize_linklist_data ( internal_data )
     NULLIFY ( internal_data % rlist_cut )
     NULLIFY ( internal_data % rlist_cutsq )
     NULLIFY ( internal_data % sab_ppnl )
+    NULLIFY ( internal_data % nonbonded )
     NULLIFY ( internal_data % ll_cell )
 
 END SUBROUTINE initialize_linklist_data

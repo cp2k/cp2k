@@ -219,7 +219,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,cell)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,cell,exclusion_list)
 
 !   Purpose: Add a new neighbor list node to neighbor list.
 
@@ -227,10 +227,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(neighbor_list_type), POINTER  :: neighbor_list
-    INTEGER, INTENT(IN)                :: neighbor
-    REAL(wp), DIMENSION(3), INTENT(IN) :: r
-    INTEGER, DIMENSION(3), INTENT(IN)  :: cell
+    TYPE(neighbor_list_type), POINTER           :: neighbor_list
+    INTEGER, INTENT(IN)                         :: neighbor
+    REAL(wp), DIMENSION(3), INTENT(IN)          :: r
+    INTEGER, DIMENSION(3), INTENT(IN)           :: cell
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: exclusion_list
 
 !   *** Local parameters ***
 
@@ -240,9 +241,18 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(neighbor_node_type), POINTER :: new_neighbor_node
-    INTEGER                           :: istat
+    INTEGER                           :: iatom,istat
 
 !   ---------------------------------------------------------------------------
+
+!   *** Check for exclusions ***
+
+    IF (PRESENT(exclusion_list)) THEN
+      DO iatom=1,SIZE(exclusion_list)
+        IF (exclusion_list(iatom) == 0) EXIT
+        IF (exclusion_list(iatom) == neighbor) RETURN
+      END DO
+    END IF
 
     IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
 
@@ -374,6 +384,7 @@ CONTAINS
 
       IF (ASSOCIATED(neighbor_list_set%last_neighbor_list)) THEN
         neighbor_list => neighbor_list_set%last_neighbor_list%next_neighbor_list
+        NULLIFY (neighbor_list_set%last_neighbor_list%next_neighbor_list)
       ELSE
         neighbor_list => neighbor_list_set%first_neighbor_list
         NULLIFY (neighbor_list_set%first_neighbor_list)
@@ -395,6 +406,7 @@ CONTAINS
 
         IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
           neighbor_node => neighbor_list%last_neighbor_node%next_neighbor_node
+          NULLIFY (neighbor_list%last_neighbor_node%next_neighbor_node)
         ELSE
           neighbor_node => neighbor_list%first_neighbor_node
           NULLIFY (neighbor_list%first_neighbor_node)

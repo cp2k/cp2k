@@ -312,6 +312,7 @@ SUBROUTINE fist ( globenv )
     rep_env ( ibead ) % box % unit_of_length_name = "ANGSTROM"
     rep_env ( ibead ) % box % unit_of_length = 1.0_dbl
     rep_env ( ibead ) % box % scaled_coordinates = .FALSE.
+    rep_env ( ibead ) % box % subcells = simpar % subcells
 ! dbg TEMPORARY FIX
 
 ! If run is a debug.  Make box_ref = box to work under

@@ -30,16 +30,22 @@ MODULE fist_nonbond_force
                              linklist_atoms, linklist_exclusion
   USE pair_potential, ONLY : potential_s, potentialparm_type
   USE particle_types, ONLY : particle_type
-  USE qs_neighbor_list_types,   ONLY: first_node,&
+  USE qs_neighbor_list_types,   ONLY: first_list,&
+                                      first_node,&
+                                      get_neighbor_list,&
+                                      get_neighbor_list_set,&
                                       get_neighbor_node,&
+                                      neighbor_list_set_type,&
                                       neighbor_list_type,&
                                       neighbor_node_type,&
                                       next
   USE simulation_cell, ONLY : cell_type, pbc, get_cell_param, &
-                              real_to_scaled, scaled_to_real
+                              real_to_scaled, scaled_to_real,pbc
   USE termination, ONLY : stop_memory
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : include_list
+
+  USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type
 
   IMPLICIT NONE
 
@@ -53,7 +59,8 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
-                           pot_nonbond, f_nonbond, ptens_nonbond )
+                           pot_nonbond, f_nonbond, ptens_nonbond, &
+                           nonbonded, r_last_update )
 
 ! Calculates the force and the potential of the minimum image, and
 ! the pressure tensor
@@ -70,19 +77,28 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_nonbond
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: ptens_nonbond
 
+  TYPE(neighbor_list_set_p_type), DIMENSION(:), INTENT(IN) :: nonbonded
+  REAL(dbl), DIMENSION(:,:), INTENT(IN)                    :: r_last_update
+
 ! Locals
   CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond"
   CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force"
   CHARACTER(LEN=*), PARAMETER :: routine =&
     "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-  INTEGER :: ikind, jkind, nkinds, inode, natoms, nnodes
+  INTEGER :: ikind, jkind, nkinds, inode, natoms, nnodes, ab
   INTEGER :: handle, istat, nneighbor, ineighbor, atom_a, atom_b, cell_b ( 3 )
   REAL ( dbl ), DIMENSION (3) :: sab_pbc, rab, rb, sab, ra
-  REAL ( dbl ) :: energy, fscalar, rab2, flops
+  REAL ( dbl ) :: energy, fscalar, rab2, flops, rab2_max
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: rtest
   TYPE ( neighbor_list_type ), POINTER :: neighbor_list
   TYPE ( neighbor_node_type ), POINTER :: neighbor_node
   TYPE ( cell_type ), POINTER :: cell
+!MK
+  TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
+
+  INTEGER :: ilist,inode,nlist,nnode
+
+  REAL(dbl), DIMENSION(3) :: dra,drb,rab_last_update
 
 !------------------------------------------------------------------------------
 
@@ -97,55 +113,111 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 
 ! local copy of cutoffs
   nkinds = SIZE ( potparm, 1 )
-  ALLOCATE ( rtest ( nkinds, nkinds ), STAT = istat )
-  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest", nkinds ** 2 )
-
-  DO ikind = 1, nkinds
-     DO jkind = 1, nkinds
-        rtest ( ikind, jkind ) = potparm ( ikind, jkind ) % rcutsq
-     END DO
-  END DO
+!MK  ALLOCATE ( rtest ( nkinds, nkinds ), STAT = istat )
+!MK  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest", nkinds ** 2 )
+!MK
+!MK  DO ikind = 1, nkinds
+!MK     DO jkind = 1, nkinds
+!MK        rtest ( ikind, jkind ) = potparm ( ikind, jkind ) % rcutsq
+!MK     END DO
+!MK  END DO
 
 !
 ! starting the force loop
 !
-  nnodes = SIZE ( pnode )
-  DO inode = 1, nnodes
-     atom_a = pnode ( inode ) % p % iatom
-     neighbor_list => pnode ( inode ) % nl
-     nneighbor = pnode ( inode ) % nneighbor
-     ra ( : ) = part ( atom_a ) % r ( : )
-     CALL get_atomic_kind ( part ( atom_a ) % atomic_kind,  &
-                            kind_number = ikind )
-! now do neighbors
-     neighbor_node => first_node ( neighbor_list )
-     DO ineighbor = 1, nneighbor
-        CALL get_neighbor_node ( neighbor_node = neighbor_node, &
-                                 neighbor = atom_b, &
-                                 cell = cell_b )
-        rb ( : ) = part ( atom_b ) % r ( : )
-        CALL get_atomic_kind ( part ( atom_b ) % atomic_kind, &
-                               kind_number = jkind )
-        rab ( : ) = rb ( : ) - ra ( : )
-        sab ( : ) = real_to_scaled(rab(:),cell)
-        sab_pbc ( : ) = sab ( : ) + REAL ( cell_b ( : ), dbl )
-        rab ( : ) = scaled_to_real(sab_pbc(:),cell)
-        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+!MK
+    DO ikind=1,nkinds
+      DO jkind=ikind,nkinds
 
-        IF ( rab2 <= rtest ( ikind, jkind ) ) THEN
-           CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
-!
-! summing up the potential energy,the force and pressure tensor
-!
-           CALL sum_ener_forces ( atom_a, atom_b, pot_nonbond, energy, &
-                fscalar, f_nonbond, rab, ptens_nonbond )
-           flops = flops + 64.0_dbl
-        END IF
+        ab = ikind + jkind*(jkind - 1)/2
 
-       neighbor_node => next ( neighbor_node )
+        neighbor_list_set => nonbonded(ab)%neighbor_list_set
 
-     END DO
-  END DO
+        IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+
+        rab2_max = potparm(ikind,jkind)%rcutsq
+
+        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                                   nlist=nlist)
+
+        neighbor_list => first_list(neighbor_list_set)
+
+        DO ilist=1,nlist
+
+          CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                                 atom=atom_a,&
+                                 nnode=nnode)
+
+          dra(:) = part(atom_a)%r(:) - r_last_update(:,atom_a)
+
+          neighbor_node => first_node(neighbor_list)
+
+          DO inode=1,nnode
+
+            CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                   neighbor=atom_b,&
+                                   cell=cell_b,&
+                                   r=rab_last_update)
+
+            drb(:) = part(atom_b)%r(:) - r_last_update(:,atom_b)
+
+            rab(:) = rab_last_update(:) - dra(:) + drb(:)
+            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+
+            IF (rab2 <= rab2_max) THEN
+              CALL potential_s(rab2,ikind,jkind,energy,fscalar)
+              CALL sum_ener_forces(atom_a,atom_b,pot_nonbond,energy,&
+                                   fscalar,f_nonbond,rab,ptens_nonbond)
+            END IF
+
+            neighbor_node => next(neighbor_node)
+
+          END DO
+
+          neighbor_list => next(neighbor_list)
+
+        END DO
+
+      END DO
+
+    END DO
+!MK  nnodes = SIZE ( pnode )
+!MK  DO inode = 1, nnodes
+!MK     atom_a = pnode ( inode ) % p % iatom
+!MK     neighbor_list => pnode ( inode ) % nl
+!MK     nneighbor = pnode ( inode ) % nneighbor
+!MK     ra ( : ) = part ( atom_a ) % r ( : )
+!MK     CALL get_atomic_kind ( part ( atom_a ) % atomic_kind,  &
+!MK                            kind_number = ikind )
+!MK! now do neighbors
+!MK     neighbor_node => first_node ( neighbor_list )
+!MK     DO ineighbor = 1, nneighbor
+!MK        CALL get_neighbor_node ( neighbor_node = neighbor_node, &
+!MK                                 neighbor = atom_b, &
+!MK                                 cell = cell_b )
+!MK        rb ( : ) = part ( atom_b ) % r ( : )
+!MK        CALL get_atomic_kind ( part ( atom_b ) % atomic_kind, &
+!MK                               kind_number = jkind )
+!MK        rab ( : ) = rb ( : ) - ra ( : )
+!MK        sab ( : ) = real_to_scaled(rab(:),cell)
+!MK        sab_pbc ( : ) = sab ( : ) + REAL ( cell_b ( : ), dbl )
+!MK        rab ( : ) = scaled_to_real(sab_pbc(:),cell)
+!MK        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+!MK
+!MK        IF ( rab2 <= rtest ( ikind, jkind ) ) THEN
+!MK           CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
+!MK!
+!MK! summing up the potential energy,the force and pressure tensor
+!MK!
+!MK           CALL sum_ener_forces ( atom_a, atom_b, pot_nonbond, energy, &
+!MK                fscalar, f_nonbond, rab, ptens_nonbond )
+!MK           flops = flops + 64.0_dbl
+!MK        END IF
+!MK
+!MK       neighbor_node => next ( neighbor_node )
+!MK
+!MK     END DO
+!MK  END DO
 
 ! computing long range corrections to the potential
 !
@@ -155,10 +227,10 @@ SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
 !       pot_nonbond=pot_nonbond+lrc*(1./box % deth)
 !
 
-  DEALLOCATE ( rtest, STAT = istat )
-  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest" )
-!
-  flops = flops * 1.E-6_dbl
+!MK  DEALLOCATE ( rtest, STAT = istat )
+!MK  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest" )
+!MK
+!MK  flops = flops * 1.E-6_dbl
   CALL timestop ( flops, handle )
 
 END SUBROUTINE force_nonbond

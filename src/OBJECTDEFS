@@ -85,6 +85,7 @@ OBJECTS_GENERIC =\
  fist_force_numer.o\
  fist_intra_force.o\
  fist_main.o\
+ fist_neighbor_lists.o\
  fist_nonbond_force.o\
  force_control.o\
  force_fields.o\

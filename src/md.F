@@ -62,7 +62,7 @@ MODULE md
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
-     INTEGER :: subcells
+     REAL ( dbl ) :: subcells
      REAL ( dbl ) :: tau_nhc
      REAL ( dbl ) :: tau_cell
      REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
@@ -173,7 +173,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % shake_tol = 1.0E-6_dbl
   simpar % nhclen = 1
   simpar % nc = 1
-  simpar % subcells = 0
+  simpar % subcells = 2.0_dbl
   simpar % nyosh = 1
   simpar % tau_nhc = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl

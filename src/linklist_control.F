@@ -33,6 +33,10 @@ MODULE linklist_control
   USE termination, ONLY : stop_memory, stop_program
   USE timings, ONLY : timeset, timestop
 
+  USE fist_neighbor_lists, ONLY: build_fist_neighbor_lists,&
+                                 rebuild_fist_neighbor_lists
+  USE pair_potential,      ONLY: potentialparm_type
+
   IMPLICIT NONE
 
   PRIVATE
@@ -81,7 +85,8 @@ SUBROUTINE list_control ( rep_env )
   internal_data => rep_env % ll_data ( 1 )
   atomic_kind_set => rep_env % atomic_kind_set 
   
-  first_time = .NOT.ASSOCIATED ( internal_data % sab_ppnl )
+!MK  first_time = .NOT.ASSOCIATED ( internal_data % sab_ppnl )
+  first_time = .NOT.ASSOCIATED ( internal_data % nonbonded )
 
   nnodes = SIZE ( pnode )
   IF ( .NOT. ASSOCIATED ( internal_data % r_last_update ) ) THEN
@@ -115,13 +120,20 @@ SUBROUTINE list_control ( rep_env )
      list_update_flag = .FALSE.
   END IF
 
-
   IF ( list_update_flag ) THEN
 
      IF ( first_time ) THEN
-       CALL build_verlet_lists (atomic_kind_set, part, box, internal_data, pnode ) 
+       CALL build_fist_neighbor_lists(atomic_kind_set,part,pnode,box,&
+                                      internal_data%rlist_cut,&
+                                      internal_data%nonbonded,&
+                                      internal_data%globenv)
+!MK       CALL build_verlet_lists (atomic_kind_set, part, box, internal_data, pnode ) 
      ELSE
-       CALL rebuild_verlet_lists ( atomic_kind_set, part, box, internal_data, pnode )
+       CALL rebuild_fist_neighbor_lists(atomic_kind_set,part,pnode,box,&
+                                        internal_data%rlist_cut,&
+                                        internal_data%nonbonded,&
+                                        internal_data%globenv)
+!MK       CALL rebuild_verlet_lists ( atomic_kind_set, part, box, internal_data, pnode )
      ENDIF
 
      iw = internal_data % globenv % scr

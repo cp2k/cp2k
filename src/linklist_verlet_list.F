@@ -109,9 +109,9 @@ CONTAINS
     LOGICAL :: ionode
     INTEGER :: group, mype, npe, ikind, inode, &
                nkind, nnodes, istat, handle, &
-               subcells, atom_a, natoms, periodic ( 3 )
+               atom_a, natoms, periodic ( 3 )
     INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
-    REAL ( dbl ) :: ra ( 3 ), lat_vec ( 3 ), sa ( 3 ), unit_of_length
+    REAL ( dbl ) :: ra ( 3 ), lat_vec ( 3 ), sa ( 3 ), unit_of_length, subcells
     TYPE ( atomic_kind_type ), POINTER :: atomic_kind
     TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
     TYPE ( global_environment_type ) :: globenv
@@ -232,7 +232,7 @@ CONTAINS
 !   History: - Creation (20.03.2002,MK)
 
 !   ***************************************************************************
-    INTEGER, INTENT ( IN ) :: subcells
+    REAL ( dbl ), INTENT ( IN ) :: subcells
     REAL ( dbl ), INTENT ( IN ) :: rlist_cutsq ( :, : )
     REAL ( dbl ), INTENT ( IN ) :: rlist_cut ( :, : )
     INTEGER, INTENT ( IN ) :: natom ( : )
@@ -618,9 +618,9 @@ CONTAINS
     LOGICAL :: ionode
     INTEGER :: group, mype, npe, ikind, inode, &
                nkind, nnodes, istat, handle, output_unit, &
-               subcells, atom_a, natoms, periodic ( 3 )
+               atom_a, natoms, periodic ( 3 )
     INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
-    REAL ( dbl ) :: ra ( 3 ), sa ( 3 ),  lat_vec ( 3 )
+    REAL ( dbl ) :: ra ( 3 ), sa ( 3 ),  lat_vec ( 3 ), subcells
     TYPE ( atomic_kind_type ), POINTER :: atomic_kind
     TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
     TYPE ( global_environment_type ) :: globenv

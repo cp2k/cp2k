@@ -218,7 +218,9 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
 !
   f_nonbond = zero
   CALL force_nonbond ( ewald_param, part, pnode, box, potparm, &
-                       pot_nonbond, f_nonbond, pv_nonbond )
+                       pot_nonbond, f_nonbond, pv_nonbond, &
+                       rep_env%ll_data(1)%nonbonded, &
+                       rep_env%ll_data(1)%r_last_update )
 !
 ! get g-space non-bonded forces:
 !
