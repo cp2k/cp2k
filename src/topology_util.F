@@ -2877,15 +2877,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                            ntorsion=ntorsion_mol(i))
   END DO
   imol_now=1
-  mol_change=.TRUE.
+  mol_change=.FALSE.
   mol_change2=.FALSE.
   DO iatom=1,SIZE(particle_set)
-
     IF(iatom==first_mol(imol_now)) mol_change =.TRUE.
-    IF(iatom==last_mol(imol_now-1)) mol_change2=.TRUE.
+    IF(iatom==last_mol(imol_now)) mol_change2=.TRUE.
     IF(mol_change) THEN
-      WRITE(*,*) "MAKE ",iatom
-      imol_now = imol_now + 1
       imol_minus = MAX(1,imol_now-topology%exclude_check)
       imol_plus  = MIN(SIZE(molecule_set),imol_now+topology%exclude_check)
       natom = SUM(natom_mol(imol_minus:imol_plus))
@@ -3019,8 +3016,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       particle_set(iatom)%lpi%exclusion(j)%list_vdw => list
       IF(topology%exclude_vdw==topology%exclude_ei) THEN
         NULLIFY(list2)
-        CALL reallocate(list2,1,counter)
-        list2(:) = list(:)
+        IF(counter > 0) THEN
+          CALL reallocate(list2,1,counter)
+          list2(:) = list(:)
+        END IF
         particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
       END IF
       IF (PM2) THEN 
@@ -3031,7 +3030,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       END IF
     END DO
     IF(mol_change2) THEN
-      WRITE(*,*) "CLEAN ",iatom
+      imol_now = imol_now + 1
       DEALLOCATE(atomlist,STAT=istat)
       IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
       DEALLOCATE(ex_bond_list,STAT=istat)
@@ -3092,15 +3091,13 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                              ntorsion=ntorsion_mol(i))
     END DO
     imol_now=1
-    mol_change=.TRUE.
+    mol_change=.FALSE.
     mol_change2=.FALSE.
     DO iatom=1,SIZE(particle_set)
   
       IF(iatom==first_mol(imol_now)) mol_change =.TRUE.
       IF(iatom==last_mol(imol_now-1)) mol_change2=.TRUE.
       IF(mol_change) THEN
-        WRITE(*,*) "MAKE ",iatom
-        imol_now = imol_now + 1
         imol_minus = MAX(1,imol_now-topology%exclude_check)
         imol_plus  = MIN(SIZE(molecule_set),imol_now+topology%exclude_check)
         natom = SUM(natom_mol(imol_minus:imol_plus))
@@ -3240,7 +3237,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
         END IF
       END DO
       IF(mol_change2) THEN
-        WRITE(*,*) "CLEAN ",iatom
+        imol_now = imol_now + 1
         DEALLOCATE(atomlist,STAT=istat)
         IF(istat/=0) CALL stop_memory('topology_coordinate_pack','atomlist')
         DEALLOCATE(ex_bond_list,STAT=istat)
