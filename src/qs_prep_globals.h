@@ -58,17 +58,17 @@ if(cond) call qs_assert(.true.,level,200,routineN,\
 
 ! (qs_postcondition_failed = -200)
 #define QSPostcondition(cond,level,routineN,error,failure) \
-call qs_assert(cond,level,-200,routineN,\
+if(cond) call qs_assert(.true.,level,-200,routineN,\
 'POSTCONDITION(cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 ! (qs_invariant_failed = -100)
 #define QSInvariant(cond,level,routineN,error,failure) \
-call qs_assert(cond, level, -100,routineN,\
+if(cond) call qs_assert(.true., level, -100,routineN,\
 'INVARIANT (cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 ! (qs_assert_failed = -300)
 #define QSAssert(cond,level,routineN,error,failure) \
-call qs_assert(cond,level,-300,routineN,\
+if(cond) call qs_assert(.true.,level,-300,routineN,\
 'ASSERTION (cond) failed at line '//qs_to_string(__LINE__),error,failure)
 
 #define QSErrorMessage(level,routineN,msg,error) \
