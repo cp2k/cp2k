@@ -156,7 +156,7 @@ CONTAINS
           jg2=jg*jg
           igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
           check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2+1277,9343)
-          info%lb_cube(1,i)=MIN(jgmin,info%lb_cube(1,i))
+          info%lb_cube(1,i)=MIN(igmin,info%lb_cube(1,i))
           info%sphere_bounds(i)%p(k)=igmin
           k=k+1
          ENDDO
