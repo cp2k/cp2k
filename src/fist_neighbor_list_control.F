@@ -73,7 +73,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   LOGICAL :: list_update_flag, ionode
   INTEGER :: counter, num_update, last_update
   REAL ( dbl ) :: lup, aup
-  INTEGER :: i, nnodes, node, isos, iw, handle, nparticle_local
+  INTEGER :: i, nparts, isos, iw, handle, nparticle_local
   INTEGER :: nparticle_kind, iparticle_kind, iparticle, iparticle_local
   CHARACTER ( LEN = default_string_length) :: string
   REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: r_last_update, &
@@ -95,27 +95,21 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   
 
   nparticle_kind = SIZE ( atomic_kind_set )
-  nnodes = 0
-  DO iparticle_kind = 1, nparticle_kind
-     nnodes = nnodes + local_particles%n_el(iparticle_kind) 
-  ENDDO 
-
+  nparts = SIZE ( particle_set )
   IF ( .NOT. ASSOCIATED (  r_last_update ) ) THEN
-     ALLOCATE ( r_last_update ( 3, nnodes ), STAT = isos )
+     ALLOCATE ( r_last_update ( 3, nparts ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'fist_neighbor_list_control', &
-          'r_last_update', 3 * nnodes )
+          'r_last_update', 3 * nparts )
       r_last_update = 1.0E+10_dbl
   END IF
 
 ! check to see if neighbor list has to be updated
   max_displace = -1.0E+15_dbl
-  node = 0
   DO iparticle_kind = 1, nparticle_kind
      nparticle_local = local_particles%n_el(iparticle_kind)
      DO iparticle_local=1,nparticle_local
-        node = node + 1
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        disp_vec ( : ) = scaled_to_real ( r_last_update ( :, node ), cell ) -  &
+        disp_vec ( : ) = scaled_to_real ( r_last_update ( :, iparticle ), cell ) -  &
                          particle_set ( iparticle ) % r ( : )
         displace =  DOT_PRODUCT ( disp_vec, disp_vec ) 
         max_displace = MAX ( displace, max_displace )
@@ -129,13 +123,11 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
   IF ( max_displace >= 0.25_dbl * verlet_skin ** 2 ) THEN
      list_update_flag = .TRUE.
-     node = 0
      DO iparticle_kind = 1, nparticle_kind
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
-           node = node + 1
            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           r_last_update ( :, node ) =  &
+           r_last_update ( :, iparticle ) =  &
              real_to_scaled ( particle_set ( iparticle ) % r ( : ), cell )
         END DO
      END DO
