@@ -27,6 +27,8 @@
 MODULE qs_environment_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
                                              cp_bmstruct_create,&
                                              cp_bmstruct_release
@@ -72,17 +74,27 @@ MODULE qs_environment_methods
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              wp=>dp
+  USE pw_env_methods,                  ONLY: pw_env_create,&
+                                             pw_env_rebuild
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_release,&
+                                             pw_env_retain,&
+                                             pw_env_type
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_construct,&
                                              pw_grid_setup
-  USE pw_pool,                         ONLY: pw_pool_create,&
-                                             pw_pool_p_type,&
-                                             pw_pool_release,&
-                                             pw_pool_retain,&
-                                             pw_pool_type,&
-                                             pw_pools_copy,&
-                                             pw_pools_dealloc
+  USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
+                                             pw_pool_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_type
+  USE qs_charges_types,                ONLY: qs_charges_type,&
+                                             qs_charges_retain,&
+                                             qs_charges_release
   USE qs_blacs,                        ONLY: cp_fm_add,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
@@ -102,13 +114,18 @@ MODULE qs_environment_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_mo_types,                     ONLY: get_mo_set
+  USE qs_rho_types,                    ONLY: qs_rho_create,&
+                                             qs_rho_release,&
+                                             qs_rho_type
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             get_matrix_info,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -117,8 +134,8 @@ MODULE qs_environment_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
-  PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_pools,&
-    qs_env_rebuild_aomo_pool
+  PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
+    qs_env_rebuild_aomo_pool, qs_env_rebuild_rho
 !***
 !****************************************************************************
 CONTAINS
@@ -204,102 +221,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,para_env,error)
 END SUBROUTINE qs_env_update_s_mstruct
 !***************************************************************************
 
-!!****f* qs_environment_types/qs_env_rebuild_pw_pools [1.0] *
-!!
-!!   NAME
-!!     qs_env_rebuild_pw_pools
-!!
-!!   FUNCTION
-!!     rebuilds the pw pools
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the qs environment where to build the pools
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE qs_env_rebuild_pw_pools(qs_env, error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
-
-  LOGICAL :: failure, pw_grid_information
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_pw_pools',&
-       routineP=moduleN//':'//routineN
-  REAL(wp), DIMENSION(:), POINTER :: cutoff
-  INTEGER :: handle,i,igrid_level,stat, ngrid_level
-  TYPE(cell_type), POINTER          :: cell
-  TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
-  TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(pw_pool_p_type),DIMENSION(:), POINTER :: pw_pools
-  TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_logger_type), POINTER :: logger
-  failure=.FALSE.
-  NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,pw_pools,para_env)
-
-  CALL timeset(routineN//', '//moduleN,"I","",handle)
-  CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
-       cell=cell)
-  cutoff => dft_control%qs_control%e_cutoff
-  ngrid_level=SIZE(cutoff)
-  ALLOCATE(pw_pools(ngrid_level),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-  logger=>cp_error_get_logger(error)
-  pw_grid_information=logger%print_keys%pw_grid_information
-
-  DO igrid_level=1,ngrid_level
-     ALLOCATE(pw_grid,stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     CALL pw_grid_construct(pw_grid)
-     pw_grid%grid_span = HALFSPACE
-     pw_grid%para%rs_dims ( 1 ) = para_env%num_pe
-     pw_grid%para%rs_dims ( 2 ) = 1
-
-     IF (igrid_level == 1) THEN
-        IF (pw_grid_information) THEN
-           CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                pe_group=para_env%group,&
-                info= cp_logger_get_default_unit_nr(logger,&
-                local=.FALSE.))
-        ELSE
-           CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                pe_group=para_env%group)
-        END IF
-     ELSE
-        IF (pw_grid_information) THEN
-           CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                pe_group=para_env%group,&
-                info=cp_logger_get_default_unit_nr(logger),&
-                ref_grid=old_pw_grid)
-        ELSE
-           CALL pw_grid_setup(cell,pw_grid,cutoff(igrid_level),&
-                pe_group=para_env%group,&
-                ref_grid=old_pw_grid)
-        END IF
-     END IF
-     old_pw_grid => pw_grid
-
-     NULLIFY(pw_pools(igrid_level)%pool)
-     CALL pw_pool_create(pw_pools(igrid_level)%pool,&
-          pw_grid_ptr=pw_grid,error=error)
-  END DO
-
-  CALL set_qs_env(qs_env, pw_pools=pw_pools)
-  CALL pw_pools_dealloc(pw_pools,error=error)
-
-  CALL timestop(0.0_wp,handle)
-END SUBROUTINE qs_env_rebuild_pw_pools
-!***************************************************************************
-
 !!****f* qs_environment_types/qs_env_rebuild_fm_pools [1.0] *
 !!
 !!   NAME
@@ -345,6 +266,220 @@ SUBROUTINE qs_env_rebuild_aomo_pool(qs_env, fmstruct, error)
 
   CALL timestop(0.0_wp,handle)
 END SUBROUTINE qs_env_rebuild_aomo_pool
+!***************************************************************************
+
+!!****f* qs_environment_methods/qs_env_rebuild_pw_env [1.0] *
+!!
+!!   NAME
+!!     qs_env_rebuild_pw_env
+!!
+!!   FUNCTION
+!!     rebuilds the pw_env in the given qs_env, allocating it if necessary
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_env: the qs_env whose pw_env has to be rebuilt
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
+  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_pw_env',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_env_type), POINTER  :: new_pw_env
+  TYPE(coeff_type), POINTER   :: rho_core
+  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+  INTEGER                     :: stat
+  failure=.FALSE.
+  
+  ! rebuild pw_env
+  CALL get_qs_env(qs_env, pw_env=new_pw_env)
+  IF (.NOT.ASSOCIATED(new_pw_env)) THEN
+     CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
+     CALL set_qs_env(qs_env,pw_env=new_pw_env)
+     CALL pw_env_release(new_pw_env,error=error)
+  ELSE
+     CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
+  END IF
+
+  ! reallocate rho_core
+  CALL get_qs_env(qs_env, pw_env=new_pw_env, rho_core=rho_core)
+  CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
+  IF (ASSOCIATED(rho_core)) THEN
+     CALL coeff_deallocate(rho_core)
+  ELSE
+     ALLOCATE(rho_core,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     CALL pw_env_get(new_pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+     CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
+          use_data=COMPLEXDATA1D, error=error)
+     rho_core%pw%in_space=RECIPROCALSPACE
+     CALL set_qs_env(qs_env, rho_core=rho_core,error=error)
+  END IF
+
+END SUBROUTINE qs_env_rebuild_pw_env
+!***************************************************************************
+
+!!****f* qs_environment_methods/qs_env_rebuild_rho [1.0] *
+!!
+!!   NAME
+!!     qs_env_rebuild_rho
+!!
+!!   FUNCTION
+!!     rebuilds the rho structure, making sure that everything is allocated
+!!     and has the right size
+!!
+!!   NOTES
+!!     needs updated  pw pools, s_mstruct and h.
+!!     The use of p to keep the structure of h (needed for the forces)
+!!     is ugly and should be removed.
+!!     rho is released, i.e. you must have retained it.
+!!
+!!   INPUTS
+!!     - qs_env: the environment to which rho belongs
+!!     - rho: the rho type to rebuild (defaults to qs_env%rho)
+!!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
+!!       redundant structure of h, or just that of s.
+!!       If rho is not given defaults to true, otherwise defaults to false.
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
+  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(qs_rho_type), POINTER, OPTIONAL             :: rho
+  LOGICAL, INTENT(in), OPTIONAL                    :: rho_ao_with_h_mstruct
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
+  
+  LOGICAL :: failure, hstruct
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
+        routineP=moduleN//':'//routineN
+  TYPE(qs_rho_type), POINTER :: new_rho
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+  TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s, rho_ao
+  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
+  INTEGER :: rebuild_each, stat
+  NULLIFY(h,rho_ao,rho_r,rho_g)
+  rebuild_each=5
+  failure=.FALSE.
+  
+  hstruct=.NOT.PRESENT(rho)
+  IF (PRESENT(rho_ao_with_h_mstruct)) hstruct=rho_ao_with_h_mstruct
+  CALL get_qs_env(qs_env, pw_env=pw_env,&
+       s_mstruct=s_mstruct,h=h,s=s)
+
+  ! releases the old rho
+  IF (PRESENT(rho)) THEN
+     new_rho => rho
+     IF (ASSOCIATED(new_rho)) rebuild_each=new_rho%rebuild_each
+  ELSE
+     CALL set_qs_env(qs_env,rho=new_rho)
+  END IF
+
+  CALL qs_rho_release(new_rho,error=error)
+
+  ! creates the new rho
+  ! - rho_ao
+  CALL allocate_matrix_set(rho_ao,1)
+  ALLOCATE(rho_g(1),rho_r(1),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  NULLIFY (rho_ao(1)%matrix)
+  IF (hstruct) THEN
+     CALL replicate_matrix_structure(h(1)%matrix,rho_ao(1)%matrix,&
+          "RHO%RHO_AO DENSITY MATRIX (REDUNDANT)")
+  ELSE
+     CALL replicate_matrix_structure(s(1)%matrix,rho_ao(1)%matrix,&
+          "RHO%RHO_AO DENSITY MATRIX")
+  END IF
+  ! rho_r/rho_g
+  CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_r(1),REALDATA3D)
+  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_g(1),COMPLEXDATA1D)
+  rho_r(1)%pw%in_space = REALSPACE
+  rho_g(1)%pw%in_space = RECIPROCALSPACE
+  ! rho
+  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_r_ptr=rho_r,&
+       rho_g_ptr=rho_g,rebuild_each=rebuild_each,error=error)
+  
+  ! sets result to the newly created rho
+  IF (PRESENT(rho)) THEN
+     rho => new_rho
+  ELSE
+     CALL set_qs_env(qs_env,rho=new_rho)
+     CALL qs_rho_release(new_rho,error=error)
+  END IF
+END SUBROUTINE qs_env_rebuild_rho
+!***************************************************************************
+
+
+!!****f* qs_environment_methods/qs_env_update_rho_core [1.0] *
+!!
+!!   NAME
+!!     qs_env_update_rho_core
+!!
+!!   FUNCTION
+!!     Updates rho_core (the grid with the core charge)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - qs_env: the environement whose rho core has to be updated
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_update_rho_core(qs_env,error)
+  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_rho_core',&
+        routineP=moduleN//':'//routineN
+  TYPE(pw_env_type), POINTER :: pw_env
+  TYPE(coeff_type), POINTER  :: rho_core
+  TYPE(qs_charges_type), POINTER :: qs_charges
+  failure=.FALSE.
+
+  CALL get_qs_env(qs_env, pw_env=pw_env, rho_core=rho_core,&
+       qs_charges=qs_charges,error=error)
+  CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(rho_core),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(qs_charges),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL calculate_rho_core(rho_core,pw_env%cube_info(1),&
+          pw_env%l_info,&
+          qs_charges%total_rho_core_rspace,qs_env,error)
+  END IF
+END SUBROUTINE qs_env_update_rho_core
 !***************************************************************************
 
 END MODULE qs_environment_methods
