@@ -2106,6 +2106,7 @@ CONTAINS
          IF (globenv%print%molecular_states)THEN
            qs_loc_env%molecular_states = .TRUE.
          END IF
+         qs_loc_env%localization_method = globenv % print % localization_method
        ENDIF
 
 ! by default we do it for the eigenstates

@@ -32,6 +32,7 @@ MODULE global_types
 
   PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
   PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
+  PUBLIC :: WANNIER_JACOBI, WANNIER_CRAZY
 
 ! *** Public data types
 
@@ -53,6 +54,8 @@ MODULE global_types
   INTEGER, PARAMETER :: BLACS_GRID_SQUARE=1, &
                         BLACS_GRID_ROW=2, &
                         BLACS_GRID_COL=3
+
+  INTEGER, PARAMETER :: WANNIER_JACOBI=1, WANNIER_CRAZY=2
 
 !!*****
 !!****s* global_types/print_key_type [1.0] *
@@ -135,6 +138,7 @@ MODULE global_types
     LOGICAL :: timecumul
     INTEGER    nlumos,nhomos
     LOGICAL :: localization
+    INTEGER :: localization_method
   END TYPE print_key_type
 
 !!*****
@@ -273,6 +277,7 @@ CONTAINS
     print_key%nhomos = 4
     print_key%timecumul = key_value(level,(/f,f,f/))
     print_key%localization = key_value(level,(/f,f,f/))
+    print_key%localization_method = WANNIER_CRAZY
     print_key%mulliken_analysis = key_value(level,(/f,t,t/))
     print_key%molecular_states = key_value(level,(/f,f,f/))
 

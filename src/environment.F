@@ -36,7 +36,9 @@ MODULE environment
                                              init_print_keys, &
                                              BLACS_GRID_SQUARE, &
                                              BLACS_GRID_ROW, &
-                                             BLACS_GRID_COL
+                                             BLACS_GRID_COL, &
+                                             WANNIER_JACOBI, &
+                                             WANNIER_CRAZY
   USE kinds,                           ONLY: print_kind_info,&
                                              wp => dp
   USE machine,                         ONLY: m_datum,&
@@ -506,6 +508,17 @@ CONTAINS
             IF (globenv%print%nhomos <= 0) globenv%print%nhomos = 4
           CASE ("LOCALIZATION")
             globenv%print%localization = print_request
+            IF (test_object() == "STR") THEN
+               CALL read_object(keyword,lower_to_upper=.TRUE.)
+               SELECT CASE(TRIM(keyword))
+               CASE("JACOBI")
+                  globenv%print%localization_method = WANNIER_JACOBI
+               CASE("CRAZY")
+                  globenv%print%localization_method = WANNIER_CRAZY
+               CASE DEFAULT
+                  CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD "//keyword)
+               END SELECT
+            ENDIF
           CASE ("MOLECULAR_STATES")
             globenv%print%molecular_states = print_request
           CASE ("TIMECUMUL")

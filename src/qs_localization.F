@@ -46,6 +46,7 @@ MODULE qs_localization
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: WANNIER_JACOBI, WANNIER_CRAZY
   USE kinds,                           ONLY: wp => dp
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -63,7 +64,9 @@ MODULE qs_localization
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-  USE qs_localization_methods,         ONLY: jacobi_rotations, initialize_weights
+  USE qs_localization_methods,         ONLY: jacobi_rotations, &
+                                             crazy_rotations, &
+                                             initialize_weights
   USE simulation_cell,                 ONLY: cell_type, pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
@@ -88,6 +91,7 @@ MODULE qs_localization
 ! *** Localization Data Type ***
   TYPE qs_loc_env_type
        INTEGER :: operator_type
+       INTEGER :: localization_method
        LOGICAL :: localization
        LOGICAL :: molecular_states
        INTEGER :: is_initialized
@@ -320,7 +324,14 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule, vectors, ionode, iuni
   ENDDO
 
   IF ( qs_loc_env % localization ) THEN
-       CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+       SELECT CASE (qs_loc_env % localization_method) 
+       CASE ( WANNIER_JACOBI )
+          CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+       CASE ( WANNIER_CRAZY )
+          CALL crazy_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+       CASE DEFAULT
+          CALL stop_program("qs_localization","unknown localization method")
+       END SELECT
        IF (ionode) write(6,'(A,I6,A)') " Localize orbitals converged in ",sweeps," sweeps"
   ENDIF
 
