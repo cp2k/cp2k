@@ -2427,7 +2427,7 @@ END SUBROUTINE pw_nn_compose_r
              DO j=coarse_bo(1,2),coarse_bo(2,2)
                 DO ij=-3,3
                    fj=2*j+ij+f_shift(2)
-                   IF (fj<=2*coarse_bo(1,2)+1.OR.fj>=2*coarse_bo(2,2)-1) THEN
+                   IF (fj<=2*coarse_bo(1,2)+1+f_shift(2).OR.fj>=2*coarse_bo(2,2)-1+f_shift(2)) THEN
                       IF (fj<2*coarse_bo(1,2)+f_shift(2).OR.fj>2*coarse_bo(2,2)+f_shift(2)) CYCLE
                       IF (fj==2*coarse_bo(1,2)+f_shift(2).OR.fj==2*coarse_bo(2,2)+f_shift(2)) THEN
                          IF (ij/=0) CYCLE
