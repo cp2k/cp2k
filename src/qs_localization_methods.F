@@ -119,7 +119,7 @@ CONTAINS
     ENDDO
 
     CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
-    tolerance = 1e10_dp
+    tolerance = 1.0e10_dp
     sweeps = 0
 ! do jacobi sweeps until converged
     DO WHILE ( tolerance >= 1.0e-4_dp ) ! should be already machine precision minimization
@@ -169,7 +169,7 @@ CONTAINS
     INTEGER, DIMENSION(9) :: desc
 #endif
 
-    st_cmplx = CMPLX ( st, 0._dp, dp )
+    st_cmplx = CMPLX ( st, 0.0_dp, dp )
     CALL cp_cfm_get_info ( zij ( 1 ) % matrix, nrow_global = nstate, error = error )
     DO  idim = 1, 3
 #if defined(__SCALAPACK)
@@ -202,7 +202,7 @@ CONTAINS
     INTEGER, DIMENSION(9) :: desc
 #endif
 
-    st_cmplx = CMPLX ( st, 0._dp, dp )
+    st_cmplx = CMPLX ( st, 0.0_dp, dp )
     CALL cp_cfm_get_info (  rmat, nrow_global = nstate, error = error )
 #if defined(__SCALAPACK)
     desc ( : ) = rmat % matrix_struct % descriptor(:)
@@ -222,8 +222,8 @@ CONTAINS
     COMPLEX ( KIND = dp ) :: z11, z12, z22
     REAL ( KIND = dp ) :: a12, b12, ratio, d2
     INTEGER :: idim
-    a12 = 0._dp
-    b12 = 0._dp
+    a12 = 0.0_dp
+    b12 = 0.0_dp
     DO idim = 1, 3
       z11 = mii(idim) 
       z22 = mjj(idim) 
@@ -232,17 +232,17 @@ CONTAINS
       b12 = b12 + weights ( idim ) * (  z12 * CONJG ( z12 ) -  &
             0.25_dp * ( z11 - z22 ) * ( CONJG ( z11 ) - CONJG ( z22 ) ) ) 
     END DO
-    IF ( DABS ( b12 ) > 1.e-10_dp ) THEN
+    IF ( ABS ( b12 ) > 1.e-10_dp ) THEN
       ratio = -a12/b12
       theta = 0.25_dp * DATAN ( ratio )
-    ELSEIF ( DABS ( b12 ) < 1.e-10_dp ) THEN
+    ELSEIF ( ABS ( b12 ) < 1.e-10_dp ) THEN
       b12 = 0.0_dp
       theta = 0.0_dp
     ELSE
-      theta = .25_dp * pi
+      theta = 0.25_dp * pi
     ENDIF
 ! Check second derivative info
-    d2 = a12 * DSIN ( 4._dp * theta ) - b12 * DCOS ( 4._dp * theta )
+    d2 = a12 * SIN ( 4._dp * theta ) - b12 * COS ( 4._dp * theta )
     IF ( d2 <=  0._dp ) THEN ! go to the maximum, not the minimum
        IF (theta > 0.0_dp) THEN ! make theta as small as possible
         theta = theta - 0.25_dp * pi
@@ -493,8 +493,8 @@ CONTAINS
             ENDDO
             IF (row_indices(irow).NE.col_indices(icol)) THEN
               CALL get_angle ( mii, mjj, mij, weights, theta )
-              IF (theta.gt.0.2)  theta=0.2
-              IF (theta.lt.-0.2) theta=-0.2
+              IF (theta.gt.0.2_dp)  theta=0.2_dp
+              IF (theta.lt.-0.2_dp) theta=-0.2_dp
               cmat_A % local_data(irow,icol) = -CMPLX(0.0_dp, theta, dp )
             ELSE
               cmat_A % local_data(irow,icol) = czero
@@ -527,7 +527,7 @@ CONTAINS
       IF (cmat_A%matrix_struct%para_env%mepos .EQ. 0 ) THEN 
           WRITE(6,'(I4,1X,G20.15,E12.4,E12.4)') iterations,value,tolerance,maxeval
       ENDIF
-      IF (tolerance .LT. 1.0E-4 .OR. iterations.gt.200) EXIT
+      IF (tolerance .LT. 1.0E-4_dp .OR. iterations.gt.200) EXIT
     ENDDO
 
     CALL cp_cfm_release(cmat_A)
@@ -705,7 +705,7 @@ CONTAINS
           DO irow=1,nrow_local
              ll=(0.0_dp,-1.0_dp)*evals(row_indices(irow))
              lk=(0.0_dp,-1.0_dp)*evals(col_indices(icol))
-             IF (ABS(ll-lk).lt.0.5) THEN ! use a series expansion to avoid loss of precision
+             IF (ABS(ll-lk).lt.0.5_dp) THEN ! use a series expansion to avoid loss of precision
                 tmp=1.0_dp
                 cmat_B%local_data(irow,icol)=0.0
                 DO i=1,16
@@ -801,7 +801,7 @@ CONTAINS
                  ! we take a guard against too large steps
                  pos(3)=MIN(npos,MAXVAL(pos(1:2))*4.0_dp)
               ELSE  ! just take an extended step
-                 pos(3)=MAXVAL(pos(1:2))*2.0
+                 pos(3)=MAXVAL(pos(1:2))*2.0_dp
               ENDIF
            END SELECT 
          CASE(2) ! 3 point line search
@@ -809,13 +809,13 @@ CONTAINS
               CASE(1)
                 new_direction=.FALSE.
                 pos(1)=0.0_dp
-                pos(2)=ds_min*0.8
+                pos(2)=ds_min*0.8_dp
               CASE(2)
                 new_direction=.FALSE.
                 IF (energy(2).gt.energy(1)) THEN
-                   pos(3)=ds_min*0.7
+                   pos(3)=ds_min*0.7_dp
                 ELSE
-                   pos(3)=ds_min*1.4
+                   pos(3)=ds_min*1.4_dp
                 ENDIF
               CASE(3)
                 new_direction=.TRUE.
@@ -837,10 +837,10 @@ CONTAINS
                       (npos-xc)*(npos-xa)*fb/((xb-xc)*(xb-xa))
                 IF (val.lt.fa .AND. val.le.fb .AND. val.le.fc) THEN ! OK, we go to a minimum
                     ! we take a guard against too large steps
-                    pos(4)=MAX(MAXVAL(pos(1:3))*0.01, &
+                    pos(4)=MAX(MAXVAL(pos(1:3))*0.01_dp, &
                                                  MIN(npos,MAXVAL(pos(1:3))*4.0_dp))
                 ELSE  ! just take an extended step
-                    pos(4)=MAXVAL(pos(1:3))*2.0
+                    pos(4)=MAXVAL(pos(1:3))*2.0_dp
                 ENDIF
               END SELECT
          CASE(3) ! golden section hunt
@@ -883,7 +883,7 @@ CONTAINS
                  ELSE
                     pos(line_search_count+1) = pos(lsl)+gold_sec*(pos(lsm)-pos(lsl))
                  ENDIF
-                 IF ((pos(lsr)-pos(lsl)) .LT. 1.0E-3*pos(lsr)) THEN
+                 IF ((pos(lsr)-pos(lsl)) .LT. 1.0E-3_dp*pos(lsr)) THEN
                     new_direction=.TRUE.
                  ENDIF
               ENDIF ! lsr .eq. 0

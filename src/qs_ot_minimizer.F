@@ -312,7 +312,7 @@ SUBROUTINE do_line_search_3pnt(qs_ot_env)
                (pos-xc)*(pos-xa)*fb/((xb-xc)*(xb-xa))
          if (val.lt.fa .and. val.le.fb .and. val.le.fc) then ! OK, we go to a minimum
              ! we take a guard against too large steps
-             qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:3))*0.01, &
+             qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:3))*0.01_dp, &
                                                  MIN(pos,MAXVAL(qs_ot_env(1)%OT_pos(1:3))*4.0_dp))
          else  ! just take an extended step
              qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:3))*2.0
@@ -375,10 +375,10 @@ SUBROUTINE do_line_search_2pnt(qs_ot_env)
          if (val.lt.qs_ot_env(1)%ot_energy(1) .and. val.le.qs_ot_env(1)%ot_energy(2)) then 
              ! we go to a minimum, but ...
              ! we take a guard against too large steps
-             qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:2))*0.01, &
+             qs_ot_env(1)%OT_pos(count+1)=MAX(MAXVAL(qs_ot_env(1)%OT_pos(1:2))*0.01_dp, &
                                                  MIN(pos,MAXVAL(qs_ot_env(1)%OT_pos(1:2))*4.0_dp))
          else  ! just take an extended step
-             qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0
+             qs_ot_env(1)%OT_pos(count+1)=MAXVAL(qs_ot_env(1)%OT_pos(1:2))*2.0_dp
          endif
    CASE DEFAULT
       CALL stop_program("line_search","NYI")
