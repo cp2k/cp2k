@@ -426,7 +426,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
         CASE DEFAULT
            CALL p_error()
            CALL stop_parser( 'read_ewald_section','unknown option'//trim(string))
-        CASE ( 'UNITS')
+        CASE ( 'UNITS', 'UNIT')
            ilen = 20
            CALL get_next( ewald_env % unit_type,ILEN)
            CALL uppercase( ewald_env % unit_type )
@@ -439,6 +439,9 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv )
               CALL p_error()
               CALL stop_parser( 'read_ewald_section', &
                    'unknown option for Ewald type' )
+           CASE( 'NONE')
+              ewald_env % ewald_type = 'none'
+              CALL uppercase( ewald_env % ewald_type )
            CASE( 'EWALD')
               ewald_env % ewald_type = 'ewald'
               CALL uppercase( ewald_env % ewald_type )

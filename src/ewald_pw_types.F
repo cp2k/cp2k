@@ -380,6 +380,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        CALL pw_pool_retain ( ewald_pw % pw_big_pool )
        CALL pw_pool_release ( pw_pool )
        CALL pw_grid_release ( pw_big_grid, error )
+    CASE ( "NONE" )
     CASE DEFAULT
        CALL stop_program ( "ewald_pw_init", "option not implemented" )
     END SELECT
