@@ -38,7 +38,7 @@ module pao_types_tests
   use pao_types, only: pao_env_type, pao_glob_angles_type
 !  use pao_proj_methods
   use pao_env_methods, only: pao_env_init
-  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_create, cp_retain, &
+  use cp_block_matrix, only: cp_block_matrix_type, cp_create, cp_retain, &
        cp_dealloc, cp_release
   use pao_l_angles_methods, only: pao_local_angles_type, cp_init, cp_get
 !  use pao_glob_angles_methods
@@ -92,7 +92,7 @@ contains
     type(pao_env_type) :: pao_env
     type(pao_glob_angles_type) :: glob_angles
     type(pao_local_angles_type) :: local_angles
-    type(cp_sparse_matrix_type) :: pao_t
+    type(cp_block_matrix_type) :: pao_t
     integer, parameter :: atomNr=3
     integer, dimension(atomNr) :: minB, fullB
     integer :: i
@@ -180,7 +180,7 @@ contains
     character(len=*), parameter :: routineP='pao_types_tests:cp_init_test_pao_env'
     integer, dimension(:), allocatable :: minB, fullB
     integer :: n_atom,i, stat
-    type(cp_sparse_matrix_type), pointer :: u
+    type(cp_block_matrix_type), pointer :: u
     nullify(u)
     failure=.false.
 
