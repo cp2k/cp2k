@@ -44,16 +44,17 @@ MODULE qs_tddfpt_module
   USE qs_arpack_tddfpt,                ONLY: op_tddfpt_type,&
                                              setup_op_tddfpt
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_p_types,                      ONLY: qs_p_env_type, p_env_release
   USE qs_tddfpt_types,                 ONLY: real_2d_array_p_type,&
                                              tddfpt_env_allocate,&
                                              tddfpt_env_deallocate,&
-                                             tddfpt_env_type
+                                             tddfpt_env_type, &
+                                             tddfpt_control_type
   USE qs_tddfpt_utils
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory, stop_program
   IMPLICIT NONE
 
-  INTEGER, PARAMETER :: n_ev = 1 ! the number of eigenvalues to calculate
+  INTEGER, PARAMETER :: DEFAULT_N_EV = 1 ! default number of eigenvalues to calculate
   LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
 
   PRIVATE
@@ -97,15 +98,20 @@ CONTAINS
 
     ! arguments
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
+    TYPE(global_environment_type), INTENT(in)        :: glob_env
 
     ! locals
-    TYPE(qs_p_env_type), POINTER           :: p_env
-    TYPE(tddfpt_env_type)                  :: t_env
-    INTEGER                                :: i, n_spins, spin, stat, ev
-    TYPE(op_tddfpt_type)                   :: op
-    REAL(DBL), DIMENSION(:,:), POINTER     :: val_x, val_y
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v
+    TYPE(qs_p_env_type), POINTER           :: p_env         ! perturbation environment
+    TYPE(tddfpt_env_type)                  :: t_env         ! tddfpt environment
+    TYPE(op_tddfpt_type)                   :: op            ! operator for tddfpt calculation
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v ! temporary storage
+
+    INTEGER                                :: stat
+    INTEGER                                :: n_ev, n_spins ! cache values
+    INTEGER                                :: ev, spin      ! loop indices
+    LOGICAL                                :: evstat        ! status of the eigenvalues
+    REAL(DBL), DIMENSION(:,:), POINTER     :: val_x, val_y  ! 
+
     CHARACTER(len=*), PARAMETER            :: routineN = 'tddfpt_calculation', &
                                               routineP = moduleN//'/'//routineN
 
@@ -114,12 +120,14 @@ CONTAINS
 
     CALL tddfpt_write_banner(glob_env)
 
-    CALL tddfpt_init(p_env, t_env, qs_env, n_ev, glob_env)
+    CALL tddfpt_init(p_env, t_env, qs_env, DEFAULT_N_EV, glob_env)
 
-    CALL create_v_matrix(v, p_env, qs_env, n_ev, glob_env)
-
-    n_spins = qs_env%dft_control%nspins
+    ! cache values
+    n_ev    = t_env%control%n_ev
+    n_spins = t_env%control%n_spins
     
+    CALL create_v_matrix(v, t_env%control, p_env, qs_env, glob_env)
+
     CALL setup_op_tddfpt(op, p_env, qs_env, 'x', 1, glob_env)
 
     self_consistency: DO
@@ -150,26 +158,9 @@ CONTAINS
           DO ev=1, n_ev
              CALL copy_fm_col_to_fm(v(spin)%matrix, ev, t_env%y(ev)%spins(spin)%matrix)
           END DO
+
+          evstat = check_eigenvalues(t_env, spin, glob_env, print_values_opt=.TRUE.)
           
-          IF (DEBUG_THIS_MODULE) THEN
-          ! compare the eigenvalues
-          DO i=1, SIZE(val_x, 1)
-             IF (ABS(val_x(i,2)) < 1.0E-2_dbl) THEN
-                ! real number
-                IF (ABS(val_x(i,1)) > 1.0E-12_dbl) THEN
-                   IF (ABS((val_x(i,1)-val_y(i,1))/val_x(i,1)) > 0.05_dbl) THEN
-                      IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A,I4,ES11.4,2X,ES11.4)') &
-                           routineP//": Eigenvalue ", i, ": ", val_x(i,1), val_y(i,1)
-                   END IF
-                END IF
-             ELSE
-                ! complex number!
-                IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A,I4,A,ES11.4,A,ES11.4,A)') &
-                     routineP//": Eigenvalue ", i, " is complex: ", &
-                     val_x(i,1), " + ", val_x(i,2),"i"
-             END IF
-          END DO
-          END IF ! DEBUG_THIS_MODULE
        END DO
 
        !---------------------------!
@@ -188,39 +179,42 @@ CONTAINS
     !-------------------!
     CALL report_tddfpt_results(t_env, glob_env)
 
+    !-------------------------!
+    ! release some structures !
+    !-------------------------!
     DO spin=1, n_spins
        CALL cp_fm_release(v(spin)%matrix)
     END DO
     DEALLOCATE(v, stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v')
-
-    CALL cleanup(t_env, p_env, qs_env, glob_env)
+    CALL cleanup(t_env, p_env, glob_env)
 
   END SUBROUTINE tddfpt_calculation
 
 ! *****************************************************************************
 
-  SUBROUTINE create_v_matrix(v, p_env, qs_env, n_ev, glob_env)
+  SUBROUTINE create_v_matrix(v, t_control, p_env, qs_env, glob_env)
     IMPLICIT NONE
 
-    ! arguments
+    ! ARGUMENTS
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v
+    TYPE(tddfpt_control_type), POINTER                 :: t_control
     TYPE(qs_p_env_type), INTENT(IN)                    :: p_env
     TYPE(qs_environment_type), INTENT(in), TARGET      :: qs_env
-    INTEGER, INTENT(IN)                                :: n_ev
     TYPE(global_environment_type), INTENT(IN)          :: glob_env
 
-    ! locals
+    ! LOCALS
     TYPE(cp_fm_struct_type), POINTER :: v_struct
-    INTEGER                                :: v_rows, v_cols
-    INTEGER                                :: spin, n_spins, stat
-    CHARACTER(LEN=*), PARAMETER            :: routineN='create_v_matrix', &
-                                              routineP=moduleN//'/'//routineN
+    INTEGER                          :: v_rows, v_cols
+    INTEGER                          :: n_ev, n_spins
+    INTEGER                          :: spin, stat
+    CHARACTER(LEN=*), PARAMETER      :: routineN='create_v_matrix', &
+                                        routineP=moduleN//'/'//routineN
     
-    ! code
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": entered"
+    ! -------------------------------------------------------------------
 
-    n_spins = qs_env%dft_control%nspins
+    n_ev = t_control%n_ev
+    n_spins = t_control%n_spins
 
     ALLOCATE(v(n_spins), stat=stat)
     IF (stat/=0) CALL stop_memory(routineP, 'v', n_spins)
@@ -238,19 +232,16 @@ CONTAINS
     ! Do not release v_struct !!!! It'll be released automatically
     ! by the call to cp_fm_release of the v matrix
 
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
-
   END SUBROUTINE create_v_matrix
 
 ! *****************************************************************************
 
-  SUBROUTINE cleanup(t_env, p_env,qs_env, glob_env)
+  SUBROUTINE cleanup(t_env, p_env, glob_env)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout)        :: p_env
-    TYPE(qs_environment_type), INTENT(inout),TARGET :: qs_env
+    TYPE(qs_p_env_type), POINTER              :: p_env
     TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
     TYPE(global_environment_type), INTENT(IN) :: glob_env
 
@@ -258,17 +249,91 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "cleanup", &
                                    routineP = moduleN//'/'//routineN
 
-    ! code
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": entered"
+    ! -------------------------------------------------------------------
 
     CALL tddfpt_env_deallocate(t_env, glob_env)
-
-    IF (glob_env%ionode) WRITE (glob_env%scr,'(1X,A)') routineP//': free p_env also!'
+    CALL p_env_release(p_env)
     
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
-
   END SUBROUTINE cleanup
 
+! *****************************************************************************
+
+  FUNCTION check_eigenvalues(t_env, spin, glob_env, print_values_opt) RESULT (are_ok)
+
+    IMPLICIT NONE
+
+    ! FUNCTION DECLARATION
+    LOGICAL                           :: are_ok
+
+    ! ARGUMENTS
+    TYPE(tddfpt_env_type), INTENT(IN)         :: t_env
+    INTEGER, INTENT(IN)                       :: spin
+    TYPE(global_environment_type), INTENT(IN) :: glob_env
+    LOGICAL, INTENT(IN), OPTIONAL             :: print_values_opt
+
+    ! LOCALS
+    INTEGER                            :: ev
+    LOGICAL                            :: print_values
+    REAL(KIND=dbl)                     :: relative_difference
+    REAL(DBL), DIMENSION(:,:), POINTER :: val_x, val_y
+                                       
+    CHARACTER(LEN=*), PARAMETER        :: routineN = 'check_eigenvalues', &
+                                          routineP = moduleN//'/'//routineN
+
+    ! -------------------------------------------------------------------
+
+    val_x => t_env%eval_x(spin)%values
+    val_y => t_env%eval_y(spin)%values
+
+    IF (PRESENT(print_values_opt)) THEN
+       print_values = print_values_opt
+    ELSE
+       print_values = .FALSE.
+    END IF
+    are_ok = .TRUE.
+    
+    DO ev=1, t_env%control%n_ev
+       IF (ABS(val_x(ev,2)) < 1.0E-2_dbl) THEN
+
+          !-------------!
+          ! REAL NUMBER !
+          !-------------!
+          IF (ABS(val_x(ev,1)) > 1.0E-12_dbl) THEN
+             relative_difference = ABS((val_x(ev,1)-val_y(ev,1))/val_x(ev,1))
+          ELSEIF (ABS(val_y(ev,1)) > 1.0E-12_dbl) THEN
+             relative_difference = ABS((val_x(ev,1)-val_y(ev,1))/val_y(ev,1))
+          ELSE
+             relative_difference = 0._dbl ! both are smaller than 1.0E-12 !!!
+          END IF
+
+          IF (relative_difference > 0.05_dbl) THEN
+             are_ok = .FALSE.
+             IF (print_values) THEN
+                IF (glob_env%ionode) &
+                     WRITE (glob_env%scr, '(1X,A,I4,A,ES11.4,2X,ES11.4)') &
+                     "eigenvalues differ ", ev, ": ", val_x(ev,1), val_y(ev,1)
+             END IF
+          END IF
+
+       ELSE
+
+          !----------------!
+          ! COMPLEX NUMBER !
+          !----------------!
+          are_ok = .FALSE.
+          IF (print_values) THEN
+             IF (glob_env%ionode) &
+                  WRITE (glob_env%scr, '(1X,A,I4,A,ES11.4,A,ES11.4,A)') &
+                  "complex eigenvalue ", ev, " is complex: ", &
+                  val_x(ev,1), " + ", val_x(ev,2),"i"
+          END IF
+
+       END IF
+
+    END DO
+
+  END FUNCTION check_eigenvalues
+  
 ! *****************************************************************************
 
 END MODULE qs_tddfpt_module

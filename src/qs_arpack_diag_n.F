@@ -265,7 +265,7 @@ CONTAINS
     IF (n_ev < 1) &
          CALL stop_program(routineP, "n_ev must be at least 1", glob_env)
 
-    IF (SIZE(eval,1) < n_ev+1 .OR. SIZE(eval,2) < n_ev+1) &
+    IF (SIZE(eval,1) < n_ev+1 .OR. SIZE(eval,2) < 2) &
          CALL stop_program(routineP, "array eval too small", glob_env)
 
     IF (n_ev > nrows - 2) &
