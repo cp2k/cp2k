@@ -119,6 +119,7 @@ MODULE qs_scf
                                              init_preconditioner,&
                                              make_preconditioner
   USE pw_env_types,                    ONLY: pw_env_type
+  USE physcon,                         ONLY: kcalmol,evolt
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -549,7 +550,12 @@ CONTAINS
           END IF
 
           IF (logger%print_keys%kohn_sham_matrix.AND.logger%print_keys%each_scf_step) THEN
-             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
+             IF (dft_control%qs_control%semi_empirical) THEN
+               CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
+                    scale=evolt)
+             ELSE
+               CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
+             END IF
           END IF
 
        ENDDO
@@ -785,10 +791,11 @@ CONTAINS
        END IF
        IF (dft_control%qs_control%semi_empirical) THEN
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-            "Core-core energy:                              ",energy%core_overlap,&
-            "Atomic reference energy:                       ",energy%core_self,&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Two-electron energy:                           ",energy%hartree
+            "Core-core repulsion energy [eV]:               ",energy%core_overlap*evolt,&
+            "Core Hamiltonian energy [eV]:                  ",energy%core*evolt,&
+            "Two-electron integral energy [eV]:             ",energy%hartree*evolt,&
+            "Electronic energy [eV]:                        ",&
+                                              (energy%core+0.5_dp*energy%hartree)*evolt
        ELSE
          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Overlap energy of the core charge distribution:",energy%core_overlap,&
@@ -811,9 +818,18 @@ CONTAINS
        IF (dft_control%qs_control%mulliken_restraint) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                 "Mulliken restraint energy: ",energy%mulliken
-       ENDIF
-       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+       END IF
+       IF (dft_control%qs_control%semi_empirical) THEN
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Total energy [eV]:                             ",energy%total*evolt
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Atomic reference energy [eV]:                  ",energy%core_self*evolt,&
+            "Heat of formation [kcal/mol]:                  ",&
+            (energy%total+energy%core_self)*kcalmol
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Total energy:                                  ",energy%total
+       END IF
        CALL m_flush(output_unit)
     END IF
 

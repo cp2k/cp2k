@@ -83,12 +83,12 @@ CONTAINS
       LOGICAL     :: si,sj
       INTEGER     :: ki,nt,ig
 
-      x(:)=rijv(:)
+      x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+      e1b(:)=0._dp
+      e2a(:)=0._dp
       IF (rij < 0.00002_dp) THEN
          ! SMALL RIJ CASE
-         e1b(:)=0._dp
-         e2a(:)=0._dp
          w(:)=0._dp
          enuc=0._dp
  
@@ -622,26 +622,27 @@ CONTAINS
          nt=sepi%z+sepj%z
          IF(nt == 8 .OR. nt == 9) THEN
             IF(sepi%z == 7.OR.sepi%z == 8) &
-                      scale=scale+(rij-1._dp)*EXP(-alpi*rij)
+                      scale=scale+(rij-1.8897247_dp)*EXP(-alpi*rij)
             IF(sepj%z == 7.OR.sepj%z == 8) &
-                      scale=scale+(rij-1._dp)*EXP(-alpj*rij)
+                      scale=scale+(rij-1.8897247_dp)*EXP(-alpj*rij)
          ENDIF
          zz = REAL(sepi%zeff,dp)*REAL(sepj%zeff,dp)
          enuc = zz*gam
          scale=ABS(scale*enuc)
+         zz=zz/rij
          IF(itype == 2 .OR. itype == 3) THEN
            ! AM1 or PM3 correction to nuclear repulsion
             DO ig=1,SIZE(sepi%fn1)
                IF(ABS(sepi%fn1(ig)) > 0._dp) THEN
                   AX = sepi%fn2(ig)*(rij-sepi%fn3(ig))**2
                   IF(ax <= 25._dp) THEN
-                     scale=scale +zz/rij*sepi%fn1(ig)*EXP(-ax)
+                     scale=scale +zz*sepi%fn1(ig)*EXP(-ax)
                   ENDIF
                ENDIF
                IF(ABS(sepj%fn1(ig)) > 0._dp) THEN
                   ax = sepj%fn2(ig)*(rij-sepj%fn3(ig))**2
                   IF(ax <= 25._dp) THEN
-                     scale=scale +zz/rij*sepj%fn1(ig)*EXP(-ax)
+                     scale=scale +zz*sepj%fn1(ig)*EXP(-ax)
                   ENDIF
                ENDIF
             END DO
@@ -695,9 +696,6 @@ CONTAINS
                         qxxdz,dzqzz,qzzdz,qxxqxx,qxxqyy,qxxqzz,qzzqxx,&
                         qzzqzz,dxqxz,qxzdx,qxzqxz
       REAL ( dp ), DIMENSION ( 72 ) :: arg,sqr
-!deb
-      REAL ( dp )    :: ev
-!deb
 
       ri = 0._dp
       core = 0._dp

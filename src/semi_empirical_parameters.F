@@ -18,7 +18,7 @@
 !!     z                        the CORE charge on each element.
 !!     eheat          kcal/mol  the experimental heat of formation for each element.
 !!     eisol          eV        the calculated electronic energies for each element.
-!!     fn1            none      AM1/PM3 specific parameters
+!!     fn1            A*eV      AM1/PM3 specific parameters
 !!     fn2            A**(-2)   for the core-core repulsion
 !!     fn3            A         interaction.                       
 !!                        
@@ -616,7 +616,7 @@ CONTAINS
     sep%gss = sep%gss/evolt; sep%gsp = sep%gsp/evolt; sep%gpp = sep%gpp/evolt; sep%gp2 = sep%gp2/evolt 
     sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
     sep%hsp = sep%hsp/evolt
-    sep%fn1 = sep%fn1; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
 
   END SUBROUTINE mndo_default_parameter
 
@@ -1062,7 +1062,7 @@ CONTAINS
     sep%gss = sep%gss/evolt; sep%gsp = sep%gsp/evolt; sep%gpp = sep%gpp/evolt; sep%gp2 = sep%gp2/evolt 
     sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
     sep%hsp = sep%hsp/evolt
-    sep%fn1 = sep%fn1; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
 
   END SUBROUTINE am1_default_parameter
 
@@ -1771,7 +1771,7 @@ CONTAINS
     sep%gss = sep%gss/evolt; sep%gsp = sep%gsp/evolt; sep%gpp = sep%gpp/evolt; sep%gp2 = sep%gp2/evolt 
     sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
     sep%hsp = sep%hsp/evolt
-    sep%fn1 = sep%fn1; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
 
   END SUBROUTINE pm3_default_parameter
 

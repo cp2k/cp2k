@@ -97,14 +97,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_se_core_matrix(qs_env,globenv,calculate_forces)
+  SUBROUTINE build_se_core_matrix(qs_env,globenv,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_se_core_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "build_se_core_matrix",&
+      routineP = moduleN//':'//routineN
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
                                POINTER       :: matrix_h,matrix_s
@@ -123,7 +126,7 @@ CONTAINS
     INTEGER                                  :: iab,ilist,nlist,iatom,jatom,&
                                                 inode,nnode,&
                                                 irow,icol,natorb_a,natorb_b
-    LOGICAL                                  :: defined
+    LOGICAL                                  :: defined,failure
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,s_block
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_blocka,h_blockb
     REAL(KIND = dp), DIMENSION(:), POINTER   :: beta_a,beta_b
@@ -184,6 +187,7 @@ CONTAINS
      DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             natom=natom,&
                              se_parameter=se_kind_a)
         CALL get_se_param(se_kind_a,&
                           zeff=za,&
@@ -195,7 +199,7 @@ CONTAINS
 
         IF (.NOT.defined .OR. natorb_a < 1) CYCLE
 
-        econst=econst-eisol+eheat
+        econst=econst-(eisol-eheat)*REAL(natom,dp)
 
         ha(1) = beta_a(0)
         ha(2:4) = beta_a(1)
@@ -291,10 +295,7 @@ CONTAINS
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=h_block)
-                 IF (.NOT.ASSOCIATED(h_block)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                    "A hmatrix block is missing",globenv)
-                 END IF
+                 CPPrecondition(ASSOCIATED(h_block),cp_failure_level,routineP,error,failure)
 
                  ! two-centre one-electron term
                  NULLIFY(s_block)
@@ -302,11 +303,7 @@ CONTAINS
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=s_block)
-                 IF (.NOT.ASSOCIATED(s_block)) THEN
-                   CALL stop_program(routineN,moduleN,__LINE__,&
-                                     "A overlap matrix block is missing",&
-                                     globenv)
-                 END IF
+                 CPPrecondition(ASSOCIATED(s_block),cp_failure_level,routineP,error,failure)
                  IF ( irow == iatom ) THEN
                    DO i=1,SIZE(h_block,1)
                      DO j=1,SIZE(h_block,2)
@@ -338,32 +335,19 @@ CONTAINS
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          block=h_blockb)
-                     IF (.NOT.ASSOCIATED(h_blockb)) THEN
-                       CALL stop_program(routineN,moduleN,__LINE__,&
-                                        "A hmatrix block is missing",globenv)
-                     END IF
+                     CPPrecondition(ASSOCIATED(h_blockb),cp_failure_level,routineP,error,failure)
                      ! contribution to iatom
-                     k=0
-                     DO i=1,SIZE(h_blocka,1)
-                       DO j=1,i-1
-                         k=k+1
-                         h_blocka(j,i)=h_blocka(j,i)+e1b(k)
-                         h_blocka(i,j)=h_blocka(i,j)+e1b(k)
-                       END DO
-                       k=k+1
-                       h_blocka(i,i)=h_blocka(i,i)+e1b(k)
-                     END DO
+                     IF ( SIZE(h_blocka,1) == 1 ) THEN
+                       h_blocka(1,1)=h_blocka(1,1)+e1b(1)
+                     ELSE
+                       CALL expand ( h_blocka, e1b )
+                     END IF
                      ! contribution to jatom
-                     k=0
-                     DO i=1,SIZE(h_blockb,1)
-                       DO j=1,i-1
-                         k=k+1
-                         h_blockb(j,i)=h_blockb(j,i)+e2a(k)
-                         h_blockb(i,j)=h_blockb(i,j)+e2a(k)
-                       END DO
-                       k=k+1
-                       h_blockb(i,i)=h_blockb(i,i)+e2a(k)
-                     END DO
+                     IF ( SIZE(h_blockb,1) == 1 ) THEN
+                       h_blockb(1,1)=h_blockb(1,1)+e2a(1)
+                     ELSE
+                       CALL expand ( h_blockb, e2a )
+                     END IF
 
                  END SELECT
 
@@ -596,6 +580,7 @@ CONTAINS
                                          block_col=jatom,&
                                          block=ksb_block_a)
                      CPPrecondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                   END IF
                    IF ( nspins >= 2 ) THEN
                      CALL get_block_node(matrix=matrix_p(2)%matrix,&
                                          block_row=jatom,&
@@ -667,15 +652,15 @@ CONTAINS
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                  END IF
 
-                 END IF
+                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
-               END DO
+               END DO ! inode => jatom(atom B)
 
-             END DO
+             END DO ! ilist => iatom(atom A)
 
-          END DO
+          END DO ! jkind
 
-       END DO
+       END DO ! ikind
 
        IF (qs_env%qmmm) THEN
        END IF
@@ -687,11 +672,10 @@ CONTAINS
           energy%hartree=energy%hartree+ecoul
        END DO
 
-       energy%mulliken = 0.0_dp
+       energy%mulliken = 0._dp
        energy%exc = 0._dp
 
-       energy%total = energy%core + energy%hartree + energy%exc + &
-            energy%core_overlap + energy%core_self + &
+       energy%total = energy%core + energy%core_overlap + 0.5_dp*energy%hartree + &
             energy%qmmm_el + energy%mulliken
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
@@ -732,29 +716,32 @@ CONTAINS
     END IF
     IF ( n == 4 ) THEN
       fmat(1,1) = fmat(1,1) + 0.5_dp * pmat(1,1)*gss + &
-         (pmat(2,2)+pmat(3,3)+pmat(4,4))*(hsp-0.5_dp*gsp)
-      fmat(2,2) = fmat(2,2) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
-                              0.5_dp * pmat(2,2)*gpp - &
-                              0.5_dp * (pmat(3,3)+pmat(4,4))*gp2
-      fmat(3,3) = fmat(3,3) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
-                              0.5_dp * pmat(3,3)*gpp - &
-                              0.5_dp * (pmat(2,2)+pmat(4,4))*gp2
-      fmat(4,4) = fmat(4,4) + pmat(1,1)*(hsp-0.5_dp*gsp) + &
-                              0.5_dp * pmat(4,4)*gpp - &
-                              0.5_dp * (pmat(2,2)+pmat(3,3))*gp2
+         (pmat(2,2)+pmat(3,3)+pmat(4,4))*(gsp-0.5_dp*hsp)
+      fmat(2,2) = fmat(2,2) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
+                              0.5_dp * pmat(2,2)*gpp + &
+                              (pmat(3,3)+pmat(4,4))*gp2 - &
+                              0.25_dp * (pmat(3,3)+pmat(4,4))*(GPP-GP2)
+      fmat(3,3) = fmat(3,3) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
+                              0.5_dp * pmat(3,3)*gpp + &
+                              (pmat(2,2)+pmat(4,4))*gp2 - &
+                              0.25_dp * (pmat(2,2)+pmat(4,4))*(GPP-GP2)
+      fmat(4,4) = fmat(4,4) + pmat(1,1)*(gsp-0.5_dp*hsp) + &
+                              0.5_dp * pmat(4,4)*gpp + &
+                              (pmat(2,2)+pmat(3,3))*gp2 - &
+                              0.25_dp * (pmat(2,2)+pmat(3,3))*(GPP-GP2)
 
-      fmat(1,2) = fmat(1,2) + 0.5_dp * pmat(1,2)*(3._dp*gsp-hsp)
+      fmat(1,2) = fmat(1,2) + 0.5_dp * pmat(1,2)*(3._dp*hsp-gsp)
       fmat(2,1) = fmat(1,2)
-      fmat(1,3) = fmat(1,3) + 0.5_dp * pmat(1,3)*(3._dp*gsp-hsp)
+      fmat(1,3) = fmat(1,3) + 0.5_dp * pmat(1,3)*(3._dp*hsp-gsp)
       fmat(3,1) = fmat(1,3)
-      fmat(1,4) = fmat(1,4) + 0.5_dp * pmat(1,4)*(3._dp*gsp-hsp)
+      fmat(1,4) = fmat(1,4) + 0.5_dp * pmat(1,4)*(3._dp*hsp-gsp)
       fmat(4,1) = fmat(1,4)
 
-      fmat(2,3) = fmat(2,3) + 1.5_dp * pmat(2,3)*gp2
+      fmat(2,3) = fmat(2,3) - 0.5_dp * pmat(2,3)*gp2
       fmat(3,2) = fmat(2,3)
-      fmat(2,4) = fmat(2,4) + 1.5_dp * pmat(2,4)*gp2
+      fmat(2,4) = fmat(2,4) - 0.5_dp * pmat(2,4)*gp2
       fmat(4,2) = fmat(2,4)
-      fmat(3,4) = fmat(3,4) + 1.5_dp * pmat(3,4)*gp2
+      fmat(3,4) = fmat(3,4) - 0.5_dp * pmat(3,4)*gp2
       fmat(4,3) = fmat(3,4)
     END IF
 
@@ -862,7 +849,7 @@ CONTAINS
       ppa(1:10) = pa(1,1)*wint(1:10)
       CALL expand( fb, ppa )
       fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
-        wint(2)*pab(1,4) + wint(3)*pab(1,2) + wint(7)*pab(1,3) )
+        wint(2)*pab(1,4) + wint(4)*pab(1,2) + wint(7)*pab(1,3) )
       fab(1,2) = fab(1,2) - 0.5_dp*( wint(4)*pab(1,1) +&
         wint(5)*pab(1,4) + wint(6)*pab(1,2) + wint(9)*pab(1,3) )
       fab(1,3) = fab(1,3) - 0.5_dp*( wint(7)*pab(1,1) +&
@@ -875,7 +862,7 @@ CONTAINS
       ppb(1:10) = pb(1,1)*wint(1:10)
       CALL expand( fa, ppb )
       fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
-        wint(2)*pab(4,1) + wint(3)*pab(2,1) + wint(7)*pab(3,1) )
+        wint(2)*pab(4,1) + wint(4)*pab(2,1) + wint(7)*pab(3,1) )
       fab(2,1) = fab(2,1) - 0.5_dp*( wint(4)*pab(1,1) +&
         wint(5)*pab(4,1) + wint(6)*pab(2,1) + wint(9)*pab(3,1) )
       fab(3,1) = fab(3,1) - 0.5_dp*( wint(7)*pab(1,1) +&
@@ -956,7 +943,7 @@ CONTAINS
     amat(4,4) = amat(4,4) + avec( 3)
     amat(2,1) = amat(2,1) + avec( 4)
     amat(1,2) = amat(1,2) + avec( 4)
-    amat(2,4) = amat(2,3) + avec( 5)
+    amat(2,4) = amat(2,4) + avec( 5)
     amat(4,2) = amat(4,2) + avec( 5)
     amat(2,2) = amat(2,2) + avec( 6)
     amat(3,1) = amat(3,1) + avec( 7)
