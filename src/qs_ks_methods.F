@@ -264,7 +264,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
 !         pw_env,rho_core,cell, logger, v_rspace_new, v_tau_rspace)
-         pw_env,rho_core,cell_REF, logger, v_rspace_new, v_tau_rspace)
+         pw_env,rho_core,cell_ref, logger, v_rspace_new, v_tau_rspace)
 
     !   -----------------------------------------------------------------------
 
@@ -287,7 +287,7 @@ CONTAINS
          cell_ref=cell_ref,&
          rho_core=rho_core,&
          qs_charges=qs_charges)
-
+!!!!!!! notice that cell_ref is used here instead of cell...this is ugly, so we're looking at changing it
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(s),cp_failure_level,routineP,error,failure)

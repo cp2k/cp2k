@@ -211,6 +211,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell_new
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -227,7 +228,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rs_pools, para_env)
+          pw_pools,rs_pools, para_env,cell_new)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
@@ -261,7 +262,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL get_qs_env(qs_env=qs_env,&
           dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
           cell_ref=cell, para_env=para_env)
-     
+!!!!!!!! notice cell_ref=cell in the above line...this is something that is looking to be replaced     
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
      ngrid_level = SIZE(cutoff)
@@ -453,17 +454,17 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
   END IF
 
-! If reference cell is present, then use pw_grid_change to keep bounds constant
+! If reference cell is present, then use pw_grid_change to keep bounds constant...MJM is looking at a way to phase this out, because it doesn't seem like everything gets initialized properly
   CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
   IF ( use_ref_cell ) THEN
-      CALL get_qs_env ( qs_env, cell = cell )
+      CALL get_qs_env ( qs_env, cell = cell_new )
 !      CALL get_qs_env ( qs_env, pw_env = pw_env, cell = cell )
 !      CALL pw_env_get ( pw_env, pw_pools = pw_pools ) 
       DO igrid_level = 1, SIZE ( pw_pools )
-        CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
+        CALL pw_grid_change ( cell_new, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
-      CALL pw_green_fn_destroy(cell%green)
-      CALL pw_green_fn_init(cell%green,&
+      CALL pw_green_fn_destroy(cell_new%green)
+      CALL pw_green_fn_init(cell_new%green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
   ENDIF
   CALL timestop(0.0_dp,handle)

@@ -206,7 +206,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_hartree, &
                                                 total_rho_gspace
-    TYPE(cell_type), POINTER                 :: cell
+!    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell_ref
     TYPE(coeff_type)                         :: rho1_tot_gspace, &
                                                 v_hartree_gspace, &
                                                 v_hartree_rspace
@@ -223,7 +224,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
          pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         cell)
+!         cell)
+         cell_ref)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
@@ -238,9 +240,10 @@ CONTAINS
        CALL get_qs_env(qs_env=qs_env,&
             dft_control=dft_control,&
             pw_env=pw_env,&
-            cell=cell,&
+!            cell=cell,&
+            cell_ref=cell_ref,&
             error=error)
-
+!!!!!!! notice cell_ref is used here instead of cell...this is a change that works, but is ugly so we're looking at something to change it
        nspins=dft_control%nspins
        CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -300,11 +303,13 @@ CONTAINS
 
        IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
            dft_control%tddfpt_control%restricted_excitations_type == "TRIPLET" )) THEN
-          CALL init_pw_poisson_solver(cell%green,error=error)
+!          CALL init_pw_poisson_solver(cell%green,error=error)
+          CALL init_pw_poisson_solver(cell_ref%green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
                                  v_hartree_gspace)
-          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+!          CALL cleanup_pw_poisson_solver(cell%green,error=error)
+          CALL cleanup_pw_poisson_solver(cell_ref%green,error=error)
           CALL coeff_transform_space(v_hartree_gspace,&
                                      v_hartree_rspace)
        END IF
