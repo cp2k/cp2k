@@ -67,7 +67,7 @@ MODULE integrator
 
   TYPE average_quantities_type
      REAL ( dbl ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dbl ) :: aveal, avebe, avega, avepress, avekincoef
+     REAL ( dbl ) :: aveal, avebe, avega, avepress, avekinc, avetempc
   END TYPE average_quantities_type
 
   CHARACTER ( LEN = 10 ) :: pres_label, e_label, temp_label
@@ -79,9 +79,10 @@ MODULE integrator
   LOGICAL :: ionode
   INTEGER :: int_group
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
-                        ener_file_name, temp_file_name, dump_file_name
-  INTEGER :: crd, vel, ptn, ene, tem, scr
-  INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
+                        ener_file_name, temp_file_name, dump_file_name, &
+                        coef_file_name, epol_file_name
+  INTEGER :: crd, vel, ptn, ene, tem, scr, coe, pol
+  INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen, icoef, iepol
 
   TYPE ( global_environment_type ) :: intenv
 
@@ -281,6 +282,8 @@ SUBROUTINE set_integrator ( globenv, mdio )
   ener_file_name = mdio % ener_file_name
   temp_file_name = mdio % temp_file_name
   dump_file_name = mdio % dump_file_name
+  coef_file_name = mdio % coef_file_name
+  epol_file_name = mdio % epol_file_name
 
   icrd = mdio % icrd
   ivel = mdio % ivel
@@ -288,6 +291,8 @@ SUBROUTINE set_integrator ( globenv, mdio )
   iener = mdio % iener
   itemp = mdio % itemp
   idump = mdio % idump
+  icoef = mdio % icoef
+  iepol = mdio % iepol
   iscreen = mdio % iscreen
 
 END SUBROUTINE set_integrator
@@ -367,11 +372,13 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   TYPE (npt_info_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: npt
 
 ! Locals
-  INTEGER i, j, id, n, l, nnodes, iw, handle
+  INTEGER i, j, id, n, l, nnodes, ncoef, iw, handle
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin, baro_kin, baro_pot
   REAL ( dbl ) :: nhc_baro_pot, nhc_baro_kin
   REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
   REAL ( dbl ) :: cons, temp, econs
+  REAL ( dbl ) :: coef_temp, coef_kin
+  REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
   REAL ( dbl ), DIMENSION(3) :: cell, ang
   REAL ( dbl ) :: pv_scalar
 
@@ -380,6 +387,7 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
   
   nnodes = SIZE ( struc % pnode )
+  ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
 
   IF ( ionode .AND. itimes == 0 ) THEN
      tem = get_unit()
@@ -392,6 +400,10 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
      OPEN ( UNIT = vel, FILE = vel_file_name )
      ptn = get_unit()
      OPEN ( UNIT = ptn, FILE = ptens_file_name )
+     coe = get_unit()
+     OPEN ( UNIT = coe, FILE = coef_file_name )
+     pol = get_unit()
+     OPEN ( UNIT = pol, FILE = epol_file_name )
   END IF
 
   iw = scr
@@ -400,9 +412,13 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   
   CALL get_part_temp ( thermo, simpar, temp )
 
+  CALL get_coef_ke ( struc, coef_kin )
+  
+  CALL get_coef_temp ( coef_kin, ncoef, coef_temp )
+
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
-     WRITE (tem, *) itimes, temp
+     WRITE (tem, *) itimes, temp, coef_temp
   END IF
 
   IF (ionode .AND. mod(itimes,iptens)==0) THEN
@@ -422,6 +438,22 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
         WRITE (vel,'(i6,3f10.5 )' ) itimes, struc%pnode(i) %p%v
      END DO
   END IF
+
+  IF (ionode .AND. mod(itimes,icoef)==0) THEN
+     DO i=1, ncoef
+        WRITE (coe,'(i6,3f20.12 )' ) itimes, struc%coef_pos(1) %ao%cr (i), &
+               struc%coef_vel(1) %ao%cr (i),  struc%coef_force(1) %ao%cr (i)
+     END DO
+  END IF
+
+  IF (ionode .AND. mod(itimes,iepol)==0) THEN
+     WRITE (pol,*) itimes,  thermo%e_class, thermo % e_electro, &      
+            thermo % e_overlap, thermo% e_thk, thermo% pot                       
+  END IF
+
+  IF ( simpar % pol_ensemble ( 1 : 3 )/= 'NVE' ) &
+  CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
+
   IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) &
   CALL get_nhc_energies ( nhc_part, nhc_part_kin, nhc_part_pot )
 
@@ -435,12 +467,31 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
 
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE ( 'NVE')
-     cons = thermo%kin + thermo%pot
+     SELECT CASE ( simpar % pol_ensemble ( 1 : 3 ) )
+     CASE ( 'NVE')
+        cons = thermo%kin + thermo%pot + coef_kin
+     CASE ( 'NVT')
+        cons = thermo%kin + thermo%pot + nhc_coef_kin + nhc_coef_pot + coef_kin
+     END SELECT
   CASE ( 'NVT')
-     cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot
-  CASE ( 'NPT')
-     cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot  &
-            + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+     SELECT CASE ( simpar % pol_ensemble ( 1 : 3 ) )
+     CASE ( 'NVE')
+        cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot + coef_kin 
+     CASE ( 'NVT')
+        cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot + &
+                nhc_coef_kin + nhc_coef_pot + coef_kin
+     END SELECT 
+! to check
+!  CASE ( 'NPT')
+!     SELECT CASE ( simpar % pol_ensemble ( 1 : 3 ) )
+!     CASE ( 'NVE')
+!        cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot  &
+!              + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot + coef_kin
+!     CASE ( 'NVT')
+!        cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot  &
+!              + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot + &
+!                 nhc_coef_kin + nhc_coef_pot + coef_kin
+!      END SELECT
   END SELECT
 
   IF (itimes==1) THEN
@@ -478,6 +529,8 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
      averages%avetemp = temp
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
+     averages%avekinc = coef_kin
+     averages%avetempc = coef_temp
      averages%avevol = struc%box%deth
      averages%aveca = cell(1)
      averages%avecb = cell(2)
@@ -491,9 +544,13 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
           REAL ( itimes, dbl )
      averages%avetemp = (averages%avetemp*real(itimes-1)+temp)/ &
           real(itimes)
+     averages%avetempc = (averages%avetempc*real(itimes-1)+coef_temp)/ &
+          real(itimes)
      averages%avepot = (averages%avepot*real(itimes-1)+thermo%pot)/ &
           real(itimes)
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
+          real(itimes)
+     averages%avekinc = (averages%avekinc*real(itimes-1)+ coef_kin)/ &
           real(itimes)
      averages%avevol = (averages%avevol*real(itimes-1)+struc%box%deth)/ &
           real(itimes)
@@ -521,8 +578,12 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
           adjustl(e_label), '= ', thermo%pot
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
           adjustl(e_label), '= ', thermo%kin
+     WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF KINETIC ENERGY', &
+          adjustl(e_label), '= ', coef_kin  
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
           adjustl(temp_label), '= ', temp
+     WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
+          adjustl(temp_label), '= ', coef_temp
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
@@ -554,8 +615,12 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
           adjustl(e_label), '= ', thermo%pot, averages%avepot
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
           adjustl(e_label), '= ', thermo%kin, averages%avekin
+     WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF KINETIC ENERGY', &
+          adjustl(e_label), '= ', coef_kin,  averages%avekinc
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
           adjustl(temp_label), '= ', temp, averages%avetemp
+     WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
+          adjustl(temp_label), '= ', coef_temp, averages%avetempc
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar, averages%avepress
      CALL get_ll_parm ( struc % ll_data (1), lup, aup )
@@ -1262,6 +1327,57 @@ SUBROUTINE get_part_ke ( struc, thermo )
   CALL mp_sum(thermo%kin,int_group)
 #endif
 END SUBROUTINE get_part_ke 
+
+!******************************************************************************
+
+SUBROUTINE get_coef_temp ( ekinc, ncoef, ctemp )
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( OUT ) :: ctemp
+  INTEGER, INTENT ( IN ) :: ncoef 
+  REAL (dbl), INTENT ( IN ) :: ekinc
+
+  ctemp = 2.0_dbl* ekinc/float(ncoef)/temp_conv
+END SUBROUTINE  get_coef_temp
+!!*****
+!******************************************************************************
+!!****** integrator/get_coef_ke [1.0] *
+!!
+!!   NAME
+!!     get_part_ke
+!!
+!!   FUNCTION
+!!     Calculates kinetic energy of coefs
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE get_coef_ke ( struc, ekinc )
+  IMPLICIT NONE
+  TYPE ( structure_type ), INTENT ( IN ) :: struc
+  REAL (dbl), INTENT ( out ) :: ekinc
+
+  INTEGER :: i, ncoef
+
+  ekinc = zero
+  ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
+  DO i = 1, ncoef 
+     ekinc = ekinc + 0.5_dbl * struc%coef_vel(1)%ao%mass(i) * & 
+        struc%coef_vel(1)%ao%cr(i) * struc%coef_vel(1)%ao%cr(i)
+  END DO
+
+! sum all contributions to energy over calculated parts on all processors
+#if defined(__parallel)
+  CALL mp_sum(thermo%kin,int_group)
+#endif
+END SUBROUTINE get_coef_ke
+
+!******************************************************************************
 
 !!*****
 !******************************************************************************
