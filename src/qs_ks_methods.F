@@ -335,9 +335,14 @@ CONTAINS
        IF (.NOT. just_energy) THEN
           CALL coeff_transform_space(v_hartree_gspace,&
                ks_env%v_hartree_rspace)
-          ks_env%v_hartree_rspace%pw%cr3d =&
-               ks_env%v_hartree_rspace%pw%pw_grid%dvol*&
-               ks_env%v_hartree_rspace%pw%cr3d
+          CALL dscal(size(ks_env%v_hartree_rspace%pw%cr3d,1) * &
+                     size(ks_env%v_hartree_rspace%pw%cr3d,2) * &
+                     size(ks_env%v_hartree_rspace%pw%cr3d,3), &
+                     ks_env%v_hartree_rspace%pw%pw_grid%dvol, &
+                     ks_env%v_hartree_rspace%pw%cr3d, 1)
+!TC         ks_env%v_hartree_rspace%pw%cr3d =&
+!TC              ks_env%v_hartree_rspace%pw%pw_grid%dvol*&
+!TC              ks_env%v_hartree_rspace%pw%cr3d
        ENDIF
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
