@@ -124,15 +124,19 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
   CALL input_nonbonded(potparm,setup % atom_names,set_fn)
 
 !..read the bond parameters
+  NULLIFY (intra_param % bond_param)
   CALL input_bonds(intra_param % bond_param,set_fn)
 
 !..read the bend parameters
+  NULLIFY (intra_param % bend_param)
   CALL input_bends(intra_param % bend_param,set_fn)
 
 !..read the torsion parameters
+  NULLIFY (intra_param % torsion_param)
   CALL input_torsions(intra_param % torsion_param,set_fn)
 
 !..read the distance constraint parameters
+  NULLIFY (intra_param % constraint_distance)
   CALL input_distance_constraints ( intra_param % constraint_distance, set_fn )
 
 !..end the parser session
