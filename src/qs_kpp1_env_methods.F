@@ -322,7 +322,7 @@ CONTAINS
        DO ispin=2,nspins
           CALL coeff_sumup(rho1%rho_g(ispin), rho1_tot_gspace)
        END DO
-       IF (qs_env%dft_control%qs_control%gapw) &
+       IF (gapw) &
             CALL coeff_sumup(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
 
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
@@ -338,7 +338,7 @@ CONTAINS
                                      v_hartree_rspace)
        END IF
 
-       CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho1_tot_gspace,&
+       CALL pw_pool_give_back_coeff(auxbas_pw_pool, rho1_tot_gspace,&
             error=error)
 
 ! *** calculate the xc potential ***       
