@@ -289,15 +289,20 @@ RECURSIVE SUBROUTINE read_line_p
        llen = len_trim(inp_line(i))
        comment = .FALSE.
        DO j = 1, llen
-          IF (inp_line(i)(j:j)==comment_sign .AND. .NOT. comment) THEN
-             comment = .TRUE.
-             inp_line(i)(j:j)= blank
-          ELSE IF (inp_line(i)(j:j)==comment_sign .AND. comment) THEN
-             comment = .FALSE.
-             inp_line(i)(j:j)= blank
-          ELSE IF (comment) THEN
-             inp_line(i)(j:j)= blank
+          ! Assuming a comment should neglect the rest of the line???
+          IF (inp_line(i)(j:j)==comment_sign) THEN
+             inp_line(i)(j:llen)= blank
+             EXIT
           END IF
+          !IF (inp_line(i)(j:j)==comment_sign .AND. .NOT. comment) THEN
+          !   comment = .TRUE.
+          !   inp_line(i)(j:j)= blank
+          !ELSE IF (inp_line(i)(j:j)==comment_sign .AND. comment) THEN
+          !   comment = .FALSE.
+          !   inp_line(i)(j:j)= blank
+          !ELSE IF (comment) THEN
+          !   inp_line(i)(j:j)= blank
+          !END IF
        END DO
        CALL compress ( inp_line ( i ) )
     END DO
