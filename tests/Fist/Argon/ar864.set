@@ -4,6 +4,11 @@
     nummol   864
     nhcopt   global
   end molecule
+  cell
+    parameter     34.93   0.00   0.00  &
+                   0.00  34.93   0.00  &
+                   0.00   0.00  34.93
+  end cell
 &END
 
 &MOLECULES
