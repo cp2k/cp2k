@@ -937,7 +937,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_ortho_per_molecule", &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: col_first, col_last, handle, iat, iatom, icol, icol_ortho, imol, imol_kind, info, irow, irow_ortho, jat, jatom, natom, nmol, nmol_kind, row_first, row_last
+    INTEGER                                  :: col_first, col_last, handle,&
+                                                iat, iatom, icol, icol_ortho, &
+                                                imol, imol_kind, info, irow, &
+                                                irow_ortho, jat, jatom, natom, &
+                                                nmol, nmol_kind, row_first, row_last
     REAL(KIND=dp)                            :: eps_eigval, work_syevx
     TYPE(fm_mol_blocks_type), DIMENSION(:),&
       POINTER                                :: fm_mol_blocks
