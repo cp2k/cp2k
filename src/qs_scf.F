@@ -257,7 +257,8 @@ MODULE qs_scf
   TYPE(qs_ot_type)                  :: qs_ot_env
   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
 
-  TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
+  TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
   TYPE(cell_type), POINTER          :: cell
   TYPE(dft_control_type), POINTER   :: dft_control
 
@@ -298,7 +299,7 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER :: mo_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    REAL(wp) :: delta,diis_error,method_par,pmix,t1,t2
+    REAL(wp) :: delta,diis_error,method_par,pmix,t1,t2,tmp
     INTEGER  :: handle,handle2,homo,igrid_level,imo,iscf,istat,&
                 output_unit,n,k,nrow_block,ncol_block, type_switch, &
                 fileunit
@@ -438,13 +439,22 @@ CONTAINS
 
       IF (.NOT. globenv%print%timecumul) t1 = m_cputime()
 
-      IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
-        CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
-      END IF
 
       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
            rebuild=rebuild,error=error,&
            calculate_forces=.FALSE.,just_energy=energy_only)
+
+      DO ispin=1,dft_control%nspins
+
+        IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
+            CALL write_sparse_matrix(p_rmpv(ispin)%matrix,4,6,qs_env,globenv)
+        END IF
+
+        IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
+            CALL write_sparse_matrix(ks_rmpv(ispin)%matrix,4,6,qs_env,globenv)
+        END IF
+
+      ENDDO
 
       rebuild = (MODULO(iscf,scf_control%nrebuild) == 0)
 
@@ -462,9 +472,9 @@ CONTAINS
 
         IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
 
-        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
+        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1(1)%matrix)
         IF (iscf > 1) THEN
-          CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
+          CALL scf_diis(c,scf_work1,scf_work2,delta,diis_error,diis_step,&
                         qs_env,globenv)
         END IF
          IF (cp_debug .AND. debug_this_module) THEN
@@ -526,8 +536,10 @@ CONTAINS
          t2 = m_cputime()
 
          IF (diis_step) THEN
+            delta=0.0_wp
             DO ispin=1,dft_control%nspins
-               CALL density_mixing(p_new(ispin),p_rmpv(ispin),1.0_wp,delta,globenv)
+               CALL density_mixing(p_new(ispin),p_rmpv(ispin),1.0_wp,tmp,globenv)
+               delta=MAX(delta,tmp)
             END DO
             IF (ionode.AND.globenv%print%scf) THEN
                WRITE (UNIT=output_unit,&
@@ -535,9 +547,11 @@ CONTAINS
                     iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
             END IF
          ELSE
-            DO ispin=1,dft_control%nspins
-               CALL density_mixing(p_new(ispin),p_rmpv(ispin),scf_control%p_mix,delta,globenv)
-            END DO
+           delta=0.0_wp
+           DO ispin=1,dft_control%nspins
+               CALL density_mixing(p_new(ispin),p_rmpv(ispin),scf_control%p_mix,tmp,globenv)
+               delta=MAX(delta,tmp)
+           END DO
            IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
@@ -550,75 +564,67 @@ CONTAINS
       CASE(1) ! diagonalisation (default)
 
         DO ispin=1,dft_control%nspins 
-          ks     => ks_rmpv(ispin)
-          p      => p_rmpv(ispin)
-          mo_set => c(ispin)%mo_set
-
-          IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
-            CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
-          END IF
-
-          CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
-
-          IF (iscf > 1) THEN
-            CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
-                          qs_env,globenv)
-          END IF
-
-          do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
-                           ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
-          use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
-          CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
-                           do_level_shift,scf_control%level_shift,globenv,&
-                           use_arpack=scf_control%use_arpack,&
-                           use_cholesky=scf_control%use_cholesky,&
-                           work_syevx=scf_control%work_syevx,&
-                           use_jacobi=use_jacobi,&
-                           eps_jacobi=scf_control%eps_jacobi,&
-                           jacobi_threshold=scf_control%jacobi_threshold)
-      
-!       *** Update the MO occupation numbers, if smearing is used ***
-
-          IF (scf_control%smear /= 0.0_wp) THEN
-             CALL set_mo_occupation(mo_set,scf_control%smear)
-          END IF
-
-          IF (globenv%print%each_scf_step) THEN
-            CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
-          END IF
-
-          CALL calculate_density_matrix(mo_set,p_new(ispin)%matrix,globenv)
-
+           CALL copy_sparse_to_blacs_matrix(ks_rmpv(ispin)%matrix,scf_work1(ispin)%matrix)
         ENDDO
-      
-        t2 = m_cputime()
 
-        IF (diis_step) THEN
-          pmix = 1.0_wp
-          method_par = diis_error
-          IF (use_jacobi) THEN
-            method = "DIIS/Jacobi"
-          ELSE
-            method = "DIIS/SYEVX"
-          END IF
-        ELSE
-          pmix = scf_control%p_mix
-          method_par = pmix
-          IF (use_jacobi) THEN
-            method = "Mixing/Jacobi"
-          ELSE
-            method = "Mixing/SYEVX"
-          END IF
+        IF (iscf > 1) THEN
+            CALL scf_diis(c,scf_work1,scf_work2,delta,diis_error,diis_step,&
+                          qs_env,globenv)
         END IF
 
+        IF (diis_step) THEN
+           pmix = 1.0_wp
+           method_par = diis_error
+           IF (use_jacobi) THEN
+             method = "DIIS/Jacobi"
+           ELSE
+             method = "DIIS/SYEVX"
+           END IF
+        ELSE
+           pmix = scf_control%p_mix
+           method_par = pmix
+           IF (use_jacobi) THEN
+             method = "Mixing/Jacobi"
+           ELSE
+             method = "Mixing/SYEVX"
+           END IF
+        END IF
+
+        do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
+                         ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
+        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
+
         DO ispin=1,dft_control%nspins
+
+           CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
+                            do_level_shift,scf_control%level_shift,globenv,&
+                            use_arpack=scf_control%use_arpack,&
+                            use_cholesky=scf_control%use_cholesky,&
+                            work_syevx=scf_control%work_syevx,&
+                            use_jacobi=use_jacobi,&
+                            eps_jacobi=scf_control%eps_jacobi,&
+                            jacobi_threshold=scf_control%jacobi_threshold)
+
+           IF (scf_control%smear /= 0.0_wp) THEN
+               CALL set_mo_occupation(c(ispin)%mo_set,scf_control%smear)
+           END IF
+
+           IF (globenv%print%each_scf_step) THEN
+              CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+           END IF
+
+           CALL calculate_density_matrix(c(ispin)%mo_set,p_new(ispin)%matrix,globenv)
+
            CALL density_mixing(p_new(ispin),p_rmpv(ispin),pmix,delta,globenv)
+
         ENDDO
 
+        t2 = m_cputime()
+
         IF (ionode.AND.globenv%print%scf) THEN
-          WRITE (UNIT=output_unit,&
-                 FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
-            iscf,TRIM(method),method_par,t2 - t1,delta,energy%total
+           WRITE (UNIT=output_unit,&
+                  FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
+                  iscf,TRIM(method),method_par,t2 - t1,delta,energy%total
         END IF
 
       CASE(2) ! orbital transforms
@@ -887,7 +893,12 @@ CONTAINS
 
 !   *** Release SCF work storage ***
 
-    IF (ASSOCIATED(scf_work1)) CALL cp_fm_release(scf_work1)
+    IF (ASSOCIATED(scf_work1)) THEN
+       DO ispin=1,SIZE(scf_work1)
+         CALL cp_fm_release(scf_work1(ispin)%matrix)
+       ENDDO
+       DEALLOCATE(scf_work1)
+    ENDIF
     IF (ASSOCIATED(scf_work2)) CALL cp_fm_release(scf_work2)
     IF (ASSOCIATED(ortho)) CALL cp_fm_release(ortho)
 
@@ -1007,8 +1018,11 @@ CONTAINS
                                ncol_block=ncol_block)
 
 !   *** Allocate the distributed SCF matrices ***
+  
+    NULLIFY(scf_work1)
+    ALLOCATE(scf_work1(dft_control%nspins))
 
-    CALL cp_fm_create2(new_matrix=scf_work1,&
+    CALL cp_fm_create2(new_matrix=scf_work1(1)%matrix,&
                                nrow_global=nao,&
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
@@ -1017,6 +1031,15 @@ CONTAINS
                                globenv=globenv)
 
     IF (.NOT.scf_control%use_ot) THEN
+      DO ispin=2,dft_control%nspins
+       CALL cp_fm_create2(new_matrix=scf_work1(ispin)%matrix,&
+                               nrow_global=nao,&
+                               ncol_global=nao,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="SCF WORK MATRIX 1",&
+                               globenv=globenv)
+      ENDDO
       CALL cp_fm_create2(new_matrix=ortho,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
@@ -1054,17 +1077,23 @@ CONTAINS
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
 
-    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
+    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1(1)%matrix)
 
     IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
-      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix)
+      CALL copy_blacs_to_sparse_matrix(scf_work1(1)%matrix,h(1)%matrix)
       CALL set_qs_env(qs_env,h=h)
     END IF
 
-    IF (scf_control%use_ot) CALL cp_fm_release(scf_work1)
+    IF (scf_control%use_ot) THEN 
+        CALL cp_fm_release(scf_work1(1)%matrix)
+        DEALLOCATE(scf_work1)
+        NULLIFY(scf_work1)
+    ENDIF
+
+!   *** done redistribute ***
 
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
@@ -1117,7 +1146,7 @@ CONTAINS
     DO ispin=1,dft_control%nspins
        mo_set => c(ispin)%mo_set
        CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(ispin),s(1), &
-            scf_work1,scf_work2,globenv,&
+            scf_work1(1)%matrix,scf_work2,globenv,&
              scf_control=scf_control, id_nr=qs_env%id_nr)
     ENDDO
 
@@ -1620,7 +1649,10 @@ SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
   TYPE(pao_env_type), POINTER :: pao_env
   REAL(kind=wp), DIMENSION(:), POINTER :: angles
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p
+  INTEGER :: ispin
   failure=.FALSE.
+
+  ispin=1
   
   NULLIFY(pao_optimizer,pao_obj_f)
 
@@ -1642,7 +1674,7 @@ SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
         CALL pao_qs_env_did_change(qs_env,s_changed=.TRUE.,h_changed=.TRUE.,&
              full_reset=.FALSE., global_env=global_env)
         CALL pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
-             scf_work1=scf_work1, scf_work2=scf_work2, scf_work3=ortho,&
+             scf_work1=scf_work1(ispin)%matrix, scf_work2=scf_work2, scf_work3=ortho,&
              error=error)
         CALL cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
              obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&

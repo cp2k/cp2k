@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - Changed to BLACS matrix usage (08.06.2001,MK)
+!!     - rewritten to include LSD (1st attempt) (01.2003, Joost VandeVondele)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -42,6 +43,7 @@ MODULE qs_diis
   USE mathlib,              ONLY: diagonalize_matrix,&
                                   symmetrize_matrix
   USE qs_mo_types,          ONLY: get_mo_set,&
+                                  mo_set_p_type, &
                                   mo_set_type
   USE sparse_matrix_types,  ONLY: real_matrix_p_type
   USE termination,          ONLY: stop_memory
@@ -56,7 +58,7 @@ MODULE qs_diis
   TYPE diis_buffer_type
     PRIVATE
     INTEGER                                          :: nbuffer,ncall
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: error,PARAMETER
+    TYPE(cp_full_matrix_p_type), DIMENSION(:,:), POINTER :: error,PARAMETER
     REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE diis_buffer_type
 
@@ -76,7 +78,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_scf_diis_buffer(nbuffer,nao,prototype_matrix)
+  SUBROUTINE allocate_scf_diis_buffer(nbuffer,prototype_matrix,nspin)
 
 !   Purpose: Allocate and initialize a DIIS buffer for "nao*nao" parameter
 !            variables and with a buffer size of "nbuffer".
@@ -87,7 +89,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER :: prototype_matrix
-    INTEGER, INTENT(IN)              :: nbuffer,nao
+    INTEGER, INTENT(IN)              :: nbuffer,nspin
 
 !   *** Local parameters ***
 
@@ -96,27 +98,29 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: ibuffer,istat
+    INTEGER :: ibuffer,istat,ispin
 
 !   ---------------------------------------------------------------------------
 
     scf_diis_buffer%nbuffer = nbuffer
     scf_diis_buffer%ncall = 0
 
-    ALLOCATE (scf_diis_buffer%error(nbuffer),STAT=istat)
+    ALLOCATE (scf_diis_buffer%error(nbuffer,nspin),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"scf_diis_buffer%error",0)
-    ALLOCATE (scf_diis_buffer%parameter(nbuffer),STAT=istat)
+    ALLOCATE (scf_diis_buffer%parameter(nbuffer,nspin),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"scf_diis_buffer%parameter",0)
 
+    DO ispin=1,nspin
     DO ibuffer=1,nbuffer
       CALL replicate_blacs_matrix(&
         prototype_matrix=prototype_matrix,&
-        new_matrix=scf_diis_buffer%error(ibuffer)%matrix,&
+        new_matrix=scf_diis_buffer%error(ibuffer,ispin)%matrix,&
         name="SCF DIIS ERROR MATRIX")
       CALL replicate_blacs_matrix(&
         prototype_matrix=prototype_matrix,&
-        new_matrix=scf_diis_buffer%parameter(ibuffer)%matrix,&
+        new_matrix=scf_diis_buffer%parameter(ibuffer,ispin)%matrix,&
         name="SCF DIIS PARAMETER MATRIX")
+    END DO
     END DO
 
     ALLOCATE (scf_diis_buffer%b_matrix(nbuffer+1,nbuffer+1),STAT=istat)
@@ -129,7 +133,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf_diis(mo_set,kc,sc,delta,error_max,diis_step,qs_env,globenv)
+  SUBROUTINE scf_diis(mo_array,kc,sc,delta,error_max,diis_step,qs_env,globenv)
 
 !   Purpose: Update the SCF DIIS buffer.
 
@@ -138,13 +142,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: kc,sc
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), POINTER                :: mo_set
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    REAL(wp), INTENT(IN)                      :: delta
-    REAL(wp), INTENT(OUT)                     :: error_max
-    LOGICAL, INTENT(OUT)                      :: diis_step
+    TYPE(cp_full_matrix_type), POINTER                 :: sc
+    TYPE(cp_full_matrix_p_type),DIMENSION(:), POINTER  :: kc
+    TYPE(global_environment_type), INTENT(IN)          :: globenv
+    TYPE(mo_set_type), POINTER                         :: mo_set
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER         :: mo_array
+    TYPE(qs_environment_type), INTENT(IN)              :: qs_env
+    REAL(wp), INTENT(IN)                               :: delta
+    REAL(wp), INTENT(OUT)                              :: error_max
+    LOGICAL, INTENT(OUT)                               :: diis_step
 
 !   *** Local parameters ***
 
@@ -156,10 +162,10 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER  :: c
     TYPE(scf_control_type), POINTER     :: scf_control
 
-    INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit,&
-         max_diis
+    INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,output_unit,&
+         max_diis,nspin,ispin
     LOGICAL :: ionode
-    REAL(wp) :: eps_diis
+    REAL(wp) :: eps_diis,tmp
 
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
 
@@ -169,6 +175,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("scf_diis","I","",handle)
+
+    nspin=SIZE(mo_array)
+
     NULLIFY(c,scf_control,s,a,b)
 
     diis_step = .FALSE.
@@ -187,39 +196,44 @@ CONTAINS
        RETURN
     END IF
 
-    CALL get_mo_set(mo_set=mo_set,&
-                    nao=nao,&
-                    homo=nmo,&
-                    eigenvectors=c)
-
-    nparameter = nao*nao
-
     IF (.NOT.init_scf_diis_buffer_done) THEN
-      CALL allocate_scf_diis_buffer(max_diis,nao,kc)
+      CALL allocate_scf_diis_buffer(max_diis,kc(1)%matrix,nspin)
       IF (ionode.AND.globenv%print%diis_information) THEN
         WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
           "The SCF DIIS buffer was allocated and initialised"
       END IF
     END IF
 
+    error_max=0.0_wp
+
     ib = MODULO(scf_diis_buffer%ncall,scf_diis_buffer%nbuffer) + 1
     scf_diis_buffer%ncall = scf_diis_buffer%ncall + 1
     nb = MIN(scf_diis_buffer%ncall,scf_diis_buffer%nbuffer)
 
-    parameters => scf_diis_buffer%parameter(ib)%matrix
-    CALL copy_blacs_to_blacs_matrix(kc,parameters)
-    CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc)
+    DO ispin=1,nspin
 
-    new_errors => scf_diis_buffer%error(ib)%matrix
-    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors)
-    CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
+                       nao=nao,&
+                       homo=nmo,&
+                       eigenvectors=c)
 
-    CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors)
-    CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,kc,sc,-1.0_wp,new_errors)
 
-!   *** Get maximum error ***
+       parameters => scf_diis_buffer%parameter(ib,ispin)%matrix
+       CALL copy_blacs_to_blacs_matrix(kc(ispin)%matrix,parameters)
+       CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc(ispin)%matrix)
 
-    CALL cp_fm_maxval(new_errors,error_max)
+       new_errors => scf_diis_buffer%error(ib,ispin)%matrix
+       ! I guess that this copy can be avoided for LSD
+       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors)
+       CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
+
+       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc(ispin)%matrix, 0.0_wp,new_errors)
+       CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,kc(ispin)%matrix,sc,-1.0_wp,new_errors)
+
+       CALL cp_fm_maxval(new_errors,tmp)
+       error_max=MAX(error_max,tmp)
+
+    ENDDO
 
     IF (ionode.AND.globenv%print%diis_information) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,E12.3)")&
@@ -237,8 +251,13 @@ CONTAINS
       b => scf_diis_buffer%b_matrix
 
       DO jb=1,nb
-        old_errors => scf_diis_buffer%error(jb)%matrix
-        CALL cp_fm_trace(old_errors,new_errors,b(jb,ib))
+        b(jb,ib)=0.0_wp
+        DO ispin=1,nspin
+           old_errors => scf_diis_buffer%error(jb,ispin)%matrix
+           new_errors => scf_diis_buffer%error(ib,ispin)%matrix
+           CALL cp_fm_trace(old_errors,new_errors,tmp)
+           b(jb,ib)=b(jb,ib)+tmp
+        ENDDO
         b(ib,jb) = b(jb,ib)
       END DO
 
@@ -292,12 +311,13 @@ CONTAINS
 
 !     *** Update Kohn-Sham matrix ***
 
-      CALL cp_fm_set_all(kc,0.0_wp)
-
-      DO jb=1,nb
-        parameters => scf_diis_buffer%parameter(jb)%matrix
-        CALL cp_fm_add(1.0_wp,kc,-ev(jb),parameters)
-      END DO
+      DO ispin=1,nspin
+         CALL cp_fm_set_all(kc(ispin)%matrix,0.0_wp)
+         DO jb=1,nb
+              parameters => scf_diis_buffer%parameter(jb,ispin)%matrix
+              CALL cp_fm_add(1.0_wp,kc(ispin)%matrix,-ev(jb),parameters)
+         END DO
+      ENDDO
 
       DEALLOCATE (a,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"a")
@@ -308,7 +328,10 @@ CONTAINS
 
     ELSE
 
-      CALL copy_blacs_to_blacs_matrix(parameters,kc)
+      DO ispin=1,nspin
+         parameters => scf_diis_buffer%parameter(ib,ispin)%matrix
+         CALL copy_blacs_to_blacs_matrix(parameters,kc(ispin)%matrix)
+      ENDDO
 
     END IF
 
