@@ -301,7 +301,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(real_block_node_type), POINTER :: block_node
+    TYPE(real_block_node_type), POINTER :: block_node, node_p
 
     INTEGER :: istat,ncol,nrow
 
@@ -339,9 +339,22 @@ CONTAINS
 
 !   *** Link the new block node to the block list ***
 
-    block_node%next_block_node => matrix%block_list(block_row)%first_block_node
-
-    matrix%block_list(block_row)%first_block_node => block_node
+!   *** Insert the new blocks in an ordered fashion (block_col are in ascending order)
+    node_p => matrix%block_list(block_row)%first_block_node
+    IF (.NOT.ASSOCIATED(node_p)) THEN
+       NULLIFY(block_node%next_block_node)
+       matrix%block_list(block_row)%first_block_node => block_node
+    ELSE IF (node_p%block_col > block_node%block_col) THEN
+       block_node%next_block_node => matrix%block_list(block_row)%first_block_node
+       matrix%block_list(block_row)%first_block_node => block_node
+    ELSE
+       DO WHILE (ASSOCIATED(node_p%next_block_node))
+          IF (node_p%next_block_node%block_col > block_node%block_col) EXIT
+          node_p => node_p%next_block_node
+       END DO
+       block_node%next_block_node => node_p%next_block_node
+       node_p%next_block_node => block_node
+    END IF
 
   END SUBROUTINE add_real_matrix_block
 
