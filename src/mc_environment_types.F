@@ -133,7 +133,7 @@ CONTAINS
 
 
 !   ***************************************************************************
-    TYPE(mc_environment_type), INTENT(OUT)   :: mc_env
+    TYPE(mc_environment_type), INTENT(INOUT)   :: mc_env
     TYPE(mc_simulation_parameters_type), &
       OPTIONAL, POINTER                      :: mc_par
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -144,7 +144,8 @@ CONTAINS
     IF ( PRESENT ( blacs_env ) ) mc_env % blacs_env => blacs_env
     IF ( PRESENT ( force_env )) THEN
        CALL force_env_retain( force_env ) ! accept null pointers?
-       CALL force_env_release( mc_env % force_env )
+       IF (ASSOCIATED(mc_env % force_env ))  &
+           CALL force_env_release( mc_env % force_env )
        mc_env % force_env => force_env
     END IF
     

@@ -114,9 +114,7 @@ CONTAINS
   CALL init_cp2k_units ()
   iw = globenv % scr
 
-! initialize mc_env
-!  ALLOCATE(mc_env,stat=isos)
-!  IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_env', 0 )
+  ! allocates an mc_env and sets the variables to zero
   CALL mc_env_create ( mc_env, globenv % para_env, error = error )
 
 ! allocating or nullifying local pointers
