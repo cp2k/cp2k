@@ -545,7 +545,7 @@ CONTAINS
                                  elp_potential_present,paw_atom_present,&
                                  atom_of_kind,kind_of,natom_of_kind,maxder,&
                                  max_ldaCoreRadius,max_ngrid_rad,&
-                                 max_sph_harm,maxg_iso_not0,lrho0)
+                                 max_sph_harm,maxg_iso_not0,lmax_rho0)
 
 !   Purpose: Get informations about an atomic kind set.
 
@@ -572,11 +572,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: max_ldaCoreRadius
-    LOGICAL, INTENT(IN), OPTIONAL            :: lrho0
+    INTEGER, INTENT(out), OPTIONAL           :: lmax_rho0
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_atomic_kind_set"
 
-    INTEGER :: atom_a, iatom, ikind, imax, lmax_rho0, max_iso_not0, &
+    INTEGER :: atom_a, iatom, ikind, imax, lmax_rho0_kind, max_iso_not0, &
       max_s_harm, n, ngrid_rad, nkind, p_excl_bas, &
       p_excl_bas_max, p_full_bas, p_full_bas_max, p_full_bas_tot, &
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
@@ -648,6 +648,7 @@ CONTAINS
       END IF
       IF (PRESENT(max_ngrid_rad))  max_ngrid_rad = 0
       IF (PRESENT(max_sph_harm))   max_sph_harm = 0
+      IF (PRESENT(lmax_rho0))      lmax_rho0 = 0
 
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
@@ -663,7 +664,7 @@ CONTAINS
                              max_s_harm=max_s_harm, &
                              max_iso_not0=max_iso_not0,&
                              paw_atom=paw_atom,&
-                             lmax_rho0=lmax_rho0)
+                             lmax_rho0=lmax_rho0_kind)
         IF (PRESENT(max_ldaCoreRadius)) THEN
            max_ldaCoreRadius=MAX(max_ldaCoreRadius,ldaCoreRadius)
         END IF
@@ -748,10 +749,6 @@ CONTAINS
           IF (ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,maxl=imax)
             maxlgto = MAX(maxlgto,imax)
-          END IF
-          IF( PRESENT(lrho0) ) THEN
-             IF( lrho0 ) &
-                  maxlgto = MAX(maxlgto,lmax_rho0)
           END IF
         END IF
         IF (PRESENT(maxpgf)) THEN
@@ -902,6 +899,9 @@ CONTAINS
          IF(PRESENT(maxg_iso_not0)) THEN
            maxg_iso_not0 = MAX(maxg_iso_not0,max_iso_not0)
          END IF
+          IF( PRESENT(lmax_rho0) ) THEN
+           lmax_rho0 = MAX(lmax_rho0,lmax_rho0_kind)
+          END IF
       END DO
       IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
       IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max

@@ -44,6 +44,7 @@ MODULE pw_env_types
                                              gridlevel_info_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
+                                             l_info_release,&
                                              l_info_type
   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
                                              pw_pool_type,&
@@ -103,6 +104,7 @@ MODULE pw_env_types
      TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
      TYPE(gridlevel_info_type), POINTER :: gridlevel_info
      TYPE(l_info_type), POINTER :: l_info ! right place for it?
+     TYPE(l_info_type), POINTER :: l_info_rho0 ! right place for it?
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
   END TYPE pw_env_type
@@ -153,13 +155,14 @@ CONTAINS
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
+SUBROUTINE pw_env_get(pw_env, pw_pools,l_info,l_info_rho0, cube_info, gridlevel_info,&
      auxbas_pw_pool,auxbas_cube_info,auxbas_grid,rs_pools,auxbas_rs_pool,&
      error)
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: pw_pools
     TYPE(l_info_type), OPTIONAL, POINTER     :: l_info
+    TYPE(l_info_type), OPTIONAL, POINTER     :: l_info_rho0
     TYPE(cube_info_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cube_info
     TYPE(gridlevel_info_type), OPTIONAL, &
@@ -186,6 +189,7 @@ SUBROUTINE pw_env_get(pw_env, pw_pools,l_info, cube_info, gridlevel_info,&
      IF (PRESENT(pw_pools)) pw_pools => pw_env%pw_pools
      IF (PRESENT(rs_pools)) rs_pools => pw_env%rs_pools
      IF (PRESENT(l_info)) l_info => pw_env%l_info
+     IF (PRESENT(l_info_rho0)) l_info_rho0 => pw_env%l_info_rho0
      IF (PRESENT(cube_info)) cube_info => pw_env%cube_info
      IF (PRESENT(gridlevel_info)) gridlevel_info => pw_env%gridlevel_info
      IF (PRESENT(auxbas_pw_pool)) THEN
@@ -304,9 +308,18 @@ SUBROUTINE pw_env_release(pw_env, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(pw_env%l_info)) THEN
-           CALL destroy_l_info(pw_env%l_info)
-           DEALLOCATE(pw_env%l_info, stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CALL l_info_release(pw_env%l_info)
+           IF(pw_env%l_info%ref_count == 0) THEN
+              DEALLOCATE(pw_env%l_info, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+        END IF
+        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
+           CALL l_info_release(pw_env%l_info_rho0)
+           IF(pw_env%l_info_rho0%ref_count == 0) THEN
+              DEALLOCATE(pw_env%l_info_rho0, stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
         END IF
         IF (ASSOCIATED(pw_env%cube_info)) THEN
            DO igrid_level=1,SIZE(pw_env%cube_info)

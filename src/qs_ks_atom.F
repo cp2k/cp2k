@@ -402,21 +402,23 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ecoul_1c,ispin,ia,na,ja,nb,&
-                             ka,nsp,C_h,C_s,ldc, factor)
+                             ka,nsp,C_h,C_s,ld1, factor)
 
-
+!   Arguments
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
-                                                nsp, ldc
-    REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
+                                                nsp, ld1
+    REAL(KIND=dp), DIMENSION(:,:)            :: C_s, C_h
     REAL(KIND=dp), INTENT(IN)                :: factor
 
+!   Parameters
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
 
+!   Local Variables
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_xc_h, int_xc_s
@@ -481,12 +483,12 @@ CONTAINS
 
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_hard,nsp,&
-               C_h,ldc,0.0_dp,&
+               C_h,ld1,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,nb,nsp,&
                1.0_dp,int_soft,nsp,&
-               C_s,ldc,0.0_dp,&
+               C_s,ld1,0.0_dp,&
                intC_s,nsp)
 
       NULLIFY(c_block)
@@ -506,12 +508,12 @@ CONTAINS
       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 
       CALL dgemm("T","N",na,nb,nsp,&
-               factor,C_h,ldc,&
+               factor,C_h,ld1,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
        
       CALL dgemm("T","N",na,nb,nsp,&
-               -factor,C_s,ldc,&
+               -factor,C_s,ld1,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
@@ -538,12 +540,12 @@ CONTAINS
 
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_hard,nsp,&
-               C_h,ldc,0.0_dp,&
+               C_h,ld1,0.0_dp,&
                intC_h,nsp)
 
       CALL dgemm("N","N",nsp,na,nsp,&
                1.0_dp,int_soft,nsp,&
-               C_s,ldc,0.0_dp,&
+               C_s,ld1,0.0_dp,&
                intC_s,nsp)
 
       NULLIFY(c_block)
@@ -563,12 +565,12 @@ CONTAINS
       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
       CALL dgemm("T","N",nb,na,nsp,&
-               factor,C_h,ldc,&
+               factor,C_h,ld1,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
       CALL dgemm("T","N",nb,na,nsp,&
-               -factor,C_s,ldc,&
+               -factor,C_s,ld1,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
@@ -598,7 +600,7 @@ CONTAINS
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp, ldc
-    REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
+    REAL(KIND=dp), DIMENSION(:,:)            :: C_s, C_h
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_forces"
 

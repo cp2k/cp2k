@@ -511,8 +511,6 @@ MODULE qs_rho0_methods
                                       rho0_atom_set=rho0_atom_set,&
                                       rhoz_set = rhoz_set,&
                                       rhoz_tot=total_rho_core_rspace)
-!      Allocate and Initialie rho0 soft on the global grid
-!       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error)
     ELSE
        tddft_local_rho_set%rho0_mpole => rho0_mpole
        tddft_local_rho_set%rho0_atom_set => rho0_atom_set

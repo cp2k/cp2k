@@ -24,7 +24,7 @@ MODULE qs_harmonics_atom
                                              int_size
   USE lebedev,                         ONLY: lebedev_grid
 
-  USE mathconstants,                   ONLY: degree, pi
+  USE mathconstants,                   ONLY: degree, pi,twopi,fourpi,fac,dfac
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset,nso,&
@@ -33,7 +33,7 @@ MODULE qs_harmonics_atom
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init,&
-                                             y_lm,dPof1!,drvy_lm
+                                             y_lm,dPof1,legendre!,drvy_lm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -233,14 +233,14 @@ MODULE qs_harmonics_atom
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
                                    llmax,max_s_harm,ll,wa,&
-                                   azi,cos_pol,cotan_pol)
+                                   azi,cos_azi,pol,cos_pol,cotan_pol)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
     REAL(dp), DIMENSION(:,:,:), POINTER    :: my_CG
     INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
     REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: azi
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: azi, pol, cos_azi
     REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_pol
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
@@ -259,6 +259,10 @@ MODULE qs_harmonics_atom
                  lx, ly, lz, n, ic, is
     REAL(dp)  :: abs_m, azi_bar, int, int1, int2, int3, l_r, m_r, rx, ry, rz, drx, dry, drz
     REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
+!dbg
+    CHARACTER(len=80) :: findex,filename
+    REAL(dp) :: fact,oorootfourpi,ooroottwopi,plm
+    REAL(dp), DIMENSION(:,:),ALLOCATABLE :: my_slm 
 ! *****************************************************************************
 
     NULLIFY (y,dy,slm,dslm,dslm_dxyz,dc)
@@ -318,6 +322,60 @@ MODULE qs_harmonics_atom
       DO i = 1,3
         harmonics%a(i,1:na) = lebedev_grid(ll)%r(i,1:na)
       END DO
+
+! dbg test slm
+  allocate(my_slm(na,max_s_harm))
+  my_slm = 0.0_dp
+  oorootfourpi = 1._dp/sqrt(fourpi)
+  ooroottwopi = 1._dp/sqrt(twopi)
+  do iso = 1,9
+    l = indso(1,iso)
+    m = indso(2,iso)
+
+   write(findex,'(I4)') 1000+iso
+    filename =  'slm_'//trim(findex)//'.dat'
+!    open(10,file=filename,status="unknown",form="formatted")
+
+    fact = sqrt((2._dp*real(l)+1._dp)*fac(l-abs(m))/fac(l+abs(m)))
+    if(m>0) then
+      fact = fact*ooroottwopi
+      do ia = 1,na
+        plm = legendre (cos_azi(ia),l,m)
+        my_slm(ia,iso) = fact*plm*cos(real(m)*pol(ia)) 
+!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
+!                                            harmonics%a(2,ia) ,&
+!                                            harmonics%a(3,ia) ,&
+!                                            azi(ia)*degree,pol(ia)*degree,&
+!                                            slm(ia,iso),my_slm(ia,iso)
+      end do
+    elseif(m==0) then
+      fact = fact*oorootfourpi
+      do ia = 1,na
+        plm = legendre (cos_azi(ia),l,0)
+        my_slm(ia,iso) = fact*plm
+!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
+!                                            harmonics%a(2,ia) ,&
+!                                            harmonics%a(3,ia) ,&
+!                                            azi(ia)*degree,pol(ia)*degree,&
+!                                            slm(ia,iso),my_slm(ia,iso)
+      end do
+    else
+      fact = fact*ooroottwopi
+      do ia = 1,na
+        plm = legendre (cos_azi(ia),l,abs(m))
+        my_slm(ia,iso) = fact*plm*sin(real(abs(m))*pol(ia)) 
+!        write(10,'(I4,5f12.6,2f20.10)') ia, harmonics%a(1,ia) ,&
+!                                            harmonics%a(2,ia) ,&
+!                                            harmonics%a(3,ia) ,&
+!                                            azi(ia)*degree,pol(ia)*degree,&
+!                                            slm(ia,iso),my_slm(ia,iso)
+      end do
+    end if
+!    close(10)
+  
+  end do ! iso
+!  stop 'check slm'
+! dbg 
 
       DO ia = 1,na
         DO l = 0,indso(1,max_s_harm)

@@ -1,5 +1,16 @@
 ! ***************************************************************
+#include "cp_prep_globals.h"
+
 MODULE l_utils
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -7,6 +18,8 @@ MODULE l_utils
                                              timestop
 
    IMPLICIT NONE
+
+   CHARACTER(len=*), PRIVATE, PARAMETER :: module_name='l_utils'
 
    public :: l_info_type
    public :: init_l_info
@@ -28,6 +41,7 @@ MODULE l_utils
         integer :: lmax
         integer :: cmax
         integer :: nthread
+        integer :: ref_count
         TYPE(l_set_info_type), pointer, dimension(:,:,:,:,:) :: data
    END TYPE
 
@@ -75,16 +89,21 @@ CONTAINS
 ! hence, in some way, these data structures need the 'thread-private' attribute
 ! really not so elegant...
 ! the nthread argument is optional, the right number of threads should be determined automatically
-   SUBROUTINE init_l_info(l_info,lmax,cmax,nthread)
+   SUBROUTINE init_l_info(l_info,lmax,cmax,nthread,lrho0)
     type(l_info_type)                        :: l_info
     integer                                  :: lmax, cmax
     integer, optional                        :: nthread
+    LOGICAL, INTENT(in), OPTIONAL            :: lrho0
 
     integer                                  :: handle, ithread, la_max, &
                                                 la_min, lb_max, lb_min, &
                                                 nthread_l
+    LOGICAL                                  :: my_lrho0
 
 !$  integer                                  :: omp_get_max_threads
+
+      my_lrho0 = .FALSE.
+      IF(PRESENT(lrho0)) my_lrho0 = lrho0
 
       CALL timeset("init_l_info","I","",handle)
       IF (PRESENT(nthread)) THEN
@@ -93,10 +112,29 @@ CONTAINS
          nthread_l=1
 !$       nthread_l=omp_get_max_threads()
       ENDIF
-
       l_info%lmax=lmax
       l_info%cmax=cmax
       l_info%nthread=nthread_l
+      l_info%ref_count=1 
+
+      IF(my_lrho0) THEN
+
+      allocate(l_info%data(0:lmax,0:lmax,0:0,0:0,0:nthread_l-1))
+      DO ithread=0,nthread_l-1
+      DO lb_max=0,0
+      DO lb_min=0,lb_max
+      DO la_max=0,lmax
+      DO la_min=0,la_max
+         call init_l_set_info_type(la_min,la_max,lb_min,lb_max,cmax, &
+                                   l_info%data(la_min,la_max,lb_min,lb_max,ithread))       
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+      ENDDO
+
+      ELSE
+
       allocate(l_info%data(0:lmax,0:lmax,0:lmax,0:lmax,0:nthread_l-1))
       DO ithread=0,nthread_l-1
       DO lb_max=0,lmax
@@ -110,6 +148,7 @@ CONTAINS
       ENDDO
       ENDDO
       ENDDO
+      END IF
       CALL timestop(0.0_dp,handle)
    END SUBROUTINE
 
@@ -120,7 +159,7 @@ CONTAINS
                                                 la_min, lb_max, lb_min
 
       DO ithread=0,l_info%nthread-1
-      DO lb_max=0,l_info%lmax
+      DO lb_max=0, SIZE(l_info%data,4)-1
       DO lb_min=0,lb_max
       DO la_max=0,l_info%lmax
       DO la_min=0,la_max
@@ -210,5 +249,47 @@ CONTAINS
                  l_set_info%ipzyx,l_set_info%alpha,STAT=istat)
       IF (istat /= 0) CALL stop_memory("destroy_l_set_info_type","l_set_info%")
    END SUBROUTINE
+
+   SUBROUTINE l_info_retain(l_info,error)
+
+    TYPE(l_info_type), POINTER               :: l_info
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'l_info_retain', &
+      routineP = module_name//':'//routineN
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(l_info),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPreconditionNoFail(l_info%ref_count>0,cp_failure_level,routineP,error)
+       l_info%ref_count=l_info%ref_count+1
+    END IF
+  END SUBROUTINE l_info_retain
+
+  SUBROUTINE l_info_release(l_info,error)
+    TYPE(l_info_type), POINTER                 :: l_info
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
     
+    CHARACTER(len=*), PARAMETER :: routineN = 'l_info_release', &
+         routineP = module_name//':'//routineN
+    
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+    
+    failure=.FALSE.
+    
+    IF (ASSOCIATED(l_info)) THEN
+       CPPreconditionNoFail(l_info%ref_count>0,cp_failure_level,routineP,error)
+       l_info%ref_count=l_info%ref_count-1
+       IF (l_info%ref_count==0) THEN
+          CALL destroy_l_info(l_info)
+       END IF
+    END IF
+  END SUBROUTINE l_info_release
+
 END MODULE

@@ -50,6 +50,7 @@ MODULE spherical_harmonics
   PUBLIC :: y_lm
   PUBLIC :: clebsch_gordon_init, clebsch_gordon, clebsch_gordon_getm
   PUBLIC :: dPof1 , drvy_lm
+  PUBLIC :: legendre
 
   INTERFACE y_lm
      MODULE PROCEDURE rvy_lm, rry_lm, cvy_lm, ccy_lm

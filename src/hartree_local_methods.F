@@ -95,8 +95,6 @@ MODULE  hartree_local_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                 POINTER      :: ecoul_1c
-!    TYPE(vtriple_type), DIMENSION(:,:),&
-!                                POINTER      :: vtriple
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
 
@@ -111,7 +109,6 @@ MODULE  hartree_local_methods
     NULLIFY(orb_basis)
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
-!    NULLIFY(vtriple)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft

@@ -169,7 +169,7 @@ MODULE qs_rho0_ggrid
     NULLIFY(pools,pw_pools)
     CALL pw_env_get(pw_env=pw_env,rs_pools=pools,pw_pools=pw_pools,error=error)
     cube_info=pw_env%cube_info(1)
-    l_info=pw_env%l_info
+    l_info=pw_env%l_info_rho0
     auxbas_grid=pw_env%auxbas_grid
 
     NULLIFY(rho0_s_gs,rho0_s_rs)
@@ -438,6 +438,7 @@ MODULE qs_rho0_ggrid
     INTEGER, DIMENSION(:,:), POINTER         :: tasks
     INTEGER                                  :: omp_get_max_threads
     REAL(dp)  :: c4pi, eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
+    REAL(dp)  :: r_V0,rpgf0_s
     REAL(dp), DIMENSION(:), POINTER          :: norm_l
     REAL(dp), DIMENSION(:),     POINTER      :: Qlm
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph
@@ -489,7 +490,7 @@ MODULE qs_rho0_ggrid
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
     cube_info=>pw_env%cube_info(igrid)
-    l_info=pw_env%l_info
+    l_info=pw_env%l_info_rho0
 
     ! *** Get the potential on the right grid
     NULLIFY(rs_v,rs_pool,pw_pool,pw_aux,coeff_rspace,coeff_gspace)
@@ -589,7 +590,8 @@ MODULE qs_rho0_ggrid
 
       NULLIFY(Qlm_gg,lmax,npgf)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,&
-                          l0_ikind=l0_ikind, Qlm_gg=Qlm_gg)
+                          l0_ikind=l0_ikind, Qlm_gg=Qlm_gg,&
+                          rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
 
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              lmax=lmax, maxso=maxso,&
@@ -676,7 +678,8 @@ MODULE qs_rho0_ggrid
              cube_info,l_info,hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
-             hdab=hdab,hadb=hadb,ithread=ithread)
+             hdab=hdab,hadb=hadb,ithread=ithread,&
+             collocate_rho0=.TRUE.,rpgf0_s=r_V0)
 
 ! Convert from cartesian to spherical
         IF (calculate_forces) THEN

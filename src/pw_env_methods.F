@@ -58,8 +58,9 @@ MODULE pw_env_methods
   USE greens_fn,                       ONLY: pw_green_fn_destroy
   USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: destroy_l_info,&
-                                             init_l_info
+  USE l_utils,                         ONLY: init_l_info,&
+                                             l_info_retain,&
+                                             l_info_release
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
@@ -179,7 +180,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
 
     INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
-      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, maxlgto, &
+      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, lmax_rho0, maxlgto, &
       ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
@@ -225,11 +226,21 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
      IF (ASSOCIATED(pw_env%l_info)) THEN
-        CALL destroy_l_info(pw_env%l_info)
+        CALL l_info_release(pw_env%l_info,error)
      ELSE
         ALLOCATE(pw_env%l_info,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
+
+     IF(qs_env%dft_control%qs_control%gapw) THEN
+        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
+           CALL l_info_release(pw_env%l_info_rho0,error)
+        ELSE
+           ALLOCATE(pw_env%l_info_rho0,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        END IF
+     END IF
+
      IF (ASSOCIATED(pw_env%cube_info)) THEN
         DO igrid_level=1,SIZE(pw_env%cube_info)
            CALL destroy_cube_info(pw_env%cube_info(igrid_level))
@@ -421,10 +432,22 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-          maxlgto=maxlgto, lrho0 = dft_control%qs_control%gapw)
-     ! maxlgto, +1 to allow for the forces, +1 to allow for tau
+          maxlgto=maxlgto)
      CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
-     
+
+     IF( dft_control%qs_control%gapw) THEN
+        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+             lmax_rho0 = lmax_rho0)
+        IF (lmax_rho0+1 <= maxlgto+2) THEN
+           DEALLOCATE(pw_env%l_info_rho0,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+           pw_env%l_info_rho0 => pw_env%l_info
+           CALL l_info_retain(pw_env%l_info,error)
+        ELSE
+           CALL init_l_info(pw_env%l_info_rho0,lmax_rho0+1,cmax,lrho0=.TRUE.)
+        END IF
+     END IF
+ 
      ! init auxbas_grid
      DO i=1,ngrid_level
         IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i

@@ -156,8 +156,7 @@ MODULE qs_all_potential
       zc = REAL(vall(kkind)%zeta_c,dp)
       cerf = vall(kkind)%core_charge
       rpgfc = vall(kkind)%core_radius
-      NULLIFY(vall(kkind)%force_c)
-      NULLIFY(vall(kkind)%index_c)
+
       IF (zc == 0.0_dp) CYCLE
 
       bc = jkind + nkind*(kkind - 1)
@@ -171,8 +170,10 @@ MODULE qs_all_potential
       CALL get_neighbor_list(neighbor_list=sbc_3c_neighbor_list, &
            nnode = nnode_c)
 
-      CALL reallocate(vall(kkind)%force_c,1,3,1,nnode_c)
-      CALL reallocate(vall(kkind)%index_c,1,nnode_c)
+!      IF (nder > 0) THEN
+        CALL reallocate(vall(kkind)%force_c,1,3,1,nnode_c)
+        CALL reallocate(vall(kkind)%index_c,1,nnode_c)
+!      END IF
 
       sbc_3c_neighbor_node => first_node(sbc_3c_neighbor_list)
 

@@ -479,8 +479,7 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
-               "Exchange-correlation energy:                   ",energy%exc,&
-               "Overlap energy from nuclear core charge:       ",energy%core_overlap
+               "Exchange-correlation energy:                   ",energy%exc
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&

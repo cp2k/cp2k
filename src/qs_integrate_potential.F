@@ -1049,7 +1049,8 @@ CONTAINS
                                             cube_info,l_info,hab,pab,o1,o2,&
                                             eps_gvg_rspace,&
                                             calculate_forces,hdab,hadb,force_a,force_b,&
-                                            ithread,mytimings,compute_tau,map_consistent)
+                                            ithread,mytimings,compute_tau,map_consistent,&
+                                            collocate_rho0,rpgf0_s)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1075,6 +1076,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
     LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
+    LOGICAL, INTENT(IN), OPTIONAL            :: collocate_rho0
+    REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
       ico, icoef, ig, ithread_l, jco, k, l, la, la_max_l, la_min_l, lb, &
@@ -1085,7 +1088,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_compute_tau,my_map_consistent
+    LOGICAL                                  :: my_collocate_rho0, &
+                                                my_compute_tau,my_map_consistent
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
       der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, &
       pg, prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
@@ -1116,6 +1120,12 @@ CONTAINS
     ELSE
        my_map_consistent=.FALSE.
     ENDIF
+
+    IF (PRESENT(collocate_rho0).AND.PRESENT(rpgf0_s)) THEN
+       my_collocate_rho0=collocate_rho0
+    ELSE
+       my_collocate_rho0=.FALSE.
+    END IF
 
     !IF (ithread_l.eq.0) t_a_1=m_walltime()
 
@@ -1152,6 +1162,13 @@ CONTAINS
        cutoff=1.0_dp
        radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
                zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
+    ELSE IF (my_collocate_rho0) THEN
+       cutoff    = 0.0_dp
+       prefactor = 1.0_dp
+       radius = rpgf0_s
+
+!       radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+!                            zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor,cutoff=cutoff)
     ELSE
        cutoff=1.0_dp
        IF (PRESENT(pab)) THEN

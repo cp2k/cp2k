@@ -1141,15 +1141,14 @@ CONTAINS
             IF (jatom /= last_jatom) THEN
               new_atom_b = .TRUE.
               last_jatom = jatom
-
             ELSE
               new_atom_b = .FALSE.
             END IF
-              IF(oce_present) THEN
-!             *** Calculate the coefficients of the one center expansions ***
-                CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
-                              oceh,oces,nder)
-             END IF
+            IF(oce_present) THEN
+!            *** Calculate the coefficients of the one center expansions ***
+              CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
+                    oceh,oces,nder)
+            END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
 
@@ -1747,6 +1746,7 @@ CONTAINS
                           f0*vall(kkind)%force_c(1:3,knode)
 !$OMP end critical (qs_core_force_all_potential)
                       END DO  ! knode
+                      DEALLOCATE(vall(kkind)%index_c,vall(kkind)%force_c,STAT=istat)
                     END DO  ! kkind
 
                   ELSE
@@ -1757,6 +1757,10 @@ CONTAINS
                                  rpgfb(:,jset),zetb(:,jset),&
                                  rab,dab,jkind,jatom,nkind,sbc_3c,vall,&
                                  hab,nder)
+                    DO kkind = 1,nkind
+                      IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
+                      DEALLOCATE(vall(kkind)%index_c,vall(kkind)%force_c,STAT=istat)
+                    END DO  ! kkind
                   END IF
 
                 END IF  ! all_potential

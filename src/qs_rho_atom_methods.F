@@ -964,17 +964,21 @@ MODULE qs_rho_atom_methods
 
       DO ia = 1,na
         cosia = lebedev_grid(ll)%r(3,ia)
-        grid_atom%cos_theta(ia) = cosia 
-        phi = ATAN2(lebedev_grid(ll)%r(2,ia),lebedev_grid(ll)%r(1,ia))
+        grid_atom%cos_phi(ia)   =   cosia
+        grid_atom%theta(ia)     =  &
+                ATAN2( lebedev_grid(ll)%r(2,ia) , lebedev_grid(ll)%r(1,ia) )
+        grid_atom%cos_theta(ia) = COS( grid_atom%theta(ia) )
+        grid_atom%sin_phi(ia)   =  &
+               lebedev_grid(ll)%r(1,ia) / grid_atom%cos_theta(ia)
+        phi =  ACOS(cosia)
+        IF( grid_atom%sin_phi(ia) < 0.0_dp ) phi = - phi
         grid_atom%phi(ia) = phi
-        grid_atom%cos_phi(ia)=COS(phi)
-        grid_atom%sin_phi(ia)=SIN(phi)
-        grid_atom%theta(ia) = ACOS(cosia)
 
-        grid_atom%sin_theta(ia) =  SQRT(1-cosia*cosia)
+        grid_atom%sin_theta(ia) = SIN( grid_atom%theta(ia) ) 
         IF(abs(grid_atom%sin_theta(ia)) > 1.E-8_dp) THEN
-          grid_atom%usin_theta(ia) = 1.0_dp/grid_atom%sin_theta(ia)
-          grid_atom%cotan_theta(ia) = cosia*grid_atom%usin_theta(ia)
+          grid_atom%usin_theta(ia)  = 1.0_dp/grid_atom%sin_theta(ia)
+          grid_atom%cotan_theta(ia) = & 
+                lebedev_grid(ll)%r(1,ia) / lebedev_grid(ll)%r(2,ia) 
         ELSE
           grid_atom%usin_theta(ia) = 1.0_dp
           grid_atom%cotan_theta(ia) = 0.0_dp
@@ -986,7 +990,8 @@ MODULE qs_rho_atom_methods
 
       CALL create_harmonics_atom(harmonics, orb_basis_set,&
                    my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
-                   grid_atom%phi,grid_atom%cos_theta,grid_atom%cotan_theta)
+                   grid_atom%phi,grid_atom%cos_phi,&
+                   grid_atom%theta,grid_atom%cos_theta,grid_atom%cotan_theta)
 
     END DO
 
