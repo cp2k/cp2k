@@ -117,7 +117,7 @@ MODULE cp_array_r_utils
 !!   SOURCE
   !***************************************************************************
   TYPE cp_1d_r_p_type
-     REAL(KIND = dp), DIMENSION(:), POINTER :: array
+     REAL(kind=dp), DIMENSION(:), POINTER :: array
   END TYPE cp_1d_r_p_type
 !!***
   !****************************************************************************
@@ -145,7 +145,7 @@ MODULE cp_array_r_utils
 !!   SOURCE
   !***************************************************************************
   TYPE cp_2d_r_p_type
-     REAL(KIND = dp), DIMENSION(:,:), POINTER :: array
+     REAL(kind=dp), DIMENSION(:,:), POINTER :: array
   END TYPE cp_2d_r_p_type
 !!***
   !****************************************************************************
@@ -173,7 +173,7 @@ MODULE cp_array_r_utils
 !!   SOURCE
   !***************************************************************************
   TYPE cp_3d_r_p_type
-     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: array
+     REAL(kind=dp), DIMENSION(:,:,:), POINTER :: array
   END TYPE cp_3d_r_p_type
 !!***
   !****************************************************************************
@@ -187,7 +187,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_r_write(element, unit_nr, el_format, error)
-!!       Real(KIND = dp), Intent (IN):: element
+!!       Real(Kind=wp), Intent (IN):: element
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -214,7 +214,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_r_write(element, unit_nr, el_format, error)
-  REAL(KIND = dp), INTENT(in) :: element
+  REAL(kind=dp), INTENT(in) :: element
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -248,7 +248,7 @@ END SUBROUTINE cp_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(KIND = dp), Intent (IN), Dimension(:):: array
+!!       Real(Kind=wp), Intent (IN), Dimension(:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -295,7 +295,7 @@ SUBROUTINE cp_1d_r_output(logger, outputName,&
   CHARACTER(len=*) , INTENT(in) :: outputName
   CHARACTER(len=*), INTENT(in):: fromWhere
   INTEGER, INTENT(in) :: iter
-  REAL(KIND = dp), INTENT(in), DIMENSION(:) :: array
+  REAL(kind=dp), INTENT(in), DIMENSION(:) :: array
   CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
   LOGICAL, INTENT(in), OPTIONAL :: local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -349,7 +349,7 @@ END SUBROUTINE cp_1d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_1d_r_write(array, unit_nr, el_format, error)
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: array
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -376,7 +376,7 @@ END SUBROUTINE cp_1d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_1d_r_write(array, unit_nr, el_format, error)
-  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: array
+  REAL(kind=dp), DIMENSION(:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -425,7 +425,7 @@ END SUBROUTINE cp_1d_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(KIND = dp), Intent (IN), Dimension(:,:):: array
+!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -472,7 +472,7 @@ SUBROUTINE cp_2d_r_output(logger, outputName, &
   CHARACTER(len=*) , INTENT(in) :: outputName
   CHARACTER(len=*), INTENT(in):: fromWhere
   INTEGER, INTENT(in) :: iter
-  REAL(KIND = dp), INTENT(in), DIMENSION(:,:) :: array
+  REAL(kind=dp), INTENT(in), DIMENSION(:,:) :: array
   CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
   LOGICAL, INTENT(in), OPTIONAL :: local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -526,7 +526,7 @@ END SUBROUTINE cp_2d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_2d_r_write(array, unit_nr, el_format, error)
-!!       Real(KIND = dp), Dimension(:,:), Intent (IN):: array
+!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -553,7 +553,7 @@ END SUBROUTINE cp_2d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
-  REAL(KIND = dp), DIMENSION(:,:), INTENT(in) :: array
+  REAL(kind=dp), DIMENSION(:,:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -594,7 +594,7 @@ END SUBROUTINE cp_2d_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(KIND = dp), Intent (IN), Dimension(:,:,:):: array
+!!       Real(Kind=wp), Intent (IN), Dimension(:,:,:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -638,7 +638,7 @@ SUBROUTINE cp_3d_r_output(logger, outputName, &
   CHARACTER(len=*) , INTENT(in) :: outputName
   CHARACTER(len=*), INTENT(in):: fromWhere
   INTEGER, INTENT(in) :: iter
-  REAL(KIND = dp), INTENT(in), DIMENSION(:,:,:) :: array
+  REAL(kind=dp), INTENT(in), DIMENSION(:,:,:) :: array
   CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
   LOGICAL, INTENT(in), OPTIONAL :: local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -692,7 +692,7 @@ END SUBROUTINE cp_3d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_3d_r_write(array, unit_nr, el_format, error)
-!!       Real(KIND = dp), Dimension(:,:,:), Intent (IN):: array
+!!       Real(Kind=wp), Dimension(:,:,:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -720,7 +720,7 @@ END SUBROUTINE cp_3d_r_output
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_3d_r_write(array, unit_nr, el_format, error)
-  REAL(KIND = dp), DIMENSION(:,:,:), INTENT(in) :: array
+  REAL(kind=dp), DIMENSION(:,:,:), INTENT(in) :: array
   INTEGER, INTENT(in) :: unit_nr
   CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -765,9 +765,9 @@ END SUBROUTINE cp_3d_r_write
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_1d_r_guarantee_size(array, n, init, error)
-!!       Real(KIND = dp), Dimension(:), Pointer:: array
+!!       Real(Kind=wp), Dimension(:), Pointer:: array
 !!       Integer, Intent (IN):: n
-!!       Real(KIND = dp), Intent (IN), Optional:: init
+!!       Real(Kind=wp), Intent (IN), Optional:: init
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_1d_r_guarantee_size
 !!
@@ -799,9 +799,9 @@ END SUBROUTINE cp_3d_r_write
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_1d_r_guarantee_size(array, n, init, error)
-    REAL(KIND = dp), DIMENSION(:), POINTER :: array
+    REAL(kind=dp), DIMENSION(:), POINTER :: array
     INTEGER, INTENT(in) :: n
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: init
+    REAL(kind=dp), INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -836,9 +836,9 @@ END SUBROUTINE cp_3d_r_write
 !!   SYNOPSIS
 !!     Subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols, init,&
 !!         error)
-!!       Real(KIND = dp), Dimension(:,:), Pointer:: array
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: array
 !!       Integer, Intent (IN):: n_rows, n_cols
-!!       Real(KIND = dp), Intent (IN), Optional:: init
+!!       Real(Kind=wp), Intent (IN), Optional:: init
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_2d_r_guarantee_size
 !!
@@ -871,9 +871,9 @@ END SUBROUTINE cp_3d_r_write
 !!*** **********************************************************************
   SUBROUTINE cp_2d_r_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: array
+    REAL(kind=dp), DIMENSION(:,:), POINTER :: array
     INTEGER, INTENT(in) :: n_rows, n_cols
-    REAL(KIND = dp), INTENT(in), OPTIONAL :: init
+    REAL(kind=dp), INTENT(in), OPTIONAL :: init
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -910,8 +910,8 @@ END SUBROUTINE cp_3d_r_write
 !!   SYNOPSIS
 !!     Function cp_1d_r_bsearch(array, el, l_index, u_index, error)&
 !!         Result(res)
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: array
-!!       Real(KIND = dp), Intent (IN):: el
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
+!!       Real(Kind=wp), Intent (IN):: el
 !!       Integer, Intent (IN), Optional:: l_index, u_index
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Integer:: res
@@ -943,8 +943,8 @@ END SUBROUTINE cp_3d_r_write
 !!*** **********************************************************************
 FUNCTION cp_1d_r_bsearch(array, el, l_index, u_index, error)&
      RESULT(res)
-  REAL(KIND = dp), DIMENSION(:), INTENT(in) :: array
-  REAL(KIND = dp), INTENT(in) :: el
+  REAL(kind=dp), DIMENSION(:), INTENT(in) :: array
+  REAL(kind=dp), INTENT(in) :: el
   INTEGER, INTENT(in), OPTIONAL :: l_index, u_index
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   INTEGER :: res
@@ -982,7 +982,7 @@ END FUNCTION cp_1d_r_bsearch
 !     "
 !  lessQ = "CP_R_LESS_Q"
 !  nametype1 = "r"
-!  type1 = "real(KIND = dp)"
+!  type1 = "real(kind=dp)"
 
 
 END MODULE cp_array_r_utils

@@ -201,9 +201,9 @@ MODULE cp_lbfgs_optimizer_gopt
      INTEGER :: m, print_every, master, max_f_per_iter, status, n_iter
      INTEGER :: ref_count, id_nr
      INTEGER, DIMENSION(:), POINTER :: kind_of_bound, i_work_array, isave
-     REAL(KIND = dp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
+     REAL(kind=dp) :: f, wanted_relative_f_delta, wanted_projected_gradient,&
           last_f, projected_gradient
-     REAL(KIND = dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
+     REAL(kind=dp), DIMENSION(:), POINTER :: x,lower_bound,upper_bound,&
           gradient,dsave,work_array
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(gopt_f_type), POINTER :: obj_funct
@@ -226,12 +226,12 @@ CONTAINS
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(gopt_f_type), Pointer:: obj_funct
-!!       Real(KIND = dp), Dimension(:), Intent (IN):: x0
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
 !!       Integer, Intent (IN), Optional:: m, print_every, master,&
 !!         max_f_per_iter
-!!       Real(KIND = dp), Intent (IN), Optional:: wanted_projected_gradient,&
+!!       Real(Kind=wp), Intent (IN), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta
-!!       Real(KIND = dp), Intent (IN), Dimension(size(x0)), Optional::&
+!!       Real(Kind=wp), Intent (IN), Dimension(size(x0)), Optional::&
 !!         lower_bound, upper_bound
 !!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
 !!         kind_of_bound
@@ -263,11 +263,11 @@ CONTAINS
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(gopt_f_type), POINTER :: obj_funct
-    REAL(KIND = dp), DIMENSION(:), INTENT(in) :: x0
+    REAL(kind=dp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
-    REAL(KIND = dp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
+    REAL(kind=dp), INTENT(in), OPTIONAL ::wanted_projected_gradient,&
          wanted_relative_f_delta
-    REAL(KIND = dp), INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: lower_bound,&
+    REAL(kind=dp), INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: lower_bound,&
          upper_bound
     INTEGER, INTENT(in), DIMENSION(SIZE(x0)), OPTIONAL :: kind_of_bound
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -514,13 +514,13 @@ END SUBROUTINE cp_opt_gopt_release
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(gopt_f_type), Pointer, Optional:: obj_funct
-!!       Real(KIND = dp), Dimension(:), Pointer, Optional:: x
+!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
 !!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
 !!         master, status, max_f_per_iter, id_nr
 !!       Logical, Intent (OUT), Optional:: is_master, at_end
-!!       Real(KIND = dp), Intent (OUT), Optional:: wanted_projected_gradient,&
+!!       Real(Kind=wp), Intent (OUT), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
-!!       Real(KIND = dp), Pointer, Dimension(:), Optional:: lower_bound,&
+!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: lower_bound,&
 !!         upper_bound
 !!       Integer, Pointer, Dimension(:), Optional:: kind_of_bound
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -554,14 +554,14 @@ END SUBROUTINE cp_opt_gopt_release
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(gopt_f_type), POINTER, OPTIONAL :: obj_funct
-    REAL(KIND = dp), DIMENSION(:), POINTER, OPTIONAL :: x
+    REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL :: x
     INTEGER, INTENT(out), OPTIONAL :: m, print_every, n_var, n_iter, master,&
          status, max_f_per_iter, id_nr
     LOGICAL, INTENT(out), OPTIONAL :: is_master, at_end
-    REAL(KIND = dp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
+    REAL(kind=dp), INTENT(out), OPTIONAL ::wanted_projected_gradient,&
          wanted_relative_f_delta, actual_projected_gradient, &
          last_f, f
-    REAL(KIND = dp), POINTER, DIMENSION(:), OPTIONAL :: lower_bound,&
+    REAL(kind=dp), POINTER, DIMENSION(:), OPTIONAL :: lower_bound,&
          upper_bound
     INTEGER, POINTER, DIMENSION(:), OPTIONAL :: kind_of_bound
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -635,7 +635,7 @@ END SUBROUTINE cp_opt_gopt_release
 !!         projected_gradient, converged, error)
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(KIND = dp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -663,7 +663,7 @@ END SUBROUTINE cp_opt_gopt_release
        projected_gradient, converged, error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(KIND = dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
+    REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
 
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -866,12 +866,12 @@ END SUBROUTINE cp_opt_gopt_release
        projected_gradient,error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, OPTIONAL, INTENT(out) :: n_iter
-    REAL(KIND = dp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
+    REAL(kind=dp), OPTIONAL, INTENT(out) :: f, last_f, projected_gradient
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
     INTEGER :: handle
-    REAL(KIND = dp), DIMENSION(4) :: results
+    REAL(kind=dp), DIMENSION(4) :: results
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gopt_bcast_res',&
          routineP=moduleN//':'//routineN
 
@@ -882,7 +882,7 @@ END SUBROUTINE cp_opt_gopt_release
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (optimizer%master==optimizer%para_env%mepos) THEN
-          results=(/ REAL(optimizer%isave(30), KIND = dp), &
+          results=(/ REAL(optimizer%isave(30), kind=dp), &
                optimizer%f, optimizer%dsave(2), optimizer%dsave(13) /)
        END IF
        CALL mp_bcast(results,optimizer%master, &
@@ -907,7 +907,7 @@ END SUBROUTINE cp_opt_gopt_release
 !!         projected_gradient, converged, error) Result(res)
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(KIND = dp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Logical:: res
@@ -938,7 +938,7 @@ END SUBROUTINE cp_opt_gopt_release
        projected_gradient, converged, error) RESULT(res)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER :: optimizer
     INTEGER, INTENT(out), OPTIONAL :: n_iter
-    REAL(KIND = dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
+    REAL(kind=dp), INTENT(out), OPTIONAL :: f, last_f, projected_gradient
     LOGICAL, INTENT(out), OPTIONAL :: converged
     LOGICAL ::res
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
