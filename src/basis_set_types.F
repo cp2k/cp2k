@@ -1370,22 +1370,32 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    DEALLOCATE (sto_basis_set%symbol,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sto_basis_set%symbol")
+    IF (ASSOCIATED(sto_basis_set)) THEN
+       IF (ASSOCIATED(sto_basis_set%symbol)) THEN
+          DEALLOCATE (sto_basis_set%symbol,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+               "sto_basis_set%symbol")
+       END IF
+       IF (ASSOCIATED(sto_basis_set%nq)) THEN
+          DEALLOCATE (sto_basis_set%nq,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+               "sto_basis_set%nq")
+       END IF
+       IF (ASSOCIATED(sto_basis_set%lq)) THEN
+          DEALLOCATE (sto_basis_set%lq,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+               "sto_basis_set%lq")
+       ENDIF
+       IF (ASSOCIATED(sto_basis_set%zet)) THEN
+          DEALLOCATE (sto_basis_set%zet,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+               "sto_basis_set%zet")
+       ENDIF
 
-    DEALLOCATE (sto_basis_set%nq,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sto_basis_set%nq")
-
-    DEALLOCATE (sto_basis_set%lq,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sto_basis_set%lq")
-
-    DEALLOCATE (sto_basis_set%zet,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sto_basis_set%zet")
-
+       DEALLOCATE (sto_basis_set,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "sto_basis_set")
+    END IF
   END SUBROUTINE deallocate_sto_basis_set
 
 ! *****************************************************************************
