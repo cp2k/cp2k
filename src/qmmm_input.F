@@ -83,7 +83,6 @@ MODULE qmmm_input
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: connectivity_control,&
-                                             force_field_control,&
                                              coordinate_control
   USE topology_pdb,                    ONLY: write_coordinate_pdb
   USE topology_psf,                    ONLY: write_topology_psf
