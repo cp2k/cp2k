@@ -37,8 +37,9 @@ module pao_glob_angles_methods
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
   use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get
-  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
-       cp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
+  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
+       cp_sp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   use pao_bas_projection_types, only: pao_bas_projection_type
   use qs_environment_types, only: qs_environment_type, get_qs_env
@@ -144,8 +145,8 @@ contains
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
-!!       Type(cp_sparse_matrix_p_type), Intent (IN), Optional,&
-!!         Dimension(:):: min_overlap_m, min_hamiltonian_m
+!!       Type(cp_block_matrix_p_type), Intent (IN), Optional, Dimension(:)::&
+!!         min_overlap_m, min_hamiltonian_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_init
 !!
@@ -175,7 +176,7 @@ contains
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
-    type(cp_sparse_matrix_p_type), intent(in), optional, &
+    type(cp_block_matrix_p_type), intent(in), optional, &
          dimension(:) :: min_overlap_m, min_hamiltonian_m
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -329,8 +330,8 @@ contains
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
-!!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
-!!         Optional:: min_hamiltonian_m, min_overlap_m
+!!       Type(cp_block_matrix_p_type), Intent (IN), Dimension(:), Optional::&
+!!         min_hamiltonian_m, min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_create
 !!
@@ -363,7 +364,7 @@ contains
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
 
-    type(cp_sparse_matrix_p_type), intent(in), dimension(:), optional ::&
+    type(cp_block_matrix_p_type), intent(in), dimension(:), optional ::&
          min_hamiltonian_m, min_overlap_m
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -499,10 +500,10 @@ contains
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
-!!       Type(cp_sparse_matrix_p_type), Optional, Intent (IN),&
-!!         Dimension(:):: min_overlap_m
-!!       Type(cp_sparse_matrix_p_type), Dimension(:), Intent (IN),&
-!!         Optional:: min_hamiltonian_m
+!!       Type(cp_block_matrix_p_type), Optional, Intent (IN), Dimension(:)::&
+!!         min_overlap_m
+!!       Type(cp_block_matrix_p_type), Dimension(:), Intent (IN), Optional::&
+!!         min_hamiltonian_m
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
 !!       Real(Kind=wp), Intent (IN), Optional:: angles_val
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -545,9 +546,9 @@ contains
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), optional, intent(in) :: source
-    type(cp_sparse_matrix_p_type), optional, intent(in), dimension(:) :: &
+    type(cp_block_matrix_p_type), optional, intent(in), dimension(:) :: &
          min_overlap_m
-    type(cp_sparse_matrix_p_type), dimension(:), intent(in),&
+    type(cp_block_matrix_p_type), dimension(:), intent(in),&
          optional :: min_hamiltonian_m
     logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
     real(kind=wp), intent(in), optional :: angles_val
@@ -660,7 +661,7 @@ contains
 !!       Logical, Intent (OUT), Optional:: m_h_m_valid, m_s_m_valid
 !!       Logical, Dimension(:), Pointer, Optional:: ut_calculated,&
 !!         nui_injection_calculated
-!!       Type(cp_sparse_matrix_type), Pointer, Optional:: unitary_t,&
+!!       Type(cp_block_matrix_type), Pointer, Optional:: unitary_t,&
 !!         nui_injection
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get
@@ -707,7 +708,7 @@ contains
     logical, intent(out), optional :: m_h_m_valid, m_s_m_valid
     logical, dimension(:), pointer, optional :: ut_calculated, &
          NUi_injection_calculated
-    type(cp_sparse_matrix_type), pointer, optional :: unitary_t,&
+    type(cp_block_matrix_type), pointer, optional :: unitary_t,&
          NUi_injection
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -730,7 +731,8 @@ contains
           call get_qs_env(qs_env, pao_env=pao_env)
           call cp_get(pao_env, full_bas_diag_m_struct=m_struct)
           if (.not.associated(glob_angles%unitary_t)) then
-             call cp_create(glob_angles%unitary_t,global_env=global_env,&
+             call cp_sp_create(glob_angles%unitary_t,&
+                  mpi_env=cp_mpi_get_from_glob(global_env),&
                   matrix_structure=m_struct,&
                   error=error)
           end if
@@ -754,7 +756,8 @@ contains
           call get_qs_env(qs_env, pao_env=pao_env)
           call cp_get(pao_env, full_min_bas_m_struct=m_struct)
           if (.not.associated(glob_angles%NUi_injection)) then
-             call cp_create(glob_angles%NUi_injection,global_env=global_env,&
+             call cp_sp_create(glob_angles%NUi_injection,&
+                  mpi_env=cp_mpi_get_from_glob(global_env),&
                   matrix_structure=m_struct,&
                   error=error)
           end if
@@ -883,14 +886,14 @@ contains
   subroutine pao_g_angles_set_unitary_t(glob_angles,&
        new_value, ut_calculated,error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_sparse_matrix_type), target, optional, intent(in) :: new_value
+    type(cp_block_matrix_type), target, optional, intent(in) :: new_value
     logical, dimension(:), intent(in), optional, target :: ut_calculated
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_unitary_t'
     logical, dimension(:),pointer :: ut_c
-    type(cp_sparse_matrix_type), pointer :: n_value
+    type(cp_block_matrix_type), pointer :: n_value
     type (cp_error_type) :: iError
     call cp_init(iError, template_error=error, &
          print_level=max(cp_failure_level, cp_error_get_print_level(error)))
@@ -950,14 +953,14 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_angles_set_min_s_m(glob_angles, new_value,error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_sparse_matrix_p_type), dimension(:),optional, &
+    type(cp_block_matrix_p_type), dimension(:),optional, &
          intent(in) :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
     integer :: i, stat
-    type(cp_sparse_matrix_type), pointer :: n_val
+    type(cp_block_matrix_type), pointer :: n_val
     failure=.false.
 
     if (present(new_value)) then
@@ -1007,7 +1010,7 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_angles_set_min_h_m(glob_angles, new_value,error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_sparse_matrix_p_type), dimension(:), optional, &
+    type(cp_block_matrix_p_type), dimension(:), optional, &
          intent(in) :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -1015,7 +1018,7 @@ contains
     character(len=*), parameter :: routineN='pao_g_angles_set_min_h_m',&
          routineP=moduleN//':'//routineN
     integer :: i, stat
-    type(cp_sparse_matrix_type), pointer :: n_val
+    type(cp_block_matrix_type), pointer :: n_val
     failure=.false.
 
     if (present(new_value)) then

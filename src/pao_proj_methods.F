@@ -38,7 +38,7 @@ module pao_proj_methods
   use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
   use cp_matrix_utils, only: cp_matrix_block_iterator, cp_next, cp_init,&
        cp_dealloc_ref, cp_get
-  use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type,&
+  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
        cp_sp_create
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get, cp_init, &
        cp_dealloc_ref, cp_set
@@ -48,6 +48,7 @@ module pao_proj_methods
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use message_passing, only: mp_sum
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   implicit none
   private
 
@@ -788,9 +789,9 @@ contains
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_sparse_matrix_p_type), Dimension(:), Pointer, Optional::&
+!!       Type(cp_block_matrix_p_type), Dimension(:), Pointer, Optional::&
 !!         min_hamiltonian_m
-!!       Type(cp_sparse_matrix_p_type), Dimension(:), Pointer::&
+!!       Type(cp_block_matrix_p_type), Dimension(:), Pointer::&
 !!         min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get_min_m
@@ -824,9 +825,9 @@ contains
     type(pao_glob_angles_type), intent(inout) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in), target :: global_env
-    type(cp_sparse_matrix_p_type), dimension(:), pointer, optional :: &
+    type(cp_block_matrix_p_type), dimension(:), pointer, optional :: &
          min_hamiltonian_m
-    type(cp_sparse_matrix_p_type), dimension(:), pointer ::  min_overlap_m
+    type(cp_block_matrix_p_type), dimension(:), pointer ::  min_overlap_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -858,7 +859,7 @@ contains
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              call cp_sp_create(glob_angles%min_overlap_m(1)%matrix,&
                   matrix_structure=min_bas_m_struct,&
-                  global_env=global_env,error=iError)
+                  mpi_env=cp_mpi_get_from_glob(global_env),error=iError)
           end if
           call sm_matrix_transf_to_m(source_m=full_s(1)%matrix, &
                target_m=glob_angles%min_overlap_m(1)%matrix%matrix,&
@@ -880,7 +881,7 @@ contains
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 call cp_sp_create(glob_angles%min_hamiltonian_m(1)%matrix, &
                      matrix_structure=min_bas_m_struct,&
-                     global_env=global_env,error=iError)
+                     mpi_env=cp_mpi_get_from_glob(global_env),error=iError)
                 call cp_error_propagate_error(iError,routineP,&
                      CPSourceFileRef,&
                      error,failure)

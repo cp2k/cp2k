@@ -35,8 +35,8 @@ module pao_obj_function
   use global_types, only: global_environment_type
   use pao_types, only: pao_env_type, pao_glob_angles_type, cp_get
 !  use pao_env_methods
-  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_get_matrix,&
-       cp_create, cp_dealloc, cp_sparse_matrix_p_type,&
+  use cp_block_matrix, only: cp_block_matrix_type, cp_get_matrix,&
+       cp_sp_create, cp_dealloc, cp_block_matrix_p_type,&
        cp_sp_alloc_nonsparse_blocks
   use pao_glob_angles_methods, only: pao_g_ang_set, pao_g_ang_did_change
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get_angle,&
@@ -59,8 +59,8 @@ module pao_obj_function
   use pao_unitary_t, only: pao_calc_u_du_type, cp_init, cp_next, &
        cp_dealloc_ref, pao_calc_u_du_get
   use pao_qs_env_methods, only: pao_qs_env_get,pao_qs_env_get_atomic_ortho
-  use cp_matrix_utils, only: cp_matrix_block_iterator, cp_matrix_b_i_init,&
-       cp_next, cp_next, cp_matrix_b_i_dealloc_ref,cp_d_struct_create,&
+  use cp_matrix_utils, only: cp_matrix_block_iterator, cp_sm_b_i_init,&
+       cp_next, cp_next, cp_sm_b_i_dealloc_ref,cp_d_struct_create,&
        cp_init_diagonal_blocks, cp_get, cp_init, cp_set_to, cp_sm_output
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
@@ -68,7 +68,7 @@ module pao_obj_function
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind_set
   use cp_array_utils, only: cp_1d_r_output, cp_2d_r_output
   use cp_output_handling, only: cp_write_output
-!  use pao_utils
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   implicit none
   private
   
@@ -163,7 +163,7 @@ module pao_obj_function
           min_blacs_3
      type(blacs_matrix_type), pointer :: scf_work1, scf_work2, scf_work3
      type(mo_set_p_type), dimension(:), pointer :: mo_set
-     type(cp_sparse_matrix_type), pointer :: diag_matrix, full_work_m,&
+     type(cp_block_matrix_type), pointer :: diag_matrix, full_work_m,&
           min_work_m
      integer, dimension(:), pointer :: d_struct
      type(global_environment_type), pointer :: global_env
@@ -294,20 +294,23 @@ contains
        end if
        if (present(should_dealloc_mo)) &
             gf_env%should_dealloc_mo=should_dealloc_mo
-       call cp_create(gf_env%diag_matrix,global_env=global_env,&
+       call cp_sp_create(gf_env%diag_matrix,&
+            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
             matrix=full_overlap_m(1)%matrix,&
-            global_env=global_env,error=error)
+            mpi_env=cp_mpi_get_from_glob(global_env),error=error)
        diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
        call cp_init_diagonal_blocks(diagMatrix,&
-            global_env=global_env,&
+            mpi_env=cp_mpi_get_from_glob(global_env),&
             default_value=0.0_wp,&
             d_struct=gf_env%d_struct)
-       call cp_create(gf_env%min_work_m,global_env=global_env,&
+       call cp_sp_create(gf_env%min_work_m,&
+            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=min_bas_m_struct)
        call cp_sp_alloc_nonsparse_blocks(gf_env%min_work_m,error=error)
-       call cp_create(gf_env%full_work_m,global_env=global_env,&
+       call cp_sp_create(gf_env%full_work_m,&
+            mpi_env=cp_mpi_get_from_glob(global_env),&
             matrix_structure=full_bas_m_struct)
        gf_env%rebuild_rho=.true.
        gf_env%initialized=.true.
@@ -495,18 +498,18 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_obj_function:pao_gerd_f_eval_at'
     type(pao_glob_angles_type), pointer :: angles
-    type(cp_sparse_matrix_type), pointer :: h_matrix, s_matrix
-    type(cp_sparse_matrix_p_type), dimension(:), pointer :: h_matrixes, &
+    type(cp_block_matrix_type), pointer :: h_matrix, s_matrix
+    type(cp_block_matrix_p_type), dimension(:), pointer :: h_matrixes, &
          s_matrixes
 !         full_hamiltonian_m
     type(cp_error_type) :: iError
     type(global_environment_type), pointer :: g_env
     type(pao_calc_u_du_type) :: calc_u_du
     type(cp_matrix_block_iterator) :: block_iterator
-    !type(cp_sparse_matrix_type) :: full_pao_m, min_pao_m
+    !type(cp_block_matrix_type) :: full_pao_m, min_pao_m
 
     type(real_matrix_p_type), dimension(:), pointer :: full_h_rmpv,full_s_rmpv
-    type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_d_smpv
+    type(cp_block_matrix_p_type), dimension(:), pointer :: min_d_smpv
     type(real_matrix_type), pointer :: min_density_m
 
     type(pao_env_type), pointer :: pao_env
@@ -529,7 +532,6 @@ contains
     CPAssert(cp_valid(gf_env,error=error),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        gf_env%n_eval = gf_env%n_eval+1
-       ! get actual min_hamiltonian_m and min_overlap_m
        call get_qs_env(gf_env%qs_env,pao_env=pao_env,&
             k=full_h_rmpv, s=full_s_rmpv)
        CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
@@ -564,16 +566,16 @@ contains
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_h", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=h_matrix%matrix,&
-               global_env=g_env,error=error)
+               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_min_s", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=s_matrix%matrix,&
-               global_env=g_env,error=error)
+               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
           call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_nui", &
                fromWhere=routineP, iter=gf_env%n_eval, &
                matrix=pao_env%angles_att%NUi_injection%matrix,&
-               global_env=g_env,error=error)
+               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
        end if
 
 
@@ -608,16 +610,6 @@ contains
 
        call symmetrise_diagonal_blocks(min_density_m)
 
-       ! could be avoided by having two more qs_blacs matrices
-       ! (copy from qs_blacs to qs_blacs does not need communication)
-!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-!!FM            blacs_matrix=gf_env%min_blacs_1, &
-!!FM            globenv=g_env)
-!!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
-!!FM            blacs_matrix=gf_env%min_blacs_1,&
-!!FM            globenv=g_env)
-!!FM       ! min_blacs1=H_{KS} min_blacs2=density
-
        CALL get_mo_set(mo_set=gf_env%mo_set(1)%mo_set,&
                        eigenvalues=mo_eigenvalues,&
                        occupation_numbers=mo_occupation_numbers)
@@ -629,7 +621,7 @@ contains
                   outputName="obj_f_min_p", &
                   fromWhere=routineP, iter=gf_env%n_eval,&
                   matrix=min_density_m,&
-                  global_env=g_env,error=error)
+                  mpi_env=cp_mpi_get_from_glob(g_env),error=error)
              call cp_write_output(logger=cp_error_get_logger(error),&
                   fromWhere=routineP,&
                   outputName="obj_f_f", iter=gf_env%n_eval,&
@@ -638,6 +630,9 @@ contains
        end if
 
        if (present(gradient)) then
+          ! uses the filtred P matrix
+          ! should change it soon
+          
           diagMatrix => cp_get_matrix(gf_env%diag_matrix) ! for xlf...
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
@@ -662,11 +657,11 @@ contains
                outputName="obj_f_BPpi", &
                fromWhere=routineP, iter=gf_env%n_eval, &
                matrix=cp_get_matrix(gf_env%full_work_m),&
-               global_env=g_env,error=error)
+               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
              call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_2HBPpi", &
                fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
-               global_env=g_env,error=error)
+               mpi_env=cp_mpi_get_from_glob(g_env),error=error)
           end if
           ! 2 S B P minH P i^*
           call copy_sparse_to_blacs_matrix(h_matrix%matrix,&
@@ -707,7 +702,7 @@ contains
              call cp_sm_output(logger=cp_error_get_logger(error), &
                   outputName="obj_f_df_du", &
                   fromWhere=routineP, iter=gf_env%n_eval, matrix=diagMatrix,&
-                  global_env=g_env,error=error)
+                  mpi_env=cp_mpi_get_from_glob(g_env),error=error)
           end if
           
           ! ** gradient = df/du_{i,j} du_{i,j}/dtheta_k
@@ -741,7 +736,7 @@ contains
              end if
           end do
           call pao_l_ang_dealloc_ref(local_angles,error=error)
-          call cp_matrix_b_i_dealloc_ref(block_iterator,error=error)
+          call cp_sm_b_i_dealloc_ref(block_iterator,error=error)
           call mp_sum(gradient,g_env%group)
           if (cp_debug.and.debug_this_module) then
              call cp_1d_r_output(cp_error_get_logger(error),"obj_f_grad",&
@@ -918,7 +913,7 @@ subroutine cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   end if
   if (.not.failure) then
-     call cp_matrix_b_i_init(iterator,matrix=matrix,error=error)
+     call cp_sm_b_i_init(iterator,matrix=matrix,error=error)
      do
         if (.not. cp_next(iterator,block_row=block_row,&
              block_val=block_val,error=error)) exit
@@ -945,7 +940,7 @@ subroutine cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
            block_val=t1_m(1:size(block_val,1),1:size(block_val,2))
         end if
      end do
-     call cp_matrix_b_i_dealloc_ref(iterator,error=error)
+     call cp_sm_b_i_dealloc_ref(iterator,error=error)
      deallocate(t1_m,stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   end if

@@ -37,7 +37,7 @@ module pao_env_methods
   use timings, only: timeset, timestop
   use pao_types, only: pao_glob_angles_type, pao_env_type, cp_get, pao_env_valid
   use qs_environment_types, only: qs_environment_type, get_qs_env
-  use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
+  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
        cp_sp_create, cp_get_matrix, cp_retain, cp_release
   use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
@@ -47,6 +47,7 @@ module pao_env_methods
        get_atomic_kind_set
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type, &
        cp_bmstruct_create, cp_bmstruct_release
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
   implicit none
   private
 
@@ -288,7 +289,7 @@ contains
        do i=1,size(pao_env%min_density_m)
           call cp_sp_create(pao_env%min_density_m(i)%matrix,&
                matrix_structure=pao_env%min_bas_m_struct,&
-               global_env=global_env, error=error)
+               mpi_env=cp_mpi_get_from_glob(global_env), error=error)
        end do
     end if
     ! angles_att
@@ -485,7 +486,7 @@ contains
 !!       Real(Kind=wp), Optional, Intent (IN)::&
 !!         wanted_in_subspace_precision, wanted_subspace_pos_precision
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: angles_att
-!!       Type(cp_sparse_matrix_p_type), Optional, Intent (IN), Dimension(:),&
+!!       Type(cp_block_matrix_p_type), Optional, Intent (IN), Dimension(:),&
 !!         Target:: min_density_m
 !!       Logical, Optional:: min_d_valid
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -526,7 +527,7 @@ contains
     real(kind=wp), optional, intent(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
     type(pao_glob_angles_type),optional, intent(in) :: angles_att
-    type(cp_sparse_matrix_p_type),optional, intent(in), dimension(:),&
+    type(cp_block_matrix_p_type),optional, intent(in), dimension(:),&
          target :: min_density_m
     logical, optional :: min_d_valid
     type(cp_error_type), optional, intent(inout) :: error
