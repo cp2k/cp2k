@@ -182,6 +182,7 @@ OBJECTS_GENERIC =\
  pol_overlap_ao.o\
  pol_overlap_pw.o\
  pol_projectors_pw.o\
+ pol_projectors_scale.o\
  pol_setup.o\
  pol_thk_ao.o\
  pol_thk_pw.o\
