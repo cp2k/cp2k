@@ -1911,7 +1911,7 @@ CONTAINS
             CYCLE
           END IF
 
-          maxl = SIZE(elec_conf) - 1
+          maxl = MIN(SIZE(elec_conf) - 1,maxl)
           econf(:) = 0.0_dp
           econf(0:maxl) = 0.5_dp*maxocc*REAL(elec_conf(0:maxl),dp)
 
