@@ -374,7 +374,7 @@ CONTAINS
     TYPE(pw_type), POINTER :: tmp_g, tmp_r, vxc_g,frho_r,frho_g
     TYPE(pw_p_type), DIMENSION(3) :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:,:), POINTER :: drho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER :: spline_coeff_g
+    TYPE(pw_p_type), DIMENSION(:), POINTER :: spline_coeff_g, my_rho_r
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid, pot
     REAL ( kind=wp ) :: eps_rho,alpha, exc_pippo
 
@@ -401,6 +401,12 @@ CONTAINS
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
        END IF
        CPPrecondition(SIZE(vxc)==nspins,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE(my_rho_r(nspins),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO ispin=1,nspins
+          my_rho_r(ispin)%pw => rho_r(ispin)%pw
+       END DO
     END IF
     CALL cp_assert(dft_control%integration_grid%pw_default,&
          cp_failure_level,cp_unimplemented_error_nr,routineP,&
@@ -409,8 +415,8 @@ CONTAINS
          error,failure)
 
     IF (.NOT.failure) THEN
-       n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
-       bo = rho_r(1)%pw%pw_grid%bounds_local
+       n(1:3) = my_rho_r(1)%pw%pw_grid%npts_local (1:3)
+       bo = my_rho_r(1)%pw%pw_grid%bounds_local
        ntot = PRODUCT ( n )
 
        ALLOCATE(rgrid(ntot,nspins),stat=stat)
@@ -426,16 +432,13 @@ CONTAINS
     ! introduce a smoothing kernel on the density
     IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,1)) THEN
        PRINT *,"smooth rho old"
-       CALL pw_pool_create_pw(pw_pool,tmp_r, &
-            use_data=REALDATA3D, in_space=REALSPACE, &
-            error=error)
-       
        DO ispin=1,nspins
-          CALL pw_copy(rho_r(ispin)%pw,tmp_r)
-          CALL pw_smooth(tmp_r,rho_r(ispin)%pw)
-          CALL pw_transfer(rho_r(ispin)%pw,rho_g(ispin)%pw)
+          CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
+               use_data=REALDATA3D, in_space=REALSPACE, &
+               error=error)
+          CALL pw_smooth(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
+          CALL pw_transfer(my_rho_r(ispin)%pw,rho_g(ispin)%pw)
        ENDDO
-       CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
     END IF
     IF (dft_control%smooth_gradient) THEN
        ALLOCATE(spline_coeff_g(nspins),stat=stat)
@@ -445,7 +448,7 @@ CONTAINS
           CALL pw_pool_create_pw(pw_pool, spline_coeff_g(ispin)%pw,&
                use_data=COMPLEXDATA3D, in_space=RECIPROCALSPACE, &
                error=error)
-          CALL pw_transfer(rho_r(ispin)%pw, spline_coeff_g(ispin)%pw)
+          CALL pw_transfer(my_rho_r(ispin)%pw, spline_coeff_g(ispin)%pw)
        
           IF (BTEST(dft_control%smooth,2).OR.&
                BTEST(dft_control%smooth,7)) THEN
@@ -457,7 +460,10 @@ CONTAINS
              IF (BTEST(dft_control%smooth,2)) THEN
                 PRINT *,"smooth rho new"
                 CALL pw_spline_evaluate_values_g(tmp_g,error=error)
-                CALL pw_transfer(tmp_g, rho_r(ispin)%pw)
+                CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
+                     use_data=REALDATA3D, in_space=REALSPACE, &
+                     error=error)
+                CALL pw_transfer(tmp_g, my_rho_r(ispin)%pw)
              ELSE
                 PRINT *,"smooth rho gradient only"
              END IF
@@ -481,7 +487,7 @@ CONTAINS
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
                    ii = ii + 1
-                   rgrid(ii,ispin) = rho_r(ispin)%pw%cr3d(i,j,k)
+                   rgrid(ii,ispin) = my_rho_r(ispin)%pw%cr3d(i,j,k)
                 END DO
              END DO
           END DO
@@ -552,10 +558,10 @@ CONTAINS
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
                        DO i = bo(1,1), bo(2,1)
-                          ! frho_r%cr3d(i,j,k)=log(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
-                          ! frho_r%cr3d(i,j,k)=rho_r(ispin)%pw%cr3d(i,j,k)
-                          ! frho_r%cr3d(i,j,k)= sqrt(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
-                          frho_r%cr3d(i,j,k)=MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k))**alpha
+                          ! frho_r%cr3d(i,j,k)=log(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
+                          ! frho_r%cr3d(i,j,k)=my_rho_r(ispin)%pw%cr3d(i,j,k)
+                          ! frho_r%cr3d(i,j,k)= sqrt(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
+                          frho_r%cr3d(i,j,k)=MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k))**alpha
                        END DO
                     END DO
                  END DO
@@ -576,7 +582,7 @@ CONTAINS
                        DO j = bo(1,2), bo(2,2)
                           DO i = bo(1,1), bo(2,1)
 !                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
-!                                                       exp(MAX(eps_rho,rho_r(ispin)%pw%cr3d(i,j,k)))
+!                                                       exp(MAX(eps_rho,my_rho_r(ispin)%pw%cr3d(i,j,k)))
 !                             drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
 !                                                               1.0_wp
 !                              drho_r(idir,ispin)%pw%cr3d(i,j,k)=drho_r(idir,ispin)%pw%cr3d(i,j,k) * &
@@ -670,10 +676,10 @@ CONTAINS
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
-    IF (.not.failure) THEN
-       exc = SUM ( pot(:,0) )*rho_r(1)%pw%pw_grid%dvol
-       IF ( rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
-          CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
+    IF (.NOT.failure) THEN
+       exc = SUM ( pot(:,0) )*my_rho_r(1)%pw%pw_grid%dvol
+       IF ( my_rho_r(1)%pw%pw_grid%para%mode == 1 ) THEN
+          CALL mp_sum ( exc, my_rho_r(1)%pw%pw_grid%para%group )
        END IF
 
        ! compose vxc
@@ -767,7 +773,7 @@ CONTAINS
                 CALL pw_spline_interpolate_values_g(vxc_g,error=error)
              END IF
              IF (dft_control%smooth_gradient.AND.&
-                  rho_r(1)%pw%pw_grid%spherical) THEN
+                  my_rho_r(1)%pw%pw_grid%spherical) THEN
                 ! filters vxc with the spherical grid
                 CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
                 CALL pw_pool_create_pw ( pw_pool, tmp_g,&
@@ -794,6 +800,37 @@ CONTAINS
 
           DEALLOCATE ( drgrid, STAT = stat )
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ELSEIF (BTEST(dft_control%smooth,4).OR.&
+            BTEST(dft_control%smooth,6)) THEN
+          CALL pw_pool_create_pw ( pw_pool, vxc_g, use_data=COMPLEXDATA3D,&
+               in_space=RECIPROCALSPACE, error=error)
+          
+          DO ispin=1,nspins
+             CALL pw_transfer(vxc(ispin)%pw,vxc_g)
+             
+             IF (BTEST(dft_control%smooth,4)) THEN
+                PRINT *, "smooth final vxc new"
+                CALL pw_spline_evaluate_values_g(vxc_g,error=error)
+             END IF
+             IF (BTEST(dft_control%smooth,6)) THEN
+                PRINT *, "sharpen final vxc new"
+                CALL pw_spline_interpolate_values_g(vxc_g,error=error)
+             END IF
+             IF (dft_control%smooth_gradient.AND.&
+                  my_rho_r(1)%pw%pw_grid%spherical) THEN
+                ! filters vxc with the spherical grid
+                CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
+                CALL pw_pool_create_pw ( pw_pool, tmp_g,&
+                     use_data=COMPLEXDATA1D,&
+                     in_space=RECIPROCALSPACE, error=error)
+                CALL pw_transfer(vxc_g,tmp_g)
+                CALL pw_transfer(tmp_g,vxc(ispin)%pw)
+             ELSE
+                CALL pw_transfer ( vxc_g, vxc(ispin)%pw )
+             END IF
+          END DO
+
+          CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
        END IF
 
        DEALLOCATE ( pot, STAT = stat )
@@ -811,42 +848,32 @@ CONTAINS
         ENDDO
         CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
     ENDIF
-
-    IF (dft_control%smooth_gradient) THEN
+    IF (dft_control%smooth_rho.AND.BTEST(dft_control%smooth,5)) THEN
        DO ispin=1,nspins
-          CALL pw_transfer(spline_coeff_g(ispin)%pw,rho_r(ispin)%pw)
-          CALL pw_pool_give_back_pw(pw_pool,spline_coeff_g(ispin)%pw,&
+          CALL pw_pool_give_back_pw(pw_pool,my_rho_r(ispin)%pw,&
                error=error)
        END DO
+       DEALLOCATE(my_rho_r,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+    IF (dft_control%smooth_gradient) THEN
+       DO ispin=1,nspins
+          CALL pw_pool_give_back_pw(pw_pool,spline_coeff_g(ispin)%pw,&
+               error=error)
+          IF (BTEST(dft_control%smooth,2)) THEN
+             CALL pw_pool_give_back_pw(pw_pool,my_rho_r(ispin)%pw,&
+                  error=error)
+          END IF
+       END DO
+       IF (BTEST(dft_control%smooth,2)) THEN
+          DEALLOCATE(my_rho_r,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
        DEALLOCATE(spline_coeff_g,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-
-    IF (.TRUE..OR.&
-         BTEST(dft_control%smooth,3).OR.BTEST(dft_control%smooth,4).OR.&
-         BTEST(dft_control%smooth,5).OR.BTEST(dft_control%smooth,6)) THEN
-       ! recalculate e_xc
-        exc_pippo=0.0_wp
-        DO ispin=1,nspins
-           !$omp parallel do private(k,j,i,exc_pippo)
-           DO k = bo(1,3), bo(2,3)
-              DO j = bo(1,2), bo(2,2)
-                 DO i = bo(1,1), bo(2,1)
-                    exc_pippo=exc_pippo+&
-                         rho_r(ispin)%pw%cr3d(i,j,k)*vxc(ispin)%pw%cr3d(i,j,k)
-                 END DO
-              END DO
-           END DO
-        ENDDO
-        exc_pippo=exc_pippo*rho_r(1)%pw%pw_grid%dvol
-        PRINT *,"old e_xc=",exc,"new e_xc=",exc_pippo," diff=",exc_pippo-exc
-        IF (BTEST(dft_control%smooth,8)) THEN
-           PRINT *,"using new e_xc"
-           exc=exc_pippo
-        END IF
-     END IF
      
-     CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_wp,handle)
      
   END SUBROUTINE xc_calculate_pw_new
 !***************************************************************************
