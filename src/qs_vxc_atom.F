@@ -27,7 +27,8 @@ MODULE qs_vxc_atom
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_control_types,                ONLY: dft_control_type
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             xc_control_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE kinds,                           ONLY: dp,dp_size
@@ -35,9 +36,6 @@ MODULE qs_vxc_atom
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,nco,nso,&
                                              ncoset,nsoset
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -51,13 +49,21 @@ MODULE qs_vxc_atom
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_atom,                         ONLY: vxc_of_r
+  USE xc_atom,                         ONLY: vxc_of_r,&
+                                             vxc_of_r_new,&
+                                             xc_rho_set_atom_update
   USE xc_functionals,                  ONLY: xc_calculate_lda,&
                                              xc_calculate_lsd,&
                                              xc_get_pot_size
+  USE xc_derivatives,                  ONLY: xc_functional_get_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_release
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type,&
+                                             xc_rho_set_create,&
+                                             xc_rho_set_release,&
+                                             xc_rho_set_type
 
   IMPLICIT NONE
 
@@ -97,8 +103,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER     :: dft_control
     TYPE(grid_atom_type), POINTER       :: grid_atom
     TYPE(harmonics_atom_type), POINTER  :: harmonics
-    TYPE(pw_env_type), POINTER          :: pw_env
-    TYPE(pw_pool_type), POINTER         :: pw_pool
     TYPE(qs_energy_type), POINTER       :: energy
     TYPE(rho_atom_type), DIMENSION(:), &
                               POINTER   :: rho_atom_set
@@ -109,8 +113,11 @@ CONTAINS
                   POINTER               :: dr_h,dr_s
     TYPE(rho_atom_coeff),DIMENSION(:,:),&
                   POINTER               :: r_h_d,r_s_d
+    TYPE(xc_control_type), POINTER      :: xc_control
     TYPE(xc_derivative_set_type), &
-                             POINTER    :: derivative_set
+                             POINTER    :: deriv_set
+    TYPE(xc_rho_cflags_type)            :: needs
+    TYPE(xc_rho_set_type), POINTER      :: rho_set
 
     REAL(dp), DIMENSION(:), POINTER     :: weight 
     REAL(dp), DIMENSION(:,:), &
@@ -120,53 +127,45 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), &
                               POINTER   :: vxc_h,vxc_s,&
                                            vxg_h,vxg_s
+    REAL(dp), DIMENSION(:,:), POINTER   :: vxgc_h,vxgc_s
     REAL(dp), DIMENSION(:,:,:,:), &
                               POINTER   :: drho_h,drho_s
     LOGICAL                             :: cross_term,&
                                            gradient_f,lsd,paw_atom
     REAL(dp)                            :: exc_h,exc_s,rad,urad,usin_ia,rtot
-    REAL(dp), ALLOCATABLE, &
-                        DIMENSION(:,:)  :: locpot
     INTEGER                             :: handle,i,ia,iat,iatom, ierr,&
-                                           ikind,ipot,ir,&
+                                           ifunc,ikind,ipot,ir,&
                                            iso,ispin,lp,na,natom,nkind,&
-                                           nr,npot,nspins,order 
+                                           nr,nspins 
     INTEGER, DIMENSION(:), POINTER      :: atom_list
+    INTEGER, DIMENSION(2, 3)            :: bo
+
 
 !   ***************************************************************************
 
     CALL timeset("calculate_vxc_atom","I","",handle)
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control,xc_control)
     NULLIFY(energy)
     NULLIFY(atomic_kind_set,atom_kind)
-    NULLIFY(pw_env)
     NULLIFY(rho_atom_set,rho_atom)
-    NULLIFY(pw_pool)
     NULLIFY(atom_kind)
     NULLIFY(grid_atom,harmonics)
     NULLIFY(atom_list)
-    NULLIFY(derivative_set)
+    NULLIFY(deriv_set)
+    NULLIFY(rho_set)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
-                    pw_env=pw_env,&
                     rho_atom_set=rho_atom_set)
 
    nspins = dft_control%nspins
    gradient_f=ANY(dft_control%xc_control%gradient_functionals)
    cross_term = ANY (dft_control%xc_control%crossterms) .AND. nspins>1
-
    lsd = (nspins==2)
-   order = 1
-   npot = xc_get_pot_size(lsd,gradient_f , cross_term, order)
    
-   CALL pw_env_get(pw_env,auxbas_pw_pool=pw_pool,error=error)
-
-   CALL xc_dset_create(derivative_set, pw_pool=pw_pool, error=error)
-
    nkind = SIZE(atomic_kind_set)
 
 !  Put to 0 the energy contribution from the one center XC terms 
@@ -183,10 +182,33 @@ CONTAINS
 
      NULLIFY(r_h,r_s,dr_h,dr_s,r_h_d,r_s_d)
      NULLIFY(rho_h,drho_h,rho_s,drho_s,weight,oodrho_h,oodrho_s)
-     NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s)
+     NULLIFY(vxc_h,vxc_s,vxg_h,vxg_s,vxgc_h,vxgc_s)
 
      nr = grid_atom%nr
      na = grid_atom%ng_sphere
+
+!    Prepare the structures needed to calculate and store the xc derivatives
+     xc_control => dft_control%xc_control
+!    Array dimension: here anly one dimensional arrays are used,
+!    i.e. only the first column of deriv_data is read.
+!    The other to dimensions  are set to size equal 1
+     bo(1:2,1:3) = 1
+     bo(2,1) = na
+
+     ! create a place where to put the derivatives
+     CALL xc_dset_create(deriv_set, local_bounds=bo, error=error)
+     ! create the place where to store the argument for the functionals
+     CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
+            drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
+            error=error)
+     ! assesses the argument needed by the functionals
+     CALL xc_rho_cflags_setall(needs,.FALSE.,error=error)
+     DO ifunc=1,SIZE(xc_control%functionals)
+        CALL xc_functional_get_info(xc_control%functionals(ifunc),lsd=lsd,&
+             needs=needs, error=error)
+     END DO
+     ! allocate the required 3d arrays where to store rho and drho
+     CALL xc_rho_set_atom_update(rho_set,needs,nspins,na)
 
      CALL reallocate(rho_h,1,na,1,nspins)
      CALL reallocate(rho_s,1,na,1,nspins)
@@ -194,18 +216,17 @@ CONTAINS
      CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
      CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
   
-     ALLOCATE(derivative_set%data(na, 0:npot-1), stat=ierr)
-!     CPPostconditionNoFail(ierr==0,cp_failure_level,routineP,error)
-
      IF (gradient_f) THEN
-        ALLOCATE(locpot(na,npot), STAT=ierr)
-!        CPPostconditionNoFail(ierr==0,cp_failure_level,routineP,error)
         CALL reallocate(drho_h,1,4,1,na,1,nr,1,nspins)
         CALL reallocate(drho_s,1,4,1,na,1,nr,1,nspins)
         CALL reallocate(oodrho_h,1,na,1,nspins)
         CALL reallocate(oodrho_s,1,na,1,nspins)
         CALL reallocate(vxg_h,1,na,1,nr,1,nspins)
         CALL reallocate(vxg_s,1,na,1,nr,1,nspins)
+        IF(cross_term) THEN
+          CALL reallocate(vxgc_h,1,na,1,nr)
+          CALL reallocate(vxgc_s,1,na,1,nr)
+        END IF
      END IF
 
      DO iat = 1,natom
@@ -342,14 +363,24 @@ CONTAINS
                                drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+& 
                                drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
                                drho_h(3,ia,ir,ispin)*drho_h(3,ia,ir,ispin))
-                  oodrho_h(ia,ispin) = -1.0_dp/MIN(-drho_h(4,ia,ir,ispin),-1.E-12_dp)
+                  IF(drho_h(4,ia,ir,ispin) > dft_control%xc_control%gradient_cut ) THEN
+                    oodrho_h(ia,ispin) = 1.0_dp/drho_h(4,ia,ir,ispin)
+                  ELSE
+                    oodrho_h(ia,ispin) =  0.0_dp
+                  END IF
+!                  oodrho_h(ia,ispin) = -1.0_dp/MIN(-drho_h(4,ia,ir,ispin),-1.E-12_dp)
                   drho_s(4,ia,ir,ispin) = SQRT(&
                                drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
                                drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
                                drho_s(3,ia,ir,ispin)*drho_s(3,ia,ir,ispin))
-                  oodrho_s(ia,ispin) = -1.0_dp/MIN(-drho_s(4,ia,ir,ispin),-1.E-12_dp)
-                END DO
-             END DO
+                  IF(drho_h(4,ia,ir,ispin) > dft_control%xc_control%gradient_cut ) THEN
+                    oodrho_s(ia,ispin) = 1.0_dp/drho_s(4,ia,ir,ispin)
+                  ELSE
+                    oodrho_s(ia,ispin) =  0.0_dp
+                  END IF
+!                  oodrho_s(ia,ispin) = -1.0_dp/MIN(-drho_s(4,ia,ir,ispin),-1.E-12_dp)
+                END DO  ! ia
+             END DO  ! iso
 !  WRITE(*,*) 'iatom ', iatom, 'ir=10', grid_atom%rad(ir)
 !  DO ia = 1,na
 !    WRITE(50,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
@@ -364,7 +395,7 @@ CONTAINS
 ! end if
 !  end do 
 !    WRITE(46,*)
-           END DO
+           END DO  ! ispin
 !  stop 'gra'
          ELSE         
            DO ispin = 1,nspins
@@ -376,79 +407,43 @@ CONTAINS
                   rho_s(ia,ispin) = rho_s(ia,ispin) + & 
                        r_s(ispin)%r_coef(ir,iso)*&
                        harmonics%slm(ia,iso)
-                END DO
-             END DO
-           END DO
+                END DO  ! ia
+             END DO  ! iso
+           END DO  ! ispin
          END IF
 
 ! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !        *** hard atom density ***
-         CALL dcopy(na*npot, 0.0_dp, 0, derivative_set%data, 1)
 
-         IF(gradient_f) THEN
-           CALL vxc_of_r(dft_control%xc_control,derivative_set,nspins,na,rho_h,&
-                         drho=drho_h,ir=ir,locpot=locpot,error=error)
-         ELSE
-           CALL vxc_of_r(dft_control%xc_control,derivative_set,nspins,na,rho_h)
-         ENDIF
+!        Use the new routine to calculate the xc derivatives
+!        rho_h and drho_h are given for the radial point ir and
+!        all the na points on the angular grid
+         CALL vxc_of_r_new(xc_control = xc_control,&
+                           rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
+                           rho=rho_h,drho=drho_h,oodrho=oodrho_h,w=weight,&
+                           lsd=lsd,na=na,ir_pnt=ir,&
+                           exc=exc_h,vxc=vxc_h,vxg=vxg_h,vxg_cross=vxgc_h,error=error)
 
 !        *** Sum up the exc contribution  to exc_h ***
-         exc_h = SUM ( derivative_set%data(:,0)*weight(:) )
          rho_atom%exc_h = rho_atom%exc_h + exc_h
-
-!        ***  vxc_h(ia,ir) 
-         DO ispin = 1,nspins
-           DO ia =1,na
-             vxc_h(ia,ir,ispin) =  derivative_set%data(ia,ispin)*weight(ia)
-           END DO
-         END DO
-
-!        *** if gradient_f :  vxg_h(ia,ir)
-         IF (gradient_f) THEN
-           DO ispin = 1,nspins
-             ipot = nspins + ispin
-             DO ia =1,na
-               vxg_h(ia,ir,ispin) =  derivative_set%data(ia,ipot)*weight(ia)*oodrho_h(ia,ispin)
-             END DO
-           END DO
-         END IF
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !        *** soft atom density ***
-         CALL dcopy(na*npot, 0.0_dp, 0, derivative_set%data, 1)
-
-         IF(gradient_f) THEN
-           CALL vxc_of_r(dft_control%xc_control,derivative_set,nspins,na,rho_s,&
-                         drho=drho_s,ir=ir,locpot=locpot,error=error)
-         ELSE
-           CALL vxc_of_r(dft_control%xc_control,derivative_set,nspins,na,rho_s)
-         ENDIF
+!        Use the new routine to calculate the xc derivatives
+         CALL vxc_of_r_new(xc_control=xc_control,&
+                           rho_set=rho_set,deriv_set=deriv_set,deriv_order=1,needs=needs,&
+                           rho=rho_s,drho=drho_s,oodrho=oodrho_s,w=weight,&
+                           lsd=lsd,na=na,ir_pnt=ir,&
+                           exc=exc_s,vxc=vxc_s,vxg=vxg_s,vxg_cross=vxgc_s,error=error)
 
 !        *** Sum up the exc contribution  to exc_s ***
-         exc_s = SUM ( derivative_set%data(:,0)*weight(:) )
          rho_atom%exc_s = rho_atom%exc_s + exc_s
-!        ***  vxc_s(ia,ir) 
-         DO ispin = 1,nspins
-           DO ia =1,na
-             vxc_s(ia,ir,ispin) =  derivative_set%data(ia,ispin)*weight(ia)
-           END DO
-         END DO
 
-!        *** if gradient_f :  vxg_s(ia,ir)
-         IF (gradient_f) THEN
-           DO ispin = 1,nspins
-             ipot = nspins + ispin
-             DO ia =1,na
-               vxg_s(ia,ir,ispin) =  derivative_set%data(ia,ipot)*weight(ia)*oodrho_s(ia,ispin)
-             END DO
-           END DO
-         END IF
-
+!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
        END DO  !nr 
 
 !      *** Add contributions to the exc energy 
-       energy%exc1 = energy%exc1 + rho_atom%exc_h - &
-                                 rho_atom%exc_s
+       energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
 
 !     WRITE(*,*) rho_atom%exc_h, rho_atom%exc_s, energy%exc1
 
@@ -457,9 +452,13 @@ CONTAINS
 !      *** internal transformation to get the integral in cartesian Gaussians ***
 
        atom_kind => atomic_kind_set(ikind)
-       IF(gradient_f) THEN
+       IF(cross_term) THEN
          CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
-                                rho_atom,drho_h,drho_s,nspins)
+                                    rho_atom,drho_h,drho_s,nspins,&
+                                        vxgc_h=vxgc_h,vxgc_s=vxgc_s)
+       ELSE IF(gradient_f) THEN
+         CALL calculate_gaVxcgb(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,&
+                                      rho_atom,drho_h,drho_s,nspins)
        ELSE
          CALL calculate_gaVxcgb(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
        ENDIF
@@ -467,14 +466,12 @@ CONTAINS
        NULLIFY(r_h,r_s,dr_h,dr_s)
      END DO ! iat
 
-     DEALLOCATE(derivative_set%data, stat=ierr)
-     IF (gradient_f) THEN
-        DEALLOCATE(locpot,stat=ierr)
-     END IF 
+!    Release the xc structure used to store the xc derivatives
+     CALL xc_dset_release(deriv_set, error=error)
+     CALL xc_rho_set_release(rho_set,error=error)
 
    ENDDO ! ikind
 
-   CALL xc_dset_release(derivative_set, error=error)
 !   STOP 'exc'
 
    CALL timestop(0.0_dp,handle)
@@ -484,7 +481,6 @@ CONTAINS
 
  SUBROUTINE  gaVxcgb_noGC(vxc_h,vxc_s,atom_kind,rho_atom,nspins)
 
-! *****************************************************************************
 
     TYPE(atomic_kind_type), POINTER       :: atom_kind
     TYPE(rho_atom_type),  POINTER         :: rho_atom
@@ -519,7 +515,7 @@ CONTAINS
                                              m2,n1,n2,na, ngau1,ngau2,nngau1,nr, nset,&
                                              size1
 
-! *****************************************************************************
+! -----------------------------------------------------------------------------
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,harmonics,grid_atom) 
 
@@ -639,9 +635,9 @@ CONTAINS
 
 ! *****************************************************************************
 
- SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,drho_s,nspins)
+ SUBROUTINE  gaVxcgb_GC(vxc_h,vxc_s,vxg_h,vxg_s,atom_kind,rho_atom,drho_h,&
+                        drho_s,nspins,vxgc_h,vxgc_s)
 
-! *****************************************************************************
 
     TYPE(atomic_kind_type), POINTER       :: atom_kind
     TYPE(rho_atom_type),  POINTER         :: rho_atom
@@ -651,6 +647,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:), &
                                 POINTER   :: drho_h,drho_s
     INTEGER, INTENT(IN)                   :: nspins
+    REAL(dp), DIMENSION(:,:), POINTER,&
+              OPTIONAL                    :: vxgc_h, vxgc_s
 
     CHARACTER(LEN=*), PARAMETER           :: routine_name = "gaVxcgb_GC"
 
@@ -681,8 +679,9 @@ CONTAINS
                                              lmin12,lmax12,maxso, maxl, m1,&
                                              m2,n1,n2,na, ngau1, ngau2, nngau1, nr, nset,&
                                              size1
+    LOGICAL                               :: cross_term
 
-! *****************************************************************************
+! -----------------------------------------------------------------------------
 
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,harmonics,grid_atom) 
 
@@ -698,6 +697,9 @@ CONTAINS
     na = grid_atom%ng_sphere 
     my_CG => harmonics%my_CG
     my_CG_dxyz => harmonics%my_CG_dxyz
+
+    cross_term = .FALSE.
+    IF(PRESENT(vxgc_h)) cross_term = .TRUE.
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -768,6 +770,76 @@ CONTAINS
               gVXCg_s = 0.0_dp
               gVXGg_h = 0.0_dp
               gVXGg_s = 0.0_dp
+
+              IF(cross_term) THEN
+
+!             Cross Term
+              DO l = lmin12,lmax12
+                DO ia = 1,na
+                  DO ir = 1,nr
+                     gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
+                            gg(ir,l) * vxc_h(ia,ir,ispin)+&
+                            dgg(ir,l)*vxg_h(ia,ir,ispin)*&
+                           (drho_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            drho_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+                            drho_h(3,ia,ir,ispin)*harmonics%a(3,ia))+&
+                            dgg(ir,l)*vxgc_h(ia,ir)*&
+                           ((drho_h(1,ia,ir,1)+drho_h(1,ia,ir,2))*harmonics%a(1,ia)+&
+                            (drho_h(2,ia,ir,1)+drho_h(2,ia,ir,2))*harmonics%a(2,ia)+&
+                            (drho_h(3,ia,ir,1)+drho_h(3,ia,ir,2))*harmonics%a(3,ia))
+
+                     gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
+                            gg(ir,l) * vxc_s(ia,ir,ispin)+&
+                            dgg(ir,l)*vxg_s(ia,ir,ispin)*&
+                           (drho_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
+                            drho_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
+                            drho_s(3,ia,ir,ispin)*harmonics%a(3,ia))+&
+                            dgg(ir,l)*vxgc_s(ia,ir)*&
+                           ((drho_s(1,ia,ir,1)+drho_s(1,ia,ir,2))*harmonics%a(1,ia)+&
+                            (drho_s(2,ia,ir,1)+drho_s(2,ia,ir,2))*harmonics%a(2,ia)+&
+                            (drho_s(3,ia,ir,1)+drho_s(3,ia,ir,2))*harmonics%a(3,ia))
+
+                     urad = grid_atom%oorad2l(ir,1)
+
+
+                     gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
+                                    drho_h(1,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_h(1,ia,ir,1)+drho_h(1,ia,ir,2))*&
+                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+                     gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
+                                    drho_h(2,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_h(2,ia,ir,1)+drho_h(2,ia,ir,2))*&
+                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+                     gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
+                                    drho_h(3,ia,ir,ispin)*vxg_h(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_h(3,ia,ir,1)+drho_h(3,ia,ir,2))*&
+                                    vxgc_h(ia,ir)*gg(ir,l)*urad
+
+                     gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
+                                    drho_s(1,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_s(1,ia,ir,1)+drho_s(1,ia,ir,2))*&
+                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                     gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &
+                                    drho_s(2,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_s(2,ia,ir,1)+drho_s(2,ia,ir,2))*&
+                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                     gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &
+                                    drho_s(3,ia,ir,ispin)*vxg_s(ia,ir,ispin)*&
+                                    gg(ir,l)*urad + &
+                                    (drho_s(3,ia,ir,1)+drho_s(3,ia,ir,2))*&
+                                    vxgc_s(ia,ir)*gg(ir,l)*urad
+                  ENDDO ! ir
+                ENDDO ! ia
+              ENDDO  ! l
+
+              ELSE
+
+!             Without Cross Term
               DO l = lmin12,lmax12
                 DO ia = 1,na
                   DO ir = 1,nr
@@ -810,6 +882,7 @@ CONTAINS
                   ENDDO ! ir
                 ENDDO ! ia
               ENDDO  ! l
+              END IF
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp

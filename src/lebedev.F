@@ -128,17 +128,25 @@ CONTAINS
     INTEGER                                  :: number_of_lebedev_grid
 
     INTEGER, DIMENSION(1)                    :: lgnum
+    INTEGER,DIMENSION(:), ALLOCATABLE        :: ll,nn
+    INTEGER :: i
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.init_lebedev_grids_done) CALL init_lebedev_grids
 
     lgnum(1) = 0
-
+    allocate(nn(SIZE(lebedev_grid,1)),ll(SIZE(lebedev_grid,1)))
+    DO i =1,SIZE(nn,1)
+      nn(i) = lebedev_grid(i)%n
+      ll(i) = lebedev_grid(i)%l
+    END DO
     IF (PRESENT(l)) THEN
-      lgnum(:) = MINLOC(lebedev_grid(:)%n,MASK=(lebedev_grid(:)%l >= l))
+!      lgnum(:) = MINLOC(lebedev_grid(:)%n,MASK=(lebedev_grid(:)%l >= l))
+      lgnum(:) = MINLOC(nn(:),MASK=(ll(:) >= l))
     ELSE IF (PRESENT(n)) THEN
-      lgnum(:) = MINLOC(lebedev_grid(:)%n,MASK=(lebedev_grid(:)%n >= n))
+!      lgnum(:) = MINLOC(lebedev_grid(:)%n,MASK=(lebedev_grid(:)%n >= n))
+      lgnum(:) = MINLOC(nn(:),MASK=(nn(:) >= n))
     ELSE
       STOP "*** ERROR in FUNCTION get_number_of_lebedev_grid ***"
     END IF
@@ -148,7 +156,7 @@ CONTAINS
     ELSE
       number_of_lebedev_grid = lgnum(1)
     END IF
-
+    DEALLOCATE(nn,ll)
   END FUNCTION get_number_of_lebedev_grid
 
 ! *****************************************************************************

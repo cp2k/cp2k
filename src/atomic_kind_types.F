@@ -227,8 +227,8 @@ CONTAINS
       atomic_kind_set(ikind)%paw_atom = .FALSE.
       atomic_kind_set(ikind)%hard_radius = 0.8_dp*bohr
       atomic_kind_set(ikind)%hard0_radius = 0.8_dp*bohr
-      atomic_kind_set(ikind)%ngrid_rad = 100
-      atomic_kind_set(ikind)%ngrid_ang = 70 
+      atomic_kind_set(ikind)%ngrid_rad = 40
+      atomic_kind_set(ikind)%ngrid_ang = 50 
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
