@@ -702,7 +702,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     NULLIFY(matrix%distribution_2d) 
     IF (PRESENT(distribution_2d)) matrix%distribution_2d=>distribution_2d
-    IF (ASSOCIATED(distribution_2d)) THEN
+    IF (ASSOCIATED(matrix%distribution_2d)) THEN
        CALL distribution_2d_retain(matrix%distribution_2d)
     END IF
 
