@@ -51,6 +51,7 @@ MODULE pw_spline_utils
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE machine,                         ONLY: m_cputime
 
   IMPLICIT NONE
   PRIVATE
@@ -1704,7 +1705,6 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
     LOGICAL                                  :: failure
 !    REAL(kind=dp), DIMENSION(0:2)            :: v
     REAL(kind=dp) :: v0,v1, v2
-
   failure=.FALSE.
   v0=in_val_first
   v1=in_val(1)
@@ -2108,10 +2108,12 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   INTEGER, DIMENSION(2, 3)                 :: bo, gbo
   INTEGER, DIMENSION(3)                    :: s
   LOGICAL                                  :: failure, has_boundary, zderiv,&
-       yderiv
+       yderiv, xderiv
   REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
   REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val,out_val
   REAL(kind=dp) :: in_val_f, in_val_l
+  REAL(kind=dp) :: v0,v1, v2, w0,w1,w2
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -2127,6 +2129,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
   IF (.NOT. failure) THEN
      zderiv=ALL(weights(:,:,1)==0.0_dp)
      yderiv=ALL(weights(:,1,:)==0.0_dp)
+     xderiv=ALL(weights(1,:,:)==0.0_dp)
      bo=pw_in%pw_grid%bounds_local
      gbo=pw_in%pw_grid%bounds
      DO i=1,3
@@ -2155,29 +2158,90 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
         DEALLOCATE(tmp,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
+     in_val => pw_in%cr3d
+     out_val => pw_out%cr3d
      IF (method_rs<3) THEN
-          DO k=0,s(3)-1
-           DO j=0,s(2)-1
-              DO kw=0,2
-                 IF (zderiv.AND.kw==1) CYCLE
-                 myk=bo(1,3)+MODULO(k+kw-1,s(3))
-                 DO jw=0,2
-                    IF (yderiv.AND.jw==1) CYCLE
+        DO k=0,s(3)-1
+                 DO j=0,s(2)-1
+           DO kw=0,2
+              IF (zderiv.AND.kw==1) CYCLE
+              myk=bo(1,3)+MODULO(k+kw-1,s(3))
+              DO jw=0,2
+                 IF (yderiv.AND.jw==1) CYCLE
                     myj=bo(1,2)+MODULO(j+jw-1,s(2))
                     IF (has_boundary) THEN
                        in_val_f=l_boundary(myj,myk)
                        in_val_l=u_boundary(myj,myk)
                     ELSE
-                       in_val_f=pw_in%cr3d(bo(2,1),myj,myk)
-                       in_val_l=pw_in%cr3d(bo(1,1),myj,myk)
+                       in_val_f=in_val(bo(2,1),myj,myk)
+                       in_val_l=in_val(bo(1,1),myj,myk)
                     END IF
-                    CALL pw_compose_stripe(weights=weights(:,jw,kw),&
-                         in_val=pw_in%cr3d(:,myj,myk),&
-                         in_val_first=in_val_f,in_val_last=in_val_l,&
-                         out_val=pw_out%cr3d(:,bo(1,2)+j,bo(1,3)+k),&
-                         n_el=s(1))
-                 END DO
+!FM                    CALL pw_compose_stripe(weights=weights(:,jw,kw),&
+!FM                         in_val=pw_in%cr3d(:,myj,myk),&
+!FM                         in_val_first=in_val_f,in_val_last=in_val_l,&
+!FM                         out_val=pw_out%cr3d(:,bo(1,2)+j,bo(1,3)+k),n_el=s(1)) 
+  ! --------------------------- inserted from pw_compose_stripe ----------------------------------------
+  v0=in_val_f
+  v1=in_val(bo(1,1)-1+1,myj,myk)
+  w0=weights(0,jw,kw)
+  w1=weights(1,jw,kw)
+  w2=weights(2,jw,kw)
 
+  IF (xderiv) THEN
+     ! optimized version for x deriv
+     DO i=1,s(1)-3,3
+        v2 =in_val(bo(1,1)-1+i+1,myj,myk)
+        out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v0+w2*v2
+        v0=in_val(bo(1,1)-1+i+2,myj,myk)
+        out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v1+w2*v0
+        v1=in_val(bo(1,1)-1+i+3,myj,myk)
+        out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v2+w2*v1
+     END DO
+  ELSE
+     ! generic version
+     DO i=1,s(1)-3,3
+        v2=in_val(bo(1,1)-1+i+1,myj,myk)
+        out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v0+w1*v1+w2*v2
+        v0=in_val(bo(1,1)-1+i+2,myj,myk)
+        out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+1,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v1+w1*v2+w2*v0
+        v1=in_val(bo(1,1)-1+i+3,myj,myk)
+        out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+i+2,bo(1,2)+j,bo(1,3)+k)+&
+             w0*v2+w1*v0+w2*v1
+     END DO
+  END IF
+  SELECT CASE(MODULO(s(1)-1,3))
+  CASE(0)
+     IF (s(1)>0) THEN
+        v2=in_val_l
+        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
+             w0*v0+ w1*v1+ w2*v2
+     END IF
+  CASE(1)
+     v2=in_val(bo(1,1)-1+s(1),myj,myk)
+        out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)+&
+          w0*v0+ w1*v1+ w2*v2
+     v0=in_val_l
+        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
+          w0*v1+ w1*v2+ w2*v0
+  CASE(2)
+     v2=in_val(bo(1,1)-1+s(1)-1,myj,myk)
+        out_val(bo(1,1)-1+s(1)-2,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-2,bo(1,2)+j,bo(1,3)+k)+&
+          w0*v0+ w1*v1+ w2*v2
+     v0=in_val(bo(1,1)-1+s(1),myj,myk)
+        out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1)-1,bo(1,2)+j,bo(1,3)+k)+&
+          w0*v1+ w1*v2+ w2*v0
+     v1=in_val_l
+        out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)= out_val(bo(1,1)-1+s(1),bo(1,2)+j,bo(1,3)+k)+&
+          w0*v2+ w1*v0+ w2*v1
+  END SELECT
+  ! --------------------------- end inserted from pw_compose_stripe ------------------------------------
+
+                 END DO
               END DO
            END DO
         END DO
@@ -2268,38 +2332,16 @@ END SUBROUTINE pw_nn_compose_r
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
       routineP = moduleN//':'//routineN
 
-    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+    REAL(kind=dp), DIMENSION(-1:1, -1:1, -1:1)  :: weights
+    INTEGER :: i,j,k
 
-    weights(1,1,1)=coeffs(1)
-
-    weights(0,1,1)=coeffs(2)
-    weights(2,1,1)=coeffs(2)
-    weights(1,0,1)=coeffs(2)
-    weights(1,2,1)=coeffs(2)
-    weights(1,1,0)=coeffs(2)
-    weights(1,1,2)=coeffs(2)
-
-    weights(0,0,1)=coeffs(3)
-    weights(0,1,0)=coeffs(3)
-    weights(1,0,0)=coeffs(3)
-    weights(0,2,1)=coeffs(3)
-    weights(0,1,2)=coeffs(3)
-    weights(1,0,2)=coeffs(3)
-    weights(2,0,1)=coeffs(3)
-    weights(2,1,0)=coeffs(3)
-    weights(1,2,0)=coeffs(3)
-    weights(2,2,1)=coeffs(3)
-    weights(2,1,2)=coeffs(3)
-    weights(1,2,2)=coeffs(3)
-
-    weights(0,0,0)=coeffs(4)
-    weights(0,0,2)=coeffs(4)
-    weights(0,2,0)=coeffs(4)
-    weights(2,0,0)=coeffs(4)
-    weights(2,2,0)=coeffs(4)
-    weights(2,0,2)=coeffs(4)
-    weights(0,2,2)=coeffs(4)
-    weights(2,2,2)=coeffs(4)
+    DO k=-1,1
+       DO j=-1,1
+          DO i=-1,1
+             weights(i,j,k)=coeffs(ABS(i)+ABS(j)+ABS(k)+1)
+          END DO
+       END DO
+    END DO
 
     CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
          error=error)
