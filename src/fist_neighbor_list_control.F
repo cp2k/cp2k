@@ -71,7 +71,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   REAL ( dbl ), DIMENSION (3) :: disp_vec
   REAL ( dbl ) :: displace, max_displace, verlet_skin
   LOGICAL :: list_update_flag, ionode
-  INTEGER :: counter, num_update, last_update, lup, aup
+  INTEGER :: counter, num_update, last_update
+  REAL ( dbl ) :: lup, aup
   INTEGER :: i, nnodes, node, isos, iw, handle, nparticle_local
   INTEGER :: nparticle_kind, iparticle_kind, iparticle, iparticle_local
   CHARACTER ( LEN = default_string_length) :: string
@@ -89,7 +90,9 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   CALL fist_nonbond_env_get ( fist_nonbond_env,  nonbonded = nonbonded, &
                               rlist_cutsq = rlist_cutsq, aup = aup, lup = lup, &
                               counter = counter, r_last_update = r_last_update, &
-                              num_update = num_update, verlet_skin = verlet_skin ) 
+                              num_update = num_update, verlet_skin = verlet_skin, &
+                              last_update = last_update ) 
+  
 
   nparticle_kind = SIZE ( atomic_kind_set )
   nnodes = 0
@@ -114,7 +117,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
         disp_vec ( : ) = scaled_to_real ( r_last_update ( :, node ), cell ) -  &
                          particle_set ( iparticle ) % r ( : )
-        displace = SQRT ( DOT_PRODUCT ( disp_vec, disp_vec ) )
+        displace =  DOT_PRODUCT ( disp_vec, disp_vec ) 
         max_displace = MAX ( displace, max_displace )
      END DO
   END DO
@@ -122,6 +125,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 #if defined(__parallel)
   CALL mp_max ( max_displace,  globenv % group )
 #endif
+
 
   IF ( max_displace >= 0.25_dbl * verlet_skin ** 2 ) THEN
      list_update_flag = .TRUE.
@@ -152,7 +156,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         lup = counter + 1 - last_update
         last_update = counter + 1
         aup = aup + &
-            (lup-aup)/float(num_update)
+            (lup-aup)/REAL ( num_update, dbl )
        ELSE
           num_update = 0
           lup = 0
@@ -172,8 +176,9 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
           WRITE ( iw, '( )' )
           WRITE ( iw, '( A,A )' ) ' **************************************', &
                '*****************************************'
+          WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
           WRITE ( iw, '( A,A,T31,A,T49,2(1X,F15.2) )' ) &
-               ' LIST UPDATES', '[steps]', '= ', counter, aup
+               ' LIST UPDATES', '[steps]', '= ', lup, aup
           WRITE ( iw, '( A,A )' ) ' **************************************', &
                '*****************************************'
           WRITE ( iw, '( )' )

@@ -111,7 +111,8 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, spline_env,  &
   REAL ( dbl ), OPTIONAL                      :: verlet_skin
   REAL ( dbl ), POINTER, OPTIONAL             :: r_last_update ( :, : )
   REAL ( dbl ), OPTIONAL                      :: long_range_correction
-  INTEGER, OPTIONAL                           :: lup, aup, last_update, &
+  REAL ( dbl ), OPTIONAL                           :: lup, aup
+  INTEGER, OPTIONAL                           :: last_update, &
                                                  num_update, natom_types, &
                                                  counter
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -173,7 +174,8 @@ SUBROUTINE fist_nonbond_env_set (fist_nonbond_env, spline_env,  &
   REAL ( dbl ), DIMENSION ( :, : ), POINTER, &
                 OPTIONAL                      :: r_last_update
   REAL ( dbl ), OPTIONAL                      :: long_range_correction
-  INTEGER, OPTIONAL                           :: lup, aup, last_update, &
+  REAL ( dbl ), OPTIONAL                           :: lup, aup
+  INTEGER, OPTIONAL                           :: last_update, &
                                                  num_update, natom_types, &
                                                  counter
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error

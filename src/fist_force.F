@@ -365,7 +365,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
     particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
     particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
     particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
+ !   WRITE ( *, * ) 'F', i, particle_set ( i ) % f ( : )
   END DO
+ !PAUSE
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN

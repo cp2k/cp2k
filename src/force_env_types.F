@@ -612,12 +612,12 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
               END DO
            END IF
         CASE(use_qmmm)
-!        CASE (use_fist_force)
-!           IF (should_write) THEN
-!              DO i = 1, 3
-!                 WRITE (unit_nr,*) force_env%fist_env%cell_ref%hmat(i,:)
-!              END DO
-!           END IF
+        CASE (use_fist_force)
+           IF (should_write) THEN
+              DO i=1,3
+                 WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
+              END DO
+           END IF
         CASE (use_kg_force)
            IF (should_write) THEN
               DO i = 1, 3

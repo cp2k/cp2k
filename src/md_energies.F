@@ -190,7 +190,7 @@ END SUBROUTINE set_energies
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
     REAL ( dbl ) :: cell_length ( 3 ), cell_angle ( 3 )
-    REAL ( dbl ) :: pv_scalar
+    REAL ( dbl ) :: pv_scalar, econs
     INTEGER :: i
 
 !   ---------------------------------------------------------------------------
@@ -220,7 +220,6 @@ END SUBROUTINE set_energies
       CALL compute_conserved_quantity(md_env,&
                                       epot,&
                                       cons,&
-                                      cons_rel=rcons,&
                                       ekin=ekin,&
                                       temp=temp,&
                                       ekin_coefs=ekin_coefs,&
@@ -232,7 +231,6 @@ END SUBROUTINE set_energies
      CALL compute_conserved_quantity(md_env,&
                                      epot,&
                                      cons,&
-                                     cons_rel=rcons,&
                                      ekin=ekin,&
                                      temp=temp)
      temp = temp*kelvin
@@ -285,7 +283,7 @@ END SUBROUTINE set_energies
       CALL mp_bcast(e_diff,source,group)
       itimes = itimes_old
       t = t_old
-      constant = e_old - e_diff
+      constant = cons
       CALL set_md_env(md_env=md_env,constant=constant)
       WRITE ( iw, '( )' )
       WRITE ( iw, '( A,A )' ) ' ******************************** ', &
@@ -309,6 +307,7 @@ END SUBROUTINE set_energies
            'GO CP2K GO! **********************************'
     ELSE
       t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
+      econs = ABS((cons-constant)/constant)
     END IF
 
 
@@ -376,12 +375,13 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
                ADJUSTR ( simpar%ensemble)
           WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
+          WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' TIME [FS]                    = ', t
           WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
           WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
-               constant, econs_avg/REAL(itimes,dbl)
+               econs, econs_avg/REAL(itimes,dbl)
           WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
@@ -412,18 +412,19 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( )' )
        END IF
 
-        IF (MODULO(itimes,iscreen) == 0) THEN
-          IF (ASSOCIATED (dyn_coeff_set)) THEN
-            WRITE (scr, "(/,T2,A6,I8,F12.3,F16.9,F16.9,F16.9,F16.9,F16.9,F16.9,F20.12,F12.6/)")&
-              "-MD-",itimes,t,ekin,ekin_coefs,temp,temp_coefs,epot,&
-              cons,cons-constant, used_time
-          ELSE
-            WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
-              "-MD-",itimes,t,ekin,temp,epot,&
-              cons,cons-constant, used_time
-          END IF
-        END IF
-
+!dbg
+!        IF (MODULO(itimes,iscreen) == 0) THEN
+!          IF (ASSOCIATED (dyn_coeff_set)) THEN
+!            WRITE (scr, "(/,T2,A6,I8,F12.3,F16.9,F16.9,F16.9,F16.9,F16.9,F16.9,F20.12,F12.6/)")&
+!              "-MD-",itimes,t,ekin,ekin_coefs,temp,temp_coefs,epot,&
+!              cons,cons-constant, used_time
+!          ELSE
+!            WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
+!              "-MD-",itimes,t,ekin,temp,epot,&
+!              cons,cons-constant, used_time
+!          END IF
+!        END IF
+!dbg
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
             itimes,t,ekin,temp,epot,&
