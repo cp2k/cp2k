@@ -534,7 +534,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 
     TYPE(cell_type),POINTER                  :: cell_ref
     TYPE(qs_environment_type),POINTER        :: qs_env
-!    TYPE(dft_control_type),POINTER           :: dft_control
+    TYPE(dft_control_type),POINTER           :: dft_control
   
     INTEGER                                  :: handle, iatom, unit
     LOGICAL                                  :: use_ref_cell
@@ -546,7 +546,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 
 ! grab some of the structures we're gonna need
       CALL force_env_get(force_env,qs_env=qs_env)
-      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref)
+      CALL get_qs_env(qs_env,use_ref_cell=use_ref_cell,cell_ref=cell_ref,&
+         dft_control=dft_control)
       CALL get_cell(cell_ref,abc=abc)
 
 ! open the file
@@ -590,11 +591,11 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
       WRITE(unit,10000) "&QS"
-!!!!!!!!!!!!!!! can't use too low of cutoff or it crashes
-      WRITE(unit,10000) ' CUTOFF       280'
-!      WRITE(unit,10000) ' CUTOFF       600'
-!      WRITE(unit,10000) ' CUTOFF       1200'
-!      WRITE(unit,10000) ' CUTOFF       2000'
+
+! I need to undo the unit change that's done in 
+!       cp_control_units.F/read_qs_control
+      WRITE(unit,20000) ' CUTOFF       ',&
+         dft_control % qs_control % cutoff*2.0_dp
       WRITE(unit,10000) ' EXTRAPOLATION       USE_PREV_WF'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
@@ -663,6 +664,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env)
 
 ! specify some formats
 10000 FORMAT(A)
+20000 FORMAT(A,F8.2)
 40000 FORMAT(A,3(F12.8,2X))
 50000 FORMAT(A,3(F18.12,2X),A)
 
