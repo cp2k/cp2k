@@ -55,9 +55,9 @@ MODULE qs_collocate_density
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type, &
-                                             cp_fm_get_element
+  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+                                             cp_fm_get_info,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -84,8 +84,9 @@ MODULE qs_collocate_density
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_sum,&
-                                             mp_environ, mp_sync
+  USE message_passing,                 ONLY: mp_environ,&
+                                             mp_sum,&
+                                             mp_sync
   USE orbital_pointers,                ONLY: coset,&
                                              indco,&
                                              ncoset,&
@@ -120,16 +121,16 @@ MODULE qs_collocate_density
                                              next
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
+                                             rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer,&
-                                             rs_get_my_tasks
+                                             rs_pw_transfer
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: add_block_node,&
                                              deallocate_matrix,&
                                              get_block_node,&
                                              get_matrix_info,&
-                                             real_matrix_type, &
+                                             real_matrix_type,&
                                              replicate_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -356,11 +357,12 @@ CONTAINS
     CALL timeset("calculate_rho_elec","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control, orb_basis_set, sab_orb_neighbor_list,&
-         sab_orb_neighbor_node, atomic_kind_set, sab_orb, particle_set,&
-         pab,work,set_radius_a, set_radius_b, la_max, la_min,&
-         lb_max, npgfa, npgfb, nsgfa, nsgfb, p_block, p_old_block,&
+         sab_orb_neighbor_node, dp, atomic_kind_set, sab_orb, particle_set,&
+         rs_rho,pw_env,rs_pools,para_env, pab,work,pblock,dist_ab,dab_local,&
+         set_radius_a, set_radius_b, la_max, la_min,&
+         lb_max,lb_min, npgfa, npgfb, nsgfa, nsgfb, p_block, p_old_block,&
          rpgfa, rpgfb, sphi_a, sphi_b, zeta, zetb, first_sgfa, first_sgfb,&
-         rs_rho,pw_env,rs_pools)
+         tasks, tasks_local, ival, latom,ntasks)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -502,7 +504,7 @@ CONTAINS
              CALL get_block_node(matrix=p,&
                                  block_row=brow,&
                                  block_col=bcol,&
-                                 block=p_block)
+                                 BLOCK=p_block)
 
 !           *** Check, if the atomic block has to be ***
 !           *** calculated by the current processor  ***
@@ -524,7 +526,7 @@ CONTAINS
                CALL get_block_node(matrix=p_old,&
                                    block_row=brow,&
                                    block_col=bcol,&
-                                   block=p_old_block)
+                                   BLOCK=p_old_block)
                IF (.NOT.ASSOCIATED(p_old_block)) &
                   CALL stop_program(routine,"p_old_block not associated")
                pblock = p_block - p_old_block
@@ -688,7 +690,7 @@ CONTAINS
                   CALL get_block_node(matrix=dp,&
                                       block_row=iatom,&
                                       block_col=jatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
                      CALL stop_program(routine,"p_block not associated in dp")
                   ia_last = iatom
@@ -724,7 +726,7 @@ CONTAINS
                   CALL get_block_node(matrix=dp,&
                                       block_row=jatom,&
                                       block_col=iatom,&
-                                      block=p_block)
+                                      BLOCK=p_block)
                   IF (.NOT.ASSOCIATED(p_block)) &
                      CALL stop_program(routine,"p_block not associated in dp")
                   ia_last = iatom
