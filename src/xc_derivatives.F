@@ -221,6 +221,7 @@ CONTAINS
 !!     - shortform: the short definition of the functional
 !!     - needs: the flags corresponding to the inputs needed by this 
 !!       functional are set to true (the flags not needed aren't touched)
+!!     - max_deriv: the maximal derivative available
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -232,12 +233,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
-     needs, error)
+     needs, max_deriv, error)
   CHARACTER (len=*), INTENT(in) :: functional
   LOGICAL, INTENT(in) :: lsd
   CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
   CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
   TYPE(xc_rho_cflags_type), INTENT(inout), OPTIONAL :: needs
+  INTEGER, INTENT(out), OPTIONAL :: max_deriv
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -251,20 +253,21 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("BECKE88")
         IF (lsd) THEN
            CALL xb88_lsd_info(reference=reference,shortform=shortform,&
-                needs=needs, error=error)
+                needs=needs, max_deriv=max_deriv, error=error)
         ELSE
            CALL xb88_lda_info(reference=reference,shortform=shortform,&
-                needs=needs, error=error)
+                needs=needs, max_deriv=max_deriv, error=error)
         END IF
      CASE("BECKE88_LDA")
         CALL xb88_lda_info(reference=reference,shortform=shortform,&
-             needs=needs, error=error)
+             needs=needs, max_deriv=max_deriv, error=error)
      CASE("BECKE88_LSD")
         CALL xb88_lsd_info(reference=reference,shortform=shortform,&
-             needs=needs, error=error)
+             needs=needs, max_deriv=max_deriv, error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
+        if (present(max_deriv)) max_deriv=huge(0)
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional)//"' in "//&
@@ -301,8 +304,16 @@ END SUBROUTINE xc_functional_get_info
 !!     - functional: a string that describes which functional should be used
 !!     - lsd: if a local spin desnity is performed
 !!     - rho_set: a rho set where all the arguments needed by this functional
-!!       should be valid (which argument are needed acn be found with
+!!       should be valid (which argument are needed can be found with
 !!       xc_functional_get_info)
+!!     - deriv_set: place where to store the functional derivatives (they are
+!!       added to the derivatives)
+!!     - grad_deriv: degree of the derivative that should be evalated,
+!!       if positive all the derivatives up to the given degree are evaluated,
+!!       if negative only the given degree is requested (but to simplify 
+!!       the code all the derivatives might be calculated, you should ignore
+!!       them: when adding derivatives of various functionals they might contain
+!!       the derivative of just one functional)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!

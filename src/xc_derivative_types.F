@@ -314,35 +314,41 @@ END SUBROUTINE xc_derivative_retain
 !!       example would become (/"rho","rho","norm_drhoa"/)
 !!     - order: the order of the derivative
 !!     - deriv_data: the 3d real array with the derivative
+!!     - accept_null_data: if deriv_data can be unassociated (defaults to no)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_derivative_get(deriv,desc,split_desc,&
-     order,deriv_data,error)
-
-  IMPLICIT NONE
-
-  TYPE(xc_derivative_type), POINTER                            :: deriv
+     order,deriv_data,accept_null_data, error)
+  TYPE(xc_derivative_type), POINTER :: deriv
   CHARACTER(len=MAX_DERIVATIVE_DESC_LENGTH), POINTER, OPTIONAL :: desc
   CHARACTER(len=MAX_LABEL_LENGTH), DIMENSION(:), POINTER, OPTIONAL :: &
        split_desc
   INTEGER, INTENT(out), OPTIONAL :: order
   REAL(kind=dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: deriv_data
+  LOGICAL, OPTIONAL, intent(in) :: accept_null_data
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  LOGICAL :: failure
+  LOGICAL :: failure, my_accept_null_data
   CHARACTER(len=*), PARAMETER :: routineN='xc_derivative_get',&
         routineP=moduleN//':'//routineN
 
   failure=.FALSE.
+  my_accept_null_data=.FALSE.
+  IF (PRESENT(accept_null_data)) my_accept_null_data=accept_null_data
   
   CPPrecondition(ASSOCIATED(deriv),cp_failure_level,routineP,error,failure)
   CPPrecondition(deriv%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (PRESENT(desc)) desc => deriv%desc
      IF (PRESENT(split_desc)) split_desc => deriv%split_desc
-     IF (PRESENT(deriv_data)) deriv_data => deriv%deriv_data
+     IF (PRESENT(deriv_data)) THEN
+        deriv_data => deriv%deriv_data
+        IF (.NOT.my_accept_null_data) THEN
+           CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
+        END IF
+     END IF
      IF (PRESENT(order)) order=SIZE(deriv%split_desc)
   END IF
 END SUBROUTINE xc_derivative_get

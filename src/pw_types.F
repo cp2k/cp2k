@@ -283,8 +283,10 @@ SUBROUTINE pw_deallocate ( pw )
      DEALLOCATE ( pw % cc, STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cc" )
   ELSE IF ( pw % in_use == REALDATA3D ) THEN
-     DEALLOCATE ( pw % cr3d, STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr3d" )
+     IF ( ASSOCIATED(pw % cr3d) ) THEN
+        DEALLOCATE ( pw % cr3d, STAT = allocstat )
+        IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cr3d" )
+     END IF
   ELSE IF ( pw % in_use == COMPLEXDATA3D ) THEN
      DEALLOCATE ( pw % cc3d, STAT = allocstat )
      IF ( allocstat /= 0 ) CALL stop_memory ( "pw_deallocate", "cc3d" )

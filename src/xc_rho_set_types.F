@@ -385,17 +385,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    equal=(cflags1%rho.EQV.cflags2%rho.AND.&
-         cflags1%rho_spin.EQV.cflags2%rho_spin.AND.&
-         cflags1%drho.EQV.cflags2%drho.AND.&
-         cflags1%drho_spin.EQV.cflags2%drho_spin.AND.&
-         cflags1%norm_drho.EQV.cflags2%norm_drho.AND.&
-         cflags1%norm_drho_spin.EQV.cflags2%norm_drho_spin.AND.&
-         cflags1%drhoa_drhob.EQV.cflags2%drhoa_drhob.AND.&
-         cflags1%rho_1_3.EQV.cflags2%rho_1_3.AND.&
-         cflags1%rho_spin_1_3.EQV.cflags2%rho_spin_1_3.AND.&
-         cflags1%kinetic.EQV.cflags2%kinetic.AND.&
-         cflags1%kinetic_spin.EQV.cflags2%kinetic_spin)
+    equal=((cflags1%rho.EQV.cflags2%rho).AND.&
+         (cflags1%rho_spin.EQV.cflags2%rho_spin).AND.&
+         (cflags1%drho.EQV.cflags2%drho).AND.&
+         (cflags1%drho_spin.EQV.cflags2%drho_spin).AND.&
+         (cflags1%norm_drho.EQV.cflags2%norm_drho).AND.&
+         (cflags1%norm_drho_spin.EQV.cflags2%norm_drho_spin).AND.&
+         (cflags1%drhoa_drhob.EQV.cflags2%drhoa_drhob).AND.&
+         (cflags1%rho_1_3.EQV.cflags2%rho_1_3).AND.&
+         (cflags1%rho_spin_1_3.EQV.cflags2%rho_spin_1_3).AND.&
+         (cflags1%kinetic.EQV.cflags2%kinetic).AND.&
+         (cflags1%kinetic_spin.EQV.cflags2%kinetic_spin))
 
   END FUNCTION xc_rho_cflags_equal
 !***************************************************************************
@@ -501,8 +501,7 @@ CONTAINS
        IF (PRESENT(rho_cutoff)) rho_set%rho_cutoff=rho_cutoff
        rho_set%drho_cutoff=EPSILON(0.0_dp)
        IF (PRESENT(drho_cutoff)) rho_set%drho_cutoff=drho_cutoff
-       rho_set%local_bounds(1,:)=-HUGE(0) ! we want to crash...
-       rho_set%local_bounds(1,:)=HUGE(0)
+       rho_set%local_bounds=local_bounds
        CALL xc_rho_cflags_setall(rho_set%owns,.TRUE.,error=error)
        CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
        NULLIFY(rho_set%rho)
@@ -730,7 +729,7 @@ CONTAINS
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
        rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,rho_1_3,rhoa_1_3,&
        rhob_1_3,drhoa,drhob,rho_cutoff,drho_cutoff,kinetic,kinetic_a,&
-       kinetic_b,error)
+       kinetic_b,local_bounds,error)
     TYPE(xc_rho_set_type), POINTER :: rho_set
     LOGICAL, INTENT(in), OPTIONAL :: can_return_null
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rho
@@ -738,13 +737,15 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: norm_drho
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rhoa, rhob
     TYPE(cp_3d_r_p_type), DIMENSION(:), OPTIONAL, POINTER :: drhoa, drhob
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: norm_drhoa, norm_drhob
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: norm_drhoa, &
+         norm_drhob
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: drhoa_drhob
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rho_1_3
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: rhoa_1_3,rhob_1_3
     REAL(kind=dp), INTENT(out), OPTIONAL :: rho_cutoff, drho_cutoff
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER, OPTIONAL :: kinetic, &
          kinetic_a, kinetic_b
+    INTEGER, DIMENSION(:,:), POINTER, OPTIONAL :: local_bounds
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure, my_can_return_null, valid
@@ -768,7 +769,6 @@ CONTAINS
           IF (.NOT.my_can_return_null) THEN
              DO i=1,3
                 CPPrecondition(ASSOCIATED(rho_set%drho(i)%array),cp_failure_level,routineP,error,failure)
-                NULLIFY(drho)
              END DO
           END IF
        END IF
@@ -789,7 +789,6 @@ CONTAINS
           IF (.NOT.my_can_return_null) THEN
              DO i=1,3
                 CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,error,failure)
-                NULLIFY(drhoa)
              END DO
           END IF
        END IF
@@ -798,7 +797,6 @@ CONTAINS
           IF (.NOT.my_can_return_null) THEN
              DO i=1,3
                 CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,error,failure)
-                NULLIFY(drhob)
              END DO
           END IF
        END IF
@@ -840,6 +838,7 @@ CONTAINS
        END IF
        IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
        IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
+       IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
     END IF
   END SUBROUTINE xc_rho_set_get
 !***************************************************************************
@@ -1131,7 +1130,7 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
                error=error)
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1151,7 +1150,7 @@ CONTAINS
        IF (needs%norm_drho) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
                error=error)
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1167,8 +1166,8 @@ CONTAINS
        END IF
        IF (needs%drho) THEN
           DO idir=1,3
-             rho_set%drho(idir)%array => drho_r(1,1)%pw%cr3d
-             NULLIFY(drho_r(1,1)%pw%cr3d)
+             rho_set%drho(idir)%array => drho_r(idir,1)%pw%cr3d
+             NULLIFY(drho_r(idir,1)%pw%cr3d)
           END DO
           rho_set%owns%norm_drho=.TRUE.
           rho_set%has%drho=.TRUE.
@@ -1180,7 +1179,7 @@ CONTAINS
 
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho,error=error)
 !assume that the bounds are the same?
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1195,7 +1194,7 @@ CONTAINS
        IF (needs%rho_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho_1_3,error=error)
 !assume that the bounds are the same?
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1210,7 +1209,7 @@ CONTAINS
        IF (needs%rho_spin_1_3) THEN
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhoa_1_3,error=error)
 !assume that the bounds are the same?
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1220,7 +1219,7 @@ CONTAINS
           END DO
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhob_1_3,error=error)
 !assume that the bounds are the same?
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1246,7 +1245,7 @@ CONTAINS
 
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa, &
                error=error)
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1261,7 +1260,7 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhob, &
                error=error)
           rho_set%owns%norm_drho_spin=.TRUE.
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1279,7 +1278,7 @@ CONTAINS
        IF (needs%drhoa_drhob) THEN
           CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob, &
                error=error)
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
@@ -1300,7 +1299,7 @@ CONTAINS
              CALL pw_pool_create_cr3d(pw_pool,rho_set%drho(idir)%array,&
                   error=error)
 !assume that the bounds are the same?
-!$omp parallel do private(i,j,k)
+!FM$omp parallel do private(i,j,k)
              DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                 DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                    DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
