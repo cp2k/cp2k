@@ -185,7 +185,7 @@ contains
 !! the iteration number, or some other number that permit do 
 !! differentiate between different instances of the same object
     integer, intent(in) :: iter
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     character(len=*), parameter :: routineN='qs_output_handling:qs_write_output'
     logical :: failure
@@ -249,7 +249,7 @@ contains
     integer, intent(in) :: iter
     real(kind=wp), intent(in), dimension(:,:) :: array
     character(len=*), intent(in),optional :: comment, rformat
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_output_2d_array'
@@ -324,7 +324,7 @@ contains
     integer, intent(in) :: iter
     real(kind=wp), intent(in), dimension(:) :: array
     character(len=*), intent(in),optional :: comment, rformat
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_output_2d_array'

@@ -70,14 +70,14 @@ contains
   subroutine qs_test_pao_types(g_env, failed,error)
     type(global_environment_type), intent(in) ::g_env
     logical, intent(inout) :: failed
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types_tests:qs_test_pao_types'
-    type(qs_pao_env) :: pao_env
-    type(qs_pao_glob_angles) :: glob_angles
-    type(qs_pao_local_angles) :: local_angles
-    type(qs_pao_matrix) :: pao_t
+    type(qs_pao_env_type) :: pao_env
+    type(qs_pao_glob_angles_type) :: glob_angles
+    type(qs_pao_local_angles_type) :: local_angles
+    type(qs_pao_matrix_type) :: pao_t
     integer, parameter :: atomNr=3
     integer, dimension(atomNr) :: minB, fullB
     integer :: i
@@ -100,7 +100,7 @@ contains
          atom_nr=qs_get_random_integer(from=1,to=atomNr))
     call qs_init(pao_t,pao_env=pao_env, min_bas_cols=.false.,&
          min_bas_rows=.false.)
-    call qs_set(pao_env, subspace_att=pao_t, angles_att=glob_angles)
+    call qs_set(pao_env, angles_att=glob_angles)
 
     QSAssert(qs_validate(pao_env,error=error),qs_warning_level,routineN,error,failure)
     QSAssert(qs_validate(local_angles,error=error),qs_warning_level,routineN,error,failure)
@@ -150,16 +150,16 @@ contains
 !!   SOURCE
   !***************************************************************************
   subroutine qs_init_test_pao_env(pao_env, glob_env, atom_nr, error)
-    type(qs_pao_env), intent(out) :: pao_env
+    type(qs_pao_env_type), intent(out) :: pao_env
     type(global_environment_type), target, intent(in) :: glob_env
     integer, optional :: atom_nr
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types_tests:qs_init_test_pao_env'
     integer, dimension(:), allocatable :: minB, fullB
     integer :: n_atom,i, stat
-    type(qs_pao_matrix), pointer :: u
+    type(qs_pao_matrix_type), pointer :: u
     nullify(u)
     failure=.false.
 
@@ -179,8 +179,6 @@ contains
           call qs_init(pao_env, nr_min_bas=minB, nr_full_bas=fullB, &
                global_env=glob_env,error=error)
           call qs_set(pao_env,error=error) ! just to be sure
-          call qs_get(pao_env, subspace_att=u,error=error)
-          call qs_set_to_identity(qs_get_matrix(u),error=error)
           QSPostcondition(qs_valid(pao_env,error=error),qs_warning_level,routineN,error,failure)
        end if
        deallocate(minB,fullB,stat=stat) !just to be sure...

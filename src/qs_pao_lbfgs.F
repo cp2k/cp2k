@@ -325,8 +325,8 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
   !          BFGS matrix:
   !          ws, of dimension n x m, stores S, the matrix of s-vectors;
   !          wy, of dimension n x m, stores Y, the matrix of y-vectors;
-  !          sy, of dimension m x m, stores S'Y;
-  !          ss, of dimension m x m, stores S'S;
+  !          sy, of dimension m x m, stores S'Y;   '
+  !          ss, of dimension m x m, stores S'S;   '
   !          wt, of dimension m x m, stores the Cholesky factorization
   !                                  of (theta*S'S+LD^(-1)L'); see eq.
   !                                  (2.26) in [3].
@@ -695,7 +695,7 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
      goto 222  
 
   endif
-  !        compute r=-Z'B(xcp-xk)-Z'g (using wa(2m+1)=W'(xcp-x)
+  !        compute r=-Z'B(xcp-xk)-Z'g (using wa(2m+1)=W'(xcp-x)   '
   !                                                   from 'cauchy').
   call cmprlb (n, m, x, g, ws, wy, sy, wt, z, r, wa, index, theta, &
        col, head, nfree, cnstnd, info)
@@ -847,10 +847,10 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
   call matupd (n, m, ws, wy, sy, ss, d, r, itail, iupdat, col, head, &
        theta, rr, dr, stp, dtd)
-  !     Form the upper half of the pds T = theta*SS + L*D^(-1)*L';
+  !     Form the upper half of the pds T = theta*SS + L*D^(-1)*L';  '
   !        Store T in the upper triangular of the array wt;
-  !        Cholesky factorize T to J*J' with
-  !           J' stored in the upper triangular of wt.
+  !        Cholesky factorize T to J*J' with     '
+  !           J' stored in the upper triangular of wt.    '
 
   call formt (m, wt, sy, ss, col, theta, info)  
   if (info.ne.0) then  
@@ -869,8 +869,8 @@ subroutine mainlb (n, m, x, l, u, nbd, f, g, factr, pgtol, ws, wy, &
 
   endif
   !     Now the inverse of the middle matrix in B is
-  !       [  D^(1/2)      O ] [ -D^(1/2)  D^(-1/2)*L' ]
-  !       [ -L*D^(-1/2)   J ] [  0        J'          ]
+  !       [  D^(1/2)      O ] [ -D^(1/2)  D^(-1/2)*L' ]   '
+  !       [ -L*D^(-1/2)   J ] [  0        J'          ]   '
 
 
 888 continue  
@@ -1073,11 +1073,11 @@ subroutine bmv (m, sy, wt, col, v, p, info)
   !       On exit m is unchanged.
   !
   !     sy is a double precision array of dimension m x m.
-  !       On entry sy specifies the matrix S'Y.
+  !       On entry sy specifies the matrix S'Y.    '
   !       On exit sy is unchanged.
   !
   !     wt is a double precision array of dimension m x m.
-  !       On entry wt specifies the upper triangular matrix J' which is
+  !       On entry wt specifies the upper triangular matrix J' which is   '
   !         the Cholesky factor of (thetaS'S+LD^(-1)L').
   !       On exit wt is unchanged.
   !
@@ -1144,14 +1144,14 @@ subroutine bmv (m, sy, wt, col, v, p, info)
 
 
 30 end do
-  !     PART II: solve [ -D^(1/2)   D^(-1/2)*L'  ] [ p1 ] = [ p1 ]
-  !                    [  0         J'           ] [ p2 ]   [ p2 ].
+  !     PART II: solve [ -D^(1/2)   D^(-1/2)*L'  ] [ p1 ] = [ p1 ]     '
+  !                    [  0         J'           ] [ p2 ]   [ p2 ].    '
   !       solve J^Tp2=p2.
   call dtrsl (wt, m, col, p (col + 1), 01, info)  
 
   if (info.ne.0) return  
-  !       compute p1=-D^(-1/2)(p1-D^(-1/2)L'p2)
-  !                 =-D^(-1/2)p1+D^(-1)L'p2.
+  !       compute p1=-D^(-1/2)(p1-D^(-1/2)L'p2)     '
+  !                 =-D^(-1/2)p1+D^(-1)L'p2.        '
   do 40 i = 1, col  
      p (i) = - p (i) / sqrt (sy (i, i) )  
 40 end do
@@ -1264,7 +1264,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   !                             limited memory BFGS matrix:
   !         ws(n,m) stores S, a set of s-vectors;
   !         wy(n,m) stores Y, a set of y-vectors;
-  !         sy(m,m) stores S'Y;
+  !         sy(m,m) stores S'Y;    '
   !         wt(m,m) stores the
   !                 Cholesky factorization of (theta*S'S+LD^(-1)L').
   !       On exit these arrays are unchanged.
@@ -1363,7 +1363,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
   parameter (one = 1.0d0, zero = 0.0d0)  
   !     Check the status of the variables, reset iwhere(i) if necessary;
   !       compute the Cauchy direction d and the breakpoints t; initialize
-  !       the derivative f1 and the vector p = W'd (for theta = 1).
+  !       the derivative f1 and the vector p = W'd (for theta = 1).    '
   if (sbgnrm.le.zero) then  
      if (iprint.ge.0) write (6,  * ) 'Subgnorm = 0.  GCP = X.'  
      call dcopy (n, x, 1, xcp, 1)  
@@ -1417,7 +1417,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
      else  
         d (i) = neggi  
         f1 = f1 - neggi * neggi  
-        !             calculate p := p - W'e_i* (g_i).
+        !             calculate p := p - W'e_i* (g_i).   '
         do 40 j = 1, col  
            p (j) = p (j) + wy (i, pointr) * neggi  
            p (col + j) = p (col + j) + ws (i, pointr) * neggi  
@@ -1470,7 +1470,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
 
 
   endif
-  !     Initialize c = W'(xcp - x) = 0.
+  !     Initialize c = W'(xcp - x) = 0.    '
   do 60 j = 1, col2  
      c (j) = zero  
 
@@ -1592,7 +1592,7 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
         pointr = mod (pointr, m) + 1  
 
 70   end do
-     !           compute (wbp)Mc, (wbp)Mp, and (wbp)M(wbp)'.
+     !           compute (wbp)Mc, (wbp)Mp, and (wbp)M(wbp)'.     '
      call bmv (m, sy, wt, col, wbp, v, info)  
      if (info.ne.0) return  
      wmc = ddot (col2, c, 1, v, 1)  
@@ -1634,14 +1634,14 @@ subroutine cauchy (n, x, l, u, nbd, g, iorder, iwhere, t, d, xcp, &
 
   tsum = tsum + dtm  
   !     Move free variables (i.e., the ones w/o breakpoints) and
-  !       the variables whose breakpoints haven't been reached.
+  !       the variables whose breakpoints have not been reached.
 
   call daxpy (n, tsum, d, 1, xcp, 1)  
 
 
 999 continue  
-  !     Update c = c + dtm*p = W'(x^c - x)
-  !       which will be used in computing r = Z'(B(x^c - x) + g).
+  !     Update c = c + dtm*p = W'(x^c - x)     '
+  !       which will be used in computing r = Z'(B(x^c - x) + g).    '
   if (col.gt.0) call daxpy (col2, dtm, p, 1, c, 1)  
   if (iprint.gt.100) write (6, 1010) (xcp (i), i = 1, n)  
 
@@ -1675,7 +1675,7 @@ subroutine cmprlb (n, m, x, g, ws, wy, sy, wt, z, r, wa, index, &
   !     Subroutine cmprlb
   !
   !       This subroutine computes r=-Z'B(xcp-xk)-Z'g by using
-  !         wa(2m+1)=W'(xcp-x) from subroutine cauchy.
+  !         wa(2m+1)=W'(xcp-x) from subroutine cauchy.    '
   !
   !     Subprograms called:
   !
@@ -1880,7 +1880,7 @@ subroutine formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
   !         wy(n,m) stores Y, a set of y-vectors;
   !         sy(m,m) stores S'Y;
   !         wtyy(m,m) stores the Cholesky factorization
-  !                                   of (theta*S'S+LD^(-1)L')
+  !                                   of (theta*S'S+LD^(-1)L')    '
   !         theta is the scaling factor specifying B_0 = theta I;
   !         col is the number of variable metric corrections stored;
   !         head is the location of the 1st s- (or y-) vector in S (or Y).
@@ -2078,10 +2078,10 @@ subroutine formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
 
 70 end do
   !     Form the upper triangle of
-  !          WN= [  LL'            L^-1(-L_a'+R_z')]
-  !              [(-L_a +R_z)L'^-1   S'AA'S*theta  ]
-  !        first Cholesky factor (1,1) block of wn to get LL'
-  !                          with L' stored in the upper triangle of wn.
+  !          WN= [  LL'            L^-1(-L_a'+R_z')]     '
+  !              [(-L_a +R_z)L'^-1   S'AA'S*theta  ]     '
+  !        first Cholesky factor (1,1) block of wn to get LL'   '
+  !                          with L' stored in the upper triangle of wn.  '
   call dpofa (wn, m2, col, info)  
   if (info.ne.0) then  
      info = - 1  
@@ -2095,7 +2095,7 @@ subroutine formk (n, nsub, ind, nenter, ileave, indx2, iupdat, &
 
 
 71 end do
-  !     Form S'AA'S*theta + (L^-1(-L_a'+R_z'))'L^-1(-L_a'+R_z') in the
+  !     Form S'AA'S*theta + (L^-1(-L_a'+R_z'))'L^-1(-L_a'+R_z') in the    '
   !        upper triangle of (2,2) block of wn.
   do 72 is = col + 1, col2  
      do 74 js = is, col2  
@@ -2129,7 +2129,7 @@ subroutine formt (m, wt, sy, ss, col, theta, info)
   !     Subroutine formt
   !
   !       This subroutine forms the upper half of the pos. def. and symm.
-  !         T = theta*SS + L*D^(-1)*L', stores T in the upper triangle
+  !         T = theta*SS + L*D^(-1)*L', stores T in the upper triangle    '
   !         of the array wt, and performs the Cholesky factorization of T
   !         to produce J*J', with J' stored in the upper triangle of wt.
   !
@@ -2156,7 +2156,7 @@ subroutine formt (m, wt, sy, ss, col, theta, info)
 
 
   parameter (zero = 0.0d0)  
-  !     Form the upper half of  T = theta*SS + L*D^(-1)*L',
+  !     Form the upper half of  T = theta*SS + L*D^(-1)*L',    '
   !        store T in the upper triangle of the array wt.
   do 52 j = 1, col  
      wt (1, j) = theta * ss (1, j)  
@@ -2173,8 +2173,8 @@ subroutine formt (m, wt, sy, ss, col, theta, info)
 
 
 55 end do
-  !     Cholesky factorize T to J*J' with
-  !        J' stored in the upper triangle of wt.
+  !     Cholesky factorize T to J*J' with       '
+  !        J' stored in the upper triangle of wt.    '
   call dpofa (wt, m, col, info)  
   if (info.ne.0) then  
      info = - 3  
@@ -2956,7 +2956,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
   !
   !       along the subspace unconstrained Newton direction
   !
-  !          d = -(Z'BZ)^(-1) r.
+  !          d = -(Z'BZ)^(-1) r.    '
   !
   !       The formula for the Newton direction, given the L-BFGS matrix
   !       and the Sherman-Morrison formula, is
@@ -3095,7 +3095,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
 
 
   if (iprint.ge.99) write (6, 1001)  
-  !     Compute wv = W'Zd.
+  !     Compute wv = W'Zd.    '
   pointr = head  
   do 20 i = 1, col  
      temp1 = zero  
@@ -3123,7 +3123,7 @@ subroutine subsm (n, m, nsub, ind, l, u, nbd, x, d, ws, wy, theta, &
 
 
   if (info.ne.0) return  
-  !     Compute d = (1/theta)d + (1/theta**2)Z'W wv.
+  !     Compute d = (1/theta)d + (1/theta**2)Z'W wv.   '
   pointr = head  
   do 40 jy = 1, col  
      js = col + jy  
@@ -3228,15 +3228,15 @@ subroutine dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
   !     endpoints stx and sty. The interval is initially chosen
   !     so that it contains a minimizer of the modified function
   !
-  !           psi(stp) = f(stp) - f(0) - ftol*stp*f'(0).
+  !           psi(stp) = f(stp) - f(0) - ftol*stp*f'(0).   '
   !
-  !     If psi(stp) <= 0 and f'(stp) >= 0 for some step, then the
+  !     If psi(stp) <= 0 and f'(stp) >= 0 for some step, then the   '
   !     interval is chosen so that it contains a minimizer of f.
   !
   !     The algorithm is designed to find a step that satisfies
   !     the sufficient decrease condition
   !
-  !           f(stp) <= f(0) + ftol*stp*f'(0),
+  !           f(stp) <= f(0) + ftol*stp*f'(0),     '
   !
   !     and the curvature condition
   !
@@ -3342,11 +3342,11 @@ subroutine dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
   !
   !     MINPACK-1 Project. June 1983.
   !     Argonne National Laboratory.
-  !     Jorge J. More' and David J. Thuente.
+  !     Jorge J. More' and David J. Thuente.     '
   !
   !     MINPACK-2 Project. October 1993.
   !     Argonne National Laboratory and University of Minnesota.
-  !     Brett M. Averick, Richard G. Carter, and Jorge J. More'.
+  !     Brett M. Averick, Richard G. Carter, and Jorge J. More'.   '
   !
   !     **********
   doubleprecision zero, p5, p66  
@@ -3434,7 +3434,7 @@ subroutine dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
 
 
   endif
-  !     If psi(stp) <= 0 and f'(stp) >= 0 for some step, then the
+  !     If psi(stp) <= 0 and f'(stp) >= 0 for some step, then the    '
   !     algorithm enters the second stage.
   ftest = finit + stp * gtest  
 
@@ -3647,11 +3647,11 @@ subroutine dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
   !
   !     MINPACK-1 Project. June 1983
   !     Argonne National Laboratory.
-  !     Jorge J. More' and David J. Thuente.
+  !     Jorge J. More' and David J. Thuente.    '
   !
   !     MINPACK-2 Project. October 1993.
   !     Argonne National Laboratory and University of Minnesota.
-  !     Brett M. Averick and Jorge J. More'.
+  !     Brett M. Averick and Jorge J. More'.    '
   !
   !     **********
   doubleprecision zero, p66, two, three  

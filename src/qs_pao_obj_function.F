@@ -70,7 +70,7 @@ module qs_pao_obj_function
 !!   ATTRIBUTES
 !!     initialized: true if initialized (bug catcher)
 !!     pao_env: a pointer to the actual pao_env. It is assumed that the
-!!           size of the small and full basis, and the pao env don't change
+!!           size of the small and full basis, and the pao env do not change
 !!           between sucessive evaluations
 !!     small_hamiltionian: the hamiltonian in the small basis
 !!     small_overlap: the overlap in the small basis
@@ -86,8 +86,8 @@ module qs_pao_obj_function
   !***************************************************************************
   type qs_pao_gerd_functional
      logical :: initialized
-     type(qs_pao_env), pointer :: pao_env
-     type(qs_pao_matrix) :: small_hamiltonian, small_overlap
+     type(qs_pao_env_type), pointer :: pao_env
+     type(qs_pao_matrix_type) :: small_hamiltonian, small_overlap
   end type qs_pao_gerd_functional
 !!***
   !****************************************************************************
@@ -99,7 +99,7 @@ contains
 !!     qs_init_pao_gerd_f
 !!
 !!   FUNCTION
-!!     initializes gerd's functional
+!!     initializes gerd s functional
 !!
 !!   NOTES
 !!     -
@@ -121,8 +121,8 @@ contains
   !***************************************************************************
   subroutine qs_init_pao_gerd_f(gf_env,pao_env, error)
     type(qs_pao_gerd_functional), intent(out) :: gf_env
-    type(qs_pao_env), intent(in), target :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), intent(in), target :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_obj_function:qs_init_pao_gerd_f'
@@ -168,7 +168,7 @@ contains
   !***************************************************************************
   subroutine qs_dealloc_pao_gerd_f_ref(gf_env, error)
     type(qs_pao_gerd_functional), optional, intent(inout) :: gf_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_obj_function:qs_dealloc_pao_gerd_f_ref'
@@ -211,7 +211,7 @@ contains
   function qs_pao_gerd_f_valid(gf_env, error) result(res)
     logical ::res
     type(qs_pao_gerd_functional), intent(in) :: gf_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_obj_function:qs_pao_gerd_f_valid'
@@ -262,26 +262,25 @@ contains
 !!   SOURCE
   !***************************************************************************
   subroutine qs_pao_gerd_f_eval_at(gf_env, f, df_du, density_matrix,&
-       unitary_t, error)
+       unitary_t, error) ! to do
     type(qs_pao_gerd_functional), intent(in) :: gf_env
     real(kind=wp), intent(out), optional :: f
-    type(qs_pao_matrix), intent(out), optional :: df_du
-    type(qs_pao_matrix), optional, intent(in), target :: density_matrix, &
+    type(qs_pao_matrix_type), intent(out), optional :: df_du
+    type(qs_pao_matrix_type), optional, intent(in), target :: density_matrix, &
          unitary_t
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_obj_function:qs_pao_gerd_f_eval_at'
-    type(qs_pao_matrix), pointer :: d_matrix, h_matrix, s_matrix, u_matrix
-    type(qs_error) :: iError
+    type(qs_pao_matrix_type), pointer :: d_matrix, h_matrix, s_matrix, u_matrix
+    type(qs_error_type) :: iError
     integer :: n_atom
     call qs_init(iError, template_error=error)
     failure=.false.
 
     QSAssert(qs_valid(gf_env,error=error),qs_failure_level,routineN,error,failure)
     if (.not.failure) then
-       call qs_get(gf_env%pao_env,density_matrix_att=d_matrix, &
-            subspace_att=u_matrix,&
+       call qs_get(gf_env%pao_env,min_density_m=d_matrix, &
             full_hamiltonian_m=h_matrix, full_overlap_m=s_matrix, &
             n_atom=n_atom, error=error)
        if (present(density_matrix)) &
@@ -292,15 +291,15 @@ contains
        QSPrecondition(associated(u_matrix),qs_failure_level,routineN,error,failure)
        QSPrecondition(associated(h_matrix),qs_failure_level,routineN,error,failure)
        QSPrecondition(associated(s_matrix),qs_failure_level,routineN,error,failure)
-       call qs_pao_matrix_transf_to_m(h_matrix, gf_env%small_hamiltonian, &
-            u_matrix, error=iError)
-       call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
-            error,failure)
+       !call qs_pao_matrix_transf_to_m(h_matrix, gf_env%small_hamiltonian, &
+       !     u_matrix, error=iError)
+       !call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+       !     error,failure)
        if (.not.failure) then
-          call qs_pao_matrix_transf_to_m(s_matrix, gf_env%small_overlap, &
-               u_matrix, error=iError)
-          call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
-               error,failure)
+          !call qs_pao_matrix_transf_to_m(s_matrix, gf_env%small_overlap, &
+          !     u_matrix, error=iError)
+          !call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+          !     error,failure)
        end if
        ! to do
 

@@ -107,7 +107,8 @@ contains
 !! converts an int to a string
 !! (should be a variable length string, but does not work with 
 !! all the compilers)
-  pure function qs_int_to_string(i) result(res)
+ ! pure
+  function qs_int_to_string(i) result(res)
     character(len=6) :: res
     integer, intent(in):: i
     write (res,'(i6)') i
@@ -119,7 +120,8 @@ contains
 !! convert a single precision real in a string
 !! (should be a variable length string, but does not work with 
 !! all the compilers)
-  pure function qs_real_to_string_sp(val) result(res)
+ ! pure 
+  function qs_real_to_string_sp(val) result(res)
     character(len=10) :: res
     real(kind=kind(1.0)), intent(in):: val
     write (res,'(es10.4)') val
@@ -128,7 +130,8 @@ contains
 !! convert a double precision real in a string
 !! (should be a variable length string, but does not work with 
 !! all the compilers)
-  pure function qs_real_to_string_dp(val) result(res)
+  ! pure 
+  function qs_real_to_string_dp(val) result(res)
     character(len=10) :: res
     real(kind=kind(1.0D0)), intent(in):: val
     write (res,'(es10.4)') val
@@ -141,7 +144,8 @@ contains
 !! you should use this function if you do direct logging
 !! (without using qs_log), or if you want to know if the generation 
 !! of some costly log info is necessary
-  pure function qs_would_log(logger, level, fromWhere)
+  ! pure
+  function qs_would_log(logger, level, fromWhere)
     logical :: qs_would_log
     type(qs_logger), intent(in) ::logger
     integer , intent(in) :: level
@@ -154,7 +158,8 @@ contains
 !!
 !! Try not to use this function, in future in some cases the log 
 !! could not use units (global log might be sent to the master process)
-  pure function qs_unitnr_for_log(logger, level, fromWhere)
+  ! pure 
+  function qs_unitnr_for_log(logger, level, fromWhere)
     integer :: qs_unitnr_for_log
     type(qs_logger), intent(in) :: logger
     integer, intent(in) :: level
@@ -219,7 +224,7 @@ contains
   ! *************************** qs_logger settings ***************************
 
 !! changes the logging level. Log messages with a level less than the one
-!! given won't be printed.
+!! given wo not be printed.
 !!
 !! This routine might change/disappear!!
   subroutine qs_set_log_level(logger, level)

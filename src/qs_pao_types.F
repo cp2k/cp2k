@@ -31,11 +31,12 @@ module qs_pao_types
   use kinds, only: wp=>dp
   use matrix_types, only: real_matrix_type, replicate_matrix, copy_matrix,&
        allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
-       add_block_node
+       add_block_node, put_block_node
   use global_types, only: global_environment_type
   use atoms, only: atom_info, atom_info_type
   use atomic_kinds, only: kind_info,nkind
   use qs_pao_utils
+  use qs_pao_plain_rot
   implicit none
 
   logical, private, parameter :: debug_this_module=.true.
@@ -43,35 +44,38 @@ module qs_pao_types
 
   private
 
-  ! =========== public objects ==========
-  ! types (with private attributes)
-  public :: qs_pao_env, qs_pao_glob_angles, qs_pao_local_angles, &
-       qs_pao_matrix
+! =========== public objects ==========
+  public :: qs_pao_l_compose_u ! to do remove from here and plain rot tests
 
-  ! core procedures
-  public :: qs_init, qs_dealloc_ref, qs_set, qs_get
+! types (with private attributes)
+  public :: qs_pao_env_type, qs_pao_glob_angles_type, qs_pao_local_angles_type, &
+       qs_pao_matrix_type
 
-  ! core functions
+! core procedures
+  public :: qs_init, qs_dealloc_ref, qs_set, qs_get, qs_create, qs_dealloc,&
+       qs_did_change
+
+! core functions
   public :: qs_validate, qs_valid
 
-  ! special procedures
-  public :: qs_set_angle, qs_set_to_identity
+! special procedures
+  public :: qs_set_angle, qs_set_to_identity, qs_set_unitary_t
 
-  ! special functions
+! special functions
   public :: qs_get_n_atom, qs_get_pao_env, qs_get_angle, &
        qs_get_min_bas_size, qs_get_full_bas_size, &
        qs_get_p_index, qs_set_p_index, qs_get_matrix,&
-       qs_get_non_p_index
+       qs_get_non_p_index, qs_get_unitary_t,qs_get_glob_angles
 
-  ! projection - injection
+! projection - injection
   public :: qs_pao_l_atom_projection, qs_pao_l_atom_injection, &
        qs_pao_r_atom_projection, qs_pao_r_atom_injection, &
        qs_pao_atom_m_to_f_matrix, qs_pao_atom_f_to_m_matrix, &
        qs_pao_matrix_transf_to_m
 
-  ! ============== interfaces ===========
+! ============== interfaces ===========
 
-  ! +++ begin of core methods +++
+! +++ begin of core methods +++
 
 !! initializes the first, argument.
 !! Support optional initial values that depend on the 
@@ -86,6 +90,18 @@ module qs_pao_types
   interface qs_dealloc_ref
      module procedure qs_dealloc_pao_env_ref, qs_dealloc_pao_glob_angles_ref, &
           qs_dealloc_pao_matrix_ref, qs_dealloc_pao_local_angles_ref
+  end interface
+
+!! Allocates and initialize a new object returning a pointer to it in 
+!! the first argument
+  interface qs_create
+     module procedure qs_create_pao_matrix, qs_create_pao_glob_angles
+  end interface
+
+!! Deallocates the memory used by the first argument, and the object
+!! itself
+  interface qs_dealloc
+     module procedure qs_dealloc_pao_matrix, qs_dealloc_pao_glob_angles
   end interface
 
 !! returns true if the content of the first argumenst is valid.
@@ -116,7 +132,13 @@ module qs_pao_types
           qs_pao_matrix_get, qs_pao_local_angles_get
   end interface
 
-  ! +++ end of the core methods +++
+!! tells the object that its internal values have changes and its cached
+!! values may be invalid
+  interface qs_did_change
+     module procedure qs_l_angles_did_change, qs_glob_angles_did_change
+  end interface
+
+! +++ end of the core methods +++
 
 !! returns the number of atoms
   interface qs_get_n_atom
@@ -184,13 +206,28 @@ module qs_pao_types
   interface qs_get_matrix
      module procedure qs_pao_matrix_get_matrix
   end interface
+
+!! gets the unitary transformation
+  interface qs_get_unitary_t
+     module procedure qs_l_angles_get_unitary_t
+  end interface
+
+!! sets the unitary transformation
+  interface qs_set_unitary_t
+     module procedure qs_l_angles_set_unitary_t
+  end interface
+
+!! gets the undelying glob_angles object
+  interface qs_get_glob_angles
+     module procedure qs_l_angles_get_glob_angles
+  end interface
 !!***
 !****************************************************************************
 
-!!****s* qs_pao_types/qs_pao_glob_angles [1.0] *
+!!****s* qs_pao_types/qs_pao_glob_angles_type [1.0] *
 !!
 !!   NAME
-!!     qs_pao_glob_angles
+!!     qs_pao_glob_angles_type
 !!
 !!   FUNCTION
 !!     this is the global structure that holds all the angles 
@@ -210,6 +247,16 @@ module qs_pao_types
 !!     pao_env: a pointer to the pao_env this angles refer to
 !!     angles : a one dimensional array with all the angles that define
 !!          the actual unitary transformation
+!!     ut_calculated: which blocks of unitary_t are valid
+!!     unitary_t: the unitary transformation (be careful, only the
+!!           blocks flagged in ut_calculated are valid)
+!!     min_overlap_m: overlap in the minimal basis (valid only
+!!           if m_s_m_valid is true)
+!!     min_hamiltonian_m: the hamiltonian in the small basis
+!!           valid only if m_h_m_valid is true
+!!     m_s_m_valid: true if the overlap matrix is valid
+!!     m_h_m_valid: true if the hamiltonian matrix is valid
+!!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
 !!     @version 12.2001
@@ -218,20 +265,24 @@ module qs_pao_types
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  type qs_pao_glob_angles
+!***************************************************************************
+  type qs_pao_glob_angles_type
      private
-     logical :: initialized ! =.false.
-     type(qs_pao_env), pointer :: pao_env ! => null()
-     real(kind=wp), dimension(:), pointer :: angles ! =>null(); should be allocatable
-  end type qs_pao_glob_angles
+     logical :: initialized, m_s_m_valid, m_h_m_valid
+     type(qs_pao_env_type), pointer :: pao_env
+     real(kind=wp), dimension(:), pointer :: angles
+     logical, dimension(:), pointer :: ut_calculated
+     type(qs_pao_matrix_type), pointer :: unitary_t
+     type(qs_pao_matrix_type), pointer :: min_overlap_m
+     type(qs_pao_matrix_type), pointer :: min_hamiltonian_m
+  end type qs_pao_glob_angles_type
 !!***
-  !****************************************************************************
+!****************************************************************************
 
-!!****s* qs_pao_types/qs_pao_local_angles [1.0] *
+!!****s* qs_pao_types/qs_pao_local_angles_type [1.0] *
 !!
 !!   NAME
-!!     qs_pao_local_angles
+!!     qs_pao_local_angles_type
 !!
 !!   FUNCTION
 !!     This structure hold the angles that regard one atom.
@@ -239,7 +290,7 @@ module qs_pao_types
 !!     (for example to build the unitary transformation).
 !!
 !!   NOTES
-!!      Don't use the global structure, the idea is that parallelization
+!!      Do not use the global structure, the idea is that parallelization
 !!      (distributing various atoms to various processors) should be easier
 !!      using this structure.
 !!
@@ -264,20 +315,20 @@ module qs_pao_types
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  type qs_pao_local_angles
+!***************************************************************************
+  type qs_pao_local_angles_type
      private
      logical :: initialized
      integer :: atom_nr, begins_at
-     type(qs_pao_glob_angles), pointer :: glob_angles
-  end type qs_pao_local_angles
+     type(qs_pao_glob_angles_type), pointer :: glob_angles
+  end type qs_pao_local_angles_type
 !!***
-  !****************************************************************************
+!****************************************************************************
 
-!!****s* qs_pao_types/qs_pao_matrix [1.0] *
+!!****s* qs_pao_types/qs_pao_matrix_type [1.0] *
 !!
 !!   NAME
-!!     qs_pao_matrix
+!!     qs_pao_matrix_type
 !!
 !!   FUNCTION
 !!     This objects hold a matrix in the full or minimal basis, 
@@ -320,20 +371,20 @@ module qs_pao_types
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  type qs_pao_matrix
+!***************************************************************************
+  type qs_pao_matrix_type
      private
      logical :: initialized, min_bas_rows, min_bas_cols, should_dealloc_matrix
-     type(qs_pao_env), pointer :: pao_env
+     type(qs_pao_env_type), pointer :: pao_env
      type(real_matrix_type), pointer ::  matrix
-  end type qs_pao_matrix
+  end type qs_pao_matrix_type
 !!***
-  !****************************************************************************
+!****************************************************************************
 
-!!****s* qs_pao_types/qs_pao_env [1.0] *
+!!****s* qs_pao_types/qs_pao_env_type [1.0] *
 !!
 !!   NAME
-!!     qs_pao_env
+!!     qs_pao_env_type
 !!
 !!   FUNCTION
 !!     global environement where the info about the various parameters
@@ -365,7 +416,7 @@ module qs_pao_types
 !!     density_matrix_att: the actual density matrix in the full basis
 !!
 !!     The following objects are also available here, but they are actually
-!!     shared. At the moment they are golbal objects, but I don't feel that
+!!     shared. At the moment they are golbal objects, but I do not feel that
 !!     they should be global (their place is in my opinion in a 
 !!     qs_environement), so to shield myself from their possible movement
 !!     I have pointers to them.
@@ -385,30 +436,33 @@ module qs_pao_types
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  type qs_pao_env
+!***************************************************************************
+  type qs_pao_env_type
      private
-     logical initialized ! =.false.
+     logical :: initialized ! =.false.
+     logical :: min_d_m_valid, dealloc_projections
      type(global_environment_type), pointer :: global_env
      real(kind=wp) :: wanted_subspace_pos_precision
      real(kind=wp) :: wanted_in_subspace_precision
-     integer, dimension(:), pointer :: nr_min_bas ! => null()
-     integer, dimension(:), pointer :: nr_full_bas ! => null()
-     type(qs_1d_i_array), dimension(:), pointer :: projection ! => null()
-     type(qs_pao_glob_angles) :: angles_att ! target
-     type(qs_pao_matrix) :: subspace_att ! target
-     type(qs_pao_matrix) :: density_matrix_att ! target
-     type(qs_pao_matrix) :: full_overlap_m
-     type(qs_pao_matrix) :: full_hamiltonian_m
-  end type qs_pao_env
+     integer, dimension(:), pointer :: nr_min_bas
+     integer, dimension(:), pointer :: nr_full_bas
+     integer, dimension(:), pointer :: angles_begin_at ! private
+     integer :: n_atoms
+     type(qs_1d_i_array), dimension(:), pointer :: projection
+     type(qs_pao_glob_angles_type), pointer :: angles_att
+     type(qs_pao_matrix_type), pointer :: full_overlap_m
+     type(qs_pao_matrix_type), pointer :: full_hamiltonian_m
+     type(qs_pao_matrix_type), pointer :: min_density_m
+  end type qs_pao_env_type
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 contains
 
-  ! ==================== qs_pao_env ====================
+! ==================== qs_pao_env_type ====================
+!begin
 
-  ! ====== core methods =====
+! ====== core methods =====
 
 !!****f* qs_pao_types/qs_init_pao_env [1.0] *
 !!
@@ -426,6 +480,8 @@ contains
 !!
 !!   INPUTS
 !!     pao_env: the environement that has to be initialized
+!!     projection: the projection, if given, the projection subarrays 
+!!          are shared
 !!     error: variable to control error logging, stopping,... 
 !!            see module qs_error_handling 
 !!
@@ -440,54 +496,140 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_init_pao_env(pao_env,global_env,wanted_subspace_pos_precision,&
-       wanted_in_subspace_precision, nr_min_bas, nr_full_bas,  angles_att, &
-       subspace_att, n_atoms, density_matrix_att, full_overlap_m, &
-       full_hamiltonian_m, error)
-    type(qs_pao_env), intent(out) :: pao_env
-    type(global_environment_type), optional, intent(in), target :: global_env
+!***************************************************************************
+  subroutine qs_init_pao_env(pao_env,nr_min_bas, nr_full_bas,global_env,&
+       full_overlap_sm, full_hamiltonian_sm,&
+       wanted_subspace_pos_precision,&
+       wanted_in_subspace_precision,&
+       projection, error)
+    type(qs_pao_env_type), intent(out) :: pao_env
+    type(global_environment_type), intent(in), target :: global_env
+    integer, dimension(:), intent(in) :: nr_min_bas, nr_full_bas
+    type(real_matrix_type), target, intent(in), optional :: &
+         full_hamiltonian_sm, full_overlap_sm
     real(kind=wp), optional, intent(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
-    integer, optional, intent(in) :: n_atoms
-    integer, optional, dimension(:), intent(in) :: nr_min_bas, &
-         nr_full_bas
-    type(qs_pao_glob_angles),optional, intent(in) :: angles_att
-    type(qs_pao_matrix),optional, intent(in):: subspace_att,&
-         density_matrix_att, full_hamiltonian_m, full_overlap_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_1d_i_array), dimension(:), optional, intent(in) :: projection
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_init_pao_env'
+    type(qs_error_type) :: iError
+    integer :: stat, i
     failure=.false.
+    call qs_init(iError, template_error=error)
 
     nullify(pao_env%nr_min_bas, pao_env%global_env, pao_env%nr_full_bas)
-    nullify(pao_env%projection)
-    call qs_init_pao_glob_angles(pao_env%angles_att, error=error)
-    if (present(error)) then
-       if (qs_get_error_level(error)>=qs_failure_level) failure=.true.
+    nullify(pao_env%projection, pao_env%angles_begin_at)
+    pao_env%min_d_m_valid=.false.
+    pao_env%n_atoms=-1
+! global_env
+    pao_env%global_env => global_env
+    call qs_assert(associated(pao_env%global_env),qs_warning_level,&
+         qs_assertion_failed,routineN,"glob env not associated in "//&
+         QSSourceFileRef(),error)
+! min_bas
+    call qs_guarantee_size(pao_env%nr_min_bas,size(nr_min_bas), &
+         error=iError)
+    QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       pao_env%nr_min_bas=nr_min_bas
     end if
-    call qs_init_pao_matrix(pao_env%subspace_att, min_bas_rows=.false.,&
-         min_bas_cols=.false.,error=error)
-    call qs_init_pao_matrix(pao_env%density_matrix_att, min_bas_rows=.true.,&
-         min_bas_cols=.true.,error=error)
-    call qs_init_pao_matrix(pao_env%full_hamiltonian_m, min_bas_rows=.false.,&
-         min_bas_cols=.false.,error=error)
-    call qs_init_pao_matrix(pao_env%full_overlap_m, min_bas_rows=.false.,&
-         min_bas_cols=.false.,error=error)
-    if (present(error)) then
-       if (qs_get_error_level(error)>=qs_failure_level) failure=.true.
+! full_bas
+    call qs_guarantee_size(pao_env%nr_full_bas,size(nr_full_bas), &
+         error=iError)
+    QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       pao_env%nr_full_bas=nr_full_bas
     end if
+    call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+         error,failure,qs_failure_level)
+! check min_bas/full_bas
+    QSPrecondition(associated(pao_env%nr_min_bas),qs_failure_level,routineN,error,failure)
+    QSPrecondition(associated(pao_env%nr_full_bas),qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_assert(size(pao_env%nr_full_bas)==size(pao_env%nr_min_bas),&
+            qs_failure_level,qs_assertion_failed,routineN,&
+            "min_bas and full bas must have the same size in "//&
+            QSSourceFileRef(),error,failure)
+    end if
+! angles_begin_at
+    if (.not.failure) then
+       pao_env%n_atoms=size(pao_env%nr_full_bas)
+       allocate(pao_env%angles_begin_at(pao_env%n_atoms+1),stat=stat)
+       QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    end if
+    if (.not.failure) then
+       if (pao_env%n_atoms>0) pao_env%angles_begin_at(1)=0
+       do i=1,pao_env%n_atoms
+          pao_env%angles_begin_at(i+1)=pao_env%angles_begin_at(i)+&
+               (pao_env%nr_full_bas(i)-pao_env%nr_min_bas(i))*&
+               pao_env%nr_min_bas(i)
+       end do
+    end if
+! others
     pao_env%wanted_subspace_pos_precision=1.0e-4_wp
     pao_env%wanted_in_subspace_precision=1.0e-4_wp
     pao_env%initialized=.true.
-    call qs_set_pao_env(pao_env,global_env,wanted_subspace_pos_precision,&
-         wanted_in_subspace_precision, nr_min_bas, nr_full_bas,  angles_att, &
-         subspace_att, n_atoms, density_matrix_att,full_overlap_m,&
-         full_hamiltonian_m, error)
+! projection
+    if (present(projection)) then
+       allocate(pao_env%projection(size(projection)),stat=stat)
+       QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+       if (.not.failure) then
+          pao_env%projection=projection
+       end if
+       pao_env%dealloc_projections=.false.
+    else
+       pao_env%dealloc_projections=.true.
+       call qs_pao_env_init_projection(pao_env,error)
+    end if
+! n_projection
+! call qs_pao_env_init_n_projection(pao_env,error)
+! full_h
+    allocate(pao_env%full_hamiltonian_m,stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_init(pao_env%full_hamiltonian_m, matrix=full_hamiltonian_sm, &
+            min_bas_cols=.false., min_bas_rows=.false., pao_env=pao_env,&
+            should_dealloc_matrix=.not.present(full_hamiltonian_sm), error=error)
+    end if
+! full_s
+    allocate(pao_env%full_overlap_m,stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_init(pao_env%full_overlap_m, matrix=full_overlap_sm,&
+            min_bas_cols=.false., min_bas_rows=.false., pao_env=pao_env,&
+            should_dealloc_matrix=.not.present(full_overlap_sm), error=error)
+    end if
+! min_d
+    allocate(pao_env%min_density_m,stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_init_pao_matrix(pao_env%min_density_m, min_bas_rows=.true.,&
+            min_bas_cols=.true., pao_env=pao_env,&
+            should_dealloc_matrix=.true., error=error)
+    end if
+! angles_att
+    allocate(pao_env%angles_att,stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_init_pao_glob_angles(pao_env%angles_att, pao_env=pao_env,&
+            error=error)
+    end if
+    call qs_set_pao_env(pao_env,&
+         wanted_subspace_pos_precision=wanted_subspace_pos_precision,&
+         wanted_in_subspace_precision=wanted_in_subspace_precision,&
+         error=error)
+    if (qs_debug.and.debug_this_module) then
+       call qs_assert(qs_validate(pao_env,test_pos_att=.false.,error=error),&
+            qs_failure_level,qs_assertion_failed,routineN,&
+            "pao_env is not valid after init in "//&
+            QSSourceFileRef(),error,failure)
+    end if
+    call qs_dealloc_ref(iError,error)
   end subroutine qs_init_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_dealloc_pao_env_ref [1.0] *
 !!
@@ -514,10 +656,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_dealloc_pao_env_ref(pao_env, error)
-    type(qs_pao_env), intent(inout) :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), intent(inout) :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_env_ref'
@@ -526,23 +668,25 @@ contains
 
     QSPrecondition(pao_env%initialized,qs_failure_level,routineN,error,failure)
     failureIf: if (.not. failure) then
-       call qs_dealloc_pao_glob_angles_ref(pao_env%angles_att, error=error)
-       call qs_dealloc_pao_matrix_ref(pao_env%subspace_att, &
+       if (associated(pao_env%angles_att)) then
+          call qs_dealloc_pao_glob_angles(pao_env%angles_att, error=error)
+       end if
+       call qs_dealloc_pao_matrix(pao_env%min_density_m,&
             error=error)
-       call qs_dealloc_pao_matrix_ref(pao_env%density_matrix_att, &
+       call qs_dealloc_pao_matrix(pao_env%full_hamiltonian_m,&
             error=error)
-       call qs_dealloc_pao_matrix_ref(pao_env%full_hamiltonian_m, &
-            error=error)
-       call qs_dealloc_pao_matrix_ref(pao_env%full_overlap_m, &
+       call qs_dealloc_pao_matrix(pao_env%full_overlap_m,&
             error=error)
        nullify(pao_env%global_env)
        if (associated(pao_env%projection)) then
-          do i=1,size(pao_env%projection)
-             if (associated(pao_env%projection(i)%array)) then
-                deallocate(pao_env%projection(i)%array, stat=stat)
-                QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
-             end if
-          end do
+          if (pao_env%dealloc_projections) then
+             do i=1,size(pao_env%projection)
+                if (associated(pao_env%projection(i)%array)) then
+                   deallocate(pao_env%projection(i)%array, stat=stat)
+                   QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+                end if
+             end do
+          end if
           deallocate(pao_env%projection,stat=stat)
           QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
        end if
@@ -554,10 +698,14 @@ contains
           deallocate(pao_env%nr_full_bas, stat=stat)
           QSPostcondition(stat==0,qs_warning_level,routineN,error,failure) 
        end if
+       if (associated(pao_env%angles_begin_at)) then
+          deallocate(pao_env%angles_begin_at,stat=stat)
+          QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+       end if
     end if failureIf
   end subroutine qs_dealloc_pao_env_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 
 !!****f* qs_pao_types/qs_validate_pao_env [1.0] *
@@ -587,12 +735,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_validate_pao_env(pao_env, test_pos_att, error) result(res)
     logical ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     logical ,optional ::test_pos_att
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure, test_pos
     character(len=*), parameter :: routineN='qs_pao_types:qs_validate_pao_env'
@@ -613,13 +761,17 @@ contains
        QSAssert(associated(pao_env%nr_min_bas), qs_warning_level,routineN,error,failure)
        QSAssert(associated(pao_env%nr_full_bas), qs_warning_level,routineN,error,failure)
        QSAssert(size(pao_env%nr_min_bas)>0,qs_warning_level,routineN,error,failure)
-       QSAssert(size(pao_env%nr_min_bas)==size(pao_env%nr_full_bas),qs_warning_level,routineN,error,failure)
+       call qs_assert(size(pao_env%nr_min_bas)==size(pao_env%nr_full_bas),&
+            qs_warning_level,qs_assertion_failed,routineN,&
+            "min_bas and full_s must have the same length in"//&
+            QSSourceFileRef(),error,failure)
+       QSAssert(size(pao_env%nr_min_bas)==pao_env%n_atoms,qs_warning_level,routineN,error,failure)
        if (.not. standalone) then
           QSAssert(size(pao_env%nr_min_bas)==size(atom_info),qs_warning_level,routineN,error,failure)
        end if
        failureIf2: if (.not.failure .and.(qs_debug.or.test_pos)) then 
-          ! I could use all() and any(), but then the info on the atom nr 
-          ! would be lost...
+! I could use all() and any(), but then the info on the atom nr 
+! would be lost...
           do i=1,size(pao_env%nr_min_bas)
              m_bas_att=pao_env%nr_min_bas(i)
              f_bas_att=pao_env%nr_full_bas(i)
@@ -661,12 +813,24 @@ contains
              end if
           end do
        end if
+! angles_begin_at
+       QSPrecondition(associated(pao_env%angles_begin_at),qs_warning_level,routineN,error,failure)
+       if (.not.failure) then
+          QSPrecondition(pao_env%n_atoms+1==size(pao_env%angles_begin_at),qs_warning_level,routineN,error,failure)
+       end if
+       if (.not.failure) then
+          call qs_assert(all((pao_env%angles_begin_at(2:pao_env%n_atoms+1)-&
+               pao_env%angles_begin_at(1:pao_env%n_atoms))==&
+               pao_env%nr_min_bas*(pao_env%nr_full_bas-pao_env%nr_min_bas)),&
+               qs_warning_level,qs_assertion_failed,routineN,&
+               "angles_begin_at is not compatible with nr_min_bas nr_full_bas in "//&
+               QSSourceFileRef(),error,failure)
+       end if
+! pos att
        if (test_pos) then
           if (.not.qs_validate_pao_glob_angles(pao_env%angles_att,&
                error=error)) failure=.true.
-          if (.not.qs_validate_pao_matrix(pao_env%subspace_att,&
-               error=error)) failure=.true. ! also test unitarity ?
-          if (.not.qs_validate_pao_matrix(pao_env%density_matrix_att,&
+          if (.not.qs_validate_pao_matrix(pao_env%min_density_m,&
                error=error)) failure=.true. ! also test idempotency ?
        end if
        if (.not.standalone) then
@@ -679,7 +843,7 @@ contains
     res=.not.failure
   end function qs_validate_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_set_pao_env [1.0] *
 !!
@@ -703,7 +867,7 @@ contains
 !!            see module qs_error_handling 
 !!
 !!     for the description of the other variables see the attributes 
-!!     of qs_pao_env
+!!     of qs_pao_env_type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -713,76 +877,39 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_set_pao_env(pao_env,global_env, wanted_subspace_pos_precision,&
-       wanted_in_subspace_precision, nr_min_bas, nr_full_bas,  angles_att, &
-       subspace_att, n_atoms, density_matrix_att,full_overlap_m, &
-       full_hamiltonian_m, error)
-    type(qs_pao_env), target, intent(inout) :: pao_env
-    type(global_environment_type), optional, intent(in), target :: global_env
+!***************************************************************************
+  subroutine qs_set_pao_env(pao_env, wanted_subspace_pos_precision,&
+       wanted_in_subspace_precision, angles_att, &
+       min_density_m,full_overlap_m, full_hamiltonian_m,&
+       min_d_valid,error)
+    type(qs_pao_env_type), target, intent(inout) :: pao_env
     real(kind=wp), optional, intent(in) :: wanted_in_subspace_precision, &
          wanted_subspace_pos_precision
-    integer, optional, intent(in) :: n_atoms
-    integer, optional, dimension(:), intent(in), target :: nr_min_bas, &
-         nr_full_bas
-    type(qs_pao_glob_angles),optional, intent(in) :: angles_att
-    type(qs_pao_matrix),optional, intent(in) :: subspace_att,&
-         density_matrix_att, full_hamiltonian_m, full_overlap_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type),optional, intent(in) :: angles_att
+    type(qs_pao_matrix_type),optional, intent(in) :: &
+         min_density_m, full_hamiltonian_m, full_overlap_m
+    logical, optional :: min_d_valid
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_set_pao_env'
     integer :: stat
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     call qs_init_error(iError,template_error=error)
 
     QSPrecondition(pao_env%initialized,qs_failure_level,routineN,error,failure)
-    if (present(global_env)) &
-         pao_env%global_env=>global_env
     if (present(wanted_subspace_pos_precision)) &
          pao_env%wanted_subspace_pos_precision=wanted_subspace_pos_precision
     if (present(wanted_in_subspace_precision)) &
          pao_env%wanted_in_subspace_precision=wanted_in_subspace_precision
-    if (present(n_atoms)) then
-       call qs_guarantee_size(pao_env%nr_min_bas, n_atoms, init=-1,error=iError)
-       call qs_guarantee_size(pao_env%nr_full_bas, n_atoms,init=-1, error=iError)
-       QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
-    end if
-    if (present(nr_min_bas)) then
-       if (present(n_atoms)) &
-            QSPrecondition(n_atoms==size(nr_min_bas), qs_warning_level,routineN,error,failure)
-       call qs_guarantee_size(pao_env%nr_min_bas,size(nr_min_bas), &
-            error=iError)
-       call qs_guarantee_size(pao_env%nr_full_bas,size(nr_min_bas), &
-            error=iError)
-       QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
-       if (.not.failure) then
-          pao_env%nr_min_bas=nr_min_bas
-       end if
-    end if
-    if (present(nr_full_bas)) then
-       if (present(n_atoms)) &
-            QSPrecondition(n_atoms==size(nr_full_bas), qs_warning_level,routineN,error,failure)
-       call qs_guarantee_size(pao_env%nr_full_bas,size(nr_full_bas), &
-            error=iError)
-       call qs_guarantee_size(pao_env%nr_full_bas,size(nr_full_bas), &
-            error=iError)
-       QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
-       if (.not.failure) then
-          pao_env%nr_full_bas=nr_full_bas
-       end if
-    end if
     if (present(angles_att)) then
        call qs_set(pao_env%angles_att, source=angles_att, pao_env=pao_env,&
             error=error)
     end if
-    if (present(subspace_att)) then
-       call qs_set(pao_env%subspace_att, source=subspace_att, pao_env=pao_env,&
-            error=error)
-    end if
-    if (present(density_matrix_att)) then
-       call qs_set(pao_env%density_matrix_att, source=density_matrix_att,&
+    if (present(min_density_m)) then
+       pao_env%min_d_m_valid=.true.
+       call qs_set(pao_env%min_density_m, source=min_density_m,&
             pao_env=pao_env, error=error)
     end if
     if (present(full_hamiltonian_m)) then
@@ -793,22 +920,13 @@ contains
        call qs_set(pao_env%full_overlap_m, source=full_overlap_m,&
             pao_env=pao_env, error=error)
     end if
-    if (associated(pao_env%nr_min_bas)) then
-       if (all(pao_env%nr_min_bas>0)) then
-          call qs_pao_env_init_projection(pao_env,error=error)
-       end if
-    end if
-    if (.not.failure) then
-       if (qs_validate_pao_env(pao_env,error=error, test_pos_att=.false.)) then
-          call qs_set(pao_env%angles_att,pao_env=pao_env, error=error)
-          call qs_set(pao_env%subspace_att,pao_env=pao_env, error=error)
-          call qs_set(pao_env%density_matrix_att,pao_env=pao_env, error=error)
-       end if
+    if (present(min_d_valid)) then
+       pao_env%min_d_m_valid=min_d_valid
     end if
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_set_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get [1.0] *
 !!
@@ -832,7 +950,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module qs_error_handling 
 !!
-!!     The other variable are described in the qs_pao_env type
+!!     The other variable are described in the qs_pao_env_type type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -842,25 +960,25 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_env_get(pao_env,global_env, wanted_subspace_pos_precision,&
        wanted_in_subspace_precision, nr_min_bas,nr_full_bas, angles_att, &
        subspace_att, n_atom, ntot_full_bas, ntot_min_bas, projection,&
-       density_matrix_att, full_overlap_m, full_hamiltonian_m, atomic_info,&
+       min_density_m, full_overlap_m, full_hamiltonian_m, atomic_info,&
        error)
-    type(qs_pao_env), target, intent(in) :: pao_env
+    type(qs_pao_env_type), target, intent(in) :: pao_env
     type(global_environment_type), optional, pointer :: global_env
     real(kind=wp), optional, intent(out) :: wanted_subspace_pos_precision
     real(kind=wp), optional, intent(out) :: wanted_in_subspace_precision
     integer, optional, dimension(:), pointer :: nr_min_bas
     integer, optional, dimension(:), pointer :: nr_full_bas
-    type(qs_pao_glob_angles), optional, pointer :: angles_att
-    type(qs_pao_matrix), optional, pointer :: subspace_att, &
-         density_matrix_att, full_hamiltonian_m, full_overlap_m
+    type(qs_pao_glob_angles_type), optional, pointer :: angles_att
+    type(qs_pao_matrix_type), optional, pointer :: subspace_att, &
+         min_density_m, full_hamiltonian_m, full_overlap_m
     integer, optional, intent(out) :: n_atom, ntot_min_bas, ntot_full_bas
     type(qs_1d_i_array), dimension(:), pointer, optional :: projection
     type(atom_info_type), dimension(:), pointer, optional :: atomic_info
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get'
@@ -880,14 +998,12 @@ contains
             nr_full_bas => pao_env%nr_full_bas
        if (present(angles_att)) &
             angles_att => pao_env%angles_att
-       if (present(subspace_att)) &
-            subspace_att => pao_env%subspace_att
        if (present(n_atom)) &
             n_atom=qs_get_n_atom(pao_env, error=error)
        if (present(projection)) &
             projection => pao_env%projection
-       if (present(density_matrix_att)) &
-            density_matrix_att => pao_env%density_matrix_att
+       if (present(min_density_m)) &
+            min_density_m => pao_env%min_density_m
        if (present(full_overlap_m)) &
             full_overlap_m => pao_env%full_overlap_m
        if (present(full_hamiltonian_m)) &
@@ -913,7 +1029,7 @@ contains
     end if failureIf
   end subroutine qs_pao_env_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_valid [1.0] *
 !!
@@ -940,11 +1056,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_valid(pao_env,error) result(res)
     logical ::res
-    type(qs_pao_env), intent(in) :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), intent(in) :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_valid'
@@ -954,18 +1070,26 @@ contains
     if (.not. failure) then
        if (.not.(associated(pao_env%nr_min_bas).and.&
             associated(pao_env%nr_full_bas).and.&
-            associated(pao_env%projection))) then
+            associated(pao_env%projection).and.&
+            associated(pao_env%angles_begin_at).and.&
+            associated(pao_env%full_overlap_m).and.&
+            associated(pao_env%full_hamiltonian_m))) then
           QSAssert(associated(pao_env%nr_min_bas),qs_warning_level,routineN,error,failure)
           QSAssert(associated(pao_env%nr_full_bas),qs_warning_level,routineN,error,failure)
+          QSAssert(associated(pao_env%angles_begin_at),qs_warning_level,routineN,error,failure)
           QSAssert(associated(pao_env%projection),qs_warning_level,routineN,error,failure)
+          QSAssert(associated(pao_env%full_hamiltonian_m),qs_warning_level,routineN,error,failure)
+          QSAssert(associated(pao_env%full_overlap_m),qs_warning_level,routineN,error,failure)
+!          associated(pao_env%angles_att).and.&
+!          associated(pao_env%min_density_m).and.&
        end if
     end if
     res=.not.failure
   end function qs_pao_env_valid
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ====== special methods ======
+! ====== special methods ======
 
 !!****f* qs_pao_types/qs_pao_env_get_atomic_info [1.0] *
 !!
@@ -973,8 +1097,8 @@ contains
 !!     qs_pao_env_get_atomic_info
 !!
 !!   FUNCTION
-!!     returns the atom_info (you should use this if you don't want problems
-!!     when/if the atom_info won't be global anymore)
+!!     returns the atom_info (you should use this if you do not want problems
+!!     when/if the atom_info will not be global anymore)
 !!
 !!   NOTES
 !!     -
@@ -991,11 +1115,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_atomic_info(pao_env, error) result(res)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     type(atom_info_type), dimension(:), pointer ::res
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_atomic_info'
@@ -1004,7 +1128,7 @@ contains
     res => atom_info
   end function qs_pao_env_get_atomic_info
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get_p_index [1.0] *
 !!
@@ -1032,12 +1156,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_p_index(pao_env, atom_nr, i,error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr, i
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_p_index'
@@ -1072,7 +1196,7 @@ contains
     end if failureIf
   end function qs_pao_env_get_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get_non_p_index [1.0] *
 !!
@@ -1100,12 +1224,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_non_p_index(pao_env, atom_nr, i,error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr, i
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_p_index'
@@ -1135,9 +1259,9 @@ contains
     end if
 
     failureIf: if (.not. failure) then
-       ! to do
-       ! this is a dirty hack, I should cache everything (but at the
-       ! beginning I did not think about it)
+! to do
+! this is a dirty hack, I should cache everything (but at the
+! beginning I did not think about it)
        res=1
        k=1
        do j=1,i
@@ -1159,7 +1283,7 @@ contains
     end if failureIf
   end function qs_pao_env_get_non_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_set_p_index [1.0] *
 !!
@@ -1188,11 +1312,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_env_set_p_index(pao_env,atom_nr,i, value,error)
-    type(qs_pao_env), intent(inout) :: pao_env
+    type(qs_pao_env_type), intent(inout) :: pao_env
     integer, intent(in) :: atom_nr, i, value
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_set_p_index'
@@ -1225,7 +1349,7 @@ contains
     end if failureIf
   end subroutine qs_pao_env_set_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 
 !!****f* qs_pao_types/qs_pao_env_get_n_atom [1.0] *
@@ -1251,11 +1375,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_n_atom(pao_env, error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), intent(in) :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_n_atom'
@@ -1270,7 +1394,7 @@ contains
     end if failureIf
   end function qs_pao_env_get_n_atom
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get_min_bas_size [1.0] *
 !!
@@ -1297,12 +1421,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_min_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_min_bas_size'
@@ -1321,7 +1445,7 @@ contains
     end if failureIf
   end function qs_pao_env_get_min_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get_full_bas_size [1.0] *
 !!
@@ -1348,12 +1472,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_full_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_full_bas_size'
@@ -1372,7 +1496,7 @@ contains
     end if failureIf
   end function qs_pao_env_get_full_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_env_get_excl_bas_size [1.0] *
 !!
@@ -1400,12 +1524,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_env_get_excl_bas_size(pao_env, atom_nr, error) result(res)
     integer ::res
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_get_excl_bas_size'
@@ -1427,9 +1551,9 @@ contains
     end if failureIf
   end function qs_pao_env_get_excl_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ========= private methods ========
+! ========= private methods ========
 
 !!****f* qs_pao_types/qs_pao_env_init_projection [1.0] *
 !!
@@ -1455,10 +1579,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_env_init_projection(pao_env, error)
-    type(qs_pao_env), intent(inout) :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), intent(inout) :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_env_init_projection'
@@ -1509,11 +1633,14 @@ contains
     end if failureIf
   end subroutine qs_pao_env_init_projection
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ==================== qs_pao_glob_angles ====================
+!end
+! ==================== qs_pao_glob_angles_type ====================
+!begin
 
-  ! ======= core methods ======
+
+! ======= core methods ======
 
 !!****f* qs_pao_types/qs_init_pao_glob_angles [1.0] *
 !!
@@ -1527,7 +1654,7 @@ contains
 !!     -
 !!
 !!   INPUTS
-!!     glob_angles: the global angles to be initailized
+!!     glob_angles: the global angles to be initialized
 !!     error: variable to control error logging, stopping,... 
 !!            see module qs_error_handling 
 !!
@@ -1539,25 +1666,39 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_init_pao_glob_angles(glob_angles, pao_env, angles, source,&
-       error)
-    type(qs_pao_glob_angles), intent(out) :: glob_angles
-    type(qs_pao_env), optional, intent(in), target :: pao_env
+       ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+    type(qs_pao_glob_angles_type), intent(out) :: glob_angles
+    type(qs_pao_env_type), intent(in), target :: pao_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(qs_pao_glob_angles), intent(in), optional :: source
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), intent(in), optional :: source
+    logical, dimension(:), intent(in), optional :: ut_calculated
+    type(qs_pao_matrix_type), intent(in), optional :: unitary_t,&
+         min_hamiltonian_m, min_overlap_m
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_init_pao_glob_angles'
     failure=.false.
 
+    nullify(glob_angles%pao_env, glob_angles%angles, glob_angles%unitary_t,&
+         glob_angles%ut_calculated, glob_angles%min_overlap_m, &
+         glob_angles%min_hamiltonian_m)
+    glob_angles%m_s_m_valid=.false.
+    glob_angles%m_h_m_valid=.false.
+    glob_angles%pao_env => pao_env
     glob_angles%initialized = .true.
-    nullify(glob_angles%pao_env, glob_angles%angles)
-    call qs_set_pao_glob_angles(glob_angles, pao_env, angles,source, error=error)
+    QSPrecondition(associated(glob_angles%pao_env),qs_failure_level,routineN,error,failure)
+    if (.not.failure) then
+       call qs_set_pao_glob_angles(glob_angles, angles=angles,&
+            source=source, ut_calculated=ut_calculated,&
+            unitary_t=unitary_t,min_hamiltonian_m=min_hamiltonian_m,&
+            min_overlap_m=min_overlap_m, error=error)
+    end if
   end subroutine qs_init_pao_glob_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_dealloc_pao_glob_angles_ref [1.0] *
 !!
@@ -1584,27 +1725,133 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_dealloc_pao_glob_angles_ref(pao_glob_angles, error)
-    type(qs_pao_glob_angles), intent(inout) :: pao_glob_angles
-    type(qs_error), optional, intent(inout) :: error
+!***************************************************************************
+  subroutine qs_dealloc_pao_glob_angles_ref(glob_angles, error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_glob_angles_ref'
     integer ::stat
     failure=.false.
 
-    QSPrecondition(pao_glob_angles%initialized, qs_failure_level,routineN,error,failure)
+    QSPrecondition(glob_angles%initialized, qs_failure_level,routineN,error,failure)
     failureIf: if (.not. failure) then
-       nullify(pao_glob_angles%pao_env)
-       if (associated(pao_glob_angles%angles)) then
-          deallocate(pao_glob_angles%angles, stat=stat)
+       nullify(glob_angles%pao_env)
+       if (associated(glob_angles%angles)) then
+          deallocate(glob_angles%angles, stat=stat)
           QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
        end if
+       if (associated(glob_angles%ut_calculated)) then
+          deallocate(glob_angles%ut_calculated,stat=stat)
+          QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+       end if
+       call qs_dealloc_pao_matrix(glob_angles%unitary_t,error=error)
+       call qs_dealloc_pao_matrix(glob_angles%min_hamiltonian_m,error=error)
+       call qs_dealloc_pao_matrix(glob_angles%min_overlap_m,error=error)
     end if failureIf
   end subroutine qs_dealloc_pao_glob_angles_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_dealloc_pao_glob_angles [1.0] *
+!!
+!!   NAME
+!!     qs_dealloc_pao_glob_angles
+!!
+!!   FUNCTION
+!!     deallocated the memory allocated by this object and the oject itself
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: the object to be deallocated
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_dealloc_pao_glob_angles(glob_angles,error)
+    type(qs_pao_glob_angles_type), pointer :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_glob_angles'
+    integer :: stat
+    failure=.false.
+
+    if (associated(glob_angles)) then
+       QSPrecondition(glob_angles%initialized,qs_failure_level,routineN,error,failure)
+       if (.not. failure) then
+          call qs_dealloc_pao_glob_angles_ref(glob_angles,error=error)
+       end if
+       deallocate(glob_angles,stat=stat)
+       QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+    end if
+  end subroutine qs_dealloc_pao_glob_angles
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_create_pao_glob_angles [1.0] *
+!!
+!!   NAME
+!!     qs_create_pao_glob_angles
+!!
+!!   FUNCTION
+!!     creates a new glob_angles object
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: will be a pointer to the newly created object
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!     for the others inputs see qs_init_pao_glob_angles
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_create_pao_glob_angles(glob_angles, pao_env, angles, source,&
+       ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+    type(qs_pao_glob_angles_type), pointer :: glob_angles
+    type(qs_pao_env_type), intent(in), target :: pao_env
+    real(kind=wp), optional, dimension(:), intent(in) :: angles
+    type(qs_pao_glob_angles_type), intent(in), optional :: source
+    logical, dimension(:), intent(in) :: ut_calculated
+    type(qs_pao_matrix_type), intent(in) :: unitary_t, min_hamiltonian_m,&
+         min_overlap_m
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_create_pao_glob_angles'
+    integer :: stat
+    failure=.false.
+
+    allocate(glob_angles, stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       call qs_init_pao_glob_angles(glob_angles, pao_env, angles, source,&
+            ut_calculated, unitary_t, min_overlap_m, min_hamiltonian_m, error)
+    end if
+  end subroutine qs_create_pao_glob_angles
+!!***
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_validate_pao_glob_angles [1.0] *
 !!
@@ -1631,11 +1878,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_validate_pao_glob_angles(glob_angles,error) result(res)
     logical ::res
-    type(qs_pao_glob_angles), intent(in) :: glob_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), intent(in) :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_validate_pao_glob_angles'
@@ -1652,19 +1899,58 @@ contains
                QSSourceFileRef(),error,failure)
        end if
        if (.not.failure) then
+          call qs_assert(glob_angles%pao_env%angles_begin_at &
+               (glob_angles%pao_env%n_atoms+1)== &
+               size(glob_angles%angles),qs_warning_level,&
+               qs_assertion_failed, routineN,&
+               "number of angles different from last begin_at in "//&
+               QSSourceFileRef(),error,failure)
           if (dot_product(glob_angles%pao_env%nr_min_bas,&
                glob_angles%pao_env%nr_full_bas-glob_angles%pao_env%nr_min_bas)&
                /= size(glob_angles%angles)) then
              call qs_assert(.false., qs_warning_level, qs_assertion_failed,&
-                  routineN,'wrong number of angles in qs_pao_glob_angles',&
+                  routineN,'wrong number of angles in qs_pao_glob_angles_type',&
                   error,failure)
           end if
+       end if
+       if (associated(glob_angles%ut_calculated)) then
+          call qs_assert(size(glob_angles%ut_calculated)==&
+               glob_angles%pao_env%n_atoms, qs_warning_level,&
+               qs_assertion_failed, routineN,&
+               "cached invalid ut_calculated in "//&
+               QSSourceFileRef(),error,failure)
+       end if
+       if (associated(glob_angles%unitary_t)) then
+          call qs_assert(qs_validate_pao_matrix(glob_angles%unitary_t,&
+               error=error), qs_warning_level,&
+               qs_assertion_failed, routineN,&
+               "cached invalid unitary_t in "//&
+               QSSourceFileRef(),error,failure)
+          QSAssert(associated(glob_angles%ut_calculated),qs_warning_level,routineN,error,failure)
+       end if
+       if (associated(glob_angles%min_hamiltonian_m)) then
+          call qs_assert(qs_validate_pao_matrix(glob_angles%min_hamiltonian_m,&
+               error=error), qs_warning_level,&
+               qs_assertion_failed, routineN,&
+               "cached invalid min_hamiltonian_m in "//&
+               QSSourceFileRef(),error,failure)
+       else
+          QSAssert(.not.glob_angles%m_h_m_valid,qs_warning_level,routineN,error,failure)
+       end if
+       if (associated(glob_angles%min_overlap_m)) then
+          call qs_assert(qs_validate_pao_matrix(glob_angles%min_overlap_m,&
+               error=error), qs_warning_level,&
+               qs_assertion_failed, routineN,&
+               "cached invalid min_overlap_m in "//&
+               QSSourceFileRef(),error,failure)
+       else
+          QSAssert(.not.glob_angles%m_s_m_valid,qs_warning_level,routineN,error,failure)
        end if
     end if failureIf
     res=.not.failure
   end function qs_validate_pao_glob_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_set_pao_glob_angles [1.0] *
 !!
@@ -1685,6 +1971,10 @@ contains
 !!             have the precedence for setting the values, the values
 !!             of source are taken as default, if the value is not directly
 !!             set)
+!!     ut_calculated: flags to see which blocka have been calculated
+!!     unitary_t: the cached unitary matrix. Be careful: only the 
+!!             blocks that have been calculated are valid.
+!!             Every processor calculates oly the blocks he needs.
 !!     error: variable to control error logging, stopping,... 
 !!            see module qs_error_handling 
 !!
@@ -1696,18 +1986,24 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_set_pao_glob_angles(glob_angles, pao_env, angles,source, error)
-    type(qs_pao_glob_angles), intent(inout) :: glob_angles
-    type(qs_pao_env), optional, intent(in), target :: pao_env
+!***************************************************************************
+  subroutine qs_set_pao_glob_angles(glob_angles, pao_env, angles,source,&
+       ut_calculated, unitary_t,min_overlap_m, min_hamiltonian_m,&
+       m_s_m_valid, m_h_m_valid, error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_pao_env_type), optional, intent(in), target :: pao_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
-    type(qs_pao_glob_angles), optional, intent(in) :: source
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), optional, intent(in) :: source
+    type(qs_pao_matrix_type), optional, intent(in) :: min_hamiltonian_m,&
+         min_overlap_m, unitary_t
+    logical, dimension(:), optional, intent(in) :: ut_calculated
+    logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_set_pao_glob_angles'
     integer :: stat
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     call qs_init_error(iError,template_error=error)
     failure=.false.
 
@@ -1717,13 +2013,11 @@ contains
           QSPrecondition(source%initialized,qs_failure_level,routineN,error,failure)
           if (.not.failure) then
              glob_angles%pao_env => source%pao_env
+             call qs_set(iError, print_level=max(qs_failure_level,&
+                  qs_get_error_print_level(iError)),&
+                  stop_level=max(qs_failure_level,&
+                  qs_get_error_stop_level(iError)))
              if (associated(source%angles)) then
-                if (qs_get_error_print_level(iError)<qs_failure_level) then
-                   call qs_set(iError, print_level=qs_failure_level)
-                end if
-                if (qs_get_error_stop_level(iError)<qs_failure_level) then
-                   call qs_set(iError, stop_level=qs_failure_level)
-                end if
                 call qs_guarantee_size(glob_angles%angles,size(source%angles),&
                      error=iError)
                 call qs_assert(qs_get_error_level(iError)<qs_failure_level,&
@@ -1731,15 +2025,24 @@ contains
                      "sub routine qs_guarantee_size error in"//&
                      QSSourceFileRef(),error,failure)
                 glob_angles%angles=source%angles
-                call qs_set(iError, &
-                     print_level=qs_get_error_print_level(error),&
-                     stop_level=qs_get_error_stop_level(error))
-             else
-                if (associated(glob_angles%angles)) then
-                   deallocate(glob_angles%angles, stat=stat)
-                   QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
-                end if
+             else if (associated(glob_angles%angles)) then
+                deallocate(glob_angles%angles, stat=stat)
+                QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
              end if
+             call qs_pao_g_angles_set_unitary_t(glob_angles,&
+                  ut_calculated=source%ut_calculated,&
+                  new_value=source%unitary_t,&
+                  error=error)
+             call qs_pao_g_angles_set_min_s_m(glob_angles,&
+                  new_value=source%min_overlap_m,&
+                  error=error)
+             call qs_pao_g_angles_set_min_h_m(glob_angles,&
+                  new_value=source%min_hamiltonian_m,&
+                  error=error)
+             glob_angles%m_h_m_valid=source%m_h_m_valid
+             glob_angles%m_s_m_valid=source%m_s_m_valid
+             call qs_dealloc_ref(iError,error)
+             call qs_init(iError, template_error=error)
           end if
        end if
        if (present(pao_env)) &
@@ -1747,30 +2050,49 @@ contains
        if (present(angles)) then
           call qs_guarantee_size(glob_angles%angles,size(angles),&
                error=iError)
-          QSPostcondition(qs_get_error_level(iError)<qs_failure_level,qs_failure_level,routineN,error,failure)
+          call qs_assert(qs_get_error_level(iError)<qs_failure_level,&
+               qs_failure_level,qs_assertion_failed,routineN,&
+               "error in qs_guarantee_size called in "//&
+               QSSourceFileRef(),error,failure)
           if (.not. failure) then
              glob_angles%angles = angles
           end if
        end if
-       if (associated(glob_angles%pao_env)) then
-          call qs_assert(qs_validate_pao_env(glob_angles%pao_env, &
-               test_pos_att=.false.), qs_failure_level, &
-               qs_precondition_failed, routineN, &
-               "if set the pao_env must be valid in"//&
-               QSSourceFileRef(),error,failure)
-          if (.not.failure) then
-             call qs_guarantee_size(glob_angles%angles,&
-                  dot_product(glob_angles%pao_env%nr_min_bas, &
-                  glob_angles%pao_env%nr_full_bas-&
-                  glob_angles%pao_env%nr_min_bas), &
-                  error=error)
+       call qs_pao_g_angles_set_unitary_t(glob_angles,&
+            ut_calculated=ut_calculated,&
+            new_value=unitary_t,&
+            error=error)
+       if (present(min_overlap_m)) then
+          call qs_pao_g_angles_set_min_s_m(glob_angles,&
+               new_value=min_overlap_m,&
+               error=error)
+       end if
+       if (present(min_hamiltonian_m)) then
+          call qs_pao_g_angles_set_min_h_m(glob_angles,&
+               new_value=min_hamiltonian_m,&
+               error=error)
+       end if
+       if (qs_debug.and.debug_this_module) then
+          if (associated(glob_angles%pao_env)) then
+             call qs_assert(qs_validate_pao_env(glob_angles%pao_env, &
+                  test_pos_att=.false.), qs_failure_level, &
+                  qs_precondition_failed, routineN, &
+                  "if set the pao_env must be valid in"//&
+                  QSSourceFileRef(),error,failure)
           end if
+       end if
+       if (.not.failure) then
+          call qs_guarantee_size(glob_angles%angles,&
+               dot_product(glob_angles%pao_env%nr_min_bas, &
+               glob_angles%pao_env%nr_full_bas-&
+               glob_angles%pao_env%nr_min_bas), &
+               error=error)
        end if
     end if failureIf
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_set_pao_glob_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_glob_angles_get [1.0] *
 !!
@@ -1789,7 +2111,15 @@ contains
 !!     angles: a big 1D array with all the angles that define the unitary
 !!            transformation (try not to use this)
 !!     error: variable to control error logging, stopping,... 
-!!            see module qs_error_handling 
+!!            see module qs_error_handling
+!!     min_hamiltonian_m: the hamiltonian in the small basis. 
+!!            If not yet calculated calculates it (allocating it if necessary)
+!!     min_overlap_m: the overlap matrix in the small basis
+!!            If not yet calculated calculates it (allocating it if necessary)
+!!     ut_calculated: which block diagonal blocks of the unitary trasformation
+!!            are valid (allocated if necessary)
+!!     unitary_t: unitary trasformation. Be careful, only the blocks flagged
+!!            in ut_calculated are valid (allocated if necessary)
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -1799,25 +2129,100 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_pao_glob_angles_get(glob_angles, pao_env, angles, error)
-    type(qs_pao_glob_angles), intent(in) :: glob_angles
-    type(qs_pao_env), optional, pointer :: pao_env
+!***************************************************************************
+  subroutine qs_pao_glob_angles_get(glob_angles, pao_env, angles,&
+       m_s_m_valid, m_h_m_valid, ut_calculated, unitary_t, &
+       min_overlap_m, min_hamiltonian_m, error)
+    type(qs_pao_glob_angles_type), intent(in) :: glob_angles
+    type(qs_pao_env_type), optional, pointer :: pao_env
     real(kind=wp), optional, dimension(:), pointer :: angles
-    type(qs_error), optional, intent(inout) :: error
+    logical, intent(out), optional :: m_h_m_valid, m_s_m_valid
+    logical, dimension(:), pointer, optional :: ut_calculated
+    type(qs_pao_matrix_type), pointer, optional :: unitary_t, min_hamiltonian_m,&
+         min_overlap_m
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_glob_angles_get'
+    type(qs_error_type) :: iError
+    integer :: stat
+    call qs_init(iError,template_error=error)
     failure=.false.
 
     QSPrecondition(glob_angles%initialized,qs_failure_level,routineN,error,failure)
     failureIf: if (.not. failure) then
        if (present(pao_env)) pao_env => glob_angles%pao_env
        if (present(angles)) angles => glob_angles%angles
+       if (present(min_overlap_m)) then
+          if (.not.glob_angles%m_s_m_valid) then
+             if (.not.associated(glob_angles%min_overlap_m)) then
+                call qs_create(glob_angles%min_overlap_m, &
+                     min_bas_cols=.true., min_bas_rows=.true.,&
+                     pao_env=glob_angles%pao_env)
+             end if
+             call qs_pao_matrix_transf_to_m(source_m=&
+                  glob_angles%pao_env%full_overlap_m, &
+                  target_m=glob_angles%min_overlap_m,&
+                  glob_angles=glob_angles,error=error)
+             glob_angles%m_s_m_valid=.true.
+          end if
+          QSAssert(associated(glob_angles%min_overlap_m),qs_failure_level,routineN,error,failure)
+          if (glob_angles%m_s_m_valid) then
+             min_overlap_m => glob_angles%min_overlap_m
+          else
+             nullify(min_overlap_m)
+          end if
+       end if
+       if (present(min_hamiltonian_m)) then
+          if (.not.glob_angles%m_h_m_valid) then
+             if (.not.associated(glob_angles%min_hamiltonian_m)) then
+                call qs_create(glob_angles%min_hamiltonian_m, &
+                     min_bas_cols=.true., min_bas_rows=.true.,&
+                     pao_env=glob_angles%pao_env,error=iError)
+                call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+                     error,failure)
+             end if
+             if (.not.failure) then
+                call qs_pao_matrix_transf_to_m(source_m=&
+                     glob_angles%pao_env%full_hamiltonian_m, &
+                     target_m=glob_angles%min_hamiltonian_m,&
+                     glob_angles=glob_angles,error=error)
+                glob_angles%m_h_m_valid=.true.
+             end if
+          end if
+          QSAssert(associated(glob_angles%min_overlap_m),qs_failure_level,routineN,error,failure)
+          if (glob_angles%m_h_m_valid) then
+             min_hamiltonian_m => glob_angles%min_hamiltonian_m
+          else
+             nullify(min_hamiltonian_m)
+          end if
+       end if
+       if (present(m_s_m_valid)) m_s_m_valid = glob_angles%m_s_m_valid
+       if (present(m_h_m_valid)) m_h_m_valid=glob_angles%m_h_m_valid
+       if (present(unitary_t)) then
+          if (.not.associated(glob_angles%unitary_t)) then
+             call qs_create(glob_angles%unitary_t, min_bas_rows=.false.,&
+                  min_bas_cols=.true., pao_env=glob_angles%pao_env,&
+                  error=error)
+          end if
+          if (.not.associated(glob_angles%ut_calculated)) then
+             allocate(glob_angles%ut_calculated(glob_angles%pao_env%n_atoms),&
+                  stat=stat)
+             QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+             if (stat==0) glob_angles%ut_calculated=.false.
+          end if
+       end if
+       if (present(ut_calculated).and.&
+            .not.associated(glob_angles%ut_calculated)) then
+          allocate(glob_angles%ut_calculated(glob_angles%pao_env%n_atoms),&
+               stat=stat)
+          QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+          if (stat==0) glob_angles%ut_calculated=.false.
+       end if
     end if failureIf
   end subroutine qs_pao_glob_angles_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_glob_angles_valid [1.0] *
 !!
@@ -1843,11 +2248,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_glob_angles_valid(glob_angles, error) result(res)
     logical ::res
-    type(qs_pao_glob_angles), intent(in) :: glob_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), intent(in) :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_glob_angles_valid'
@@ -1856,9 +2261,25 @@ contains
     QSPrecondition(glob_angles%initialized,qs_failure_level,routineN,error,failure)
     if (.not. failure) then
        if (.not.(associated(glob_angles%pao_env).and.&
-            associated(glob_angles%angles))) then
+            associated(glob_angles%angles).and.&
+            (.not.associated(glob_angles%unitary_t).or.&
+            associated(glob_angles%ut_calculated)) .and.&
+            (.not.glob_angles%m_s_m_valid .or.&
+            associated(glob_angles%min_overlap_m)).and.&
+            (.not.glob_angles%m_h_m_valid .or.&
+            associated(glob_angles%min_hamiltonian_m))&
+            )) then
           QSAssert(associated(glob_angles%pao_env),qs_warning_level,routineN,error,failure)
           QSAssert(associated(glob_angles%angles),qs_warning_level,routineN,error,failure)
+          if (associated(glob_angles%unitary_t)) then
+             QSAssert(associated(glob_angles%ut_calculated),qs_warning_level,routineN,error,failure)
+          end if
+          if (glob_angles%m_s_m_valid) then
+             QSAssert(associated(glob_angles%min_overlap_m),qs_warning_level,routineN,error,failure)
+          end if
+          if (glob_angles%m_h_m_valid) then
+             QSAssert(associated(glob_angles%min_hamiltonian_m),qs_warning_level,routineN,error,failure)
+          end if
        else if(qs_debug.and.debug_this_module) then
           if (.not.(associated(glob_angles%pao_env%nr_full_bas).and.&
                associated(glob_angles%pao_env%nr_min_bas))) then
@@ -1869,9 +2290,201 @@ contains
     res=.not.failure
   end function qs_pao_glob_angles_valid
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ===== special methods ====
+! ===== special methods ====
+
+!!****f* qs_pao_types/qs_pao_g_angles_set_unitary_t [1.0] *
+!!
+!!   NAME
+!!     qs_pao_g_angles_set_unitary_t
+!!
+!!   FUNCTION
+!!     sets the unitary transformation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: the structure wose values are set
+!!     new_value: the new cached unitary matrix.
+!!     ut_calculated: which blocks are valid
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_pao_g_angles_set_unitary_t(glob_angles, new_value, &
+       ut_calculated,error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_pao_matrix_type), target, optional, intent(in) :: new_value
+    logical, dimension(:), intent(in), optional, target :: ut_calculated
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_pao_g_angles_set_unitary_t'
+    logical, dimension(:),pointer :: ut_c
+    type(qs_pao_matrix_type), pointer :: n_value
+    type (qs_error_type) :: iError
+    call qs_init(iError, template_error=error, &
+         print_level=max(qs_failure_level, qs_get_error_print_level(error)))
+    failure=.false.
+
+    if (present(ut_calculated)) then
+       ut_c => ut_calculated
+       if (associated(ut_c)) then
+          call qs_guarantee_size(glob_angles%ut_calculated,&
+               size(ut_calculated),error=iError)
+          call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+               error,failure,qs_failure_level)
+          glob_angles%ut_calculated=ut_calculated
+       else if (associated(glob_angles%ut_calculated)) then
+          deallocate(glob_angles%ut_calculated)
+       end if
+    end if
+    if (present(new_value)) then
+       n_value => new_value
+       if (associated(n_value)) then
+          if (.not.associated(glob_angles%unitary_t)) then
+             call qs_create(glob_angles%unitary_t, &
+                  pao_env=glob_angles%pao_env,&
+                  source=n_value,&
+                  error=error)
+          else
+             call qs_set(glob_angles%unitary_t,&
+                  source=n_value,&
+                  error=error)
+          end if
+       else if (associated(glob_angles%unitary_t)) then
+! do not dealloc ??
+          call qs_dealloc(glob_angles%unitary_t,error=error)
+       end if
+    end if
+  end subroutine qs_pao_g_angles_set_unitary_t
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_pao_g_angles_set_min_s_m [1.0] *
+!!
+!!   NAME
+!!     qs_pao_g_angles_set_min_s_m
+!!
+!!   FUNCTION
+!!     sets the unitary transformation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: the structure wose values are set
+!!     min_overlap_m: the overlap matrix in the minimal basis
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_pao_g_angles_set_min_s_m(glob_angles, new_value,error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_pao_matrix_type), target :: new_value
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_pao_g_angles_set_min_s_m'
+    type(qs_pao_matrix_type), pointer :: n_value
+    failure=.false.
+    n_value => new_value
+
+    if (associated(n_value)) then
+       glob_angles%m_s_m_valid=.true.
+       if (.not.associated(glob_angles%min_overlap_m)) then
+          call qs_create(glob_angles%min_overlap_m, &
+               pao_env=glob_angles%pao_env,&
+               source=n_value,&
+               error=error)
+       else
+          call qs_set(glob_angles%min_overlap_m,&
+               source=n_value,&
+               error=error)
+       end if
+    else if (associated(glob_angles%min_overlap_m)) then
+! do not dealloc ??
+       call qs_dealloc(glob_angles%min_overlap_m,error=error)
+    end if
+  end subroutine qs_pao_g_angles_set_min_s_m
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_pao_g_angles_set_min_h_m [1.0] *
+!!
+!!   NAME
+!!     qs_pao_g_angles_set_min_h_m
+!!
+!!   FUNCTION
+!!     sets the unitary transformation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: the structure wose values are set
+!!     min_hamiltonian_m: the hamiltonian matrix in the minimal basis
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_pao_g_angles_set_min_h_m(glob_angles, new_value,error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_pao_matrix_type), target :: new_value
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_pao_g_angles_set_min_h_m'
+    type(qs_pao_matrix_type), pointer :: n_value
+    failure=.false.
+    n_value => new_value
+
+    if (associated(n_value)) then
+       glob_angles%m_h_m_valid=.true.
+       if (.not.associated(glob_angles%min_hamiltonian_m)) then
+          call qs_create(glob_angles%min_hamiltonian_m, &
+               pao_env=glob_angles%pao_env,&
+               source=n_value,&
+               error=error)
+       else
+          call qs_set(glob_angles%min_hamiltonian_m,&
+               source=n_value,&
+               error=error)
+       end if
+    else if (associated(glob_angles%min_hamiltonian_m)) then
+! do not dealloc ??
+       call qs_dealloc(glob_angles%min_hamiltonian_m,error=error)
+    end if
+  end subroutine qs_pao_g_angles_set_min_h_m
+!!***
+!***************************************************************************
+
 !!****f* qs_pao_types/qs_pao_glob_angles_get_pao_env [1.0] *
 !!
 !!   NAME
@@ -1896,11 +2509,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_glob_angles_get_pao_env(glob_angles, error) result(res)
-    type(qs_pao_env), pointer ::res
-    type(qs_pao_glob_angles), intent(in) :: glob_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), pointer ::res
+    type(qs_pao_glob_angles_type), intent(in) :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_glob_angles_get_pao_env'
@@ -1913,11 +2526,76 @@ contains
     end if failureIf
   end function qs_pao_glob_angles_get_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ==================== qs_pao_local_angles ====================
+!!****f* qs_pao_types/qs_glob_angles_did_change [1.0] *
+!!
+!!   NAME
+!!     qs_glob_angles_did_change
+!!
+!!   FUNCTION
+!!     Invalidate all the cached values.
+!!     Should be called when the value of the angles change.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     glob_angles: the globa angles object that should reset his cache
+!!     full_reset: if true deallocates all the memory of the cache
+!!            nedeed when the matrix structure changes (i.e. when the 
+!!            atoms move). defaults to false
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_glob_angles_did_change(glob_angles, full_reset, error)
+    type(qs_pao_glob_angles_type), intent(inout) :: glob_angles
+    logical, intent(in), optional :: full_reset
+    type(qs_error_type), optional, intent(inout) :: error
 
-  ! ====== core methods ======
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_glob_angles_did_change'
+    integer :: stat
+    failure=.false.
+
+    QSPrecondition(glob_angles%initialized,qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       glob_angles%m_h_m_valid=.false.
+       glob_angles%m_s_m_valid=.false.
+       if (associated(glob_angles%ut_calculated)) then
+          glob_angles%ut_calculated=.false.
+       end if
+       if (present(full_reset)) then
+          if (full_reset) then
+             call qs_dealloc(glob_angles%unitary_t,error=error)
+             call qs_dealloc(glob_angles%min_hamiltonian_m,error=error)
+             call qs_dealloc(glob_angles%min_overlap_m)
+             if (associated(glob_angles%ut_calculated)) then
+! do not dealloc??
+                deallocate(glob_angles%ut_calculated, stat=stat)
+                QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+             end if
+          end if
+       end if
+    end if
+  end subroutine qs_glob_angles_did_change
+!!***
+!***************************************************************************
+
+!end
+! ==================== qs_pao_local_angles_type ====================
+!begin
+
+! ====== core methods ======
 
 !!****f* qs_pao_types/qs_init_pao_local_angles [1.0] *
 !!
@@ -1945,14 +2623,14 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_init_pao_local_angles(local_angles, atom_nr, glob_angles, &
        source, error)
-    type(qs_pao_local_angles), intent(out):: local_angles
+    type(qs_pao_local_angles_type), intent(out):: local_angles
     integer, optional, intent(in) :: atom_nr
-    type(qs_pao_glob_angles), optional, target :: glob_angles
-    type(qs_pao_local_angles), intent(in), optional :: source
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), optional, target :: glob_angles
+    type(qs_pao_local_angles_type), intent(in), optional :: source
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_init_pao_local_angles'
@@ -1969,7 +2647,7 @@ contains
          source, error=error)
   end subroutine qs_init_pao_local_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_dealloc_pao_local_angles_ref [1.0] *
 !!
@@ -1996,11 +2674,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_dealloc_pao_local_angles_ref(local_angles, error)
     real(kind=wp) ::res
-    type(qs_pao_local_angles), intent(inout) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(inout) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_local_angles_ref'
@@ -2012,7 +2690,7 @@ contains
     end if failureIf
   end subroutine qs_dealloc_pao_local_angles_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_validate_pao_local_angles [1.0] *
 !!
@@ -2038,15 +2716,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_validate_pao_local_angles(local_angles, error) result(res)
     logical ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_validate_pao_local_angles'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     integer :: i, beginAt
     failure=.false.
     nullify(pao_env)
@@ -2059,7 +2737,7 @@ contains
             "referenced pao_glob_angles is invalid, in file "//&
             QSSourceFileRef(),error,failure)
        pao_env => local_angles%glob_angles%pao_env
-       ! pao_env has been checked by glob angles validation
+! pao_env has been checked by glob angles validation
     end if
     if (.not.failure) then
        QSAssert(local_angles%atom_nr>0,qs_warning_level,routineN,error,failure)
@@ -2080,7 +2758,7 @@ contains
     res=.not.failure
   end function qs_validate_pao_local_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 
 !!****f* qs_pao_types/qs_set_pao_local_angles [1.0] *
@@ -2115,19 +2793,19 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_set_pao_local_angles(local_angles, atom_nr, glob_angles,&
        source,error)
-    type(qs_pao_local_angles), intent(inout):: local_angles
+    type(qs_pao_local_angles_type), intent(inout):: local_angles
     integer, optional, intent(in) :: atom_nr
-    type(qs_pao_glob_angles), optional, target :: glob_angles 
-    type(qs_pao_local_angles), intent(in), optional :: source
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_glob_angles_type), optional, target :: glob_angles 
+    type(qs_pao_local_angles_type), intent(in), optional :: source
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_set_pao_local_angles'
-    type(qs_pao_env), pointer :: pao_env
-    type(qs_error) :: iError
+    type(qs_pao_env_type), pointer :: pao_env
+    type(qs_error_type) :: iError
     failure=.false.
     nullify(pao_env)
     call qs_init_error(iError, template_error=error)
@@ -2160,7 +2838,7 @@ contains
              end if
           end if debugIf
        end if
-       ! updates begins_at
+! updates begins_at
        if (associated(local_angles%glob_angles) .and. &
             local_angles%atom_nr>0) then
           pao_env => local_angles%glob_angles%pao_env
@@ -2188,7 +2866,7 @@ contains
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_set_pao_local_angles
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_local_angles_get [1.0] *
 !!
@@ -2200,7 +2878,7 @@ contains
 !!
 !!   NOTES
 !!     I try to keep the glob_angles private.
-!!     I haven't added al local angles matrix
+!!     I have not added al local angles matrix
 !!
 !!   INPUTS
 !!     local_angles: the local angles to get the info from.
@@ -2221,18 +2899,20 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_local_angles_get(local_angles, atom_nr, n_min_bas, &
-       n_full_bas, pao_env, n_excl_bas, error)
-    type(qs_pao_local_angles), intent(in) :: local_angles
+       n_full_bas, pao_env, n_excl_bas,unitary_t,cache_valid, error)
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
     integer, optional, intent(out) :: atom_nr, n_min_bas, n_full_bas,&
          n_excl_bas
-    type(qs_pao_env), optional, pointer :: pao_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), optional, pointer :: pao_env
+    type(qs_error_type), optional, intent(inout) :: error
+    real(kind=wp), dimension(:,:), pointer, optional :: unitary_t
+    logical, intent(out), optional :: cache_valid
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_get'
-    type(qs_pao_env), pointer :: my_pao_env
+    type(qs_pao_env_type), pointer :: my_pao_env
     failure=.false.
     nullify(my_pao_env)
 
@@ -2249,7 +2929,7 @@ contains
        end if
        if (present(n_min_bas)) then
           QSAssert(local_angles%atom_nr>0,qs_failure_level,routineN,error,failure)
-          ! also check upper bound?
+! also check upper bound?
           n_min_bas=my_pao_env%nr_min_bas(local_angles%atom_nr)
        end if
        if (present(n_full_bas)) then
@@ -2261,11 +2941,23 @@ contains
           n_excl_bas=my_pao_env%nr_full_bas(local_angles%atom_nr)-&
                my_pao_env%nr_min_bas(local_angles%atom_nr)
        end if
+       if (present(unitary_t)) then
+          unitary_t => qs_l_angles_get_unitary_t(local_angles,error=error)
+       end if
+       if (present(cache_valid)) then
+          if (associated(local_angles%glob_angles%ut_calculated).and.&
+               local_angles%atom_nr>0) then
+             cache_valid=local_angles%glob_angles%ut_calculated(&
+                  local_angles%atom_nr)
+          else
+             cache_valid=.false.
+          end if
+       end if
        nullify(my_pao_env)
     end if failureIf
   end subroutine qs_pao_local_angles_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_l_angles_valid [1.0] *
 !!
@@ -2291,11 +2983,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_l_angles_valid(local_angles, error) result(res)
     logical ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_l_angles_valid'
@@ -2316,9 +3008,9 @@ contains
     res=.not.failure
   end function qs_pao_l_angles_valid
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ====== special methods =====
+! ====== special methods =====
 
 !!****f* qs_pao_types/qs_pao_local_angles_get_pao_env [1.0] *
 !!
@@ -2344,11 +3036,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_local_angles_get_pao_env(local_angles, error) result(res)
-    type(qs_pao_env), pointer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), pointer ::res
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_get_pao_env'
@@ -2362,7 +3054,7 @@ contains
     end if failureIf
   end function qs_pao_local_angles_get_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_local_angles_get_p_index [1.0] *
 !!
@@ -2389,16 +3081,16 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_local_angles_get_p_index(local_angles, i,error) result(res)
     integer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: i
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_get_p_index'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => qs_get_pao_env(local_angles)
     if (qs_debug .or. debug_this_module) then
@@ -2414,7 +3106,7 @@ contains
     end if failureIf
   end function qs_pao_local_angles_get_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_local_angles_set_p_index [1.0] *
 !!
@@ -2442,15 +3134,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_local_angles_set_p_index(local_angles,i,value,error)
-    type(qs_pao_local_angles), intent(inout) :: local_angles ! actually only pao_env is changed
+    type(qs_pao_local_angles_type), intent(inout) :: local_angles ! actually only pao_env is changed
     integer, intent(in) :: i,value
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_set_p_index'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => qs_get_pao_env(local_angles)
     if (qs_debug .or. debug_this_module) then
@@ -2464,7 +3156,7 @@ contains
     end if failureIf
   end subroutine qs_pao_local_angles_set_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_l_angles_get_non_p_index [1.0] *
 !!
@@ -2491,16 +3183,16 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_l_angles_get_non_p_index(local_angles, i,error) result(res)
     integer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: i
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_l_angles_get_non_p_index'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
     pao_env => qs_get_pao_env(local_angles)
     if (qs_debug .or. debug_this_module) then
@@ -2516,7 +3208,7 @@ contains
     end if failureIf
   end function qs_pao_l_angles_get_non_p_index
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_local_angles_get_angle [1.0] *
 !!
@@ -2546,17 +3238,17 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_local_angles_get_angle(local_angles, min_bas, excl_bas, &
        error) result(res)
     real(kind=wp) ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
     integer, intent(in) :: min_bas, excl_bas
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_get_angle'
-    type(qs_pao_glob_angles), pointer :: glob_angles
+    type(qs_pao_glob_angles_type), pointer :: glob_angles
     failure=.false.
     glob_angles => local_angles%glob_angles
 
@@ -2589,7 +3281,7 @@ contains
                "excl_bas out of range in "//QSSourceFileRef(),&
                error,failure)
        end if
-       ! also check begins_at???
+! also check begins_at???
     end if debugIf
     failureIf: if (.not. failure) then
        res=glob_angles%angles(local_angles%begins_at + &
@@ -2600,7 +3292,7 @@ contains
     end if failureIf
   end function qs_pao_local_angles_get_angle
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_local_angles_set_angle [1.0] *
 !!
@@ -2630,17 +3322,17 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_local_angles_set_angle(local_angles, min_bas, excl_bas, &
        value,error)
-    type(qs_pao_local_angles), intent(in) :: local_angles !actually the substructure globalangles is modifed
+    type(qs_pao_local_angles_type), intent(in) :: local_angles !actually the substructure globalangles is modifed
     integer, intent(in) :: min_bas, excl_bas
     real(kind=wp), intent(in) :: value
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_local_angles_set_angle'
-    type(qs_pao_glob_angles), pointer :: glob_angles
+    type(qs_pao_glob_angles_type), pointer :: glob_angles
     failure=.false.
     glob_angles => local_angles%glob_angles
 
@@ -2673,7 +3365,7 @@ contains
                "excl_bas out of range in "//QSSourceFileRef(),&
                error,failure)
        end if
-       ! also check begins_at???
+! also check begins_at???
     end if debugIf
     failureIf: if (.not. failure) then
        glob_angles%angles(local_angles%begins_at + &
@@ -2683,7 +3375,7 @@ contains
     nullify(glob_angles)
   end subroutine qs_pao_local_angles_set_angle
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_l_angles_get_excl_bas_size [1.0] *
 !!
@@ -2709,15 +3401,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_l_angles_get_excl_bas_size(local_angles, error) result(res)
     integer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_get_excl_bas_size'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
 
     QSPrecondition(local_angles%initialized, qs_failure_level,routineN,error,failure)
@@ -2731,7 +3423,7 @@ contains
     end if
   end function qs_l_angles_get_excl_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_l_angles_get_min_bas_size [1.0] *
 !!
@@ -2757,15 +3449,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_l_angles_get_min_bas_size(local_angles, error) result(res)
     integer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_get_min_bas_size'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
 
     QSPrecondition(local_angles%initialized, qs_failure_level,routineN,error,failure)
@@ -2779,7 +3471,7 @@ contains
     end if
   end function qs_l_angles_get_min_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_l_angles_get_full_bas_size [1.0] *
 !!
@@ -2805,15 +3497,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_l_angles_get_full_bas_size(local_angles, error) result(res)
     integer ::res
-    type(qs_pao_local_angles), intent(in) :: local_angles
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_get_full_bas_size'
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_env_type), pointer :: pao_env
     failure=.false.
 
     QSPrecondition(local_angles%initialized, qs_failure_level,routineN,error,failure)
@@ -2827,11 +3519,304 @@ contains
     end if
   end function qs_l_angles_get_full_bas_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ==================== qs_pao_matrix ====================
+!!****f* qs_pao_types/qs_l_angles_get_glob_angles [1.0] *
+!!
+!!   NAME
+!!     qs_l_angles_get_glob_angles
+!!
+!!   FUNCTION
+!!     returns the global angles object that this object accesses
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     local_angles: the local angles you get the info from
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  function qs_l_angles_get_glob_angles(local_angles,error) result(res)
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_pao_glob_angles_type), pointer ::res
+    type(qs_error_type), optional, intent(inout) :: error
 
-  ! ====== core methods ======
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_get_glob_angles'
+    failure=.false.
+
+    QSPrecondition(qs_valid(local_angles),qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       res => local_angles%glob_angles
+    else
+       nullify(res)
+    end if
+  end function qs_l_angles_get_glob_angles
+!!***
+!***************************************************************************
+
+
+!!****f* qs_pao_types/qs_l_angles_did_change [1.0] *
+!!
+!!   NAME
+!!     qs_l_angles_did_change
+!!
+!!   FUNCTION
+!!     invalidate the cached unitary transformation of this atom.
+!!     to be called when the angles change
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     local_angles: the local angles object you get the info from
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_l_angles_did_change(local_angles,error)
+! changes in local_angles%glob_angles
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_did_change'
+    logical, dimension(:), pointer :: ut_calculated
+    failure=.false.
+
+    QSPrecondition(local_angles%initialized,qs_failure_level,routineN,error,failure)
+    QSPrecondition(local_angles%atom_nr>0,qs_warning_level,routineN,error,failure)
+    if (.not. failure) then
+       if (associated(local_angles%glob_angles%ut_calculated)) then
+          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.false.
+       end if
+    end if
+  end subroutine qs_l_angles_did_change
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_l_angles_set_unitary_t [1.0] *
+!!
+!!   NAME
+!!     qs_l_angles_set_unitary_t
+!!
+!!   FUNCTION
+!!     changes the cached unitary transformation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     local_angles: the local angles you want to change
+!!     unitary_t: the new unitary trasformation
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_l_angles_set_unitary_t(local_angles,unitary_t,error)
+! changes in glob_angles
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    real(kind=wp), dimension(:,:), intent(in), target :: unitary_t
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_set_unitary_t'
+    type(qs_pao_matrix_type), pointer :: full_u_t
+    real(kind=wp), dimension(:,:), pointer :: unitary_t_ptr
+    failure=.false.
+
+    QSPrecondition(local_angles%initialized,qs_failure_level,routineN,error,failure)
+    QSPrecondition(local_angles%atom_nr>0,qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       call qs_pao_glob_angles_get(local_angles%glob_angles,unitary_t=full_u_t,&
+            error=error)
+       QSPrecondition(associated(full_u_t),qs_warning_level,routineN,error,failure)
+       call qs_assert(associated(local_angles%glob_angles%ut_calculated),&
+            qs_failure_level,qs_assertion_failed,routineN,&
+            "ut_calculated not allocated in "//&
+            QSSourceFileRef(),error,failure)
+       if (.not.failure) then
+          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
+          unitary_t_ptr => unitary_t
+          call put_block_node(qs_get_matrix(full_u_t),&
+               block_row=local_angles%atom_nr,&
+               block_col=local_angles%atom_nr, block=unitary_t_ptr)
+       end if
+    end if
+  end subroutine qs_l_angles_set_unitary_t
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_plain_rot/qs_pao_l_compose_u [1.0] *
+!!
+!!   NAME
+!!     qs_pao_l_compose_u
+!!
+!!   FUNCTION
+!!     calculates U*matrix where U is the unitary transformation defined by
+!!     the given angles. the sequence is: smallbasis then full basis in 
+!!     (local) growing order: u(1,1)*u(2,1)*...*u(size_small_bas,1)*...*
+!!      u(size_small_bas,size_full_bas)*matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     matrix: the matrix that will be modified
+!!     local_angles: the angles that define U
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 1.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_pao_l_compose_u(matrix,local_angles,error)
+    real(kind=wp), dimension(:,:), intent(inout) :: matrix
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_plain_rot:qs_pao_l_compose_u'
+    integer :: n_min_bas, n_excl_bas, i_min_bas,i_excl_bas,n_full_bas
+    failure=.false.
+
+    call qs_get(local_angles,n_excl_bas=n_excl_bas,n_min_bas=n_min_bas,&
+         n_full_bas=n_full_bas)
+    QSPrecondition(n_min_bas>0,qs_warning_level,routineN,error,failure)
+    QSPrecondition(n_excl_bas>=0,qs_warning_level,routineN,error,failure)
+    QSPrecondition(size(matrix,1)==n_full_bas,qs_warning_level,routineN,error,failure)
+    QSPrecondition(size(matrix,2)==n_full_bas,qs_warning_level,routineN,error,failure)
+    failureIf: if (.not. failure) then
+       do i_excl_bas=n_excl_bas,1,-1
+          do i_min_bas=n_min_bas,1,-1
+             call qs_left_compose_p_rot(matrix=matrix,&
+                  angle=qs_get_angle(local_angles,min_bas=i_min_bas,&
+                  excl_bas=i_excl_bas,error=error),&
+                  i=qs_get_p_index(local_angles,i=i_min_bas,error=error),&
+                  j=qs_get_non_p_index(local_angles,i=i_excl_bas,error=error),&
+                  error=error)
+          end do
+       end do
+    end if failureIf
+  end subroutine qs_pao_l_compose_u
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_l_angles_get_unitary_t [1.0] *
+!!
+!!   NAME
+!!     qs_l_angles_get_unitary_t
+!!
+!!   FUNCTION
+!!     returns the unitary trasformation defined by these angles
+!!
+!!   NOTES
+!!     the trasformation is cached
+!!
+!!   INPUTS
+!!     local_angles: the local angles you get the information from
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  function qs_l_angles_get_unitary_t(local_angles,error) result(res)
+    type(qs_pao_local_angles_type), intent(in) :: local_angles
+    type(qs_error_type), optional, intent(inout) :: error
+    real(kind=wp), dimension(:,:), pointer :: res
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_l_angles_get_unitary_t'
+    integer :: i
+    type(qs_pao_matrix_type), pointer :: unitary_t
+    failure=.false.
+    nullify(res)
+
+    QSPrecondition(qs_valid(local_angles),qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       call qs_get(qs_get_glob_angles(local_angles),unitary_t=unitary_t,&
+            error=error)
+       QSPrecondition(associated(unitary_t),qs_failure_level,routineN,error,failure)
+       call qs_assert(associated(local_angles%glob_angles%ut_calculated),&
+            qs_failure_level,qs_assertion_failed,routineN,&
+            "ut_calculated not associated in "//&
+            QSSourceFileRef(),error,failure)
+       if (.not.failure) then
+          if (local_angles%glob_angles%ut_calculated(local_angles%atom_nr)) then
+             call get_block_node(qs_get_matrix(unitary_t),&
+                  block=res,block_row=local_angles%atom_nr,&
+                  block_col=local_angles%atom_nr)
+             QSPostcondition(associated(res),qs_failure_level,routineN,error,failure)
+          else
+             call get_block_node(qs_get_matrix(unitary_t),&
+                  block=res,block_row=local_angles%atom_nr,&
+                  block_col=local_angles%atom_nr)
+             if (.not.associated(res)) then
+                call add_block_node(qs_get_matrix(unitary_t),&
+                     local_angles%atom_nr,local_angles%atom_nr,block=res)
+             end if
+             QSPostcondition(associated(res),qs_failure_level,routineN,error,failure)
+             if (.not.failure) then
+                QSPrecondition(size(res,1)==size(res,2),qs_failure_level,routineN,error,failure)
+             end if
+             if (.not.failure) then
+                res=0.0_wp
+                forall (i=1:size(res,1)) res(i,i)=1.0_wp
+                call qs_pao_l_compose_u(res,local_angles,error=error)
+                local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
+             end if
+          end if
+       end if
+    end if
+    if (failure) nullify(res)
+  end function qs_l_angles_get_unitary_t
+!!***
+!***************************************************************************
+
+!end
+! ==================== qs_pao_matrix_type ====================
+!begin
+
+! ====== core methods ======
 
 !!****f* qs_pao_types/qs_init_pao_matrix [1.0] *
 !!
@@ -2861,17 +3846,17 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_init_pao_matrix(pao_matrix, pao_env,&
        matrix, source, min_bas_rows, min_bas_cols,&
        should_dealloc_matrix, error)
-    type(qs_pao_matrix), intent(out) :: pao_matrix
-    type(qs_pao_env), optional, target :: pao_env
+    type(qs_pao_matrix_type), intent(out) :: pao_matrix
+    type(qs_pao_env_type), target :: pao_env
     type(real_matrix_type), optional, target :: matrix
-    type(qs_pao_matrix), intent(in), optional :: source
+    type(qs_pao_matrix_type), intent(in), optional :: source
     logical, intent(in), optional :: min_bas_cols, min_bas_rows, &
          should_dealloc_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_init_pao_matrix'
@@ -2880,15 +3865,16 @@ contains
     pao_matrix%initialized=.true.
     pao_matrix%should_dealloc_matrix=.true.
     nullify(pao_matrix%matrix)
-    nullify(pao_matrix%pao_env)
+! nullify(pao_matrix%pao_env)
+    pao_matrix%pao_env => pao_env
     pao_matrix%min_bas_rows=.true.
     pao_matrix%min_bas_rows=.true.
-    call qs_set_pao_matrix(pao_matrix, pao_env,&
+    call qs_set_pao_matrix(pao_matrix,pao_env,&
          matrix, source, min_bas_rows, min_bas_cols,&
          should_dealloc_matrix, error)
   end subroutine qs_init_pao_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_dealloc_pao_matrix_ref [1.0] *
 !!
@@ -2914,10 +3900,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_dealloc_pao_matrix_ref(pao_matrix, error)
-    type(qs_pao_matrix), intent(inout) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(inout) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_matrix_ref'
@@ -2936,7 +3922,106 @@ contains
     end if failureIf
   end subroutine qs_dealloc_pao_matrix_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_create_pao_matrix [1.0] *
+!!
+!!   NAME
+!!     qs_create_pao_matrix
+!!
+!!   FUNCTION
+!!     allocates the matrix and initializes it
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     pao_matrix: will point to the newly created matrix
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!     for the others arguments see qs_init_block_pao_matrix
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_create_pao_matrix(pao_matrix, pao_env,&
+       matrix, source, min_bas_rows, min_bas_cols,&
+       should_dealloc_matrix, error)
+    type(qs_pao_matrix_type), pointer :: pao_matrix
+    type(qs_pao_env_type), target :: pao_env
+    type(real_matrix_type), optional, target :: matrix
+    type(qs_pao_matrix_type), intent(in), optional :: source
+    logical, intent(in), optional :: min_bas_cols, min_bas_rows, &
+         should_dealloc_matrix
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_create_pao_matrix'
+    integer :: stat
+    failure=.false.
+
+    allocate(pao_matrix, stat=stat)
+    QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+    if (.not. failure) then
+       call qs_init_pao_matrix(pao_matrix, pao_env,&
+            matrix, source, min_bas_rows, min_bas_cols,&
+            should_dealloc_matrix, error)
+    end if
+  end subroutine qs_create_pao_matrix
+!!***
+!***************************************************************************
+
+!!****f* qs_pao_types/qs_dealloc_pao_matrix [1.0] *
+!!
+!!   NAME
+!!     qs_dealloc_pao_matrix
+!!
+!!   FUNCTION
+!!     deallocates the memory allocated by the matrix ans the matrix
+!!     object itself.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     pao_matrix: the matrix to be deallocated
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_dealloc_pao_matrix(pao_matrix, error)
+    type(qs_pao_matrix_type), pointer :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='qs_pao_types:qs_dealloc_pao_matrix'
+    integer :: stat
+    failure=.false.
+
+    if (associated(pao_matrix)) then
+       call qs_dealloc_pao_matrix_ref(pao_matrix,error=error)
+       deallocate(pao_matrix,stat=stat)
+       QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+    end if
+  end subroutine qs_dealloc_pao_matrix
+!!***
+!***************************************************************************
+
 
 !!****f* qs_pao_types/qs_validate_pao_matrix [1.0] *
 !!
@@ -2963,11 +4048,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_validate_pao_matrix(pao_matrix, error) result(res)
     logical ::res
-    type(qs_pao_matrix), intent(in) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(in) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_validate_pao_matrix'
@@ -2996,7 +4081,7 @@ contains
     res = .not.failure
   end function qs_validate_pao_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_set_pao_matrix [1.0] *
 !!
@@ -3037,17 +4122,17 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_set_pao_matrix(pao_matrix, pao_env,&
        matrix, source, min_bas_rows, min_bas_cols,&
        should_dealloc_matrix, error)
-    type(qs_pao_matrix), intent(inout) :: pao_matrix
-    type(qs_pao_env), optional, target :: pao_env
+    type(qs_pao_matrix_type), intent(inout) :: pao_matrix
+    type(qs_pao_env_type), optional, target :: pao_env
     type(real_matrix_type), optional, target :: matrix
-    type(qs_pao_matrix), intent(in), optional :: source
+    type(qs_pao_matrix_type), intent(in), optional :: source
     logical, intent(in), optional :: min_bas_cols, min_bas_rows,&
          should_dealloc_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure, should_share_matrix
     character(len=*), parameter :: routineN='qs_pao_types:qs_set_pao_matrix'
@@ -3129,7 +4214,7 @@ contains
     end if failureIf
   end subroutine qs_set_pao_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_matrix_get [1.0] *
 !!
@@ -3147,7 +4232,7 @@ contains
 !!     error: variable to control error logging, stopping,... 
 !!            see module qs_error_handling 
 !!
-!!     For the other arguments see the attributes of qs_pao_matrix
+!!     For the other arguments see the attributes of qs_pao_matrix_type
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -3157,16 +4242,16 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_matrix_get(pao_matrix,pao_env,matrix,min_bas_cols,&
        min_bas_rows, cols_size, rows_size, should_dealloc_matrix, error)
-    type(qs_pao_matrix), intent(in) :: pao_matrix
-    type(qs_pao_env), optional, pointer :: pao_env
+    type(qs_pao_matrix_type), intent(in) :: pao_matrix
+    type(qs_pao_env_type), optional, pointer :: pao_env
     type(real_matrix_type), optional, pointer :: matrix
     logical, optional, intent(out) :: min_bas_rows, min_bas_cols, &
          should_dealloc_matrix
     integer, dimension(:), pointer, optional :: cols_size, rows_size
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_get'
@@ -3207,7 +4292,7 @@ contains
     end if failureIf
   end subroutine qs_pao_matrix_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_matrix_valid [1.0] *
 !!
@@ -3233,11 +4318,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_matrix_valid(pao_matrix, error) result(res)
     logical ::res
-    type(qs_pao_matrix), intent(in) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(in) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_valid'
@@ -3254,9 +4339,9 @@ contains
     res=.not.failure
   end function qs_pao_matrix_valid
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ===== special methods =====
+! ===== special methods =====
 
 !!****f* qs_pao_types/qs_pao_matrix_set_to_unity [1.0] *
 !!
@@ -3282,14 +4367,14 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_matrix_set_to_unity(pao_matrix, error)
-    type(qs_pao_matrix), intent(inout) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(inout) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_set_to_unity'
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     call qs_init(iError,template_error=error)
 
@@ -3307,7 +4392,7 @@ contains
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_pao_matrix_set_to_unity
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_matrix_get_pao_env [1.0] *
 !!
@@ -3318,7 +4403,7 @@ contains
 !!     returns the global environement the matrix object lives in
 !!
 !!   NOTES
-!!     this might go away (to optimize), so don't rely on it too heavily
+!!     this might go away (to optimize), so do not rely on it too heavily
 !!
 !!   INPUTS
 !!     pao_matrix: the matrix object you get the info from
@@ -3333,11 +4418,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_matrix_get_pao_env(pao_matrix, error) result(res)
-    type(qs_pao_env), pointer ::res
-    type(qs_pao_matrix), intent(in) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_env_type), pointer ::res
+    type(qs_pao_matrix_type), intent(in) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_get_pao_env'
@@ -3350,7 +4435,7 @@ contains
     end if failureIf
   end function qs_pao_matrix_get_pao_env
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_matrix_get_matrix [1.0] *
 !!
@@ -3376,11 +4461,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_pao_matrix_get_matrix(pao_matrix, error) result(res)
     type(real_matrix_type), pointer ::res
-    type(qs_pao_matrix), intent(in) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(in) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_get_matrix'
@@ -3393,10 +4478,10 @@ contains
     end if
   end function qs_pao_matrix_get_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 
-  ! ===== private utilities =====
+! ===== private utilities =====
 
 !!****f* qs_pao_types/qs_init_block_pao_matrix [1.0] *
 !!
@@ -3426,10 +4511,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_init_block_pao_matrix(pao_matrix, error)
-    type(qs_pao_matrix), intent(inout) :: pao_matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_pao_matrix_type), intent(inout) :: pao_matrix
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_init_block_pao_matrix'
@@ -3493,14 +4578,14 @@ contains
                      QSSourceFileRef(), error, failure)
              end if
              deallocate(firstRow,lastRow, firstCol, lastCol, stat=stat) 
-             ! just to be sure...
+! just to be sure...
              QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
           end if
        end if
     end if failureIf
   end subroutine qs_init_block_pao_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_first_last_from_size [1.0] *
 !!
@@ -3525,9 +4610,9 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_first_last_from_size(block_size, first_index, last_index, error)
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
     integer, dimension(:), intent(out) :: first_index, last_index
     integer, dimension(:), intent(in) :: block_size
     logical :: failure
@@ -3552,7 +4637,7 @@ contains
     end if
   end subroutine qs_first_last_from_size
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_consistent_matrix [1.0] *
 !!
@@ -3581,12 +4666,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_consistent_matrix(matrix,cols_size,rows_size, error) result(res)
     logical ::res
     type(real_matrix_type), intent(in), target :: matrix
     integer, dimension(:), intent(in) :: cols_size, rows_size
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_consistent_matrix'
@@ -3632,9 +4717,15 @@ contains
     res= .not. failure
   end function qs_consistent_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ======================= qs_pao_projection =====================
+!end
+! ======================= qs_pao_projection =====================
+!begin
+
+! this routines WILL CHANGE, they are extremly ugly and inefficient
+! I will come back to them as soo as the programs works
+! to do
 
 !!****f* qs_pao_projection/qs_pao_l_atom_projection [1.0] *
 !!
@@ -3666,14 +4757,14 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_l_atom_projection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_l_atom_projection'
@@ -3691,12 +4782,12 @@ contains
     if (.not. failure) then
        do i=1,size_min_bas
           target_m(i,:)=source_m(qs_get_p_index(pao_env,atom_nr=atom_nr,i=i,error=error),:)
-          ! reorganization of the operations could probabily make it faster
+! reorganization of the operations could probabily make it faster
        end do
     end if
   end subroutine qs_pao_l_atom_projection
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_projection/qs_pao_l_atom_injection [1.0] *
 !!
@@ -3728,14 +4819,14 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_l_atom_injection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_l_atom_injection'
@@ -3755,13 +4846,13 @@ contains
        do i=1,size_min_bas
           target_m(qs_get_p_index(pao_env,atom_nr=atom_nr,i=i,error=error),:)=&
                source_m(i,:)
-          ! reorganization of the operations could probabily make it faster
-          ! and don't set target_m to 0 if it gets overwritten
+! reorganization of the operations could probabily make it faster
+! and do not set target_m to 0 if it gets overwritten
        end do
     end if
   end subroutine qs_pao_l_atom_injection
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_projection/qs_pao_r_atom_projection [1.0] *
 !!
@@ -3793,14 +4884,14 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_r_atom_projection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_r_atom_projection'
@@ -3820,12 +4911,12 @@ contains
        do i=1,size_min_bas
           target_m(:,qs_get_p_index(pao_env,atom_nr=atom_nr,i=i,error=error))=&
                source_m(:,i)
-          ! reorganization of the operations could probabily make it faster
+! reorganization of the operations could probabily make it faster
        end do
     end if
   end subroutine qs_pao_r_atom_projection
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_projection/qs_pao_r_atom_injection [1.0] *
 !!
@@ -3857,19 +4948,19 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_r_atom_injection(pao_env, atom_nr, source_m,&
        target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_r_atom_injection'
     integer :: size_min_bas, size_full_bas, i
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     call qs_init(iError,template_error=error)
 
@@ -3887,13 +4978,13 @@ contains
        do i=1,size_min_bas
           target_m(:,i) = source_m(:,&
                qs_get_p_index(pao_env,atom_nr=atom_nr,i=i,error=error))
-          ! reorganization of the operations could probabily make it faster
+! reorganization of the operations could probabily make it faster
        end do
     end if
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_pao_r_atom_injection
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_atom_m_to_f_matrix [1.0] *
 !!
@@ -3927,21 +5018,21 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_atom_m_to_f_matrix(pao_env,l_atom_nr,r_atom_nr,&
        source_m, target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: r_atom_nr, l_atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_atom_m_to_f_matrix'
     integer :: size_l_min_bas, size_l_full_bas, size_r_min_bas, size_r_full_bas,&
          i,j
     integer, dimension(:), pointer :: l_index, r_index
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     nullify(l_index,r_index)
     call qs_init(iError,template_error=error)
@@ -3963,7 +5054,7 @@ contains
        QSPrecondition(size(target_m,1)==size_l_full_bas,qs_failure_level,routineN,error,failure)
        QSPrecondition(size(target_m,2)==size_r_full_bas,qs_failure_level,routineN,error,failure)
        QSPrecondition(associated(pao_env%projection),qs_failure_level,routineN,error,failure)
-       ! check projection more?
+! check projection more?
     end if
     if (.not. failure) then
        target_m=0.0_wp
@@ -3978,7 +5069,7 @@ contains
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_pao_atom_m_to_f_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_atom_f_to_m_matrix [1.0] *
 !!
@@ -4012,21 +5103,21 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_pao_atom_f_to_m_matrix(pao_env,l_atom_nr,r_atom_nr,&
        source_m, target_m, error)
-    type(qs_pao_env), intent(in) :: pao_env
+    type(qs_pao_env_type), intent(in) :: pao_env
     integer, intent(in) :: r_atom_nr, l_atom_nr
     real(kind=wp), dimension(:,:), intent(in) :: source_m
     real(kind=wp), dimension(:,:), intent(out) :: target_m
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_atom_f_to_m_matrix'
     integer :: size_l_min_bas, size_l_full_bas, size_r_min_bas, size_r_full_bas,&
          i,j
     integer, dimension(:), pointer :: l_index, r_index
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     nullify(l_index,r_index)
     call qs_init(iError,template_error=error)
@@ -4048,7 +5139,7 @@ contains
        QSPrecondition(size(target_m,1)==size_l_full_bas,qs_failure_level,routineN,error,failure)
        QSPrecondition(size(target_m,2)==size_r_full_bas,qs_failure_level,routineN,error,failure)
        QSPrecondition(associated(pao_env%projection),qs_failure_level,routineN,error,failure)
-       ! check projection more?
+! check projection more?
     end if
     if (.not. failure) then
        l_index => pao_env%projection(l_atom_nr)%array
@@ -4062,7 +5153,7 @@ contains
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_pao_atom_f_to_m_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_types/qs_pao_matrix_transf_to_m [1.0] *
 !!
@@ -4090,12 +5181,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
-  subroutine qs_pao_matrix_transf_to_m(source_m, target_m, unitary_t, error)
-    type(qs_pao_matrix), intent(in) :: source_m
-    type(qs_pao_matrix), intent(inout) :: target_m
-    type(qs_pao_matrix), intent(in) :: unitary_t
-    type(qs_error), optional, intent(inout) :: error
+!***************************************************************************
+  subroutine qs_pao_matrix_transf_to_m(source_m, target_m, glob_angles, error)
+    type(qs_pao_matrix_type), intent(in) :: source_m
+    type(qs_pao_matrix_type), intent(inout) :: target_m
+    type(qs_pao_glob_angles_type), intent(in) :: glob_angles
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_types:qs_pao_matrix_transf_to_m'
@@ -4104,15 +5195,16 @@ contains
     integer, dimension(:), pointer :: l_index,r_index
     real(kind=wp), dimension(:,:), pointer :: block_val, u_col, u_row
     real(kind=wp),allocatable, dimension(:,:) :: t1_m,t2_m
-    type(qs_error) :: iError
-    type(qs_pao_env), pointer :: pao_env
+    type(qs_pao_local_angles_type) :: l_angles
+    type(qs_error_type) :: iError
+    type(qs_pao_env_type), pointer :: pao_env
     call qs_init(iError,template_error=error)
     nullify(block_val)
     failure=.false.
 
     QSPrecondition(source_m%initialized,qs_failure_level,routineN,error,failure)
     QSPrecondition(target_m%initialized,qs_failure_level,routineN,error,failure)
-    QSPrecondition(unitary_t%initialized,qs_failure_level,routineN,error,failure)
+    QSPrecondition(glob_angles%initialized,qs_failure_level,routineN,error,failure)
     if (.not.failure) then
        QSPrecondition(.not.source_m%min_bas_cols,qs_failure_level,routineN,error,failure)
        QSPrecondition(.not.source_m%min_bas_rows,qs_failure_level,routineN,error,failure)
@@ -4128,6 +5220,8 @@ contains
        QSPrecondition(associated(pao_env%projection),qs_failure_level,routineN,error,failure)
     end if
     if (.not.failure) then
+       call qs_init(l_angles,atom_nr=1, &
+            glob_angles=glob_angles, error=error)
        max_bsize=maxval(pao_env%nr_full_bas)
        allocate(t1_m(max_bsize,max_bsize), t2_m(max_bsize,max_bsize), stat=stat)
        QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
@@ -4139,29 +5233,33 @@ contains
              if ((.not.qs_next(iterator,error=error)).or.failure) exit
              call qs_get(iterator,block_row=brow,block_col=bcol,&
                   block_val=block_val)
-             ! get u
-             call get_block_node(unitary_t%matrix, block_col=bcol,&
-                  block_row=bcol, block=u_col)
-             call get_block_node(unitary_t%matrix, block_col=brow,&
-                  block_row=brow, block=u_row)
+! get u
+             call qs_set(l_angles, atom_nr=bcol,error=error)
+             call qs_get(l_angles,unitary_t=u_col)
+!call get_block_node(unitary_t%matrix, block_col=bcol,&
+!     block_row=bcol, block=u_col)
+             call qs_set(l_angles, atom_nr=brow,error=error)
+             call qs_get(l_angles,unitary_t=u_row)
+!call get_block_node(unitary_t%matrix, block_col=brow,&
+!     block_row=brow, block=u_row)
 
-             ! in the following the sizes are put to make sense, i.e. not using
-             ! size(u_row,1)==size(u_row,2)==size(source_m,1)
-             ! size(u_col,1)==size(u_col,2)==size(source_m,2)
+! in the following the sizes are put to make sense, i.e. not using
+! size(u_row,1)==size(u_row,2)==size(source_m,1)
+! size(u_col,1)==size(u_col,2)==size(source_m,2)
 
-             ! t1_m = source u
+! t1_m = source u
              call dgemm('N','N',size(block_val,1),size(block_val,2),&
                   size(u_col,2),1.0_wp,&
                   block_val,size(block_val,1),&
                   u_col,size(u_col,1),&
                   0.0_wp,t1_m,size(t1_m,1))
-             ! t2_m = u^* t1_m
+! t2_m = u^* t1_m
              call dgemm('T','N',size(u_row,1),size(u_row,2),&
                   size(u_col,2),1.0_wp,&
                   u_row,size(u_row,1),&
                   t1_m,size(t1_m,1),&
                   0.0_wp,t2_m,size(t2_m,1))
-             ! get small basis block
+! get small basis block
              call get_block_node(target_m%matrix, block_col=bcol,&
                   block_row=bcol, block=block_val)
              if (.not.associated(block_val)) then
@@ -4193,15 +5291,15 @@ contains
           end do blocksDo
        end if
        call qs_dealloc_ref(iterator,error=error)
+       call qs_dealloc_ref(l_angles,error=error)
        deallocate(t1_m,t2_m,stat=stat) ! just to be sure...
        QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
     end if
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_pao_matrix_transf_to_m
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-
-
+!end
 end module qs_pao_types
 

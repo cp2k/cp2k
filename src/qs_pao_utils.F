@@ -35,29 +35,30 @@ module qs_pao_utils
   private
   logical, private, parameter :: debug_this_module=.true.
 
-  ! =========== public objects ==========
-  ! types
+! =========== public objects ==========
+! types
   public :: qs_1d_i_array, qs_matrix_block_iterator
 
-  ! procedures
+! procedures
   public :: qs_guarantee_size, qs_set_to_identity, qs_set_to, &
        qs_get_random_integer, qs_p_norm_matrix, qs_sup_norm_matrix,&
        qs_set_to_identity
 
-  ! core methods
+! core methods
   public :: qs_init, qs_dealloc_ref, qs_set, qs_get, qs_next, qs_valid
 
-  ! ========== util types =========
+! ========== util types =========
   type qs_1d_i_array
      integer, dimension(:), pointer :: array
   end type qs_1d_i_array
 
-  ! ============== interfaces ===========
+! ============== interfaces ===========
 
 !! if the pointer does not point to an array of the requested size 
 !! allocates it anew
   interface qs_guarantee_size
-     module procedure qs_guarantee_size_1d_int, qs_guarantee_size_1d_real
+     module procedure qs_guarantee_size_1d_int, qs_guarantee_size_1d_real, &
+          qs_guarantee_size_1d_logical
   end interface
 
 !! set the matrix to the identity matrix
@@ -70,7 +71,7 @@ module qs_pao_utils
      module procedure qs_set_real_matrix_to
   end interface
 
-  ! = core methods =
+! = core methods =
 
 !! initializes the object
   interface qs_init
@@ -125,7 +126,7 @@ module qs_pao_utils
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   type qs_matrix_block_iterator
      private
      logical :: initialized
@@ -134,7 +135,7 @@ module qs_pao_utils
      type(real_block_node_type), pointer :: block_node
   end type qs_matrix_block_iterator
 !!***
-  !****************************************************************************
+!****************************************************************************
 
 contains
 
@@ -144,7 +145,7 @@ contains
 !!     qs_get_random_integer
 !!
 !!   FUNCTION
-!! This function returns a random integer in the requested range
+!!     This function returns a random integer in the requested range
 !!
 !!   NOTES
 !!     -
@@ -164,19 +165,19 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !****************************************************************************
+!****************************************************************************
   pure function qs_get_random_integer(from,to,error) result(res)
     integer :: res
     integer, optional, intent(in) :: from, to
-    type(qs_error), optional, intent(in) :: error
+    type(qs_error_type), optional, intent(in) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='util:qs_get_random_integer'
     real :: rand
     integer :: fromi, toi
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.FALSE.
-    !call qs_init(iError,template_error=error)
+!call qs_init(iError,template_error=error)
     if (.not. present(from)) then
        fromi=1
     else
@@ -187,23 +188,23 @@ contains
     else
        toi=to
     end if
-    !QSPrecondition(fromi<=toi,qs_failure_level,routineN,iError,failure)
+!QSPrecondition(fromi<=toi,qs_failure_level,routineN,iError,failure)
     if (.not.fromi<=toi) failure=.true.
     if (.NOT. failure) then
        call random_number(rand)
        res=fromi+floor(rand*real(toi-fromi+1))
-       !QSPostcondition(res<=toi.and.res>=fromi,qs_warning_level,routineN,iError,failure)
+!QSPostcondition(res<=toi.and.res>=fromi,qs_warning_level,routineN,iError,failure)
        if (res>toi) res=toi
        if (res<fromi) res=fromi
     else
        res=-1
     end if
-    !call qs_dealloc_ref(iError,error=error)
+!call qs_dealloc_ref(iError,error=error)
   end function qs_get_random_integer
 !!***
-  !****************************************************************************
+!****************************************************************************
 
-  ! ============== real full matrix utilities ============
+! ============== real full matrix utilities ============
 
 !!****f* qs_pao_utils/qs_p_norm_matrix [1.0] *
 !!
@@ -233,12 +234,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   pure function qs_p_norm_matrix(matrix, p) result(res)
     real(kind=wp) :: res
     real(kind=wp), intent(in), dimension(:,:) :: matrix
     integer,optional :: p
-    !type(qs_error), optional, intent(inout) :: error ! removed to make it pure
+!type(qs_error_type), optional, intent(inout) :: error ! removed to make it pure
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_froebnius_norm2'
@@ -256,7 +257,7 @@ contains
     end if
   end function qs_p_norm_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_sup_norm_matrix [1.0] *
 !!
@@ -283,11 +284,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   pure function qs_sup_norm_matrix(matrix) result(res)
     real(kind=wp) :: res
     real(kind=wp), dimension(:,:), intent(in) :: matrix
-    !type(qs_error), optional, intent(inout) :: error ! removed to make it pure
+!type(qs_error_type), optional, intent(inout) :: error ! removed to make it pure
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_sup_norm_matrix'
@@ -300,9 +301,9 @@ contains
     end if
   end function qs_sup_norm_matrix
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ========== memory utilities =========
+! ========== memory utilities =========
 
 !!****f* qs_pao_utils/qs_guarantee_size_1d_int [1.0] *
 !!
@@ -336,12 +337,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_guarantee_size_1d_int(array, n, init, error)
     integer, dimension(:), pointer :: array
     integer, intent(in) :: n
     integer, intent(in), optional :: init
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     integer :: stat
@@ -365,7 +366,70 @@ contains
     end if failureIf
   end subroutine qs_guarantee_size_1d_int
 !!***
-  !***************************************************************************
+!***************************************************************************
+
+!!****f* qs_pao_utils/qs_guarantee_size_1d_logical [1.0] *
+!!
+!!   NAME
+!!     qs_guarantee_size_1d_logical
+!!
+!!   FUNCTION
+!!     If the size of the array is changes reallocate it.
+!!     Issues a warning when the size changes (but not on allocation
+!!     and deallocation).
+!!     
+!!     The data is NOT preserved (if you want to preserve the data see
+!!     the realloc in the module memory_utilities)
+!!
+!!   NOTES
+!!     this is a different behaviour than the realloc in the module
+!!     memory_utilities. It is quite low level
+!!
+!!   INPUTS
+!!     array: the array to reallocate if necessary
+!!     n: the wanted size
+!!     init: the initial value of the elements when resized
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 1.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  subroutine qs_guarantee_size_1d_logical(array, n, init, error)
+    logical, dimension(:), pointer :: array
+    integer, intent(in) :: n
+    logical, intent(in), optional :: init
+    type(qs_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: stat
+    character(len=*), parameter :: routineN='qs_pao_utils:qs_guarantee_size_1d_logical'
+    failure=.false.
+
+    QSPrecondition(n>=0,qs_failure_level,routineN,error,failure)
+    failureIf: if (.not. failure) then
+       if (associated(array)) then
+          if (size(array) /= n) then
+             QSErrorMessage(qs_warning_level,routineN,'size has changed',error)
+             deallocate(array, stat=stat)
+             QSPostcondition(stat==0,qs_warning_level,routineN,error,failure)
+          end if
+       end if
+       if (.not.associated(array)) then
+          allocate(array(n), stat=stat)
+          QSPostcondition(stat==0, qs_failure_level,routineN,error,failure)
+          if (present(init).and..not.failure) array=init
+       end if
+    end if failureIf
+  end subroutine qs_guarantee_size_1d_logical
+!!***
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_guarantee_size_1d_real [1.0] *
 !!
@@ -399,12 +463,12 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_guarantee_size_1d_real(array, n, init, error)
     real(kind=wp), dimension(:), pointer :: array
     integer, intent(in) :: n
     real(kind=wp), optional, intent(in) :: init
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     integer :: stat
@@ -428,9 +492,9 @@ contains
     end if failureIf
   end subroutine qs_guarantee_size_1d_real
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! =========== real block matrix utilities =========
+! =========== real block matrix utilities =========
 
 !!****f* qs_pao_utils/qs_set_real_matrix_to_identity [1.0] *
 !!
@@ -457,10 +521,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_set_real_matrix_to_identity(matrix,error)
     type(real_matrix_type), target, intent(inout) :: matrix
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure, did_ii
     character(len=*), parameter :: routineN='qs_pao_utils:qs_set_real_matrix_to_identity'
@@ -500,7 +564,7 @@ contains
     end if
   end subroutine qs_set_real_matrix_to_identity
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_set_real_matrix_to [1.0] *
 !!
@@ -532,18 +596,18 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_set_real_matrix_to(matrix, value, error)
     type(real_matrix_type), intent(inout), target :: matrix
     real(kind=wp), optional, intent(in) :: value
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_set_real_matrix_to'
     type(qs_matrix_block_iterator) :: iterator
     real(kind=wp), dimension(:,:), pointer :: block_val
     real(kind=wp) :: val
-    type(qs_error) :: iError
+    type(qs_error_type) :: iError
     failure=.false.
     call qs_init(iError,template_error=error)
     val=0.0_wp
@@ -575,9 +639,9 @@ contains
     call qs_dealloc_ref(iError,error=error)
   end subroutine qs_set_real_matrix_to
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-  ! ================== qs_matrix_block_iterator ================
+! ================== qs_matrix_block_iterator ================
 
 !!****f* qs_pao_utils/qs_init_matrix_b_i [1.0] *
 !!
@@ -606,15 +670,15 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_init_matrix_b_i(block_iterator, matrix, block_row,&
        block_node, error)
     type(qs_matrix_block_iterator), intent(out) :: block_iterator
     type(real_matrix_type), target, intent(in) :: matrix
-    ! well subsequent operations on the iterator could change tha data in the matrix
+! well subsequent operations on the iterator could change tha data in the matrix
     integer, intent(in), optional :: block_row
     type(real_block_node_type), target, optional :: block_node
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_init_matrix_b_i'
@@ -630,7 +694,7 @@ contains
          block_iterator%block_row = block_row
   end subroutine qs_init_matrix_b_i
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_dealloc_matrix_b_i_ref [1.0] *
 !!
@@ -656,10 +720,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_dealloc_matrix_b_i_ref(block_iterator, error)
     type(qs_matrix_block_iterator), intent(inout) :: block_iterator
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_dealloc_matrix_b_i_ref'
@@ -672,7 +736,7 @@ contains
     end if
   end subroutine qs_dealloc_matrix_b_i_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_matrix_b_i_get [1.0] *
 !!
@@ -705,7 +769,7 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_matrix_b_i_get(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)
     type(qs_matrix_block_iterator), intent(in) :: block_iterator
@@ -714,7 +778,7 @@ contains
     logical, optional, intent(out) :: finished
     type(real_matrix_type), optional, pointer :: matrix
     type(real_block_node_type), optional, pointer :: block_node
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_matrix_b_i_get'
@@ -753,7 +817,7 @@ contains
     end if
   end subroutine qs_matrix_b_i_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_matrix_b_i_valid [1.0] *
 !!
@@ -780,11 +844,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_matrix_b_i_valid(block_iterator,error) result(res)
     logical ::res
     type(qs_matrix_block_iterator), intent(in) :: block_iterator
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_matrix_b_i_valid'
@@ -800,7 +864,7 @@ contains
     res=.not.failure
   end function qs_matrix_b_i_valid
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_pao_utils/qs_next_matrix_block [1.0] *
 !!
@@ -827,11 +891,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   function qs_next_matrix_block(block_iterator, error) result(res)
     logical :: res
     type(qs_matrix_block_iterator), intent(inout) :: block_iterator
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_utils:qs_next_matrix_block'
@@ -879,7 +943,133 @@ contains
     res=.false.
   end function qs_next_matrix_block
 !!***
-  !***************************************************************************
+!***************************************************************************
+
+!!****f* qs_pao_utils/qs_sparse_m_sym_mult [1.0] *
+!!
+!!   NAME
+!!     qs_sparse_m_sym_mult
+!!
+!!   FUNCTION
+!!     multiplies two sparsesymmetric matrices 
+!!
+!!   NOTES
+!!     not parallelized, but easy to do: first build cols of a then
+!!     do different rows on different processors (balancing  it well 
+!!     will give more work)
+!!
+!!   INPUTS
+!!     a: the first matrix
+!!     transpose_a: if a should be transposed
+!!     b: the second matrix
+!!     transpose_b: if b should be transposed
+!!     c: the resulting matrix (c = scale_c c + scale_ab a * b 
+!!          (maybe with a^T or b^T in place of a and b))
+!!     scale_ab: how a*b should be scaled (defaults to 1)
+!!     scale_c: how c should be scaled (defaults to 0)
+!!     error: variable to control error logging, stopping,... 
+!!            see module qs_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 1.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+!!$subroutine qs_sparse_m_sym_mult(a,b,c,transpose_a,transpose_b,&
+!!$     scale_c,scale_ab,error)
+!!$  type(real_matrix_type), intent(in), target :: a,b
+!!$  type(real_matrix_type), intent(in), target :: c
+!!$  logical, optional, intent(in) :: transpose_b, transpose_a
+!!$  real(kind=wp), optional, intent(in) :: scale_ab, scale_c
+!!$  type(qs_error_type), optional, intent(inout) :: error
+!!$  
+!!$  logical :: failure
+!!$  character(len=*), parameter :: routineN='qs_pao_utils:qs_sparse_m_sym_mult'
+!!$  type(real_matrix_type), pointer :: a_m,b_m,c_m
+!!$  real(kind=wp) :: s_c,s_ab
+!!$  real(kind=wp), dimension(:,:), pointer :: block_val
+!!$  type(qs_error_type) :: iError
+!!$  type(qs_sll_sm_node_type), dimension(:), allocatable :: col_a
+!!$  
+!!$  type(qs_matrix_block_iterator) :: m_iter
+!!$  character(len=1), dimension(2) :: trans_a,trans_b
+!!$  integer :: block_row, block_col, i, j, old_block_row, ncol_a,&
+!!$       stat
+!!$  failure=.false.
+!!$  nullify(block_val)
+!!$  call qs_init(iError, template_error=error)
+!!$  a_m => a; b_m => b; c_m => c
+!!$  s_ab=1.0_wp; s_c=0.0_wp
+!!$
+!!$  if (present(scale_c)) s_c=scale_c
+!!$  if (present(scale_ab)) s_ab=scale_ab
+!!$
+!!$  QSPrecondition(associated(a_m),qs_failure_level,routineN,error,failure)
+!!$  QSPrecondition(associated(b_m),qs_failure_level,routineN,error,failure)
+!!$  QSPrecondition(associated(c_m),qs_failure_level,routineN,error,failure)
+!!$  if (failure) return
+!!$
+!!$  ! scale c
+!!$  call qs_init(m_iter,matrix=c,error=iError)
+!!$  call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+!!$                error,failure,qs_failure_level)
+!!$  if (.not.failure) then
+!!$     do
+!!$        if (.not.next(m_iter,error=error)) exit
+!!$        call qs_get(m_iter, block_val=block_val, error=iError)
+!!$        if (s_c==0.0_wp) then
+!!$           block_val=0
+!!$        else
+!!$           forall (i=1:size(block_val,1))
+!!$              forall (j=1:size(block_val,2))
+!!$                 block_val(i,j) = s_c*block_val(i,j)
+!!$              end forall
+!!$           end forall
+!!$        end if
+!!$     end do
+!!$     call qs_dealloc_ref(m_iter,error=iError)
+!!$     call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+!!$                error,failure,qs_failure_level)
+!!$  end if
+!!$  
+!!$  ! set up transposition arrays
+!!$  trans_a = (/ 'T','N' /)
+!!$  trans_b = (/ 'T','N' /)
+!!$  if (present(transpose_a)) then
+!!$     if (transpose_a) then
+!!$        trans_a = (/ 'N','T' /)
+!!$     end if
+!!$  end if
+!!$  if (present(transpose_b)) then
+!!$     if (transpose_b) then
+!!$        trans_b = (/ 'N','T' /)
+!!$     end if
+!!$  end if
+!!$
+!!$  ! initialize col linked lists
+!!$  call get_matrix_info(a_m,ncol=ncol_a)
+!!$  allocate(col_a(ncol_a),stat=stat)
+!!$  QSPostcondition(stat==0,qs_failure_level,routineN,error,failure)
+!!$
+!!$  ! iterates on a
+!!$  if (.not. failure) then
+!!$     call qs_init(m_iter,matrix=a,error=iError)
+!!$     call qs_propagate_error(iError,routineN,QSSourceFileRef(),&
+!!$          error,failure,qs_failure_level)
+!!$  end if
+!!$  if (.not.failure) then
+!!$     old_block_row=1
+!!$ !    do 
+!!$ !       qs
+!!$  end if
+!!$end subroutine qs_sparse_m_sym_mult
+!!***
+!***************************************************************************
+
 
 end module qs_pao_utils
 

@@ -73,7 +73,7 @@ contains
   subroutine qs_pao_test_plain_rot(g_env, failed, error)
     type(global_environment_type), intent(in), target ::g_env
     logical, intent(inout) :: failed
-    type(qs_error), optional, intent(inout):: error
+    type(qs_error_type), optional, intent(inout):: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_plain_rot_tests:qs_test_plain_rot'
@@ -314,14 +314,14 @@ contains
   function qs_pao_test_u_du(glob_env,error) result(res)
     logical ::res
     type(global_environment_type), target :: glob_env
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_pao_plain_rot_tests:qs_pao_test_u_du'
     integer, parameter :: n_atom=3, atom_nr=1
-    type(qs_pao_env) :: pao_env
-    type(qs_pao_glob_angles), pointer :: g_angles
-    type(qs_pao_local_angles) :: l_angles
+    type(qs_pao_env_type) :: pao_env
+    type(qs_pao_glob_angles_type), pointer :: g_angles
+    type(qs_pao_local_angles_type) :: l_angles
     real(kind=wp), dimension(:), pointer :: angles
     real(kind=wp),dimension(:,:), allocatable :: m1,m2,m3
     real(kind=wp) :: err

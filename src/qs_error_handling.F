@@ -51,23 +51,6 @@ module qs_error_handling
   logical, parameter :: qs_debug=.false.
 #endif
 
-
-!! this type represent a structure that can be passed to
-!! the functions to change their error behaviour.
-!! It should always be initialized with qs_init_error before use
-  type qs_error
-     private
-!! just to be able to check that the structure has been initialized
-     logical :: initialized !=.FALSE.
-!! a pointer to the logger where error logs should go 
-!! (if null they go to qs_default_logger)
-     type(qs_logger), pointer :: logger ! => null()
-     integer :: stop_level
-     integer :: print_level
-     integer :: level ! I would have liked to make this public
-     integer :: error_nr ! I would have liked to make this public
-  end type qs_error
-
 !! error number: no error
   integer, parameter :: qs_no_error = 0
 !! error number: generic error on the side of the caller
@@ -98,21 +81,94 @@ module qs_error_handling
   interface qs_get
      module procedure qs_error_get
   end interface
+!!***
+!****************************************************************************
+
+!!****s* qs_error_handling/qs_error_type [1.0] *
+!!
+!!   NAME
+!!     qs_error_type
+!!
+!!   FUNCTION
+!!     this type represent a structure that can be passed to
+!!     the functions to change their error behaviour.
+!!     It should always be initialized with qs_init_error before use
+!!
+!!   NOTES
+!!     if one of level or error_nr is different from 0 then both must be
+!!     different from 0.
+!!
+!!   ATTRIBUTES
+!!     initialized: true if initialized (just for bug catching)
+!!     logger: a pointer to the logger where error logs should go 
+!!         (if null they go to qs_default_logger)
+!!     stop_level: the level at which the execution stops
+!!     print_level: starting at which level something gets printed
+!!     level: level of the error (0 = no error)
+!!     error_nr: the number of the error (0 = no error)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  type qs_error_type
+     private
+     logical :: initialized
+     type(qs_logger), pointer :: logger
+     integer :: stop_level
+     integer :: print_level
+     integer :: level
+     integer :: error_nr
+  end type qs_error_type
+!!***
+!****************************************************************************
 
 contains
-  ! I should convert my f90 doc comments to robodoc comments
-  ! (I decided to use robodoc after having written most of this)
+! ================== error structure init/get/set ===================
 
-  ! ================== error structure init/get/set ===================
-
-!! Initializes the error structure error.
-!! The optional arguments initialize the values in the structure.
-!! Default values: stop_level=2, logger=null (i.e. default logger
+!!****f* qs_error_handling/qs_init_error [1.0] *
+!!
+!!   NAME
+!!    qs_init_error
+!!
+!!   FUNCTION
+!!    Initializes the error structure error.
+!!    The optional arguments initialize the values in the structure.
+!!    Default values: stop_level=2, logger=null (i.e. default logger
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error that will be initialized
+!!     stop_level: the stop level of the newly created error (defaults to
+!!           qs_failure_level)
+!!     print_level: the print level of the newly created error (defaults
+!!           to qs_note_level)
+!!     logger: the logger where errors are written (defaults to
+!!            the default logger)
+!!     template_error: an error that gives the default values for 
+!!            the previous variables (useful to initialize an internal error)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   subroutine qs_init_error(error, stop_level, print_level, logger, template_error)
-    type(qs_error), intent(out) :: error
+    type(qs_error_type), intent(out) :: error
     integer, optional, intent(in) :: stop_level, print_level
     type(qs_logger), optional, target, intent(in) :: logger
-    type(qs_error), intent(in), optional :: template_error
+    type(qs_error_type), intent(in), optional :: template_error
 
     error%initialized=.TRUE.
     error%error_nr=0
@@ -136,12 +192,36 @@ contains
        error%print_level=print_level
     end if
   end subroutine qs_init_error
+!!***
+!****************************************************************************
 
-!! if the optional parameter error is present resets its level and 
-!! error_nr to 0 (is tipically called when you want to discard the 
-!! previous errors stored in error, i.e. not often)
+!!****f* qs_error_handling/qs_reset_error [1.0] *
+!!
+!!   NAME
+!!     qs_reset_error
+!!
+!!   FUNCTION
+!!     if the optional parameter error is present resets its level and 
+!!     error_nr to 0 (is tipically called when you want to discard the 
+!!     previous errors stored in error, i.e. not often)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you want to reset
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   subroutine qs_reset_error(error)
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 
     if (present(error)) then
        if (.NOT. error%initialized) then
@@ -155,14 +235,40 @@ contains
        error%level=0
     end if
   end subroutine qs_reset_error
+!!***
+!****************************************************************************
 
-!! routine to set the various components of the error structure
+!!****f* qs_error_handling/qs_set_error [1.0] *
+!!
+!!   NAME
+!!     qs_set_error
+!!
+!!   FUNCTION
+!!     routine to set the various components of the error structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you want to change
+!!     template_error: gives the default values of logger, stop_level
+!!          and print_level (but not of level and error_nr)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   subroutine qs_set_error(error,level,error_nr,stop_level,print_level,logger,&
        template_error)
-    type(qs_error), intent(inout) :: error
+    type(qs_error_type), intent(inout) :: error
     integer, optional, intent(in) :: level, error_nr, stop_level,print_level
     type(qs_logger), optional, target, intent(in):: logger
-    type(qs_error), optional, intent(in) :: template_error
+    type(qs_error_type), optional, intent(in) :: template_error
 
     if (present(template_error)) then
        error%logger => template_error%logger
@@ -204,10 +310,10 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_dealloc_error_ref(err_to_free, error)
-    type(qs_error), intent(inout) :: err_to_free
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), intent(inout) :: err_to_free
+    type(qs_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='qs_error_handling:qs_dealloc_error_ref'
@@ -216,11 +322,11 @@ contains
          qs_precondition_failed, routineN, "uninitialized error",&
          error,failure)
     if (.not. failure) then
-       ! do nothing
+! do nothing
     end if
   end subroutine qs_dealloc_error_ref
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_error_handling/qs_error_get [1.0] *
 !!
@@ -245,9 +351,9 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_error_get(error,level,error_nr,stop_level,print_level,logger)
-    type(qs_error), intent(inout) :: error
+    type(qs_error_type), intent(inout) :: error
     integer, optional, intent(out) :: level, error_nr, stop_level,print_level
     type(qs_logger), optional, pointer :: logger
 
@@ -261,33 +367,69 @@ contains
     if (present(logger)) logger=>qs_get_error_logger(error)
   end subroutine qs_error_get
 !!***
-  !***************************************************************************
+!***************************************************************************
 
-!!****f* qs_error_handling/qs_error_gets [1.0] *
+!!****f* qs_error_handling/qs_get_error_level [1.0] *
 !!
 !!   NAME
-!!     qs_error_gets
+!!     qs_get_error_level
 !!
 !!   FUNCTION
-!!     different special get functions
-!! 
-!!   SOURCE   
-  !***************************************************************************
-
-!! gets the error level from the given error
-  pure function qs_get_error_level(error) result(res)
+!!     gets the error level from the given error
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 1.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  function qs_get_error_level(error) result(res)
     integer :: res
-    type(qs_error), intent(in) :: error
+    type(qs_error_type), intent(in) :: error
 
     res=error%level
   end function qs_get_error_level
+!!***
+!****************************************************************************
 
-!! gets the print level (starting with which errorlevel something 
-!! gets printed) from the given error
-!! if the error is not present returns qs_note_level
-  pure function qs_get_error_print_level(error) result(res)
+!!****f* qs_error_handling/qs_get_error_print_level [1.0] *
+!!
+!!   NAME
+!!     qs_get_error_print_level
+!!
+!!   FUNCTION
+!!     gets the print level (starting with which errorlevel something 
+!!     gets printed) from the given error
+!!     if the error is not present returns qs_note_level
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from (optional)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version .2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  ! pure 
+  function qs_get_error_print_level(error) result(res)
     integer :: res
-    type(qs_error), optional, intent(in) :: error
+    type(qs_error_type), optional, intent(in) :: error
 
     if (present(error)) then
        res=error%print_level
@@ -295,23 +437,72 @@ contains
        res=qs_note_level
     end if
   end function qs_get_error_print_level
+!!***
+!****************************************************************************
 
-!! gets the error number from the given error
-  pure function qs_get_error_nr(error) result(res)
+!!****f* qs_error_handling/qs_get_error_nr [1.0] *
+!!
+!!   NAME
+!!     qs_get_error_nr
+!!
+!!   FUNCTION
+!!     gets the error number from the given error
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  ! pure 
+  function qs_get_error_nr(error) result(res)
     integer :: res
-    type(qs_error), intent(in) :: error
+    type(qs_error_type), intent(in) :: error
 
     res=error%error_nr
   end function qs_get_error_nr
+!!***
+!****************************************************************************
 
-!! gets the logger of the given error.
-!! The error argument is optional, so you can get the logger
-!! of an optional dummy argument.
-!! If the error is not present or its logger is not associated
-!! returns the default logger.
+!!****f* qs_error_handling/qs_get_error_logger [1.0] *
+!!
+!!   NAME
+!!     qs_get_error_logger
+!!
+!!   FUNCTION
+!!     gets the logger of the given error.
+!!     The error argument is optional, so you can get the logger
+!!     of an optional dummy argument.
+!!     If the error is not present or its logger is not associated
+!!     returns the default logger.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from (optional)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 1.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   function qs_get_error_logger(error) result(res)
     type(qs_logger), pointer :: res
-    type(qs_error), intent(in), optional :: error
+    type(qs_error_type), intent(in), optional :: error
 
     nullify(res)
     if (present(error)) res=>error%logger
@@ -321,12 +512,37 @@ contains
        call qs_common_error_stop('qs_error_handling:qs_get_error_logger',' qs_default_logger is not associated')
     end if
   end function qs_get_error_logger
+!!***
+!****************************************************************************
 
-!! gets the error level at which the error will stop the programm
-!! If the error is not present returns cp_failure_level
-  pure function qs_get_error_stop_level(error) result(res)
+!!****f* qs_error_handling/qs_get_error_stop_level [1.0] *
+!!
+!!   NAME
+!!     qs_get_error_stop_level
+!!
+!!   FUNCTION
+!!     gets the error level at which the error will stop the programm
+!!     If the error is not present returns cp_failure_level
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from (optional)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
+  ! pure 
+  function qs_get_error_stop_level(error) result(res)
     integer :: res
-    type(qs_error), intent(in), optional :: error
+    type(qs_error_type), intent(in), optional :: error
 
     if (present(error)) then
        res=error%stop_level
@@ -335,23 +551,70 @@ contains
     end if
   end function qs_get_error_stop_level
 
-  ! =================== error handling ===================
+! =================== error handling ===================
 
-!! a subroutine that call just stop, usefult because all the failures
-!! fails calling this routine: the right point to set a breakpoint
+!!****f* qs_error_handling/qs_common_error_stop [1.0] *
+!!
+!!   NAME
+!!     qs_common_error_stop
+!!
+!!   FUNCTION
+!!     a subroutine that call just stop, useful because all the failures
+!!     fails calling this routine: the right point to set a breakpoint
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     fromWhere: 'module:routine' that called this function
+!!     message: an error message
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   subroutine qs_common_error_stop(fromWhere,message)
     character(len=*), intent(in) :: fromWhere, message 
     call stop_program(fromWhere,message)
     stop ! just to be sure...
   end subroutine qs_common_error_stop
+!!***
+!****************************************************************************
 
-!! all the error situations at the end should call this routine
+!!****f* qs_error_handling/qs_handle_error [1.0] *
 !!
-!! main function for error logging, most error reporting ends up calling
-!! this function, great place to put a breakpoint if you want to catch
-!! errors that don't stop the program.
+!!   NAME
+!!     qs_handle_error
+!!
+!!   FUNCTION
+!!     all the error situations at the end should call this routine
+!!
+!!     main function for error logging, most error reporting ends up calling
+!!     this function, great place to put a breakpoint if you want to catch
+!!     errors that do not stop the program.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     error: the error you take the info from (optional)
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!     @version 2.2002
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!***************************************************************************
   subroutine qs_handle_error(error, fromWhere, message)
-    type(qs_error), intent(in) :: error
+    type(qs_error_type), intent(in) :: error
     character(len=*),intent(in) :: fromWhere,message
 
     if (debug_this_module) print *, "entred in qs_handle_error"
@@ -363,7 +626,7 @@ contains
     end if
   end subroutine qs_handle_error
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_error_handling/qs_error_message [1.0] *
 !!
@@ -392,11 +655,11 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_error_message(level, fromWhere, message, error)
     integer, intent(in) :: level
     character(len=*), intent(in) :: fromWhere, message
-    type(qs_error), optional, intent(in) :: error
+    type(qs_error_type), optional, intent(in) :: error
 
     type(qs_logger), pointer :: logger
 
@@ -406,7 +669,7 @@ contains
     end if
   end subroutine qs_error_message
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_error_handling/qs_assert [1.0] *
 !!
@@ -441,7 +704,7 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_assert(condition, level, error_nr, fromWhere, &
        message, error,failure)
 !! the condition that is checked, if false, an error did happen
@@ -451,12 +714,12 @@ contains
 !! error number
     integer, intent(in) :: error_nr
     character(len=*), intent(in) :: fromWhere, message
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
 !! is set to true if condition is false
     logical, optional, intent(inout) :: failure
 
     logical :: oldFailure
-    type(qs_error) :: err
+    type(qs_error_type) :: err
     if (.NOT. condition) then
        if (debug_this_module) print *, "assertion failed, in "//fromWhere//" msg="//message
        if (present(failure)) then
@@ -483,7 +746,7 @@ contains
     end if
   end subroutine qs_assert
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 !!****f* qs_error_handling/qs_propagate_error [1.0] *
 !!
@@ -515,13 +778,13 @@ contains
 !!     none
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
   subroutine qs_propagate_error(iError, fromWhere, message, error, &
        failure, failure_level)
-    type(qs_error), intent(in) :: iError
+    type(qs_error_type), intent(in) :: iError
     character(len=*) :: fromWhere
     character(len=*), optional :: message
-    type(qs_error), optional, intent(inout) :: error
+    type(qs_error_type), optional, intent(inout) :: error
     logical, optional, intent(inout):: failure
     integer, optional, intent(in):: failure_level
 
@@ -549,6 +812,6 @@ contains
     end if
   end subroutine qs_propagate_error
 !!***
-  !***************************************************************************
+!***************************************************************************
 
 end module qs_error_handling
