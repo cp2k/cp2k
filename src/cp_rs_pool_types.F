@@ -106,7 +106,7 @@ MODULE cp_rs_pool_types
      PRIVATE
      INTEGER :: ref_count, id_nr
      TYPE(pw_grid_type), POINTER :: el_struct
-     INTEGER, DIMENSION(3) :: nsmax
+     INTEGER :: nsmax
      TYPE(cp_sll_rs_type), POINTER :: cache
   END TYPE cp_rs_pool_type
 !!***
@@ -153,7 +153,7 @@ CONTAINS
 !!       Type(cp_rs_pool_type), Pointer:: pool
 !!       Type(pw_grid_type), Pointer:: el_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Integer, Dimension(3), Intent (IN):: nsmax
+!!       Integer, Intent (IN):: nsmax
 !!     End Subroutine rs_pool_create
 !!
 !!   FUNCTION
@@ -181,7 +181,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER :: pool
     TYPE(pw_grid_type), POINTER :: el_struct
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    INTEGER, DIMENSION(3), INTENT(IN) :: nsmax
+    INTEGER, INTENT(IN) :: nsmax
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='rs_pool_create',&

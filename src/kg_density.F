@@ -134,7 +134,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    INTEGER, DIMENSION(3)             :: nsmax
+    INTEGER                           :: nsmax
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
     INTEGER :: offset,natom
 
@@ -152,7 +152,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=1000
+    nsmax=-1
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
@@ -347,7 +347,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: part
     INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
-    INTEGER, DIMENSION(3)                         :: nsmax
+    INTEGER                                       :: nsmax
     TYPE(coeff_type)                              :: rhoc_r
 
 !   ---------------------------------------------------------------------------
@@ -365,7 +365,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=1000 ! should be temporary fix
+    nsmax=-1   ! should be temporary fix
     call rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
     call rs_grid_allocate(rs_rho)
     call rs_grid_zero(rs_rho)
@@ -462,7 +462,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: p_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    INTEGER, DIMENSION(3)             :: nsmax
+    INTEGER                           :: nsmax
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
     INTEGER :: offset,natom
 
@@ -480,7 +480,7 @@ CONTAINS
     ! hard coded for the time being
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
-    nsmax(:)=1000
+    nsmax=-1
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
@@ -641,7 +641,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
     REAL(dbl), DIMENSION(3)     :: force_a,force_b,ra
-    INTEGER, DIMENSION(3)      :: nsmax
+    INTEGER                    :: nsmax
     REAL(dbl), POINTER, DIMENSION(:,:)   :: hab,pab
 
 !   ---------------------------------------------------------------------------
@@ -650,7 +650,7 @@ CONTAINS
 
     ALLOCATE(hab(1,1),pab(1,1))
 
-    nsmax(:) = 100
+    nsmax = -1
     CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
     CALL rs_grid_allocate(rs_v)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
@@ -762,7 +762,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: sphi_a,rpgfa,zeta
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
 
-    INTEGER, DIMENSION(3)             :: nsmax
+    INTEGER                           :: nsmax
     LOGICAL:: calculate_forces
 
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
@@ -799,7 +799,7 @@ CONTAINS
         CALL stop_memory("calculate_v_rspace_forces","rs_v")
     ENDIF
 
-    nsmax(:)=1000 ! should be temporary fix
+    nsmax=-1   ! should be temporary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
@@ -1002,7 +1002,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), POINTER :: sphi_a,rpgfa,zeta
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa
 
-    INTEGER, DIMENSION(3)             :: nsmax
+    INTEGER                           :: nsmax
     LOGICAL:: calculate_forces
 
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
@@ -1039,7 +1039,7 @@ CONTAINS
         CALL stop_memory("calculate_v_rspace_forces","rs_v")
     ENDIF
 
-    nsmax(:)=1000 ! should be temporary fix
+    nsmax=-1   ! should be temporary fix
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &

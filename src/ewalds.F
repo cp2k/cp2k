@@ -534,7 +534,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         CALL dg_pme_grid_setup ( box, npts_s, cutoff_radius, &
                         pme_small_grid, pme_big_grid, pnode_grp )
 
-        CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
+        CALL rs_grid_setup ( rs, pme_big_grid, MAXVAL ( pme_small_grid % npts ), &
              pnode_grp % scr )
 
         ! set up a list with all particles having a charge
@@ -565,7 +565,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
              fft_usage = .TRUE. )
 
         npts_s ( : ) = ewald_param % o_spline
-        CALL rs_grid_setup ( rs, spme_grid, npts_s, pnode_grp % scr )
+        CALL rs_grid_setup ( rs, spme_grid, MAXVAL ( npts_s ), pnode_grp % scr )
 
         ! set up a list with all particles having a charge
         CALL particle_list_select ( pnode, dg % plist, dg % nparts )

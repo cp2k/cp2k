@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2002 CP2K developers group                           !
+!   Copyright (C) 2000 - 2003 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/library_tests [1.0] *
 !!
@@ -18,6 +18,7 @@
 !!     02-Jan-2001 (JGH) Parallel FFT
 !!     15-Feb-2002 (JGH) XC-Functionals
 !!     28-Feb-2002 (JGH) Clebsch-Gordon Coefficients
+!!     06-Jun-2003 (JGH) Real space grid test
 !!
 !!   SOURCE
 !******************************************************************************
@@ -42,6 +43,7 @@ MODULE library_tests
        pw_find_cutoff
   USE pw_types, ONLY : COMPLEXDATA3D, COMPLEXDATA1D, &
        REALDATA3D, REALDATA1D, REALSPACE, RECIPROCALSPACE
+  USE real_space_test, ONLY : rs_test
   USE simulation_cell, ONLY : cell_type, get_hinv, get_cell_param
   USE termination, ONLY : stop_memory
   USE string_utilities, ONLY : uppercase
@@ -102,6 +104,8 @@ SUBROUTINE lib_test ( globenv )
   IF ( runtest ( 5 ) /= 0 ) CALL xc_functional_test ( globenv )
 !
   IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
+!
+  IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv )
 
 END SUBROUTINE lib_test
 
@@ -131,6 +135,7 @@ END SUBROUTINE lib_test
 !!I    PW_FFT   n                                                             I
 !!I    FUNCTIONALS n                                                          I
 !!I    Clebsch-Gordon n                                                       I
+!!I    RS_GRIDS n                                                             I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -180,6 +185,8 @@ SUBROUTINE test_input ( globenv )
            CALL get_next ( runtest ( 5 ) )
         CASE ( 'CLEBSC' )
            CALL get_next ( runtest ( 6 ) )
+        CASE ( 'RS_GRI' )
+           CALL get_next ( runtest ( 7 ) )
         END SELECT
         CALL read_line
      END DO

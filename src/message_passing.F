@@ -43,7 +43,7 @@ MODULE message_passing
        mp_sum_scatter, mp_abort, mp_shift
 
   INTERFACE mp_shift
-     MODULE PROCEDURE mp_shift_rm
+     MODULE PROCEDURE mp_shift_im, mp_shift_rm
   END INTERFACE
   
   INTERFACE mp_bcast
@@ -654,6 +654,44 @@ END SUBROUTINE mp_dims_create
 ! displ_in will be 1 by default (others not tested)
 ! the message array needs to be the same size on all processes
 !*****************************************************************************
+SUBROUTINE mp_shift_im( msg, group, displ_in)
+
+  IMPLICIT NONE
+  INTEGER, INTENT ( IN )               :: group
+  INTEGER, INTENT(INOUT)               :: msg ( :, : )
+  INTEGER, INTENT ( IN ), OPTIONAL     :: displ_in
+!
+  integer, dimension(:), allocatable ::  status
+  INTEGER displ,myrank,nprocs,left,right,ierror,msglen,tag
+
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  call mpi_comm_rank(group,myrank,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_rank @ mp_shift" )
+  call mpi_comm_size(group,nprocs,ierror)
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_comm_size @ mp_shift" )
+  IF (PRESENT(displ_in)) THEN
+     displ=displ_in
+  ELSE
+     displ=1
+  ENDIF
+  right=MOD(nprocs+myrank+displ,nprocs)
+  left =MOD(nprocs+myrank-displ,nprocs)
+  tag=17
+  msglen = size(msg)
+  t_start = m_cputime ( )
+  CALL mpi_sendrecv_replace(msg,msglen,MPI_INTEGER,right,tag,left,tag, &
+     group,status(1),ierror)
+  t_end = m_cputime ( )
+  IF ( ierror /= 0 ) CALL mp_stop ( ierror, "mpi_sendrecv_replace @ mp_shift" )
+  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
+  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + msglen
+  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#endif
+
+END SUBROUTINE mp_shift_im
+
 SUBROUTINE mp_shift_rm( msg, group, displ_in)
 
   IMPLICIT NONE

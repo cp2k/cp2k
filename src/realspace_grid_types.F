@@ -286,7 +286,7 @@ END SUBROUTINE rs_grid_deallocate_n
 !!     JGH (18-Mar-2001)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (08-Jun-2003) : nsmax <= 0 indicates fully replicated grid
 !!
 !!   SOURCE
 !******************************************************************************
@@ -296,7 +296,7 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
 !  Arguments
    TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
    TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: nsmax 
+   INTEGER, INTENT ( IN ) :: nsmax 
    INTEGER, OPTIONAL, INTENT ( IN ) :: iounit
 
 !  Local
@@ -337,28 +337,27 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
                          "This pw type not supported" )
      END IF
      ! x is the main distribution direction of pw grids in real space
-     ! we distribute real space grids accordingly
-     dir = 1
-     rs % direction = 1
-     ! the minimum slice thickness is half of the small box size
-     ! this way there is only overlap with direct neighbors
-     nmin = ( nsmax ( dir ) + 1 ) / 2 
-     ! maximum number of slices
-     ngmax = pw_grid % npts ( dir ) / nmin
-     ! now we reduce this number until we find a divisor of the total number
-     ! of processors
-     !
-!cdeb
-!the code works currently only for this setting
-     ngmax=1
-!cdeb
-     n_slices = 1
-     DO ip = ngmax, 1, -1
-       IF ( MOD ( pw_grid % para % group_size, ip ) == 0 ) THEN
-         n_slices = ip
-         EXIT
-       END IF
-     END DO
+     ! we distribute real space grids in z direction
+     dir = 3
+     rs % direction = 3
+     IF ( nsmax <= 0 ) THEN
+       n_slices = 1
+     ELSE
+       ! the minimum slice thickness is half of the small box size
+       ! this way there is only overlap with direct neighbors
+       nmin = ( nsmax + 1 ) / 2 
+       ! maximum number of slices
+       ngmax = pw_grid % npts ( dir ) / nmin
+       ! now we reduce this number until we find a divisor of the total number
+       ! of processors
+       n_slices = 1
+       DO ip = ngmax, 1, -1
+         IF ( MOD ( pw_grid % para % group_size, ip ) == 0 ) THEN
+           n_slices = ip
+           EXIT
+         END IF
+       END DO
+     END IF
      ! global grid dimensions are still the same
      rs % npts = pw_grid % npts
      rs % ngpts = PRODUCT ( rs % npts )
@@ -369,6 +368,7 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
      IF ( n_slices == 1 ) THEN
        ! CASE 1 : only one slice: we do not need overlapping regions and special
        !          recombination of the total density
+       rs % direction = 0
        rs % perd = 1
        rs % border = 0
        rs % npts_local = pw_grid % npts
@@ -418,27 +418,28 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
               i, rs % lb ( i ), rs % ub ( i ), "Points:", rs % npts ( i )
            END DO
            IF ( rs % group_dim ( 1 ) == 1 ) THEN
-             WRITE ( iounit, '(A,T72,I3,A)' ) &
-             " RS_GRID: Real space distribution over ", rs % group_dim ( 1 ), " group"
+             WRITE ( iounit, '(A)' ) " RS_GRID: Real space fully replicated"
+             WRITE ( iounit, '(A,T71,I10)' ) &
+               " RS_GRID: Group size ", rs % group_dim ( 2 )
            ELSE
              WRITE ( iounit, '(A,T71,I3,A)' ) &
              " RS_GRID: Real space distribution over ", rs % group_dim ( 1 ), " groups"
+             WRITE ( iounit, '(A,T71,I10)' ) &
+               " RS_GRID: Group size ", rs % group_dim ( 2 )
+             WRITE ( iounit, '(A,T71,I10)' ) &
+               " RS_GRID: Real space distribution along direction ", rs % direction
+             WRITE ( iounit, '(A,T71,I10)' ) &
+               " RS_GRID: Border size ", rs % border
            END IF
-           WRITE ( iounit, '(A,T71,I10)' ) &
-             " RS_GRID: Group size ", rs % group_dim ( 2 )
-           WRITE ( iounit, '(A,T71,I10)' ) &
-             " RS_GRID: Real space distribution along direction ", dir
-           WRITE ( iounit, '(A,T71,I10)' ) &
-             " RS_GRID: Border size ", rs % border
          END IF
          nn = rs % npts_local ( dir )
          CALL mp_sum ( nn, rs % group )
-         pp ( 1 ) = REAL ( nn, dbl ) / REAL ( pw_grid % para % group_size, dbl )
+         pp ( 1 ) = REAL ( nn, dbl ) / REAL ( PRODUCT ( rs % group_dim ), dbl )
          nn = rs % npts_local ( dir )
-         CALL mp_max ( nn, pw_grid % para % group )
+         CALL mp_max ( nn, rs % group )
          pp ( 2 ) = REAL ( nn, dbl )
          nn = rs % npts_local ( dir )
-         CALL mp_min ( nn, pw_grid % para % group )
+         CALL mp_min ( nn, rs % group )
          pp ( 3 ) = REAL ( nn, dbl )
          IF ( rs % group_head ) THEN
            WRITE ( iounit, '(A,T48,A)' ) " RS_GRID:   Distribution", &
@@ -468,7 +469,7 @@ SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, iounit )
 !  Arguments
    TYPE ( realspace_grid_type ), DIMENSION ( : ), INTENT (INOUT) :: rs
    TYPE ( pw_grid_type ), INTENT ( IN ) :: pw_grid
-   INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: nsmax 
+   INTEGER, INTENT ( IN ) :: nsmax 
    INTEGER, OPTIONAL, INTENT ( IN ) :: iounit
 
 !  Local
@@ -639,15 +640,6 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
 
        IF ( dir == "FORWARD" ) THEN
 
-         ! First we have to sum up the data within the RS groups
-         ! we generate a subgroup that covers all processors with the same RS grid
-         subdim ( 1 ) = .FALSE.
-         subdim ( 2 ) = .TRUE.
-         CALL mp_cart_sub ( rs % group, subdim, subgroup )
-         ! Now we do the sum
-         CALL mp_sum ( rs % r, subgroup )
-         ! And we release the communicator again
-         CALL mp_comm_free ( subgroup )
          ! The border data has to be send/received from the neighbors
          ! First we calculate the source and destination processes for the shift
          ! The first shift is "downwards"
@@ -686,6 +678,20 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
          ! Get rid of the scratch space
          DEALLOCATE ( buffer, STAT=ierr )
          IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer","buffer")
+
+         ! We have to sum up the data within the RS groups
+         ! We generate a subgroup that covers all processors with the same RS grid
+         subdim ( 1 ) = .FALSE.
+         subdim ( 2 ) = .TRUE.
+         CALL mp_cart_sub ( rs % group, subdim, subgroup )
+         ! Now we do the sum (exclude border areas)
+         lb ( : ) = rs % lb_local ( : )
+         ub ( : ) = rs % ub_local ( : )
+         lb ( idir ) = lb ( idir ) + rs % border
+         ub ( idir ) = ub ( idir ) - rs % border
+         CALL mp_sum ( rs % r ( lb(1):ub(1), lb(2):ub(2), lb(3):ub(3) ), subgroup )
+         ! And we release the communicator again
+         CALL mp_comm_free ( subgroup )
 
          ! This is the real redistribution
          CALL send_forward ( rs, pw )
@@ -777,9 +783,6 @@ SUBROUTINE send_forward ( rs, pw )
    REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
 
 !-----------------------------------------------------------------------------!
-!  This code is for MPI only, and uses a lot of redunant communication
-!  Optimal code will use one-sided-communication features
-!-----------------------------------------------------------------------------!
 
    lbp ( : ) = pw % pw_grid % bounds_local ( 1, : )
    ubp ( : ) = pw % pw_grid % bounds_local ( 2, : )
@@ -847,9 +850,6 @@ SUBROUTINE send_backward ( rs, pw )
    INTEGER, DIMENSION ( 3 ) :: lb, ub, lbp, ubp, lz, uz
    REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
 
-!-----------------------------------------------------------------------------!
-!  This code is for MPI only, and uses a lot of redunant communication
-!  Optimal code will use one-sided-communication features
 !-----------------------------------------------------------------------------!
 
    ! initialize the rs grid to zero
@@ -994,9 +994,9 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title )
    CHARACTER(*), INTENT(IN), OPTIONAL       :: title
  !-----------------------------------------------------------------------------!
    TYPE ( realspace_grid_type )   :: rs
-   INTEGER, DIMENSION(3)          :: nsmax
+   INTEGER                        :: nsmax
  !-----------------------------------------------------------------------------!
-   nsmax(:)=10000
+   nsmax=-1
    CALL rs_grid_setup(rs,pw%pw_grid,nsmax)
    CALL rs_grid_allocate(rs)
    CALL rs_pw_transfer(rs,pw,"BACKWARD")
@@ -1066,7 +1066,7 @@ END SUBROUTINE rs_grid_write
 !!     Subroutine rs_grid_create(rs_grid, pw_grid, nsmax, error)
 !!       Type(realspace_grid_type), Pointer:: rs_grid
 !!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Integer, Dimension(3), Optional, Intent (IN):: nsmax
+!!       Integer, Optional, Intent (IN):: nsmax
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine rs_grid_create
 !!
@@ -1092,7 +1092,7 @@ END SUBROUTINE rs_grid_write
 SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
   TYPE(realspace_grid_type), POINTER :: rs_grid
   TYPE ( pw_grid_type ), POINTER :: pw_grid
-  INTEGER, DIMENSION(3), OPTIONAL, INTENT(in) :: nsmax
+  INTEGER, OPTIONAL, INTENT(in) :: nsmax
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -1100,11 +1100,11 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
         routineP=moduleN//':'//routineN
   TYPE(cp_logger_type), POINTER :: logger
   INTEGER :: stat, iounit
-  INTEGER, DIMENSION(3) :: my_nsmax
+  INTEGER :: my_nsmax
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
-  my_nsmax=pw_grid%npts
+  my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
   
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)

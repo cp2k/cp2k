@@ -108,7 +108,6 @@ MODULE qs_integrate_potential
                                              realspace_grid_p_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
-                                             rs_grid_setup,&
                                              rs_pw_transfer
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&

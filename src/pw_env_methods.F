@@ -205,7 +205,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
        routineP=moduleN//':'//routineN
   REAL(wp)          :: rel_cutoff, maxradius, cutilev
   INTEGER :: handle,i,igrid_level,stat, ngrid_level, cmax,cmaxl, istat,maxlgto
-  INTEGER, DIMENSION(3) :: nsmax
+  INTEGER :: nsmax
   REAL(wp), DIMENSION(:), POINTER :: cutoff
   TYPE(cell_type), POINTER          :: cell
   TYPE(pw_grid_type), POINTER :: pw_grid, old_pw_grid
@@ -323,7 +323,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ! is not yet used in rs_grid_setup
         ! this is dependent from the progression factor of the multigrids
         ! and the softest gaussian
-        nsmax(:)=1000
+        nsmax=-1
         NULLIFY(rs_pools(igrid_level)%pool)
         CALL rs_pool_create(rs_pools(igrid_level)%pool,&
              el_struct=pw_grid,nsmax=nsmax,error=error)

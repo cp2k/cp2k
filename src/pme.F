@@ -115,7 +115,7 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
   CALL coeff_allocate ( rhos1, grid_s, use_data = PW_REALDATA3D )
   CALL coeff_allocate ( rhos2, grid_s, use_data = PW_REALDATA3D )
 
-  CALL rs_grid_setup ( rden, grid_b, grid_s % npts )
+  CALL rs_grid_setup ( rden, grid_b, MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( rden )
   rden % r = 0._dbl
 
@@ -187,7 +187,7 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
 
 !--------END OF STRESS TENSOR CALCULATION -----------
 
-  CALL rs_grid_setup ( drpot, grid_b , grid_s % npts)
+  CALL rs_grid_setup ( drpot, grid_b , MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
 
   DO i = 1, 3
