@@ -458,12 +458,12 @@ CONTAINS
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-!MK                     sab(:) = real_to_scaled(rab(:),cell)
+                        sab(:) = real_to_scaled(rab(:),cell)
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&
                           cell=cell_b,&
-                          r=rab,&
+                          r=sab,&
                           exclusion_list = particle_set(atom_a)%lpi%&
                                            exclusion(jkind)%list_vdw)
                       END IF
@@ -573,12 +573,12 @@ CONTAINS
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
-!MK                           sab(:) = real_to_scaled(rab(:),cell)
+                              sab(:) = real_to_scaled(rab(:),cell)
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom_local)%neighbor_list,&
                                 neighbor=atom_b,&
                                 cell=cell_b,&
-                                r=rab,&
+                                r=sab,&
                                 exclusion_list=particle_set(atom_a)%lpi%&
                                                exclusion(jkind)%list_vdw)
                             END IF
@@ -963,12 +963,12 @@ CONTAINS
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-!MK                     sab(:) = real_to_scaled(rab(:),cell)
+                        sab(:) = real_to_scaled(rab(:),cell)
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&
                           cell=cell_b,&
-                          r=rab,&
+                          r=sab,&
                           exclusion_list = particle_set(atom_a)%lpi%&
                                            exclusion(jkind)%list_vdw)
                       END IF
@@ -1078,12 +1078,12 @@ CONTAINS
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
-!MK                           sab(:) = real_to_scaled(rab(:),cell)
+                              sab(:) = real_to_scaled(rab(:),cell)
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom_local)%neighbor_list,&
                                 neighbor=atom_b,&
                                 cell=cell_b,&
-                                r=rab,&
+                                r=sab,&
                                 exclusion_list=particle_set(atom_a)%lpi%&
                                                exclusion(jkind)%list_vdw)
                             END IF

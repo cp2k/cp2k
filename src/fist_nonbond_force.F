@@ -46,7 +46,9 @@ MODULE fist_nonbond_force
   USE pair_potential,                  ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE splines,                         ONLY: spline_data,&
                                              spline_environment_type
   USE timings,                         ONLY: timeset,&
@@ -140,7 +142,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
+          dra(:) = particle_set(atom_a)%r(:) -&
+                   scaled_to_real(r_last_update(:,atom_a),cell)
 
           neighbor_node => first_node(neighbor_list)
 
@@ -150,9 +153,10 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                    neighbor=atom_b,&
                                    r=rab)
 
-            drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
+            drb(:) = particle_set(atom_b)%r(:) -&
+                     scaled_to_real(r_last_update(:,atom_b),cell)
 
-            rab(:) = rab(:) - dra(:) + drb(:)
+            rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 

@@ -35,7 +35,9 @@ MODULE fist_neighbor_list_control
                                              dp_size
   USE message_passing,                 ONLY: mp_max
   USE particle_types,                  ONLY: particle_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             real_to_scaled,&
+                                             scaled_to_real
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -116,7 +118,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       nparticle_local = local_particles%n_el(iparticle_kind)
       DO iparticle_local=1,nparticle_local
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        dr(:) = r_last_update(:,iparticle) - particle_set(iparticle)%r(:)
+        dr(:) = scaled_to_real(r_last_update(:,iparticle),cell) -&
+                particle_set(iparticle)%r(:)
         dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
         dr2_max = MAX(dr2_max,dr2)
       END DO
@@ -129,7 +132,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
 
       DO iparticle=1,nparticle
-        r_last_update(:,iparticle ) = particle_set(iparticle)%r(:)
+        r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
       END DO
 
       CALL update_fist_neighbor_lists(atomic_kind_set,particle_set,&
@@ -149,7 +152,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     END IF
 
     DO iparticle=1,nparticle
-      r_last_update(:,iparticle ) = particle_set(iparticle)%r(:)
+      r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
     END DO
 
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
