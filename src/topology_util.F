@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/topology_util [1.0] *
 !!
@@ -14,7 +14,7 @@
 !!
 !!
 !!   MODIFICATION HISTORY
-!!     
+!!    jgh (23-05-2004) Last atom of molecule information added
 !!
 !!   SOURCE
 !******************************************************************************
@@ -1436,7 +1436,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
                                                 j, last, natom, nbond, nmol, &
                                                 nphi, ntheta
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
-    INTEGER, POINTER                         :: checkme(:), first_list(:)
+    INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, last_list
     LOGICAL                                  :: PM1, PM2, PM3, PM4
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
@@ -1552,6 +1552,8 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
   !-----------------------------------------------------------------------------
   ALLOCATE(first_list(topology%nmol),STAT=istat)
   IF(istat/=0) CALL stop_memory('coordinate_pack','frist_list',topology%nmol)
+  ALLOCATE(last_list(topology%nmol),STAT=istat)
+  IF(istat/=0) CALL stop_memory('coordinate_pack','last_list',topology%nmol)
   counter=0
   DO i=1,topology%nmol_type
     CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
@@ -1561,14 +1563,16 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
       CALL find_boundary2(atom_info%map_mol_typ,atom_info%map_mol_num,&
                           natom,first,last,i,j)
       first_list(counter)=first
-      IF(PM2) WRITE(iw,'(5X,A,I5,I5,I5)') "first_list=ikind,nmol,first_atom",&
-                    i,j,first
+      last_list(counter)=last
+      IF(PM2) WRITE(iw,'(5X,A,4I5)') &
+        "first_list=ikind,nmol,first_atom,last_atom",i,j,first,last
     END DO
   END DO
-  CALL set_molecule_set(molecule_set,first_list)
+  CALL set_molecule_set(molecule_set,first_list,last_list)
   DEALLOCATE(first_list,STAT=istat)
   IF(istat/=0) CALL stop_memory('coordinate_pack','frist_list')
-
+  DEALLOCATE(last_list,STAT=istat)
+  IF(istat/=0) CALL stop_memory('coordinate_pack','last_list')
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------

@@ -18,6 +18,7 @@
 !!     - Functionality for particle_type added (MK,14.01.2002)
 !!     - Allow for general coordinate input (MK,13.09.2003)
 !!     - Molecule concept introduced (MK,26.09.2003)
+!!     - Last atom information added (jgh,23.05.2004)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -523,8 +524,8 @@ END SUBROUTINE clone_particle
       imolecule_kind, input_format_length, iparticle, iparticle_kind, istat, &
       natom, ndigits, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
       string_length
-    INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule, list, &
-      molecule_kind_of, nmolecule_of_kind, nparticle_of_kind, particle_kind_of
+    INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule, last_atom_of_molecule, &
+      list, molecule_kind_of, nmolecule_of_kind, nparticle_of_kind, particle_kind_of
     INTEGER, DIMENSION(:, :), POINTER        :: molecule_kind_name, &
                                                 particle_kind_name
     LOGICAL                                  :: new_kind, newline, pdb, &
@@ -544,6 +545,7 @@ END SUBROUTINE clone_particle
 
     NULLIFY (atom_list)
     NULLIFY (first_atom_of_molecule)
+    NULLIFY (last_atom_of_molecule)
     NULLIFY (list)
     NULLIFY (molecule_kind_name)
     NULLIFY (molecule_kind_of)
@@ -554,6 +556,7 @@ END SUBROUTINE clone_particle
     NULLIFY (r)
 
     CALL reallocate(first_atom_of_molecule,1,nblock1)
+    CALL reallocate(last_atom_of_molecule,1,nblock1)
     CALL reallocate(molecule_kind_name,1,default_string_length,1,nblock2)
     CALL reallocate(molecule_kind_of,1,nblock1)
     CALL reallocate(nparticle_of_kind,1,nblock2)
@@ -987,6 +990,7 @@ END SUBROUTINE clone_particle
 
       IF (nmolecule > SIZE(first_atom_of_molecule)) THEN
         CALL reallocate(first_atom_of_molecule,1,nmolecule+nblock1)
+        CALL reallocate(last_atom_of_molecule,1,nmolecule+nblock1)
       END IF
 
       first_atom_of_molecule(nmolecule) = iparticle
@@ -999,6 +1003,8 @@ END SUBROUTINE clone_particle
                              atom_list=atom_list,&
                              name=molecule_name,&
                              natom=natom)
+
+      last_atom_of_molecule(nmolecule) = iparticle + natom - 1
 
       nmolecule_of_kind(imolecule_kind) = nmolecule_of_kind(imolecule_kind) + 1
 
@@ -1040,13 +1046,15 @@ END SUBROUTINE clone_particle
     END DO
 
     CALL reallocate(first_atom_of_molecule,1,nmolecule)
+    CALL reallocate(last_atom_of_molecule,1,nmolecule)
 
 !   *** Allocate and initialize the molecule set ***
 
     CALL allocate_molecule_set(molecule_set,nmolecule)
 
     CALL set_molecule_set(molecule_set=molecule_set,&
-                          first_atom=first_atom_of_molecule)
+                          first_atom=first_atom_of_molecule,&
+                          last_atom=last_atom_of_molecule)
 
 !   *** Build the molecule index list for each molecule kind ***
 
@@ -1071,6 +1079,9 @@ END SUBROUTINE clone_particle
       DEALLOCATE (first_atom_of_molecule,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "first_atom_of_molecule")
+      DEALLOCATE (last_atom_of_molecule,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "last_atom_of_molecule")
     END IF
 
     IF (ASSOCIATED(list)) THEN
