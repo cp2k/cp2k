@@ -90,7 +90,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_sendrecv
-     MODULE PROCEDURE mp_sendrecv_rm3, mp_sendrecv_rm2
+     MODULE PROCEDURE mp_sendrecv_rm3, mp_sendrecv_rm2, mp_sendrecv_rv
   END INTERFACE
 
   INTERFACE mp_isendrecv
@@ -2014,6 +2014,35 @@ SUBROUTINE mp_sendrecv_rm2(msgin,dest,msgout,source,comm)
   msgout = msgin
 #endif
 END SUBROUTINE mp_sendrecv_rm2
+!******************************************************************************
+
+SUBROUTINE mp_sendrecv_rv(msgin,dest,msgout,source,comm)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( IN ) :: msgin ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: msgout ( : )
+  INTEGER, INTENT ( IN ) :: dest, source, comm
+  INTEGER :: msglen_in, msglen_out, ierr, send_tag, recv_tag
+  INTEGER, DIMENSION(:), ALLOCATABLE ::  status
+#if defined(__parallel)
+  ALLOCATE(status(MPI_STATUS_SIZE))
+  t_start = m_cputime ( )
+  msglen_in = SIZE(msgin)
+  msglen_out = SIZE(msgout)
+  send_tag = 0 ! cannot think of something better here, this might be dangerous
+  recv_tag = 0 ! cannot think of something better here, this might be dangerous
+  CALL mpi_sendrecv(msgin,msglen_in,MPI_DOUBLE_PRECISION,dest,send_tag,msgout,&
+       msglen_out,MPI_DOUBLE_PRECISION,source,recv_tag,comm,status(1),ierr)
+  ! we do not check the status
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_sendrecv @ mp_send_recv_rv" )
+  mp_perf ( 7 ) % count = mp_perf ( 7 ) % count + 1
+  mp_perf ( 7 ) % msg_size = mp_perf ( 7 ) % msg_size + (msglen_in+msglen_out) * reallen * 0.5_dbl
+  t_end = m_cputime ( )
+  mp_perf ( 7 ) % time = mp_perf ( 7 ) % time + ( t_end - t_start )
+  DEALLOCATE(status)
+#else
+  msgout = msgin
+#endif
+END SUBROUTINE mp_sendrecv_rv
 
 !******************************************************************************
 
