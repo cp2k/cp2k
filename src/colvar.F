@@ -471,8 +471,7 @@ END SUBROUTINE colvar_eval_f
 
   END SUBROUTINE coord_colvar
 !***************************************************************************
-                                                                                                             
-                                                                                                             
+
 !!****f* colvar/torsion_colvar [1.0] *
 !!
 !!   NAME
@@ -568,12 +567,12 @@ END SUBROUTINE colvar_eval_f
                IF (sine .LT. 0.0e0_dp)  angle = -angle
                dt = angle 
                DO ii=1,100
-                 IF(dt<180.)GOTO 111
+                 IF(dt<180._dp)GOTO 111
                  dt = dt - 360.0e0_dp
                ENDDO
 111            CONTINUE
                DO ii=1,100
-                 IF(dt>-180.)GOTO 112
+                 IF(dt>-180._dp)GOTO 112
                  dt = dt + 360.0e0_dp
                ENDDO
 112            CONTINUE
