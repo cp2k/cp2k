@@ -986,14 +986,14 @@ CONTAINS
             END DO
 
             IF (calculate_forces) THEN
-!$OMP critical (force)
+!$OMP critical (qs_integrate_force)
                force(ikind)%rho_elec(:,atom_a) =&
                   force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
                IF (iatom /= jatom) THEN
                   force(jkind)%rho_elec(:,atom_b) =&
                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
                END IF
-!$OMP end critical (force)
+!$OMP end critical (qs_integrate_force)
             END IF
 
           END DO

@@ -662,15 +662,15 @@ CONTAINS
 !$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
 !$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
-!$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode,katom) &
-!$OMP private(cell_c,rbc,h_block,p_block,w_block,j,force_a,force_b) &
+!$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
+!$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
-!$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_a,set_radius_b) &
+!$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,w,globenv,p,h,t,iab) &
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
-!$OMP shared(vpplt,sac_ppl,ikind,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
+!$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
 !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt)
         ithread = 0
 !$      ithread = omp_get_thread_num()
@@ -693,14 +693,14 @@ CONTAINS
 !$OMP do
         DO ilist=1,nlist
 
-!$OMP critical (neighbor_list)
+!$OMP critical (qs_core_neighbor_list)
           IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
             sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
           ELSE
             sab_orb_neighbor_list => next(sab_orb_neighbor_list)
           END IF
           sab_orb_neighbor_list_local => sab_orb_neighbor_list
-!$OMP end critical (neighbor_list)
+!$OMP end critical (qs_core_neighbor_list)
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
                                  atom=iatom,&
                                  nnode=nnode)
@@ -1020,12 +1020,12 @@ CONTAINS
                                  rab,rab2,dab,sab,nder,return_s_derivatives,&
                                  sdab,pab,force_a)
 
-!$OMP critical (force)
+!$OMP critical (qs_core_force_overlap)
                     force(ikind)%overlap(:,atom_a) =&
                       force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
                       force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
-!$OMP end critical (force)
+!$OMP end critical (qs_core_force_overlap)
 
                   ELSE
 
@@ -1100,12 +1100,12 @@ CONTAINS
                                  rab,rab2,dab,sdab,hab,nder,&
                                  return_t_derivatives,pab,force_a)
 
-!$OMP critical (force)
+!$OMP critical (qs_core_force_kinetic)
                     force(ikind)%kinetic(:,atom_a) =&
                       force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
                     force(jkind)%kinetic(:,atom_b) =&
                       force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
-!$OMP end critical (force)
+!$OMP end critical (qs_core_force_kinetic)
 
                   ELSE
 
@@ -1195,7 +1195,7 @@ CONTAINS
 
                           atom_c = atom_of_kind(katom)
 
-!$OMP critical (force)
+!$OMP critical (qs_core_force_gth_ppl)
                           force(ikind)%gth_ppl(:,atom_a) =&
                             force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
@@ -1205,7 +1205,7 @@ CONTAINS
                             force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
                             force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
-!$OMP end critical (force)
+!$OMP end critical (qs_core_force_gth_ppl)
 
                         ELSE
 
@@ -1377,13 +1377,13 @@ CONTAINS
                                 END DO
                               END DO
 
-!$OMP critical (force)
+!$OMP critical (qs_core_force_gth_ppnl)
                               force(ikind)%gth_ppnl(i,atom_a) =&
                                 force(ikind)%gth_ppnl(i,atom_a) + f0*f
 
                               force(kkind)%gth_ppnl(i,atom_c) =&
                                 force(kkind)%gth_ppnl(i,atom_c) - f0*f
-!$OMP end critical (force)
+!$OMP end critical (qs_core_force_gth_ppnl)
 
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
                                          1.0_dp,&
@@ -1401,13 +1401,13 @@ CONTAINS
                                 END DO
                               END DO
 
-!$OMP critical (force)
+!$OMP critical (qs_core_force_gth_ppnl)
                               force(jkind)%gth_ppnl(i,atom_b) =&
                                 force(jkind)%gth_ppnl(i,atom_b) + f0*f
 
                               force(kkind)%gth_ppnl(i,atom_c) =&
                                 force(kkind)%gth_ppnl(i,atom_c) - f0*f
-!$OMP end critical (force)
+!$OMP end critical (qs_core_force_gth_ppnl)
 
                             END DO
 
