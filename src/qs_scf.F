@@ -179,7 +179,8 @@ MODULE qs_scf
                                       qs_ot_destroy,qs_ot_init,  &
                                       qs_ot_get_orbitals,        & 
                                       qs_ot_get_derivative,      &
-                                      qs_ot_get_p
+                                      qs_ot_get_p,               &
+                                      qs_ot_mini
   use qs_energy_types,          only: qs_energy_type
   use cp_array_utils, only: cp_1d_r_output
 
@@ -240,15 +241,10 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER :: mo_set
 
-    REAL(wp) :: delta,diis_error,t1,t2,ds,gnorm,gnorm_old,gnorm_cross,beta_pr
+    REAL(wp) :: delta,diis_error,t1,t2
     INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
                 output_unit,n,k,nrow_block,ncol_block, type_switch
     LOGICAL  :: diis_step,do_level_shift,ionode
-    CHARACTER(LEN=2) :: OT_METHOD
-    CHARACTER(LEN=8) :: OT_METHOD_FULL
-    LOGICAL  ::         OT_LINESEARCH
-    INTEGER  ::         OT_count,i
-
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
     logical :: pao, failure
@@ -263,8 +259,6 @@ CONTAINS
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
     type(qs_energy_type), pointer :: energy
-    real(kind=wp) :: ot_pos(4),ot_energy(4),nom,denom,ds_min
-    real(kind=wp) :: xa,xb,xc,fa,fb,fc,pos,val
     logical :: energy_only
    
 
@@ -341,10 +335,6 @@ CONTAINS
     rebuild = .TRUE.
 
     IF (use_ot) THEN
-       OT_METHOD="CG"
-       OT_LINESEARCH=.false.
-       energy_only=.false.
-       ds_min=0.25_wp
 
        CALL get_mo_set(mo_set=mo_set, eigenvectors=mo_eigenvectors)
 
@@ -353,30 +343,49 @@ CONTAINS
                                                   nrow_global=n, &
                                                   ncol_global=k)
 
-       CALL qs_ot_allocate(qs_ot_env,n,k,nrow_block,ncol_block,globenv)
-       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
+       ! decide settings
+       qs_ot_env%settings%ot_method="QN"
+       qs_ot_env%settings%ot_linesearch=.true.
+       qs_ot_env%settings%ot_diis=.false.
+       qs_ot_env%settings%ds_min=0.10_wp
+       if (qs_ot_env%settings%ot_method.eq."QN") then
+          qs_ot_env%settings%lbfgs_m=5
+       else
+          qs_ot_env%settings%lbfgs_m=0
+       endif
+       if (qs_ot_env%settings%ot_diis) then
+          qs_ot_env%settings%diis_m=5 
+       else
+          qs_ot_env%settings%diis_m=0
+       endif
 
+       qs_ot_env%settings%n=n 
+       qs_ot_env%settings%k=k 
+       qs_ot_env%settings%nrow_block=nrow_block
+       qs_ot_env%settings%ncol_block=ncol_block
+
+       ! allocate
+       CALL qs_ot_allocate(qs_ot_env,globenv)
+  
+       ! set c0,sc0
+       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
        CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_c0, &
                                            qs_ot_env%matrix_sc0,globenv)
-
        CALL blacs_make_basis(qs_ot_env%matrix_c0,k,globenv, &
-                         ortho=qs_ot_env%matrix_sc0,otype="SV")
+                             ortho=qs_ot_env%matrix_sc0,otype="SV")
 
+       ! init
        CALL qs_ot_init(qs_ot_env,globenv)
+       energy_only=qs_ot_env%energy_only
 
-       CALL blacs_set_all(qs_ot_env%matrix_dx_old,0.0_wp,globenv)
-       CALL blacs_set_all(qs_ot_env%matrix_gx_old,0.0_wp,globenv)
-       gnorm_old=1.0_wp
-
+       ! set x
        CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp,globenv)
        CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp,globenv)
 
+       ! get c
        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
        CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
        CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
-
-       OT_energy(:)=0.0_wp
-       OT_pos(:)=0.0_wp
 
     ENDIF
 
@@ -525,113 +534,19 @@ CONTAINS
 
       CASE(2) ! orbital transforms
 
-        IF (energy_only) THEN
-          delta=1.0_wp
-        ELSE
+        IF ( .not. energy_only) THEN
           CALL sparse_times_blacs(ks%matrix,qs_ot_env%matrix_c, &
                                           qs_ot_env%matrix_hc,globenv)
           CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc,globenv)
-
-
-          CALL qs_ot_get_derivative(qs_ot_env%matrix_hc,qs_ot_env%matrix_x, &
-                                        qs_ot_env%matrix_sx, &
-                                        qs_ot_env%matrix_gx,qs_ot_env,globenv)
-
-          CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,delta,globenv)
-        
         ENDIF
+ 
+        qs_ot_env%etotal=energy%total
+        CALL qs_ot_mini(qs_ot_env,globenv)
+        delta           =qs_ot_env%delta
+        energy_only     =qs_ot_env%energy_only
 
-
-        IF (.not. OT_LINESEARCH) THEN       ! find a new direction
-           if (energy_only) call stop_program("scf","energy only ?")
-           OT_energy(4)=energy%total
-
-           SELECT CASE (OT_METHOD)
-           CASE ("SD")
-              OT_METHOD_FULL="OT SD"
-              CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
-
-           CASE ("CG")
-              OT_METHOD_FULL="OT CG"
-         
-              CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,gnorm_cross,globenv)
-              CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,gnorm,globenv)
-              beta_pr=(gnorm-gnorm_cross)/gnorm_old
-              CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
-              CALL blacs_add(1.0_wp,qs_ot_env%matrix_dx,beta_pr,qs_ot_env%matrix_dx_old,globenv) 
-
-              CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_dx,qs_ot_env%matrix_dx_old)
-              CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old)
-              gnorm_old=gnorm
-
-           END SELECT
-
-           if (ionode) write(19,*) "# new set "
-           DO i=1,4
-              if (ionode) write(19,*) OT_pos(i),OT_energy(i)
-           ENDDO
-
-           OT_LINESEARCH=.true.
-           OT_count=1
-           OT_pos(OT_count)=0.0_wp
-           energy_only=.true.
-        ELSE
-           OT_METHOD_FULL="OT LS"
-        ENDIF
-
-        IF (OT_LINESEARCH) THEN             ! find a new ds
-           OT_energy(OT_count)=energy%total
-
-           SELECT CASE(OT_COUNT)
-           CASE (1)
-              OT_pos(OT_count+1)=ds_min*0.8_wp
-           CASE (2)
-              if (OT_energy(2).gt.OT_energy(1)) then
-                  OT_pos(OT_count+1)=ds_min*0.5_wp
-              else
-                 OT_pos(OT_count+1)=ds_min*1.4_wp
-              endif
-           CASE (3)
-              xa=OT_pos(1)
-              xb=OT_pos(2)
-              xc=OT_pos(3)
-              fa=OT_energy(1)
-              fb=OT_energy(2)
-              fc=OT_energy(3)
-              nom  =(xb-xa)**2*(fb-fc) -  (xb-xc)**2*(fb-fa) 
-              denom=(xb-xa)*(fb-fc) -  (xb-xc)*(fb-fa) 
-              pos = xb-0.5_wp*nom/denom ! position of the stationary point
-              val = (pos-xa)*(pos-xb)*fc/((xc-xa)*(xc-xb))+ &
-                    (pos-xb)*(pos-xc)*fa/((xa-xb)*(xa-xc))+ &
-                    (pos-xc)*(pos-xa)*fb/((xb-xc)*(xb-xa))
-
-              if (val.lt.fa .and. val.le.fb .and. val.le.fc) then ! OK, we go to a minimum
-
-                  OT_pos(OT_count+1)=MAX(MAXVAL(OT_pos(1:3))*0.01,MIN(pos,MAXVAL(OT_pos(1:3))*4.0_wp))
-                  OT_LINESEARCH=.false.
-                  energy_only=.false.
-
-              else  ! just take an extended step
-
-                  OT_pos(OT_count+1)=MAXVAL(OT_pos(1:3))*2.0
-                  OT_LINESEARCH=.false.
-                  energy_only=.false.
-
-              endif
-
-           END SELECT
-           OT_count=OT_count+1
-           ds=OT_pos(OT_count)-OT_pos(OT_count-1)
-           ds_min=OT_pos(OT_count)
-        ELSE
-           ds=ds_min
-        ENDIF  
-
-        ! take a step in the direction 
-        CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx,globenv)
         CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_x, &
-                                          qs_ot_env%matrix_sx,globenv)
-
+                                     qs_ot_env%matrix_sx,globenv)
         CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
         CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
@@ -643,7 +558,7 @@ CONTAINS
         IF (ionode.AND.globenv%print%scf) THEN
               WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T20,F6.2,T30,F8.2,T40,2F20.10)")&
-                         iscf,OT_METHOD_FULL,ds_min,t2 - t1,delta,energy%total
+                         iscf,qs_ot_env%OT_METHOD_FULL,qs_ot_env%ds_min,t2 - t1,delta,energy%total
         END IF
 
 
