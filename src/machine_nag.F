@@ -13,6 +13,7 @@
 !!     Joost VandeVondele
 !!
 !!   MODIFICATION HISTORY
+!!     based on guessing calls from the .mod files. No manual yet.
 !!
 !!   SOURCE
 !!*****
@@ -20,8 +21,10 @@
 
 MODULE machine_nag
 
-  USE kinds, ONLY : dbl, sgl
+  USE kinds, ONLY : dbl
   USE f90_unix
+  USE f90_unix_dir
+  USE f90_unix_env, ONLY : gethostname, getlogin
   IMPLICIT NONE
 
   PRIVATE
@@ -43,41 +46,35 @@ END SUBROUTINE m_abort
 
 FUNCTION m_iargc() RESULT (ic)
   INTEGER :: ic
-  ! INTEGER, EXTERNAL :: iargc
-  ic = 1 ! iargc()
+  ic = iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL (dbl) :: ct
-  INTEGER :: mclock
-  ct = 0.0_dbl ! mclock()*0.01_dbl
+  REAL       :: ctr
+  CALL CPU_TIME(ctr)
+  ct=ctr
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
   REAL (dbl) :: wt
-  REAL (sgl) :: etime
-  TYPE tb_type
-     SEQUENCE
-     REAL (sgl) :: usrtime
-     REAL (sgl) :: systime
-  END TYPE tb_type
-  TYPE (tb_type) etime_struct
-  ! wt = etime(etime_struct)
-  wt = 0.0_dbl
+  INTEGER :: count,count_rate
+  CALL system_clock(count=count,count_rate=count_rate)
+  wt = DBLE(count)/count_rate
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
   CHARACTER (len=*), INTENT (OUT) :: cal_date
-  INTEGER :: l, le
-  ! CALL fdate(cal_date)
-  ! l = len(cal_date)
-  ! le = len_trim(cal_date)
-  ! cal_date(le:l) = ' '
-  cal_date=""
+  character(len= 8) :: date
+  character(len=10) :: time
+  character(len= 5) :: zone
+  integer, dimension(8) ::values
+  call date_and_time(date=date, time=time, zone=zone, values=values)
+  cal_date=date//" "//time
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
@@ -94,7 +91,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    ! CALL flush(lunit)
+    CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -129,41 +126,45 @@ END SUBROUTINE m_datum
 
 SUBROUTINE m_hostnm(hname)
   CHARACTER (len=*), INTENT (OUT) :: hname
-  INTEGER :: hostnm, ierror
-  ! ierror = hostnm(hname)
-  hname=""
+  CHARACTER (len=60) :: tmpname
+  INTEGER :: len
+  len=60
+  CALL gethostname(tmpname,len)
+  hname=tmpname(1:len)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
   CHARACTER (len=*), INTENT (OUT) :: curdir
-  INTEGER :: getcwd, ierror
-  ! ierror = getcwd(curdir)
-  curdir=""
+  CHARACTER (len=60) :: tmpdir
+  INTEGER :: len
+  len=60
+  CALL getcwd(tmpdir,len)
+  curdir=tmpdir(1:len)
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
   CHARACTER (len=*), INTENT (OUT) :: user
-  ! CALL getlog(user)
-  user="vondele"
+  CHARACTER (len=60) :: tmp
+  INTEGER :: len
+  len=60
+  CALL getlogin(tmp,len)
+  user=tmp(1:len)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
   INTEGER, INTENT (OUT) :: uid
-  INTEGER :: getuid
-  uid = 0 ! getuid()
+  uid = getuid()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
   INTEGER, INTENT (OUT) :: pid
-  INTEGER :: getpid
-  pid = 0 ! getpid()
+  pid = getpid()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
   INTEGER, INTENT (IN) :: i
   CHARACTER (len=*), INTENT (OUT) :: arg
-  ! CALL getarg(i,arg)
-  arg="H2O.inp"
+  CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************
 END MODULE machine_nag
