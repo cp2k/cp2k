@@ -82,6 +82,7 @@ MODULE qs_kpp1_env_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
+  USE qs_vxc_atom,                     ONLY: calculate_xc_2nd_deriv_atom
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
@@ -407,6 +408,7 @@ CONTAINS
        deallocate(v_xc,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        
+       IF (gapw) CALL calculate_xc_2nd_deriv_atom(p_env, qs_env, error)
 
        CALL xc_rho_set_release(rho1_set)
        IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
