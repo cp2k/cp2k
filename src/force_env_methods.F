@@ -137,7 +137,7 @@ RECURSIVE SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, my_box_change
-    INTEGER                                  :: i,j
+    INTEGER                                  :: i
 
 ! dbg TYPE(fist_environment_type), POINTER :: fist_env
 !------------------------------------------------------------------------------
@@ -324,8 +324,6 @@ SUBROUTINE force_env_create(force_env,force_env_list,fist_env,qs_env,kg_env,&
     INTEGER                                  :: i,j,k
     LOGICAL                                  :: failure
 
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(dyn_coeff_set_p_type), DIMENSION(:),POINTER :: sub_dyn_coeff
 
