@@ -66,17 +66,6 @@ output_format: atomic
   barostat_parameter:   &
     pressure: 0.        &
     timecon: 1000.
-  coef_ensemble:    nvt
-  coef_temperature  2.0                  coef temperature
-  coef_storage:     global
-  coef_mass:        250
-  coef_restart: pos
-  coef_nose_parameter   &
-   option:    global &
-   length:    1   &
-   Yoshida:   3   &
-   mts:       2     &
-   timecon:   100 fs
   print  files          1 
   print  screen        1   
 &END
