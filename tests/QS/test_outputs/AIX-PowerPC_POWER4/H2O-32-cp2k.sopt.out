@@ -1,4 +1,4 @@
- fawzi@mars1-fe has created process number                                 47594
+ fawzi@mars1-fe has created process number                                 39420
 
  IO| Input file name                                                  H2O-32.inp
  IO| Output file name                                                   (stdout)
@@ -8,14 +8,14 @@
  IO| Potential file name                                               POTENTIAL
  IO| Restart file name                                                   RESTART
 
-  **** **** ******  **  PROGRAM STARTED AT              Tue Jun 17 13:46:35 2003
+  **** **** ******  **  PROGRAM STARTED AT              Mon Jun 23 14:03:10 2003
  ***** ** ***  *** **   PROGRAM STARTED ON                              mars1-fe
  **    ****   ******    PROGRAM STARTED BY                                 fawzi
- ***** **    ** ** **   PROGRAM PROCESS ID                                 47594
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 39420
   **** **  *******  **  PROGRAM STARTED IN 
-                                        /gpfs/home/users.SP4/fawzi/cp2k/tests/QS
+                    /gpfs/home/users.SP4/fawzi/cp2k/test-AIX-PowerPC_POWER4-0306
 
- CP2K| Program compiled at                          Mon Jun 16 11:28:09 DFT 2003
+ CP2K| Program compiled at                          Mon Jun 23 13:58:02 DFT 2003
  CP2K| Program compiled on                                              mars1-fe
  CP2K| Program compiled for                                   AIX-PowerPC_POWER4
  CP2K| Program name                                                           QS
@@ -138,36 +138,36 @@
 
   Step  Update method              Time         Convergence        Total energy
   -----------------------------------------------------------------------------
-     1  Mixing/Diag.   0.40E+00    1.93        1.1872681417     -546.5728580070
-     2  Mixing/Diag.   0.40E+00    2.79        0.7024875873     -547.9856924984
-     3  Mixing/Diag.   0.40E+00    2.85        0.4173340475     -548.8437451900
-     4  Mixing/Diag.   0.40E+00    2.88        0.2475798519     -549.3519536036
-     5  Mixing/Diag.   0.40E+00    2.99        0.1471141626     -549.6547285824
-     6  Mixing/Diag.   0.40E+00    3.09        0.0874946213     -549.8357125027
-     7  DIIS/Diag.     0.56E-03    2.83        0.0515931644     -549.9440856534
-     8  DIIS/Diag.     0.18E-03    2.93        0.0001052470     -550.1063817174
-     9  DIIS/Diag.     0.26E-03    2.73        0.0006196920     -550.1063813952
-    10  DIIS/Diag.     0.24E-03    2.83        0.0002082300     -550.1063819312
-    11  DIIS/Diag.     0.24E-04    3.00        0.0000441963     -550.1063820786
-    12  DIIS/Diag.     0.15E-04    2.82        0.0000709547     -550.1063821057
-    13  DIIS/Diag.     0.13E-04    2.65        0.0000512098     -550.1063821177
-    14  DIIS/Diag.     0.71E-05    2.79        0.0000606621     -550.1063821178
-    15  DIIS/Diag.     0.34E-06    2.67        0.0000026419     -550.1063821140
+     1  Mixing/Diag.   0.40E+00    2.09        1.1872681419     -546.5728580070
+     2  Mixing/Diag.   0.40E+00    3.28        0.7024875878     -547.9856924968
+     3  Mixing/Diag.   0.40E+00    3.23        0.4173340481     -548.8437451876
+     4  Mixing/Diag.   0.40E+00    3.29        0.2475798523     -549.3519536008
+     5  Mixing/Diag.   0.40E+00    3.22        0.1471141630     -549.6547285793
+     6  Mixing/Diag.   0.40E+00    3.38        0.0874946216     -549.8357124995
+     7  DIIS/Diag.     0.56E-03    3.24        0.0515931646     -549.9440856501
+     8  DIIS/Diag.     0.18E-03    3.30        0.0001052470     -550.1063817139
+     9  DIIS/Diag.     0.26E-03    3.09        0.0006196920     -550.1063813918
+    10  DIIS/Diag.     0.24E-03    3.21        0.0002082300     -550.1063819277
+    11  DIIS/Diag.     0.24E-04    3.59        0.0000441963     -550.1063820751
+    12  DIIS/Diag.     0.15E-04    2.96        0.0000709547     -550.1063821023
+    13  DIIS/Diag.     0.13E-04    3.22        0.0000512098     -550.1063821143
+    14  DIIS/Diag.     0.71E-05    3.20        0.0000606621     -550.1063821144
+    15  DIIS/Diag.     0.34E-06    3.24        0.0000026419     -550.1063821105
 
   *** SCF run converged ***
 
 
   Total electronic density (r-space):       -255.9999848627        0.0000151373
   Total core charge density (r-space):       256.0000002545        0.0000002545
-  Total charge density (r-space):                                  0.0000153918
-  Total charge density (g-space):                                  0.0000153918
+  Total charge density (r-space):                                  0.0000153919
+  Total charge density (g-space):                                  0.0000153919
 
   Overlap energy of the core charge distribution:              0.00000093386465
   Self energy of the core charge distribution:             -1402.65249746927475
-  Core Hamiltonian energy:                                   410.66491681925174
-  Hartree energy:                                            574.20026964285785
-  Exchange-correlation energy:                              -132.31907204066655
-  Total energy:                                             -550.10638211396713
+  Core Hamiltonian energy:                                   410.66491681236073
+  Hartree energy:                                            574.20026964897477
+  Exchange-correlation energy:                              -132.31907203645446
+  Total energy:                                             -550.10638211052913
 
  -------------------------------------------------------------------------------
  -                                                                             -
@@ -175,68 +175,68 @@
  -                                                                             -
  -------------------------------------------------------------------------------
  SUBROUTINE                    CALLS  ASD CPU TIME T  PERFORMANCE   ELAPSED TIME
- CP2K                              1  1.0    46.93 I       ---             46.86
- quickstep                         1  2.0    46.93 I       ---             46.82
- qs_energies                       1  3.0    45.57 I       ---             45.46
- scf_env_do_scf                    1  4.0    43.86 I       ---             43.83
- scf_iter                         15  5.0    41.83 I       ---             41.78
- calculate_rho_elec               16  6.0    18.47 I       ---             18.40
- qs_ks_update_qs_env              15  6.0    16.37 I       ---             16.30
- build_kohn_sham                  15  7.0    16.20 I       ---             16.14
- build_kohn_sham_pot              15  8.0    12.91 I       ---             12.83
- calculate_rho_elec_omp           16  7.0    12.84 I       ---             12.75
- fft_wrap_pw1pw2                 171  8.5    10.77 I       ---             10.63
- integrate_v_rspace               15  9.0    10.52 I       ---             10.51
- fft3d_s                         172  9.4     6.65 I 518.6 Mflops           6.64
- integrate_v_rspace_omp           15 10.0     5.78 I       ---              5.77
- eigensolver                      15  6.0     5.63 I       ---              5.63
- blacs_syevx                      15  7.0     4.46 I       ---              4.48
- build_kohn_sham_energy           15  8.0     3.27 I       ---              3.30
- xc_calculate_pw_new              15 10.0     2.28 I       ---              2.32
- calculate_xc_potential           15  9.0     2.28 I       ---              2.32
- pw_gather                        80  8.6     1.89 I  11.8 Mcopy            1.89
- scf_diis                         14  6.0     1.70 I       ---              1.68
- pw_scatter                       91 10.3     1.44 I  21.1 Mcopy            1.44
- qs_init                           1  3.0     1.36 I       ---              1.36
- pw_env_rebuild                    1  4.0     1.30 I       ---              1.26
- build_core_hamiltonian_matri      1  4.0     1.14 I       ---              1.07
- pw_grid_setup                     4  5.0     1.08 I       ---              1.03
- cp_fm_cholesky_reduce            15  7.0     0.96 I       ---              0.97
- pw_grid_sort                      4  6.0     0.83 I       ---              0.81
- calculate_density_matrix_spa     15  6.0     0.80 I       ---              0.79
- cp_sm_plus_fm_fm_t_new           15  7.0     0.78 I       ---              0.77
- sparse_plus_loc_loct             15  8.0     0.76 I   0.8 Gflops           0.76
- init_scf_run                      1  5.0     0.75 I       ---              0.71
- cp_fm_gemm                       28  7.0     0.64 I   3.1 Gflops           0.68
- transfer_real_matrix             16  6.0     0.61 I       ---              0.63
- scf_env_initial_rho_setup         1  6.0     0.67 I       ---              0.63
- cp_fm_symm                       28  7.0     0.70 I   3.4 Gflops           0.62
- hartree                          15  9.0     0.66 I       ---              0.60
- pw_copy                          91  9.5     0.58 I 192.6 Mcopy            0.56
- qs_env_update_s_mstruct           1  4.0     0.52 I       ---              0.51
- sm_struct_add_sm_local_block      2  6.0     0.48 I       ---              0.46
- pw_sumup                         64  7.0     0.27 I  87.8 Mflops           0.29
- pw_add                           15  9.0     0.25 I  63.5 Mflops           0.28
- calculate_rho_core                1  5.0     0.28 I       ---              0.27
- pw_zero                          31  8.0     0.23 I 103.2 Mzero            0.27
- rs_pw_transfer                  125  8.4     0.19 I       ---              0.24
- mpools_rebuild_s_sm_pools         1  5.0     0.23 I       ---              0.23
- mpools_rebuild_h_r_sm_pools       1  5.0     0.26 I       ---              0.23
- init_cube_info                    4  5.0     0.22 I       ---              0.22
- copy_real_matrix_to_full_mat     32  6.5     0.09 I       ---              0.18
- cp_fm_cholesky_restore           15  7.0     0.21 I       ---              0.18
- pw_grid_assign                    4  6.0     0.19 I       ---              0.17
- calculate_ecore                  15  7.0     0.17 I       ---              0.16
- add_vppnl                         1  5.0     0.17 I       ---              0.15
- cp_sm_mix                        15  6.0     0.12 I       ---              0.13
- cp_fm_trace                      49  7.0     0.12 I       ---              0.12
- rs_grid_zero                     65  7.0     0.10 I       ---              0.10
+ CP2K                              1  1.0    52.96 I       ---             52.92
+ quickstep                         1  2.0    52.96 I       ---             52.92
+ qs_energies                       1  3.0    51.57 I       ---             51.53
+ scf_env_do_scf                    1  4.0    49.86 I       ---             49.83
+ scf_iter                         15  5.0    47.56 I       ---             47.54
+ calculate_rho_elec               16  6.0    21.09 I       ---             21.11
+ qs_ks_update_qs_env              15  6.0    18.90 I       ---             18.90
+ build_kohn_sham                  15  7.0    18.74 I       ---             18.72
+ build_kohn_sham_pot              15  8.0    14.80 I       ---             14.77
+ calculate_rho_elec_omp           16  7.0    14.47 I       ---             14.51
+ fft_wrap_pw1pw2                 171  8.5    12.82 I       ---             12.85
+ integrate_v_rspace               15  9.0    12.09 I       ---             12.09
+ fft3d_s                         172  9.4     7.73 I 440.9 Mflops           7.81
+ integrate_v_rspace_omp           15 10.0     6.24 I       ---              6.22
+ eigensolver                      15  6.0     6.18 I       ---              6.19
+ blacs_syevx                      15  7.0     4.88 I       ---              4.86
+ build_kohn_sham_energy           15  8.0     3.94 I       ---              3.94
+ xc_calculate_pw_new              15 10.0     2.81 I       ---              2.80
+ calculate_xc_potential           15  9.0     2.81 I       ---              2.80
+ pw_gather                        80  8.6     2.45 I   9.3 Mcopy            2.40
+ scf_diis                         14  6.0     1.87 I       ---              1.87
+ pw_scatter                       91 10.3     1.72 I  17.1 Mcopy            1.77
+ qs_init                           1  3.0     1.39 I       ---              1.39
+ pw_env_rebuild                    1  4.0     1.32 I       ---              1.31
+ build_core_hamiltonian_matri      1  4.0     1.13 I       ---              1.12
+ cp_fm_cholesky_reduce            15  7.0     1.11 I       ---              1.09
+ pw_grid_setup                     4  5.0     1.08 I       ---              1.08
+ pw_grid_sort                      4  6.0     0.85 I       ---              0.87
+ init_scf_run                      1  5.0     0.80 I       ---              0.81
+ cp_sm_plus_fm_fm_t_new           15  7.0     0.80 I       ---              0.79
+ calculate_density_matrix_spa     15  6.0     0.83 I       ---              0.79
+ sparse_plus_loc_loct             15  8.0     0.79 I   0.7 Gflops           0.78
+ cp_fm_gemm                       28  7.0     0.72 I   2.8 Gflops           0.76
+ hartree                          15  9.0     0.77 I       ---              0.75
+ scf_env_initial_rho_setup         1  6.0     0.72 I       ---              0.73
+ cp_fm_symm                       28  7.0     0.74 I   2.9 Gflops           0.72
+ transfer_real_matrix             16  6.0     0.66 I       ---              0.65
+ pw_copy                          91  9.5     0.67 I 171.2 Mcopy            0.63
+ qs_env_update_s_mstruct           1  4.0     0.52 I       ---              0.52
+ sm_struct_add_sm_local_block      2  6.0     0.46 I       ---              0.45
+ pw_sumup                         64  7.0     0.35 I  79.6 Mflops           0.32
+ calculate_rho_core                1  5.0     0.29 I       ---              0.29
+ pw_add                           15  9.0     0.29 I  63.5 Mflops           0.28
+ pw_zero                          31  8.0     0.23 I 107.1 Mzero            0.26
+ cp_fm_cholesky_restore           15  7.0     0.19 I       ---              0.24
+ init_cube_info                    4  5.0     0.23 I       ---              0.23
+ mpools_rebuild_h_r_sm_pools       1  5.0     0.24 I       ---              0.23
+ mpools_rebuild_s_sm_pools         1  5.0     0.22 I       ---              0.22
+ rs_pw_transfer                  125  8.4     0.29 I       ---              0.22
+ calculate_ecore                  15  7.0     0.16 I       ---              0.18
+ add_vppnl                         1  5.0     0.18 I       ---              0.18
+ copy_real_matrix_to_full_mat     32  6.5     0.15 I       ---              0.18
+ pw_grid_assign                    4  6.0     0.18 I       ---              0.16
+ cp_sm_mix                        15  6.0     0.11 I       ---              0.14
+ cp_fm_trace                      49  7.0     0.15 I       ---              0.12
+ rs_grid_zero                     65  7.0     0.12 I       ---              0.11
  -------------------------------------------------------------------------------
 
-  **** **** ******  **  PROGRAM ENDED AT                Tue Jun 17 13:47:22 2003
+  **** **** ******  **  PROGRAM ENDED AT                Mon Jun 23 14:04:03 2003
  ***** ** ***  *** **   PROGRAM RAN ON                                  mars1-fe
  **    ****   ******    PROGRAM RAN BY                                     fawzi
- ***** **    ** ** **   PROGRAM PROCESS ID                                 47594
+ ***** **    ** ** **   PROGRAM PROCESS ID                                 39420
   **** **  *******  **  PROGRAM STARTED IN 
-                                        /gpfs/home/users.SP4/fawzi/cp2k/tests/QS
+                    /gpfs/home/users.SP4/fawzi/cp2k/test-AIX-PowerPC_POWER4-0306
 
