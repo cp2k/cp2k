@@ -841,7 +841,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(apname,.TRUE.,found,line)
+      CALL search_object(TRIM(apname),.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -1013,7 +1013,7 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(globenv%potential_file_name)//">")
+                          TRIM(globenv%potential_file_name)//">",globenv)
 
       END IF
 
@@ -1065,7 +1065,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(apname,.TRUE.,found,line)
+      CALL search_object(TRIM(apname),.TRUE.,found,line)
 
       IF (found) THEN
 
@@ -1103,7 +1103,7 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(globenv%potential_file_name)//">")
+                          TRIM(globenv%potential_file_name)//">",globenv)
 
       END IF
 

@@ -687,8 +687,7 @@ CONTAINS
       IF (PRESENT(pao_tot_min_bas)) pao_tot_min_bas=p_min_bas_tot
       IF (PRESENT(pao_max_l_angles)) pao_max_l_angles=p_l_angles_max
     ELSE
-      CALL stop_program(routine,&
-                        "The pointer atomic_kind_set is not associated")
+      CALL stop_program(routine,"The pointer atomic_kind_set is not associated")
     END IF
 
   END SUBROUTINE get_atomic_kind_set
@@ -738,7 +737,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), INTENT(IN)     :: globenv
 
 !   *** Local parameters ***
 
@@ -759,8 +758,8 @@ CONTAINS
         CALL init_atomic_kind(atomic_kind,globenv)
       END DO
     ELSE
-      CALL stop_program(routine,&
-                        "The pointer atomic_kind_set is not associated")
+      CALL stop_program(routine,"The pointer atomic_kind_set is not associated",&
+                        globenv)
     END IF
 
   END SUBROUTINE init_atomic_kind_set
@@ -790,8 +789,8 @@ CONTAINS
     TYPE(cp_sll_int_type), POINTER :: min_bas_sll
     CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
                                       orb_basis_set_name,potential_name,&
-                                      pot_fullname
-    CHARACTER(len=3)               :: test_result
+                                      potential_type
+    CHARACTER(LEN=3)               :: test_result
     CHARACTER(LEN=2)               :: current_symbol,element_symbol
     INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
     LOGICAL                        :: found,section_found, failure
@@ -802,6 +801,7 @@ CONTAINS
     aux_basis_set_name = ""
     orb_basis_set_name = ""
     potential_name = "GTH"
+    potential_type = ""
     z = -1
     CALL cp_sll_int_create(min_bas_sll)
     CALL cp_error_init(error)
@@ -899,7 +899,7 @@ CONTAINS
                         TRIM(atomic_kind%name)//">. Specify a valid "//&
                         "element symbol in the input section <KIND "//&
                         TRIM(atomic_kind%name)//"> or select a valid "//&
-                        "element symbol for the atomic kind name")
+                        "element symbol for the atomic kind name",globenv)
     END IF
 
     IF (globenv%program_name == "QS") THEN
@@ -908,14 +908,14 @@ CONTAINS
                           "No orbital basis set was defined for the atomic "//&
                           "kind <"//TRIM(atomic_kind%name)//">. Specify a "//&
                           "valid orbital basis set name in the input "//&
-                          "section <KIND "//TRIM(atomic_kind%name)//">")
+                          "section <KIND "//TRIM(atomic_kind%name)//">",globenv)
       END IF
       IF (potential_name == "") THEN
         CALL stop_program(routine,&
                           "No atomic potential type was defined for the "//&
                           "atomic kind <"//TRIM(atomic_kind%name)//">. "//&
                           "Specify a valid potential type in the input "//&
-                          "section <KIND "//TRIM(atomic_kind%name)//">")
+                          "section <KIND "//TRIM(atomic_kind%name)//">",globenv)
       END IF
     END IF
 
@@ -940,37 +940,38 @@ CONTAINS
 
     IF (potential_name /= "") THEN
 
-!     *** Remove the appendix of the potential name ***
-!     *** (e.g. remove "-PADE" from  GTH-PADE)      ***
+      ipos = INDEX(potential_name,"-")
 
-      !guess we should not remove the tail, e.g. -LDA -BLYP
-      !pot_fullname = potential_name
-      !ipos = INDEX(potential_name,"-")
-      !IF (ipos > 0) potential_name(ipos:) = " "
+      IF (ipos > 1) THEN
+        potential_type = potential_name(:ipos-1)
+      ELSE
+        potential_type = potential_name
+      END IF
 
-      CALL uppercase(potential_name)
+      CALL uppercase(potential_type)
 
-      IF (potential_name(1:3) == "ALL") THEN
+      SELECT CASE (TRIM(potential_type))
+      CASE ("ALL")
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%all_potential,globenv)
-      ELSE IF (potential_name(1:3) == "GTH") THEN
+      CASE ("GTH")
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,globenv)
-      ELSE IF (potential_name(1:3) == "EPC") THEN
+      CASE ("EPC")
         CALL allocate_potential(atomic_kind%epc_potential)
-        CALL read_potential(atomic_kind%element_symbol,pot_fullname,&
+        CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%epc_potential,globenv)
-      ELSE
+      CASE DEFAULT
         CALL stop_program(routine,&
                           "An invalid potential type <"//&
                           TRIM(potential_name)//"> was specified "//&
                           "for the atomic kind <"//&
                           TRIM(atomic_kind%name)//&
                           "> in the input file <"//&
-                          TRIM(globenv%input_file_name)//">")
-      END IF
+                          TRIM(globenv%input_file_name)//">",globenv)
+      END SELECT
 
     END IF
 
@@ -1019,8 +1020,8 @@ CONTAINS
         CALL read_atomic_kind(atomic_kind,globenv)
       END DO
     ELSE
-      CALL stop_program(routine,&
-                        "The pointer atomic_kind_set is not associated")
+      CALL stop_program(routine,"The pointer atomic_kind_set is not associated",&
+                        globenv)
     END IF
 
   END SUBROUTINE read_atomic_kind_set
@@ -1145,8 +1146,8 @@ CONTAINS
           CALL write_atomic_kind(atomic_kind,globenv)
         END DO
       ELSE
-        CALL stop_program(routine,&
-                          "The pointer atomic_kind_set is not associated")
+        CALL stop_program(routine,"The pointer atomic_kind_set is not associated",&
+                          globenv)
       END IF
     END IF
 
@@ -1204,8 +1205,8 @@ CONTAINS
 
       ELSE
 
-        CALL stop_program(routine,&
-                          "The pointer atomic_kind_set is not associated")
+        CALL stop_program(routine,"The pointer atomic_kind_set is not associated",&
+                          globenv)
 
       END IF
 

@@ -815,7 +815,7 @@ CONTAINS
 
     search_loop: DO
 
-      CALL search_object(bsname,.TRUE.,found,line)
+      CALL search_object(TRIM(bsname),.TRUE.,found,line)
 
       IF (found) THEN
 
