@@ -142,7 +142,7 @@ CONTAINS
        DO j=grid%bounds_local(1,2),grid%bounds_local(2,2)
           y=REAL(j,dbl)*dy
           y2=y*y
-          x=-REAL(grid%bounds(1,1),dbl)*dx
+          x=-REAL(grid%bounds_local(1,1),dbl)*dx
           DO i=grid%bounds_local(1,1),grid%bounds_local(2,1)
              r2=x*x+y2+z2
              IF(r.GT.1.d-20) THEN

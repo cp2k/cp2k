@@ -133,7 +133,7 @@ CONTAINS
     failure=.false.
     NULLIFY(globenv, force_env, force_env_p, para_env_p )
     ALLOCATE(globenv,stat=stat)
-    IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
+!    IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
     ! init globenv with the data
     globenv%scr=output_unit

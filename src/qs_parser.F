@@ -43,9 +43,9 @@ MODULE qs_parser
 
 ! *** Global variables ***
 
-  CHARACTER(LEN=4) :: default_separators = ",:;="
-  CHARACTER(LEN=3) :: default_end_section_label = "END"
-  CHARACTER(LEN=1) :: blank_character = " ",&
+  CHARACTER(LEN=4),PARAMETER :: default_separators = ",:;="
+  CHARACTER(LEN=3),PARAMETER :: default_end_section_label = "END"
+  CHARACTER(LEN=1),PARAMETER :: blank_character = " ",&
                       default_comment_character = "#",&
                       default_continuation_character = CHAR(92),& ! backslash
                       default_section_character = "&",&

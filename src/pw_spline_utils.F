@@ -69,6 +69,9 @@ MODULE pw_spline_utils
          nn50_coeffs=&
          (/ 15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp,&
          1._dp/140608._dp /)
+         nn100_coeffs=&
+         (/ 125000._dp/132561._dp, 1250._dp/132561._dp, 25._dp/132561._dp,&
+         1._dp/1061208._dp /)
          
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
          (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
