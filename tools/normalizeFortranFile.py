@@ -18,7 +18,7 @@ def readFortranLine(infile):
     returns a touple with the joined line, and a list with the original lines.
     Doesn't support multiline character constants!"""
     lineRe=re.compile(
-        r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*\n?)?\n?)",#$
+        r"(?:(?P<preprocessor>#.*\n?)| *(&)?(?P<core>(?:!\$|[^&!\"']+|\"[^\"]*\"|'[^']*')*)(?P<continue>&)? *(?P<comment>!.*\n?)?\n?)",#$
         re.IGNORECASE)
     joinedLine=""
     comments=None
