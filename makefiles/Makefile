@@ -2,10 +2,10 @@
 SHELL = /bin/sh
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
-CP2KHOME  := $(PWD)/..
+CP2KHOME  := /Volumes/Big/Users/fawzi/cp2k
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 1
+PMAKE     = $(SMAKE) -j 2
 LIB1      = cp2klib
 export VERSION=sopt
 
@@ -105,13 +105,25 @@ $(PROG): $(LIB1_ARCHIVE) $(OBJECTS)
 vpath %.F $(SRCDIRS)
 
 %.f90: %.F
+ifneq ($(POST_PROC),)
+	$(CPP) $(CPPFLAGS) $< > $*.tmp2
+	$(POST_PROC)  $*.tmp2 > $*.f90
+	rm $*.tmp2
+else
 	$(CPP) $(CPPFLAGS) $< > $*.f90
+endif
 
 %.o: %.f90
 	$(FC) -c $(FCFLAGS) $<
 
 %.dep: %.F
+ifneq ($(POST_PROC),)
+	$(CPP) $(CPPFLAGS) -P $< > $*.tmp
+	$(POST_PROC)  $*.tmp > $*.for
+	rm $*.tmp
+else
 	$(CPP) $(CPPFLAGS) -P $< > $*.for
+endif
 	$(FORPAR) $*.for
 	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
 	@rm -f $*.dep.old $*.for
