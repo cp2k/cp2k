@@ -58,13 +58,15 @@ MODULE force_env_types
                                              meta_env_retain,&
                                              meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
+  USE qmmm_types,                      ONLY: qmmm_env_type, &
+                                             qmmm_env_release
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
-  USE qmmm_types, ONLY: qmmm_env_type, qmmm_env_release
-  USE virial_types, ONLY : virial_type
+  USE virial_types,                    ONLY: virial_type,&
+                                             zero_virial
 
   IMPLICIT NONE
 
@@ -786,9 +788,10 @@ END SUBROUTINE force_env_read_variables
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env, error)
+SUBROUTINE force_env_set(force_env, meta_env, virial, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -808,6 +811,7 @@ SUBROUTINE force_env_set(force_env, meta_env, error)
      CALL meta_env_release(force_env%meta_env,error=error)
      force_env%meta_env => meta_env
   END IF
+  IF (PRESENT(virial)) force_env % virial => virial
 END SUBROUTINE force_env_set
 !***************************************************************************
 

@@ -48,15 +48,22 @@ MODULE cp2k_runs
                                              mp_comm_free
   USE qs_mc,                           ONLY: qs_mon_car
   USE qs_parser,                       ONLY: open_file,close_file
-  USE parser,                          ONLY: parser_init, parser_end,&
-       get_next, test_next, search_label, read_line
+  USE parser,                          ONLY: parser_init, &
+                                             parser_end,&
+                                             get_next, &
+                                             test_next, &
+                                             search_label, &
+                                             read_line
   USE string_utilities,                ONLY: uppercase
   USE trajana_methods,                 ONLY: trajana
   USE timings,                         ONLY: timeset, &
                                              timestop
-  USE metadynamics_types, ONLY: meta_env_type, meta_env_release
-  USE metadynamics, only: metadyn_read
-  USE qmmm_init, only: qmmm_create_force_env
+  USE metadynamics_types,              ONLY: meta_env_type, &
+                                             meta_env_release
+  USE metadynamics,                    ONLY: metadyn_read
+  USE qmmm_init,                       ONLY: qmmm_create_force_env
+  USE virial_types,                    ONLY: virial_type,&
+                                             virial_create
   IMPLICIT NONE
 
   PRIVATE
@@ -116,6 +123,7 @@ CONTAINS
     TYPE(cp_error_type) :: error
     TYPE(force_env_p_type), pointer :: force_env_p ( : )
     TYPE(force_env_type), pointer :: force_env
+    TYPE(virial_type), pointer :: virial
     TYPE(meta_env_type), pointer :: meta_env
     INTEGER :: handle, stat, i,ierr
     logical :: failure
@@ -165,9 +173,10 @@ CONTAINS
     END SELECT
     
     IF (ASSOCIATED(force_env)) THEN
-       NULLIFY(meta_env)
+       NULLIFY(virial,meta_env)
        CALL metadyn_read(meta_env, globenv, error=error)
-       CALL force_env_set(force_env,meta_env=meta_env,error=error)
+       CALL virial_create(virial,error=error)
+       CALL force_env_set(force_env,virial=virial,meta_env=meta_env,error=error)
        CALL meta_env_release(meta_env,error=error)
     END IF
 
