@@ -45,7 +45,8 @@ MODULE greens_fns
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D,&
-                                             greens_function_type
+                                             greens_function_type, &
+                                             influence_factor
   USE kinds,                           ONLY: dbl
   USE mt_util,                         ONLY: MTin_create_screen_fn
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -114,6 +115,7 @@ SUBROUTINE pw_green_fn_rebuild ( gftype, pw_pool, p3m, alpha, error )
         END IF
         CALL pw_pool_create_pw ( pw_pool, gftype % p3m_charge, use_data=REALDATA1D, &
              in_space=RECIPROCALSPACE)
+        CALL influence_factor ( gftype )
      ELSE
         gftype % p3m = .FALSE.
      END IF

@@ -54,7 +54,7 @@ MODULE greens_fn
   
   PRIVATE
   PUBLIC :: pw_green_fn, pw_green_fn_destroy,greens_function_type,&
-       pw_green_fn_init1
+       pw_green_fn_init1, influence_factor
   
   TYPE greens_function_type
     INTEGER :: method
