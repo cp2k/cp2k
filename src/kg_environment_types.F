@@ -49,6 +49,9 @@ MODULE kg_environment_types
                                              cp_subsys_set,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_release,&
+                                             dyn_coeff_set_retain,&
+                                             dyn_coeff_set_type
   USE kg_energy_types,                 ONLY: deallocate_kg_energy,&
                                              kg_energy_type
   USE kg_force_types,                  ONLY: deallocate_kg_force,&
@@ -70,6 +73,9 @@ MODULE kg_environment_types
   USE particle_types,                  ONLY: particle_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
+  USE scf_control_types,               ONLY: scf_c_release,&
+                                             scf_c_retain,&
+                                             scf_control_type
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_retain,&
                                              cell_type
@@ -84,11 +90,13 @@ MODULE kg_environment_types
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(dft_control_type), POINTER                       :: dft_control
+    TYPE(dyn_coeff_set_type), POINTER                     :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER                         :: energy
     TYPE(kg_force_type), DIMENSION(:), POINTER            :: force
     TYPE(kg_rho_type),POINTER                             :: rho 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl 
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
+    TYPE(scf_control_type),POINTER                        :: scf_control
     TYPE(cp_subsystem_type), POINTER                      :: subsys
   END TYPE kg_environment_type
 
@@ -112,11 +120,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_kg_env( kg_env, atomic_kind_set, cell,  &
-                         dft_control,energy,force, &
+                         dft_control,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          particle_set,rho,&
-                         sac_ppl,sac_ppl_aux,subsys,error)
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 !   Purpose: Get the KG environment.
 
@@ -129,6 +137,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(dyn_coeff_set_type), OPTIONAL, &
+      POINTER                                :: dyn_coeff_set
     TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -147,6 +157,8 @@ CONTAINS
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -172,6 +184,7 @@ CONTAINS
 
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(dft_control)) dft_control => kg_env % dft_control
+    IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => kg_env % dyn_coeff_set
     IF (PRESENT(energy)) energy => kg_env%energy
     IF (PRESENT(force)) force => kg_env%force
     IF (PRESENT(id_nr)) id_nr=kg_env%id_nr
@@ -181,6 +194,7 @@ CONTAINS
     IF (PRESENT(rho)) rho => kg_env%rho
     IF (PRESENT(sac_ppl)) sac_ppl => kg_env%sac_ppl
     IF (PRESENT(sac_ppl_aux)) sac_ppl_aux => kg_env%sac_ppl_aux
+    IF (PRESENT(scf_control)) scf_control => kg_env%scf_control
     CALL cp_subsys_get(kg_env%subsys,&
                       atomic_kinds=atomic_kinds,&
                       local_molecules_new=local_molecules,&
@@ -213,11 +227,13 @@ CONTAINS
 
     NULLIFY (kg_env%cell)
     NULLIFY (kg_env%dft_control)
+    NULLIFY (kg_env%dyn_coeff_set)
     NULLIFY (kg_env%energy)
     NULLIFY (kg_env%force)
     NULLIFY (kg_env%rho)
     NULLIFY (kg_env%sac_ppl)
     NULLIFY (kg_env%sac_ppl_aux)
+    NULLIFY (kg_env%scf_control)
     NULLIFY (kg_env%subsys)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
@@ -232,11 +248,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_kg_env( kg_env, atomic_kind_set,  cell,  &
-                         dft_control,energy,force, &
+                         dft_control,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
-                         molecule_kind_set,molecule_set,para_env,&
+                         molecule_kind_set,molecule_set,&
                          particle_set,rho,&
-                         sac_ppl,sac_ppl_aux,subsys,error)
+                         sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 
 !   Purpose: set the KG environment.
@@ -250,6 +266,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(dyn_coeff_set_type), OPTIONAL, &
+      POINTER                                :: dyn_coeff_set
     TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -260,13 +278,13 @@ CONTAINS
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
-    TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_ppl, sac_ppl_aux
+    TYPE(scf_control_type), OPTIONAL, &
+      POINTER                                :: scf_control
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsys
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -297,6 +315,16 @@ CONTAINS
        CALL dft_control_retain(dft_control, error=error)
        CALL dft_control_release(kg_env%dft_control, error=error)
        kg_env%dft_control => dft_control
+    END IF
+    IF (PRESENT(scf_control)) THEN 
+       CALL scf_c_retain(scf_control,error=error)
+       CALL scf_c_release(kg_env%scf_control,error=error)
+       kg_env%scf_control => scf_control
+    END IF
+    IF (PRESENT(dyn_coeff_set)) THEN
+       CALL dyn_coeff_set_retain(dyn_coeff_set, error=error)
+       CALL dyn_coeff_set_release(kg_env%dyn_coeff_set, error=error)
+       kg_env%dyn_coeff_set => dyn_coeff_set
     END IF
     IF (PRESENT(energy)) kg_env%energy => energy
     IF (PRESENT(force)) kg_env%force => force
@@ -360,7 +388,6 @@ CONTAINS
       CALL mol_new_list_release(molecules_new,error=error)
     END IF
 
-!***************************************************************************
   END SUBROUTINE set_kg_env
 
 !***************************************************************************
@@ -408,9 +435,6 @@ SUBROUTINE kg_env_create(kg_env,para_env,error)
      CALL init_kg_env(kg_env,para_env=para_env, error=error)         
   END IF
 END SUBROUTINE kg_env_create
-
-
-
 !***************************************************************************
 !!****f* kg_environment_types/kg_env_retain [1.0] *
 !!
@@ -516,6 +540,8 @@ SUBROUTINE kg_env_release(kg_env,error)
         IF (ASSOCIATED(kg_env%force))&
              CALL deallocate_kg_force(kg_env%force)
         CALL kg_rho_release(kg_env%rho, error=error)
+        CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
+        CALL scf_c_release(kg_env%scf_control, error=error)
         CALL cp_para_env_release(kg_env%para_env,error=error)
         CALL cp_subsys_release(kg_env%subsys,error=error)
         DEALLOCATE(kg_env, stat=stat)

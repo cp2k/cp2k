@@ -37,25 +37,10 @@ MODULE kg_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
-! USE force_env_types,                   ONLY: force_env_calculate_force,&
-
-!                                            force_env_create,&
-
-!                                            force_env_release,&
-
-!                                            force_env_type
-
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_create,&
+                                             dyn_coeff_set_release,&
+                                             dyn_coeff_set_type
   USE global_types,                    ONLY: global_environment_type
-!  USE kg_energy_utils,                 ONLY: energy_min_type,&
-
-!                                             min_info_type,&
-
-!                                             print_convergence,&
-
-!                                             print_energy_info,&
-
-!                                             read_energy_section
-
   USE kg_energy_types,                 ONLY: allocate_kg_energy,&
                                              kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -67,14 +52,6 @@ MODULE kg_environment
                                              kg_rho_setup
   USE kg_rho_types,                    ONLY: kg_rho_release,&
                                              kg_rho_type
-!  USE kg_force,                        ONLY: kg_force_release
-
-!  USE kg_pol_coefs,                    ONLY: allocate_coefs,&
-
-!                                             dump_coefs,&
-
-!                                             initialize_coefs
-
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
@@ -86,6 +63,11 @@ MODULE kg_environment
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE scf_control_types,               ONLY: scf_c_create,&
+                                             scf_c_read_parameters,&
+                                             scf_c_release,&
+                                             scf_c_write_parameters,&
+                                             scf_control_type
   USE simulation_cell,                 ONLY: cell_release,&
                                              cell_type,&
                                              read_cell,&
@@ -140,9 +122,9 @@ SUBROUTINE kg_init (kg_env,globenv,error)
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "kg_init"
 
-    INTEGER                                  :: handle, i, istat, maxl, &
-                                                maxlgto, maxlppl, maxlppnl, &
-                                                nkind, output_unit
+    INTEGER                                  :: handle, istat, maxl, maxlgto, &
+                                                maxlppl, maxlppnl, nkind, &
+                                                output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     LOGICAL                                  :: ionode, kgpol
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -151,6 +133,7 @@ SUBROUTINE kg_init (kg_env,globenv,error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
       POINTER                                :: force
@@ -160,6 +143,7 @@ SUBROUTINE kg_init (kg_env,globenv,error)
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !  CHARACTER ( LEN = 40 ) :: set_fn, project_name
 !  CHARACTER ( LEN = 5 ) :: tag
@@ -172,19 +156,18 @@ SUBROUTINE kg_init (kg_env,globenv,error)
   ionode = globenv%ionode
   output_unit = globenv%scr
 
-
-! initialize kg_env
-! CALL init_kg_env ( kg_env )
 ! nullifying  pointers
   NULLIFY ( atomic_kind_set )
   NULLIFY ( cell )
   NULLIFY ( dft_control )
+  NULLIFY ( dyn_coeff_set )
   NULLIFY (energy)
   NULLIFY (force)
   NULLIFY (local_molecules)
   NULLIFY (local_particles)
   NULLIFY (molecule_set)
   NULLIFY ( particle_set )
+  NULLIFY ( scf_control )
 
   kgpol = .FALSE.
 
@@ -279,16 +262,23 @@ SUBROUTINE kg_init (kg_env,globenv,error)
 
   IF ( kgpol ) THEN
 
+    CALL dyn_coeff_set_create(dyn_coeff_set=dyn_coeff_set,&
+                              atomic_kind_set=atomic_kind_set,&
+                              distribution=local_particles,&
+                              error=error)
+    CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
+    CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
 
-!    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!                             ncgf_aux=ncoef)
-!    CALL allocate_coefs (ncoef, coef_pos ( 1 ), coef_vel ( 1 ), &
-!                             coef_force ( 1 ) )
-!    CALL initialize_coefs (simpar, coef_pos ( 1 ), coef_vel ( 1 ),&
-!                             coef_force ( 1 ), globenv )
-!    IF ( globenv % run_type == 'WAVEFUNCTION OPTIMIZATION') THEN
-!      CALL read_energy_section ( energy_min, globenv )
-!    END IF
+!   *** SCF parameters ***
+    IF ((globenv%run_type=='ENERGY CALCULATION').OR.(globenv%run_type==&
+         'WAVEFUNCTION OPTIMIZATION')) THEN
+
+       CALL scf_c_create(scf_control)
+       CALL scf_c_read_parameters(scf_control,globenv)
+       CALL scf_c_write_parameters(scf_control,globenv)
+       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
+       CALL scf_c_release(scf_control,error=error)  
+    END IF
 
   END IF
 

@@ -30,6 +30,9 @@ MODULE kg_ppl
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
+                                             dyn_coeff_set_type,&
+                                             dyn_coeff_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -53,7 +56,8 @@ MODULE kg_ppl
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -444,7 +448,6 @@ CONTAINS
 
                 IF (calculate_forces) THEN
 
-
                   CALL overlap_ppl(&
                     la_max(iset),la_min(iset),npgfa(iset),&
                     rpgfa(:,iset),zeta(:,iset),&
@@ -455,6 +458,7 @@ CONTAINS
                     rab,dab,rac,dac,rbc,dbc,&
                     hab,nder,0,.FALSE.,ai_work,&
                     pab,force_a)
+
 
 !               *** The derivatives w.r.t. atomic center c are    ***
 !               *** calculated using the translational invariance ***
@@ -550,11 +554,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"vppl")
 
     END IF
- 
+
     DEALLOCATE (ai_work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "ai_work")
-
+ 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 
@@ -577,49 +581,52 @@ CONTAINS
     CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE calculate_rho0_ppl
-
 ! *****************************************************************************
 
-  SUBROUTINE calculate_drho_ppl(eigenvector,eigenforce,kg_env,globenv,energy,&
-                               calculate_forces,force)
+  SUBROUTINE calculate_drho_ppl(kg_env,globenv,calculate_forces)
 
 !   ***************************************************************************
 
-    REAL(dbl), DIMENSION(:), POINTER         :: eigenvector, eigenforce
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    REAL(dbl), INTENT(out)                   :: energy
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(kg_force_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: force
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_drho_pp", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    INTEGER :: ac, atom_a, atom_c, handle, i, iatom, ikind, iset, istat, &
-      jkind, katom, kkind, knode, ldai, ldsab, maxco, maxder, maxl, maxlgto, &
-      maxlppl, maxsgf, natom, natom_of_kind, ncoa, nder, nkind, nnode, nseta, &
-      offset, sgfa
+    INTEGER :: ac, atom_a, atom_c, group, handle, i, ialpha, iatom, ikind, &
+      iparticle_local, iset, istat, jkind, katom, kkind, knode, ldai, ldsab, &
+      maxco, maxder, maxl, maxlgto, maxlppl, maxsgf, natom, natom_of_kind, &
+      ncexp, ncoa, nder, nkind, nnode, nparticle_local, nseta, offset, &
+      output_unit, sgfa
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: gth_potential_present, &
-                                                ppl_present
-    REAL(dbl)                                :: dab, dac, dbc, rab2, rac2, &
-                                                rbc2
-    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: alpha_ppl, ppl_radius
+    LOGICAL                                  :: elp_potential_present, &
+                                                gth_potential_present, &
+                                                ionode, ppl_present
+    REAL(dbl)                                :: alfa, coef, dab, dac, dbc, &
+                                                e_ppl, rab2, rac2, rbc2
+    REAL(dbl), ALLOCATABLE, DIMENSION(:)     :: ppl_radius
     REAL(dbl), ALLOCATABLE, DIMENSION(:, :)  :: hab, pab, work
     REAL(dbl), DIMENSION(1)                  :: rpgfb, zetb
     REAL(dbl), DIMENSION(3)                  :: force_a, rab, rac, rbc
-    REAL(dbl), DIMENSION(:), POINTER         :: set_radius_a
+    REAL(dbl), DIMENSION(:), POINTER         :: cexp, set_radius_a
     REAL(dbl), DIMENSION(:, :), POINTER      :: rpgfa, sphi_a, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(dyn_coeff_type), POINTER            :: local_coeffs
+    TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_ppl_aux
     TYPE(neighbor_list_type), POINTER        :: sac_ppl_neighbor_list
@@ -628,10 +635,15 @@ CONTAINS
       POINTER                                :: particle_set
 
     TYPE cexp_ppl_type
-      REAL(dbl), DIMENSION(:), POINTER :: c
+      REAL(dbl), DIMENSION(:,:), POINTER :: c
     END TYPE cexp_ppl_type
 
+    TYPE alpha_ppl_type
+      REAL(dbl), DIMENSION(:), POINTER :: alpha 
+    END TYPE alpha_ppl_type
+
     TYPE(cexp_ppl_type), DIMENSION(:), ALLOCATABLE :: cexp_ppl
+    TYPE(alpha_ppl_type), DIMENSION(:), ALLOCATABLE :: alpha_ppl
 
     TYPE vppl_type
       REAL(dbl), DIMENSION(:), POINTER   :: r2
@@ -648,17 +660,36 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+    
+    NULLIFY(atomic_kind_set,atomic_kind,cexp,elp_potential,gth_potential)
+    NULLIFY(aux_basis_set,particle_set,sac_ppl_aux,set_radius_a,rpgfa,sphi_a,zeta)
+    NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
+    NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
+    NULLIFY(dyn_coeff_set,local_coeffs)
+
+    group = globenv%group
+    ionode = globenv%ionode
+    output_unit = globenv%scr
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
+                    dyn_coeff_set=dyn_coeff_set,&
                     particle_set=particle_set,&
-                    sac_ppl_aux=sac_ppl_aux) 
+                    local_particles=local_particles,&
+                    sac_ppl_aux=sac_ppl_aux,&
+                    energy=energy,&
+                    force=force) 
+
+
+    IF(dyn_coeff_set%distribution_method/=dyn_coeff_distributed) THEN
+      CALL stop_program ( 'kg_ppl','replicated coefs not yet implemented')
+    END IF
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
     zetb(:)=0._dbl
     rpgfb(:)=0._dbl
-    energy=0._dbl
+    e_ppl=0._dbl
 
     IF (calculate_forces) THEN
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -677,6 +708,7 @@ CONTAINS
               CALL stop_memory(routine,"force(ikind)%f_ppl",&
                                3*natom_of_kind*dbl)
             END IF
+            force(ikind)%f_ppl(:,:) = 0.0_dbl
           END IF
         END IF
       END DO
@@ -691,6 +723,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
+                             elp_potential_present=elp_potential_present,&
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
@@ -732,7 +765,7 @@ CONTAINS
       pab(:,:) = 0.0_dbl
     END IF
 
-!   *** Load GTH pseudo potential data (local part -> PPL) ***
+!   *** Load pseudo potential data (local part -> PPL) ***
 
     ppl_present = ASSOCIATED(sac_ppl_aux)
 
@@ -740,6 +773,9 @@ CONTAINS
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*dp_size)
+      DO i=1,SIZE(alpha_ppl)
+        NULLIFY(alpha_ppl(i)%alpha)
+      END DO
 
       ALLOCATE (cexp_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl",nkind*int_size)
@@ -750,20 +786,34 @@ CONTAINS
       ALLOCATE (ppl_radius(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"ppl_radius",nkind*dp_size)
 
-      offset=0
-
       DO ikind=1,nkind
 
         atomic_kind => atomic_kind_set(ikind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             elp_potential=elp_potential,&
                              gth_potential=gth_potential)
 
-        IF (ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=alpha_ppl(ikind),&
+        IF (ASSOCIATED(elp_potential)) THEN
+          CALL get_potential(potential=elp_potential,&
+                             alpha_ppl=alpha_ppl(ikind)%alpha,&
                              cexp_ppl=cexp_ppl(ikind)%c,&
                              ppl_radius=ppl_radius(ikind))
+        ELSE IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             alpha_ppl=alfa,& 
+                             cexp_ppl=cexp,&
+                             ppl_radius=ppl_radius(ikind))
+          ALLOCATE(cexp_ppl(ikind)%c(1,SIZE(cexp)),STAT=istat) 
+          IF (istat /= 0) CALL stop_memory(routine,"cexp_ppl%c",&
+                          SIZE(cexp)*int_size)
+          DO i=1,SIZE(cexp)
+            cexp_ppl(ikind)%c(1,i)=cexp(i)
+          END DO 
+          ALLOCATE(alpha_ppl(ikind)%alpha(1),STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl%alpha",&
+                          1*int_size)
+          alpha_ppl(ikind)%alpha(1)=alfa    
         END IF
 
       END DO
@@ -788,6 +838,7 @@ CONTAINS
 
       IF (.NOT.ASSOCIATED(aux_basis_set)) CYCLE
 
+      local_coeffs=>dyn_coeff_set%coeffs_of_kind(ikind)%coeffs
       CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
@@ -800,9 +851,10 @@ CONTAINS
                              sphi=sphi_a,&
                              zet=zeta)
 
-      DO iatom = 1, natom_of_kind
+      nparticle_local = local_particles%n_el(ikind)
 
-        atom_a = atom_list(iatom)
+      DO iparticle_local=1,nparticle_local
+        iatom = local_particles%list(ikind)%array(iparticle_local)
 
         IF (ppl_present) THEN
 
@@ -817,7 +869,7 @@ CONTAINS
             sac_ppl_neighbor_list =>&
             find_neighbor_list(neighbor_list_set=&
                                      sac_ppl_aux(ac)%neighbor_list_set,&
-                                     atom=atom_a)
+                                     atom=iatom)
 
             CALL get_neighbor_list(neighbor_list=sac_ppl_neighbor_list,&
                                        nnode=nnode)
@@ -856,6 +908,7 @@ CONTAINS
 
         rab2 = 0._dbl
         dab = SQRT(rab2)
+        offset=0
 
         DO iset=1,nseta
 
@@ -865,7 +918,7 @@ CONTAINS
           IF (calculate_forces) THEN
 
             DO i=1,nsgfa(iset)
-              work(i,1)=eigenvector(offset+i)  
+              work(i,1)=local_coeffs%pos(iparticle_local,i+offset)
             ENDDO
          
   
@@ -902,52 +955,61 @@ CONTAINS
 
 !             *** Calculate the GTH pseudo potential forces ***
 
-                IF (calculate_forces) THEN
+                DO ialpha=1,size(alpha_ppl(kkind)%alpha)
+                ncexp=size(cexp_ppl(kkind)%c,2)
 
-                  CALL overlap_ppl(&
-                    la_max(iset),la_min(iset),npgfa(iset),&
-                    rpgfa(:,iset),zeta(:,iset),&
-                    0,0,1,rpgfb,zetb,&
-                    cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                    ppl_radius(kkind),&
-                    rab,dab,rac,dac,rbc,dbc,&
-                    hab,nder,0,.FALSE.,ai_work,&
-                    pab,force_a)
+                  IF (calculate_forces) THEN
+
+                    CALL overlap_ppl(&
+                      la_max(iset),la_min(iset),npgfa(iset),&
+                      rpgfa(:,iset),zeta(:,iset),&
+                      0,0,1,rpgfb,zetb,&
+                      cexp_ppl(kkind)%c(ialpha,1:ncexp),&
+                      alpha_ppl(kkind)%alpha(ialpha),&
+                      ppl_radius(kkind),&
+                      rab,dab,rac,dac,rbc,dbc,&
+                      hab,nder,0,.FALSE.,ai_work,&
+                      pab,force_a)
 
 !               *** The derivatives w.r.t. atomic center c are    ***
 !               *** calculated using the translational invariance ***
 !               *** of the first derivatives                      ***
 
-                  atom_c = atom_of_kind(katom)
+                    atom_c = atom_of_kind(katom)
+                    atom_a = atom_of_kind(iatom)
 
-                  force(ikind)%f_ppl(:,iatom) =&
-                    force(ikind)%f_ppl(:,iatom) - force_a(:)
-                  force(kkind)%f_ppl(:,atom_c) =&
-                    force(kkind)%f_ppl(:,atom_c) + force_a(:)
+                    force(ikind)%f_ppl(:,atom_a) =&
+                      force(ikind)%f_ppl(:,atom_a) + force_a(:)
+                    force(kkind)%f_ppl(:,atom_c) =&
+                      force(kkind)%f_ppl(:,atom_c) - force_a(:)
 
-                ELSE
+                  ELSE
 
-                  CALL overlap_ppl(&
-                    la_max(iset),la_min(iset),npgfa(iset),&
-                    rpgfa(:,iset),zeta(:,iset),&
-                    0,0,1,rpgfb,zetb,&
-                    cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                    ppl_radius(kkind),&
-                    rab,dab,rac,dac,rbc,dbc,&
-                    hab,0,0,.FALSE.,ai_work)
+                    CALL overlap_ppl(&
+                      la_max(iset),la_min(iset),npgfa(iset),&
+                      rpgfa(:,iset),zeta(:,iset),&
+                      0,0,1,rpgfb,zetb,&
+                      cexp_ppl(kkind)%c(ialpha,1:ncexp),&
+                      alpha_ppl(kkind)%alpha(ialpha),&
+                      ppl_radius(kkind),&
+                      rab,dab,rac,dac,rbc,dbc,&
+                      hab,0,0,.FALSE.,ai_work)
 
-                END IF
+                  END IF
+                END DO 
 
                 CALL dgemm("T","N",nsgfa(iset),1,ncoa,&
                           1.0_dbl,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                           hab(1,1),SIZE(hab,1),&
                           0.0_dbl,work(1,1),SIZE(work,1))
 
-                DO i=1,nsgfa(iset)
-                  energy = energy + work(i,1)*eigenvector(offset+i)
-                  eigenforce(i+offset) = eigenforce(i+offset) - work(i,1)
-                END DO
 
+                DO i=1,nsgfa(iset)
+                  coef=local_coeffs%pos(iparticle_local,i+offset)
+                  e_ppl = e_ppl + work(i,1)*coef
+                  local_coeffs%forces(iparticle_local,i+offset) = &
+                      local_coeffs%forces(iparticle_local,i+offset) - work(i,1)
+                END DO
 
               END DO
 
@@ -982,6 +1044,9 @@ CONTAINS
 
     IF (ppl_present) THEN
 
+      DO ikind=1,nkind
+        NULLIFY (alpha_ppl(ikind)%alpha)
+      END DO
       DEALLOCATE (alpha_ppl,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
 
@@ -1010,7 +1075,7 @@ CONTAINS
     DEALLOCATE (ai_work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "ai_work")
-
+ 
     DEALLOCATE (hab,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab")
 
@@ -1024,12 +1089,15 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"pab")
     END IF
 
+    CALL mp_sum(e_ppl,group)
+
+    energy%ppseudo = e_ppl
+
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
     CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE calculate_drho_ppl
-
-! *****************************************************************************
+!*****************************************************************************
 
 END MODULE kg_ppl

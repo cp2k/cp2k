@@ -20,7 +20,6 @@
 !!   SOURCE
 !!
 MODULE kg_main
-! USE qs_energy,                       ONLY: qs_energies
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
