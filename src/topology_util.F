@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/topology_util [1.0] *
 !!
 !!   NAME
@@ -25,6 +28,11 @@ MODULE topology_util
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -341,15 +349,16 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
   TYPE(atom_info_type),POINTER     :: atom_info
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    INTEGER                                  :: first, iatom, iiatom, iii, &
-                                                inum, istat, itype, iw, last, &
-                                                natom, nbond, nnum, ntype
-    INTEGER                                  :: ifirst, ilast, myind, iatm
-    INTEGER, POINTER                         :: checkme(:)
-    LOGICAL                                  :: PM1, PM2, PM3, PM4, my_qmmm, do_again
-    LOGICAL                                  :: prev_diff_mol_typ, succ_diff_mol_typ
-!------------------------------------------------------------------------------
+  INTEGER                                  :: first, iatom, iiatom, iii, &
+                                              inum, istat, itype, iw, last, &
+                                              natom, nbond, nnum, ntype
+  INTEGER                                  :: ifirst, ilast, myind, iatm, stat, jatm
+  INTEGER, POINTER, DIMENSION(:)           :: checkme, qm_atom_index
+  LOGICAL                                  :: PM1, PM2, PM3, PM4, my_qmmm, do_again
+  LOGICAL                                  :: prev_diff_mol_typ, succ_diff_mol_typ
+  LOGICAL                                  :: failure
 
+  failure = .FALSE.
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -362,7 +371,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
     IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
     IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
   END IF
-
+  NULLIFY(checkme, qm_atom_index)
   IF(PM1)  WRITE(iw,*) "    Entering topology_generate_molecule"
 
   atom_info => topology%atom_info
@@ -469,28 +478,45 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 
   IF (my_qmmm) THEN
      do_again = .FALSE.
-     DO myind = 1, SIZE(qmmm_env%qm_atom_index)
-        ifirst = qmmm_env%qm_atom_index(myind)
+     ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     qm_atom_index = qmmm_env%qm_atom_index
+     CPPostcondition(ALL(qm_atom_index /= 0),cp_failure_level,routineP,error,failure)
+     DO myind = 1, SIZE(qm_atom_index)
+        ifirst = qm_atom_index(myind)
+        IF ( ifirst == 0 ) CYCLE
         ilast  = ifirst
         DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
                   (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
-                  ifirst >= 2)
+                  ifirst > 1)
            ifirst = ifirst - 1
         END DO
-        IF ( ifirst >= 2 ) ifirst = ifirst + 1
+        CPPostcondition(ifirst>=1,cp_failure_level,routineP,error,failure)
+        IF ( ifirst > 1 ) ifirst = ifirst + 1
         DO WHILE ((atom_info%map_mol_num(ifirst) == atom_info%map_mol_num(ilast)).AND.&
                   (atom_info%map_mol_typ(ifirst) == atom_info%map_mol_typ(ilast)).AND.&
-                  ilast <= natom-1)
+                  ilast < natom )
            ilast = ilast + 1
         END DO
-        IF ( ilast <= natom-1 ) ilast = ilast - 1
+        CPPostcondition(ilast<=natom,cp_failure_level,routineP,error,failure)
+        IF ( ilast < natom ) ilast = ilast - 1
         DO iatm = ifirst, ilast
            atom_info%label_molname(iatm) = "_QM_"//&
                 TRIM(atom_info%label_molname(iatm))
+           DO jatm = 1, SIZE(qm_atom_index)
+              IF (qm_atom_index(jatm) == iatm) THEN
+                 qm_atom_index = 0
+                 EXIT
+              END IF
+           END DO
+        END DO
+        DO iatm = 1, ifirst-1
+           IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
+           WRITE(iw,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
         END DO
         DO iatm = ilast+1, natom
-           IF ( ANY(qmmm_env%qm_atom_index == iatm) ) do_again = .TRUE.
-           WRITE(*,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
+           IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
+           WRITE(iw,*)iatm,atom_info%map_mol_typ(iatm), atom_info%map_mol_num(iatm)
         END DO
         DO iatm = ifirst, ilast
            atom_info%map_mol_num(iatm) = 1
@@ -505,13 +531,17 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 
         IF (ifirst == 1) THEN 
            prev_diff_mol_typ = .TRUE.
-           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+           IF (ilast == natom) THEN
+              succ_diff_mol_typ = .TRUE.
+           ELSE
+              succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+           END IF
         ELSEIF (ilast == natom) THEN
            prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)           
            succ_diff_mol_typ = .TRUE.
         ELSE
            prev_diff_mol_typ =  atom_info%map_mol_typ(ifirst) /= atom_info%map_mol_typ(ifirst-1)
-           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast) /= atom_info%map_mol_typ(ilast+1)
+           succ_diff_mol_typ =  atom_info%map_mol_typ(ilast)  /= atom_info%map_mol_typ(ilast+1)
         END IF
 
         IF (prev_diff_mol_typ) ifirst = ilast + 1
@@ -522,6 +552,8 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
         END IF
         IF (.NOT.do_again) EXIT
      END DO
+     DEALLOCATE(qm_atom_index,stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
 
 

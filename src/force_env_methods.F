@@ -81,7 +81,9 @@ MODULE force_env_methods
   USE particle_types,                  ONLY: particle_type
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_methods,                    ONLY: qmmm_forces
-  USE qmmm_types,                      ONLY: qmmm_env_qm_type, qmmm_env_qm_retain
+  USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
+                                             qmmm_env_qm_retain,&
+                                             qmmm_links_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -94,7 +96,8 @@ MODULE force_env_methods
                                              virial_type,&
                                              virial_retain
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
-
+  USE qmmm_links_methods,              ONLY: qmmm_link_Imomm_coord,&
+                                             qmmm_link_Imomm_forces
   USE input_section_types, ONLY: section_type, section_create, &
        section_add_keyword, section_add_subsection, section_release,&
        section_describe_html, section_describe_index_html, section_vals_type,&
@@ -546,7 +549,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  LOGICAL :: failure,need_f
+  LOGICAL :: failure,need_f,qmmm_link, qmmm_link_imomm
   character(len=*), parameter :: routineN='qmmm_energy_and_forces',&
        routineP=moduleN//':'//routineN
   TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
@@ -559,19 +562,22 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   REAL(KIND=dp) :: energy_mm, energy_qm
   TYPE(cp_logger_type), pointer :: logger
   TYPE(section_vals_type), POINTER :: print_key, force_env_section, qmmm_section
+  TYPE(qmmm_links_type), POINTER :: qmmm_links
   LOGICAL, SAVE :: do_translate=.TRUE.
   
 
-  min_coord=HUGE(0.0_dp)
-  max_coord=-HUGE(0.0_dp)
-  failure=.false.
-  need_f=.TRUE.
+  min_coord       =  HUGE(0.0_dp)
+  max_coord       = -HUGE(0.0_dp)
+  failure         = .FALSE.
+  need_f          = .TRUE.
+  qmmm_link       = .FALSE.
+  qmmm_link_imomm = .FALSE.
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
   NULLIFY(print_key, force_env_section, qmmm_section)
   force_env_section => &
-       section_vals_get_subs_vals(force_env%sub_force_env(2)%force_env%globenv%input_file,&
+       section_vals_get_subs_vals(force_env%sub_force_env(qs_subsys)%force_env%globenv%input_file,&
        "FORCE_EVAL",error=error)
   qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
 
@@ -579,17 +585,24 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  ! transfer position to qm part
+
   CALL force_env_get(force_env%sub_force_env(fist_subsys)%force_env,&
        cell=mm_cell,subsys=subsys_mm,error=error)
   CALL force_env_get(force_env%sub_force_env(qs_subsys)%force_env,&
        cell=qm_cell,subsys=subsys_qm,error=error)
-  qm_atom_index => force_env%qmmm_env%qm_atom_index
+  qm_atom_index   => force_env%qmmm_env%qm_atom_index
   qm_subsys_index => force_env%qmmm_env%qm_subsys_index
+  qmmm_link       =  force_env%qmmm_env%qmmm_link
+  qmmm_links      => force_env%qmmm_env%qmmm_links
+  IF (qmmm_link) THEN
+     CPPrecondition(ASSOCIATED(qmmm_links),cp_failure_level,routineP,error,failure)
+     qmmm_link_imomm = (SIZE(qmmm_links%imomm) /= 0)
+  END IF
   CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
   CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
+
   particles_qm => subsys_qm(1)%subsys%particles%els
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
@@ -633,7 +646,9 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
      END IF
      particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
   END DO
-
+  ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
+  IF (qmmm_link_imomm) CALL qmmm_link_Imomm_coord(qmmm_links, particles_qm, qm_atom_index, error)
+  
   ! Initialize ks_qmmm_env
   CALL ks_qmmm_env_rebuild(qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,error=error)
@@ -712,6 +727,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
 
   IF (need_f) THEN
      isubsys=-1
+     ! If present QM/MM links (just IMOMM) correct the position of the qm-link atom
+     IF (qmmm_link_imomm) CALL qmmm_link_Imomm_forces(qmmm_links,particles_qm,qm_atom_index,error)
      DO ip=1,SIZE(qm_atom_index)
         IF (isubsys/=qm_subsys_index(ip)) THEN
            isubsys=qm_subsys_index(ip)

@@ -115,9 +115,14 @@ CONTAINS
     !
     ! Preprocessing
     !
-    ALLOCATE(radius(1),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-    radius(1) = qmmm_env%mm_el_pot_radius(1)
+    IF (SIZE(qmmm_env%mm_el_pot_radius) /= 0) THEN
+       ALLOCATE(radius(1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+       radius(1) = qmmm_env%mm_el_pot_radius(1)
+    ELSE
+       ALLOCATE(radius(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+    END IF
     Loop_on_all_values: DO I = 2, SIZE(qmmm_env%mm_el_pot_radius)
        Found=.FALSE.
        Loop_on_found_values: DO J = 1, SIZE(radius)

@@ -240,6 +240,7 @@ OBJECTS_GENERIC =\
  qmmm_gaussian_input.o\
  qmmm_gaussian_types.o\
  qmmm_init.o\
+ qmmm_links_methods.o\
  qmmm_methods.o\
  qmmm_pw_grid.o\
  qmmm_topology_util.o\
