@@ -33,6 +33,7 @@ MODULE realspace_grid_types
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_limit
+  USE timings, ONLy : timeset,timestop
   
   IMPLICIT NONE
   
@@ -53,6 +54,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: npts_local
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
+     REAL(dbl ), DIMENSION(3) :: dr                      ! grid spacing
      LOGICAL :: parallel
      INTEGER :: group
      LOGICAL :: group_head
@@ -103,10 +105,12 @@ SUBROUTINE rs_grid_allocate_1 ( rs )
    TYPE ( realspace_grid_type ), TARGET, INTENT (INOUT) :: rs
 
 !  Local
-   INTEGER :: ierr
+   INTEGER :: ierr,handle
    INTEGER, DIMENSION (:), POINTER :: lb, ub
 
 !-----------------------------------------------------------------------------!
+
+   CALL timeset("rs_grid_allocate",'I',' ',handle)
 
    lb => rs % lb_local
    ub => rs % ub_local
@@ -123,6 +127,7 @@ SUBROUTINE rs_grid_allocate_1 ( rs )
    ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = ierr )
    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % pz", &
                                        rs % npts ( 3 ) )
+   CALL timestop(0.0_dbl,handle)
 END SUBROUTINE rs_grid_allocate_1
 
 !******************************************************************************
@@ -172,10 +177,10 @@ SUBROUTINE rs_grid_deallocate_1 ( rs )
    TYPE ( realspace_grid_type ), INTENT (INOUT) :: rs
 
 !  Local
-   INTEGER :: ierr
+   INTEGER :: ierr,handle
 
 !-----------------------------------------------------------------------------!
-
+   call timeset("rs_grid_dealloc",'I',' ',handle)
    DEALLOCATE ( rs % r, STAT = ierr )
    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % r" )
    DEALLOCATE ( rs % px , STAT = ierr )
@@ -189,6 +194,7 @@ SUBROUTINE rs_grid_deallocate_1 ( rs )
      ! release the group communicator
      CALL mp_comm_free ( rs % group )
    END IF
+   call timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_grid_deallocate_1
 
@@ -244,7 +250,7 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
    REAL ( dbl ) :: pp ( 3 )
 
 !-----------------------------------------------------------------------------!
-
+   rs % dr = pw_grid%dr
    rs % identifier = pw_grid % identifier
    IF ( pw_grid % para % mode == 0 ) THEN
      ! The corresponding group has dimension 1 
@@ -446,12 +452,12 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
 !  Local
    INTEGER, DIMENSION ( :, : ), POINTER :: pbo
    INTEGER, DIMENSION ( 3 ) :: lb, ub, lc, uc
-   INTEGER :: subgroup, source, dest, ierr, idir, nn
+   INTEGER :: subgroup, source, dest, ierr, idir, nn, handle
    LOGICAL :: subdim ( 2 )
    REAL ( dbl ), DIMENSION ( :, :, : ), ALLOCATABLE :: buffer
 
 !-----------------------------------------------------------------------------!
-
+   call timeset("rs_pw_transfer",'I',' ',handle)
    IF ( rs % identifier /= pw % pw_grid % identifier ) THEN
      CALL stop_program ( "rs_pw_transfer", &
                          "Real space grid and pw type not compatible" )
@@ -636,6 +642,7 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
      END IF
 
    END IF
+   call timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_pw_transfer
 

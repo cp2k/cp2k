@@ -20,6 +20,8 @@
 !!           2) collocate_core hack for PGI compiler
 !!           3) added multiple grid feature
 !!           4) new way to go over the grid
+!!     Joost VandeVondele (05.2002)
+!!           1) prelim. introduction of the real space grid type
 !!
 !!   SOURCE
 !******************************************************************************
@@ -40,6 +42,9 @@ MODULE qs_integrate_potential
   USE coefficient_types,      ONLY: coeff_copy,&
                                     coeff_transform_space,&
                                     coeff_type
+  USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate, &
+                                    rs_grid_deallocate, rs_grid_setup, &
+                                    rs_pw_transfer
   USE cube_utils,             ONLY: cube_info_type,&
                                     return_cube
   USE dft_types,              ONLY: dft_control_type
@@ -146,6 +151,8 @@ CONTAINS
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
     LOGICAL                           :: force
+    INTEGER, DIMENSION(3)             :: nsmax
+    TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
 
 !   ---------------------------------------------------------------------------
 
@@ -184,6 +191,19 @@ CONTAINS
       END DO
 
     ENDIF
+
+    allocate(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
+    if (istat.ne.0) then
+        CALL stop_memory("integrate_potential","rs_v")
+    endif
+    nsmax(:)=100
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       call rs_grid_setup(rs_v(igrid_level),v_rspace(igrid_level)%pw%pw_grid, &
+            nsmax)
+       call rs_grid_allocate(rs_v(igrid_level))
+       call rs_pw_transfer(rs_v(igrid_level),v_rspace(igrid_level)%pw,& 
+                           "BACKWARD")
+    ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -410,7 +430,7 @@ CONTAINS
                       CALL integrate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                        ra,rab,rab2,v_rspace(igrid_level)%pw,&
+                        ra,rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
                         hab(na1:na2,nb1:nb2),pab(na1:na2,nb1:nb2),&
                         vratio,eps_gvg_rspace,force,dhab(na1:na2,nb1:nb2,1:6))
@@ -418,7 +438,7 @@ CONTAINS
                       CALL integrate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                        rb,-rab,rab2,v_rspace(igrid_level)%pw,&
+                        rb,-rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
                         hab(nb1:nb2,na1:na2),pab(nb1:nb2,na1:na2),&
                         vratio,eps_gvg_rspace,force,dhab(nb1:nb2,na1:na2,1:6))
@@ -469,6 +489,10 @@ CONTAINS
       END DO
 
     END DO
+  
+    DO igrid_level=1,gridlevel_info%ngrid_levels 
+       call rs_grid_deallocate(rs_v(igrid_level))
+    ENDDO
 
 !   *** Release work storage ***
 
@@ -500,13 +524,13 @@ CONTAINS
 
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
-                                            ra,rab,rab2,pw,&
+                                            ra,rab,rab2,rsgrid,&
                                             cube_info,l_info,hab,pab,&
                                             vratio,eps_gvg_rspace,force,dhab)
 
     IMPLICIT NONE
 
-    TYPE(pw_type), TARGET, INTENT(IN)  :: pw
+    TYPE(realspace_grid_type), TARGET, INTENT(IN)  :: rsgrid
     REAL(wp), INTENT(IN)               :: eps_gvg_rspace,rab2,zeta,zetb,vratio
     INTEGER, INTENT(IN)                :: la_max,la_min,lb_max,lb_min
     REAL(wp), DIMENSION(3), INTENT(IN) :: ra,rab
@@ -525,7 +549,7 @@ CONTAINS
                 lb_cube_min,ub_cube_max,gridbounds(2,3)
 
     REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
+    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
 
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
@@ -585,10 +609,9 @@ CONTAINS
 
 !   *** properties of the grid ***
 
-    dr(:) = pw%pw_grid%dr(:)
-    ng(:) = pw%pw_grid%npts(:)
-    ub_grid(:) = pw%pw_grid%bounds(2,:)
-    grid => pw%cr3d(:,:,:)
+    dr(:) = rsgrid%dr(:)
+    ng(:) = rsgrid%npts(:)
+    grid => rsgrid%r(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
     gridbounds(1,2)=LBOUND(GRID,2)

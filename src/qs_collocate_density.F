@@ -23,6 +23,7 @@
 !!     - new way to get over the grid (01.03.02)
 !!     - removed timing calls since they were getting expensive
 !!     - Updated with the new QS data structures (09.04.02,MK)
+!!     - introduction of the real space grid type ( prelim. version JVdV 05.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -45,6 +46,9 @@ MODULE qs_collocate_density
                                     coeff_transform_space,&
                                     coeff_type,&
                                     coeff_zero
+  USE realspace_grid_types,   ONLY: realspace_grid_type, rs_grid_allocate,  &
+                                    rs_grid_deallocate, &
+                                    rs_grid_setup, rs_pw_transfer
   USE cube_utils,             ONLY: cube_info_type,&
                                     return_cube
   USE dft_types,              ONLY: dft_control_type
@@ -132,6 +136,8 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     INTEGER, DIMENSION(:), POINTER                :: atom_list
+    TYPE(realspace_grid_type)                     :: rs_rho
+    INTEGER, DIMENSION(3)                         :: nsmax
 
 !   ---------------------------------------------------------------------------
 
@@ -142,6 +148,14 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set)
+
+    ! hard coded for the time being
+    ! gives the minimum thickness of a slice (or related quantity)
+    ! is not yet used in rs_grid_setup
+    nsmax(:)=100
+    call rs_grid_setup(rs_rho,rho%pw%pw_grid,nsmax)
+    call rs_grid_allocate(rs_rho)
+    call rs_pw_transfer(rs_rho,rho%pw,"BACKWARD")
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -168,12 +182,15 @@ CONTAINS
 
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_wp,0,ra,&
                                           (/0.0_wp,0.0_wp,0.0_wp/),&
-                                          0.0_wp,-1.0_wp,pab,rho%pw,&
+                                          0.0_wp,-1.0_wp,pab,rs_rho,&
                                           cube_info,l_info,eps_rho_rspace)
 
       END DO
 
     END DO
+
+    call rs_pw_transfer(rs_rho,rho%pw,"FORWARD")
+    call rs_grid_deallocate(rs_rho)
 
     total_rho = calculate_total_rho(rho)
 
@@ -233,6 +250,8 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: p_block,p_old_block,rpgfa,rpgfb,&
                                          sphi_a,sphi_b,zeta,zetb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    INTEGER, DIMENSION(3)             :: nsmax
+    TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER  :: rs_rho
 
 !   ---------------------------------------------------------------------------
 
@@ -245,6 +264,22 @@ CONTAINS
         CALL coeff_copy(rho_rspace_old(igrid_level),rho(igrid_level))
       END IF
     END DO
+
+    allocate(rs_rho(gridlevel_info%ngrid_levels),STAT=istat)
+    if (istat.ne.0) then
+       CALL stop_program("calculate_rho_elec","rs_rho")
+    endif
+    ! hard coded for the time being
+    ! gives the minimum thickness of a slice (or related quantity)
+    ! is not yet used in rs_grid_setup
+    nsmax(:)=100
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       call rs_grid_setup(rs_rho(igrid_level),rho(igrid_level)%pw%pw_grid, & 
+                          nsmax)
+       call rs_grid_allocate(rs_rho(igrid_level))
+       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"BACKWARD")
+    ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -510,14 +545,16 @@ CONTAINS
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                         ra,rab,rab2,scale,pab(na1:na2,nb1:nb2),&
-                        rho(igrid_level)%pw,cube_info(igrid_level),&
+                        !    rho(igrid_level)%pw,cube_info(igrid_level),&
+                        rs_rho(igrid_level),cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
                     ELSE
                       CALL collocate_pgf_product_rspace(&
                         lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         rb,-rab,rab2,scale,pab(nb1:nb2,na1:na2),&
-                        rho(igrid_level)%pw,cube_info(igrid_level),&
+                        !   rho(igrid_level)%pw,cube_info(igrid_level),&
+                        rs_rho(igrid_level),cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
                     END IF
 
@@ -540,6 +577,12 @@ CONTAINS
       END DO
 
     END DO
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
+       call rs_grid_deallocate(rs_rho(igrid_level))
+    ENDDO
+    deallocate(rs_rho)
 
 !   *** Save real-space density ***
 
@@ -606,6 +649,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (rho%pw%pw_grid%para%mode.ne.0) THEN
+	call stop_program("total rho","problem with parallel")
+    ENDIF 
     IF (ASSOCIATED(rho%pw%cc3d)) THEN
       lb_grid => rho%pw%pw_grid%bounds(1,:)
       total_rho = -rho%pw%pw_grid%vol*rho%pw%cc3d(lb_grid(1),&
@@ -679,7 +725,7 @@ CONTAINS
 !MK    lb_cube_min = MINVAL(lb_cube(:))
 !MK    ub_cube_max = MAXVAL(ub_cube(:))
 !MK
-!MK    ALLOCATE (cubeaxis(lb_cube_min:ub_cube_max,3,0:la_max,0:lb_max),STAT=istat)
+!MK    ALLOCATE (cubeaxis(lb_cube_min:Ub_cube_max,3,0:la_max,0:lb_max),STAT=istat)
 !MK    IF (istat /= 0) CALL stop_memory(routine,"cubeaxis",0)
 !MK
 !MK    ALLOCATE (g(lb_cube_min:ub_cube_max),STAT=istat)
@@ -825,9 +871,10 @@ CONTAINS
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,&
-                                          pw,cube_info,l_info,eps_rho_rspace)
+                                          rsgrid,cube_info,l_info,eps_rho_rspace)
 
-    TYPE(pw_type), INTENT(INOUT), TARGET :: pw
+    ! TYPE(pw_type), INTENT(INOUT), TARGET :: pw
+    TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
     TYPE(cube_info_type), INTENT(IN)     :: cube_info
     TYPE(l_info_type), INTENT(IN)        :: l_info
     REAL(wp), INTENT(IN)                 :: eps_rho_rspace,rab2,scale,zeta,zetb
@@ -842,7 +889,7 @@ CONTAINS
     INTEGER  :: i,ico,ig,j,jco,jg,k,kg
 
     REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp,rb
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
+    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube
 
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
@@ -881,10 +928,12 @@ CONTAINS
     END IF
 
 !   *** properties of the grid ***
-    dr(:) = pw%pw_grid%dr(:)
-    ng(:) = pw%pw_grid%npts(:)
-    ub_grid(:) = pw%pw_grid%bounds(2,:)
-    grid => pw%cr3d(:,:,:)
+    dr(:) = rsgrid%dr(:)
+    ng(:) = rsgrid%npts(:)
+    grid => rsgrid%r(:,:,:)
+    !dr(:) = pw%pw_grid%dr(:)
+    !ng(:) = pw%pw_grid%npts(:)
+    !grid => pw%cr3d(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
     gridbounds(1,2)=LBOUND(GRID,2)
