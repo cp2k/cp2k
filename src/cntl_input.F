@@ -126,7 +126,7 @@ SUBROUTINE read_cntl_section ( setup, globenv )
         SELECT CASE ( string )
         CASE DEFAULT
            CALL p_error()
-           CALL stop_parser( 'read_cntl_section','unknown option')
+           CALL stop_parser( 'read_cntl_section','unknown option: '//TRIM(string))
         CASE ( 'SIMULATI')
            ilen = 20
            CALL get_next(setup % run_type,ilen)
