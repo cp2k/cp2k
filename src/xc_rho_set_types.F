@@ -1325,7 +1325,7 @@ CONTAINS
              rho_set%drho(idir)%array => drho_r(idir,1)%pw%cr3d
              NULLIFY(drho_r(idir,1)%pw%cr3d)
           END DO
-          rho_set%owns%norm_drho=.TRUE.
+          rho_set%owns%drho=.TRUE.
           rho_set%has%drho=.TRUE.
        END IF
     CASE(2)
