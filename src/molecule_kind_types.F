@@ -206,6 +206,9 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%bond_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%bend_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%dist_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%ub_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%impr_list)
+      NULLIFY (molecule_kind_set(imolecule_kind)%onfo_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g3x3_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%g4x6_list)
       NULLIFY (molecule_kind_set(imolecule_kind)%torsion_list)
@@ -279,6 +282,27 @@ CONTAINS
            IF (istat /= 0) THEN
              CALL stop_memory(routine_name,module_name,__LINE__,&
                               "molecule_kind_set(imolecule_kind)%bend_list")
+           END IF
+        END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%ub_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%ub_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%ub_list")
+           END IF
+        END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%impr_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%impr_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%impr_list")
+           END IF
+        END IF
+        IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%onfo_list)) THEN
+           DEALLOCATE (molecule_kind_set(imolecule_kind)%onfo_list,STAT=istat)
+           IF (istat /= 0) THEN
+             CALL stop_memory(routine_name,module_name,__LINE__,&
+                              "molecule_kind_set(imolecule_kind)%onfo_list")
            END IF
         END IF
         IF (ASSOCIATED(molecule_kind_set(imolecule_kind)%bond_kind_set)) THEN
