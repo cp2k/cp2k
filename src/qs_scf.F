@@ -1351,7 +1351,7 @@ CONTAINS
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  error=error)
+                  halfhole=-1,error=error)
              END IF
           END IF
        END DO
@@ -1625,7 +1625,7 @@ CONTAINS
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
                              mo_uocc,&
-                             smear=smear)
+                             halfhole=-1,smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -1691,7 +1691,7 @@ CONTAINS
     IF (smear /= 0.0_dp) THEN
       CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
                              homo,lfomo,maxocc,nelectron,&
-                             mo_uocc, smear=smear)
+                             mo_uocc, halfhole=-1,smear=smear)
       CALL set_mo_set(mo_set=mo_set,&
                       homo=homo,lfomo=lfomo,&
                       uniform_occupation=mo_uocc)
@@ -2111,7 +2111,6 @@ CONTAINS
           ELSE
              CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
           ENDIF
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
           ! here we could easily multiply with the diag that we actually have replicated already 
           CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
 
