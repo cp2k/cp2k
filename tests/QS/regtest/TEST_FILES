@@ -72,3 +72,6 @@ H2O-7.inp          1
 H2O-8.inp          1
 H2O-9.inp          1
 H2O-10.inp         1
+# tests BFGS and LBFGS opts
+H2-geo-1.inp       1
+H2-geo-2.inp       1
