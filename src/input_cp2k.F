@@ -2998,7 +2998,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="PARA_RES",&
-            description="Will has to provide Docs",&
+            description="For a protein, each residue is now considered a molecule",&
             usage="PARA_RES logical",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -3012,14 +3012,14 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="REORDER",&
-            description="Will has to provide Docs",&
+            description="Reorder a list of atomic coordinates into order so it can be packed correctly.",&
             usage="REORDER logical",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="CONSTRAINT",&
-            description="Will has to provide Docs",&
+            description="Goes through the constraint packing routines",&
             usage="CONSTRAINT logical",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -3081,7 +3081,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
  
        CALL keyword_create(keyword, name="BONDPARM",&
-            description="Will has to provide Docs",&
+            description="Used in conjunction with BONDPARM_FACTOR to "//&
+                        "help determine wheather there is bonding "//&
+                        "between two atoms based on a distance criteria. "//&
+                        "Can use covalent radii information or VDW radii information",&
             usage="BONDPARM (COVALENT||VDW)", &
             enum_c_vals=s2a( "COVALENT", "VDW"),&
             enum_i_vals=(/do_bondparm_cov, do_bondparm_vdw/),&
@@ -3090,7 +3093,7 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NHCOPT",&
-            description="Will has to provide Docs",&
+            description="Determines the number of DOF each NHC is attached to.",&
             usage="NHCOPT (GLOBAL||MOLECULE||MASSIVE||NONE)", &
             enum_c_vals=s2a( "GLOBAL", "MOLECULE", "MASSIVE", "NONE"),&
             enum_i_vals=(/do_nhcopt_global, do_nhcopt_molecule,&
@@ -3102,14 +3105,21 @@ SUBROUTINE create_tddfpt_section(section,error)
        ! Integer
        CALL keyword_create(keyword, name="EXCLUDE_CHECK",&
             variants=(/"EXCLUDE_CH"/),&
-            description="Will has to provide Docs",&
+            description="Used in conjunction with PARA_RES. Determines "//&
+                        "the number of molecules ahead and behind that "//&
+                        "needs to be checked in order to generate the "//&
+                        "proper exclusion list. 3 is safe for all "//&
+                        "molecules situations but 1 should work for "//&
+                        "all proteins.",&
             usage="exclude_check <integer>", default_i_val=3,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        ! Real
        CALL keyword_create(keyword, name="BONDPARM_FACTOR",&
-            description="Will has to provide Docs",&
+            description="Used in conjunction with BONDPARM to help "//&
+                        "determine wheather there is bonding between "//&
+                        "two atoms based on a distance criteria.",&
             usage="bondparm_factor <real>", default_r_val=1.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
