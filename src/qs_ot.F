@@ -40,7 +40,6 @@ MODULE qs_ot
                                  cp_sm_fm_multiply, &
                                  copy_sparse_to_blacs_matrix, &
                                  copy_blacs_to_sparse_matrix, &
-                                 blacs_scale_matrix, &
                                  blacs_cholesky_restore, &
                                  cp_fm_maxval, &
                                  replicate_blacs_matrix

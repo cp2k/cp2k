@@ -49,7 +49,6 @@ MODULE preconditioner
                                  cp_sm_fm_multiply, &
                                  copy_sparse_to_blacs_matrix, &
                                  copy_blacs_to_sparse_matrix, &
-                                 blacs_scale_matrix, &
                                  blacs_cholesky_restore, &
                                  replicate_blacs_matrix, &
                                  blacs_column_copy, &
@@ -169,7 +168,7 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, use, matrix_h, matrix_
 
 
 !----
-  REAL(wp)                                   :: energy_homo,energy_gap
+  REAL(wp)                                   :: energy_homo
   integer handle,k
 
   CALL timeset("make_preconditioner","I","",handle)

@@ -32,7 +32,7 @@ module pao_glob_angles_methods
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
        cp_error_message, cp_assertion_failed, cp_error_init,&
        cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
-       cp_error_set, cp_error_init, cp_error_dealloc_ref, &
+       cp_error_set, cp_error_dealloc_ref, &
        cp_error_propagate_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type

@@ -59,8 +59,6 @@ MODULE cp_full_matrix
   USE string_utilities,    ONLY: compress
   USE termination,         ONLY: stop_memory,&
        stop_program
-  USE timings,             ONLY: timeset,&
-       timestop
   USE timesl,              ONLY: cputime
   USE global_types,        ONLY: global_environment_type
   USE cp_f_matrix_struct,  ONLY: cp_f_matrix_struct_type,&

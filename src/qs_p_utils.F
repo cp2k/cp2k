@@ -38,12 +38,10 @@ MODULE qs_p_utils
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  USE global_types,         ONLY : global_environment_type
   USE kinds,                ONLY : dbl
   USE qs_blacs
   USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
   USE qs_p_types,           ONLY : qs_p_env_type
-  USE qs_p_build_kernel,    ONLY : kpp1_calculate
   USE qs_p_build_kernel, ONLY: kpp1_calculate
   USE kinds, ONLY: wp=>dp
   USE global_types, ONLY: global_environment_type
@@ -57,7 +55,7 @@ MODULE qs_p_utils
        blacs_cholesky_decompose, blacs_cholesky_restore, cp_fm_syrk,&
        copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
        replicate_blacs_matrix
-  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
+  USE qs_environment_types, ONLY: qs_environment_type
   USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
   USE dft_types, ONLY: dft_control_type
   USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&

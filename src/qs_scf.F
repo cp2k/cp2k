@@ -54,9 +54,6 @@ MODULE qs_scf
                                       get_atomic_kind,&
                                       get_atomic_kind_set
   
-  USE qs_parser,            ONLY: close_file,&
-                                  open_file
-
   USE basis_set_types,          ONLY: get_gto_basis_set,&
                                       gto_basis_set_type
   USE coefficient_types,        ONLY: coeff_allocate,&
