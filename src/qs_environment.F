@@ -202,6 +202,7 @@ CONTAINS
   
     CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
+
     CALL particle_list_create(particles,els_ptr=particle_set,error=error)
     CALL atomic_kind_list_create(atomic_kinds,els_ptr=atomic_kind_set,error=error)
     CALL mol_new_list_create(mols,els_ptr=molecule_set,error=error)
@@ -249,7 +250,7 @@ CONTAINS
       maxlppnl, multiplicity, n_ao, nelectron, nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin
-    LOGICAL                                  :: ionode
+    LOGICAL                                  :: all_potential_present,ionode
     REAL(dp)                                 :: maxocc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -327,6 +328,14 @@ CONTAINS
 !   *** Check basis and fill in missing parts ***
 
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
+
+!   *** Check that no all-electron potential is present if GPW
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                            all_potential_present=all_potential_present)
+    IF(all_potential_present .AND..NOT.(dft_control%qs_control%method == "GAPW"))&
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "all-el calculations with GPW are not implemented ")      
 
 !   *** Initialize the spherical harmonics and ***
 !   *** the orbital transformation matrices    ***
