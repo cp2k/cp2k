@@ -181,7 +181,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     ! and the volume factor of the plane waves
     IF ( PRESENT ( h_stress ) ) THEN
 
-      ffa = -pw_grid % vol / fourpi
+      ffa = -1.0_dbl / fourpi
       h_stress = 0._dbl
       DO alpha = 1, 3
         h_stress ( alpha, alpha ) = ehartree
