@@ -142,7 +142,7 @@ CONTAINS
 
 !-----------------------------------------------------------------------------
 !-----------------------------------------------------------------------------
-! write out nhc_part variable in a consitent way for restarts
+! write out nhc_part variable in a consistent way for restarts
 !-----------------------------------------------------------------------------
  nhc_len = SIZE(nhc_part(1)%nvt,1)
  num_nhc = SIZE(nhc_part(1)%nvt,2)
@@ -318,6 +318,9 @@ CONTAINS
   DEALLOCATE ( index, STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to deallocate index')
+  DEALLOCATE ( nhc_per_proc, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate nhc_per_proc')
 
 
 
@@ -346,18 +349,6 @@ CONTAINS
        DO i=1,size1
         WRITE (UNIT=dump_unit,FMT=*) mnhc ( i )
        END DO
-       DEALLOCATE ( eta, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate eta')
-       DEALLOCATE ( veta, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate veta')
-       DEALLOCATE ( fnhc, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate fnhc')
-       DEALLOCATE ( mnhc, STAT = isos )
-       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate mnhc')
     END IF
   ELSEIF ( nhc_part ( 1 ) % dis_type=='INTER_REP' ) THEN
     IF (para_env%mepos==para_env%source) THEN
@@ -392,6 +383,19 @@ CONTAINS
        END DO
     END IF
   END IF
+
+  DEALLOCATE ( eta, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate eta')
+  DEALLOCATE ( veta, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate veta')
+  DEALLOCATE ( fnhc, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate fnhc')
+  DEALLOCATE ( mnhc, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate mnhc')
 
   IF (para_env%mepos==para_env%source) THEN
 
