@@ -18,7 +18,13 @@
 
 MODULE hartree_local_types
 
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
                                              cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_to_string,&
@@ -217,9 +223,9 @@ MODULE hartree_local_types
 
   SUBROUTINE set_hartree_local(hartree_local,ecoul_1c)
 
-    TYPE(hartree_local_type), TARGET  :: hartree_local
+    TYPE(hartree_local_type), INTENT(INOUT), TARGET  :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
-                            OPTIONAL, POINTER     :: ecoul_1c
+                            OPTIONAL, POINTER        :: ecoul_1c
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local'
 
