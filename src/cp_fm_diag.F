@@ -399,9 +399,16 @@ CONTAINS
 !   *** Compute the eigenvectors and eigenvalues ***
 
     CALL cp_fm_syevx(matrix,work,eigenvalues,ncol_global,work_syevx)
-    IF (matrix%matrix_struct%para_env%mepos.eq.0) &
-    write(cp_logger_get_default_unit_nr(),'(A,2E16.8)') &
-                "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
+    IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
+      write(cp_logger_get_default_unit_nr(),'(T2,A,2E16.8)') &
+                  "S inversion : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
+      IF (eigenvalues(1).LE.0.0_dp) THEN
+        write(cp_logger_get_default_unit_nr(),'(T2,A)') &
+                    "S inversion : warning : S has a negative eigenvalue, tighten EPS_DEFAULT"
+      ENDIF
+      write(cp_logger_get_default_unit_nr(),'(T2,A,1E16.8)') &
+                    "S inversion : condition number of S = ",eigenvalues(ncol_global)/eigenvalues(1)
+    ENDIF
 
 #if defined(__SCALAPACK)
 
