@@ -28,6 +28,11 @@ MODULE nhc
   USE extended_system_initialize,      ONLY: set_yoshida_coef
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: nhc_global,nhc_massive,&
+                                             nvt_ensemble
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              default_string_length
   USE md,                              ONLY: simulation_parameters_type
@@ -726,20 +731,20 @@ END SUBROUTINE nhc_particle_setup
 !!     nhc_coef_setup
 !!
 !!   FUNCTION
-!!     Creates the thermostatting for polarization degrees of freedom
+!!     Creates the thermostatting for the
+!!     polarization  coefficients'  degrees of freedom
 !!
 !!   AUTHOR
 !!     CJM 10-Apr-01
 !!
 !!   MODIFICATION HISTORY
 !!     gt 04-02-04 adapted to new kind of coefficents
+!!     gt 11-02-05 adapted to new input                
 !!
 !!   SOURCE
 !******************************************************************************
- SUBROUTINE nhc_coef_setup ( simpar, dyn_coeff_set, nhc, globenv )
+ SUBROUTINE nhc_coef_setup ( dyn_coeff_set, nhc, globenv )
 
-    TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(lnhc_parameters_type), INTENT(INOUT)  :: nhc
     TYPE(global_environment_type), &
@@ -747,14 +752,30 @@ END SUBROUTINE nhc_particle_setup
 
     INTEGER                                  :: i, ikind, isos, iw, j, &
                                                 ncoef_local, ncoef_of_kind, &
-                                                nkind, number
+                                                nkind, number, kg_coeff_ens,&
+                                                kg_coeff_nhc
     LOGICAL                                  :: nointer
+    REAL(KIND=dp)                            :: dt,kg_coeff_temp 
+    type(section_vals_type), pointer         :: kg_coeff_section, nose_section
+
 
 !------------------------------------------------------------------------------
 
   iw = globenv % scr
+  
+  kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
+       "MD_NEW")
+  call section_vals_val_get(kg_coeff_section,"timestep",r_val=dt)
+  kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
+       "kg_coeff")
+  nose_section => section_vals_get_subs_vals(kg_coeff_section,&
+       "nose")
 
-  SELECT CASE ( simpar % ensemble_coef ( 1 : 3 ) )
+  call section_vals_val_get(kg_coeff_section,"ensemble",i_val=kg_coeff_ens)
+  call section_vals_val_get(kg_coeff_section,"nhcopt",i_val=kg_coeff_nhc)
+  call section_vals_val_get(kg_coeff_section,"temperature",r_val=kg_coeff_temp)
+  
+  SELECT CASE ( kg_coeff_ens )
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
     IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
@@ -763,15 +784,13 @@ END SUBROUTINE nhc_particle_setup
     nhc % nc = 0
     nhc % nhc_len = 0
     nhc % num_nhc = 0
-  CASE ( 'NVT', 'NPT' )
-    nhc % nyosh = simpar % nyosh_coef
-    nhc % nc = simpar % nc_coef
-    nhc % nhc_len = simpar % nhclen_coef
-
+  CASE ( nvt_ensemble )
+    call section_vals_val_get(nose_section,"yoshida",i_val=nhc % nyosh )
+    call section_vals_val_get(nose_section,"mts",i_val=nhc % nc )
+    call section_vals_val_get(nose_section,"length",i_val=nhc % nhc_len )
     number = 0
     ncoef_local = 0
     nointer = .TRUE.
-
     nkind = SIZE ( dyn_coeff_set%coeffs_of_kind)
     DO ikind=1,nkind
       IF(ASSOCIATED(dyn_coeff_set%coeffs_of_kind(ikind)%coeffs)) THEN  
@@ -783,10 +802,10 @@ END SUBROUTINE nhc_particle_setup
 
 ! Counting the global number of thermostats
 
-    IF ( simpar % nhcopt_coef == 'GLOBAL' )  THEN
+    IF ( kg_coeff_nhc == nhc_global )  THEN
       nointer=.FALSE.
       number=1
-    ELSEIF ( simpar % nhcopt_coef == 'MASSIVE' )  THEN
+    ELSEIF ( kg_coeff_nhc == nhc_massive )  THEN
       number=ncoef_local 
     ENDIF
 
@@ -820,14 +839,14 @@ END SUBROUTINE nhc_particle_setup
 
     i=0
     number = 0
-    IF ( simpar % nhcopt_coef == 'GLOBAL' )  THEN
+    IF ( kg_coeff_nhc == nhc_global )  THEN
       DO i= 1, ncoef_local
         DO j = 1, SIZE ( nhc % p_kin, 1 )
           nhc % p_kin ( j, i ) % point => nhc % s_kin ( 1 )
           nhc % p_scale ( j, i ) % point => nhc % v_scale ( 1 )
         END DO
       END DO
-    ELSEIF ( simpar % nhcopt_coef == 'MASSIVE' )  THEN
+    ELSEIF (  kg_coeff_nhc == nhc_massive )  THEN
       DO i = 1, ncoef_local 
         DO j = 1, SIZE ( nhc % p_kin, 1 )
           number = number + 1
@@ -857,13 +876,13 @@ END SUBROUTINE nhc_particle_setup
 ! (number of degrees of freedom times k_B T )
 
     DO i = 1, nhc % num_nhc
-     nhc % nvt ( 1, i ) % nkt = simpar % temp_coef * nhc % s_kin ( i )
+     nhc % nvt ( 1, i ) % nkt = kg_coeff_temp * nhc % s_kin ( i )
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain
 
     DO i = 2, nhc % nhc_len
-      nhc % nvt ( i, : ) % nkt = simpar % temp_coef
+      nhc % nvt ( i, : ) % nkt = kg_coeff_temp
     END DO
 
 ! Set up the Yoshida weights
@@ -871,11 +890,10 @@ END SUBROUTINE nhc_particle_setup
     ALLOCATE (nhc % dt_yosh (1 : nhc % nyosh ), STAT = isos )
     IF (isos/=0) CALL stop_memory('nhc_coef_setup', &
       'nhc%dt_yosh',nhc % nyosh )
-    CALL set_yoshida_coef( nhc, simpar % dt )
+    CALL set_yoshida_coef( nhc, dt )
   END SELECT
 
  END SUBROUTINE nhc_coef_setup
-
 
 !******************************************************************************
  SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &

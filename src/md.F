@@ -80,7 +80,7 @@ MODULE md
   TYPE simpar_units_type 
       CHARACTER ( LEN = 8 ) :: time, tau,            &
                                verlet_skin, tau_cell,&
-                               tau_coef, press
+                               press
   END TYPE 
 
   TYPE simulation_parameters_type
@@ -90,8 +90,6 @@ MODULE md
      REAL (KIND=dp) :: temp_ext
      REAL (KIND=dp) :: temp_baro
      REAL (KIND=dp) :: temp_tol
-     REAL (KIND=dp) :: temp_coef
-     REAL (KIND=dp) :: mass_coef
      REAL (KIND=dp) :: p_ext
      REAL (KIND=dp) :: v0
      REAL (KIND=dp) :: e0
@@ -101,10 +99,6 @@ MODULE md
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: output_format
      CHARACTER ( LEN = 20 ) :: PROGRAM
-     CHARACTER ( LEN = 20 ) :: ensemble_coef
-     CHARACTER ( LEN = 20 ) :: read_type_coef
-     CHARACTER ( LEN = 20 ) :: nhcopt_coef
-     CHARACTER ( LEN = 20 ) :: cmass_storage
      LOGICAL :: constraint
      LOGICAL :: pv_numerical
      LOGICAL :: pv_availability
@@ -112,15 +106,9 @@ MODULE md
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
-     INTEGER :: nfree_coef
-     INTEGER :: nc_coef
-     INTEGER :: nyosh_coef
-     INTEGER :: nhclen_coef
      REAL (KIND=dp) :: tau_nhc
-     REAL (KIND=dp) :: tau_nhc_coef
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
-     REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh_coef
      REAL (KIND=dp) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
@@ -176,15 +164,11 @@ CONTAINS
 !!I output_format[xmol,atomic...]        format for the output of pos,vel,    I
 !!I                                      forces, default is XMOL.             I
 !!I ensemble:    [nve,nvt,isokin]        ensemble type                        I
-!!I coef_ensemble:    [nve,nvt]          ensemble type for coefficients       I
-!!I coef_storage [global,kind,atom,coef] type of effective mass storage       I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
 !!I temperature: T_BARO                  temperature [K]                      I
 !!I temp_tol: T                          temperature tolerance [K]            I
-!!I coef_temperature: T                  temperature [K]                      I
-!!I coef_mass: m                         effective coef mass                  I
 !!I restart:     [pos,posvel]            start type                           I
 !!I constraints: [on,off]                constraints                          I
 !!I pv_numerical: [true, false]          pv_numerical                         I
@@ -202,12 +186,6 @@ CONTAINS
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
 !!I   mts:       nc       &                 number of multiple time steps     I
 !!I   timecon:   tau_nhc                    NHC time constant                 I
-!!I coef_Nose_parameter   &              parameter of Nose-Hoover-chains      I
-!!I   option:    nhcopt_coef &              thermostat option                 I
-!!I   length:    nhclen_coef   &            length of thermostat              I
-!!I   Yoshida:   nyosh_coef    &            order of Yoshida integrator       I
-!!I   mts:       nc_coef       &            number of multiple time steps     I
-!!I   timecon:   tau_nhc_coef               NHC time constant                 I
 !!I Barostat_parameter                      parameter of barostat             I
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
@@ -257,37 +235,26 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % units % time = 'FS'
   simpar % units % press = 'BAR'
   simpar % units % tau = 'FS'
-  simpar % units % tau_coef = 'FS'
   simpar % units % tau_cell = 'FS'
   simpar % units % verlet_skin = 'ANGSTROMS'
   simpar % output_format = 'XMOL'
   simpar % ensemble = 'NVE'
-  simpar % ensemble_coef = 'NVE'
-  simpar % cmass_storage = 'GLOBAL'
-  simpar % nhcopt_coef = 'GLOBAL'
   simpar % nsteps = 0
   simpar % walltime = -1.0_dp ! default: don't care
   simpar % dt = 0.0_dp
   simpar % temp_ext = 0.0_dp
   simpar % temp_baro = 0.0_dp
   simpar % temp_tol = 0.0_dp
-  simpar % temp_coef = 0.0_dp
-  simpar % mass_coef = 1.0_dp
   simpar % p_ext = 0.0_dp
   simpar % read_type = 'POS'
-  simpar % read_type_coef = 'INIT'
   simpar % constraint = .FALSE.
   simpar % pv_numerical=.FALSE.
   simpar % pv_availability=.FALSE.
   simpar % shake_tol = 1.0E-6_dp
   simpar % nhclen = 3
-  simpar % nhclen_coef = 3
   simpar % nc = 2
-  simpar % nc_coef = 2
   simpar % nyosh = 3
-  simpar % nyosh_coef = 3
   simpar % tau_nhc = 1000.0_dp
-  simpar % tau_nhc_coef = 1000.0_dp
   simpar % tau_cell = 1000.0_dp
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
   simpar % fix_atoms = .FALSE.
@@ -354,18 +321,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
 
-        CASE ( 'COEF_E' )
-           ilen = 0
-           CALL get_next ( string, ilen )
-           CALL uppercase ( string )
-           simpar % ensemble_coef = string ( 1:ilen )
-
-        CASE ( 'COEF_S' )
-           ilen = 0
-           CALL get_next ( string, ilen )
-           CALL uppercase ( string )
-           simpar % cmass_storage = string ( 1:ilen )
-
         CASE ( 'STEPS' )
            CALL get_next ( simpar % nsteps )
 
@@ -393,23 +348,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'TEMP_T' )
            CALL get_next ( simpar % temp_tol )
 
-        CASE ( 'COEF_T' )
-           CALL get_next ( simpar % temp_coef )
-
-        CASE ( 'COEF_M' )
-           CALL get_next ( simpar % mass_coef )
-
         CASE ( 'RESTAR' )
            ilen = 0
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type = string ( 1:ilen )
-
-        CASE ( 'COEF_R' )
-           ilen = 0
-           CALL get_next ( string, ilen )
-           CALL uppercase ( string )
-           simpar % read_type_coef = string ( 1:ilen )
 
         CASE ( 'PV_AVA' )
            ilen = 0
@@ -519,46 +462,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
               END SELECT
            END DO
 
-        CASE ( 'COEF_N' )
-           DO WHILE ( test_next() == 'C' )
-
-              ilen = 6
-              CALL get_next ( string, ilen )
-              CALL uppercase ( string )
-
-              SELECT CASE ( string )
-              CASE DEFAULT
-                 CALL p_error()
-                 CALL stop_parser ( 'read_md_section%nose', &
-                      'unknown suboption' )
-              CASE ( 'OPTION' )
-                 ilen = 0
-                 CALL get_next ( string, ilen )
-                 CALL uppercase ( string )
-                 simpar % nhcopt_coef = string ( 1:ilen )
-              CASE ( 'LENGTH' )
-                 CALL get_next ( simpar % nhclen_coef )
-              CASE ( 'YOSHID' )
-                 CALL get_next ( simpar % nyosh_coef )
-              CASE ( 'TIMECO' )
-                 CALL get_next ( simpar % tau_nhc_coef )
-                 IF ( test_next () == 'C' ) THEN
-                   CALL get_next ( string, ilen )
-                   CALL uppercase ( string )
-                   SELECT CASE ( string )
-                   CASE DEFAULT
-                    simpar % units % tau_coef = '1/CM'
-                   CASE ('FS','AU')
-                     simpar % units % tau_coef = string
-                   END SELECT
-                 ELSE
-                    simpar % units % tau_coef = '1/CM'
-                 ENDIF
-                 CALL uppercase ( simpar % units % tau_coef )
-              CASE ( 'MTS' )
-                 CALL get_next ( simpar % nc_coef )
-              END SELECT
-           END DO
         CASE ( 'BAROST' )
            DO WHILE ( test_next() == 'C' )
 
@@ -777,25 +680,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         WRITE ( iw, '( A,T71,G10.4 )' ) ' MD| Tolerance for shake ', &
              simpar % shake_tol
      END IF
-     IF (  simpar % ensemble_coef ( 1:3 ) == 'NVT' )  THEN
-       WRITE ( iw, '( A,T61,A )' ) ' MD| effective mass storage', &
-              ADJUSTR ( simpar % cmass_storage )
-       WRITE ( iw, '( A,T61,A )' ) ' MD| CoefEnsemble Type ', &
-              ADJUSTR ( simpar % ensemble_coef )
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef Temperature [K] ', &
-              simpar % temp_coef
-       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Coef global Mass [au] ', &
-              simpar % mass_coef
-       WRITE ( iw, '( A )' ) ' MD| Coef Nose-Hoover-Chain parameters '
-       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Nose-Hoover-Chain length ', &
-            simpar %nhclen_coef
-       WRITE ( iw, '( A,A4,A,T71,F10.4 )' ) &
-            ' MD| Coef Nose-Hoover-Chain time constant [',simpar % units % tau_coef,'] ', simpar % tau_nhc_coef
-       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Order of Yoshida integrator ', &
-            simpar % nyosh_coef
-       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Coef Number of multiple time steps', &
-            simpar % nc_coef
-     ENDIF
 
      WRITE ( iw, '( A,T63,i10,A )' ) ' MD| Print MD information every', &
           mdio % iscreen, ' step(s)'
@@ -822,9 +706,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   CALL convert_to_cp2k_units ( temperature = simpar % temp_ext ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_baro ) 
   CALL convert_to_cp2k_units ( temperature = simpar % temp_tol ) 
-  CALL convert_to_cp2k_units ( temperature = simpar % temp_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau, tau_nhc = simpar % tau_nhc ) 
-  CALL convert_to_cp2k_units ( simpar % units % tau_coef, tau_nhc = simpar % tau_nhc_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
   CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
   CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p0 ) 

@@ -28,8 +28,8 @@ MODULE md_conserved_quantities
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_global,&
-                                             dyn_coeff_set_p_type,&
+  USE input_constants,                 ONLY: dyn_coeff_mass_global
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
                                              dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&

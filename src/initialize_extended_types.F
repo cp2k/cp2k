@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2005  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/initialize_extended_types [1.0] *
 !!
@@ -28,6 +28,9 @@ MODULE initialize_extended_types
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: get_molecule_kind_set,&
@@ -44,6 +47,8 @@ MODULE initialize_extended_types
   PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
             initialize_nhc_forces, initialize_nhc_coef
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "initialize_extended_types"
 
 !!*****
 !******************************************************************************
@@ -270,30 +275,46 @@ END SUBROUTINE initialize_nhc_part
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_nhc_coef ( simpar, dyn_coeff_set, globenv, nhc )
+SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc )
 
 !  IMPLICIT NONE
 
-    TYPE(simulation_parameters_type), &
-      INTENT(INOUT)                          :: simpar
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'initialize_nhc_coef', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp)                            :: kg_coeff_target_temp, &
+                                                tau_nhc 
+    TYPE(section_vals_type), POINTER         :: coeff_section, nose_section
+
 !------------------------------------------------------------------------------
+  NULLIFY(coeff_section) 
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
+  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
+  nose_section => section_vals_get_subs_vals(coeff_section,"nose")
+  call section_vals_val_get(coeff_section,"timeconstant",r_val=tau_nhc)
+  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
+
 ! fire up the thermostats
+  CALL nhc_coef_setup ( dyn_coeff_set, nhc, globenv )
 
-  CALL nhc_coef_setup ( simpar, dyn_coeff_set, nhc, globenv )
-
-  IF ( simpar % read_type_coef /= 'ALL' ) THEN
+!  gt restart from nhc parameters for kg_coef not implemented !
+!!  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
+!!  IF ( restart_coeff /= all) THEN
+!!  END IF
 
 ! Initializing thermostat forces and velocities for the Nose-Hoover
 ! Chain variables
-    IF ( nhc % nhc_len /= 0 ) CALL initialize_nhc ( nhc, simpar % tau_nhc_coef,  &
-                                       simpar % temp_coef, globenv )
-  END IF
+   IF ( nhc % nhc_len /= 0 ) THEN
+      CALL initialize_nhc(nhc, tau_nhc, kg_coeff_target_temp, globenv)
+   ELSE
+      CALL stop_program(routineN,moduleN,__LINE__,&
+        "nve for coefs implemented but not tested")
+   END IF
 
  END SUBROUTINE initialize_nhc_coef
 

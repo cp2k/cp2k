@@ -39,8 +39,17 @@ MODULE dynamical_coeff_types
                                              distribution_1d_retain,&
                                              distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
+                                             dyn_coeff_mass_coeff,&
+                                             dyn_coeff_mass_global,&
+                                             dyn_coeff_mass_kind,&
+                                             kg_coeff_init_start,&
+                                             kg_coeff_pos_restart,&
+                                             kg_coeff_pos_vel_restart
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
@@ -60,11 +69,7 @@ MODULE dynamical_coeff_types
   INTEGER, PRIVATE, SAVE :: last_coeff_id=0
   INTEGER, PRIVATE, SAVE :: last_coeff_set_id=0
 
-   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
-   dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
-   INTEGER, PARAMETER,PUBLIC :: dyn_coeff_replicated=1, dyn_coeff_distributed=2
-   INTEGER, PARAMETER, PUBLIC :: kg_coeff_init_start=1,kg_coeff_pos_restart=2, &
-       kg_coeff_pos_vel_restart=3
+  INTEGER, PARAMETER,PUBLIC :: dyn_coeff_replicated=1, dyn_coeff_distributed=2
 
   TYPE dyn_coeff_set_type
    INTEGER :: ref_count, id_nr
@@ -370,7 +375,7 @@ SUBROUTINE setup_dyn_coeff(coeffs,aux_basis_set,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'setup_dyn_coeff_replicated', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'setup_dyn_coeff', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ncgf, stat
@@ -431,10 +436,8 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
 
 END SUBROUTINE get_dyn_coeff
 !***************************************************************************
-SUBROUTINE dyn_coeff_set_initialize(simpar,dyn_coeff_set,globenv)         
+SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv)         
 
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
@@ -443,15 +446,32 @@ SUBROUTINE dyn_coeff_set_initialize(simpar,dyn_coeff_set,globenv)
       routineP = moduleN//':'//routineN
 
     INTEGER :: group, ikind, n_els, ncoef_atom, ncoef_atom_max, &
-      ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat
+      ncoef_of_kind, ncoef_tot, nel_tot, nkind, source, stat,&
+      restart_coeff
+    REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
     TYPE(dyn_coeff_type), POINTER            :: coeffs
+    type(section_vals_type), pointer         :: coeff_section
+
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
+  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
+  call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
+  call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
+  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
+  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
 
   group=globenv%group
   source=globenv%source
   nel_tot=0
   ncoef_tot=0
   ncoef_atom_max=0
+
+  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MD_NEW")
+  coeff_section => section_vals_get_subs_vals(coeff_section,"KG_coeff")
+  call section_vals_val_get(coeff_section,"storage",i_val=dyn_coeff_set%mass_storage)
+  call section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
+  call section_vals_val_get(coeff_section,"restart",i_val=restart_coeff)
+  call section_vals_val_get(coeff_section,"temperature",r_val=kg_coeff_target_temp)
     
 ! get total numbers
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
@@ -460,7 +480,7 @@ SUBROUTINE dyn_coeff_set_initialize(simpar,dyn_coeff_set,globenv)
     IF(.not.ASSOCIATED(coeffs)) CYCLE
     CALL get_dyn_coeff(coeffs,n_els=n_els,ncoef_atom=ncoef_atom,&
                        ncoef_of_kind=ncoef_of_kind)
-    IF(simpar%cmass_storage/='GLOBAL') THEN
+    IF(dyn_coeff_set%mass_storage/=dyn_coeff_mass_global) THEN
       IF(.NOT.ASSOCIATED(coeffs%masses)) THEN
         ALLOCATE(coeffs%masses(n_els,ncoef_atom),STAT=stat)
         IF(stat/=0) CALL stop_memory('routineP','masses',n_els*ncoef_atom)
@@ -485,12 +505,12 @@ SUBROUTINE dyn_coeff_set_initialize(simpar,dyn_coeff_set,globenv)
   dyn_coeff_set%ncoef_tot=ncoef_tot 
   dyn_coeff_set%ncoef_atom_max=ncoef_atom_max
 
-  CALL dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
+  CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
 
-  CALL dyn_coeff_set_init_vel(simpar,dyn_coeff_set,mbuffer,globenv)   
+  CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)   
 
-  IF (simpar%read_type_coef/='INIT') THEN
-    CALL read_coeff_restart(dyn_coeff_set,globenv,rtype=simpar%read_type_coef)
+  IF (restart_coeff/=kg_coeff_init_start) THEN
+    CALL read_coeff_restart(dyn_coeff_set,globenv,restart_coeff)
   END IF
 
   DEALLOCATE(mbuffer,stat=stat) 
@@ -503,7 +523,7 @@ SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype)
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    CHARACTER(len=*), INTENT(IN), OPTIONAL   :: rtype
+    integer, optional                        :: rtype
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coeff_restart', &
       routineP = moduleN//':'//routineN
@@ -558,7 +578,7 @@ SUBROUTINE read_coeff_restart(dyn_coeff_set,globenv,rtype)
       END DO
     END IF
   END DO
-  IF((PRESENT(rtype)).AND.(rtype == 'POSVEL')) THEN
+  IF((PRESENT(rtype)).AND.(rtype == kg_coeff_pos_vel_restart)) THEN
     IF (globenv%ionode) THEN
       DO i=1,n_el
         READ (restart_unit,*) iatom,ncoef,cbuffer(i,1:ncoef)
@@ -806,10 +826,8 @@ SUBROUTINE dyn_coeff_set_dump(dyn_coeff_set,atomic_kind_set,error)
   END SUBROUTINE dyn_coeff_set_dump
 
 !!*************************************************************************
-SUBROUTINE dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
+SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,globenv)
 
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: mbuffer
@@ -838,13 +856,9 @@ SUBROUTINE dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
 
 ! initialize coefficient effective masses
 
-  SELECT CASE (simpar%cmass_storage)  
 
-  CASE ('GLOBAL')
-    dyn_coeff_set%mass_storage=dyn_coeff_mass_global
-    dyn_coeff_set%global_mass=simpar % mass_coef
-  CASE ('KIND')
-    dyn_coeff_set%mass_storage=dyn_coeff_mass_kind
+  SELECT CASE (dyn_coeff_set%mass_storage)
+  CASE (dyn_coeff_mass_kind)
     IF(.not.ALLOCATED(ckind)) THEN
       ALLOCATE(ckind(nkind),stat=stat) 
       IF(stat/=0) CALL stop_memory('routineP','ckind',nkind)
@@ -883,8 +897,7 @@ SUBROUTINE dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
     IF (stat /= 0) CALL stop_memory(routineP,"ckind")
     DEALLOCATE(nel_kind,STAT=stat)
     IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
-  CASE ('ATOM')
-    dyn_coeff_set%mass_storage=dyn_coeff_mass_atom
+  CASE (dyn_coeff_mass_atom)
     IF (globenv%ionode) THEN
       CALL open_file(file_name=file_name,&
                    file_action="READ",&
@@ -912,8 +925,7 @@ SUBROUTINE dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
     IF (globenv%ionode) THEN
       CALL close_file(unit_number=cmass_unit)
     END IF
-  CASE ('COEF')
-    dyn_coeff_set%mass_storage=dyn_coeff_mass_coeff
+  CASE (dyn_coeff_mass_coeff)
     IF (globenv%ionode) THEN
       CALL open_file(file_name=file_name,&
                    file_action="READ",&
@@ -947,10 +959,9 @@ SUBROUTINE dyn_coeff_set_init_masses(simpar,dyn_coeff_set,mbuffer,globenv)
 
 END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
-SUBROUTINE dyn_coeff_set_init_vel(simpar,dyn_coeff_set,mbuffer,globenv)
+SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)
 
-    TYPE(simulation_parameters_type), &
-      POINTER                                :: simpar
+    REAL(KIND=dp)                            :: kg_coeff_target_temp
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: mbuffer
@@ -967,7 +978,7 @@ SUBROUTINE dyn_coeff_set_init_vel(simpar,dyn_coeff_set,mbuffer,globenv)
     LOGICAL                                  :: gmass
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
-                                                temp_coefs, vcom
+                                                temp_coefs, vcom 
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -1022,7 +1033,7 @@ SUBROUTINE dyn_coeff_set_init_vel(simpar,dyn_coeff_set,mbuffer,globenv)
 
 ! scale velocties to get the correct initial coefficent temperature
  
-    scale= SQRT ( simpar % temp_coef / temp_coefs )
+    scale= SQRT ( kg_coeff_target_temp / temp_coefs )
     DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
            vbuffer(iel,icoef)=vbuffer(iel,icoef)*scale

@@ -33,6 +33,7 @@ MODULE input_constants
                                       CHARGE_SCALE_FACTOR = 1.00_dp
   INTEGER, PARAMETER, PUBLIC :: nve_ensemble=101,nvt_ensemble=102,&
        npt_i_ensemble=103, npt_f_ensemble=104
+  INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   INTEGER, PARAMETER, PUBLIC :: md_init_start=101,md_pos_restart=102,&
        md_pos_vel_restart=103
   INTEGER, PARAMETER, public :: energy_run=1,energy_force_run=2,&
@@ -92,5 +93,9 @@ MODULE input_constants
                         ot_precond_full_kinetic=2, &
                         ot_precond_s_inverse=3, &
                         ot_precond_sparse_diag=4
+  INTEGER, PARAMETER,PUBLIC :: dyn_coeff_mass_global=1, dyn_coeff_mass_kind=2,&
+   dyn_coeff_mass_atom=3, dyn_coeff_mass_coeff=4
+  INTEGER, PARAMETER, PUBLIC :: kg_coeff_init_start=1,kg_coeff_pos_restart=2, &
+   kg_coeff_pos_vel_restart=3
 
 END MODULE input_constants

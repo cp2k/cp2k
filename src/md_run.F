@@ -247,9 +247,9 @@ CONTAINS
        ALLOCATE (extended_type%nhc_coef(SIZE(dyn_coeff_set)),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO iset=1,SIZE(dyn_coeff_set)
-          CALL initialize_nhc_coef(simpar,dyn_coeff_set(iset)%dyn_coeff_set,&
+          CALL initialize_nhc_coef(dyn_coeff_set(iset)%dyn_coeff_set,&
                                    globenv,extended_type%nhc_coef(iset))
-          CALL dyn_coeff_set_initialize(simpar,dyn_coeff_set(iset)%dyn_coeff_set,globenv) 
+          CALL dyn_coeff_set_initialize(dyn_coeff_set(iset)%dyn_coeff_set,globenv) 
           CALL initialize_nhc_forces (nhc_coef=extended_type% nhc_coef(iset))
        END DO
     END IF

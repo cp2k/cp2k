@@ -73,9 +73,6 @@ MODULE input_cp2k
        hockney1d,&
        hockney0d 
   USE string_utilities, ONLY: s2a
-  USE dynamical_coeff_types, ONLY: dyn_coeff_mass_global, dyn_coeff_mass_kind,&
-       kg_coeff_init_start,kg_coeff_pos_restart, &
-       kg_coeff_pos_vel_restart
   implicit none
   private
 
@@ -1556,14 +1553,29 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       call keyword_create(keyword, name="nhcopt",&
+            description="global or massive thermostats for KG-POL coefficients", &
+            usage="NHCOPT GLOBAL", &
+            default_i_val=nhc_global,&
+            enum_c_vals=s2a("global","massive"),&
+            enum_desc=s2a("just one thermostat for all the coefficents",&
+            "each coefficient has its own thermostat"),&
+            enum_i_vals=(/nhc_global,nhc_massive/),&
+            error=error)
+       CALL section_add_keyword(coeff_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        call keyword_create(keyword, name="storage",&
             description="method to store the effective masses for"//&
             "KG-POL coefficients", usage="storage global", &
             default_i_val=dyn_coeff_mass_global,&
-            enum_c_vals=s2a("global","kind"),&
+            enum_c_vals=s2a("global","kind","atom","coeff"),&
             enum_desc=s2a("just one mass for all the coefficents",&
-            "each atomic kind has its own effective mass"),&
-            enum_i_vals=(/dyn_coeff_mass_global,dyn_coeff_mass_kind/),&
+            "each atomic kind has its own effective mass",&
+            "coefficients of each atom have their own effective mass",&
+            "each coefficient has its own effective mass"),&
+            enum_i_vals=(/dyn_coeff_mass_global,dyn_coeff_mass_kind,&
+                          dyn_coeff_mass_atom,dyn_coeff_mass_coeff/),&
             error=error)
        CALL section_add_keyword(coeff_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

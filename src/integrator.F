@@ -37,11 +37,7 @@ MODULE integrator
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE dynamical_coeff_types,           ONLY: dyn_coeff_mass_atom,&
-                                             dyn_coeff_mass_coeff,&
-                                             dyn_coeff_mass_global,&
-                                             dyn_coeff_mass_kind,&
-                                             dyn_coeff_p_type,&
+  USE dynamical_coeff_types,           ONLY: dyn_coeff_p_type,&
                                              dyn_coeff_set_p_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff_set
@@ -53,6 +49,10 @@ MODULE integrator
                                              force_env_set,&
                                              force_env_p_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: dyn_coeff_mass_atom,&
+                                             dyn_coeff_mass_coeff,&
+                                             dyn_coeff_mass_global,&
+                                             dyn_coeff_mass_kind
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE md,                              ONLY: simulation_parameters_type
