@@ -39,7 +39,6 @@ MODULE tbmd_module
   USE force_control, ONLY : force
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
-  USE fit_module, ONLY : control_fit
   USE force_fields, ONLY : read_force_field_section
   USE global_types, ONLY : global_environment_type
   USE header, ONLY : fist_header, tbmd_header, wave_header
