@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000,2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/greens_fn [1.0] *
 !!
@@ -48,7 +48,7 @@ MODULE greens_fn
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: pw_green_fn, pw_green_fn_init, greens_function_type
+  PUBLIC :: pw_green_fn, pw_green_fn_init, pw_green_fn_destroy,greens_function_type
   PUBLIC :: PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, &
             MT2D, MT1D, MT0D, HOCKNEY2D, HOCKNEY1D, HOCKNEY0D
   
@@ -79,6 +79,54 @@ MODULE greens_fn
 !******************************************************************************
 
 CONTAINS
+
+!******************************************************************************
+!!****** greens_fn/pw_green_fn_destroy [1.0] *
+!!
+!!   NAME
+!!     pw_green_fn_destroy
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_green_fn_init(gftype )
+!!       Implicit None
+!!       Type(greens_function_type), Intent (INOUT):: gftype
+!!     End Subroutine pw_green_fn_init
+!!
+!!   FUNCTION
+!!     destroys the type (deallocates data)
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pw_green_fn_destroy ( gftype )
+
+  IMPLICIT NONE
+  TYPE ( greens_function_type ), INTENT ( INOUT ) :: gftype
+
+  IF (ASSOCIATED(gftype%influence_function)) THEN
+     CALL pw_deallocate(gftype%influence_function)
+     DEALLOCATE(gftype%influence_function)
+  ENDIF
+
+  IF (gftype % p3m) THEN
+        IF (ASSOCIATED(gftype % p3m_charge)) &
+            CALL pw_deallocate(gftype % p3m_charge)
+        IF (ASSOCIATED(gftype % p3m_charge)) &
+            DEALLOCATE ( gftype % p3m_charge )
+        IF (ASSOCIATED(gftype % p3m_bm2)) &
+            DEALLOCATE ( gftype % p3m_bm2 )
+        IF (ASSOCIATED(gftype % p3m_coeff)) &
+            DEALLOCATE ( gftype % p3m_coeff )
+  ENDIF
+
+END SUBROUTINE pw_green_fn_destroy 
+
 
 !******************************************************************************
 !!****** greens_fn/pw_green_fn_init [1.0] *
@@ -121,7 +169,8 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
   INTEGER :: use_data, ierr, n
 
 !------------------------------------------------------------------------------
-
+  NULLIFY( gftype % p3m_coeff )
+  NULLIFY( gftype % p3m_bm2 )
   SELECT CASE ( gftype % method )
   CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
      ALLOCATE ( gftype % influence_function, STAT = ierr )
@@ -146,6 +195,7 @@ SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
         CALL influence_factor ( gftype )
      ELSE
         gftype % p3m = .FALSE.
+        NULLIFY( gftype % p3m_charge )
      END IF
   CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
      CALL stop_program ( "pw_green_fn_init", " Method not implemented ")

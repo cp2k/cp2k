@@ -42,7 +42,8 @@ MODULE simulation_cell
                                              MT1D,&
                                              MT2D,&
                                              PERIODIC3D,&
-                                             greens_function_type
+                                             greens_function_type, &
+                                             pw_green_fn_destroy
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree,&
                                              pi
@@ -391,6 +392,8 @@ CONTAINS
     cell%green%slab_size = 0.0_dp
     cell%green%alpha = 0.0_dp
     cell%green%volume = 0.0_dp
+    NULLIFY( cell%green%influence_function, cell%green%p3m_charge )
+    NULLIFY( cell%green%p3m_coeff, cell%green%p3m_bm2 )
 
     dim = COUNT(cell%perd == 1)
 
@@ -425,8 +428,6 @@ CONTAINS
     CASE DEFAULT
       CALL stop_program(routine,"Illegal value for perd found")
     END SELECT
-
-    NULLIFY (cell%green%influence_function)
 
     IF (PRESENT(poisson_solver)) THEN
 
@@ -948,6 +949,7 @@ SUBROUTINE cell_release(cell,error)
      CPPreconditionNoFail(cell%ref_count>0,cp_failure_level,routineP,error)
      cell%ref_count=cell%ref_count-1
      IF (cell%ref_count==0) THEN
+        CALL pw_green_fn_destroy( cell % green )
         DEALLOCATE(cell,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

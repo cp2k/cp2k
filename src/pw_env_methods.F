@@ -66,8 +66,8 @@ MODULE pw_env_methods
                                              init_gaussian_gridlevel, &
                                              gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fn,                       ONLY: greens_function_type,&
-                                             pw_green_fn_init
+  USE greens_fn,                       ONLY: pw_green_fn_init, &
+                                             pw_green_fn_destroy 
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
@@ -442,6 +442,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END DO
 
      ! init green's function
+     CALL pw_green_fn_destroy(cell%green)
      CALL pw_green_fn_init(cell%green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
   END IF

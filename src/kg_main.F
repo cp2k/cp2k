@@ -92,7 +92,6 @@ MODULE kg_main
   USE setup_input,                     ONLY: read_setup_section
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_hinv,&
-                                             init_cell,&
                                              read_cell,&
                                              write_cell
   USE string_utilities,                ONLY: integer_to_string,&
