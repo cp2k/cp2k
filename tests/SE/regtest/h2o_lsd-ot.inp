@@ -1,0 +1,34 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ RUN_TYPE     GEO_OPT
+&END
+
+&QS
+ METHOD       AM1
+ EXTRAPOLATION use_guess
+&END
+
+&DFT
+  LSD
+&END
+
+&SCF
+ GUESS        ATOMIC
+ OT
+&END
+
+&OTSCF
+ PRECONDITIONER NONE
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          20.0  20.0  20.0
+&END
+
+&COORD
+       O                   .00000000     .00000000     .00000000
+       H                  1.05000000     .00000000     .00000000
+       H                  -.26289900    1.01655502     .00000000
+&END
