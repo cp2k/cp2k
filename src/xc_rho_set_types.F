@@ -1163,13 +1163,6 @@ CONTAINS
           ! normally when you need the gradient you need the whole gradient
           ! (for the partial integration)
           ! deriv rho
-          IF (needs_rho_g.AND..NOT.ASSOCIATED(my_rho_g)) THEN
-             my_rho_g_local=.TRUE.
-             CALL pw_pool_create_pw(pw_pool, my_rho_g,&
-                  use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
-                  error=error)
-             CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
-          END IF
           DO idir=1,3
              NULLIFY(drho_r(idir,ispin)%pw)
              CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
@@ -1177,6 +1170,13 @@ CONTAINS
                   error=error)
           END DO
           IF (needs_rho_g) THEN
+             IF (.NOT.ASSOCIATED(my_rho_g)) THEN
+                my_rho_g_local=.TRUE.
+                CALL pw_pool_create_pw(pw_pool, my_rho_g,&
+                     use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
+                     error=error)
+                CALL pw_transfer(my_rho_r(ispin)%pw,my_rho_g)
+             END IF
              CALL pw_pool_create_pw(pw_pool, tmp_g,&
                   use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE, &
                   error=error)
@@ -1219,6 +1219,10 @@ CONTAINS
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
              CALL pw_pool_give_back_pw(pw_pool, tmp_g ,error=error)
+             IF (my_rho_g_local) THEN
+                my_rho_g_local=.FALSE.
+                CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
+             END IF
           ELSE
              SELECT CASE(dft_control%xc_deriv_method_id)
              CASE (xc_deriv_spline2_smooth)
@@ -1273,10 +1277,6 @@ CONTAINS
              CALL zero_core(drho_r(idir,ispin)%pw,atoms,set_shift=2,error=error)
           END DO
 
-          IF (my_rho_g_local) THEN
-             my_rho_g_local=.FALSE.
-             CALL pw_pool_give_back_pw(pw_pool, my_rho_g ,error=error)
-          END IF
        END IF
 
     END DO
