@@ -135,7 +135,7 @@ MODULE message_passing
   END INTERFACE
 
   INTERFACE mp_isendrecv
-     MODULE PROCEDURE mp_isendrecv_rm2
+     MODULE PROCEDURE mp_isendrecv_rm2,mp_isendrecv_rv
   END INTERFACE
 
   INTERFACE mp_isend
@@ -2102,6 +2102,70 @@ END SUBROUTINE mp_sendrecv_rv
 
 !******************************************************************************
 
+!!****f* message_passing/mp_isendrecv_rv [1.0] *
+!!
+!!   NAME
+!!     mp_isendrecv_rv
+!!
+!!   FUNCTION
+!!     non blocking send of real arrays
+!!
+!!   NOTES
+!!     the arguments must be pointers to be sure that we do not get a temporaries.
+!!     they must point to contiguous memory
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_isendrecv_rv(msgin,dest,msgout,source,comm,send_request,&
+                           recv_request,tag)
+  IMPLICIT NONE
+  REAL ( dbl ), POINTER, DIMENSION (:) :: msgin,msgout
+  INTEGER, INTENT ( IN ) :: dest, source, comm
+  INTEGER, INTENT(out) :: send_request, recv_request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1
+  REAL (dbl) :: foo
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgout,1)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgout,1)
+     CALL mpi_irecv(msgout(lower1),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,recv_request,ierr)
+  ELSE
+     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,recv_request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_isendrecv_rm2" )
+
+  msglen = SIZE(msgin,1)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgin,1)
+     CALL mpi_isend(msgin(lower1),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,send_request,ierr)
+  ELSE
+     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,send_request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isendrecv_rm2" )
+
+  msglen = (msglen+SIZE(msgout,1))/2._dbl
+  t_end = m_cputime ( )
+  CALL add_perf(perf_id=8,count=1,time=t_end-t_start,msg_size=msglen*reallen)
+#else
+  send_request=0
+  recv_request=0
+  msgout = msgin
+#endif
+END SUBROUTINE mp_isendrecv_rv
+
+
 !!****f* message_passing/mp_isendrecv_rm2 [1.0] *
 !!
 !!   NAME
@@ -2112,6 +2176,7 @@ END SUBROUTINE mp_sendrecv_rv
 !!
 !!   NOTES
 !!     the arguments must be pointers to be sure that we do not get a temporaries.
+!!     they must point to contiguous memory
 !!     
 !!   AUTHOR
 !!     joost & fawzi
