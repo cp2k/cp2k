@@ -118,6 +118,10 @@ CONTAINS
     ALLOCATE(charges(nblock,nspin))
     ALLOCATE(charges_deriv(nblock,nspin))
     CALL compute_charges(p_matrix,s_matrix,charges,para_env)
+    !
+    ! this can be used to check the correct implementation of the derivative
+    ! CALL restraint_functional_deriv_check(mulliken_restraint_control,charges)
+    ! 
     CALL restraint_functional(mulliken_restraint_control, &
                               charges,charges_deriv,my_energy)
 
@@ -137,6 +141,10 @@ CONTAINS
                                     block_row=iblock_row,&
                                     block_col=iblock_col,&
                                     BLOCK=ks_block)
+
+                IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(ks_block) ) ) THEN
+                         CALL stop_program("Mulliken","unexpected s / ks structure")
+                ENDIF
     
                 mult = 0.5_dp * charges_deriv(iblock_row,ispin) + &
                        0.5_dp * charges_deriv(iblock_col,ispin)
@@ -161,6 +169,9 @@ CONTAINS
                                     block_row=iblock_row,&
                                     block_col=iblock_col,&
                                     BLOCK=w_block)
+                IF ( .NOT. (ASSOCIATED(w_block) .AND. ASSOCIATED(p_block) ) ) THEN
+                         CALL stop_program("Mulliken","unexpected p / w structure")
+                ENDIF
                 ! minus sign relates to convention for W 
                 mult = -0.5_dp * charges_deriv(iblock_row,ispin)   &
                        -0.5_dp * charges_deriv(iblock_col,ispin)
@@ -202,17 +213,86 @@ SUBROUTINE restraint_functional(mulliken_restraint_control,charges, &
     TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
     REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges, charges_deriv
     REAL(KIND=dp), INTENT(OUT)                 :: energy
-    REAL(KIND=dp)                              :: dum,strength
+    REAL(KIND=dp)                              :: dum,strength, order_p
+    INTEGER                                    :: Natom,I
 
     charges_deriv=0.0_dp
-    energy=0.0_dp
     strength=mulliken_restraint_control%strength
-    ! spin density on the first atom
-    dum=(charges(1,1)-charges(1,2)) - mulliken_restraint_control%target
-    energy=energy+strength*dum**2
-    charges_deriv(1,1)=  strength*2*dum
-    charges_deriv(1,2)= -strength*2*dum
+    ! the sum of the squares of the spin charges is the order_p
+    Natom=SIZE(charges,1)
+    order_p=0.0_dp
+    DO I=1,Natom
+       order_p=order_p+(charges(I,1)-charges(I,2))**2
+    ENDDO
+    ! energy
+    energy=strength*(order_p-mulliken_restraint_control%target)**2
+    write(6,*) "Order_p,energy",order_p,energy
+    ! derivative
+    dum=2*strength*(order_p-mulliken_restraint_control%target)
+    DO I=1,Natom
+       charges_deriv(I,1)=  dum*2*(charges(I,1)-charges(I,2))
+       charges_deriv(I,2)= -dum*2*(charges(I,1)-charges(I,2))
+    ENDDO
 END SUBROUTINE restraint_functional
+
+!!****f* mulliken/restraint_functional_deriv_check *
+!!
+!!   NAME
+!!      restraint_functional_deriv_check
+!!   FUNCTION
+!!      checks numerically the analytic derivative in restraint_functional
+!!
+!!   NOTES
+!!      for testing only, uncomment the call in mulliken restraint
+!!
+!!   INPUTS
+!!    - charges(nblock,nspin)
+!!
+!!   MODIFICATION HISTORY
+!!     06.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE restraint_functional_deriv_check(mulliken_restraint_control,charges)
+    TYPE(mulliken_restraint_type), INTENT(IN)  :: mulliken_restraint_control
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges 
+
+    REAL(KIND=dp), PARAMETER                   :: stepsize=0.00001_dp
+    REAL(KIND=dp)                              :: energy1,energy2
+    REAL(KIND=dp), DIMENSION(:,:), POINTER     :: charges_local, charges_deriv, deriv_num
+    INTEGER                                    :: I,J
+
+    ALLOCATE(charges_local(1:SIZE(charges,1),1:SIZE(charges,2)))
+    ALLOCATE(charges_deriv(1:SIZE(charges,1),1:SIZE(charges,2)))
+    ALLOCATE(deriv_num(1:SIZE(charges,1),1:SIZE(charges,2)))
+
+    ! finite difference check
+    charges_local=charges 
+    do_i: DO I=1,SIZE(charges,1)
+      do_j: DO J=1,SIZE(charges,2)
+         ! x+dx
+         charges_local(I,J)=charges_local(I,J)+stepsize
+         CALL restraint_functional(mulliken_restraint_control,charges_local, &
+                                   charges_deriv,energy1)
+         charges_local(I,J)=charges_local(I,J)-stepsize ! back to orig
+         ! x-dx
+         charges_local(I,J)=charges_local(I,J)-stepsize
+         CALL restraint_functional(mulliken_restraint_control,charges_local, &
+                                   charges_deriv,energy2)
+         charges_local(I,J)=charges_local(I,J)+stepsize ! back to orig
+         ! num deriv
+         deriv_num(I,J)=(energy1-energy2)/(2*stepsize)
+      ENDDO do_j
+    ENDDO do_i
+    ! analytic results vs deriv_num
+    CALL restraint_functional(mulliken_restraint_control,charges, &
+                                   charges_deriv,energy2)
+    write(6,*) "deriv check : max abs diff, max abs", MAXVAL(ABS(charges_deriv-deriv_num)), &
+                                                      MAXVAL(ABS(charges_deriv))
+
+    DEALLOCATE(charges_local,charges_deriv,deriv_num)
+
+END SUBROUTINE restraint_functional_deriv_check
 
 !!****f* mulliken/compute_charges *
 !!
@@ -262,6 +342,10 @@ END SUBROUTINE restraint_functional
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
                                  BLOCK=p_block)
+
+             IF ( .NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) THEN
+                         CALL stop_program("Mulliken","unexpected p / w structure")
+             ENDIF
 
              IF (iblock_row.EQ.iblock_col) THEN
                 mult=0.5_dp ! avoid double counting of diagonal blocks
@@ -342,7 +426,8 @@ END SUBROUTINE restraint_functional
        WRITE(scr,'(A)') "  Atom     |    Charge | Spin diff charge"
        END SELECT
        total_charge = 0.0_dp
-       IF (SIZE(particle_set) .NE. nblock) CALL stop_program("Mulliken","unexpected number of atoms")
+       IF (SIZE(particle_set) .NE. nblock) &
+           CALL stop_program("Mulliken","unexpected number of atoms")
        DO iblock=1,nblock
           CALL get_atomic_kind(atomic_kind=particle_set(iblock)%atomic_kind,&
                              element_symbol=element_symbol,&
