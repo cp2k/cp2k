@@ -30,7 +30,8 @@
 !****************************************************************************
 MODULE cp_full_matrix
   USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
+       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
+       cp_logger_type
   USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
@@ -62,9 +63,10 @@ MODULE cp_full_matrix
        timestop
   USE timesl,              ONLY: cputime
   USE global_types,        ONLY: global_environment_type
-  USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
+  USE cp_f_matrix_struct,  ONLY: cp_f_matrix_struct_type,&
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent
+       cp_fmstruct_equivalent, cp_fmstruct_write
+  USE cp_array_utils, ONLY: cp_2d_r_output, cp_2d_r_write
   IMPLICIT NONE
   PRIVATE
 
@@ -73,18 +75,12 @@ MODULE cp_full_matrix
 
   INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
 
-! the default blacs block sizes
-! consider using #ifdefs to give them the optimal values
-  INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
-  INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
 
   PUBLIC :: cp_full_matrix_type, cp_full_matrix_p_type
-  PUBLIC :: optimal_blacs_col_block_size,&
-       optimal_blacs_row_block_size
   PUBLIC :: cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
        cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       cp_fm_maxval
+       cp_fm_maxval, cp_fm_write
 !***
 !****************************************************************************
 
@@ -912,5 +908,115 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE cp_fm_maxval
+
+!!****f* cp_full_matrix/cp_fm_write [1.0] *
+!!
+!!   NAME
+!!     cp_fm_write
+!!
+!!   FUNCTION
+!!     writes out the matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrix: the matrix to output
+!!     - unit_nr: the unit where to output
+!!     - long_description: if a long description should be written
+!!       (defaults to false)
+!!     - local: if the unit is a local unit or a global unit 
+!!       (defaults to false, i.e. global)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
+    TYPE(cp_full_matrix_type), POINTER :: matrix
+    INTEGER, INTENT(in) :: unit_nr
+    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure, loc
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_write',&
+         routineP=moduleN//':'//routineN
+    INTEGER, SAVE :: uniquing_nr=0
+    INTEGER :: iostat
+    TYPE(cp_para_env_type), POINTER :: para_env
+    failure=.FALSE.; loc=.FALSE.
+
+    IF (PRESENT(local)) loc=local
+    para_env=>cp_error_get_logger(error)%para_env
+    IF (ASSOCIATED(matrix)) THEN
+       IF (loc .OR. para_env%mepos==para_env%source) THEN
+          WRITE (unit=unit_nr,&
+               fmt="(' <cp_full_matrix>:{ id_nr=',i10,' ref_count=',i10,',')",&
+               iostat=iostat) matrix%id_nr, matrix%ref_count
+          WRITE (unit=unit_nr,&
+               fmt="(' name=',a,',')",&
+               iostat=iostat) matrix%name
+          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " matrix_structure="
+          CALL cp_fmstruct_write(matrix%matrix_struct,unit_nr=unit_nr,&
+               long_description=long_description,error=error)
+          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ,"
+          IF (long_description) THEN
+             IF (loc) THEN
+                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " local_data=("
+                CALL cp_2d_r_write(matrix%local_data,unit_nr=unit_nr,error=error)
+                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
+             ELSE
+                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) &
+                     " local_data=( output to files fm_matrix_local_data"//&
+                     TRIM(ADJUSTL(cp_to_string(uniquing_nr)))//")"
+             END IF
+          ELSE IF (loc) THEN
+             IF (ASSOCIATED(matrix%local_data)) THEN
+                WRITE (unit=unit_nr,&
+                     fmt="(' local_data=(real(wp, dimension(',i8,', ',i8,'))')",&
+                     iostat=iostat) SIZE(matrix%local_data,1), SIZE(matrix%local_data,2)
+             END IF
+          END IF
+          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " }"
+       END IF
+
+       IF (.NOT.loc .AND. long_description) THEN
+          CALL cp_assert(ASSOCIATED(matrix%matrix_struct),&
+               cp_warning_level,cp_assertion_failed,routineP,&
+               "matrix context not associated "//&
+               CPSourceFileRef,&
+               error,failure)
+          IF (.NOT.failure) THEN
+             CALL cp_assert(ASSOCIATED(matrix%matrix_struct%context),&
+                  cp_warning_level,cp_assertion_failed,routineP,&
+                  "matrix context not associated "//&
+                  CPSourceFileRef,&
+                  error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             uniquing_nr=uniquing_nr+1
+             CALL cp_2d_r_output(logger=cp_error_get_logger(error),&
+                  outputName="fm_matrix_local_data",&
+                  fromWhere=routineP, iter=uniquing_nr,&
+                  array=matrix%local_data,&
+                  comment="proc_row="//&
+                  cp_to_string(matrix%matrix_struct%context%mepos(1))//&
+                  " proc_col="//&
+                  cp_to_string(matrix%matrix_struct%context%mepos(2)),&
+                  local=.TRUE.,error=error)
+
+          END IF
+       END IF
+    ELSE
+       WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_full_matrix>:*null*"
+    END IF
+  END SUBROUTINE cp_fm_write
+!***************************************************************************
+
 
 END MODULE cp_full_matrix
