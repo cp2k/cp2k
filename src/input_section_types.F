@@ -1422,7 +1422,8 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   LOGICAL :: failure,valRequested
   character(len=*), parameter :: routineN='section_val_get',&
         routineP=moduleN//':'//routineN
-  INTEGER :: ik,irs,irk
+  INTEGER :: ik,irs,irk,my_index,tmp_index,len_key
+  TYPE(section_vals_type),pointer :: s_vals
   TYPE(section_type),pointer ::section
   TYPE(keyword_type), POINTER :: keyword
   TYPE(cp_sll_val_type), pointer :: vals
@@ -1433,34 +1434,49 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   
   CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
   CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+
+  my_index=INDEX(keyword_name,'%')+1
+  len_key=len(keyword_name)
+  IF (my_index/=1) THEN
+     DO
+        tmp_index=INDEX(keyword_name(my_index:len_key),"%")
+        IF (tmp_index==0) EXIT
+        my_index=tmp_index+1
+     END DO
+     s_vals=>section_vals_get_subs_vals(section_vals,keyword_name(1:my_index-1),&
+          error=error)
+  ELSE
+     s_vals=> section_vals
+  END IF
+
   irk=1
   irs=1
   if (present(i_rep_section)) irs=i_rep_section
   if (present(i_rep_val)) irk=i_rep_val
   if (present(val)) nullify(val)
-  section => section_vals%section
+  section => s_vals%section
   valRequested=PRESENT(l_val).or.present(i_val).or.present(r_val).or.&
        PRESENT(c_val).OR.PRESENT(l_vals).or.present(i_vals).or.&
        PRESENT(r_vals).OR.PRESENT(c_vals)
   IF (.NOT. failure) THEN
-     ik=section_get_keyword_index(section_vals%section,keyword_name,error=error)
+     ik=section_get_keyword_index(s_vals%section,keyword_name(my_index:len_key),error=error)
      CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
           "section "//TRIM(section%name)//" does not contain keyword "//&
-          TRIM(keyword_name),error,failure)
+          TRIM(keyword_name(my_index:len_key)),error,failure)
      IF (.NOT.failure) THEN
         keyword => section%keywords(ik)%keyword
      END IF
-     CALL cp_assert(irs>0.AND.irs<=SIZE(section_vals%subs_vals,2),&
+     CALL cp_assert(irs>0.AND.irs<=SIZE(s_vals%subs_vals,2),&
           cp_failure_level,cp_assertion_failed,routineP,&
           "section repetition requested ("//cp_to_string(irs)//&
-          ") out of bounds (1:"//cp_to_string(SIZE(section_vals%subs_vals,2))&
+          ") out of bounds (1:"//cp_to_string(SIZE(s_vals%subs_vals,2))&
           //")",error,failure)
      nullify(my_val)
   END IF
   IF (.NOT.failure) THEN
      IF (PRESENT(n_rep_val)) n_rep_val=0
-     IF (irs<=SIZE(section_vals%values,2)) THEN ! the section was parsed
-        vals => section_vals%values(ik,irs)%list
+     IF (irs<=SIZE(s_vals%values,2)) THEN ! the section was parsed
+        vals => s_vals%values(ik,irs)%list
         IF (PRESENT(n_rep_val)) n_rep_val=cp_sll_val_get_length(vals,error=error)
         IF (.NOT.ASSOCIATED(vals)) THEN
 ! this keyword was not parsed
@@ -1469,7 +1485,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
               IF (PRESENT(n_rep_val)) n_rep_val=1
            END IF
         ELSE
-           my_val => cp_sll_val_get_el_at(section_vals%values(ik,irs)%list,&
+           my_val => cp_sll_val_get_el_at(s_vals%values(ik,irs)%list,&
                 irk,error=error)
         END IF
      ELSE IF (section%required) THEN
@@ -1493,7 +1509,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
              c_val=c_val,l_vals=l_vals,i_vals=i_vals,r_vals=r_vals,&
              c_vals=c_vals,error=sub_error)
         CALL cp_error_propagate_error(sub_error,routineP,&
-             "getting value from  keyword "//TRIM(keyword_name)//" of section "//&
+             "getting value from  keyword "//TRIM(keyword_name(my_index:len_key))//" of section "//&
              TRIM(section%name),error=error,failure=failure)
         call cp_error_dealloc_ref(sub_error)
      END IF
