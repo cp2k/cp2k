@@ -637,6 +637,7 @@ END SUBROUTINE pw_grid_setup
 !!   MODIFICATION HISTORY
 !!     JGH (01-Mar-2001) optional reference grid 
 !!     JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
+!!     JGH (09-Sep-2003) reduce scaling for distribution
 !!
 !!*** *************************************************************************
 
@@ -986,7 +987,7 @@ SUBROUTINE order_mask ( yz_mask, yz_index )
   i1 = SIZE ( yz_mask, 1 )
   i2 = SIZE ( yz_mask, 2 )
   ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
-  ALLOCATE ( icol(i1), cindex(i2), STAT = ierr )
+  ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow", 2*i1+2*i2 )
 
   yz_index = 0
