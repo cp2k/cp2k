@@ -1237,6 +1237,7 @@ SUBROUTINE rs_grid_release(rs_grid,error)
   
   IF (ASSOCIATED(rs_grid)) THEN
      CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+     rs_grid%ref_count=rs_grid%ref_count-1
      IF (rs_grid%ref_count==0) THEN
         rs_grid%ref_count=1
         CALL rs_grid_deallocate(rs_grid)
@@ -1245,6 +1246,7 @@ SUBROUTINE rs_grid_release(rs_grid,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
+  NULLIFY(rs_grid)
 END SUBROUTINE rs_grid_release
 
 !***************************************************************************
