@@ -62,8 +62,7 @@ MODULE control_module
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, thermodynamic_type, mdio_parameters_type
   USE method_specifications, ONLY : get_maxder
-  USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
-       charge
+  USE molecule_input, ONLY : read_molecule_section, read_setup_section
   USE molecule_types, ONLY : molecule_type, intra_parameters_type
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
@@ -205,7 +204,7 @@ SUBROUTINE control ( globenv )
   END IF
 
 ! read control section
-  CALL read_cntl_section ( setup, ewald_param, globenv )
+  CALL read_cntl_section ( setup, globenv, ewald_param )
 
   IF ( setup % path_integrals ) THEN
     pimd = .true.
@@ -271,9 +270,9 @@ SUBROUTINE control ( globenv )
 
   set_fn = setup % set_file_name
 
-  CALL read_setup_section ( mol_setup, set_fn, globenv )
+  CALL read_setup_section ( mol_setup, setup, globenv )
 
-  CALL read_molecule_section ( mol_setup, set_fn, globenv )
+  CALL read_molecule_section ( mol_setup, setup, globenv )
 
 ! read force_field information for classical MD
 ! read pair potential information for TB
@@ -332,14 +331,14 @@ SUBROUTINE control ( globenv )
                 pstat = pstat, potparm = inter % potparm,  &
                 intra_param = intra_param, ewald_param = ewald_param )
 
-  CALL xstring ( setup % input_file_name, ia, ib )
+  CALL xstring ( setup % coord_file_name, ia, ib )
   DO ibead = 1, beads
 
     IF ( pimd ) THEN
       CALL integer_to_string( ibead, tag )
-      project_name = setup % input_file_name ( ia : ib ) // '_' // ADJUSTL ( tag )
+      project_name = setup % coord_file_name ( ia : ib ) // '_' // ADJUSTL ( tag )
     ELSE
-      project_name = setup % input_file_name ( ia : ib )
+      project_name = setup % coord_file_name ( ia : ib )
     END IF
 
     CALL read_coord_vel ( ainp, project_name, globenv )
@@ -535,19 +534,18 @@ SUBROUTINE control ( globenv )
   ELSE IF ( tbmd ) THEN
     CALL initialize_kpoints ( globenv, kp, setup % symmetry, &
          struc ( 1 ) % box % hmat, struc ( 1 ) % part )
-    IF ( globenv%ionode .AND. globenv%print_level > 0) &
-       CALL brillouin_info ( kp, globenv%scr )
+    CALL brillouin_info ( kp, globenv )
   END IF
   
 ! nota bene: we use the defaults for the elctron temperature and
 !             spin polarisation
-  IF ( tbmd ) then
-    nel = tb_get_numel ( inter % tbatom, charge )
-    CALL init_fermi_dist ( fd, nel )
-    IF ( globenv % ionode ) &
-         CALL fermi_info ( fd, globenv % print_level, globenv % scr )
-    CALL init_band_structure ( bs, fd, kp )
-  END IF
+! IF ( tbmd ) then
+!   nel = tb_get_numel ( inter % tbatom, charge )
+!   CALL init_fermi_dist ( fd, nel )
+!   IF ( globenv % ionode ) &
+!        CALL fermi_info ( fd, globenv % print_level, globenv % scr )
+!   CALL init_band_structure ( bs, fd, kp )
+! END IF
   
   CALL timestop ( zero, handle2 )
 
