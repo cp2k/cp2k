@@ -45,8 +45,7 @@ MODULE qmmm_methods
   USE cube_utils,                      ONLY: cube_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mm_collocate_potential,          ONLY: collocate_gf_rspace_NoPBC,&
                                              integrate_gf_rspace_NoPBC
   USE particle_types,                  ONLY: particle_type

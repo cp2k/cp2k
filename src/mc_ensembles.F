@@ -35,7 +35,6 @@ MODULE mc_ensembles
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
   USE mc_control,                      ONLY: write_mc_restart

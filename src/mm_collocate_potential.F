@@ -39,8 +39,7 @@ MODULE mm_collocate_potential
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop  
-  USE kinds,                           ONLY: dp,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
   USE pw_types,                        ONLY: COMPLEXDATA1D,&

@@ -25,8 +25,7 @@ MODULE mc_misc
 !                                             xc_get_deriv_method_label
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE kinds,                           ONLY: dp,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&
                                              mc_moves_type,&

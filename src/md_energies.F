@@ -256,6 +256,10 @@ END SUBROUTINE set_energies
     replace_file = .FALSE.
 
     IF (itimes == 0) THEN
+      IF ( simpar % ensemble == 'NPH_UNIAXIAL' ) THEN
+        IF ( simpar % v0 == 0._dp ) simpar % v0 = cell % deth
+        IF ( simpar % e0 == 0._dp ) simpar % e0 = epot + ekin
+      ENDIF
       IF (ionode) THEN
         WRITE (iw,*)
         WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
@@ -405,7 +409,7 @@ END SUBROUTINE set_energies
           IF ( virial % pv_availability ) &
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' PRESSURE', &
                adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
-          IF (simpar%ensemble(1:3)=='NPT') THEN
+          IF (simpar%ensemble(1:2)=='NP') THEN
              WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' VOLUME', &
                   adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
              WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &

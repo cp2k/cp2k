@@ -31,6 +31,7 @@ MODULE velocity_verlet_control
                                              nvt,&
                                              npt_i, &
                                              npt_f, &
+                                             nph_uniaxial, &
                                              isokin
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -100,6 +101,8 @@ SUBROUTINE velocity_verlet ( md_env )
         CALL npt_i ( md_env )
      CASE ( 'NPT_F')
         CALL npt_f ( md_env )
+     CASE ( 'NPH_UNIAXIAL')
+        CALL nph_uniaxial ( md_env )
      END SELECT
  CASE default
     SELECT CASE (TRIM(simpar%ensemble))

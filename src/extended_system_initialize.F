@@ -172,13 +172,13 @@ END SUBROUTINE initialize_nhc
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-     globenv )
+SUBROUTINE initialize_npt ( npt, tau_cell, w, temp_ext, deth, nfree, ensemble, &
+                            globenv )
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
       INTENT(INOUT)                          :: npt
-    REAL(KIND=dp), INTENT(IN)                    :: tau_cell, temp_ext, deth
+    REAL(KIND=dp), INTENT(IN)                    :: tau_cell, temp_ext, deth, w
     INTEGER, INTENT(IN)                      :: nfree
     CHARACTER(LEN=20), INTENT(IN)            :: ensemble
     TYPE(global_environment_type), &
@@ -197,6 +197,8 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
   CASE ( 'NPT_F')
      npt ( :, : ) % mass = REAL ( nfree + 3,KIND=dp) &
           * temp_ext * tau_cell ** 2 / 3.0_dp
+  CASE ( 'NPH_UNIAXIAL')
+     npt ( :, : ) % mass = w
   END SELECT
 
 ! initializing velocities

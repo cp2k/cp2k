@@ -23,7 +23,6 @@ MODULE mc_coordinates
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dp,&
-                                             dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
   USE mc_types,                        ONLY: mc_averages_type,&

@@ -47,7 +47,6 @@ MODULE particle_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length,&
-                                             dp,&
                                              dp_size,&
                                              int_size
   USE mathconstants,                   ONLY: degree

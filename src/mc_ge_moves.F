@@ -33,7 +33,6 @@ MODULE mc_ge_moves
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp,&
                                              dp_size
   USE mc_coordinates,                  ONLY: generate_cbmc_swap_config,&
                                              get_center_of_mass,&

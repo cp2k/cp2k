@@ -336,6 +336,7 @@ CONTAINS
             calc_force=.TRUE.)
     END DO
     CALL md_energy ( md_env ) ! inits the print env at itimes == 0
+    
 
     DO istep=1,simpar%nsteps
       itimes = itimes + 1

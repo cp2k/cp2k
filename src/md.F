@@ -92,6 +92,11 @@ MODULE md
      REAL (KIND=dp) :: temp_coef
      REAL (KIND=dp) :: mass_coef
      REAL (KIND=dp) :: p_ext
+     REAL (KIND=dp) :: v0
+     REAL (KIND=dp) :: e0
+     REAL (KIND=dp) :: v_shock
+     REAL (KIND=dp) :: p0
+     REAL (KIND=dp) :: w
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
      CHARACTER ( LEN = 20 ) :: output_format
@@ -182,6 +187,12 @@ CONTAINS
 !!I shake:       eps                     convergence for Shake algorithm      I
 !!I verlet_skin  vs                      buffer size for Verlet lists         I
 !!I cells        x y z                   Number of cells in each direction    I
+!!I Uniaxial_shock        &              parameters for uniaxial shock        I
+!!I   shock vel: v_shock  &                 velocity of shock front           I
+!!I   pressure : p0       &                 Initial pressure                  I
+!!I   energy   : e0       &                 Initial energy                    I
+!!I   volume   : v0       &                 Initial compression               I
+!!I   mass     : w                          mass of the barostat parameter    I
 !!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
 !!I   length:    nhclen   &                 length of thermostat              I
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
@@ -273,6 +284,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_cell = 1000.0_dp
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
   simpar % fix_atoms = .FALSE.
+  simpar % p0 = 0._dp
+  simpar % v0 = 0._dp
+  simpar % e0 = 0._dp
+  simpar % v_shock = 0._dp
+  simpar % w = 0._dp
 
   iw = mdpar % scr
 
@@ -398,7 +414,30 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'SHAKE' )
            CALL get_next ( simpar % shake_tol )
+        CASE ( 'UNIAXIA' )
+           DO WHILE ( test_next() == 'C' )
 
+              ilen = 6
+              CALL get_next ( string, ilen )
+              CALL uppercase ( string )
+
+              SELECT CASE ( string )
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser ( 'read_md_section%unixial_shock', &
+                      'unknown suboption' )
+              CASE ( 'SHOCK_V' )
+                 CALL get_next ( simpar % v_shock )
+              CASE ( 'PRESSU' )
+                 CALL get_next ( simpar % p0 )
+              CASE ( 'ENERGY' )
+                 CALL get_next ( simpar % e0 )
+              CASE ( 'VOLUME' )
+                 CALL get_next ( simpar % v0 )
+              CASE ( 'MASS' )
+                 CALL get_next ( simpar % w )
+              END SELECT
+           END DO
         CASE ( 'NOSE_P' )
            DO WHILE ( test_next() == 'C' )
 

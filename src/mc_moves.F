@@ -32,7 +32,6 @@ MODULE mc_moves
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp,&
                                              dp_size
   USE mc_coordinates,                  ONLY: get_center_of_mass,&
                                              mc_classical_energy,&

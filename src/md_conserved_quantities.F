@@ -144,6 +144,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
   CASE ( 'NPT_I', 'NPT_F' )
     CALL get_econs_npt (md_env, md_ener, cons, int_grp)
+  CASE ( 'NPH_UNIAXIAL' )
+    CALL get_econs_nph_uniaxial (md_env, md_ener, cons, int_grp)
   END SELECT
 
   IF (itimes==1) THEN
@@ -450,6 +452,50 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
 END SUBROUTINE get_econs_npt
 
+!******************************************************************************
+!!******
+!!
+!!   NAME
+!!     get_econs_nph_uniaxial
+!!
+!!   FUNCTION
+!!     calculates conserved quantity for nph_uniaxial
+!!
+!!   AUTHOR
+!!     cjm
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!*****************************************************************************
+
+SUBROUTINE get_econs_nph_uniaxial ( md_env, md_ener, cons, int_grp)
+
+
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(md_ener_type), INTENT(inout)        :: md_ener
+    REAL(KIND=dp), INTENT(OUT)                   :: cons
+    INTEGER, INTENT(IN)                      :: int_grp
+
+    REAL(KIND=dp)                                :: baro_kin, baro_pot, &
+                                                nhc_baro_kin, nhc_baro_pot, &
+                                                nhc_part_kin, nhc_part_pot
+    TYPE(cell_type), POINTER                 :: box
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro( : ), nhc_part( : )
+    TYPE(npt_info_type), POINTER             :: npt( :, : )
+    TYPE(simulation_parameters_type), &
+      POINTER                                :: simpar
+
+!----------------------------------------------------------------------------
+
+  CALL get_md_env ( md_env, simpar = simpar, npt = npt, cell = box )
+
+  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt, baro_kin, baro_pot, int_grp )
+
+  cons = md_ener%ekin + md_ener%epot + baro_kin + baro_pot
+
+
+END SUBROUTINE get_econs_nph_uniaxial
 
 !******************************************************************************
 !!****** md_conserved_quantity/get_baro_energies [1.0] *
@@ -479,6 +525,7 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_gr
     INTEGER, INTENT(IN)                      :: int_grp
 
     INTEGER                                  :: i, j
+    REAL ( dp )                             :: v0, iv0, v_shock 
 
   IF ( simpar%ensemble == 'NPT_I' ) THEN
      baro_pot = simpar % p_ext * box % deth
@@ -493,6 +540,18 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_gr
                       npt ( i, j ) % v * npt ( i, j ) % mass
         END DO
      END DO
+  ELSEIF ( simpar%ensemble == 'NPH_UNIAXIAL' ) THEN
+     v0 = simpar % v0
+     iv0 = 1._dp / v0
+     v_shock = simpar % v_shock
+
+!!! Valid only for orthorhombic box !!!
+     baro_pot = -0.5_dp * v_shock * v_shock * ( 1 - box % deth * iv0 ) - &
+                 simpar % p0 * ( v0 - box % deth ) 
+!!! Valid only for orthorhombic box !!!
+
+     baro_kin = 0.5_dp * npt ( 1, 1 ) % v * npt ( 1, 1 ) % v * &
+          npt ( 1, 1 ) % mass
   END IF
 
   IF (simpar%ensemble(1:3)=='NPT') THEN

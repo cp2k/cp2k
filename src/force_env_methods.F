@@ -71,8 +71,7 @@ MODULE force_env_methods
                                              kg_env_retain,&
                                              kg_environment_type
   USE kg_force,                        ONLY: kg_force_control
-  USE kinds,                           ONLY: dp,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
                                              meta_env_type

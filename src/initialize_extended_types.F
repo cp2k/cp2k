@@ -95,6 +95,11 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
           'failed to allocate npt_info')
 
+  CASE ( 'NPH_UNIAXIAL')
+     ALLOCATE ( npt_info ( 1, 1 ), STAT = isos )
+     IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
+          'failed to allocate npt_info')
+
   CASE  DEFAULT
      ALLOCATE ( npt_info ( 0, 0 ), STAT = isos )
      IF ( isos /= 0 ) CALL stop_program ( 'initial_npt', &
@@ -102,7 +107,7 @@ SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
   END SELECT
 
   IF ( simpar % read_type /= 'ALL' ) &
-  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
+  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % w, simpar % temp_ext,  &
                        box % deth, simpar % nfree, simpar % ensemble, globenv )
 
 END SUBROUTINE initialize_npt_type
