@@ -457,6 +457,7 @@ CONTAINS
     INTEGER :: ncurr, stat, handle, ithread, j
     INTEGER :: dir, npme, Imm, IndMM
     INTEGER, DIMENSION(2) :: bo
+    INTEGER ::omp_get_thread_num
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp) :: alpha
     !Statements
@@ -494,9 +495,9 @@ CONTAINS
     ithread=0
 !$OMP parallel do &
 !$OMP default(none) &
-!$OMP private(j,IndMM,Imm,ra,ithread) &
+!$OMP private(j,IndMM,Imm,ra,ithread,alpha) &
 !$OMP shared(npme,tasks,mm_atom_index,mm_particles,pab,tmp_grid) &
-!$OMP shared(cube_info,l_info,eps_mm_rspace)
+!$OMP shared(cube_info,l_info,eps_mm_rspace,mm_el_pot_radius,mm_charges)
     DO j = 1, npme
        Imm   = tasks(1,j)
        IndMM = mm_atom_index(Imm)

@@ -635,9 +635,9 @@ CONTAINS
 
 !$OMP parallel do &
 !$OMP default(none) &
-!$OMP private(j,IndMM,Imm,ra) &
-!$OMP shared(npme,tasks,mm_atom_index,mm_particles,pab,rho) &
-!$OMP shared(cube_info,l_info,eps_mm_rspace)
+!$OMP private(j,IndMM,Imm,ra,hab,force_a,force_b,alpha) &  ! CHECK TEO --HAB FORCE_A FORCE_B ALPHA
+!$OMP shared(npme,tasks,mm_atom_index,mm_particles,pab,rho,mm_charges, dvol) &  !CEHCK TEO --MM_CHARGES DVOL
+!$OMP shared(cube_info,l_info,eps_mm_rspace,mm_el_pot_radius)  ! CHECK TEO -- MM_EL_POT_RADIUS
     DO j = 1, npme
        Imm   = tasks(1,j)
        IndMM = mm_atom_index(Imm)

@@ -248,7 +248,7 @@ MODULE qs_rho0_ggrid
 !$OMP default(none) &
 !$OMP private(j,iat,iatom,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s)
+!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik,l0_ikind)  !CHECK TEO -- RHO0, QLM_C, NCH_IK, L0_IKIND
       DO j=1,npme
 
         iat =  tasks(1,j)
@@ -432,6 +432,7 @@ MODULE qs_rho0_ggrid
     INTEGER, DIMENSION(:), POINTER           :: atom_list,&
                                                 lmax,npgf
     INTEGER, DIMENSION(:,:), POINTER         :: tasks
+    INTEGER                                  :: omp_get_max_threads
     REAL(dp)  :: eps_rho_rspace, force_tmp(3), ra(3), scale, zet0_s
     REAL(dp), DIMENSION(:), POINTER          :: norm_l
     REAL(dp), DIMENSION(:), POINTER          :: hab_sph
@@ -442,6 +443,7 @@ MODULE qs_rho0_ggrid
     REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab, hadb
     REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt, hadbt
+    REAL ( dp )                              :: fourpi
     LOGICAL                                  :: failure, paw_atom
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
@@ -626,9 +628,9 @@ MODULE qs_rho0_ggrid
 !$OMP private(force_tmp,aVhsb_0s)&
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind)
+!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,fourpi,rho_atom_set,ecoul_1c)&
-!$OMP shared(nset,npgf,lmax,maxso,harmonics,Olm_gg,force)
+!$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,nspins,Qlm_gg)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
