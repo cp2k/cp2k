@@ -72,6 +72,8 @@ MODULE environment
                                              timeset,&
                                              timestop,&
                                              trace_debug,&
+                                             init_timer_env,&
+                                             destroy_timer_env,&
                                              use_HPM
   USE util,                            ONLY: ran2
 
@@ -163,6 +165,9 @@ CONTAINS
     nullify(globenv%para_env)
     call cp_para_env_create (globenv%para_env, group=globenv%group,&
         owns_group=.false.,source=globenv%source)
+
+    ! create a timer_env
+    CALL init_timer_env()
 
     ! message passing performance
     CALL mp_perf_start( )
@@ -969,10 +974,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL cp_destroy_default_logger()
-
-!   *** Release message passing environment ***
-    CALL cp_para_env_release(globenv%para_env)
+    ! write message passing performance info
     CALL mp_perf_end ( globenv%group,globenv%scr )
 
 #if defined(__HPM)
@@ -985,11 +987,14 @@ CONTAINS
     CALL timestop(0.0_dp,handle) ! corresponding the "CP2K" in cp2k_init
 
     IF (globenv%ionode) THEN
-
       output_unit = globenv%scr
-
       CALL timeprint(output_unit,globenv%print_level)
+    END IF
 
+    CALL destroy_timer_env()
+
+    IF (globenv%ionode) THEN
+      output_unit = globenv%scr
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
       CALL m_getlog(user_name)
@@ -1015,6 +1020,10 @@ CONTAINS
       END IF
 
     END IF
+
+!   *** Release message passing environment ***
+    CALL cp_destroy_default_logger()
+    CALL cp_para_env_release(globenv%para_env)
 
   END SUBROUTINE cp2k_finalize
 

@@ -698,8 +698,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_error_common_stop(fromWhere,message)
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
-
-    CALL print_stack() ! remove?
+    CALL print_stack(cp_logger_get_default_unit_nr(NULL()))
     CALL stop_program(fromWhere,message)
     STOP ! just to be sure...
   END SUBROUTINE cp_error_common_stop

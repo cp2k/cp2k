@@ -1190,7 +1190,7 @@ CONTAINS
     END IF
     IF (iostat/=0) THEN
        PRINT *,"cp_int_to_string ioerror",iostat
-       CALL print_stack()
+       CALL print_stack(cp_logger_get_default_unit_nr(NULL()))
     END IF
   END FUNCTION cp_int_to_string
 
