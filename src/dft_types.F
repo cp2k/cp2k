@@ -562,16 +562,17 @@ CONTAINS
 !   *** Load the default values ***
 
     qs_control%method = "GPW"
+    ! is now set as would result from EPS_DEFAULT=1.0E-10
     qs_control%eps_core_charge = 1.0E-12_wp
-    qs_control%eps_pgf_aux = 1.0E-6_wp
-    qs_control%eps_pgf_orb = 1.0E-6_wp
+    qs_control%eps_pgf_aux = 1.0E-5_wp
+    qs_control%eps_pgf_orb = 1.0E-5_wp
     qs_control%eps_ppl = 1.0E-12_wp
     qs_control%eps_ppnl = 1.0E-12_wp
-    qs_control%eps_rho_gspace = 1.0E-8_wp
-    qs_control%eps_rho_rspace = 1.0E-8_wp
-    qs_control%eps_gvg_rspace = 1.0E-6_wp
-    qs_control%progression_factor = 2.0_wp
-    qs_control%relative_cutoff = 25.0_wp
+    qs_control%eps_rho_gspace = 1.0E-10_wp
+    qs_control%eps_rho_rspace = 1.0E-10_wp
+    qs_control%eps_gvg_rspace = 1.0E-5_wp
+    qs_control%progression_factor = 3.0_wp
+    qs_control%relative_cutoff = 15.0_wp ! to 15 a.u. 30 Ry
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
@@ -594,7 +595,7 @@ CONTAINS
       SELECT CASE (TRIM(keyword))
       CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
         CALL read_object(value)
-        qs_control%cutoff = MAX(0.01_wp,0.5_wp*value)
+        qs_control%cutoff = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
         cutoff_set = .TRUE.
       CASE ("MULTI_GRID","MULTGRID","MGRID")
         CALL read_object(igrid_level)
@@ -609,19 +610,24 @@ CONTAINS
                                          ngrid_level*wp_size)
         DO igrid_level=1,ngrid_level
           CALL read_object(value)
-          qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value)
+          qs_control%e_cutoff(igrid_level) = MAX(0.01_wp,0.5_wp*value) ! ok input is in Ry, value is in a.u.
         END DO
         multgrid_set = .TRUE.
       CASE ("EPS_DEFAULT")
         CALL read_object(value)
-        qs_control%eps_core_charge = value
-        qs_control%eps_pgf_aux = value
-        qs_control%eps_pgf_orb = value
-        qs_control%eps_ppl = value
-        qs_control%eps_ppnl = value
+        ! now tries to give parameters that such that energies are approx accurate with EPS_DEFAULT 
+        ! gradients with sqrt(EPS_DEFAULT)
+        ! setting EPS_DEFAULT = ESP_SCF**2 should allow for convergence 
+        ! the /100 is used to set some of the parameters to a stricter value
+        ! because they seem computationally not very expensive
+        qs_control%eps_core_charge = value/100.0 
+        qs_control%eps_pgf_aux = sqrt(value) ! unknown to me
+        qs_control%eps_pgf_orb = sqrt(value)
+        qs_control%eps_ppl = value/100.0
+        qs_control%eps_ppnl = value/100.0
         qs_control%eps_rho_gspace = value
         qs_control%eps_rho_rspace = value
-        qs_control%eps_gvg_rspace = value
+        qs_control%eps_gvg_rspace = sqrt(value)
       CASE ("EPS_CORE_CHARGE")
         CALL read_object(qs_control%eps_core_charge)
       CASE ("EPS_GVG_RSPACE","EPS_GVG")
@@ -647,7 +653,7 @@ CONTAINS
         qs_control%progression_factor = MAX(0.01_wp,value)
       CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
         CALL read_object(value)
-        qs_control%relative_cutoff = MAX(10.0_wp,value)
+        qs_control%relative_cutoff = MAX(5.0_wp,0.5*value) ! now input is in Ry, value is in a.u.
       CASE ("NGRID_LEVEL","NGRID")
         CALL read_object(ngrid_level)
         ngrid_set = .TRUE.
@@ -699,7 +705,7 @@ CONTAINS
 !   set defaults for cutoff and multigrids if not yet done
     IF ( .NOT. cutoff_set ) THEN
       IF ( .NOT. multgrid_set ) THEN
-        qs_control%cutoff = MAX(0.01_wp,0.5_wp*320._wp)
+        qs_control%cutoff = MAX(0.01_wp,0.5_wp*280._wp) ! give a 280 Ry default cutoff. should be very fine
       ELSE
         qs_control%cutoff = qs_control%e_cutoff(1)
       END IF
