@@ -14,7 +14,9 @@
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (28.11.2001) : New overloaded call get_next, replacing interface
+!!                        for cfield, get_int, get_real
+!!                      : delete get_array, it was never used
 !!
 !!   NOTES
 !!----------------------------------------------------------------------------
