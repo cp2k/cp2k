@@ -37,6 +37,7 @@ MODULE qs_main
   USE qs_ep_methods,                   ONLY: qs_ep_calculation
   USE qs_force,                        ONLY: qs_forces
   USE qs_md,                           ONLY: qs_mol_dyn
+  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -108,6 +109,8 @@ CONTAINS
                                 "> was specified for "//&
                                 TRIM(globenv%program_name),globenv)
     END SELECT
+
+    CALL tddfpt_calculation(qs_env, ks_env, globenv)
 
     CALL qs_finalize(qs_env,globenv)
 
