@@ -66,15 +66,14 @@ MODULE qs_p_env_methods
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_p_type,&
+                                             cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_syrk
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE qs_blacs,                        ONLY: blacs_scale_and_d,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             replicate_blacs_matrix
+  USE qs_blacs,                        ONLY: blacs_scale_and_d
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -616,7 +615,7 @@ END SUBROUTINE p_env_did_change
 
              ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
              ! faster using cp_fm_cholesky_invert ?
-             CALL copy_blacs_to_blacs_matrix(my_psi0(spin)%matrix,&
+             CALL cp_fm_to_fm(my_psi0(spin)%matrix,&
                   p_env%psi0d(spin)%matrix, error=error)
              CALL cp_fm_triangular_multiply(&
                   triangular_matrix=p_env%m_epsilon(spin)%matrix,&

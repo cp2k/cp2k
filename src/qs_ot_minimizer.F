@@ -20,9 +20,9 @@ MODULE qs_ot_minimizer
   USE kinds, ONLY: wp => dp, wp_size => dp_size
   USE termination,         ONLY: stop_memory, stop_program
   USE timings,             ONLY: timeset, timestop
-  USE cp_fm_types,         ONLY: cp_fm_set_all
+  USE cp_fm_types,         ONLY: cp_fm_set_all, &
+                                 cp_fm_to_fm
   USE cp_fm_basic_linalg,  ONLY: cp_fm_trace, cp_fm_scale_and_add
-  USE qs_blacs,            ONLY: copy_blacs_to_blacs_matrix
   USE global_types,        ONLY: global_environment_type
   USE preconditioner,      ONLY: preconditioner_type, & 
                                  apply_preconditioner
@@ -501,14 +501,14 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
           write(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
-          CALL copy_blacs_to_blacs_matrix(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx)
        ENDDO
    ELSE
        qs_ot_env(1)%gnorm=0.0_wp
        DO ispin=1,nspin
           CALL cp_fm_trace(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx,tmp)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
-          CALL copy_blacs_to_blacs_matrix(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old)
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin)%matrix_gx_old)
        ENDDO
    ENDIF
 
@@ -563,7 +563,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
    ! copy the position and the error vector in the diis buffers
 
    DO ispin=1,nspin
-      CALL copy_blacs_to_blacs_matrix(qs_ot_env(ispin)%matrix_x, &
+      CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x, &
                                       qs_ot_env(ispin)%matrix_h_x(j)%matrix)
    ENDDO
 

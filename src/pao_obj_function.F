@@ -106,7 +106,6 @@ MODULE pao_obj_function
                                              cp_fm_trace,&
                                              cp_fm_syrk
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
-                                             copy_blacs_to_blacs_matrix,&
                                              symmetrise_blacs_matrix
   USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
                                              cp_fm_power

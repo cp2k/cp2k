@@ -56,7 +56,8 @@ MODULE qs_collocate_density
                                              cp_error_type,&
                                              cp_internal_error
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_get_element
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
@@ -104,7 +105,6 @@ MODULE qs_collocate_density
                                              pw_copy,&
                                              pw_p_type,&
                                              pw_type
-  USE qs_blacs,                        ONLY: blacs_get_element
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -894,6 +894,7 @@ CONTAINS
     INTEGER :: offset,natom,nao,ncol_global
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
+    LOGICAL :: local
 
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_wavefunction","I","",handle)
@@ -915,9 +916,9 @@ CONTAINS
     ! only some processors have non-zero elements. The sum of eigenvector on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
-    eigenvector(:)=0.0_wp
     DO i=1,nao 
-       CALL blacs_get_element(mo_vectors,i,ivector,eigenvector(i))
+       CALL cp_fm_get_element(mo_vectors,i,ivector,eigenvector(i),local)
+       IF (.NOT. local) eigenvector(i)=0.0_wp ! some more intelligent scheme is needed
     ENDDO
 
     CALL get_qs_env(qs_env=qs_env,&

@@ -22,13 +22,13 @@ MODULE qs_ot_scf
 ! *****************************************************************************
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
-  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_ot,                           ONLY: qs_ot_allocate,&
@@ -319,7 +319,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
                                             mo_eigenvectors%matrix_struct%context)
    
        ! set c0,sc0
-       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
+       CALL cp_fm_to_fm(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
                               qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k, &
                                                 para_env=mo_eigenvectors%matrix_struct%para_env)

@@ -42,6 +42,7 @@ MODULE preconditioner
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_p_type,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
@@ -53,15 +54,9 @@ MODULE preconditioner
   USE kinds,                           ONLY: wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
-  USE qs_blacs,                        ONLY: blacs_column_copy,&
-                                             blacs_make_basis,&
-                                             blacs_scale_and_d,&
+  USE qs_blacs,                        ONLY: blacs_make_basis,&
                                              blacs_scale_matrix,&
-                                             blacs_set_local_block,&
-                                             blacs_transpose,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             replicate_blacs_matrix,&
-                                             write_blacs_matrix
+                                             blacs_transpose
   USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&
@@ -635,10 +630,10 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   DO i=1,n
         evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
-  CALL copy_blacs_to_blacs_matrix(fm_h,preconditioner_env%fm)
+  CALL cp_fm_to_fm(fm_h,preconditioner_env%fm)
   CALL blacs_scale_matrix(preconditioner_env%fm,evals,n)
   CALL cp_fm_gemm('N','T',n,n,n,1.0_wp,preconditioner_env%fm,fm_h,0.0_wp,fm_s)
-  CALL copy_blacs_to_blacs_matrix(fm_s,preconditioner_env%fm)
+  CALL cp_fm_to_fm(fm_s,preconditioner_env%fm)
 
   DEALLOCATE(evals)
   CALL cp_fm_release(fm_h)

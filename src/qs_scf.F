@@ -86,6 +86,7 @@ MODULE qs_scf
                                              cp_fm_get_info,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm, &
                                              cp_fm_init_random,&
                                              cp_fm_set_element,&
                                              cp_fm_p_type
@@ -106,8 +107,6 @@ MODULE qs_scf
   USE qs_blacs,                        ONLY: blacs_add_to_element,&
                                              blacs_get_element,&
                                              blacs_make_basis,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&
                                              w_blacs_matrix => write_blacs_matrix
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
@@ -1349,7 +1348,7 @@ CONTAINS
           CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
-          CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+          CALL cp_fm_to_fm(mo_eigenvectors,ortho)
        ELSE IF (smear /= 0.0_wp) THEN
           CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
@@ -1415,7 +1414,7 @@ CONTAINS
 
 !     *** Use last MO set as orthogonalization matrix ***
 
-          CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+          CALL cp_fm_to_fm(mo_eigenvectors,ortho)
 
        END IF
 
@@ -1604,13 +1603,13 @@ CONTAINS
           IF (scf_control%level_shift /= 0.0_wp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
-             CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+             CALL cp_fm_to_fm(mo_eigenvectors,ortho)
           END IF
 
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                eigenvectors=mo_eigenvectors, homo=homo)
 ! ortho so that one can restart for different positions (basis sets?)
-          CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,homo,&
                para_env=qs_env%para_env)
           CALL blacs_make_basis(mo_eigenvectors,homo, &
@@ -1627,7 +1626,7 @@ CONTAINS
                eigenvectors=mo_eigenvectors, nmo=nmo)
           CALL cp_fm_init_random(mo_eigenvectors,nmo)
 ! ortho so that one can restart for different positions (basis sets?)
-          CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
+          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
           CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
                para_env=qs_env%para_env)
           CALL blacs_make_basis(mo_eigenvectors,nmo, &
@@ -1644,7 +1643,7 @@ CONTAINS
 ! we should copy the mos)..
        IF (dft_control%nspins.eq.2) THEN
           IF (.NOT. scf_control%use_ot) THEN
-             CALL copy_blacs_to_blacs_matrix(work1(1)%matrix,&
+             CALL cp_fm_to_fm(work1(1)%matrix,&
                   work1(2)%matrix)
           ENDIF
        ENDIF
@@ -1663,13 +1662,14 @@ CONTAINS
           IF (scf_control%level_shift /= 0.0_wp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
                   eigenvectors=mo_eigenvectors)
-             CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+             CALL cp_fm_to_fm(mo_eigenvectors,ortho)
           END IF
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
+       ! this routine should preferably learn to work with the sparse matrix types
 
        DO ispin=1,nspin
           CALL get_mo_set(mo_array(ispin)%mo_set,nelectron=nelectron)

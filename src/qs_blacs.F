@@ -11,7 +11,8 @@
 !!     qs_blacs
 !!
 !!   FUNCTION
-!!     BLACS
+!!     most of the routines in this module should not be used anymore (use cp_fm_* )
+!!     the remaining ones should also go one day
 !!
 !!   AUTHOR
 !!     Matthias Krack (22.05.2001)
@@ -20,6 +21,7 @@
 !!     1) Changed the size work array for syevx (Joost VandeVondele 28.02.02)
 !!     1) Introduced some cholesky guys         (Joost VandeVondele    05.02)
 !!     2) Introduced a symmetric matrix x distributed vector multiply ( JVdV)
+!!     3) start to remove the file
 !!
 !!   SOURCE
 !******************************************************************************
@@ -94,49 +96,29 @@ MODULE qs_blacs
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_blacs'
 
 ! *** Public subroutines ***
-  PUBLIC :: copy_blacs_to_blacs_matrix, copy_blacs_to_ionode_matrix,&
-       blacs_replicated_copy,&
-       blacs_column_copy,&
-       write_blacs_matrix, &
+  PUBLIC :: copy_blacs_to_ionode_matrix,&
+            blacs_replicated_copy,&
+            blacs_column_copy,&
+            write_blacs_matrix, &
        blacs_scale_and_d,&
        copy_vector_to_blacs, &
-       copy_blacs_to_vector, blacs_find_vector_distribution,&
-       read_blacs_matrix, replicate_blacs_matrix,&
-       blacs_set_local_block, &
-       blacs_daxpy,  blacs_get_element
+       copy_blacs_to_vector, &
+       blacs_find_vector_distribution,&
+       read_blacs_matrix, &
+       blacs_daxpy,  &
+       blacs_get_element
 
   PUBLIC :: blacs_add_to_element, &
             blacs_vector_symv, &
             symmetrise_blacs_matrix,&
             add_blacs_to_block_diag_sm,  &
             blacs_make_basis, &
-            blacs_transpose,  blacs_scale_matrix
+            blacs_transpose,  &
+            blacs_scale_matrix
 
 ! *****************************************************************************
 
 CONTAINS
-
-! *****************************************************************************
-
-
-! this routine will copy an array on to local data of a matrix
-! crucially, they have identical sizes
-  SUBROUTINE blacs_set_local_block(matrix,BLOCK)
-! *****************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrix
-    REAL(wp),DIMENSION(:,:), POINTER          :: BLOCK
-
-    REAL(wp),DIMENSION(:,:), POINTER          :: mblock
-    INTEGER :: nelements
-
-    mblock => matrix%local_data
-    nelements = SIZE(mblock,1)*SIZE(mblock,2)
-
-    CALL DCOPY(nelements,BLOCK(1,1),1,mblock(1,1),1)
-
-  END SUBROUTINE blacs_set_local_block
-
 
 ! *****************************************************************************
 
@@ -827,73 +809,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_blacs_to_blacs_matrix(source,TARGET,error)
-
-!   Purpose: Copy BLACS matrix to a BLACS matrix of the same type.
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER :: source,TARGET
-    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_blacs_to_blacs_matrix (MODULE qs_blacs)"
-
-!   *** Local variables ***
-
-    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
-    REAL(wp), DIMENSION(:,:), POINTER :: a,b
-    LOGICAL :: failure
-
-!   ---------------------------------------------------------------------------
-
-    failure=.TRUE.
-    nprow = source%matrix_struct%context%num_pe(1)
-    npcol = source%matrix_struct%context%num_pe(2)
-
-    IF(.NOT. cp2k_is_parallel .OR.&
-         cp_fm_struct_equivalent(source%matrix_struct,&
-         target%matrix_struct,error=error)) THEN
-      CALL cp_assert(SIZE(source%local_data,1)==SIZE(target%local_data,1).AND.&
-         SIZE(source%local_data,2)==SIZE(target%local_data,2),cp_failure_level,&
-         cp_assertion_failed, routine, &
-         "internal error, local_data has different sizes"//&
-         CPSourceFileRef,&
-         error=error)
-      CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
-           source%local_data(1,1),1,target%local_data(1,1),1)
-   ELSE
-      CALL cp_assert(source%matrix_struct%nrow_global==&
-           target%matrix_struct%nrow_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routine, &
-           "cannot copy between blacs matrixes of differen sizes"//&
-           CPSourceFileRef,&
-           error=error)
-      CALL cp_assert(source%matrix_struct%ncol_global==&
-           target%matrix_struct%ncol_global,&
-           cp_failure_level,&
-           cp_assertion_failed, routine, &
-           "cannot copy between blacs matrixes of differen sizes"//&
-           CPSourceFileRef,&
-           error=error)
-#ifdef __SCALAPACK
-      CALL pdcopy(source%matrix_struct%nrow_global*&
-           source%matrix_struct%ncol_global,&
-           source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
-           target%local_data(1,1),1,1,target%matrix_struct%descriptor,1)
-#else
-      CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
-#endif
-   END IF
-  END SUBROUTINE copy_blacs_to_blacs_matrix
-
-! *****************************************************************************
-
   SUBROUTINE copy_blacs_to_ionode_matrix(blacs_matrix,full_matrix,error)
 
 !   Purpose: Copy a BLACS matrix to a full matrix on the ionode (does it work in parallel ? ? ? ? ? ? )
@@ -1058,39 +973,6 @@ CONTAINS
   END SUBROUTINE read_blacs_matrix
 
 ! *****************************************************************************
-
-  SUBROUTINE replicate_blacs_matrix(prototype_matrix,new_matrix,name)
-
-!   Purpose: Allocate a distributed BLACS matrix using a prototype matrix.
-
-!   History: - Creation (08.06.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER :: new_matrix,prototype_matrix
-    CHARACTER(LEN=*), INTENT(IN)     :: name
-
-!   *** Local parameters ***
-
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE replicate_blacs_matrix (MODULE qs_blacs)"
-
-!   *** Local variables ***
-
-    TYPE(cp_blacs_env_type), POINTER :: context
-
-!   ---------------------------------------------------------------------------
-
-    CALL cp_fm_create(new_matrix,prototype_matrix%matrix_struct)
-    CALL dcopy(SIZE(new_matrix%local_data,1)*&
-         SIZE(new_matrix%local_data,2),&
-         prototype_matrix%local_data(1,1),&
-         1,new_matrix%local_data(1,1),1)
-
-  END SUBROUTINE replicate_blacs_matrix
-
-! *****************************************************************************
-
   SUBROUTINE blacs_transpose(matrix,matrixt)
 ! matrixt=matrix^T ! assumes no symmetry
 !***************************************************************************

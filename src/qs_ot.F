@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
@@ -35,6 +35,7 @@ MODULE qs_ot
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_maxval,&
+                                             cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_gemm,&
@@ -51,10 +52,7 @@ MODULE qs_ot
                                              cp_blacs_env_type
   USE qs_blacs,                        ONLY: blacs_make_basis,&
                                              blacs_scale_matrix,&
-                                             blacs_set_local_block,&
-                                             blacs_transpose,&
-                                             copy_blacs_to_blacs_matrix,&
-                                             replicate_blacs_matrix
+                                             blacs_transpose
   USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
                                              cp_fm_syevx
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
@@ -127,7 +125,6 @@ MODULE qs_ot
      LOGICAL os_valid
 
      ! for efficient/parallel writing to the blacs_matrix
-     REAL(wp),  DIMENSION(:,:), POINTER :: local_block
      INTEGER, DIMENSION(:), POINTER :: row_indices
      INTEGER, DIMENSION(:), POINTER :: col_indices
      INTEGER :: nrow_local,ncol_local
@@ -185,17 +182,13 @@ SUBROUTINE qs_ot_new_preconditioner(qs_ot_env,preconditioner)
   qs_ot_env%preconditioner => preconditioner
   qs_ot_env%os_valid = .FALSE.
   IF (.NOT. ASSOCIATED(qs_ot_env%matrix_psc0)) THEN
-      CALL replicate_blacs_matrix(qs_ot_env%matrix_sc0,&
-                                  qs_ot_env%matrix_psc0,&
-                                  name="matrix_psc0")
+      CALL cp_fm_create(qs_ot_env%matrix_psc0,qs_ot_env%matrix_sc0%matrix_struct,"matrix_psc0")
 
   ENDIF
 
   IF (.NOT. qs_ot_env%use_dx) THEN
      qs_ot_env%use_dx=.TRUE.
-     CALL replicate_blacs_matrix(qs_ot_env%matrix_gx,&
-                                 qs_ot_env%matrix_dx,&
-                                 name="matrix_dx")
+     CALL cp_fm_create(qs_ot_env%matrix_dx,qs_ot_env%matrix_gx%matrix_struct,"matrix_dx")
   ENDIF
 
 END SUBROUTINE
@@ -297,8 +290,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
                              row_indices=qs_ot_env%row_indices, &
                              col_indices=qs_ot_env%col_indices)
 
-   ALLOCATE(qs_ot_env%local_block(SIZE(qs_ot_env%matrix_cosp_b%local_data,1),SIZE(qs_ot_env%matrix_cosp_b%local_data,2)))
-
    CALL cp_fm_struct_release(fm_struct_o_o)
    CALL cp_fm_struct_release(fm_struct_o_k)
    CALL cp_fm_struct_release(fm_struct_k_k)
@@ -348,7 +339,6 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
 
    DEALLOCATE(qs_ot_env%evals)
    DEALLOCATE(qs_ot_env%dum)
-   DEALLOCATE(qs_ot_env%local_block)
    CALL cp_fm_release(qs_ot_env%matrix_os)
    CALL cp_fm_release(qs_ot_env%matrix_p)
    CALL cp_fm_release(qs_ot_env%matrix_cosp)
@@ -578,7 +568,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
 
 
   k=qs_ot_env%settings%k 
-  CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
   CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
   ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_wp)
   DO i=1,k
@@ -589,7 +579,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
   DO i=1,k
      qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
   ENDDO
-  CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_cosp)
@@ -598,7 +588,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
   DO i=1,k
      qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
   ENDDO
-  CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
+  CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_sinp)
@@ -610,20 +600,18 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
                   -SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
        b=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) &
                   +SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j))))/2.0_wp
-       qs_ot_env%local_block(i,j)=-0.5_wp*qs_ot_sinc(a)*qs_ot_sinc(b)
+       qs_ot_env%matrix_cosp_b%local_data(i,j) = -0.5_wp*qs_ot_sinc(a)*qs_ot_sinc(b)
     ENDDO
   ENDDO
-  CALL blacs_set_local_block(qs_ot_env%matrix_cosp_b,qs_ot_env%local_block)
 
 !$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
        a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) 
        b=SQRT(qs_ot_env%evals(qs_ot_env%col_indices(j)))
-       qs_ot_env%local_block(i,j)=qs_ot_sincf(a,b)
+       qs_ot_env%matrix_sinp_b%local_data(i,j)=qs_ot_sincf(a,b)
     ENDDO
   ENDDO
-  CALL blacs_set_local_block(qs_ot_env%matrix_sinp_b,qs_ot_env%local_block)
 
 
 END SUBROUTINE qs_ot_p2m

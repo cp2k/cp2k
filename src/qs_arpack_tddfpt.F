@@ -29,6 +29,9 @@
 MODULE qs_arpack_tddfpt
   USE cp_error_handling,               ONLY: cp_simple_assert
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_create, &
+                                             cp_fm_release, &
+                                             cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
                                              copy_rep_vec_to_fm
@@ -36,8 +39,6 @@ MODULE qs_arpack_tddfpt
                                              cp_to_string
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE cp_fm_types,                     ONLY: cp_fm_release
-  USE qs_blacs,                        ONLY: replicate_blacs_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l1_spin,&
@@ -112,17 +113,14 @@ CONTAINS
                                                  routineP=moduleN//'/'//routineN
 
     INTEGER :: m, n, lda
-
+    NULLIFY(v,res)
     ! code
     CPAAssert((0<op%spin).AND.(op%spin<=op%qs_env%dft_control%nspins))
     CPAAssert(SIZE(vin)==op%p_env%n_mo(op%spin)*op%p_env%n_ao(op%spin))
 
     ! allocate v and res
-    CALL replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, v, &
-         routineP//": v matrix")
-    CALL replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, res, &
-         routineP//": res matrix")
-
+    CALL cp_fm_create(v,op%p_env%psi0d(op%spin)%matrix%matrix_struct,routineP//": v matrix")
+    CALL cp_fm_create(res,op%p_env%psi0d(op%spin)%matrix%matrix_struct,routineP//": res matrix")
     CALL copy_rep_vec_to_fm(vin, v)
     
     CALL p_op_l1_spin(op%p_env, op%qs_env, op%spin, v, res)

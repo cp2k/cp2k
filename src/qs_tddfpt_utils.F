@@ -37,7 +37,6 @@ MODULE qs_tddfpt_utils
                                              cp_fm_set_submatrix
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
-  USE qs_blacs,                        ONLY: replicate_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_kpp1_env_methods,             ONLY: kpp1_create

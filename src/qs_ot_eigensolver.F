@@ -27,6 +27,7 @@ MODULE qs_ot_eigensolver
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm, &
                                              cp_fm_type,&
                                              cp_fm_release
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -42,7 +43,6 @@ MODULE qs_ot_eigensolver
                                              preconditioner_type
   USE qs_blacs,                        ONLY: blacs_column_copy,&
                                              blacs_make_basis,&
-                                             copy_blacs_to_blacs_matrix,&
                                              write_blacs_matrix
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
@@ -176,7 +176,7 @@ CONTAINS
                         rone,matrix_c)
 
         ! make matrix_c0 an orthogonal basis, matrix_c contains sc0
-        CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env(1)%matrix_c0)
+        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                 matrix_c,k, &
                                 para_env=globenv%para_env)
@@ -195,7 +195,7 @@ CONTAINS
     ELSE
 
     ! set c0,sc0
-       CALL copy_blacs_to_blacs_matrix(matrix_c,qs_ot_env(1)%matrix_c0)
+       CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                qs_ot_env(1)%matrix_sc0,qs_ot_env(1)%settings%k, &
                                para_env=globenv%para_env)

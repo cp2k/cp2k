@@ -45,10 +45,10 @@ MODULE cp_fm_diag
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
-  USE cp_fm_types,                     ONLY: cp_fm_type
+  USE cp_fm_types,                     ONLY: cp_fm_type, &
+                                             cp_fm_to_fm
   USE cp_fm_basic_linalg,              ONLY: cp_fm_syrk
   USE message_passing,                 ONLY: mp_bcast
-  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix
 
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -140,7 +140,7 @@ CONTAINS
     ALLOCATE(iwork(liwork),STAT=istat)
     IF (istat.NE.0) CALL stop_memory("cp_fm_syevd","iwork")
     CALL DSYEVD('V','U', n, m(1,1), n, eigenvalues(1), work(1), lwork, iwork(1), liwork, info)
-    CALL copy_blacs_to_blacs_matrix(matrix,eigenvectors)
+    CALL cp_fm_to_fm(matrix,eigenvectors)
 #endif
 
     IF (info.NE.0) CALL stop_program("cp_fm_syevd","unable to diagonalize matrix")

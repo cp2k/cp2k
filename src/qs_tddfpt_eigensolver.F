@@ -35,6 +35,7 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_get_element,&
                                              cp_fm_init_random, &
                                              cp_fm_release,&
+                                             cp_fm_to_fm, &
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_p_type,&
@@ -47,7 +48,6 @@ MODULE qs_tddfpt_eigensolver
   USE kinds,                           ONLY: dbl
   USE qs_arpack_utils,                 ONLY: arpack_confirm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -228,7 +228,7 @@ CONTAINS
           IF (j /= 1) THEN
              CALL apply_op(X, R, t_env, p_env, qs_env) ! result in X
              DO spin=1, n_spins
-                CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+                CALL cp_fm_to_fm(X(spin)%matrix, &
                                                 opkv(index-1,spin)%matrix)
              END DO
           END IF
@@ -267,7 +267,7 @@ CONTAINS
           ! write current vector back !
           !---------------------------!
           DO spin=1, n_spins
-             CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+             CALL cp_fm_to_fm(X(spin)%matrix, &
                                              kv(index,spin)%matrix)
           END DO
 
@@ -277,12 +277,12 @@ CONTAINS
        ! compute the last of the Op*kv vectors !
        !---------------------------------------!
        DO spin=1, n_spins
-          CALL copy_blacs_to_blacs_matrix(kv(index,spin)%matrix, &
+          CALL cp_fm_to_fm(kv(index,spin)%matrix, &
                                           X(spin)%matrix)
        END DO
        CALL apply_op(X, R, t_env, p_env, qs_env) ! result in X
        DO spin=1, n_spins
-          CALL copy_blacs_to_blacs_matrix(X(spin)%matrix, &
+          CALL cp_fm_to_fm(X(spin)%matrix, &
                                          opkv(index,spin)%matrix)
        END DO
        

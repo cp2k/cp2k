@@ -61,6 +61,7 @@ MODULE qs_mo_types
                                              cp_fm_p_type,&
                                              cp_fm_type,&
                                              cp_fm_create, &
+                                             cp_fm_to_fm, &
                                              cp_fm_release
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -68,10 +69,8 @@ MODULE qs_mo_types
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE qs_blacs,                        ONLY: blacs_replicated_copy,&
                                              blacs_scale_matrix,&
-                                             copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_ionode_matrix,&
                                              read_blacs_matrix,&
-                                             replicate_blacs_matrix,&
                                              write_blacs_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -439,7 +438,7 @@ CONTAINS
 
     CALL set_matrix(w_matrix,0.0_wp)
     CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL copy_blacs_to_blacs_matrix(mo_set%eigenvectors,weighted_vectors)
+    CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
@@ -589,7 +588,7 @@ CONTAINS
     ! rotate the orbitals
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
                     orbitals,e_vectors,0.0_wp,weighted_vectors)
-    CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals)
+    CALL cp_fm_to_fm(weighted_vectors,orbitals)
 
     ! give output
     IF (PRESENT(evals_arg)) THEN

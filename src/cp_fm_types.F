@@ -65,6 +65,7 @@ MODULE cp_fm_types
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
+  USE parallel,                        ONLY: cp2k_is_parallel
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: compress_all
@@ -85,7 +86,7 @@ MODULE cp_fm_types
   PUBLIC :: cp_fm_create, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
        cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       cp_fm_maxval, cp_fm_write, cp_fm_get_element
+       cp_fm_maxval, cp_fm_write, cp_fm_get_element, cp_fm_to_fm
 !***
 !****************************************************************************
 
@@ -236,8 +237,8 @@ CONTAINS
        ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
+       ! JVDV we should remove this, as it is up to the user to zero afterwards
        CALL dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
-! matrix%local_data(:,:) = 0.0_wp
 
        IF (PRESENT(name)) THEN
           matrix%name=name
@@ -414,7 +415,7 @@ CONTAINS
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
 
 !   Purpose: Set the FULL matrix elements to alpha.
-!   if beta is present the diagonal gets the value beta
+!   if beta is present the diagonal gets the value beta, can be used to create a unit matrix
 
 !   ***************************************************************************
 
@@ -1115,5 +1116,71 @@ CONTAINS
        END IF
     END IF
   END SUBROUTINE cp_fm_write
+
+! ********************************************************************************
+
+  SUBROUTINE cp_fm_to_fm(source,destination,error)
+
+!   copies a full matrix to an identical sized full matrix 
+!   History: - Creation (08.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(cp_fm_type), POINTER :: source,destination
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE cp_fm_to_fm (MODULE cp_fm_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
+    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    LOGICAL :: failure
+
+!   ---------------------------------------------------------------------------
+
+    failure=.TRUE.
+    nprow = source%matrix_struct%context%num_pe(1)
+    npcol = source%matrix_struct%context%num_pe(2)
+
+    IF(.NOT. cp2k_is_parallel .OR.&
+         cp_fm_struct_equivalent(source%matrix_struct,&
+         destination%matrix_struct,error=error)) THEN
+      CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
+         SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
+         cp_assertion_failed, routine, &
+         "internal error, local_data has different sizes"//&
+         CPSourceFileRef,&
+         error=error)
+      CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
+           source%local_data(1,1),1,destination%local_data(1,1),1)
+   ELSE
+      CALL cp_assert(source%matrix_struct%nrow_global==&
+           destination%matrix_struct%nrow_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between full matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+      CALL cp_assert(source%matrix_struct%ncol_global==&
+           destination%matrix_struct%ncol_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between full matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+#ifdef __SCALAPACK
+      CALL pdcopy(source%matrix_struct%nrow_global*&
+           source%matrix_struct%ncol_global,&
+           source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
+           destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
+#else
+      CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
+#endif
+   END IF
+  END SUBROUTINE cp_fm_to_fm
 
 END MODULE cp_fm_types

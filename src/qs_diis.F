@@ -42,6 +42,7 @@ MODULE qs_diis
                                              cp_fm_maxval,&
                                              cp_fm_set_all,&
                                              cp_fm_p_type,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_gemm,&
@@ -61,8 +62,6 @@ MODULE qs_diis
                                              wp_size => dp_size
   USE mathlib,                         ONLY: diagonalize_matrix,&
                                              symmetrize_matrix
-  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
-                                             replicate_blacs_matrix
   USE qs_diis_types,                   ONLY: qs_diis_b_release,&
                                              qs_diis_b_retain,&
                                              qs_diis_buffer_type
@@ -371,7 +370,7 @@ CONTAINS
 
 
        parameters => diis_buffer%parameter(ib,ispin)%matrix
-       CALL copy_blacs_to_blacs_matrix(kc(ispin)%matrix,parameters)
+       CALL cp_fm_to_fm(kc(ispin)%matrix,parameters)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc(ispin)%matrix)
 
        new_errors => diis_buffer%error(ib,ispin)%matrix
@@ -482,7 +481,7 @@ CONTAINS
 
        DO ispin=1,nspin
           parameters => diis_buffer%parameter(ib,ispin)%matrix
-          CALL copy_blacs_to_blacs_matrix(parameters,kc(ispin)%matrix)
+          CALL cp_fm_to_fm(parameters,kc(ispin)%matrix)
        ENDDO
 
     END IF
