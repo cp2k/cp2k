@@ -1,6 +1,6 @@
 &CP2K
  PROGRAM      TEST
- IOLEVEL      15
+ IOLEVEL      10
  FFTLIB       FFTSG
 &END
 
@@ -11,4 +11,6 @@
    PW_FFT         1
    FUNCTIONALS    1
    Clebsch-Gordon 1
+   RS_GRID        1
 &END
+
