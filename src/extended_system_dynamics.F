@@ -1,3 +1,4 @@
+!-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
@@ -23,56 +24,20 @@ MODULE extended_system_dynamics
  
   USE ao_types, ONLY : ao_type
   USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
+  USE distribution_1d_types, ONLY : distribution_1d_type
+  USE extended_system_types, ONLY : lnhc_parameters_type, npt_info_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
-  USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_bcast, mp_sum
+  USE particle_types, ONLY : particle_type
   USE pw_types, ONLY : pw_type
   USE termination, ONLY : stop_program
   USE timings, ONLY : timeset, timestop
-  USE util, ONLY : gasdev
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: lnhc, initialize_npt, initialize_nhc
-  PUBLIC :: lnhc_parameters_type, nhc_info_type, npt_info_type
-  PUBLIC :: yoshida_coef
-  PUBLIC :: particle_kinetic_type, particle_scale_type
-
-  TYPE npt_info_type
-     REAL ( dbl ) :: eps
-     REAL ( dbl ) :: v
-     REAL ( dbl ) :: f
-     REAL ( dbl ) :: mass
-  END TYPE npt_info_type
-
-  TYPE nhc_info_type
-     REAL ( dbl ) :: eta
-     REAL ( dbl ) :: v
-     REAL ( dbl ) :: f
-     REAL ( dbl ) :: nkt
-     REAL ( dbl ) :: mass
-  END TYPE nhc_info_type
-
-  TYPE particle_kinetic_type
-     REAL ( dbl ), POINTER :: point
-  END TYPE particle_kinetic_type
-
-  TYPE particle_scale_type
-     REAL ( dbl ), POINTER :: point
-  END TYPE particle_scale_type
-
-  TYPE lnhc_parameters_type
-     CHARACTER ( LEN = 10 ) :: dis_type
-     INTEGER :: nyosh, nc, nhc_len, num_nhc
-     REAL ( dbl ), POINTER :: dt_yosh ( : )
-     TYPE (nhc_info_type ), POINTER :: nvt ( :, : )
-     TYPE (particle_kinetic_type ), POINTER :: p_kin ( :, : )
-     TYPE (particle_scale_type ), POINTER :: p_scale ( :, : )
-     REAL ( dbl ), POINTER :: v_scale ( : )
-     REAL ( dbl ), POINTER :: s_kin ( : )
-  END TYPE lnhc_parameters_type
+  PUBLIC :: lnhc
 
   INTERFACE lnhc
      MODULE PROCEDURE lnhc_particles, lnhc_barostat, lnhc_ao, lnhc_pw
@@ -80,7 +45,6 @@ MODULE extended_system_dynamics
 
 !!*****
 !******************************************************************************
-
 CONTAINS
 !******************************************************************************
 !!****** extended_system_dynamics/lnhc_ao [1.0] *
@@ -386,13 +350,9 @@ SUBROUTINE lnhc_barostat ( nhc, npt, group )
           + npt ( i, j ) % mass * npt ( i, j ) % v * npt ( i, j ) % v
     END DO
   END DO
-#if defined(__parallel)
-! for replicated thermostats and distributed molecules, we have to
-! sum s_kin (pointed to by p_kin%point) over all processors
-  IF ( nhc % dis_type == 'INTER_REP' ) THEN
-     CALL mp_sum ( nhc % s_kin, group )
-  END IF
-#endif
+
+  IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, group )
+
   flops = flops + REAL ( ncoef, dbl )
 
 ! force on the first bead in every thermostat chain
@@ -504,17 +464,20 @@ END SUBROUTINE lnhc_barostat
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE lnhc_particles ( nhc, pnode, group )
+SUBROUTINE lnhc_particles ( nhc, atomic_kind_set, particle_set, particles, group )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
+  TYPE ( particle_type ), POINTER :: particle_set ( : )
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind_set ( : )
+  TYPE ( distribution_1d_type ), POINTER :: particles
   INTEGER, INTENT ( IN ) :: group
 
 ! Locals
-  INTEGER :: i, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2
+  INTEGER :: i, npart_local, inc, iyosh, n, inhc, handle, nx1, nx2
+  INTEGER :: ikind, ipart
   REAL ( dbl ) :: scale, flops, mass
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
@@ -529,25 +492,27 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
 ! get force on first thermostat for all the chains in the system.
   nhc % v_scale = 1.0_dbl
   nhc % s_kin = 0.0_dbl
-  nnodes = SIZE ( pnode )
-  DO i = 1, nnodes
-     atomic_kind=>pnode(i)%p%atomic_kind
-     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-     nhc % p_kin(1,i) % point = nhc % p_kin(1,i) % point &
-          + mass*pnode(i) % p % v(1)*pnode(i) % p % v(1)
-     nhc % p_kin(2,i) % point = nhc % p_kin(2,i) % point &
-          + mass*pnode(i) % p % v(2)*pnode(i) % p % v(2)
-     nhc % p_kin(3,i) % point = nhc % p_kin(3,i) % point &
-          + mass*pnode(i) % p % v(3)*pnode(i) % p % v(3)
+  DO ikind = 1, SIZE ( atomic_kind_set )
+     atomic_kind => atomic_kind_set ( ikind )
+     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+     npart_local = particles % n_el ( ikind ) 
+     DO i = 1, npart_local
+       ipart = particles % list ( ikind ) % array ( i )
+       nhc % p_kin ( 1, i ) % point = nhc % p_kin ( 1, i ) % point &
+            + mass * particle_set ( ipart ) % v ( 1 ) *            &
+                     particle_set ( ipart ) % v ( 1 )
+       nhc % p_kin ( 2, i ) % point = nhc % p_kin ( 2, i ) % point &
+            + mass * particle_set ( ipart ) % v ( 2 ) *            &
+                     particle_set ( ipart ) % v ( 2 )
+       nhc % p_kin ( 3, i ) % point = nhc % p_kin ( 3, i ) % point &
+            + mass * particle_set ( ipart ) % v ( 3 ) *            &
+                     particle_set ( ipart ) % v ( 3 )
+     END DO
   END DO
-#if defined(__parallel)
-! for replicated thermostats and distributed molecules, we have to
-! sum s_kin (pointed to by p_kin%point) over all processors
-  IF ( nhc % dis_type == 'INTER_REP' ) THEN
-     CALL mp_sum ( nhc % s_kin, group )
-  END IF
-#endif
-  flops = flops + REAL ( nnodes * 9, dbl )
+
+  IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
+
+  flops = flops + REAL ( npart_local * 9, dbl )
 
 ! force on the first bead in every thermostat chain
   DO n = 1, nhc % num_nhc
@@ -626,281 +591,28 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
   END DO NCLOOP
 
 ! now scale the particle velocities
-  DO i = 1, nnodes
-     pnode(i) % p % v(1) = pnode(i) % p % v(1)*nhc % p_scale(1,i) % point
-     pnode(i) % p % v(2) = pnode(i) % p % v(2)*nhc % p_scale(2,i) % point
-     pnode(i) % p % v(3) = pnode(i) % p % v(3)*nhc % p_scale(3,i) % point
+  DO ikind = 1, SIZE ( atomic_kind_set )
+     atomic_kind => atomic_kind_set ( ikind )
+     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+     npart_local = particles % n_el ( ikind ) 
+     DO i = 1, npart_local
+       ipart = particles % list ( ikind ) % array ( i )
+       particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * &
+                                           nhc % p_scale ( 1, i ) % point
+       particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * &
+                                           nhc % p_scale ( 2, i ) % point
+       particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * &
+                                           nhc % p_scale ( 3, i ) % point
+    END DO
   END DO
-  flops = flops + REAL ( nnodes*3, dbl )
+  flops = flops + REAL ( npart_local*3, dbl )
 
   flops = flops * 1.E-6_dbl
   CALL timestop(flops,handle)
 
 END SUBROUTINE lnhc_particles
 
-!******************************************************************************
-!!****** extended_system_dynamics/initialize_nhc [1.0] *
-!!
-!!   NAME
-!!     initialize_nhc
-!!
-!!   FUNCTION
-!!     Initializes the NHC velocities to the Maxwellian distribution
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
 
-SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
-  IMPLICIT NONE
-  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  REAL ( dbl ), INTENT ( IN ) :: tau_nhc, temp_ext
-  INTEGER :: i, j, number
-  REAL ( dbl ) :: akin, temp, v
-
-! first initializing the mass of the nhc variables
-  nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
-! initializing velocities
-  DO i = 1, nhc % num_nhc
-     DO j = 1, nhc % nhc_len
-        v = gasdev(globenv % idum)
-#if defined(__parallel)
-        IF (nhc % dis_type=='INTER_REP') CALL mp_bcast(v,globenv % source, &
-             globenv % group)
-#endif
-        nhc % nvt(j,i) % v = v
-     END DO
-  END DO
-  akin = 0.0_dbl
-  DO i = 1, nhc % num_nhc
-     DO j = 1, nhc % nhc_len
-        akin = akin + 0.5_dbl * ( nhc % nvt ( j , i ) % mass * &
-                                  nhc % nvt ( j , i ) % v * &
-                                  nhc % nvt ( j , i ) % v )
-     END DO
-  END DO
-  number = nhc % num_nhc
-#if defined(__parallel)
-  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv % group)
-  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
-#endif
-
-! scale velocities to get the correct initial temperature
-  temp = 2.0_dbl*akin/REAL(number)
-  temp = sqrt(temp_ext/temp)
-  DO i = 1, nhc % num_nhc
-     DO j = 1, nhc % nhc_len
-        nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
-        nhc % nvt(j,i) % eta = 0.0_dbl
-     END DO
-  END DO
-
-! initializing all of the forces on the thermostats
-  DO i = 1, nhc % num_nhc
-     DO j = 2, nhc % nhc_len
-        nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
-             nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
-        nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
-     END DO
-  END DO
-
-END SUBROUTINE initialize_nhc
-
-!!*****
-!******************************************************************************
-!!****** extended_system_dynamics/initialize_npt [1.0] *
-!!
-!!   NAME
-!!     initialize_npt
-!!
-!!   FUNCTION
-!!     Initializes the NHC velocities to the Maxwellian distribution
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-     globenv )
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( OUT ) :: npt
-  REAL ( dbl ), INTENT ( IN ) :: tau_cell, temp_ext, deth
-  CHARACTER ( LEN = 20 ), INTENT ( IN ) :: ensemble
-  INTEGER, INTENT ( IN ) :: nfree
-  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-
-! Locals
-  INTEGER :: i, j, number, isos
-  REAL ( dbl ) :: akin, temp, v
-
-!------------------------------------------------------------------------------
-! first initializing the mass of the nhc variables
-  SELECT CASE ( ensemble )
-  CASE ( 'NPT_I')
-     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
-          * temp_ext * tau_cell ** 2
-  CASE ( 'NPT_F')
-     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
-          * temp_ext * tau_cell ** 2 / 3.0_dbl
-  END SELECT
-
-! initializing velocities
-  DO i = 1, size ( npt,1)
-     DO j = i, size ( npt,2)
-        v = gasdev ( globenv % idum)
-#if defined(__parallel)
-        CALL mp_bcast ( v, globenv % source, globenv % group )
-#endif
-! symmetrizing the initial barostat velocities to ensure
-! no rotation of the cell under NPT_F
-        npt(j,i) % v = v
-        npt(i,j) % v = v
-     END DO
-  END DO
-
-  akin = 0.0_dbl
-  DO i = 1, SIZE( npt,1 )
-     DO j = 1, SIZE( npt,2 )
-        akin = akin + 0.5_dbl*( npt(j,i) % mass* npt(j,i) % v* npt &
-             (j,i) % v)
-     END DO
-  END DO
-
-  number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
-
-! scale velocities to get the correct initial temperature
-  IF ( number /= 0 ) THEN
-    temp = 2.0_dbl * akin / REAL ( number, dbl )
-    temp = sqrt(temp_ext/temp)
-  ENDIF
-  DO i = 1, size(npt,1)
-     DO j = i, size(npt,2)
-        npt(j,i) % v = temp * npt(j,i) % v
-        npt(i,j) % v = npt(j,i) % v
-! dbg ISOTROPIC LIMIT
-!       npt(j,i) % v = 0._dbl
-!       npt(i,j) % v = 0._dbl
-!       write (*, *) 'INTIAL v_eps', npt(j,i) % v
-! dbg 
-     END DO
-  END DO
-
-! initialize the position
-  IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
-
-END SUBROUTINE initialize_npt
-
-!!*****
-!******************************************************************************
-!!****** extended_system_dynamics/yoshida_coef [1.0] *
-!!
-!!   NAME
-!!     yoshida_coef
-!!
-!!   FUNCTION
-!!     This lists the coefficients for the Yoshida method (higher
-!!     order integrator used in NVT)
-!!
-!!   AUTHOR
-!!
-!!   CREATION DATE
-!!     14-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE yoshida_coef ( nhc, dt )
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
-  REAL ( dbl ), INTENT ( IN ) :: dt
-
-! Locals
-  REAL ( dbl ), DIMENSION (nhc % nyosh) :: yosh_wt
-
-!------------------------------------------------------------------------------
-
-  SELECT CASE (nhc % nyosh)
-  CASE DEFAULT
-     CALL stop_program ( 'yoshida_coef', 'Value not available' )
-  CASE (1)
-     yosh_wt(1) = 1.0_dbl
-  CASE (3)
-     yosh_wt(1) = 1.0_dbl/(2.0_dbl-(2.0_dbl)**(1.0_dbl/3.0_dbl))
-     yosh_wt(2) = 1.0_dbl - 2.0_dbl*yosh_wt(1)
-     yosh_wt(3) = yosh_wt(1)
-  CASE (5)
-     yosh_wt(1) = 1.0_dbl/(4.0_dbl-(4.0_dbl)**(1.0_dbl/3.0_dbl))
-     yosh_wt(2) = yosh_wt(1)
-     yosh_wt(4) = yosh_wt(1)
-     yosh_wt(5) = yosh_wt(1)
-     yosh_wt(3) = 1.0_dbl - 4.0_dbl*yosh_wt(1)
-  CASE (7)
-     yosh_wt(1) = .78451361047756_dbl
-     yosh_wt(2) = .235573213359357_dbl
-     yosh_wt(3) = -1.17767998417887_dbl
-     yosh_wt(4) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
-     yosh_wt(5) = yosh_wt(3)
-     yosh_wt(6) = yosh_wt(2)
-     yosh_wt(7) = yosh_wt(1)
-  CASE (9)
-     yosh_wt(1) = 0.192_dbl
-     yosh_wt(2) = 0.554910818409783619692725006662999_dbl
-     yosh_wt(3) = 0.124659619941888644216504240951585_dbl
-     yosh_wt(4) = -0.843182063596933505315033808282941_dbl
-     yosh_wt(5) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
-                  yosh_wt(3)+yosh_wt(4))
-     yosh_wt(6) = yosh_wt(4)
-     yosh_wt(7) = yosh_wt(3)
-     yosh_wt(8) = yosh_wt(2)
-     yosh_wt(9) = yosh_wt(1)
-  CASE (15)
-     yosh_wt(1) = 0.102799849391985_dbl
-     yosh_wt(2) = -0.196061023297549e1_dbl
-     yosh_wt(3) = 0.193813913762276e1_dbl
-     yosh_wt(4) = -0.158240635368243_dbl
-     yosh_wt(5) = -0.144485223686048e1_dbl
-     yosh_wt(6) = 0.253693336566229_dbl
-     yosh_wt(7) = 0.914844246229740_dbl
-     yosh_wt(8) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
-                 yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
-     yosh_wt(9) = yosh_wt(7)
-     yosh_wt(10) = yosh_wt(6)
-     yosh_wt(11) = yosh_wt(5)
-     yosh_wt(12) = yosh_wt(4)
-     yosh_wt(13) = yosh_wt(3)
-     yosh_wt(14) = yosh_wt(2)
-     yosh_wt(15) = yosh_wt(1)
-  END SELECT
-  nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc, dbl )
-
-END SUBROUTINE yoshida_coef
-
-!!*****
-!******************************************************************************
 
 END MODULE extended_system_dynamics
 

@@ -41,7 +41,7 @@ MODULE atoms_input
                                        default_string_length
   USE memory_utilities,         ONLY : reallocate
   USE molecule_types,           ONLY : molecule_type
-  USE extended_system_dynamics, ONLY : lnhc_parameters_type, &
+  USE extended_system_types,   ONLY : lnhc_parameters_type, &
                                        npt_info_type
   USE particle_types,           ONLY : particle_type, &
                                        allocate_particle_set

@@ -28,21 +28,9 @@ MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE cp_error_handling,               ONLY: cp_a_l,&
-                                             cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_check,&
-                                             cp_error_dealloc_ref,&
-                                             cp_error_init,&
-                                             cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+  USE cp_error_handling,               ONLY: cp_a_l, &
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
-                                             cp_fatal_level,&
-                                             cp_logger_type,&
-                                             cp_note_level,&
-                                             cp_to_string,&
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
@@ -52,19 +40,12 @@ MODULE cp_subsystem_types
                                              distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE mol_kind_list_types,             ONLY: mol_kind_list_release,&
-                                             mol_kind_list_retain,&
-                                             mol_kind_list_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_release,&
                                              mol_kind_new_list_retain,&
                                              mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_release,&
                                              mol_new_list_retain,&
                                              mol_new_list_type
-  USE mol_struct_list_types,           ONLY: mol_struct_list_release,&
-                                             mol_struct_list_retain,&
-                                             mol_struct_list_type
-  USE molecule_types,                  ONLY: particle_node_type
   USE particle_list_types,             ONLY: particle_list_release,&
                                              particle_list_retain,&
                                              particle_list_type
@@ -103,7 +84,6 @@ MODULE cp_subsystem_types
 !!     - local_molecules: the molecule structures of the actual subsys
 !!       that are local to this processor
 !!     - para_env: the parallel environment of the actual subsys
-!!     - pnode: *to be removed* !
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -120,18 +100,11 @@ MODULE cp_subsystem_types
      TYPE (particle_list_type), POINTER :: particles
      TYPE (distribution_1d_type), POINTER :: local_particles
      TYPE (cp_para_env_type), POINTER :: para_env
-
-!old
-     TYPE (mol_kind_list_type), POINTER :: molecule_kinds
-     TYPE (mol_struct_list_type), POINTER :: local_molecules
-
 !new
      TYPE (mol_new_list_type), POINTER :: molecules_new
      TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
      TYPE (distribution_1d_type), POINTER :: local_molecules_new
 
-!to remove
-     TYPE (particle_node_type), DIMENSION(:), POINTER :: pnode
   END TYPE cp_subsystem_type
 !!***
   !****************************************************************************
@@ -219,10 +192,8 @@ SUBROUTINE cp_subsys_create(subsys, para_env, error)
      CALL cp_para_env_retain(para_env,error=error)
      subsys%para_env => para_env
      NULLIFY(subsys%atomic_kinds, subsys%particles, &
-          subsys%local_particles, subsys%molecule_kinds,&
-          subsys%local_molecules, subsys%molecules_new,&
-          subsys%molecule_kinds_new, subsys%local_molecules_new,&
-          subsys%pnode)
+          subsys%local_particles, subsys%molecules_new,&
+          subsys%molecule_kinds_new, subsys%local_molecules_new)
   END IF
 END SUBROUTINE cp_subsys_create
 !***************************************************************************
@@ -321,13 +292,10 @@ SUBROUTINE cp_subsys_release(subsys, error)
         CALL atomic_kind_list_release(subsys%atomic_kinds,error=error)
         CALL particle_list_release(subsys%particles, error=error)
         CALL distribution_1d_release(subsys%local_particles, error=error)
-        CALL mol_kind_list_release(subsys%molecule_kinds, error=error)
-        CALL mol_struct_list_release(subsys%local_molecules, error=error)
         CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
         CALL mol_new_list_release(subsys%molecules_new, error=error)
         CALL distribution_1d_release(subsys%local_molecules_new,error=error)
         CALL cp_para_env_release(subsys%para_env, error=error)
-        NULLIFY(subsys%pnode)
         DEALLOCATE(subsys, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -349,15 +317,12 @@ END SUBROUTINE cp_subsys_release
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
 !!       Type(distribution_1d_type), Pointer, Optional:: local_particles
-!!       Type(mol_kind_list_type), Pointer, Optional:: molecule_kinds
-!!       Type(mol_struct_list_type), Pointer, Optional:: local_molecules
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(mol_new_list_type), Pointer, Optional:: molecules_new
 !!       Type(mol_kind_new_list_type), Pointer, Optional::&
 !!         molecule_kinds_new
 !!       Type(distribution_1d_type), Pointer, Optional::&
 !!         local_molecules_new
-!!       Type(particle_node_type), Dimension(:), Pointer, Optional:: pnode
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_subsys_set
 !!
@@ -382,19 +347,16 @@ END SUBROUTINE cp_subsys_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
-     molecule_kinds, local_molecules,molecules_new, molecule_kinds_new,&
-     local_molecules_new,pnode,para_env, error)
+                         molecules_new, molecule_kinds_new, local_molecules_new, &
+                         para_env, error)
   TYPE (cp_subsystem_type), POINTER :: subsys
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
   TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
-  TYPE (mol_kind_list_type), POINTER, OPTIONAL :: molecule_kinds
-  TYPE (mol_struct_list_type), POINTER, OPTIONAL :: local_molecules
   TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE (mol_new_list_type), POINTER, OPTIONAL :: molecules_new
   TYPE (mol_kind_new_list_type), POINTER, OPTIONAL :: molecule_kinds_new
   TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_molecules_new
-  TYPE (particle_node_type), DIMENSION(:), POINTER, OPTIONAL :: pnode
   TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -420,16 +382,6 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
         CALL distribution_1d_release(subsys%local_particles,error=error)
         subsys%local_particles => local_particles
      END IF
-     IF (PRESENT(molecule_kinds)) THEN
-        CALL mol_kind_list_retain(molecule_kinds, error=error)
-        CALL mol_kind_list_release(subsys%molecule_kinds, error=error)
-        subsys%molecule_kinds => molecule_kinds
-     END IF
-     IF (PRESENT(local_molecules)) THEN
-        CALL mol_struct_list_retain(local_molecules, error=error)
-        CALL mol_struct_list_release(subsys%local_molecules, error=error)
-        subsys%local_molecules => local_molecules
-     END IF
      IF (PRESENT(local_molecules_new)) THEN
         CALL distribution_1d_retain(local_molecules_new,error=error)
         CALL distribution_1d_release(subsys%local_molecules_new,error=error)
@@ -450,7 +402,6 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
         CALL cp_para_env_release(subsys%para_env, error=error)
         subsys%para_env => para_env
      END IF
-     IF (PRESENT(pnode)) subsys%pnode => pnode
   END IF
 END SUBROUTINE cp_subsys_set
 !***************************************************************************
@@ -462,23 +413,20 @@ END SUBROUTINE cp_subsys_set
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds,&
-!!         particles, local_particles, molecule_kinds, local_molecules,&
+!!         particles, local_particles, &
 !!         molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
-!!         pnode, error)
+!!         error)
 !!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Integer, Intent (OUT), Optional:: id_nr, ref_count
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
 !!       Type(distribution_1d_type), Pointer, Optional:: local_particles
-!!       Type(mol_kind_list_type), Pointer, Optional:: molecule_kinds
-!!       Type(mol_struct_list_type), Pointer, Optional:: local_molecules
 !!       Type(mol_new_list_type), Pointer, Optional:: molecules_new
 !!       Type(mol_kind_new_list_type), Pointer, Optional::&
 !!         molecule_kinds_new
 !!       Type(distribution_1d_type), Pointer, Optional::&
 !!         local_molecules_new
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
-!!       Type(particle_node_type), Dimension(:), Pointer, Optional:: pnode
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_subsys_get
 !!
@@ -503,20 +451,17 @@ END SUBROUTINE cp_subsys_set
 !!
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
-     local_particles, molecule_kinds, local_molecules,molecules_new,&
-     molecule_kinds_new, local_molecules_new, para_env,pnode, error)
+     local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
+     para_env, error)
   TYPE (cp_subsystem_type), POINTER :: subsys
   INTEGER, INTENT(out), OPTIONAL :: id_nr, ref_count
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
   TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
-  TYPE (mol_kind_list_type), POINTER, OPTIONAL :: molecule_kinds
-  TYPE (mol_struct_list_type), POINTER, OPTIONAL :: local_molecules
   TYPE (mol_new_list_type), POINTER, OPTIONAL :: molecules_new
   TYPE (mol_kind_new_list_type), POINTER, OPTIONAL :: molecule_kinds_new
   TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_molecules_new
   TYPE (cp_para_env_type), POINTER, OPTIONAL :: para_env
-  TYPE (particle_node_type), DIMENSION(:), POINTER, OPTIONAL :: pnode
   TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
@@ -532,13 +477,10 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
      IF (PRESENT(particles)) particles => subsys%particles
      IF (PRESENT(local_particles)) local_particles => subsys%local_particles
-     IF (PRESENT(molecule_kinds)) molecule_kinds => subsys%molecule_kinds
-     IF (PRESENT(local_molecules)) local_molecules => subsys%local_molecules
      IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
      IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
      IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
      IF (PRESENT(para_env)) para_env => subsys%para_env
-     IF (PRESENT(pnode)) pnode => subsys%pnode
   END IF
 END SUBROUTINE cp_subsys_get
 !***************************************************************************

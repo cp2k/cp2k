@@ -45,8 +45,7 @@ MODULE molecule_types_new
   TYPE molecule_type
     TYPE(molecule_kind_type), POINTER  :: molecule_kind ! pointer to molecule kind information
     TYPE(local_molecule_type), POINTER :: lmi           ! local molecule information
-    INTEGER                            :: first_atom,&  ! global index of the first atom in the molecule
-                                          nvt_num       ! number of thermostat
+    INTEGER                            :: first_atom    ! global index of the first atom in the molecule
   END TYPE molecule_type
 
 ! *** Public data types ***
@@ -99,7 +98,6 @@ CONTAINS
       NULLIFY (molecule_set(imolecule)%molecule_kind)
       NULLIFY (molecule_set(imolecule)%lmi)
       molecule_set(imolecule)%first_atom = 0
-      molecule_set(imolecule)%nvt_num = 0
     END DO
 
   END SUBROUTINE allocate_molecule_set

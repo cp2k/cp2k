@@ -90,6 +90,7 @@ OBJECTS_GENERIC =\
  ewald_parameters_types.o\
  ewalds.o\
  extended_system_dynamics.o\
+ extended_system_initialize.o\
  extended_system_types.o\
  external_potential_types.o\
  fermi.o\
@@ -297,7 +298,6 @@ OBJECTS_GENERIC =\
  string_utilities.o\
  structure_factor_types.o\
  structure_factors.o\
- structure_types.o\
  termination.o\
  timings.o\
  topology.o\

@@ -261,7 +261,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % shake_tol = 1.0E-6_dbl
   simpar % nhclen = 1
   simpar % nhclen_coef = 1
-  simpar % nc = 1
+  simpar % nc = 2
   simpar % nc_coef = 1
   simpar % subcells = 2.0_dbl
   simpar % nyosh = 1
@@ -812,15 +812,30 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! initializing velocities
   IF (mdpar % ionode) THEN
+
+! computing the COM velocities
      DO i = 1, natoms
+        atomic_kind => part ( i ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+
         part ( i ) % v ( 1 ) = gasdev ( mdpar % idum )
         part ( i ) % v ( 2 ) = gasdev ( mdpar % idum )
         part ( i ) % v ( 3 ) = gasdev ( mdpar % idum )
+
+        vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
+        vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
+        vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )
+        denom = denom + mass
      END DO
+     vcom = vcom / denom
+
      akin = 0.0_dbl
      DO i = 1, natoms
-        atomic_kind => part (i) % atomic_kind
+        atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+! first subtract the COM
+        part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
+! now compute the temp
         akin = akin + 0.5_dbl *  &
          ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
         akin = akin + 0.5_dbl *  &
@@ -832,30 +847,22 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )
 
 ! scale velocities to get the correct initial temperature and
-! computing the COM velocities
      sc = SQRT ( simpar % temp_ext / temp )
      DO i = 1, natoms
-        atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-        part ( i ) % v (1) = sc*part(i) % v(1)
-        part ( i ) % v (2) = sc*part(i) % v(2)
-        part ( i ) % v (3) = sc*part(i) % v(3)
-        vcom(1) = vcom(1) + mass*part(i) % v(1)
-        vcom(2) = vcom(2) + mass*part(i) % v(2)
-        vcom(3) = vcom(3) + mass*part(i) % v(3)
-        denom = denom + mass
+        atomic_kind => part ( i ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+        part ( i ) % v ( 1 ) = sc * part ( i ) % v ( 1 )
+        part ( i ) % v ( 2 ) = sc * part ( i ) % v ( 2 )
+        part ( i ) % v ( 3 ) = sc * part ( i ) % v ( 3 )
      END DO
 
 ! Moving the velocities so that the COM velocity is zero
      vcom = vcom / denom
      akin = 0.0_dbl
      DO i = 1, natoms
-        atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-        part(i) % v ( : ) = part(i) % v ( : ) - vcom ( : )
-        vcom_new ( : ) = vcom_new ( : ) + mass * part(i) % v ( : )
-        atomic_kind => part (i) % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
+        atomic_kind => part ( i ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
+        vcom_new ( : ) = vcom_new ( : ) + mass * part ( i ) % v ( : )
         akin = akin + 0.5_dbl *  &
          ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
         akin = akin + 0.5_dbl *  &
@@ -867,7 +874,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 #if defined(__parallel)
   DO i = 1, natoms
-     CALL mp_bcast(part(i) % v,mdpar % source,mdpar % group)
+     CALL mp_bcast ( part ( i ) % v, mdpar % source, mdpar % group )
   END DO
 #endif
 

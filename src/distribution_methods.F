@@ -100,7 +100,7 @@ CONTAINS
   SUBROUTINE distribute_molecules_1d(particle_kind_set,particle_set,&
                                      local_particles,&
                                      molecule_kind_set,molecule_set,&
-                                     local_molecules,error)
+                                     local_molecules, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: particle_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set

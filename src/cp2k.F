@@ -46,7 +46,7 @@ PROGRAM cp2k
   USE atom_module,                     ONLY: atomic_code
   USE environment,                     ONLY: cp2k_finalize,&
        cp2k_init
-  USE fist_main,                       ONLY: fist
+!  USE fist_main,                       ONLY: fist
   USE global_types,                    ONLY: global_environment_type
   USE kg_main,                         ONLY: kg
   USE library_tests,                   ONLY: lib_test
@@ -93,7 +93,7 @@ PROGRAM cp2k
   CASE ("TRAJANA")
      CALL trajana(globenv)
   CASE ("FIST")
-     CALL fist(globenv)
+!     CALL fist(globenv)
   CASE ("KG")
      CALL kg(globenv)
   CASE ("QS")

@@ -1645,7 +1645,7 @@ SUBROUTINE rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
      INTEGER, DIMENSION(6,npme), INTENT(IN) :: ival
      INTEGER, DIMENSION(:,:), POINTER :: asets, atasks
 
-     INTEGER :: itask, natom_pairs, iatom, jatom, iatom_old, jatom_old, &
+     INTEGER :: itask, iatom, jatom, iatom_old, jatom_old, &
                 nset_pairs, iset, jset, iset_old, jset_old
 
      IF(SIZE(asets,2) < npme) CALL reallocate(asets,1,2,1,npme)

@@ -28,20 +28,14 @@ MODULE velocity_verlet_control
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_pol_force,&
-                                             use_qs_force
-  USE integrator,                      ONLY: npt_f,&
-                                             npt_i,&
-                                             nve,&
-                                             nve_ao,&
-                                             nve_pw,&
-                                             nve_new,&
-                                             nvt,&
-                                             nvt_ao,&
-                                             nvt_pimd,&
-                                             nvt_pw
+                                             use_qs_force, &
+                                             force_env_type
+  USE integrator,                      ONLY: nve,&
+                                             nvt
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: zero
-  USE md_environment_types,            ONLY: md_environment_type
+  USE md_environment_types,            ONLY: md_environment_type,get_md_env
+  USE md,                              ONLY: simulation_parameters_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -82,28 +76,32 @@ SUBROUTINE velocity_verlet ( md_env )
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+  TYPE ( md_environment_type ), POINTER :: md_env
   
 ! locals
   INTEGER :: handle, in_use
+  TYPE ( simulation_parameters_type ), POINTER :: simpar
+  TYPE ( force_env_type ), POINTER :: force_env
 
 !------------------------------------------------------------------------------
   CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
 
 ! get force environment
-  CALL force_env_get ( md_env%force_env, in_use=in_use )
+  CALL get_md_env ( md_env, force_env=force_env, simpar=simpar )
+! get in_use
+  CALL force_env_get ( force_env, in_use=in_use )
 
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
-    IF ( md_env % simpar % pimd_params % beads > 0 ) THEN
-       SELECT CASE ( md_env % simpar % ensemble )
+    IF ( simpar % pimd_params % beads > 0 ) THEN
+       SELECT CASE ( simpar % ensemble )
        CASE DEFAULT
           CALL stop_program ( 'velocity','PIMD not possible' ) 
        CASE ( 'NVT' )
-          CALL nvt_pimd ( md_env )
+    !      CALL nvt_pimd ( md_env )
        END SELECT
     ELSE
-       SELECT CASE ( md_env % simpar % ensemble )
+       SELECT CASE ( simpar % ensemble )
        CASE DEFAULT
           CALL stop_program ( 'velocity_verlet','integrator not implemented')
        CASE ( 'NVE')
@@ -111,34 +109,15 @@ SUBROUTINE velocity_verlet ( md_env )
        CASE ( 'NVT')
           CALL nvt ( md_env )
        CASE ( 'NPT_I')
-          CALL npt_i ( md_env )
+         ! CALL npt_i ( md_env )
        CASE ( 'NPT_F')
-          CALL npt_f ( md_env )
+         ! CALL npt_f ( md_env )
        END SELECT
     END IF
-  CASE ( use_pol_force )
-    SELECT CASE ( md_env % simpar % ensemble_coef )
-    CASE DEFAULT
-       CALL stop_program ( 'velocity_verlet','integrator not implemented for POL')
-    CASE ( 'NVE')
-       SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
-       CASE ( ATOMICORBITALS )
-         CALL nve_ao ( md_env )
-       CASE ( PLANEWAVES )
-         CALL nve_pw ( md_env )
-       END SELECT
-    CASE ( 'NVT')
-       SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
-       CASE ( ATOMICORBITALS )
-         CALL nvt_ao ( md_env )
-       CASE ( PLANEWAVES )
-         CALL nvt_pw ( md_env )
-       END SELECT
-    END SELECT
   CASE ( use_qs_force )
-    SELECT CASE (TRIM(md_env%simpar%ensemble))
+    SELECT CASE (TRIM(simpar%ensemble))
     CASE ("NVE")
-      CALL nve_new(md_env)
+      CALL nve(md_env)
     CASE ("NVT")
       CALL nvt(md_env)
     CASE DEFAULT
@@ -146,35 +125,14 @@ SUBROUTINE velocity_verlet ( md_env )
                         "integrator not implemented for QUICKSTEP")
     END SELECT
   CASE ( use_kg_force )
-    IF (ASSOCIATED (  md_env % struc ( 1 ) % coef_pos  ) ) THEN 
-      SELECT CASE ( md_env % simpar % ensemble )
-      CASE DEFAULT
-         CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
-      CASE ( 'NVE')
-         SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
-         CASE ( ATOMICORBITALS )
-           CALL nve_ao ( md_env )
-         CASE ( PLANEWAVES )
-           CALL nve_pw ( md_env )
-         END SELECT
-      CASE ( 'NVT')
-         SELECT CASE ( md_env % struc ( 1 ) % coef_pos ( 1 ) % in_use )
-         CASE ( ATOMICORBITALS )
-           CALL nvt_ao ( md_env )
-         CASE ( PLANEWAVES )
-           CALL nvt_pw ( md_env )
-         END SELECT
-      END SELECT
-    ELSE
-      SELECT CASE ( md_env % simpar % ensemble )
-      CASE DEFAULT
-         CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
-      CASE ( 'NVE')
-         CALL nve ( md_env )
-      CASE ( 'NVT')
-         CALL nvt ( md_env )
-      END SELECT
-    END IF
+    SELECT CASE ( simpar % ensemble )
+    CASE DEFAULT
+       CALL stop_program ( 'velocity_verlet','integrator not implemented for KG')
+    CASE ( 'NVE')
+       CALL nve ( md_env )
+    CASE ( 'NVT')
+       CALL nvt ( md_env )
+    END SELECT
   END SELECT
 
   CALL timestop ( zero, handle )

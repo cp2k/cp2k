@@ -21,13 +21,20 @@
 
 MODULE md_conserved_quantities
   
+  USE atomic_kind_list_types,        ONLY: atomic_kind_list_type
   USE atomic_kind_types,             ONLY : atomic_kind_type,&
                                             get_atomic_kind
   USE coefficient_types,             ONLY : coeff_type
   USE cp_para_types,                 ONLY : cp_para_env_type
-  USE extended_system_dynamics,      ONLY : lnhc_parameters_type, &
+  USE cp_subsystem_types,            ONLY : cp_subsystem_p_type,&
+                                            cp_subsys_get
+  USE distribution_1d_types,         ONLY : distribution_1d_type
+  USE extended_system_types,         ONLY : lnhc_parameters_type, &
                                             npt_info_type
   USE kinds,                         ONLY : dbl
+  USE force_env_types,               ONLY : force_env_get,&
+                                            force_env_type, &
+                                            force_env_write_variables
   USE mathconstants,                 ONLY : zero
   USE md,                            ONLY : simulation_parameters_type
   USE md_environment_types,          ONLY : md_environment_type,&
@@ -35,8 +42,9 @@ MODULE md_conserved_quantities
                                             set_md_env
   USE message_passing,               ONLY : mp_sum, &
                                             mp_comm_dup
+  USE particle_types,                ONLY: particle_type
+  USE particle_list_types,           ONLY: particle_list_type
   USE simulation_cell,               ONLY : cell_type
-  USE structure_types,               ONLY : structure_type
   USE termination,                   ONLY : stop_memory, &
                                             stop_program
   USE util,                          ONLY : get_unit
@@ -53,10 +61,9 @@ MODULE md_conserved_quantities
   REAL (dbl) :: temp_coefs  
   END TYPE md_ener_type
 
-  INTEGER :: int_group ! this should go, no module variables...
 
-  PUBLIC :: compute_conserved_quantity, &
-            compute_conserved_quantity_pimd                                    
+  PUBLIC :: compute_conserved_quantity
+           ! compute_conserved_quantity_pimd                                    
 
 
 !******************************************************************************
@@ -92,12 +99,12 @@ CONTAINS
 !!*** *************************************************************************
 
 SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
-                                          temp, ekin_coefs, temp_coefs )                            
+                                       temp, ekin_coefs, temp_coefs )                            
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (md_environment_type), INTENT (INOUT) :: md_env
+  TYPE (md_environment_type), POINTER :: md_env
   REAL (dbl), INTENT (IN) :: epot
   REAL (dbl), INTENT (OUT) :: cons
   REAL (dbl), INTENT (OUT), OPTIONAL :: cons_rel
@@ -108,11 +115,11 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
 
 !Locals
   TYPE (simulation_parameters_type), POINTER :: simpar
-  TYPE (structure_type), POINTER :: struc ( : )
   INTEGER, POINTER :: itimes
-  REAL (dbl), POINTER :: constant
-  type (md_ener_type) :: md_ener
-  type (cp_para_env_type) ,POINTER :: para_env
+  INTEGER ::  int_grp
+  REAL ( dbl ), POINTER :: constant
+  type ( md_ener_type ) :: md_ener
+  type ( cp_para_env_type ) ,POINTER :: para_env
 
 !------------------------------------------------------------------------------
   md_ener%epot=epot 
@@ -121,12 +128,11 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
                    constant=constant,&
                    itimes=itimes,&
                    simpar=simpar,&
-                   struc=struc, &
-                   para_env = para_env)
+                   para_env = para_env )
 
-  int_group = para_env % group  
+  int_grp =  para_env % group  
  
-  CALL get_part_ke ( struc(1), md_ener%ekin )
+  CALL get_part_ke ( md_env, md_ener%ekin, int_grp )
   
   CALL get_part_temp ( md_ener%ekin, simpar, md_ener%temp )
 
@@ -134,9 +140,9 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
   CASE ( 'NVE')
     CALL get_econs_nve (md_env, md_ener, cons)
   CASE ( 'NVT')
-    CALL get_econs_nvt (md_env, md_ener, cons)
+    CALL get_econs_nvt (md_env, md_ener, cons, int_grp)
   CASE ( 'NPT')
-    CALL get_econs_npt (md_env, md_ener, cons)
+    CALL get_econs_npt (md_env, md_ener, cons, int_grp)
   END SELECT
 
   IF (itimes==1) THEN
@@ -156,119 +162,119 @@ END SUBROUTINE compute_conserved_quantity
 
 !*****************************************************************************
 
-SUBROUTINE compute_conserved_quantity_pimd (md_env, epot, cons,&
-                                            cons_rel, ekin, temp)
+!SUBROUTINE compute_conserved_quantity_pimd (md_env, epot, cons,&
+!                                            cons_rel, ekin, temp)
 
-  IMPLICIT NONE
+!  IMPLICIT NONE
 
 ! Arguments
-  TYPE (md_environment_type), INTENT (INOUT) :: md_env
-  REAL (dbl), INTENT (INOUT) :: epot
-  REAL (dbl), INTENT (OUT):: cons
-  REAL (dbl), INTENT (OUT):: cons_rel
-  REAL (dbl), INTENT (OUT):: ekin
-  REAL (dbl), INTENT (OUT):: temp
+!  TYPE (md_environment_type), POINTER :: md_env
+!  REAL (dbl), INTENT (INOUT) :: epot
+!  REAL (dbl), INTENT (OUT):: cons
+!  REAL (dbl), INTENT (OUT):: cons_rel
+!  REAL (dbl), INTENT (OUT):: ekin
+!  REAL (dbl), INTENT (OUT):: temp
 
 !Locals
-  TYPE (simulation_parameters_type), POINTER :: simpar
-  TYPE (structure_type), POINTER :: struc ( : )
+!  TYPE (simulation_parameters_type), POINTER :: simpar
+!  TYPE (structure_type), POINTER :: struc ( : )
 
-  TYPE (cell_type), POINTER :: box
-  TYPE (lnhc_parameters_type), POINTER :: nhc_baro ( : )
-  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
-  TYPE (npt_info_type), POINTER :: npt ( :, : )
+!  TYPE (cell_type), POINTER :: box
+!  TYPE (lnhc_parameters_type), POINTER :: nhc_baro ( : )
+!  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
+!  TYPE (npt_info_type), POINTER :: npt ( :, : )
 
-  INTEGER, POINTER :: itimes
-  REAL (dbl), POINTER :: constant
-  TYPE (atomic_kind_type), POINTER :: atomic_kind
+!  INTEGER, POINTER :: itimes
+!  REAL (dbl), POINTER :: constant
+!  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
-  INTEGER i,j,nnodes,beads                             
-  REAL(dbl) :: ke, t, atmp, btmp, mass 
-  REAL(dbl) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
-  REAL(dbl) :: nhc_baro_pot, baro_kin, baro_pot 
-  TYPE(cp_para_env_type), POINTER :: para_env
+!  INTEGER i,j,nnodes,beads                             
+!  REAL(dbl) :: ke, t, atmp, btmp, mass 
+!  REAL(dbl) :: nhc_part_kin, nhc_part_pot, nhc_baro_kin 
+!  REAL(dbl) :: nhc_baro_pot, baro_kin, baro_pot 
+!  TYPE(cp_para_env_type), POINTER :: para_env
 
 !------------------------------------------------------------------------------
 
-  CALL get_md_env (md_env=md_env,&
-                   cell=box,&
-                   constant=constant,&
-                   itimes=itimes,&
-                   nhc_baro=nhc_baro,&
-                   nhc_part=nhc_part,&
-                   npt=npt,&
-                   simpar=simpar,&
-                   struc=struc, &
-                   para_env = para_env)
+!  CALL get_md_env (md_env=md_env,&
+!                   cell=box,&
+!                   constant=constant,&
+!                   itimes=itimes,&
+!                   nhc_baro=nhc_baro,&
+!                   nhc_part=nhc_part,&
+!                   npt=npt,&
+!                   simpar=simpar,&
+!                   struc=struc, &
+!                   para_env = para_env)
+!
+!  int_grp = para_env % group  
 
-  int_group = para_env % group  
+!  nnodes = SIZE ( struc ( 1 ) % pnode )
+!  beads = SIZE ( struc )
+!  atmp = zero
+!  cons = zero
 
-  nnodes = SIZE ( struc ( 1 ) % pnode )
-  beads = SIZE ( struc )
-  atmp = zero
-  cons = zero
+!  DO i = 1, beads
 
-  DO i = 1, beads
+!     CALL get_part_ke ( struc ( i ), ke )
+!     CALL get_part_temp ( ke, simpar, t )
+!     atmp = atmp + t
+!     cons = cons + ke            
+!
+!  END DO
 
-     CALL get_part_ke ( struc ( i ), ke )
-     CALL get_part_temp ( ke, simpar, t )
-     atmp = atmp + t
-     cons = cons + ke            
+!  temp = atmp / beads
 
-  END DO
+!  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) THEN
+!     nhc_part_kin = zero
+!     nhc_part_pot = zero
+!     DO i = 1, beads
+!        CALL get_nhc_energies ( nhc_part ( i ), atmp, btmp )
+!        nhc_part_kin = nhc_part_kin + atmp
+!        nhc_part_pot = nhc_part_pot + btmp
+!     END DO
+!  END IF
 
-  temp = atmp / beads
+!  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
+!  CALL get_nhc_energies (  nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot )
 
-  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) THEN
-     nhc_part_kin = zero
-     nhc_part_pot = zero
-     DO i = 1, beads
-        CALL get_nhc_energies ( nhc_part ( i ), atmp, btmp )
-        nhc_part_kin = nhc_part_kin + atmp
-        nhc_part_pot = nhc_part_pot + btmp
-     END DO
-  END IF
+!  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
+!  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt,  &
+!                           baro_kin, baro_pot )
+!  btmp = zero
+!  DO i = 1, beads
+!     atmp = zero
+!     DO j = 1, nnodes
+!        atomic_kind => struc (i)%pnode(j) %p % atomic_kind
+!        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
+!        atmp = atmp + mass * (struc(i)%pimd_env%u(1,j)**2 + &
+!           struc(i)%pimd_env%u(2,j)**2 + struc(i)%pimd_env%u(3,j)**2 )  
+!     END DO
+!     btmp = btmp + struc(i)%pimd_env%lbd * atmp
+!  END DO
+!  btmp = 0.5_dbl*simpar%pimd_params%wp**2*btmp
+!  cons = cons + btmp
 
-  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
-  CALL get_nhc_energies (  nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot )
+!  ekin = 1.5_dbl*beads*nnodes/simpar%pimd_params%beta - btmp
+!  epot = epot/beads
 
-  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
-  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt,  &
-                           baro_kin, baro_pot )
-  btmp = zero
-  DO i = 1, beads
-     atmp = zero
-     DO j = 1, nnodes
-        atomic_kind => struc (i)%pnode(j) %p % atomic_kind
-        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-        atmp = atmp + mass * (struc(i)%pimd_env%u(1,j)**2 + &
-           struc(i)%pimd_env%u(2,j)**2 + struc(i)%pimd_env%u(3,j)**2 )  
-     END DO
-     btmp = btmp + struc(i)%pimd_env%lbd * atmp
-  END DO
-  btmp = 0.5_dbl*simpar%pimd_params%wp**2*btmp
-  cons = cons + btmp
+!  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
+!  CASE ( 'NVE')
+!     cons = cons + epot
+!  CASE ( 'NVT')
+!     cons = cons + epot + nhc_part_kin + nhc_part_pot
+!  CASE ( 'NPT')
+!     cons = cons + epot + nhc_part_kin + nhc_part_pot  &
+!                 + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+!  END SELECT
 
-  ekin = 1.5_dbl*beads*nnodes/simpar%pimd_params%beta - btmp
-  epot = epot/beads
+!  IF (itimes==1) THEN
+!     constant = cons
+!     CALL set_md_env (md_env=md_env, constant=constant)
+!  END IF
+!  IF (itimes /= 0 ) cons_rel = abs((cons-constant)/constant)
 
-  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
-  CASE ( 'NVE')
-     cons = cons + epot
-  CASE ( 'NVT')
-     cons = cons + epot + nhc_part_kin + nhc_part_pot
-  CASE ( 'NPT')
-     cons = cons + epot + nhc_part_kin + nhc_part_pot  &
-                 + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
-  END SELECT
-
-  IF (itimes==1) THEN
-     constant = cons
-     CALL set_md_env (md_env=md_env, constant=constant)
-  END IF
-  IF (itimes /= 0 ) cons_rel = abs((cons-constant)/constant)
-
-END SUBROUTINE compute_conserved_quantity_pimd
+!END SUBROUTINE compute_conserved_quantity_pimd
 
 !******************************************************************************
 !!******
@@ -286,40 +292,38 @@ END SUBROUTINE compute_conserved_quantity_pimd
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_econs_nve ( md_env, md_ener, cons)
+SUBROUTINE get_econs_nve ( md_env, md_ener, cons )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (md_environment_type), INTENT (INOUT) :: md_env
+  TYPE (md_environment_type), POINTER :: md_env
   TYPE (md_ener_type), INTENT (inout) :: md_ener
   REAL (dbl), INTENT (OUT) :: cons
 
   TYPE (lnhc_parameters_type), POINTER :: nhc_coef
-  TYPE (structure_type), POINTER :: struc
 
 ! Locals
   REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
 
 !----------------------------------------------------------------------------
 
-  cons = md_ener% ekin + md_ener%epot 
+  cons = md_ener % ekin + md_ener % epot 
 
-  struc => md_env % struc (1)                 
 
-  IF (ASSOCIATED (struc%coef_vel)) THEN
+!  IF (ASSOCIATED (struc%coef_vel)) THEN
 
-    CALL get_coef_ke (struc%coef_vel(1), md_ener%ekin_coefs)
-
-    CALL get_coef_temp (md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs)
-
-    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
-
-    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
-
-    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
-
-  END IF
+!    CALL get_coef_ke (struc%coef_vel(1), md_ener%ekin_coefs)
+!
+!    CALL get_coef_temp (md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs)
+!
+!    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
+!
+!    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
+!
+!    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
+!
+!  END IF
 
 END SUBROUTINE get_econs_nve
 
@@ -340,19 +344,19 @@ END SUBROUTINE get_econs_nve
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_econs_nvt ( md_env, md_ener, cons)                            
+SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)                            
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (md_environment_type), INTENT (INOUT) :: md_env
+  TYPE (md_environment_type), POINTER :: md_env
   TYPE (md_ener_type), INTENT (inout) :: md_ener
   REAL (dbl), INTENT (OUT) :: cons
+  INTEGER, INTENT ( IN ) :: int_grp
 
 ! Locals
-  TYPE (lnhc_parameters_type), POINTER :: nhc_part
+  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
   TYPE (lnhc_parameters_type), POINTER :: nhc_coef       
-  TYPE (structure_type), POINTER :: struc
 
   REAL ( dbl ) :: nhc_part_pot, nhc_part_kin
   REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
@@ -360,27 +364,26 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons)
 !----------------------------------------------------------------------------
 
 
-  struc => md_env % struc (1)
-  nhc_part => md_env % nhc_part (1)
 
-  CALL get_nhc_energies ( nhc_part, nhc_part_kin, nhc_part_pot )
+  CALL get_md_env ( md_env, nhc_part = nhc_part )
+  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot, int_grp )
 
   cons = md_ener% ekin + md_ener%epot + nhc_part_kin + nhc_part_pot
 
 
-  IF (ASSOCIATED (struc%coef_vel)) THEN
+!  IF (ASSOCIATED (struc%coef_vel)) THEN
 
-    CALL get_coef_ke ( struc % coef_vel (1), md_ener%ekin_coefs )
+!    CALL get_coef_ke ( struc % coef_vel (1), md_ener%ekin_coefs )
 
-    CALL get_coef_temp ( md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs )
+!    CALL get_coef_temp ( md_ener%ekin_coefs, struc%coef_vel(1), md_ener%temp_coefs )
  
-    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
+!    CALL get_md_env (md_env=md_env, nhc_coef=nhc_coef)
 
-    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
+!    CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
 
-    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
+!    cons = cons + nhc_coef_kin + nhc_coef_pot + md_ener%ekin_coefs
 
-  END IF
+!  END IF
 
 END SUBROUTINE get_econs_nvt
 
@@ -401,18 +404,19 @@ END SUBROUTINE get_econs_nvt
 !!
 !!*****************************************************************************
 
-SUBROUTINE get_econs_npt ( md_env, md_ener, cons)
+SUBROUTINE get_econs_npt ( md_env, md_ener, cons, int_grp)
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (md_environment_type), INTENT (INOUT) :: md_env
+  TYPE (md_environment_type), POINTER :: md_env
   TYPE (md_ener_type), INTENT (inout) :: md_ener
   REAL (dbl), INTENT (OUT) :: cons
+  INTEGER, INTENT ( IN ) :: int_grp
 
   TYPE (cell_type), POINTER :: box
-  TYPE (lnhc_parameters_type), POINTER :: nhc_baro
-  TYPE (lnhc_parameters_type), POINTER :: nhc_part 
+  TYPE (lnhc_parameters_type), POINTER :: nhc_baro ( : )
+  TYPE (lnhc_parameters_type), POINTER :: nhc_part ( : )
   TYPE (npt_info_type), POINTER :: npt ( :, : )
   TYPE (simulation_parameters_type), POINTER :: simpar
 
@@ -422,22 +426,18 @@ SUBROUTINE get_econs_npt ( md_env, md_ener, cons)
 
 !----------------------------------------------------------------------------
 
-  nhc_part => md_env%nhc_part(1)
-  nhc_baro => md_env%nhc_baro(1)
+  CALL get_md_env ( md_env, nhc_part=nhc_part, nhc_baro=nhc_baro, &
+                    simpar = simpar, npt = npt, cell = box )
 
-  CALL get_md_env (md_env=md_env,&
-                   simpar=simpar,&
-                   npt=npt,&
-                   cell=box)
 
-  CALL get_nhc_energies ( nhc_part, nhc_part_kin, nhc_part_pot )
+  CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_kin, nhc_part_pot, int_grp )
 
-  CALL get_nhc_energies ( nhc_baro, nhc_baro_kin, nhc_baro_pot )
+  CALL get_nhc_energies ( nhc_baro ( 1 ), nhc_baro_kin, nhc_baro_pot, int_grp )
 
-  CALL get_baro_energies ( box, simpar, nhc_baro, npt, baro_kin, baro_pot )
+  CALL get_baro_energies ( box, simpar, nhc_baro ( 1 ), npt, baro_kin, baro_pot, int_grp )
 
   cons = md_ener%ekin + md_ener%epot +  nhc_part_kin + nhc_part_pot  &
-            + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
+       + nhc_baro_kin + nhc_baro_pot + baro_kin + baro_pot
 
 
 END SUBROUTINE get_econs_npt
@@ -459,7 +459,7 @@ END SUBROUTINE get_econs_npt
 !!     none
 !!
 !!*** *************************************************************************
-SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot )
+SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot, int_grp )
   IMPLICIT NONE
 
   TYPE ( cell_type ), INTENT ( IN ) :: box
@@ -467,6 +467,7 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot )
   TYPE ( lnhc_parameters_type), INTENT ( IN ) :: nhc
   TYPE ( npt_info_type ), INTENT ( IN ), DIMENSION ( :, : ) :: npt
   REAL ( dbl ), INTENT ( OUT ) :: baro_pot, baro_kin
+  INTEGER, INTENT ( IN ) :: int_grp
 
   INTEGER :: i, j
 
@@ -486,12 +487,10 @@ SUBROUTINE get_baro_energies ( box, simpar, nhc, npt, baro_kin, baro_pot )
   END IF
 
   IF (simpar%ensemble(1:3)=='NPT') THEN
-#if defined(__parallel)
      IF (nhc%dis_type=='DIS_REP') THEN
-        CALL mp_sum(baro_kin,int_group)
-        CALL mp_sum(baro_pot,int_group)
+        CALL mp_sum(baro_kin,int_grp)
+        CALL mp_sum(baro_pot,int_grp)
      END IF
-#endif
   END IF
 END SUBROUTINE get_baro_energies 
 
@@ -512,10 +511,11 @@ END SUBROUTINE get_baro_energies
 !!     none
 !!
 !!***8*************************************************************************
-SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin )
+SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin, int_grp )
   IMPLICIT NONE
   TYPE ( lnhc_parameters_type ), INTENT ( IN ) :: nhc
   REAL ( dbl ), INTENT ( OUT ) :: nhc_pot, nhc_kin
+  INTEGER :: int_grp
 
   INTEGER :: n, l
 
@@ -531,12 +531,10 @@ SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin )
                         nhc % nvt ( l, n ) % eta
       END DO
    END DO
-#if defined(__parallel)
    IF (nhc%dis_type=='DIS_REP') THEN
-      CALL mp_sum(nhc_kin,int_group)
-      CALL mp_sum(nhc_pot,int_group)
+      CALL mp_sum(nhc_kin,int_grp)
+      CALL mp_sum(nhc_pot,int_grp)
    END IF
-#endif
 END SUBROUTINE get_nhc_energies 
 !******************************************************************************
 !!****** md_fist_energies/get_part_temp [1.0] *
@@ -583,61 +581,86 @@ END SUBROUTINE  get_part_temp
 !!
 !!*** *************************************************************************
 
-SUBROUTINE get_part_ke ( struc, ekin )
+SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
 
   IMPLICIT NONE
 
 !arguments
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  REAL ( dbl ), INTENT (OUT) :: ekin         
+  TYPE ( md_environment_type ), POINTER :: md_env
+  REAL ( dbl ), INTENT ( OUT ) :: ekin         
+  INTEGER, INTENT ( IN ) :: int_grp
 !locals
-  INTEGER :: i, nnodes
+  TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
+  TYPE(atomic_kind_type), POINTER      :: atomic_kind
+  TYPE(distribution_1d_type), POINTER  :: local_particles
+  TYPE(force_env_type), POINTER        :: force_env
+  TYPE(particle_list_type), POINTER    :: particles
+  TYPE(cp_subsystem_p_type), POINTER, DIMENSION(:) :: subsys
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
+  TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
+  INTEGER  :: iparticle,iparticle_kind,iparticle_local,&
+              nparticle_kind,nparticle_local
   REAL ( dbl ) :: mass
-  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
   ekin  = zero
-  nnodes = SIZE ( struc % part )
-  DO i = 1, nnodes
-     atomic_kind => struc%part(i)%atomic_kind
-     CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
-     ekin = ekin + 0.5_dbl*mass*(struc%part(i)%v(1)*struc%part(i)%v(1) +&
-                                 struc%part(i)%v(2)*struc%part(i)%v(2) +&
-                                 struc%part(i)%v(3)*struc%part(i)%v(3))
+
+  CALL get_md_env ( md_env, force_env = force_env )
+  CALL force_env_get ( force_env = force_env, subsys = subsys)
+  CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                     atomic_kinds=atomic_kinds,&
+                     local_particles=local_particles,&
+                     particles=particles)
+
+  nparticle_kind = atomic_kinds%n_els
+  atomic_kind_set => atomic_kinds%els
+
+  particle_set => particles%els
+
+  DO iparticle_kind=1,nparticle_kind
+    atomic_kind => atomic_kind_set(iparticle_kind)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+    nparticle_local = local_particles%n_el(iparticle_kind)
+    DO iparticle_local=1,nparticle_local
+      iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+      ekin = ekin +  0.5_dbl * mass *  &
+                     ( particle_set(iparticle)%v(1)*particle_set(iparticle)%v(1) &
+                    + particle_set(iparticle)%v(2)* particle_set(iparticle)%v(2) &
+                    + particle_set(iparticle)%v(3)* particle_set(iparticle)%v(3) )
+    END DO
   END DO
 
+
 ! sum all contributions to energy over calculated parts on all processors
-!MK#if defined(__parallel)
-!MK  CALL mp_sum(ekin,int_group)
-!MK#endif
+  CALL mp_sum(ekin,int_grp)
 END SUBROUTINE get_part_ke 
 
 !******************************************************************************
 !
- SUBROUTINE get_coef_temp ( ekinc, coef, ctemp )
+! SUBROUTINE get_coef_temp ( ekinc, coef, ctemp )
 
-   IMPLICIT NONE
+!   IMPLICIT NONE
 
 ! arguments
-   TYPE ( coeff_type ), INTENT ( IN ) :: coef
-   REAL (dbl), INTENT ( IN ) :: ekinc
-   REAL ( dbl ), INTENT ( OUT ) :: ctemp
+!   TYPE ( coeff_type ), INTENT ( IN ) :: coef
+!   REAL (dbl), INTENT ( IN ) :: ekinc
+!   REAL ( dbl ), INTENT ( OUT ) :: ctemp
 ! locals
-   INTEGER :: inuse, ncoef
+!   INTEGER :: inuse, ncoef
 
 ! to be converted in K in the output routine
  
-   inuse = coef % in_use
-   SELECT CASE ( inuse )
-   CASE ( 402 )
-     ncoef = SIZE (coef%ao%cr)
-     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) 
-   CASE ( 401 )
-     ncoef = SIZE (coef%pw%cc)
-     ctemp =  ekinc / REAL ( ncoef, dbl ) 
-   CASE DEFAULT
-      CALL stop_program ( 'get_coef_temp','integrator not implemented')
-   END SELECT
- END SUBROUTINE  get_coef_temp
+!   inuse = coef % in_use
+!   SELECT CASE ( inuse )
+!   CASE ( 402 )
+!     ncoef = SIZE (coef%ao%cr)
+!     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) 
+!   CASE ( 401 )
+!     ncoef = SIZE (coef%pw%cc)
+!     ctemp =  ekinc / REAL ( ncoef, dbl ) 
+!   CASE DEFAULT
+!      CALL stop_program ( 'get_coef_temp','integrator not implemented')
+!   END SELECT
+! END SUBROUTINE  get_coef_temp
 !
 !******************************************************************************
 !!****** md_fist_energies/get_coef_ke [1.0] *
@@ -656,41 +679,41 @@ END SUBROUTINE get_part_ke
 !!
 !!*****************************************************************************
 !
- SUBROUTINE get_coef_ke ( coef, ekinc )
+! SUBROUTINE get_coef_ke ( coef, ekinc )
 
-   IMPLICIT NONE
+!   IMPLICIT NONE
 ! arguments
-   TYPE ( coeff_type ), INTENT ( IN ) :: coef
-   REAL ( dbl ), INTENT ( out ) :: ekinc
+!   TYPE ( coeff_type ), INTENT ( IN ) :: coef
+!   REAL ( dbl ), INTENT ( out ) :: ekinc
 !locals 
-   INTEGER :: i
-   INTEGER :: inuse
-   REAL ( dbl ) :: cmass
+!   INTEGER :: i
+!   INTEGER :: inuse
+!   REAL ( dbl ) :: cmass
 
-   ekinc = zero
-   inuse = coef % in_use
-   SELECT CASE ( inuse )
-   CASE ( 402 )
-     DO i = 1, SIZE (coef%ao%cr)
-        ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
-                coef % ao % cr ( i ) * coef % ao % cr ( i )
-     END DO
-   CASE ( 401 )
-     DO i = 1, SIZE (coef%pw%cc)
-        cmass = coef % pw % mass_cc ( i )
-        ekinc = ekinc + 0.5_dbl * cmass * &
-         ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
-           AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
-     END DO
-   CASE DEFAULT
-      CALL stop_program ( 'get_coef_ke','integrator not implemented')
-   END SELECT 
+!   ekinc = zero
+!   inuse = coef % in_use
+!   SELECT CASE ( inuse )
+!   CASE ( 402 )
+!     DO i = 1, SIZE (coef%ao%cr)
+!        ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
+!                coef % ao % cr ( i ) * coef % ao % cr ( i )
+!     END DO
+!   CASE ( 401 )
+!     DO i = 1, SIZE (coef%pw%cc)
+!        cmass = coef % pw % mass_cc ( i )
+!        ekinc = ekinc + 0.5_dbl * cmass * &
+!         ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
+!           AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
+!     END DO
+!   CASE DEFAULT
+!      CALL stop_program ( 'get_coef_ke','integrator not implemented')
+!   END SELECT 
  
  ! sum all contributions to energy over calculated parts on all processors
 ! #if defined(__parallel)
-!   CALL mp_sum(ekinc,int_group)
+!   CALL mp_sum(ekinc,int_grp)
 ! #endif
- END SUBROUTINE get_coef_ke
+! END SUBROUTINE get_coef_ke
 
 !******************************************************************************
 

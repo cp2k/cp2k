@@ -1,0 +1,296 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/extended_system_initialize [1.0] *
+!!
+!!   NAME
+!!     extended_system_initialize
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     CJM 12-NOV-2003:  new
+!!
+!!   SOURCE
+!******************************************************************************
+MODULE extended_system_initialize
+  USE extended_system_types, ONLY : npt_info_type, lnhc_parameters_type
+  USE global_types, ONLY : global_environment_type
+  USE kinds, ONLY : dbl
+  USE termination, ONLY : stop_program
+  USE timings, ONLY : timeset, timestop
+  USE util, ONLY : gasdev
+
+  IMPLICIT NONE
+
+  PRIVATE
+  PUBLIC :: initialize_npt, initialize_nhc
+  PUBLIC :: set_yoshida_coef
+  
+  CONTAINS
+!******************************************************************************
+!!****** extended_system_initialize/initialize_nhc [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc
+!!
+!!   FUNCTION
+!!     Initializes the NHC velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
+  IMPLICIT NONE
+  TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  REAL ( dbl ), INTENT ( IN ) :: tau_nhc, temp_ext
+  INTEGER :: i, j, number
+  REAL ( dbl ) :: akin, temp, v
+
+! first initializing the mass of the nhc variables
+  nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
+! initializing velocities
+  DO i = 1, nhc % num_nhc
+     DO j = 1, nhc % nhc_len
+        v = gasdev(globenv % idum)
+#if defined(__parallel)
+        IF (nhc % dis_type=='INTER_REP') CALL mp_bcast(v,globenv % source, &
+             globenv % group)
+#endif
+        nhc % nvt(j,i) % v = v
+     END DO
+  END DO
+  akin = 0.0_dbl
+  DO i = 1, nhc % num_nhc
+     DO j = 1, nhc % nhc_len
+        akin = akin + 0.5_dbl * ( nhc % nvt ( j , i ) % mass * &
+                                  nhc % nvt ( j , i ) % v * &
+                                  nhc % nvt ( j , i ) % v )
+     END DO
+  END DO
+  number = nhc % num_nhc
+#if defined(__parallel)
+  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv % group)
+  IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
+#endif
+
+! scale velocities to get the correct initial temperature
+  temp = 2.0_dbl*akin/REAL(number)
+  temp = sqrt(temp_ext/temp)
+  DO i = 1, nhc % num_nhc
+     DO j = 1, nhc % nhc_len
+        nhc % nvt(j,i) % v = temp * nhc % nvt(j,i) % v
+        nhc % nvt(j,i) % eta = 0.0_dbl
+     END DO
+  END DO
+
+! initializing all of the forces on the thermostats
+  DO i = 1, nhc % num_nhc
+     DO j = 2, nhc % nhc_len
+        nhc % nvt(j,i) % f = nhc % nvt(j-1,i) % mass*nhc % nvt(j-1,i) % v* &
+             nhc % nvt(j-1,i) % v - nhc % nvt(j,i) % nkt
+        nhc % nvt(j,i) % f = nhc % nvt(j,i) % f/nhc % nvt(j,i) % mass
+     END DO
+  END DO
+
+END SUBROUTINE initialize_nhc
+
+!!*****
+!******************************************************************************
+!!****** extended_system_initialize/initialize_npt [1.0] *
+!!
+!!   NAME
+!!     initialize_npt
+!!
+!!   FUNCTION
+!!     Initializes the NHC velocities to the Maxwellian distribution
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
+     globenv )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( npt_info_type ), DIMENSION ( :, : ), INTENT ( OUT ) :: npt
+  REAL ( dbl ), INTENT ( IN ) :: tau_cell, temp_ext, deth
+  CHARACTER ( LEN = 20 ), INTENT ( IN ) :: ensemble
+  INTEGER, INTENT ( IN ) :: nfree
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+
+! Locals
+  INTEGER :: i, j, number, isos
+  REAL ( dbl ) :: akin, temp, v
+
+!------------------------------------------------------------------------------
+! first initializing the mass of the nhc variables
+  SELECT CASE ( ensemble )
+  CASE ( 'NPT_I')
+     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
+          * temp_ext * tau_cell ** 2
+  CASE ( 'NPT_F')
+     npt ( :, : ) % mass = REAL ( nfree + 3, dbl ) &
+          * temp_ext * tau_cell ** 2 / 3.0_dbl
+  END SELECT
+
+! initializing velocities
+  DO i = 1, size ( npt,1)
+     DO j = i, size ( npt,2)
+        v = gasdev ( globenv % idum)
+! symmetrizing the initial barostat velocities to ensure
+! no rotation of the cell under NPT_F
+        npt(j,i) % v = v
+        npt(i,j) % v = v
+     END DO
+  END DO
+
+  akin = 0.0_dbl
+  DO i = 1, SIZE( npt,1 )
+     DO j = 1, SIZE( npt,2 )
+        akin = akin + 0.5_dbl*( npt(j,i) % mass* npt(j,i) % v* npt &
+             (j,i) % v)
+     END DO
+  END DO
+
+  number = SIZE ( npt, 1 ) * SIZE ( npt, 2 )
+
+! scale velocities to get the correct initial temperature
+  IF ( number /= 0 ) THEN
+    temp = 2.0_dbl * akin / REAL ( number, dbl )
+    temp = sqrt(temp_ext/temp)
+  ENDIF
+  DO i = 1, size(npt,1)
+     DO j = i, size(npt,2)
+        npt(j,i) % v = temp * npt(j,i) % v
+        npt(i,j) % v = npt(j,i) % v
+! dbg ISOTROPIC LIMIT
+!       npt(j,i) % v = 0._dbl
+!       npt(i,j) % v = 0._dbl
+!       write (*, *) 'INTIAL v_eps', npt(j,i) % v
+! dbg 
+     END DO
+  END DO
+
+! initialize the position
+  IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
+
+END SUBROUTINE initialize_npt
+
+!!*****
+!******************************************************************************
+!!****** extended_system_initialize/set_yoshida_coef [1.0] *
+!!
+!!   NAME
+!!     set_yoshida_coef
+!!
+!!   FUNCTION
+!!     This lists the coefficients for the Yoshida method (higher
+!!     order integrator used in NVT)
+!!
+!!   AUTHOR
+!!
+!!   CREATION DATE
+!!     14-NOV-2000
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE set_yoshida_coef ( nhc, dt )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
+  REAL ( dbl ), INTENT ( IN ) :: dt
+
+! Locals
+  REAL ( dbl ), DIMENSION (nhc % nyosh) :: yosh_wt
+
+!------------------------------------------------------------------------------
+
+  SELECT CASE (nhc % nyosh)
+  CASE DEFAULT
+     CALL stop_program ( 'yoshida_coef', 'Value not available' )
+  CASE (1)
+     yosh_wt(1) = 1.0_dbl
+  CASE (3)
+     yosh_wt(1) = 1.0_dbl/(2.0_dbl-(2.0_dbl)**(1.0_dbl/3.0_dbl))
+     yosh_wt(2) = 1.0_dbl - 2.0_dbl*yosh_wt(1)
+     yosh_wt(3) = yosh_wt(1)
+  CASE (5)
+     yosh_wt(1) = 1.0_dbl/(4.0_dbl-(4.0_dbl)**(1.0_dbl/3.0_dbl))
+     yosh_wt(2) = yosh_wt(1)
+     yosh_wt(4) = yosh_wt(1)
+     yosh_wt(5) = yosh_wt(1)
+     yosh_wt(3) = 1.0_dbl - 4.0_dbl*yosh_wt(1)
+  CASE (7)
+     yosh_wt(1) = .78451361047756_dbl
+     yosh_wt(2) = .235573213359357_dbl
+     yosh_wt(3) = -1.17767998417887_dbl
+     yosh_wt(4) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+yosh_wt(3))
+     yosh_wt(5) = yosh_wt(3)
+     yosh_wt(6) = yosh_wt(2)
+     yosh_wt(7) = yosh_wt(1)
+  CASE (9)
+     yosh_wt(1) = 0.192_dbl
+     yosh_wt(2) = 0.554910818409783619692725006662999_dbl
+     yosh_wt(3) = 0.124659619941888644216504240951585_dbl
+     yosh_wt(4) = -0.843182063596933505315033808282941_dbl
+     yosh_wt(5) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+                  yosh_wt(3)+yosh_wt(4))
+     yosh_wt(6) = yosh_wt(4)
+     yosh_wt(7) = yosh_wt(3)
+     yosh_wt(8) = yosh_wt(2)
+     yosh_wt(9) = yosh_wt(1)
+  CASE (15)
+     yosh_wt(1) = 0.102799849391985_dbl
+     yosh_wt(2) = -0.196061023297549e1_dbl
+     yosh_wt(3) = 0.193813913762276e1_dbl
+     yosh_wt(4) = -0.158240635368243_dbl
+     yosh_wt(5) = -0.144485223686048e1_dbl
+     yosh_wt(6) = 0.253693336566229_dbl
+     yosh_wt(7) = 0.914844246229740_dbl
+     yosh_wt(8) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+                 yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
+     yosh_wt(9) = yosh_wt(7)
+     yosh_wt(10) = yosh_wt(6)
+     yosh_wt(11) = yosh_wt(5)
+     yosh_wt(12) = yosh_wt(4)
+     yosh_wt(13) = yosh_wt(3)
+     yosh_wt(14) = yosh_wt(2)
+     yosh_wt(15) = yosh_wt(1)
+  END SELECT
+  nhc % dt_yosh = dt * yosh_wt / REAL ( nhc % nc, dbl )
+
+END SUBROUTINE set_yoshida_coef
+
+!!*****
+!******************************************************************************
+END MODULE extended_system_initialize
+!******************************************************************************

@@ -33,7 +33,6 @@ MODULE md_energies
   USE force_env_types,                   ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE integrator,                      ONLY: pressure
   USE kinds,                           ONLY: dp
   USE linklist_types,                  ONLY: get_linklist_internal_data,&
                                              linklist_internal_data_type
@@ -41,8 +40,8 @@ MODULE md_energies
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: mdio_parameters_type,&
                                              simulation_parameters_type
-  USE md_conserved_quantities,         ONLY: compute_conserved_quantity,&
-                                             compute_conserved_quantity_pimd
+  USE md_conserved_quantities,         ONLY: compute_conserved_quantity
+                                             !compute_conserved_quantity_pimd
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
                                              set_md_env
@@ -57,7 +56,6 @@ MODULE md_energies
                                              kelvin
   USE qs_parser,                       ONLY: open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE structure_types,                 ONLY: structure_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -159,7 +157,7 @@ END SUBROUTINE set_qs_energies
 
   SUBROUTINE md_energy_qs(md_env, error)
 
-    TYPE(md_environment_type), INTENT(INOUT) :: md_env
+    TYPE(md_environment_type), POINTER :: md_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -172,7 +170,7 @@ END SUBROUTINE set_qs_energies
     TYPE(particle_list_type), POINTER         :: particles
     TYPE(simulation_parameters_type), POINTER :: simpar
     TYPE(force_env_type), POINTER             :: force_env
-    REAL (KIND = dp), POINTER                        :: constant
+    REAL (KIND = dp), POINTER                 :: constant, used_time
     INTEGER, POINTER                          :: itimes
 
     CHARACTER(LEN=200) :: title
@@ -189,6 +187,7 @@ END SUBROUTINE set_qs_energies
     CALL get_md_env(md_env=md_env,&
                     itimes=itimes,&
                     constant=constant,&
+                    used_time = used_time, &
                     simpar=simpar,&
                     force_env=force_env)
 
@@ -240,7 +239,7 @@ END SUBROUTINE set_qs_energies
       constant = e_old - e_diff
       CALL set_md_env(md_env=md_env,constant=constant)
     ELSE
-      t = t_old + REAL(itimes-itimes_old,dp)*md_env%simpar%dt*femtoseconds
+      t = t_old + REAL(itimes-itimes_old,dp)*simpar%dt*femtoseconds
     END IF
 
     IF (itimes > itimes_old) THEN
@@ -267,7 +266,7 @@ END SUBROUTINE set_qs_energies
         IF (MODULO(itimes,iscreen) == 0) THEN
           WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
             "-MD-",itimes,t,ekin,temp,epot,&
-            cons,cons-constant,md_env % used_time
+            cons,cons-constant, used_time
         END IF
 
         IF (MODULO(itimes,iener) == 0) THEN

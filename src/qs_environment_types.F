@@ -116,13 +116,7 @@ MODULE qs_environment_types
                                              mol_new_list_release,&
                                              mol_new_list_retain,&
                                              mol_new_list_type
-  USE mol_struct_list_types,           ONLY: mol_struct_list_create,&
-                                             mol_struct_list_release,&
-                                             mol_struct_list_retain,&
-                                             mol_struct_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
-  USE molecule_types,                  ONLY: molecule_structure_type,&
-                                             particle_node_type
   USE molecule_types_new,              ONLY: molecule_type
   USE pao_types,                       ONLY: pao_env_type
   USE particle_list_types,             ONLY: particle_list_create,&
@@ -253,8 +247,6 @@ MODULE qs_environment_types
 !!       present in the system
 !!     - particle_set: info on the atoms you simulate, pos,...
 !!     - local_particles: which particles ar local to this processor
-!!     old:
-!!     - molecule: local molecule description
 !!     new:
 !!     - local_molecules: which molecules are local to this processor
 !!     - molecule_kind_set: description of the molecule kinds
@@ -327,7 +319,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,sab_orb,&
+  SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho, pw_env, mpools,&
@@ -351,8 +343,6 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
-    TYPE(molecule_structure_type), &
-       DIMENSION(:), OPTIONAL, POINTER            :: molecule
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sac_ppnl,sbc_ppnl
@@ -391,13 +381,12 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
     TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_struct_list_type), POINTER :: local_molecules_old
     TYPE (mol_new_list_type), POINTER :: molecules_new
     TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(atomic_kinds, particles,local_molecules_old, molecules_new,&
+    NULLIFY(atomic_kinds, particles, molecules_new,&
          molecule_kinds_new)
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -437,18 +426,12 @@ CONTAINS
     CALL cp_subsys_get(qs_env%subsys,&
                       atomic_kinds=atomic_kinds,&
                       local_molecules_new=local_molecules,&
-                      local_molecules=local_molecules_old,&
                       local_particles=local_particles,&
                       particles=particles,&
                       molecule_kinds_new=molecule_kinds_new,&
                       molecules_new=molecules_new,&
                       error=error)
     IF (PRESENT(atomic_kind_set)) atomic_kind_set => atomic_kinds%els
-    IF (PRESENT(molecule)) THEN
-      IF (ASSOCIATED(local_molecules_old)) THEN
-        molecule => local_molecules_old%els
-      END IF
-    END IF
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
@@ -512,7 +495,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,molecule,&
+  SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,kinetic,&
@@ -534,8 +517,6 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, POINTER     :: dft_control
     TYPE(mo_set_p_type),  DIMENSION(:),&
       OPTIONAL, POINTER                           :: c
-    TYPE ( molecule_structure_type ),  &
-      DIMENSION ( : ), OPTIONAL, POINTER          :: molecule
     TYPE(neighbor_list_set_p_type),&
       DIMENSION(:), OPTIONAL, POINTER             :: sab_orb,sac_erfc,sac_ppl,&
                                                      sac_ppnl,sbc_ppnl
@@ -571,7 +552,6 @@ CONTAINS
     LOGICAL :: failure
     TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
     TYPE (particle_list_type), POINTER :: particles
-    TYPE (mol_struct_list_type), POINTER :: local_molecules_old
     TYPE (mol_new_list_type), POINTER :: molecules_new
     TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
 !   ---------------------------------------------------------------------------
@@ -664,15 +644,6 @@ CONTAINS
                         atomic_kinds=atomic_kinds,&
                         error=error)
       CALL atomic_kind_list_release(atomic_kinds,error=error)
-    END IF
-    IF (PRESENT(molecule)) THEN
-      CALL mol_struct_list_create(local_molecules_old,&
-                                  els_ptr=molecule,&
-                                  error=error)
-      CALL cp_subsys_set(qs_env%subsys,&
-                        local_molecules=local_molecules_old,&
-                        error=error)
-      CALL mol_struct_list_release(local_molecules_old,error=error)
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&

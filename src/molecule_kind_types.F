@@ -98,7 +98,7 @@ MODULE molecule_kind_types
     TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
     CHARACTER(LEN=default_string_length)                    :: name,&
                                                          nhcopt
-    REAL(KIND = dp), DIMENSION(:), POINTER                   :: charge,&
+    REAL(KIND = dp), DIMENSION(:), POINTER            :: charge,&
                                                          mass
     INTEGER                                           :: kind_number,&
                                                          natom,&

@@ -21,10 +21,7 @@
 !******************************************************************************
 
 MODULE md_run
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
-                                             atomic_kind_list_release,&
-                                             atomic_kind_list_retain,&
-                                             atomic_kind_list_type
+  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE atoms_input,                     ONLY: read_md_restart
@@ -40,9 +37,6 @@ MODULE md_run
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
-                                             cp_subsystem_type,&
-                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
@@ -50,21 +44,22 @@ MODULE md_run
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dump,                            ONLY: dump_variables
-  USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
-                                             npt_info_type
-  USE extended_system_types,           ONLY: extended_system_type
-  USE force_env_types,                   ONLY: force_env_calculate_force,&
-                                             force_env_create,&
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type,  &
+                                             extended_system_type
+  USE force_env_types,                 ONLY: force_env_calculate_force,&
                                              force_env_get,&
-                                             force_env_release,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_forces,&
-                                             initialize_nhc_part_new,&
+                                             initialize_nhc_part,&
                                              initialize_npt_type
   USE input_types,                     ONLY: setup_parameters_type
   USE integrator,                      ONLY: set_integrator
@@ -78,40 +73,21 @@ MODULE md_run
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
-  USE md_environment_types,            ONLY: destroy_md_env,&
-                                             init_md_env,&
+  USE md_environment_types,            ONLY: md_env_release,&
+                                             md_env_create, & 
                                              md_environment_type,&
                                              set_md_env,&
+                                             get_md_env,&
                                              zero_virial
   USE md_energies,                  ONLY: md_energy_qs,&
                                              set_qs_energies
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
-  USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
-                                             mol_kind_list_release,&
-                                             mol_kind_list_retain,&
-                                             mol_kind_list_type
-  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
-                                             mol_kind_new_list_release,&
-                                             mol_kind_new_list_retain,&
-                                             mol_kind_new_list_type
-  USE mol_new_list_types,              ONLY: mol_new_list_create,&
-                                             mol_new_list_release,&
-                                             mol_new_list_retain,&
-                                             mol_new_list_type
-  USE mol_struct_list_types,           ONLY: mol_struct_list_create,&
-                                             mol_struct_list_release,&
-                                             mol_struct_list_retain,&
-                                             mol_struct_list_type
-  USE molecule_types,                  ONLY: intra_parameters_type,&
-                                             molecule_structure_type,&
-                                             molecule_type,&
-                                             particle_node_type
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE mol_struct_list_types,           ONLY: mol_struct_list_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
   USE output_utilities,                ONLY: print_warning
-  USE particle_list_types,             ONLY: particle_list_create,&
-                                             particle_list_release,&
-                                             particle_list_retain,&
-                                             particle_list_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: kelvin
   USE qs_energy,                       ONLY: qs_energies
@@ -123,14 +99,12 @@ MODULE md_run
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
-  USE structure_types,                 ONLY: init_structure_type,&
-                                             set_structure_type,&
-                                             structure_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
+
   IMPLICIT NONE
 
   PRIVATE
@@ -168,22 +142,20 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(extended_system_type)            :: extended_type
-    TYPE(intra_parameters_type)           :: intra_param
-    TYPE(md_environment_type)             :: md_env
+    TYPE(md_environment_type),POINTER     :: md_env
     TYPE(mdio_parameters_type)            :: mdio
     TYPE(setup_parameters_type)           :: setup
-    TYPE(mol_kind_list_type), POINTER     :: molecule_kinds
     TYPE(mol_kind_new_list_type), POINTER :: molecule_kinds_new
+    TYPE(mol_new_list_type), POINTER      :: molecules_new
     TYPE(particle_list_type), POINTER     :: particles
-    TYPE(mol_struct_list_type), POINTER   :: local_molecules
+    TYPE(distribution_1d_type), POINTER   :: local_molecules
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(cell_type), POINTER                  :: cell_ref
     TYPE(simulation_parameters_type), POINTER :: simpar
 
-    TYPE(structure_type), DIMENSION(:), POINTER          :: struc
     TYPE(virial_type), POINTER                           :: virial
-    REAL(KIND = dp), POINTER                                    :: constant
+    REAL(KIND = dp), POINTER                             :: used_time
     INTEGER, POINTER                                     :: itimes
     REAL(KIND = dp)                                             :: ekin
     REAL(KIND = dp)                                             :: econs 
@@ -203,9 +175,9 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
     failure=.FALSE.
-    NULLIFY ( molecule_kinds, particles, local_molecules, cell, cell_ref,&
-         simpar,struc,virial,constant,itimes,subsys,nhc_part, nhc_baro )
-    NULLIFY (molecule_kinds_new)
+    NULLIFY ( particles, local_molecules, cell, cell_ref,&
+              simpar,virial,itimes,used_time,subsys,nhc_part, nhc_baro )
+    NULLIFY (md_env,molecule_kinds_new, molecules_new)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -223,8 +195,6 @@ CONTAINS
 
     CALL force_env_get(force_env,subsys=subsys, cell=cell, error=error)
 
-    ALLOCATE (struc(SIZE(subsys)),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     !FM probably in some cases it might also be good to connect the same
     !FM termostat to different subsystems (add a way in the input to specify 
     !FM this?)
@@ -238,12 +208,13 @@ CONTAINS
 
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            local_molecules=local_molecules,&
-            molecule_kinds=molecule_kinds,&
+            local_molecules_new=local_molecules,&
             molecule_kinds_new=molecule_kinds_new,&
+            molecules_new=molecules_new,&
             error=error)
-       CALL initialize_nhc_part_new(cell,simpar,molecule_kinds_new%els,&
-                                    extended_type%nhc_part(isubsys),globenv)
+       CALL initialize_nhc_part(cell,simpar,local_molecules, &
+                                molecules_new%els, molecule_kinds_new%els,&
+                                globenv, extended_type%nhc_part(isubsys))
        CALL initialize_nhc_baro(simpar,globenv,&
                                 extended_type%nhc_baro(isubsys))
     END DO
@@ -290,26 +261,22 @@ CONTAINS
                               extended_type%npt_info )
     END SELECT
 
-!MK    DO isubsys=1,SIZE(subsys)
-!MK      nhc_part => extended_type%nhc_part(isubsys)
-!MK      nhc_baro => extended_type%nhc_baro(isubsys)
-!MK      CALL initialize_nhc_forces (nhc_part,nhc_baro)
-!MK    END DO
-
     DO isubsys=1,SIZE(subsys)
-       CALL init_structure_type(struc(isubsys))
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            pnode=struc(isubsys)%pnode, particles=particles,&
-            local_molecules=local_molecules, error=error)
-       struc(isubsys)%part => particles%els
-!MK       struc(isubsys)%molecule => local_molecules%els
+      nhc_part => extended_type%nhc_part(isubsys)
+      nhc_baro => extended_type%nhc_baro(isubsys)
+      CALL initialize_nhc_forces ( nhc_part, nhc_baro )
     END DO
 
-    CALL init_md_env(md_env, globenv % para_env)
+    DO isubsys=1,SIZE(subsys)
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
+            particles=particles,&
+            local_molecules_new=local_molecules, error=error)
+    END DO
+
+    CALL md_env_create ( md_env, globenv % para_env, error = error )
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
-                    struc=struc,&
                     virial=virial,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
@@ -317,43 +284,35 @@ CONTAINS
                     cell=cell,&
                     force_env=force_env)
 
-    ! this is in fact pretty ugly !!!
-    ALLOCATE (md_env%itimes,STAT=istat)
-    IF (istat /= 0) CALL stop_memory (routine_name,module_name,__LINE__,&
-                                      "itimes",int_size)
-    ALLOCATE (md_env%constant,STAT=istat)
-    IF (istat /= 0) CALL stop_memory (routine_name,module_name,__LINE__,&
-                                      "constant",dp_size)
 
-    CALL set_integrator(globenv)
-
-    itimes => md_env%itimes
-    itimes = 0
+    CALL set_integrator ( globenv )
 
     CALL set_qs_energies ( globenv, mdio )
     ! the verlet integrator needs to be started with the correct forces alreay initialized
 
     time_iter_start=m_walltime()
 
-    CALL force_env_calculate_force ( md_env%force_env )
-    CALL md_energy_qs(md_env) ! inits the print env at itimes == 0
+    CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
+                      used_time = used_time ) 
+    CALL force_env_calculate_force ( force_env )
+    CALL md_energy_qs ( md_env ) ! inits the print env at itimes == 0
 
-    DO istep=1,md_env%simpar%nsteps
+    DO istep=1,simpar%nsteps
       CALL velocity_verlet(md_env)
       itimes = itimes + 1
       CALL temperature_control(simpar,force_env,error)
       time_iter_stop=m_walltime()
-      md_env % used_time = time_iter_stop - time_iter_start
+      used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
       CALL md_energy_qs(md_env)
       IF (MODULO(itimes,mdio%idump) == 0) THEN
-        CALL dump_variables(md_env,force_env,mdio%dump_file_name,error)
+        CALL dump_variables(md_env,mdio%dump_file_name,error)
       END IF
       CALL external_control(force_env,should_stop,error=error)
       IF (should_stop) EXIT
-    END DO
+    END DO 
 
-    CALL destroy_md_env(md_env)
+    CALL md_env_release ( md_env, error )
 
     CALL timestop(0.0_dp,handle)
 
@@ -401,7 +360,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(atomic_kind, atomic_kinds, particles, local_particles, atom_list,&
-         subsys, para_env)
+            subsys, para_env)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(simpar),cp_failure_level,routineP,error,failure)
