@@ -740,7 +740,8 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=max_name_length) :: aux_basis_set_name,keyword,&
-                                      orb_basis_set_name,potential_name
+                                      orb_basis_set_name,potential_name,&
+                                      pot_fullname
     CHARACTER(LEN=2)               :: current_symbol,element_symbol
     INTEGER                        :: i,ikind,ipos,istat,z, min_b_index
     LOGICAL                        :: found,section_found, failure
@@ -878,6 +879,7 @@ CONTAINS
 !     *** Remove the appendix of the potential name ***
 !     *** (e.g. remove "-PADE" from  GTH-PADE)      ***
 
+      pot_fullname = potential_name
       ipos = INDEX(potential_name,"-")
       IF (ipos > 0) potential_name(ipos:) = " "
 
@@ -893,7 +895,7 @@ CONTAINS
                             atomic_kind%gth_potential,globenv)
       ELSE IF (potential_name == "EPC") THEN
         CALL allocate_potential(atomic_kind%epc_potential)
-        CALL read_potential(atomic_kind%element_symbol,potential_name,&
+        CALL read_potential(atomic_kind%element_symbol,pot_fullname,&
                             atomic_kind%epc_potential,globenv)
       ELSE
         CALL stop_program(routine,&
