@@ -83,6 +83,9 @@ MODULE kg_force
                                               pw_grid_construct, &   
                                               pw_grid_change,&
                                               pw_grid_setup
+  USE pw_pool_types,                   ONLY : pw_pool_create,&
+                                              pw_pool_release,&
+                                              pw_pool_type
   USE pws,                             ONLY : init_pw_poisson_solver,&
                                               pw_poisson_solver 
   USE pw_types,                        ONLY : COMPLEXDATA1D,&
@@ -145,6 +148,7 @@ MODULE kg_force
      TYPE(gridlevel_info_type) :: gridlevel_info
      TYPE(l_info_type)         :: l_info
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+     TYPE(pw_pool_type), POINTER :: pw_pool
   END TYPE kg_rho_v_type
 
   TYPE ( kg_rho_v_type ), POINTER :: kg_rho_v 
@@ -344,7 +348,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv, debug )
 
   CALL coeff_zero(kg_rho_v%v_rspace)
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL calculate_kxc_potential (kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
+  CALL calculate_kxc_potential (kg_rho_v% pw_pool, & 
+                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
                                 kg_rho_v%v_xc_rspace, thermo % e_xc, dft_control)
 
 ! calculate the total density
@@ -632,7 +637,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, debug )
   CALL coeff_zero(kg_rho_v%v_rspace)
 
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL calculate_kxc_potential (kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
+  CALL calculate_kxc_potential (kg_rho_v % pw_pool, &
+                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
                                 kg_rho_v % rho_p_rspace, kg_rho_v%v_xc_rspace, &
                                 kg_rho_v%v1_xc_rspace, kg_rho_v%v2_xc_rspace, &
                                 thermo % e_xc, e1_xc, e2_xc, dft_control)
@@ -1027,7 +1033,7 @@ END SUBROUTINE deallocate_kg_densities
 !   ---------------------------------------------------------------------------
 
     NULLIFY( kg_rho_v%cube_info )
-
+    NULLIFY( kg_rho_v%pw_pool )
 
     rel_cutoff =  kg_env%dft_control%kg_control%relative_cutoff
     cutoff => kg_env % dft_control%kg_control%e_cutoff
@@ -1100,6 +1106,7 @@ END SUBROUTINE deallocate_kg_densities
     DEALLOCATE (kg_rho_v%cube_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"cube_info")
 
+    CALL pw_pool_release (kg_rho_v%pw_pool)
     CALL destroy_l_info(kg_rho_v%l_info)
     CALL destroy_gaussian_gridlevel(kg_rho_v%gridlevel_info,globenv)
 
@@ -1131,6 +1138,8 @@ END SUBROUTINE deallocate_kg_densities
     LOGICAL :: ionode
     TYPE(cell_type), POINTER          :: cell
     type(pw_grid_type), dimension(:), pointer :: pw_grid
+    type(pw_grid_type), pointer :: pw_grid_loc
+    type(pw_pool_type), pointer :: pw_pool
     REAL(dbl), DIMENSION(:), POINTER :: cutoff
 
 !   ---------------------------------------------------------------------------
@@ -1196,17 +1205,26 @@ END SUBROUTINE deallocate_kg_densities
 
     CALL init_pw_poisson_solver(cell%green)
 
+!   pw pools initialized
+
+    pw_grid_loc=>pw_grid(auxbas)
+    NULLIFY (pw_pool)
+    CALL pw_pool_create(pw_pool, pw_grid_ptr=pw_grid_loc)     
+    kg_rho_v%pw_pool => pw_pool
+
     CALL timestop(0.0_dbl,handle)
 
   END SUBROUTINE init_grid
 
 ! *****************************************************************************
 
- SUBROUTINE get_grids ( pw_grids, gridlevel_info, l_info, cube_info, ref_grid )
+ SUBROUTINE get_grids ( pw_grids, pw_pool, gridlevel_info, l_info, &
+                         cube_info, ref_grid )
 
   IMPLICIT NONE
 
   TYPE ( pw_grid_type ), DIMENSION (:), POINTER, OPTIONAL :: pw_grids
+  TYPE ( pw_pool_type ), POINTER, OPTIONAL :: pw_pool
   TYPE ( gridlevel_info_type ), POINTER, OPTIONAL :: gridlevel_info
   TYPE ( l_info_type ), POINTER, OPTIONAL         :: l_info
   TYPE ( cube_info_type ), DIMENSION(:), POINTER, OPTIONAL :: cube_info
@@ -1214,6 +1232,7 @@ END SUBROUTINE deallocate_kg_densities
 
 
   IF ( PRESENT ( pw_grids ) ) pw_grids => kg_rho_v % pw_grid
+  IF ( PRESENT ( pw_pool ) ) pw_pool => kg_rho_v % pw_pool
   IF ( PRESENT ( gridlevel_info ) ) gridlevel_info => kg_rho_v % gridlevel_info
   IF ( PRESENT ( l_info ) ) l_info => kg_rho_v % l_info
   IF ( PRESENT ( cube_info ) ) cube_info => kg_rho_v % cube_info

@@ -39,6 +39,7 @@
   USE molecule_types, ONLY : particle_node_type
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
+  USE pw_pool_types, ONLY : pw_pool_type
   USE pw_types,  ONLY: COMPLEXDATA1D, COMPLEXDATA3D,&
        REALDATA3D, REALSPACE, RECIPROCALSPACE
   USE simulation_cell, ONLY : cell_type
@@ -224,7 +225,7 @@ END SUBROUTINE  fpart_gspace_numer
 
 !------------------------------------------------------------------------------!
 
- SUBROUTINE  fpart_xc_numer  ( delta, kg_env, pw_grid, iref, &
+ SUBROUTINE  fpart_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
    IMPLICIT NONE
@@ -237,6 +238,7 @@ END SUBROUTINE  fpart_gspace_numer
    TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
    TYPE ( l_info_type ), INTENT(IN)               :: l_info
    TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   TYPE ( pw_pool_type ), pointer :: pw_pool
    INTEGER, INTENT ( IN ) :: iref
    REAL ( dbl ), INTENT ( IN ) :: delta
    REAL ( dbl ), INTENT ( OUT ) :: energy_numer
@@ -307,7 +309,7 @@ END SUBROUTINE  fpart_gspace_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rho0_rspace, kg_env, globenv )
-        CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+        CALL calculate_kxc_potential(pw_pool, rho_elec_rspace, rho_gspace, v_xc_rspace, &
                             energy_plus, kg_env%dft_control)
 
         kg_env % part ( i ) % r ( id ) = kg_env % part ( i ) % r ( id ) - 2._dbl * delta
@@ -323,7 +325,7 @@ END SUBROUTINE  fpart_gspace_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rho0_rspace, kg_env, globenv )
-        CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+        CALL calculate_kxc_potential(pw_pool,rho_elec_rspace, rho_gspace, v_xc_rspace, &
                             energy_minus, kg_env%dft_control)
         f_part ( id, i ) = energy_minus - energy_plus
 
@@ -347,7 +349,7 @@ END SUBROUTINE  fpart_gspace_numer
                            mgrid_rspace, mgrid_gspace,&
                            gridlevel_info, cube_info,&
                            l_info, total_rho0_rspace, kg_env, globenv )
-  CALL calculate_kxc_potential(rho_elec_rspace, rho_gspace, v_xc_rspace, &
+  CALL calculate_kxc_potential(pw_pool,rho_elec_rspace, rho_gspace, v_xc_rspace, &
                            energy_numer, kg_env%dft_control)
 
 
@@ -483,7 +485,7 @@ END SUBROUTINE  fpart_core_rspace_numer
 END SUBROUTINE  fpart_bc_numer
 !------------------------------------------------------------------------------!
 
- SUBROUTINE  fpart_p_xc_numer  ( delta, kg_env, pw_grid, iref, &
+ SUBROUTINE  fpart_p_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_part, energy_numer, globenv )
    IMPLICIT NONE
@@ -496,6 +498,7 @@ END SUBROUTINE  fpart_bc_numer
    TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
    TYPE ( l_info_type ), INTENT(IN)               :: l_info
    TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   TYPE ( pw_pool_type ), pointer :: pw_pool
    INTEGER, INTENT ( IN ) :: iref
    REAL ( dbl ), INTENT ( IN ) :: delta
    REAL ( dbl ), INTENT ( OUT ) :: energy_numer
@@ -594,7 +597,7 @@ END SUBROUTINE  fpart_bc_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rhop_rspace, kg_env, globenv )
-        CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+        CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                                 rho_p_rspace, v_xc_rspace, &
                                 v1_xc_rspace, v2_xc_rspace, &
                                 exc, e1_xc, e2_xc,kg_env% dft_control)
@@ -623,7 +626,7 @@ END SUBROUTINE  fpart_bc_numer
             mgrid_rspace, mgrid_gspace,&
             gridlevel_info, cube_info,&
             l_info, total_rhop_rspace, kg_env, globenv )
-        CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+        CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                                 rho_p_rspace, v_xc_rspace, &
                                 v1_xc_rspace, v2_xc_rspace, &
                                 exc, e1_xc, e2_xc,kg_env% dft_control)
@@ -661,7 +664,7 @@ END SUBROUTINE  fpart_bc_numer
       mgrid_rspace, mgrid_gspace,&
       gridlevel_info, cube_info,&
       l_info, total_rhop_rspace, kg_env, globenv )
-  CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+  CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                           rho_p_rspace, v_xc_rspace, &
                           v1_xc_rspace, v2_xc_rspace, &
                           exc, e1_xc, e2_xc,kg_env% dft_control)
@@ -906,7 +909,7 @@ END SUBROUTINE  fpart_p_gspace_numer
 
 !------------------------------------------------------------------------------!
 
- SUBROUTINE  fcoef_p_xc_numer  ( delta, kg_env, pw_grid, iref, &
+ SUBROUTINE  fcoef_p_xc_numer  ( delta, kg_env, pw_grid, pw_pool, iref, &
                                    gridlevel_info, l_info, cube_info, &
                                    f_coef, energy_numer, globenv )
    IMPLICIT NONE
@@ -919,6 +922,7 @@ END SUBROUTINE  fpart_p_gspace_numer
    TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
    TYPE ( l_info_type ), INTENT(IN)               :: l_info
    TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: pw_grid
+   TYPE ( pw_pool_type ), pointer  :: pw_pool
    INTEGER, INTENT ( IN ) :: iref
    REAL ( dbl ), INTENT ( IN ) :: delta
    REAL ( dbl ), INTENT ( OUT ) :: energy_numer
@@ -1015,7 +1019,7 @@ END SUBROUTINE  fpart_p_gspace_numer
           mgrid_rspace, mgrid_gspace,&
           gridlevel_info, cube_info,&
           l_info, total_rhop_rspace, kg_env, globenv )
-      CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+      CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                               rho_p_rspace, v_xc_rspace, &
                               v1_xc_rspace, v2_xc_rspace, &
                               exc, e1_xc, e2_xc,kg_env% dft_control)
@@ -1044,7 +1048,7 @@ END SUBROUTINE  fpart_p_gspace_numer
           mgrid_rspace, mgrid_gspace,&
           gridlevel_info, cube_info,&
           l_info, total_rhop_rspace, kg_env, globenv )
-      CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+      CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                               rho_p_rspace, v_xc_rspace, &
                               v1_xc_rspace, v2_xc_rspace, &
                               exc, e1_xc, e2_xc,kg_env% dft_control)
@@ -1080,7 +1084,7 @@ END SUBROUTINE  fpart_p_gspace_numer
       mgrid_rspace, mgrid_gspace,&
       gridlevel_info, cube_info,&
       l_info, total_rhop_rspace, kg_env, globenv )
-  CALL calculate_kxc_potential (rho_elec_rspace, rho_gspace, &
+  CALL calculate_kxc_potential (pw_pool,rho_elec_rspace, rho_gspace, &
                           rho_p_rspace, v_xc_rspace, &
                           v1_xc_rspace, v2_xc_rspace, &
                           exc, e1_xc, e2_xc,kg_env% dft_control)

@@ -36,6 +36,7 @@ MODULE kg_debug
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
+  USE pw_pool_types, ONLY : pw_pool_type 
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_memory, stop_program
 
@@ -88,6 +89,7 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
   TYPE ( particle_type ), POINTER  :: part ( : )
   TYPE ( particle_node_type ), POINTER  :: pnode ( : )
   TYPE ( pw_grid_type ), POINTER, DIMENSION ( : ) :: pw_grid
+  TYPE ( pw_pool_type ), POINTER :: pw_pool
   INTEGER :: iflag, i, natoms, isos, iatom, iw, iwf, ir, ref_grid, gmax
   INTEGER :: NCOEF, icoef
   INTEGER, DIMENSION ( 2 ) :: dum
@@ -333,16 +335,16 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, &              
+    CALL get_grids ( pw_grids = pw_grid, pw_pool=pw_pool, &              
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid ) 
     IF (kgpol) THEN
 
-      CALL fpart_p_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+      CALL fpart_p_xc_numer ( delta, kg_env, pw_grid, pw_pool, ref_grid, gridlevel_info, &
                                 l_info, cube_info, f_numer, energy_numer, globenv )
     ELSE
-      CALL fpart_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+      CALL fpart_xc_numer ( delta, kg_env, pw_grid, pw_pool, ref_grid, gridlevel_info, &
                                 l_info, cube_info, f_numer, energy_numer, globenv )
     END IF
 
@@ -569,12 +571,12 @@ SUBROUTINE  kg_debug_control ( globenv, kg_env )
       WRITE ( iw, '(A,T71,F10.6)' ) ' DELTA = ', delta
     END IF
 
-    CALL get_grids ( pw_grids = pw_grid, &
+    CALL get_grids ( pw_grids = pw_grid, pw_pool = pw_pool, & 
                       gridlevel_info = gridlevel_info, &
                       l_info = l_info, cube_info = cube_info, &
                       ref_grid = ref_grid )
 
-    CALL fcoef_p_xc_numer ( delta, kg_env, pw_grid, ref_grid, gridlevel_info, &
+    CALL fcoef_p_xc_numer ( delta, kg_env, pw_grid, pw_pool, ref_grid, gridlevel_info, &
                                 l_info, cube_info, fc_numer, energy_numer, globenv )
 
     WRITE ( iw, '( A, T61, G20.12 )' ) ' XC ANA ENERGY = ', &

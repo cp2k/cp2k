@@ -32,9 +32,7 @@ MODULE kg_kxc
                                              mp_range,&
                                              mp_sum,&
                                              mp_sync
-  USE pw_pool_types,                   ONLY: pw_pool_create,&
-                                             pw_pool_release,&
-                                             pw_pool_type
+  USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -75,11 +73,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE calc_kxc_pot_kg ( rho_r, rho_g, v_r, e_xc, dft_control )
+ SUBROUTINE calc_kxc_pot_kg (pw_pool, rho_r, rho_g, v_r, e_xc, dft_control )
 
   IMPLICIT NONE
 
 ! Arguments
+  TYPE ( pw_pool_type ), pointer :: pw_pool
   TYPE ( coeff_type ), INTENT (in) :: rho_r
   TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (out) :: v_r
@@ -90,28 +89,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
 ! Locals
-  TYPE(pw_pool_type), POINTER :: pw_pool
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
-  NULLIFY(pw_pool)
+!  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
   rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
   rhog => rho_g%pw%cc(:)
-!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-!  rhog (:) = -1.0_dbl * rhog(:)
 
-  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
+! CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
   CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
        e_xc,dft_control,pw_pool)
-  CALL pw_pool_release (pw_pool)
+! CALL pw_pool_release (pw_pool)
  
-  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
-!  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
-!  rhog (:) = -1.0_dbl * rhog(:)
+!  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
   vxc (:,:,:) =  1.0_dbl * vxc(:,:,:) *rho_r%pw%pw_grid%dvol
 
  END SUBROUTINE calc_kxc_pot_kg
@@ -138,12 +132,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE calc_kxc_pot_kgpol ( rho_r, rho_g, rhop_r, v_r, v1_r, &
+ SUBROUTINE calc_kxc_pot_kgpol ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
                            v2_r, e_xc, e1_xc, e2_xc, dft_control )
 
   IMPLICIT NONE
 
 ! Arguments
+  TYPE (pw_pool_type), POINTER :: pw_pool
   TYPE ( coeff_type ), INTENT (in) :: rho_r
   TYPE ( coeff_type ), INTENT (in) :: rho_g
   TYPE ( coeff_type ), INTENT (in) :: rhop_r
@@ -159,7 +154,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine =&
       "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
 ! Locals
-  TYPE (pw_pool_type), POINTER :: pw_pool
   REAL (dbl), DIMENSION(:,:,:), POINTER :: rho
   REAL (dbl), DIMENSION(:,:,:), POINTER :: vxc
   REAL (dbl), DIMENSION(:,:,:), POINTER :: v1xc
@@ -167,7 +161,7 @@ CONTAINS
   COMPLEX (dbl), DIMENSION(:), POINTER :: rhog
 !--------------------------------------------------------
 
-  NULLIFY(pw_pool)
+!  NULLIFY(pw_pool)
   e_xc = 0.0_dbl
 !  rho => rho_r%pw%cr3d(:,:,:)
   vxc => v_r%pw%cr3d(:,:,:)
@@ -177,15 +171,15 @@ CONTAINS
 !  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
 !  rhog (:) = -1.0_dbl * rhog(:)
 
-  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
+!  CALL pw_pool_create (pw_pool, rho_r%pw%pw_grid)
   CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
        e_xc,dft_control,pw_pool)
-  CALL pw_pool_release (pw_pool)
+!  CALL pw_pool_release (pw_pool)
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
                              v2_r%pw, e1_xc, e2_xc, dft_control)
  
-  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
+!  e_xc =  rho_r%pw%pw_grid%dvol*e_xc      
   e1_xc =  1.0_dbl*rho_r%pw%pw_grid%dvol*e1_xc      
   e2_xc =   0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
 !  rho (:,:,:) = -1.0_dbl * rho(:,:,:)
