@@ -82,7 +82,7 @@ CONTAINS
     CALL timeset("Quickstep","I","",handle)
 
 #if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
-    call stop_program("qs_main:quickstep",&
+    CALL stop_program("qs_main:quickstep",&
          "quikstep need blacs and scalapack for parallel runs",globenv)
 #endif
 !   *** Initialise BLACS ***
@@ -113,7 +113,7 @@ CONTAINS
 
 !   *** TD calculation ***
     
-    CALL tddfpt_calculation(qs_p_env, ks_env, qs_env, globenv)
+    CALL tddfpt_calculation(qs_env, ks_env, globenv)
 
 !   *** Calculate forces ***
 

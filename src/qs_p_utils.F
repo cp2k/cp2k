@@ -44,7 +44,7 @@ MODULE qs_p_utils
   USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
   USE qs_p_types,           ONLY : qs_p_env_type
   USE qs_p_build_kernel,    ONLY : kpp1_calculate
-  USE qs_p_build_kernel, ONLY: qs_K_P_P1_env_type, kpp1_calculate
+  USE qs_p_build_kernel, ONLY: kpp1_calculate
   USE kinds, ONLY: wp=>dp
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
@@ -75,7 +75,7 @@ MODULE qs_p_utils
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
 
   PRIVATE
-  PUBLIC :: p_op_l1
+  PUBLIC :: p_op_l1, p_op_l2, p_preortho, p_postortho
 
 CONTAINS
 
@@ -108,7 +108,9 @@ CONTAINS
 !!****
 
   SUBROUTINE p_op_l1(p_env, v, res, glob_env, error)
-    
+ 
+    IMPLICIT NONE
+   
     ! argument
     TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
     TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
@@ -118,7 +120,7 @@ CONTAINS
                                                            
     ! locals                                               
     LOGICAL                          :: failure
-    INTEGER                          :: spin, n_spins, ncol
+    INTEGER                          :: n_spins, spin, ncol
     TYPE(real_matrix_type), POINTER  :: k_p
     TYPE(blacs_matrix_type), POINTER :: tmp
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_op_l1',&
@@ -130,8 +132,7 @@ CONTAINS
     
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    n_spins = SIZE(v)
-
+    n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
        CALL replicate_blacs_matrix(p_env%psi0d(1)%blacs_matrix, tmp, &
@@ -163,7 +164,7 @@ CONTAINS
 !!     p_op_l2
 !!
 !!   FUNCTION
-!!     evaluates target_m=alpha K_P_P1 C + beta target_m
+!!     evaluates res = alpha K_P_P1 v + beta res
 !!
 !!   NOTES
 !!     -
@@ -199,9 +200,8 @@ CONTAINS
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: n_spins, spin
+    INTEGER                     :: spin
 
-!!!    integer :: i
     failure=.FALSE.
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
@@ -256,8 +256,10 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE p_preortho(p_env, v, glob_env, n_cols, error)
     
+    IMPLICIT NONE
+
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(qs_p_env_type), INTENT(in)                        :: p_env
     TYPE(blacs_matrix_p_type), DIMENSION(:), INTENT(inout) :: v
     TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
     INTEGER, INTENT(in), OPTIONAL                          :: n_cols
@@ -268,17 +270,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_preortho',&
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
-    INTEGER                          :: spin, n_spins
+    INTEGER                          :: n_spins, spin
     TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
-    n_spins = SIZE(v)
 
     NULLIFY(tmp)
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
     
+    n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &
@@ -353,17 +355,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER      :: routineN = 'p_env_postortho',&
                                         routineP = moduleN//':'//routineN
     INTEGER                          :: v_rows, v_cols, cols
-    INTEGER                          :: spin, n_spins
+    INTEGER                          :: n_spins, spin
     TYPE(blacs_matrix_type), POINTER :: tmp
 
     ! code
     failure=.FALSE.
-    n_spins = SIZE(v)
 
     NULLIFY(tmp)
 
     CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
 
+    n_spins = p_env%qs_env%n_spins
     DO spin=1, n_spins
 
        CALL replicate_blacs_matrix(p_env%psi0d(spin)%blacs_matrix, tmp, &

@@ -25,30 +25,32 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module qs_p_build_kernel
-  use cp_log_handling, only: cp_to_string, cp_logger_type, cp_failure_level,&
+MODULE qs_p_build_kernel
+
+  USE cp_log_handling, ONLY: cp_to_string, cp_logger_type, cp_failure_level,&
        cp_warning_level, cp_note_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_unimplemented_error
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type
-  use qs_p_types, only: qs_k_p_p1_env_type
-  use qs_build_ks_matrix, only: qs_ks_env_type, qs_ks_did_change, &
+  USE cp_error_handling, ONLY: cp_error_type, cp_assert, cp_unimplemented_error
+  USE kinds, ONLY: wp=>dp
+  USE global_types, ONLY: global_environment_type
+  USE timings, ONLY: timeset, timestop
+  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
+  USE cp_block_matrix, ONLY: cp_block_matrix_type, cp_block_matrix_p_type
+  USE qs_p_types, ONLY: qs_K_P_P1_env_type
+  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
        qs_ks_update_qs_env
-  implicit none
-  private
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='qs_p_build_kernel'
+  IMPLICIT NONE
 
-  public :: qs_K_P_P1_env_type
-  public :: kpp1_init, kpp1_dealloc_ref, kpp1_set_p, kpp1_calculate
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_build_kernel'
+
+  PUBLIC :: kpp1_init, kpp1_dealloc_ref, kpp1_set_p, kpp1_calculate
 !***
 !****************************************************************************
   
-contains
+CONTAINS
   
 !!****f* qs_p_build_kernel/kpp1_init [1.0] *
 !!
@@ -73,22 +75,24 @@ contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine kpp1_init(kpp1_env,qs_env,ks_env,global_env,error)
-  type(qs_K_P_P1_env_type), intent(inout) :: kpp1_env
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(qs_ks_env_type), intent(in), target :: ks_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+
+SUBROUTINE kpp1_init(kpp1_env,qs_env,ks_env,global_env,error)
+  TYPE(qs_K_P_P1_env_type), INTENT(inout) :: kpp1_env
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(qs_ks_env_type), INTENT(in), TARGET :: ks_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='kpp1_init',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='kpp1_init',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (.not. failure) then
-     call cp_unimplemented_error(routineP, error=error, error_level=cp_warning_level)
-  end if
-end subroutine kpp1_init
+  IF (.NOT. failure) THEN
+     CALL cp_unimplemented_error(routineP, error=error, error_level=cp_warning_level)
+  END IF
+END SUBROUTINE kpp1_init
+
 !***************************************************************************
 
 !!****f* qs_p_build_kernel/kpp1_dealloc_ref [1.0] *
@@ -114,19 +118,19 @@ end subroutine kpp1_init
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine kpp1_dealloc_ref(kpp1_env,error)
-  type(qs_K_P_P1_env_type), intent(inout) :: kpp1_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE kpp1_dealloc_ref(kpp1_env,error)
+  TYPE(qs_K_P_P1_env_type), INTENT(inout) :: kpp1_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='kpp1_dealloc_ref',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='kpp1_dealloc_ref',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (.not. failure) then
-     call cp_unimplemented_error(routineP,error=error)
-  end if
-end subroutine kpp1_dealloc_ref
+  IF (.NOT. failure) THEN
+     CALL cp_unimplemented_error(routineP,error=error)
+  END IF
+END SUBROUTINE kpp1_dealloc_ref
 !***************************************************************************
 
 !!****f* qs_p_build_kernel/kpp1_set_p [1.0] *
@@ -153,21 +157,21 @@ end subroutine kpp1_dealloc_ref
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine kpp1_set_p(kpp1_env,p,global_env,error)
-  type(qs_K_P_P1_env_type), intent(inout) :: kpp1_env
-  type(cp_block_matrix_p_type), dimension (:), intent(in) :: p
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE kpp1_set_p(kpp1_env,p,global_env,error)
+  TYPE(qs_K_P_P1_env_type), INTENT(inout) :: kpp1_env
+  TYPE(cp_block_matrix_p_type), DIMENSION (:), INTENT(in) :: p
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='kpp1_set_p',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='kpp1_set_p',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (.not. failure) then
-     call cp_unimplemented_error(routineP,error=error)
-  end if
-end subroutine kpp1_set_p
+  IF (.NOT. failure) THEN
+     CALL cp_unimplemented_error(routineP,error=error)
+  END IF
+END SUBROUTINE kpp1_set_p
 !***************************************************************************
 
 !!****f* qs_p_build_kernel/kpp1_calculate [1.0] *
@@ -196,22 +200,22 @@ end subroutine kpp1_set_p
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine kpp1_calculate(kpp1_env, p1, kpp1_matrix,global_env, error)
-  type(qs_K_P_P1_env_type), intent(inout) :: kpp1_env
-  type(cp_block_matrix_p_type), dimension (:), intent(in) :: p1
-  type(cp_block_matrix_p_type), dimension (:), intent(inout) :: kpp1_matrix
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE kpp1_calculate(kpp1_env, p1, kpp1_matrix,global_env, error)
+  TYPE(qs_K_P_P1_env_type), INTENT(inout) :: kpp1_env
+  TYPE(cp_block_matrix_p_type), DIMENSION (:), INTENT(in) :: p1
+  TYPE(cp_block_matrix_p_type), DIMENSION (:), INTENT(inout) :: kpp1_matrix
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='kpp1_calculate',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='kpp1_calculate',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (.not. failure) then
-     call cp_unimplemented_error(routineP,error=error)
-  end if
-end subroutine kpp1_calculate
+  IF (.NOT. failure) THEN
+     CALL cp_unimplemented_error(routineP,error=error)
+  END IF
+END SUBROUTINE kpp1_calculate
 !***************************************************************************
 
-end module qs_p_build_kernel
+END MODULE qs_p_build_kernel

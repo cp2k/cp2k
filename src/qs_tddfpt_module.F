@@ -27,28 +27,27 @@
 !!
 !!****
 
-module qs_tddfpt_module
+MODULE qs_tddfpt_module
 
-  use global_types,         only : global_environment_type
-  use kinds,                only : dbl
-  use qs_build_ks_matrix,   only : qs_ks_env_type
-  use qs_environment_types, only : qs_environment_type
-  use qs_p_build_kernel,    only : qs_K_P_P1_env_type
-  use qs_p_types,           only : qs_p_env_type
-  use qs_tddfpt_utils
+  USE global_types,         ONLY : global_environment_type
+  USE kinds,                ONLY : dbl
+  USE qs_build_ks_matrix,   ONLY : qs_ks_env_type
+  USE qs_environment_types, ONLY : qs_environment_type
+  USE qs_p_types,           ONLY : qs_p_env_type
+  USE qs_tddfpt_utils
+  USE qs_tddfpt_types,      ONLY : tddfpt_env_type
 
-  implicit none
+  IMPLICIT NONE
 
-  private
-  public :: tddfpt_calculation
+  PRIVATE
+  PUBLIC :: tddfpt_calculation
 
-  character(len=*), parameter :: moduleN='qs_tddfpt_module'
+  CHARACTER(len=*), PARAMETER :: moduleN='qs_tddfpt_module'
 
-contains
+CONTAINS
 
 ! *****************************************************************************
 
-  subroutine tddfpt_calculation(p_env, ks_env, qs_env, glob_env)
 !!****f* cp2k/tddfpt_module/qs_tddfpt_calculation
 !!
 !!   NAME
@@ -57,8 +56,7 @@ contains
 !!   FUNCTION
 !!     Performs the perturbation calculation
 !!
-!!   ARGUMENTS
-!!     - p_env       - inout - the perturbation environment
+!!   ARGUMENTSp
 !!     - qs_env      - in    - qs environment with ground state
 !!     - ks_env      - in    - KS matrix environment
 !!     - glob_env    - in    - global environment
@@ -70,24 +68,32 @@ contains
 !!     
 !!
 !!****
+  SUBROUTINE tddfpt_calculation(qs_env, ks_env, glob_env)
+
+    IMPLICIT NONE
 
     ! arguments
-    type(qs_p_env_type), intent(inout)        :: p_env
-    type(qs_ks_env_type), intent(in)          :: ks_env
-    type(qs_environment_type), intent(in)     :: qs_env
-    type(global_environment_type), intent(in) :: glob_env
+    TYPE(qs_ks_env_type), INTENT(in)          :: ks_env
+    TYPE(qs_environment_type), INTENT(in)     :: qs_env
+    TYPE(global_environment_type), INTENT(in) :: glob_env
 
     ! locals
-    character(len=*), parameter               :: routineN = 'qs_tddfpt_calculation'
-    character(len=*), parameter               :: routineP = moduleN//':'//routineN
+    TYPE(qs_p_env_type)         :: p_env
+    TYPE(tddfpt_env_type)       :: t_env
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_tddfpt_calculation', &
+                                   routineP = moduleN//':'//routineN
 
     ! abort if this calculation is not wanted
-    if (.NOT.qs_env%dft_control%do_tddfpt_calculation) return
+    IF (.NOT.qs_env%dft_control%do_tddfpt_calculation) RETURN
 
-    call tddfpt_write_banner(glob_env)
+    CALL tddfpt_write_banner(glob_env)
 
-  end subroutine tddfpt_calculation
+    CALL tddfpt_init(p_env, t_env, qs_env, ks_env, glob_env)
+
+    CALL tddfpt_testing(p_env, t_env)
+
+  END SUBROUTINE tddfpt_calculation
 
 ! *****************************************************************************
 
-end module qs_tddfpt_module
+END MODULE qs_tddfpt_module
