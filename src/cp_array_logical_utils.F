@@ -213,7 +213,7 @@ SUBROUTINE cp_logical_write(element, unit_nr, el_format, error)
   INTEGER :: iostat
   CHARACTER(len=*), PARAMETER :: routineN='cp_logical_write',&
         routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat="(t1)"
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(l1)"
   failure=.FALSE.
   
   IF (PRESENT(el_format)) THEN
@@ -375,7 +375,7 @@ SUBROUTINE cp_1d_logical_write(array, unit_nr, el_format, error)
   INTEGER :: iostat
   CHARACTER(len=*), PARAMETER :: routineN='cp_1d_logical_write',&
         routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat="(t1)"
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(l1)"
   
   ! do i=1,size(array)
   IF (PRESENT(el_format)) THEN
@@ -540,7 +540,7 @@ SUBROUTINE cp_2d_logical_write(array, unit_nr, el_format, error)
   INTEGER :: iostat, i
   CHARACTER(len=*), PARAMETER :: routineN='cp_2d_logical_write',&
         routineP=moduleN//':'//routineN
-  CHARACTER(len=*), PARAMETER :: defaultFormat="(t1)"
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(l1)"
   CHARACTER(len=10) :: nRiga
   failure=.FALSE.
   
@@ -708,7 +708,7 @@ END SUBROUTINE cp_2d_logical_write
   ! [template(type1,nametype1,USE,defaultFormatType1)]
 ! ARGS:
 !  USE = ""
-!  defaultFormatType1 = ""(t1)""
+!  defaultFormatType1 = ""(l1)""
 !  nametype1 = "logical"
 !  type1 = "logical"
 

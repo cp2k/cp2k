@@ -109,7 +109,7 @@ MODULE qs_ks_types
                 p_changed, &
                 forces_up_to_date
      INTEGER :: n_evals, &
-                n_electrons, id_nr, ref_count
+                id_nr, ref_count
 
      ! hartree is supposed to contain the hartree potential (for cube ouput)
      ! ugly to keep it always around only for a cube output...

@@ -51,8 +51,6 @@ MODULE qs_wf_history_types
   USE kinds,                           ONLY: wp=>dp
   USE pw_types,                        ONLY: pw_p_type,&
                                              pw_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -289,7 +287,7 @@ END SUBROUTINE wfs_release
 !!
 !!   SYNOPSIS
 !!     Subroutine wfi_retain(wf_history, error)
-!!       Type(qs_wf_snapshot_type), Pointer:: wf_history
+!!       Type(qs_wf_history_type), Pointer:: wf_history
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine wfi_retain
 !!
@@ -312,7 +310,7 @@ END SUBROUTINE wfs_release
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_retain(wf_history,error)
-  TYPE(qs_wf_snapshot_type), POINTER :: wf_history 
+  TYPE(qs_wf_history_type), POINTER :: wf_history 
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure

@@ -42,13 +42,13 @@
 MODULE cp_error_handling
   USE cp_log_handling,                 ONLY: CP_FAILURE_LEVEL,&
                                              CP_FATAL_LEVEL,&
+                                             CP_NOTE_LEVEL,&
+                                             CP_WARNING_LEVEL,&
                                              cp_get_default_logger,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
-                                             CP_NOTE_LEVEL,&
-                                             cp_to_string,&
-                                             CP_WARNING_LEVEL
+                                             cp_to_string
   USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   PRIVATE
@@ -161,6 +161,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_error_init(error, stop_level, print_level, logger,&
 !!         template_error, error_nr, level)
+!!       Implicit None
 !!       Type(cp_error_type), Intent (OUT):: error
 !!       Integer, Optional, Intent (IN):: stop_level, print_level, error_nr,&
 !!         level
@@ -1085,25 +1086,34 @@ SUBROUTINE cp_error_check(error, failure)
 END SUBROUTINE cp_error_check
 !***************************************************************************
 
-!!****f* cp2k/m/s *
+!!****f* cp_error_handling/cp_simple_assert *
 !!
 !!   NAME
-!!     s
+!!     cp_simple_assert
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_simple_assert(condition, routinep, line)
+!!       Implicit None
+!!       Logical, Intent (IN):: condition
+!!       Character(Len=*), Intent (IN):: routinep
+!!       Integer, Intent (IN):: line
+!!     End Subroutine cp_simple_assert
 !!
 !!   FUNCTION
-!!     -
+!!     simple assert
 !!
 !!   ARGUMENTS
 !!     -
 !!
 !!   NOTES
-!!     -
+!!     you should use the CPAssert and similar macros defined in 
+!!     cp_prep_globals.h that call cp_a_l
 !!
 !!   MODIFICATION HISTORY
 !!     , TCH, created
 !!
 !!   SEE ALSO
-!!     
+!!     cp_a_l
 !!
 !!****
   SUBROUTINE cp_simple_assert(condition, routineP, line)

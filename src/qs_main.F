@@ -112,7 +112,7 @@ CONTAINS
                                 TRIM(globenv%program_name),globenv)
     END SELECT
 
-    CALL tddfpt_calculation(qs_env, globenv)
+!    CALL tddfpt_calculation(qs_env, globenv)
 
     CALL qs_finalize(qs_env,globenv)
 

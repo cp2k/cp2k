@@ -855,7 +855,7 @@ CONTAINS
     INTEGER, DIMENSION(2,15) :: spin_template
     failure=.FALSE.
 
-    npot=xc_get_pot_size(lsd,gradient,crossterms,2)
+    npot=xc_get_pot_size(lsd,gradient,crossterms,-2)
 
     IF (.NOT.failure) THEN
        ALLOCATE(spin_pot(2,npot), grad_pot(2,npot), ndiag_term(npot), stat=stat)

@@ -189,12 +189,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='qs_ks_create',&
          routineP=moduleN//':'//routineN
     LOGICAL :: failure
-    REAL(wp)          :: rel_cutoff,maxradius
-    REAL(wp), DIMENSION(:), POINTER :: cutoff
-    INTEGER  :: cmax,cmaxl, maxl, stat, ispin, nspins, handle
+    INTEGER  :: stat, ispin, nspins, handle
     TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER :: cell
@@ -209,17 +205,11 @@ CONTAINS
        NULLIFY( ks_env%v_rspace, ks_env%v, pw_env, auxbas_pw_pool,&
             pw_env, cell)
        CALL get_qs_env(qs_env=qs_env,&
-            dft_control=dft_control,atomic_kind_set=atomic_kind_set,&
+            dft_control=dft_control,&
             pw_env=pw_env, cell=cell)
        CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
 
-       rel_cutoff = dft_control%qs_control%relative_cutoff
-       cutoff => dft_control%qs_control%e_cutoff
        nspins=dft_control%nspins
-
-       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-            maxl=maxl, nelectron=ks_env%n_electrons)
-       ks_env%n_electrons=ks_env%n_electrons-dft_control%charge
 
        ks_env%s_mstruct_changed=.TRUE.
        ks_env%p_changed=.TRUE.
@@ -311,7 +301,7 @@ CONTAINS
     REAL(wp)          :: total_rho_elec_rspace
     CHARACTER(len=*), PARAMETER :: routineN='qs_ks_build_kohn_sham_matrix',&
          routineP=moduleN//':'//routineN
-    INTEGER :: handle,output_unit, nspins, ispin, stat
+    INTEGER :: handle,output_unit, nspins, ispin, stat, n_electrons
     LOGICAL :: ionode, failure,r_build
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
     TYPE(dft_control_type), POINTER :: dft_control
@@ -347,6 +337,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    atomic_kind_set=atomic_kind_set,&
                     h=h,&
                     s=s,&
                     pw_env=pw_env,&
@@ -422,14 +413,18 @@ CONTAINS
        qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
 
        IF (ionode.AND.logger%print_keys%total_densities) THEN
+          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+               nelectron=n_electrons)
+          n_electrons=n_electrons-dft_control%charge
+
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
                "Total electronic density (r-space): ",&
                SUM(rho%tot_rho_r),&
                SUM(rho%tot_rho_r) + &
-               REAL(ks_env%n_electrons,wp),&
+               REAL(n_electrons,wp),&
                "Total core charge density (r-space):",&
                qs_charges%total_rho_core_rspace,&
-               qs_charges%total_rho_core_rspace - REAL(ks_env%n_electrons,wp)
+               qs_charges%total_rho_core_rspace - REAL(n_electrons,wp)
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total charge density (r-space):     ",&
                SUM(rho%tot_rho_r)+&

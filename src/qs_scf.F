@@ -225,6 +225,9 @@ MODULE qs_scf
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_get,&
                                              qs_rho_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+                                             scf_env_release,&
+                                             scf_env_retain
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
@@ -261,11 +264,8 @@ MODULE qs_scf
 
 ! *** Global variables ***
 
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
-  TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
-
-  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+!FM  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+!FM  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
@@ -279,10 +279,137 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf(qs_env,globenv,error)
+!!****f* qs_scf/scf_env_create [1.0] *
+!!
+!!   NAME
+!!     scf_env_create
+!!
+!!   FUNCTION
+!!     allocates and initialize an scf_env 
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf env to initialize
+!!     - qs_env: the qs_env this scf lives in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE scf_env_create(scf_env, qs_env, error)
+  TYPE(qs_scf_env_type), POINTER :: scf_env
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='scf_env_create',&
+        routineP=module_name//':'//routineN
+  INTEGER :: stat
 
+  failure=.FALSE.
+  
+  ALLOCATE(scf_env, stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  IF (.NOT. failure) THEN
+     scf_env%ref_count=1
+     scf_env%print_count=0
+     NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
+          scf_env%p_new)
+  END IF
+END SUBROUTINE scf_env_create
+!***************************************************************************
+
+!!****f* qs_scf/scf [1.0] *
+!!
+!!   NAME
+!!     scf
+!!
+!!   SYNOPSIS
+!!     Subroutine scf(qs_env, globenv, error)
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf
+!!
+!!   FUNCTION
+!!     perform an scf procedure in the given qs_env
+!!
+!!   NOTES
+!!     globenv should be removed
+!!
+!!   ARGUMENTS
+!!     - qs_env: the qs_environment where to perform the scf procedure
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE scf(qs_env,globenv,error)
+  TYPE(qs_environment_type), INTENT(INOUT), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(IN)  :: globenv
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='scf',&
+        routineP=module_name//':'//routineN
+  TYPE(qs_scf_env_type), POINTER :: scf_env
+  TYPE(qs_environment_type), POINTER :: my_qs_env
+
+
+  failure=.FALSE.
+  !CPPrecondition(associated(qs_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+     IF (.not.ASSOCIATED(scf_env)) THEN
+        CALL scf_env_create(scf_env, qs_env=qs_env, error=error)
+        CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
+     END IF
+     my_qs_env => qs_env
+     CALL scf_env_do_scf(scf_env,my_qs_env,globenv,error=error)
+  END IF
+END SUBROUTINE scf
+!***************************************************************************
+
+!!****f* qs_scf/scf_env_do_scf [1.0] *
+!!
+!!   NAME
+!!     scf_env_do_scf
+!!
+!!   FUNCTION
+!!     perform an scf loop
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     long history, see cvs and qs_scf module history
+!!     02.2003 introduced scf_env [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
+
+    TYPE(qs_scf_env_type), POINTER :: scf_env
     TYPE(global_environment_type), INTENT(IN)  :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
+    TYPE(qs_environment_type), POINTER   :: qs_env
     TYPE(cp_error_type),INTENT(inout),OPTIONAL :: error
 
 !   *** Local parameters ***
@@ -344,12 +471,18 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
     INTEGER :: nelectron
     REAL(wp) :: total_abs_spin_dens
-
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
+    TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
+    
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mo_eigenvectors,pao_obj_f,pao_optimizer,pao_env,min_density_m,&
          min_mo,full_mo, ks, p, ks_rmpv, p_rmpv,qs_charges, &
-         pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s, ks_env)
+         pfull, energy, unoccupied_orbs,scf_control,kinetic,h,s, ks_env,&
+         atomic_kind_set, particle_set,&
+         scf_work1,scf_work2, ortho)
     t1 = m_cputime()
     ot_initialized=.FALSE.
     failure=.FALSE.
@@ -397,9 +530,12 @@ CONTAINS
     END IF
 
 
-    CALL init_scf_run(qs_env=qs_env,&
+    CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                       globenv=globenv,&
                       error=error)
+    scf_work1 => scf_env%scf_work1
+    scf_work2 => scf_env%scf_work2
+    ortho => scf_env%ortho
 
     CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
@@ -1031,11 +1167,11 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  END SUBROUTINE scf
+  END SUBROUTINE scf_env_do_scf
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(qs_env,globenv,error)
+  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,error)
 
 !   Purpose: Initialise a SCF run.
 
@@ -1043,8 +1179,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_scf_env_type), POINTER :: scf_env
+    TYPE(global_environment_type), INTENT(in) :: globenv
+    TYPE(qs_environment_type), POINTER        :: qs_env
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
  
 !   *** Local parameters ***
@@ -1074,13 +1211,15 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
+    TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
     NULLIFY(k_rmpv, p_rmpv, scf_control, atomic_kind_set,&
-         ao_mo_fm_pools,h,s)
+         ao_mo_fm_pools,h,s, scf_work1, scf_work2, ortho)
     failure=.FALSE.
     CALL get_qs_env(qs_env=qs_env,&
                     scf_control=scf_control,&
@@ -1132,10 +1271,10 @@ CONTAINS
 
 !   *** Allocate the distributed SCF matrices ***
   
-    NULLIFY(scf_work1)
-    ALLOCATE(scf_work1(dft_control%nspins))
+    NULLIFY(scf_env%scf_work1)
+    ALLOCATE(scf_env%scf_work1(dft_control%nspins))
 
-    CALL cp_fm_create2(new_matrix=scf_work1(1)%matrix,&
+    CALL cp_fm_create2(new_matrix=scf_env%scf_work1(1)%matrix,&
                                nrow_global=nao,&
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
@@ -1145,7 +1284,7 @@ CONTAINS
 
     IF (.NOT.scf_control%use_ot) THEN
       DO ispin=2,dft_control%nspins
-       CALL cp_fm_create2(new_matrix=scf_work1(ispin)%matrix,&
+       CALL cp_fm_create2(new_matrix=scf_env%scf_work1(ispin)%matrix,&
                                nrow_global=nao,&
                                ncol_global=nao,&
                                nrow_block=nrow_block,&
@@ -1153,20 +1292,24 @@ CONTAINS
                                name="SCF WORK MATRIX 1",&
                                globenv=globenv)
       ENDDO
-      CALL cp_fm_create2(new_matrix=ortho,&
+      CALL cp_fm_create2(new_matrix=scf_env%ortho,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
                                  nrow_block=nrow_block,&
                                  ncol_block=ncol_block,&
                                  name="ORTHOGONALIZATION MATRIX",&
                                  globenv=globenv)
-      CALL cp_fm_create2(new_matrix=scf_work2,&
+      CALL cp_fm_create2(new_matrix=scf_env%scf_work2,&
                                  nrow_global=nao,&
                                  ncol_global=nao,&
                                  nrow_block=nrow_block,&
                                  ncol_block=ncol_block,&
                                  name="SCF WORK MATRIX 2",&
                                  globenv=globenv)
+    scf_work1 => scf_env%scf_work1
+    scf_work2 => scf_env%scf_work2
+    ortho => scf_env%ortho
+      
     END IF
 
 !   *** Allocate k and p and put them in the QS environment ***
@@ -1259,7 +1402,7 @@ CONTAINS
     ENDIF
     CALL calculate_first_density_matrix(ortho,c,p_rmpv,s(1), &
              scf_work1,scf_work2,globenv,&
-             scf_control=scf_control, id_nr=qs_env%id_nr)
+             scf_control=scf_control, id_nr=qs_env%id_nr, qs_env=qs_env)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1511,7 +1654,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_first_density_matrix(ortho,mo_array,p_rmpv,s_sparse,&
-       work1,work2,globenv,scf_control,id_nr)
+       work1,work2,globenv,scf_control,id_nr,qs_env)
 
     TYPE(cp_full_matrix_type), POINTER        :: ortho,work2
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER        :: work1
@@ -1521,6 +1664,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), INTENT(INOUT)   :: p_rmpv
     TYPE(scf_control_type), POINTER           :: scf_control
     INTEGER, INTENT(in)                       :: id_nr!FM ugly, should be removed
+    TYPE(qs_environment_type), POINTER :: qs_env
 
 !   *** Local parameters ***
 
@@ -1536,6 +1680,8 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER  :: mo_eigenvectors,sv
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
     REAL(wp) :: paa,saa,sum
     INTEGER  :: atom_a,first_sgfa,handle,iatom,ikind,iset,isgf,isgfa,ishell,&
@@ -1550,8 +1696,12 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     nspin=SIZE(mo_array)
+    NULLIFY(atomic_kind_set, particle_set)
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
+
+    CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
+         particle_set=particle_set)
 
     IF (scf_control%use_ot .AND. .NOT.  &
            (scf_control%density_guess == "RANDOM" .OR.  &
@@ -1815,7 +1965,8 @@ SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
         CALL pao_qs_env_did_change(qs_env,s_changed=.TRUE.,h_changed=.TRUE.,&
              full_reset=.FALSE., global_env=global_env)
         CALL pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
-             scf_work1=scf_work1(ispin)%matrix, scf_work2=scf_work2, scf_work3=ortho,&
+             scf_work1=qs_env%scf_env%scf_work1(ispin)%matrix, &
+             scf_work2=qs_env%scf_env%scf_work2, scf_work3=qs_env%scf_env%ortho,&
              error=error)
         CALL cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
              obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&

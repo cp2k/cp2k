@@ -119,7 +119,8 @@ MODULE qs_p_env_methods
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+                                             deallocate_matrix_set,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -128,7 +129,6 @@ MODULE qs_p_env_methods
   USE string_utilities,                ONLY: compress_all
   USE timings,                         ONLY: timeset,&
                                              timestop
-
   IMPLICIT NONE
 
   INTERFACE p_op_l2
@@ -499,9 +499,11 @@ END SUBROUTINE p_env_did_change
 
     ! locals
     LOGICAL                                :: failure
-    INTEGER                                :: n_spins, spin, stat, handle
+    INTEGER                                :: n_spins, spin, stat, handle,&
+         lfomo,nmo
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed',&
                                               routineP = moduleN//':'//routineN
+    REAL(kind=wp) :: maxocc
     TYPE(cp_full_matrix_type), POINTER                 :: tmp
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER     :: ao_mo_fm_pools
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
@@ -586,12 +588,22 @@ END SUBROUTINE p_env_did_change
                   n_cols=p_env%n_mo(spin),error=error)
              
              ! updates P
-             CALL set_matrix(p(spin)%matrix,&
-                  value=0.0_wp)
-             CALL cp_sm_plus_fm_fm_t(p(spin)%matrix,&
-                  matrix_v=my_psi0(spin)%matrix,&
-                  matrix_g=p_env%psi0d(spin)%matrix,&
-                  ncol=p_env%n_mo(spin),error=error)
+             CALL get_mo_set(c(spin)%mo_set,lfomo=lfomo,&
+                  nmo=nmo,maxocc=maxocc)
+             IF (lfomo>nmo) THEN
+                CALL set_matrix(p(spin)%matrix,&
+                     value=0.0_wp)
+                CALL cp_sm_plus_fm_fm_t(p(spin)%matrix,&
+                     matrix_v=my_psi0(spin)%matrix,&
+                     matrix_g=p_env%psi0d(spin)%matrix,&
+                     ncol=p_env%n_mo(spin),error=error)
+                CALL cp_sm_scale_and_add(alpha=maxocc,&
+                     matrix_a=p(spin)%matrix,error=error)
+             ELSE
+                CALL cp_unimplemented_error(fromWhere=routineP,&
+                     message="symmetrized onesided smearing to do",&
+                     error=error)
+             END IF
           END DO
 
           ! updates rho
@@ -790,11 +802,12 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_full_matrix_type), POINTER :: tmp
     TYPE(cp_para_env_type), POINTER    :: para_env
     TYPE(cp_fm_pool_type),POINTER      :: ao_maxmo_fm_pool
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
     CHARACTER(len=*), PARAMETER        :: routineN = 'p_op_l1',&
                                           routineP = moduleN//':'//routineN
 
     ! code
-    NULLIFY(tmp)
+    NULLIFY(tmp,mos)
     failure = .FALSE.
     
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -802,7 +815,8 @@ END SUBROUTINE p_env_did_change
     CPPrecondition(0<spin,cp_failure_level,routineP,error,failure)
     CPPrecondition(spin<=qs_env%dft_control%nspins,cp_failure_level,routineP,error,failure)
 
-    CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool, para_env=para_env)
+    CALL get_qs_env(qs_env, ao_maxmo_fm_pool=ao_maxmo_fm_pool, &
+         para_env=para_env, error=error)
     CALL fm_pool_create_matrix(ao_maxmo_fm_pool, tmp, error=error)
     
     k_p => qs_env%k(spin)%matrix
@@ -870,13 +884,14 @@ END SUBROUTINE p_env_did_change
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: ispin, n_spins, stat
-    REAL(kind=wp) :: my_alpha, my_beta
+    INTEGER                     :: ispin, n_spins, stat, lfomo, nmo
+    REAL(kind=wp) :: my_alpha, my_beta, maxocc
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p1_new, s
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
     INTEGER, SAVE :: iter=0
 
     failure=.FALSE.
@@ -887,7 +902,7 @@ END SUBROUTINE p_env_did_change
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(p1_new, s, dft_control, para_env, rho)
+    NULLIFY(p1_new, s, dft_control, para_env, rho, mos)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -897,7 +912,7 @@ END SUBROUTINE p_env_did_change
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
 
        CALL get_qs_env(qs_env,dft_control=dft_control,&
-            para_env=para_env, rho=rho, s=s, error=error)
+            para_env=para_env, rho=rho, s=s,c=mos, error=error)
        n_spins=dft_control%nspins
 
        ALLOCATE(p1_new(n_spins),stat=stat)
@@ -909,17 +924,27 @@ END SUBROUTINE p_env_did_change
           CALL replicate_matrix_structure(s(1)%matrix,p1_new(ispin)%matrix,&
                target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))))
-          CALL set_matrix(p1_new(ispin)%matrix,&
-               value=0.0_wp)
-          ! optimize?
-          CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
-               matrix_v=v(ispin)%matrix,&
-               matrix_g=p_env%psi0d(ispin)%matrix,&
-               ncol=p_env%n_mo(ispin),error=error)
-          CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
-               matrix_v=p_env%psi0d(ispin)%matrix,&
-               matrix_g=v(ispin)%matrix,&
-               ncol=p_env%n_mo(ispin),error=error)
+          CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo,nmo=nmo,&
+               maxocc=maxocc)
+          IF (lfomo>nmo) THEN
+             CALL set_matrix(p1_new(ispin)%matrix,&
+                  value=0.0_wp)
+             ! optimize?
+             CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
+                  matrix_v=v(ispin)%matrix,&
+                  matrix_g=p_env%psi0d(ispin)%matrix,&
+                  ncol=p_env%n_mo(ispin),error=error)
+             CALL cp_sm_plus_fm_fm_t(p1_new(ispin)%matrix,&
+                  matrix_v=p_env%psi0d(ispin)%matrix,&
+                  matrix_g=v(ispin)%matrix,&
+                  ncol=p_env%n_mo(ispin),error=error)
+             CALL cp_sm_scale_and_add(alpha=maxocc, &
+                  matrix_a=p1_new(ispin)%matrix,error=error)
+          ELSE
+             CALL cp_unimplemented_error(fromWhere=routineP,&
+                  message="symmetrized onesided smearing to do",&
+                  error=error)
+          END IF
           IF (debug_this_module) THEN
              CALL cp_sm_output(logger=logger, &
                   outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
@@ -956,6 +981,7 @@ END SUBROUTINE p_env_did_change
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
     INTEGER, SAVE :: iter=0
+    LOGICAL, PARAMETER :: fdiff=.FALSE.
 
     failure=.FALSE.
 
@@ -983,9 +1009,15 @@ END SUBROUTINE p_env_did_change
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1,qs_env=qs_env,&
             rebuild=.TRUE.,error=error)
-       CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
-            k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
-            rebuild=.TRUE.,error=error)
+       IF (fdiff) THEN
+          CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+               k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+               rebuild=.TRUE.,error=error)
+       ELSE
+          CALL kpp1_calc_k_p_p1(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
+               k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
+               rebuild=.TRUE.,error=error)
+       END IF
        DO ispin=1,n_spins
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
                v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&

@@ -125,6 +125,8 @@ MODULE qs_ep_methods
                                              ep_env_release,&
                                              ep_env_retain,&
                                              qs_ep_env_type
+  USE qs_kpp1_env_types,               ONLY: kpp1_write,&
+                                             qs_kpp1_env_type
   USE qs_ks_methods,                   ONLY: qs_ks_create,&
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
@@ -228,7 +230,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CHARACTER(len=*), PARAMETER :: routineN='qs_ep_calculation',&
         routineP=moduleN//':'//routineN
   INTEGER :: isub, iatom, natoms, handle, stat, unit_nr,&
-       ispin, nspins, file_unit
+       ispin, nspins, file_unit, nmo, lfomo
   TYPE(qs_p_projection_p_type), DIMENSION(2) :: sub_proj
   TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
   TYPE(qs_ep_env_type), POINTER :: ep_env
@@ -237,7 +239,8 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(qs_energy_type), POINTER :: energy
-  REAL(kind=wp) :: e_corr, e_corr_s
+  REAL(kind=wp) :: e_corr, e_corr_s, maxocc
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
 
   CALL timeset(routineN,"I","",handle)
   
@@ -325,6 +328,18 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           v=ep_env%pi_Hrho_psi0d, &
           n_cols=ep_env%main_p_env%n_mo,&
           error=error)
+  DO ispin=1,SIZE(mos)
+     CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
+          nmo=nmo, maxocc=maxocc)
+     IF (lfomo>nmo) THEN
+        CALL cp_fm_add(alpha=maxocc,&
+             matrix_a=ep_env%pi_Hrho_psi0d(ispin)%matrix,error=error)
+     ELSE
+        CALL cp_unimplemented_error(fromWhere=routineP,&
+             message="symmetrized onesided smearing to do",&
+             error=error)
+     END IF
+  END DO
 
   IF (print_ep_matrixes) THEN
      CALL cp_fm_vect_write(matrixes=ep_env%pi_Hrho_psi0d, &
@@ -388,7 +403,19 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      CALL close_file(file_unit)
   END IF
 
+  IF (logger%print_keys%cubes) THEN
+     CALL open_file(file_name="rho0.cube",file_status="UNKNOWN",&
+          file_action="WRITE",unit_number=file_unit)
+     CALL rs_pw_to_cube ( ep_env%main_qs_env%rho%rho_r(1)%pw, iunit=file_unit,&
+          ionode=logger%para_env%mepos==logger%para_env%source,&
+          title="rho0")
+     CALL close_file(file_unit)
+  END IF
+
   IF (print_ep_matrixes) THEN
+     CALL kpp1_write(kpp1_env=ep_env%main_p_env%kpp1_env,&
+          unit_nr=unit_nr, long_description=.TRUE., local=.FALSE.,&
+          error=error)
      CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
           long_description=debug_this_module, local=.FALSE.,&
           error=error)
@@ -1190,16 +1217,35 @@ SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
   CHARACTER(len=*), PARAMETER :: routineN='p_op_ep',&
         routineP=moduleN//':'//routineN
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: mos
+  REAL(kind=wp) :: maxocc, beta
+  INTEGER :: lfomo,nmo, ispin
+
   failure=.FALSE.
+  NULLIFY(mos)
 
   CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     CALL get_qs_env(qs_env,c=mos,error=error)
      CALL p_op_l1(p_env=p_env, qs_env=qs_env,&
           v=v, res=res,error=error)
+     CALL get_mo_set(mos(1)%mo_set,lfomo=lfomo, nmo=nmo, maxocc=maxocc)
+     IF (lfomo>nmo) THEN
+        beta=maxocc
+        DO ispin=2,SIZE(mos)
+           CALL get_mo_set(mos(ispin)%mo_set,lfomo=lfomo, &
+                nmo=nmo, maxocc=maxocc)
+           CPAssert(beta==maxocc,cp_failure_level,routineP,error,failure)
+        END DO
+     ELSE
+        CALL cp_unimplemented_error(fromWhere=routineP,&
+             message="symmetrized onesided smearing to do",&
+             error=error)
+     END IF
      CALL p_op_l2(p_env=p_env, qs_env=qs_env,&
           v=v, res=res,&
-          alpha=1.0_wp,beta=1.0_wp,error=error)
+          alpha=1.0_wp,beta=beta,error=error)
      CALL p_postortho(p_env=p_env, qs_env=qs_env, v=res, n_cols=p_env%n_mo,&
           error=error)
   END IF

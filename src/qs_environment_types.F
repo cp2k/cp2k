@@ -91,6 +91,12 @@ MODULE qs_environment_types
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
+  USE qs_scf_types,                    ONLY: qs_scf_env_type,&
+                                             scf_env_release,&
+                                             scf_env_retain
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_release,&
+                                             wfi_retain
   USE scf_control_types,               ONLY: scf_c_release,&
                                              scf_c_retain,&
                                              scf_control_type
@@ -171,6 +177,9 @@ MODULE qs_environment_types
 !!     - qs_charges: an object where to put the charges that are present on 
 !!       the various grids
 !!     - ks_env: environement for the calculation of the Kohn Sham matrix
+!!     - wf_history: place where the snapshots of the previous states are stored
+!!       (used during the md to extrapolate the new starting point)
+!!     - scf_env: place where temporary information used in the scf is stored
 !!
 !!   AUTHOR
 !!     Matthias Krack
@@ -204,6 +213,8 @@ MODULE qs_environment_types
     TYPE(coeff_type), POINTER                             :: rho_core
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
+    TYPE(qs_wf_history_type), POINTER                     :: wf_history
+    TYPE(qs_scf_env_type), POINTER                        :: scf_env
   END TYPE qs_environment_type
 ! *****************************************************************************
 
@@ -241,7 +252,8 @@ CONTAINS
                         particle_set,energy,force,h,k,p,s, s_mstruct,&
                         rho, ao_mo_fm_pools,ao_maxmo_fm_pool, pw_env, &
                         para_env, blacs_env, scf_control,&
-                        kinetic,qs_charges, rho_core, ks_env,error)
+                        kinetic,qs_charges, rho_core, ks_env,&
+                        wf_history,scf_env,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -280,6 +292,8 @@ CONTAINS
     TYPE(qs_charges_type), OPTIONAL, POINTER    :: qs_charges
     TYPE(coeff_type), OPTIONAL, POINTER         :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER     :: ks_env
+    TYPE(qs_wf_history_type), OPTIONAL, POINTER :: wf_history
+    TYPE(qs_scf_env_type), OPTIONAL, POINTER    :: scf_env
     TYPE(cp_error_type), OPTIONAL,INTENT(inout) :: error
 !   ---------------------------------------------------------------------------
 
@@ -307,7 +321,6 @@ CONTAINS
     IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => qs_env%ao_mo_fm_pools
     IF (PRESENT(ao_maxmo_fm_pool)) THEN
        IF (ASSOCIATED(qs_env%ao_mo_fm_pools)) THEN
-          !TC what is this hardcoded 1??
           ao_maxmo_fm_pool => qs_env%ao_mo_fm_pools(1)%pool
        ELSE
           NULLIFY(ao_maxmo_fm_pool) ! raise an error?
@@ -319,6 +332,8 @@ CONTAINS
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
+    IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
+    IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
 
   END SUBROUTINE get_qs_env
 
@@ -365,6 +380,8 @@ CONTAINS
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
     NULLIFY (qs_env%ks_env)
+    NULLIFY (qs_env%wf_history)
+    NULLIFY (qs_env%scf_env)
 
     CALL cp_para_env_retain(para_env,error=error)
     qs_env%para_env => para_env
@@ -381,7 +398,8 @@ CONTAINS
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
                         particle_set,energy,force,h,k,p,s,&
                         pw_env,ao_mo_fm_pools,rho,kinetic,&
-                        scf_control,qs_charges,rho_core, ks_env, error)
+                        scf_control,qs_charges,rho_core, ks_env,&
+                        wf_history, scf_env, error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -415,6 +433,8 @@ CONTAINS
     TYPE(qs_charges_type), OPTIONAL, POINTER  :: qs_charges
     TYPE(coeff_type), POINTER, OPTIONAL       :: rho_core
     TYPE(qs_ks_env_type), POINTER, OPTIONAL   :: ks_env
+    TYPE(qs_wf_history_type), POINTER, OPTIONAL :: wf_history
+    TYPE(qs_scf_env_type), POINTER, OPTIONAL  :: scf_env
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: new_ao_mo_fm_pools
@@ -473,6 +493,16 @@ CONTAINS
        CALL qs_ks_retain(ks_env, error=error)
        CALL qs_ks_release(qs_env%ks_env, error=error)
        qs_env%ks_env => ks_env
+    END IF
+    IF (PRESENT(wf_history)) THEN ! accept also null pointers ?
+       CALL wfi_retain(wf_history,error=error)
+       CALL wfi_release(qs_env%wf_history,error=error)
+       qs_env%wf_history => wf_history
+    END IF
+    IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
+       CALL scf_env_retain(scf_env,error=error)
+       CALL scf_env_release(scf_env, error=error)
+       qs_env%scf_env => scf_env
     END IF
   END SUBROUTINE set_qs_env
 
@@ -712,6 +742,8 @@ SUBROUTINE qs_env_release(qs_env,error)
              CPSourceFileRef,&
              error)
         NULLIFY(qs_env%cell, qs_env%dft_control,qs_env%pao_env)
+        CALL wfi_release(qs_env%wf_history,error=error)
+        CALL scf_env_release(qs_env%scf_env, error=error)
 
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
