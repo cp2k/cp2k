@@ -255,6 +255,7 @@ OBJECTS_GENERIC =\
  radial_util.o\
  read_pimd.o\
  realspace_grid_types.o\
+ real_space_test.o\
  scf_control_types.o\
  simulation_cell.o\
  slater_koster.o\
