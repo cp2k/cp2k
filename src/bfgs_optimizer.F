@@ -764,27 +764,27 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: etot, ediff, pred, rat, step, &
                                                 rad, emin
 
-     WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,8('-'))")&
+     WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
      "  Informations at step = ",it
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
-      " Total Energy               =",etot
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
-      " Real energy change         =",ediff
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+      " Total Energy               = ",etot
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+      " Real energy change         = ",ediff
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Predicted change in energy = ",pred
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Scaling factor             = ",rat
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Step size                  = ",step
-     WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Trust radius               = ",rad
      IF( etot < emin )THEN
       WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-       " Decrease in energy         = ",&
+       " Decrease in energy         =     ",&
        "             YES"
      ELSE
       WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-       " Decrease in energy         = ",&
+       " Decrease in energy         =     ",&
        "              NO"
      END IF
 
@@ -914,60 +914,60 @@ CONTAINS
     IF(ionode)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
           " Convergence check :"
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Max. step size             = ",maxdum(1)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Conv. limit for step size  = ",dxcon
        IF(conv_dx)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in step size   = ",&
+          " Convergence in step size   =     ",&
           "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in step size   = ",&
+          " Convergence in step size   =     ",&
           "              NO"
        END IF
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " RMS step size              = ",maxdum(2)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Conv. limit for RMS step   = ",rmsxcon
        IF(conv_rdx)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in RMS step    = ",&
+          " Convergence in RMS step    =     ",&
           "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Convergence in RMS step    = ",&
+          " Convergence in RMS step    =     ",&
           "              NO"
        END IF
-         WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Max. gradient              = ",maxdum(3)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Conv. limit for gradients  = ",gcon
        IF(conv_g)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. in gradients         = ",&
+          " Conv. in gradients         =     ",&
           "             YES"
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. for gradients        = ",&
+          " Conv. for gradients        =     ",&
           "              NO"
        END IF
-         WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Max. RMS gradient          = ",maxdum(4)
-          WRITE(UNIT=output_unit,FMT="(T2,A,F16.10)")&
+          WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
           " Conv. limit for RMS grad.  = ",rmsgcon
        IF(conv_rg)THEN
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. in RMS gradients     = ",&
+          " Conv. in RMS gradients     =     ",&
           "             YES"
 
        ELSE
           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-          " Conv. for gradients        = ",&
+          " Conv. for gradients        =     ",&
           "              NO"
        END IF
-       WRITE(UNIT=output_unit,FMT="(T2,47('-'))")
+       WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
 
     END IF
 
