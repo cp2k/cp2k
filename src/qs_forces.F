@@ -50,7 +50,8 @@ MODULE qs_forces
                                   mo_set_p_type,&
                                   mo_set_type
   USE qs_overlap,           ONLY: write_sparse_matrix
-  USE sparse_matrix_types,  ONLY: real_matrix_p_type,&
+  USE sparse_matrix_types,  ONLY: deallocate_matrix,&
+                                  real_matrix_p_type,&
                                   real_matrix_type,&
                                   replicate_matrix_structure,&
                                   symmetrise_diagonal_blocks
@@ -140,7 +141,7 @@ CONTAINS
 
     NULLIFY (w)
     CALL replicate_matrix_structure(s(1)%matrix,w,"W MATRIX")
-    ! k(1) is ks ?
+
     CALL calculate_w_matrix(mo_set,k(1)%matrix,w,globenv)
     IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
       CALL write_sparse_matrix(w,4,6,qs_env,globenv)
@@ -175,6 +176,8 @@ CONTAINS
     END DO
 
     CALL write_forces(force,atomic_kind_set,globenv)
+
+    CALL deallocate_matrix(w)
 
     CALL timestop(0.0_wp,handle)
 
