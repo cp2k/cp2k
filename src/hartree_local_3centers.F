@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2004  CP2K developers group                                 !
+!   Copyright (C) 2000-2005  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/hartree_local_3centers
 !!
@@ -8,8 +8,10 @@
 !!     hartree_local_3centers
 !!
 !!   FUNCTION
+!!     Perform the calculation of the hartree 3 center terms for the GAPW method
 !!
 !!   AUTHOR
+!!      MI
 !!
 !!   SOURCE
 !******************************************************************************
@@ -92,7 +94,33 @@ MODULE  hartree_local_3centers
  
   CONTAINS
  
-!******************************************************************************
+!!****f* hartree_local_3centers/integrate_a_vhg0_b [1.0] *
+!!
+!!   NAME
+!!     integrate_a_vhg0_b
+!!
+!!   FUNCTION
+!!     Analytic calculation of the 3 center integrals for the GAPW 3 center terms
+!!     This terms give the Hartree contribution due to the interaction of the soft density
+!!     and the (rho0_hard-rho0_soft) density, i.e. the difference between the hard and
+!!     soft compensation charges. (rho0_hard-rho0_soft) is a sum over atomic 
+!!     contributions, which should be very shor ranged. 
+!!     For this terms, properly constructed 3 center lists are used, in order to restrict
+!!     the calculation only to those triplets of atoms with overlapping functions.
+!!     For atom A and atom B the only soft primitives of the basis set are taken into 
+!!     account, for the atom C, instead, the g0 primitives (see compensation charges)
+!!     are used in the integrals.
+!!
+!!   NOTE
+!!     For large systems the 3 center lists can become huge and this part of
+!!     the calculation is the bottleneck. It needs optimization for better performance
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!
+!!*** **********************************************************************
+
   SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,ispin,energy_hartree_3c,just_energy,&
                                 calculate_forces,tddft,p_env,error)
 
@@ -171,7 +199,8 @@ MODULE  hartree_local_3centers
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
     LOGICAL                                    :: paw_atom, my_tddft
-    INTEGER  :: ic1, ic2, ip1,ip2, n1, n2, nn1, nn2,jc, zeff
+    INTEGER  :: ic1, ic1_min_m1, ic1_max, ic2, ic2_min_m1, ic2_max, &
+                ip1,ip2, n1, n2, nn1, nn2,jc, zeff
 
 !   ---------------------------------------------------------------------------
 
@@ -402,11 +431,15 @@ MODULE  hartree_local_3centers
                 nco1 = npgfa(iset1)*ncoset(la_max(iset1))
                 ns1  = nsgfa_set(iset1)
                 m2 = 0
+                ic1_min_m1 = ncoset(la_min(iset1)-1)
+                ic1_max    = ncoset(la_max(iset1))
                 DO iset2 = 1,nsetb
                   ifs2 = first_sgfb(1,iset2)
                   nco2 = npgfb(iset2)*ncoset(lb_max(iset2))
                   ns2  = nsgfb_set(iset2)
-
+                  ic2_min_m1 = ncoset(lb_min(iset2)-1)
+                  ic2_max    = ncoset(lb_max(iset2))
+ 
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_a(1,ifs1),maxcoa,&
                               p_block(ifs1,ifs2),nsgfa,&
@@ -418,13 +451,13 @@ MODULE  hartree_local_3centers
 
 
                  DO ip1 = 1,npgfa(iset1)
-                   ic1 = ncoset(la_min(iset1)-1)+1
-                   n1 = ncoset(la_max(iset1))*(ip1-1)
-                   nn1 = ncoset(la_max(iset1))*ip1
+                   ic1 = ic1_min_m1+1
+                   n1 = ic1_max*(ip1-1)
+                   nn1 = ic1_max*ip1
                    DO ip2 = 1,npgfb(iset2)
-                     ic2 = ncoset(lb_min(iset2)-1)+1
-                     n2 =  ncoset(lb_max(iset2))*(ip2-1)
-                     nn2 = ncoset(lb_max(iset2))*ip2
+                     ic2 = ic2_min_m1+1
+                     n2 =  ic2_max*(ip2-1)
+                     nn2 = ic2_max*ip2
                      CPC_ab(ic1+n1+m1:nn1+m1,ic2+n2+m2:nn2+m2) = hab(ic1+n1:nn1,ic2+n2:nn2)
                    END DO
                  END DO
@@ -483,10 +516,14 @@ MODULE  hartree_local_3centers
                 nco1 = npgfb(iset1)*ncoset(lb_max(iset1))
                 ns1  = nsgfb_set(iset1)
                 m2 = 0
+                ic1_min_m1 = ncoset(lb_min(iset1)-1)
+                ic1_max    = ncoset(lb_max(iset1))
                 DO iset2 = 1,nseta
                   ifs2 = first_sgfa(1,iset2)
                   nco2 = npgfa(iset2)*ncoset(la_max(iset2))
                   ns2  = nsgfa_set(iset2)
+                  ic2_min_m1 = ncoset(la_min(iset2)-1)
+                  ic2_max    = ncoset(la_max(iset2))
 
                   CALL dgemm("N","N",nco1,ns2,ns1,&
                               1.0_dp,sphi_b(1,ifs1),maxcob,&
@@ -498,13 +535,13 @@ MODULE  hartree_local_3centers
                              0.0_dp,hab(1,1),SIZE(hab,1))
 
                   DO ip1 = 1,npgfb(iset1)
-                    ic1 = ncoset(lb_min(iset1)-1)+1
-                    n1 = ncoset(lb_max(iset1))*(ip1-1)
-                    nn1 = ncoset(lb_max(iset1))*ip1
+                    ic1 = ic1_min_m1+1
+                    n1 = ic1_max*(ip1-1)
+                    nn1 = ic1_max*ip1
                     DO ip2 = 1,npgfa(iset2)
-                      ic2 = ncoset(la_min(iset2)-1)+1
-                      n2 =  ncoset(la_max(iset2))*(ip2-1)
-                      nn2 = ncoset(la_max(iset2))*ip2
+                      ic2 = ic2_min_m1+1
+                      n2 =  ic2_max*(ip2-1)
+                      nn2 = ic2_max*ip2
                       CPC_ab(ic1+n1+m1:nn1+m1,ic2+n2+m2:nn2+m2) = hab(ic1+n1:nn1,ic2+n2:nn2)
                     END DO
                   END DO
@@ -868,34 +905,42 @@ MODULE  hartree_local_3centers
 100 CONTINUE
 
     IF(ASSOCIATED(Int_ab_sum)) THEN
-       DEALLOCATE(Int_ab_sum,Int_abc,STAT=istat)
+       DEALLOCATE(Int_ab_sum,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-            "Int_ab_sum,Int_abc")
+            "Int_ab_sum")
+    END IF
+    IF(ASSOCIATED(Int_abc)) THEN
+       DEALLOCATE(Int_abc,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+            "Int_abc")
 
-       IF(calculate_forces) THEN
-          DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-               "Int_dab_sum,Int_adb_sum")
-       END IF
     END IF
     IF(calculate_forces) THEN
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
             "atom_of_kind")
+       IF(ASSOCIATED(Int_dab_sum)) THEN
+         DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                      "Int_dab_sum,Int_adb_sum")
+       END IF
     END IF
     IF(ASSOCIATED(CPC_ab)) THEN
-      DEALLOCATE(CPC_ab, hab, STAT=istat)
+      DEALLOCATE(CPC_ab, STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-          "CPC_ab,hab") 
+          "CPC_ab") 
+    END IF
+    IF(ASSOCIATED(hab)) THEN
+      DEALLOCATE(hab, STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+          "hab") 
     END IF
 
-!test
     DEALLOCATE(int_tmpp,vv,ff,STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
            "int_tmpp,vv,ff")
     END IF
-!test
 
     DEALLOCATE(work,sum_ab_car,sum_ab_sph,STAT=istat)
     IF (istat /= 0) THEN
@@ -914,6 +959,26 @@ MODULE  hartree_local_3centers
   END SUBROUTINE integrate_a_vhg0_b
 
 !******************************************************************************
+!!****f* hartree_local_3centers/sumup_3c_integrals [1.0] *
+!!
+!!   NAME
+!!     sumup_3c_integrals
+!!
+!!   FUNCTION
+!!     Driver for the calculation of the 3 center integrals.
+!!     It already performes the difference (rho0_h_C-rho0_s_C)rho_soft
+!!
+!!   NOTE
+!!     For large systems the 3 center lists can become huge and this part of
+!!     the calculation is the bottleneck. This routine is called too many times
+!!     It needs optimization for better performance
+!!
+!!   AUTHOR
+!!     MI
+!!
+!!
+!!*** **********************************************************************
+
 
   SUBROUTINE sumup_3c_integrals(l1_max,l1_min,nco1,m1,rp1,z1,nz1,&
                                 l2_max,l2_min,nco2,m2,rp2,z2,nz2,&
