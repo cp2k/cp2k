@@ -190,7 +190,7 @@ SUBROUTINE timestop ( perf, handle )
      END DO
 
 !..if debug mode echo the subroutine name
-  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F8.3)"
+  write(sformat,*) "(A,",MAX(1,3*stack_size-9),"X,I4,1X,A,F12.3)"
   IF ( trace ) write ( iod, sformat) &
      bstring,stack_size,TRIM(routine_stack(stack_size)),cpt
 
