@@ -25,78 +25,383 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module qs_rho_types
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+MODULE qs_rho_types
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use kinds, only: wp=>dp
-  use cp_para_types, only: cp_para_env_type
-  use timings, only: timeset, timestop
-  use coefficient_types,        only: coeff_type, coeff_deallocate
-  use cube_utils,               only: cube_info_type
-  use global_types, only: global_environment_type,DEBUG
-  use l_utils,                  only: l_info_type
-  use gaussian_gridlevels,      only: gridlevel_info_type
-  use sparse_matrix_types,      only: real_matrix_p_type
-  implicit none
-  private
+  USE kinds, ONLY: wp=>dp
+  USE cp_para_types, ONLY: cp_para_env_type
+  USE timings, ONLY: timeset, timestop
+  USE coefficient_types,        ONLY: coeff_type, coeff_deallocate
+  USE cube_utils,               ONLY: cube_info_type
+  USE global_types, ONLY: global_environment_type,DEBUG
+  USE l_utils,                  ONLY: l_info_type
+  USE gaussian_gridlevels,      ONLY: gridlevel_info_type
+  USE sparse_matrix_types,      ONLY: real_matrix_p_type
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='qs_rho_types'
-  integer, private, save :: last_rho_id_nr=0
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_rho_types'
+  INTEGER, PRIVATE, SAVE :: last_rho_id_nr=0
 
-  public :: qs_rho_type
+  PUBLIC :: qs_rho_type
+  PUBLIC :: qs_rho_retain, qs_rho_release, qs_rho_create, qs_rho_did_change,&
+       qs_rho_get
 
 !***
 !****************************************************************************
 
-  !!****s* qs_rho_types/qs_rho_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_rho_type
-  !!
-  !!   FUNCTION
-  !!     keeps the density in various representations, keeping track of
-  !!     which ones are valid.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     most attributes are array with either lda or lsd_alpha,lsd_beta.
-  !!     - rho_ao: the filterd rho in the localized atom basis (to have rho(r)
-  !!       the filtred matrix is enough, but rho(r,r') is lost).
-  !!     - rho_r: grids with rho in the real space
-  !!     - rho_g: grids with rho in the g space
-  !!     - rho_ao_valid, rho_g_valid, rho_r_valid: if the corresponding
-  !!       component is valid
-  !!     - ref_count: the reference count, when it becomes 0 the type
-  !!       is deallocated.
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     08.2002 created [fawzi]
-  !!
-  !!   SOURCE
-  !***************************************************************************
-  type qs_rho_type
-     type(real_matrix_p_type), dimension(:), pointer :: rho_ao
-     type(coeff_type), dimension(:), pointer :: rho_g, rho_r
-     logical :: rho_ao_valid, &
-                rho_g_valid, &
-                rho_r_valid
-     integer :: ref_count, &
-                id_nr, &
-                updates_sice_rebuild, &
-                rebuild_each
-  end type qs_rho_type
-  !!***
-  !****************************************************************************
+!!****s* qs_rho_types/qs_rho_type [1.0] *
+!!
+!!   NAME
+!!     qs_rho_type
+!!
+!!   FUNCTION
+!!     keeps the density in various representations, keeping track of
+!!     which ones are valid.
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     most attributes are array with either lda or lsd_alpha,lsd_beta.
+!!     - rho_ao: the filterd rho in the localized atom basis (to have rho(r)
+!!       the filtred matrix is enough, but rho(r,r') is lost).
+!!     - rho_r: grids with rho in the real space
+!!     - rho_g: grids with rho in the g space
+!!     - rho_ao_valid, rho_g_valid, rho_r_valid: if the corresponding
+!!       component is valid
+!!     - ref_count: the reference count, when it becomes 0 the type
+!!       is deallocated.
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!   SOURCE
+!***************************************************************************
+  TYPE qs_rho_type
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
+     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
+     LOGICAL :: rho_ao_valid, &
+          rho_g_valid, &
+          rho_r_valid
+     INTEGER :: ref_count, &
+          id_nr, &
+          updates_sice_rebuild, &
+          rebuild_each
+  END TYPE qs_rho_type
+!!***
+!****************************************************************************
 
-end module qs_rho_types
+CONTAINS
+
+!!****f* qs_rho_methods/qs_rho_create [1.0] *
+!!
+!!   NAME
+!!     qs_rho_create
+!!
+!!   FUNCTION
+!!     allocates and initializes a rho type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_struct: the type to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!     - *_ptr: will be deallocated by this type
+!!     - rho_ao_valid: defaults to true, the others to false
+!!     for the explanation see the attributes of qs_rho_type
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_create(rho_struct,rho_ao_ptr,rho_r_ptr, rho_g_ptr,&
+       rho_ao_valid,rho_r_valid,rho_g_valid, rebuild_each,error)
+    TYPE(qs_rho_type), POINTER :: rho_struct
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao_ptr
+    TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g_ptr,&
+         rho_r_ptr
+    LOGICAL, INTENT(in),OPTIONAL :: rho_ao_valid, rho_g_valid,&
+         rho_r_valid  
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, INTENT(in), OPTIONAL :: rebuild_each
+
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_create',&
+         routineP=moduleN//':'//routineN
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_ao_ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_r_ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_g_ptr),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       ALLOCATE(rho_struct,stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    END IF
+    IF (.NOT. failure) THEN
+       last_rho_id_nr=last_rho_id_nr+1
+       rho_struct%id_nr=last_rho_id_nr
+       rho_struct%ref_count=1
+       rho_struct%rebuild_each=5
+       rho_struct%rho_ao => rho_ao_ptr
+       rho_struct%rho_r => rho_r_ptr
+       rho_struct%rho_g => rho_g_ptr
+       rho_struct%rho_ao_valid = .TRUE.
+       rho_struct%rho_r_valid = .FALSE.
+       rho_struct%rho_g_valid = .FALSE.
+       IF (PRESENT(rebuild_each)) rho_struct%rebuild_each=rebuild_each
+       IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
+       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
+       IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
+       CALL cp_assert(rho_ao_valid.OR.rho_r_valid.OR.rho_g_valid,&
+            cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
+            message="at least one representation must be valid "//&
+            CPSourceFileRef,&
+            error=error,failure=failure)
+    END IF
+  END SUBROUTINE qs_rho_create
+!***************************************************************************
+
+!!****f* qs_rho_methods/qs_rho_retain [1.0] *
+!!
+!!   NAME
+!!     qs_rho_retain
+!!
+!!   FUNCTION
+!!     retains a rho_struct by increasing the reference count by one
+!!     (to be called when you what to keep a shared copy)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_struct: the structure to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_retain(rho_struct,error)
+    TYPE(qs_rho_type), POINTER :: rho_struct
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_retain',&
+         routineP=moduleN//':'//routineN
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+       rho_struct%ref_count=rho_struct%ref_count+1
+    END IF
+  END SUBROUTINE qs_rho_retain
+!***************************************************************************
+
+!!****f* qs_rho_methods/qs_rho_release [1.0] *
+!!
+!!   NAME
+!!     qs_rho_release
+!!
+!!   FUNCTION
+!!     releases a rho_struct by decreasing the reference count by one
+!!     and deallocating if it reaces 0 (to be called when you don't whant
+!!     anymore a shared copy)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_struct: the structure to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_release(rho_struct,error)
+    TYPE(qs_rho_type), POINTER :: rho_struct
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_release',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat, i, j
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+       rho_struct%ref_count=rho_struct%ref_count-1
+       IF (rho_struct%ref_count<1) THEN
+!call cp_sp_array_dealloc(rho_struct%rho_ao,error=error) ! to do
+          IF (ASSOCIATED(rho_struct%rho_r)) THEN
+             DO i=1,SIZE(rho_struct%rho_r)
+                CALL coeff_deallocate(rho_struct%rho_r(i))
+             END DO
+             DEALLOCATE(rho_struct%rho_r,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          IF (ASSOCIATED(rho_struct%rho_g)) THEN
+             DO i=1,SIZE(rho_struct%rho_g)
+                CALL coeff_deallocate(rho_struct%rho_g(i))
+             END DO
+             DEALLOCATE(rho_struct%rho_g,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          END IF
+          DEALLOCATE(rho_struct,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       END IF
+    END IF
+    NULLIFY(rho_struct)
+  END SUBROUTINE qs_rho_release
+!***************************************************************************
+
+!!****f* qs_rho_methods/qs_rho_did_change [1.0] *
+!!
+!!   NAME
+!!     qs_rho_did_change
+!!
+!!   FUNCTION
+!!     this function should be called wehn something changes to update the
+!!     internal status 
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - rho_struct: the density structure that changed
+!!     - rho_ao_valid,rho_r_valid, rho_g_valid: actual valid representations
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_r_valid, &
+       rho_g_valid, error)
+    TYPE(qs_rho_type), POINTER :: rho_struct
+    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_r_valid, rho_g_valid
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_did_change',&
+         routineP=moduleN//':'//routineN
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
+       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
+       IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
+       CALL cp_assert(rho_ao_valid.OR.rho_r_valid.OR.rho_g_valid,&
+            cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
+            message="at least one representation must be valid "//&
+            CPSourceFileRef,&
+            error=error,failure=failure)
+    END IF
+  END SUBROUTINE qs_rho_did_change
+!***************************************************************************
+
+!!****f* qs_rho_methods/qs_rho_get [1.0] *
+!!
+!!   NAME
+!!     qs_rho_get
+!!
+!!   FUNCTION
+!!     returns info about the density described by this object.
+!!     If some representation is not available an error is issued
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
+       rho_r_valid, rho_g_valid, rebuild_each, error)
+    TYPE(qs_rho_type), POINTER :: rho_struct
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER,OPTIONAL :: rho_ao
+    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
+    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
+    INTEGER, INTENT(out), OPTIONAL :: rebuild_each
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='qs_rho_get',&
+         routineP=moduleN//':'//routineN
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (PRESENT(rho_ao)) THEN
+          IF (.NOT.rho_struct%rho_ao_valid) THEN
+             CALL cp_unimplemented_error(routineP,"to do",error=error)
+             NULLIFY(rho_ao)
+          ELSE
+             rho_ao => rho_struct%rho_ao
+          END IF
+       END IF
+       IF (PRESENT(rho_r)) THEN
+          IF (.NOT.rho_struct%rho_r_valid) THEN
+             CALL cp_unimplemented_error(routineP,"to do",error=error)
+             NULLIFY(rho_r)
+          ELSE
+             rho_r => rho_struct%rho_r
+          END IF
+       END IF
+       IF (PRESENT(rho_g)) THEN
+          IF (.NOT.rho_struct%rho_g_valid) THEN
+             CALL cp_unimplemented_error(routineP,"to do",error=error)
+             NULLIFY(rho_g)
+          ELSE
+             rho_g => rho_struct%rho_g
+          END IF
+       END IF
+       IF (PRESENT(rho_ao_valid)) rho_ao_valid=rho_struct%rho_ao_valid
+       IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
+       IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
+       IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
+    END IF
+  END SUBROUTINE qs_rho_get
+!***************************************************************************
+
+END MODULE qs_rho_types
 
