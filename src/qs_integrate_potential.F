@@ -25,6 +25,7 @@
 !!     JGH [30.08.02] multigrid arrays independent from potential
 !!     JGH [17.07.03] distributed real space code
 !!     JGH [23.11.03] refactoring and new loop ordering
+!!     JGH [04.12.03] OpneMP parallelization of main loops
 !!
 !!   SOURCE
 !***********************************************************************
@@ -398,13 +399,14 @@ CONTAINS
                 ineighbor,inode,ipgf,iset,ishell,istat,jatom,jco,jkind,jpgf,&
                 jset,jshell,katom,maxco,maxsgf_set,na1,na2,natom,&
                 natom_of_kind,nb1,nb2,ncoa,ncob,nkind,nlist,nneighbor,&
-                nnode,nseta,nsetb,sgfa,sgfb
+                nnode,nseta,nsetb,sgfa,sgfb,i
 
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: hab,pab,work
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: habt,pabt,workt
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
@@ -427,6 +429,8 @@ CONTAINS
     INTEGER  :: dir, n, tp, itask, npme, brow, bcol, ijsets, ijatoms
     REAL(KIND = dp), DIMENSION(3) :: rp
     LOGICAL :: p_duplicated, h_duplicated
+    INTEGER  :: ithread, nthread, omp_get_thread_num, omp_get_max_threads
+    INTEGER  :: nalimit(2)
 
 !   ---------------------------------------------------------------------------
 
@@ -436,7 +440,7 @@ CONTAINS
       CALL timeset("integrate_v_rspace","I","",handle)
     END IF
 
-    NULLIFY(pw_env,rs_pools,hab,pab,work,ntasks,tasks,dist_ab,tasks_local,&
+    NULLIFY(pw_env,rs_pools,ntasks,tasks,dist_ab,tasks_local,&
             ival,latom,dab_local,asets,atasks)
 
 !   *** Get difference potential ***
@@ -553,18 +557,21 @@ CONTAINS
        END DO
     END IF
 
+    nthread = 1
+!$  nthread = omp_get_max_threads()
+
 !   *** Allocate work storage ***
 
-    CALL reallocate(hab,1,maxco,1,maxco)
-    
+    NULLIFY ( pabt, habt, workt )
+    CALL reallocate(habt,1,maxco,1,maxco,0,nthread)
+    CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread)
     IF (PRESENT(p)) THEN
-      CALL reallocate(pab,1,maxco,1,maxco)
+      CALL reallocate(pabt,1,maxco,1,maxco,0,nthread)
     ELSE
       IF (calculate_forces) CALL stop_program("integrate_v_rspace",&
-                                              "need p for forces")
+                                        "need p for forces")
     ENDIF
 
-    CALL reallocate(work,1,maxco,1,maxsgf_set)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
@@ -772,15 +779,34 @@ CONTAINS
             CALL reallocate(ival,1,6,1,n)
           IF ( n > SIZE ( dab_local, 2 ) ) &
             CALL reallocate(dab_local,1,3,1,n)
-          tasks_local=0
-          tasks_local(1:2,1:n) = tasks(1:2,1:n,igrid_level)
-          ival(1:6,1:n) = tasks(3:8,1:n,igrid_level)
-          dab_local(1:3,1:n) = dist_ab(1:3,1:n,igrid_level)
+!$OMP parallel do private(i)
+          DO i=1,n
+            tasks_local(1,i) = tasks(1,i,igrid_level)
+            tasks_local(2,i) = tasks(2,i,igrid_level)
+            ival(1,i) = tasks(3,i,igrid_level)
+            ival(2,i) = tasks(4,i,igrid_level)
+            ival(3,i) = tasks(5,i,igrid_level)
+            ival(4,i) = tasks(6,i,igrid_level)
+            ival(5,i) = tasks(7,i,igrid_level)
+            ival(6,i) = tasks(8,i,igrid_level)
+            dab_local(1,i) = dist_ab(1,i,igrid_level)
+            dab_local(2,i) = dist_ab(2,i,igrid_level)
+            dab_local(3,i) = dist_ab(3,i,igrid_level)
+          END DO
+!$OMP parallel do private(i)
+          DO i=n+1,SIZE(tasks_local,2)
+            tasks_local(1,i)=0
+            tasks_local(2,i)=0
+          END DO
 
           npme = 0
           IF (PRESENT(P)) THEN
             IF ( n > SIZE ( latom, 2 ) ) CALL reallocate(latom,1,2,1,n)
-            latom(1:2,1:n) = tasks(3:4,1:n,igrid_level)
+!$OMP parallel do private(i)
+            DO i=1,n
+              latom(1,i) = tasks(3,i,igrid_level)
+              latom(2,i) = tasks(4,i,igrid_level)
+            END DO
             CALL rs_get_my_tasks ( rs_v(igrid_level)%rs_grid, tasks_local, &
                                    npme, ival=ival, rval=dab_local, &
                                    pmat=deltap, pcor=latom )
@@ -790,6 +816,27 @@ CONTAINS
           END IF
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
 
+!$OMP parallel &
+!$OMP default(none) &
+!$OMP private(ijatoms,ithread,nalimit,itask,iatom,jatom,ra,brow,bcol) &
+!$OMP private(h_block,p_block,atom_a,atom_b,ijsets,iset,jset) &
+!$OMP private(ncoa,ncob,sgfa,sgfb,work,pab,hab,rab,rb,rab2) &
+!$OMP private(ipgf,jpgf,na1,na2,nb1,nb2,force_a,force_b,istat) &
+!$OMP shared(natom_pairs,nthread,asets,atasks,particle_set,cell,dh,p) &
+!$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
+!$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
+!$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
+!$OMP shared(vratio,force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt)
+          ithread = 0
+!$        ithread = omp_get_thread_num()
+          nalimit = get_limit(natom_pairs,nthread,ithread)
+          work => workt(:,:,ithread)
+          hab => habt(:,:,ithread)
+          IF (PRESENT(p)) THEN
+            pab => pabt(:,:,ithread)
+          ENDIF
+!         DO ijatoms = nalimit(1),nalimit(2)
+!$OMP do
           DO ijatoms = 1,natom_pairs
             itask = atasks(1,asets(1,ijatoms))
             iatom  = ival (1,itask)
@@ -855,9 +902,13 @@ CONTAINS
 
               DO itask = atasks(1,ijsets),atasks(2,ijsets)
 
-                rab(:) = dab_local (:,itask)
+                rab(1) = dab_local (1,itask)
+                rab(2) = dab_local (2,itask)
+                rab(3) = dab_local (3,itask)
                 rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                rb(:) = ra(:) + rab(:)
+                rb(1) = ra(1) + rab(1)
+                rb(2) = ra(2) + rab(2)
+                rb(3) = ra(3) + rab(3)
                 ipgf   = ival (5,itask)
                 jpgf   = ival (6,itask)
                 na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
@@ -874,7 +925,7 @@ CONTAINS
                           hab,pab=pab,o1=na1-1,o2=nb1-1, &
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b)
+                          force_a=force_a,force_b=force_b,ithread=ithread)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -884,7 +935,7 @@ CONTAINS
                           hab,pab=pab,o1=nb1-1,o2=na1-1, &
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a)
+                          force_a=force_b,force_b=force_a,ithread=ithread)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -896,7 +947,7 @@ CONTAINS
                           hab,o1=na1-1,o2=nb1-1,&
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b)
+                          force_a=force_a,force_b=force_b,ithread=ithread)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -906,7 +957,7 @@ CONTAINS
                           hab,o1=nb1-1,o2=na1-1,&
                           vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a)
+                          force_a=force_b,force_b=force_a,ithread=ithread)
                    END IF
                 END IF
 
@@ -935,15 +986,18 @@ CONTAINS
             END DO
 
             IF (calculate_forces) THEN
+!$OMP critical (force)
                force(ikind)%rho_elec(:,atom_a) =&
                   force(ikind)%rho_elec(:,atom_a) + 2.0_dp*force_a(:)
                IF (iatom /= jatom) THEN
                   force(jkind)%rho_elec(:,atom_b) =&
                     force(jkind)%rho_elec(:,atom_b) + 2.0_dp*force_b(:)
                END IF
+!$OMP end critical (force)
             END IF
 
           END DO
+!$OMP end parallel
 
         END DO
     
@@ -967,15 +1021,14 @@ CONTAINS
       NULLIFY ( deltap )
     END IF
 
-    DEALLOCATE (hab,work,ntasks,tasks,tasks_local,ival,latom,&
+    DEALLOCATE (habt,workt,ntasks,tasks,tasks_local,ival,latom,&
                 dist_ab,dab_local,asets,atasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"hab,work,ntasks,tasks,&
+    IF (istat /= 0) CALL stop_memory(routine,"habt,workt,ntasks,tasks,&
        &tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
-
-    IF (PRESENT(P)) THEN
-      DEALLOCATE (pab,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"pab")
-    ENDIF
+    IF ( PRESENT(p) ) THEN
+      DEALLOCATE (pabt,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"pabt")
+    END IF
 
     CALL rs_pools_give_back_rs_vect(rs_pools, rs_v)
 

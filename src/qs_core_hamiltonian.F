@@ -93,6 +93,7 @@ MODULE qs_core_hamiltonian
   USE kinds,                           ONLY: int_size,&
                                              dp,&
                                              dp_size
+  USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indco,&
                                              init_orbital_pointers,&
                                              nco,&
@@ -191,18 +192,18 @@ CONTAINS
     TYPE vppl_type
       REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
       REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
-      INTEGER, DIMENSION(:), POINTER    :: neighbor
+      INTEGER, DIMENSION(:), POINTER           :: neighbor
       REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
     END TYPE vppl_type
 
     TYPE vppnl_type
       INTEGER                                   :: lppnl,nppnl
-      REAL(KIND = dp)                                  :: ppnl_radius
+      REAL(KIND = dp)                           :: ppnl_radius
       TYPE(block_p_type), DIMENSION(:), POINTER :: sac
-      REAL(KIND = dp), DIMENSION(:), POINTER           :: alpha_ppnl,r2
+      REAL(KIND = dp), DIMENSION(:), POINTER    :: alpha_ppnl,r2
       INTEGER, DIMENSION(:), POINTER            :: nprj_ppnl
       INTEGER, DIMENSION(:,:), POINTER          :: neighbor
-      REAL(KIND = dp), DIMENSION(:,:), POINTER         :: cprj,r,vprj_ppnl
+      REAL(KIND = dp), DIMENSION(:,:), POINTER  :: cprj,r,vprj_ppnl
     END TYPE vppnl_type
 
 !   *** Local parameters ***
@@ -215,6 +216,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER :: gth_potential
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
     TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list,&
+                                         sab_orb_neighbor_list_local,&
                                          sac_ppl_neighbor_list,&
                                          sac_ppnl_neighbor_list,&
                                          sbc_ppnl_neighbor_list
@@ -229,7 +231,7 @@ CONTAINS
     CHARACTER(LEN=12)  :: cgfsym
     CHARACTER(LEN=80)  :: name
     CHARACTER(LEN=200) :: file_name
-    REAL(KIND = dp)           :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
+    REAL(KIND = dp)    :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
     INTEGER            :: atom_a,atom_b,atom_c,first_col,first_prjc,handle,i,&
                           iab,iac,ibc,iatom,ico,icol,ikind,ilist,inode,ipgf,&
                           irow,iset,ishell,ispin,istat,j,jatom,jco,&
@@ -249,12 +251,18 @@ CONTAINS
     INTEGER, DIMENSION(1)  :: first_row,last_row
     INTEGER, DIMENSION(3)  :: cell_c
 
-    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint,tint
-    TYPE(vppl_type), DIMENSION(:), ALLOCATABLE    :: vppl
-    TYPE(vppnl_type), DIMENSION(:), ALLOCATABLE   :: vppnl
+    TYPE(block_p_type), DIMENSION(:), POINTER    :: sint,tint
+    TYPE(block_p_type), DIMENSION(:,:), POINTER  :: sintt,tintt
+    TYPE(vppl_type), DIMENSION(:), POINTER       :: vppl
+    TYPE(vppnl_type), DIMENSION(:), POINTER      :: vppnl
+    TYPE(vppl_type), DIMENSION(:,:), POINTER     :: vpplt
+    TYPE(vppnl_type), DIMENSION(:,:), POINTER    :: vppnlt
 
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE   :: hab,pab,sab,vdab,vadb,work
-    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: sdab
+    REAL(KIND = dp), DIMENSION(:,:), POINTER     :: hab,pab,sab,work
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: sdab
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: habt,pabt,sabt,workt
+    REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: sdabt
+
     INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,&
                                                first_prj,&
                                                first_sgf,&
@@ -276,6 +284,9 @@ CONTAINS
                                          npgfb,nsgfa,nsgfb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
     TYPE(distribution_2d_type), POINTER :: distribution_2d
+
+    INTEGER :: ithread, nthread
+    INTEGER :: omp_get_thread_num, omp_get_max_threads
 
 !   ---------------------------------------------------------------------------
 
@@ -476,59 +487,36 @@ CONTAINS
 
     ldsab = MAX(maxco,ncoset(maxlppnl),maxsgf,maxppnl)
     maxblock = MAX(SIZE(s),maxder)
+    nthread = 1
+!$  nthread = omp_get_max_threads()
 
-    ALLOCATE (hab(ldsab,ldsab*maxder),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "hab",ldsab*ldsab*maxder*dp_size)
-    END IF
-    hab(:,:) = 0.0_dp
-
-    ALLOCATE (sab(ldsab,ldsab*maxblock),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sab",ldsab*ldsab*maxblock*dp_size)
-    END IF
-    sab(:,:) = 0.0_dp
-
-    ALLOCATE (sdab(maxdco,maxco,4),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sdab",maxdco*maxco*4*dp_size)
-    END IF
-    sdab(:,:,:) = 0.0_dp
-
-    ALLOCATE (work(ldsab,ldsab*maxder),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "work",ldsab*ldsab*maxder*dp_size)
-    END IF
-    work(:,:) = 0.0_dp
-
+    CALL reallocate ( habt,1,ldsab,1,ldsab*maxder,0,nthread-1 )
+    CALL reallocate ( sabt,1,ldsab,1,ldsab*maxblock,0,nthread-1 )
+    CALL reallocate ( sdabt,1,maxdco,1,maxco,1,4,0,nthread-1 )
+    CALL reallocate ( workt,1,ldsab,1,ldsab*maxder,0,nthread-1 )
     IF (calculate_forces) THEN
-      ALLOCATE (pab(maxco,maxco),STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
-                         "pab",maxco*maxco*dp_size)
-      END IF
-      pab(:,:) = 0.0_dp
+      CALL reallocate ( pabt,1,maxco,1,maxco,0,nthread-1 )
     END IF
 
-    ALLOCATE (sint(SIZE(s)),STAT=istat)
+    ALLOCATE (sintt(SIZE(s),0:nthread-1),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "sint",SIZE(s)*int_size)
+                       "sintt",SIZE(s)*int_size*nthread)
     END IF
-    DO i=1,SIZE(sint)
-      NULLIFY (sint(i)%block)
+    DO i=1,SIZE(sintt,1)
+      DO j=0,nthread-1
+        NULLIFY (sintt(i,j)%block)
+      END DO
     END DO
 
     IF (build_kinetic_energy_matrix) THEN
-      ALLOCATE (tint(SIZE(t)),STAT=istat)
+      ALLOCATE (tintt(SIZE(t),0:nthread-1),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "tint",SIZE(t)*int_size)
-      DO i=1,SIZE(tint)
-        NULLIFY (tint(i)%block)
+                                       "tintt",SIZE(t)*int_size*nthread)
+      DO i=1,SIZE(tintt,1)
+        DO j=0,nthread-1
+          NULLIFY (tintt(i,j)%block)
+        END DO
       END DO
     END IF
 
@@ -538,9 +526,9 @@ CONTAINS
 
     IF (ppl_present) THEN
 
-      ALLOCATE (vppl(nkind),STAT=istat)
+      ALLOCATE (vpplt(nkind,0:nthread-1),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "vppl",nkind*int_size)
+                                       "vpplt",nkind*int_size)
 
       DO kkind=1,nkind
 
@@ -549,18 +537,18 @@ CONTAINS
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              gth_potential=gth_potential)
 
-        NULLIFY (vppl(kkind)%cexp_ppl)
-
-        IF (ASSOCIATED(gth_potential)) THEN
-          CALL get_potential(potential=gth_potential,&
-                             alpha_ppl=vppl(kkind)%alpha_ppl,&
-                             cexp_ppl=vppl(kkind)%cexp_ppl,&
-                             ppl_radius=vppl(kkind)%ppl_radius)
-        END IF
-
-        NULLIFY (vppl(kkind)%r2)
-        NULLIFY (vppl(kkind)%neighbor)
-        NULLIFY (vppl(kkind)%r)
+        DO j=0,nthread-1
+          NULLIFY (vpplt(kkind,j)%cexp_ppl)
+          IF (ASSOCIATED(gth_potential)) THEN
+            CALL get_potential(potential=gth_potential,&
+                               alpha_ppl=vpplt(kkind,j)%alpha_ppl,&
+                               cexp_ppl=vpplt(kkind,j)%cexp_ppl,&
+                               ppl_radius=vpplt(kkind,j)%ppl_radius)
+          END IF
+          NULLIFY (vpplt(kkind,j)%r2)
+          NULLIFY (vpplt(kkind,j)%neighbor)
+          NULLIFY (vpplt(kkind,j)%r)
+        END DO
 
       END DO
 
@@ -572,9 +560,9 @@ CONTAINS
 
     IF (ppnl_present) THEN
 
-      ALLOCATE (vppnl(nkind),STAT=istat)
+      ALLOCATE (vppnlt(nkind,0:nthread-1),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "vppnl",nkind*int_size)
+                                       "vppnlt",nkind*int_size)
 
       DO kkind=1,nkind
 
@@ -583,32 +571,30 @@ CONTAINS
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              gth_potential=gth_potential)
 
-        NULLIFY (vppnl(kkind)%alpha_ppnl)
-        NULLIFY (vppnl(kkind)%cprj)
-        NULLIFY (vppnl(kkind)%nprj_ppnl)
-        NULLIFY (vppnl(kkind)%vprj_ppnl)
-
-        CALL get_potential(potential=gth_potential,&
-                           alpha_ppnl=vppnl(kkind)%alpha_ppnl,&
-                           cprj=vppnl(kkind)%cprj,&
-                           lppnl=vppnl(kkind)%lppnl,&
-                           nppnl=vppnl(kkind)%nppnl,&
-                           nprj_ppnl=vppnl(kkind)%nprj_ppnl,&
-                           ppnl_radius=vppnl(kkind)%ppnl_radius,&
-                           vprj_ppnl=vppnl(kkind)%vprj_ppnl)
-
-        NULLIFY (vppnl(kkind)%r2)
-        NULLIFY (vppnl(kkind)%neighbor)
-        NULLIFY (vppnl(kkind)%r)
-
-        ALLOCATE (vppnl(kkind)%sac(maxder),STAT=istat)
-        IF (istat /= 0) THEN
-          CALL stop_memory(routine_name,module_name,__LINE__,&
-                           "vppnl(kkind)%sac",maxder*int_size)
-        END IF
-
-        DO i=1,maxder
-          NULLIFY (vppnl(kkind)%sac(i)%block)
+        DO j=0,nthread-1
+          NULLIFY (vppnlt(kkind,j)%alpha_ppnl)
+          NULLIFY (vppnlt(kkind,j)%cprj)
+          NULLIFY (vppnlt(kkind,j)%nprj_ppnl)
+          NULLIFY (vppnlt(kkind,j)%vprj_ppnl)
+          CALL get_potential(potential=gth_potential,&
+                             alpha_ppnl=vppnlt(kkind,j)%alpha_ppnl,&
+                             cprj=vppnlt(kkind,j)%cprj,&
+                             lppnl=vppnlt(kkind,j)%lppnl,&
+                             nppnl=vppnlt(kkind,j)%nppnl,&
+                             nprj_ppnl=vppnlt(kkind,j)%nprj_ppnl,&
+                             ppnl_radius=vppnlt(kkind,j)%ppnl_radius,&
+                             vprj_ppnl=vppnlt(kkind,j)%vprj_ppnl)
+          NULLIFY (vppnlt(kkind,j)%r2)
+          NULLIFY (vppnlt(kkind,j)%neighbor)
+          NULLIFY (vppnlt(kkind,j)%r)
+          ALLOCATE (vppnlt(kkind,j)%sac(maxder),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine_name,module_name,__LINE__,&
+                             "vppnlt(kkind,j)%sac",maxder*int_size)
+          END IF
+          DO i=1,maxder
+            NULLIFY (vppnlt(kkind,j)%sac(i)%block)
+          END DO
         END DO
 
       END DO
@@ -662,15 +648,60 @@ CONTAINS
 
         IF (.NOT.ASSOCIATED(sab_orb(iab)%neighbor_list_set)) CYCLE
 
-        sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
-
         CALL get_neighbor_list_set(neighbor_list_set=&
-                                     sab_orb(iab)%neighbor_list_set,&
+                                   sab_orb(iab)%neighbor_list_set,&
                                    nlist=nlist)
 
+        NULLIFY ( sab_orb_neighbor_list )
+
+!$OMP parallel &
+!$OMP default(none) &
+!$OMP private(ithread,hab,sab,sdab,work,pab,ilist,iatom,nnode,atom_a,kkind,iac) &
+!$OMP private(sac_ppl_neighbor_list,nneighbor,istat,sac_ppl_neighbor_node,kneighbor) &
+!$OMP private(sac_ppnl_neighbor_list,ncol,sac_ppnl_neighbor_node,rac,rac2,dac,nrow) &
+!$OMP private(iset,ncoa,prjc,l,nprjc,lc_max,lc_min,zetc,ncoc,i,first_col,last_jatom) &
+!$OMP private(sab_orb_neighbor_node,inode,jatom,rab,new_atom_b,atom_b,f0,irow,icol) &
+!$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
+!$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode,katom) &
+!$OMP private(cell_c,rbc,h_block,p_block,w_block,j,force_a,force_b) &
+!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl) &
+!$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
+!$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_a,set_radius_b) &
+!$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,w,globenv,p,h,t,iab) &
+!$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
+!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
+!$OMP shared(vpplt,sac_ppl,ikind,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
+!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt)
+        ithread = 0
+!$      ithread = omp_get_thread_num()
+        hab => habt(:,:,ithread)
+        sab => sabt(:,:,ithread)
+        sdab => sdabt(:,:,:,ithread)
+        work => workt(:,:,ithread)
+        IF (calculate_forces) pab => pabt(:,:,ithread)
+        sint => sintt(:,ithread)
+        IF (build_kinetic_energy_matrix) THEN
+          tint => tintt(:,ithread)
+        END IF
+        IF (ppl_present) THEN
+          vppl => vpplt(:,ithread)
+        END IF
+        IF (ppnl_present) THEN
+          vppnl => vppnlt(:,ithread)
+        END IF
+
+!$OMP do
         DO ilist=1,nlist
 
-          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list,&
+!$OMP critical (neighbor_list)
+          IF ( .NOT. ASSOCIATED(sab_orb_neighbor_list) ) THEN
+            sab_orb_neighbor_list => first_list(sab_orb(iab)%neighbor_list_set)
+          ELSE
+            sab_orb_neighbor_list => next(sab_orb_neighbor_list)
+          END IF
+          sab_orb_neighbor_list_local => sab_orb_neighbor_list
+!$OMP end critical (neighbor_list)
+          CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
                                  atom=iatom,&
                                  nnode=nnode)
 
@@ -688,7 +719,7 @@ CONTAINS
 
               sac_ppl_neighbor_list =>&
                 find_neighbor_list(neighbor_list_set=&
-                                     sac_ppl(iac)%neighbor_list_set,&
+                                   sac_ppl(iac)%neighbor_list_set,&
                                    atom=iatom)
 
               CALL get_neighbor_list(neighbor_list=sac_ppl_neighbor_list,&
@@ -864,7 +895,7 @@ CONTAINS
 
           last_jatom = 0
 
-          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list)
+          sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
 
@@ -989,10 +1020,12 @@ CONTAINS
                                  rab,rab2,dab,sab,nder,return_s_derivatives,&
                                  sdab,pab,force_a)
 
+!$OMP critical (force)
                     force(ikind)%overlap(:,atom_a) =&
                       force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
                       force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
+!$OMP end critical (force)
 
                   ELSE
 
@@ -1067,10 +1100,12 @@ CONTAINS
                                  rab,rab2,dab,sdab,hab,nder,&
                                  return_t_derivatives,pab,force_a)
 
+!$OMP critical (force)
                     force(ikind)%kinetic(:,atom_a) =&
                       force(ikind)%kinetic(:,atom_a) + 2.0_dp*force_a(:)
                     force(jkind)%kinetic(:,atom_b) =&
                       force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
+!$OMP end critical (force)
 
                   ELSE
 
@@ -1160,6 +1195,7 @@ CONTAINS
 
                           atom_c = atom_of_kind(katom)
 
+!$OMP critical (force)
                           force(ikind)%gth_ppl(:,atom_a) =&
                             force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
@@ -1169,6 +1205,7 @@ CONTAINS
                             force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
                             force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
+!$OMP end critical (force)
 
                         ELSE
 
@@ -1340,11 +1377,13 @@ CONTAINS
                                 END DO
                               END DO
 
+!$OMP critical (force)
                               force(ikind)%gth_ppnl(i,atom_a) =&
                                 force(ikind)%gth_ppnl(i,atom_a) + f0*f
 
                               force(kkind)%gth_ppnl(i,atom_c) =&
                                 force(kkind)%gth_ppnl(i,atom_c) - f0*f
+!$OMP end critical (force)
 
                               CALL dgemm("N","T",ncoa,ncob,vppnl(kkind)%nppnl,&
                                          1.0_dp,&
@@ -1362,11 +1401,13 @@ CONTAINS
                                 END DO
                               END DO
 
+!$OMP critical (force)
                               force(jkind)%gth_ppnl(i,atom_b) =&
                                 force(jkind)%gth_ppnl(i,atom_b) + f0*f
 
                               force(kkind)%gth_ppnl(i,atom_c) =&
                                 force(kkind)%gth_ppnl(i,atom_c) - f0*f
+!$OMP end critical (force)
 
                             END DO
 
@@ -1466,9 +1507,8 @@ CONTAINS
             END DO
           END IF
 
-          sab_orb_neighbor_list => next(sab_orb_neighbor_list)
-
         END DO ! iatom => atom A
+!$OMP end parallel
 
       END DO ! jkind
 
@@ -1483,82 +1523,81 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (ALLOCATED(vppl)) THEN
+    IF ( ppl_present ) THEN
       DO kkind=1,nkind
-        NULLIFY (vppl(kkind)%cexp_ppl)
+        DO j=0,nthread-1
+          NULLIFY (vpplt(kkind,j)%cexp_ppl)
+        END DO
       END DO
-      DEALLOCATE (vppl,STAT=istat)
+      DEALLOCATE (vpplt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "vppl")
+                                       "vpplt")
     END IF
 
-    IF (ALLOCATED(vppnl)) THEN
+    IF ( ppnl_present ) THEN
       DO kkind=1,nkind
-        NULLIFY (vppnl(kkind)%alpha_ppnl)
-        NULLIFY (vppnl(kkind)%cprj)
-        NULLIFY (vppnl(kkind)%nprj_ppnl)
-        NULLIFY (vppnl(kkind)%vprj_ppnl)
-        DEALLOCATE (vppnl(kkind)%sac,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "vppnl(kkind)%sac")
+        DO j=0,nthread-1
+          NULLIFY (vppnlt(kkind,j)%alpha_ppnl)
+          NULLIFY (vppnlt(kkind,j)%cprj)
+          NULLIFY (vppnlt(kkind,j)%nprj_ppnl)
+          NULLIFY (vppnlt(kkind,j)%vprj_ppnl)
+          DEALLOCATE (vppnlt(kkind,j)%sac,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                           "vppnlt(kkind,j)%sac")
+        END DO
       END DO
-      DEALLOCATE (vppnl,STAT=istat)
+      DEALLOCATE (vppnlt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "vppnl")
+                                       "vppnlt")
     END IF
 
-    DEALLOCATE (hab,STAT=istat)
+    DEALLOCATE (habt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "hab")
-
-    DEALLOCATE (sab,STAT=istat)
+    DEALLOCATE (sabt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "sab")
-
-    DEALLOCATE (sdab,STAT=istat)
+    DEALLOCATE (sdabt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "sdab")
-
-    DEALLOCATE (work,STAT=istat)
+    DEALLOCATE (workt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "work")
-
     IF (calculate_forces) THEN
-
       DEALLOCATE (atom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "atom_of_kind")
-
-      DEALLOCATE (pab,STAT=istat)
+      DEALLOCATE (pabt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "pab")
-
 !     *** If LSD, then recover alpha density and beta density     ***
 !     *** from the total density (1) and the spin density (2)     ***
 !     *** The W matrix is neglected, since it will be destroyed   ***
 !     *** in the calling force routine after leaving this routine ***
-
       IF (SIZE(p) == 2) THEN
         CALL cp_sm_scale_and_add(p(1)%matrix, 0.5_dp,p(2)%matrix,0.5_dp)
         CALL cp_sm_scale_and_add(p(2)%matrix,-1.0_dp,p(1)%matrix,1.0_dp)
       END IF
-
     END IF
 
-    DO i=1,SIZE(sint)
-      NULLIFY (sint(i)%block)
+    DO i=1,SIZE(sintt,1)
+      DO j=0,nthread-1
+        NULLIFY (sintt(i,j)%block)
+      END DO
     END DO
-    DEALLOCATE (sint,STAT=istat)
+    DEALLOCATE (sintt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "sint")
+                                     "sintt")
 
     IF (build_kinetic_energy_matrix) THEN
-      DO i=1,SIZE(tint)
-        NULLIFY (tint(i)%block)
+      DO i=1,SIZE(tintt)
+        DO j=0,nthread-1
+          NULLIFY (tintt(i,j)%block)
+        END DO
       END DO
-      DEALLOCATE (tint,STAT=istat)
+      DEALLOCATE (tintt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "tint")
+                                       "tintt")
     END IF
 
     CALL timestop(0.0_dp,handle)

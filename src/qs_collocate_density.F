@@ -29,6 +29,7 @@
 !!     - old density stored in g space (JGH 30.08.02)
 !!     - distributed real space code (JGH 17.07.03)
 !!     - refactoring and new loop ordering (JGH 23.11.03)
+!!     - OpenMP parallelization (JGH 03.12.03)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -157,6 +158,15 @@ MODULE qs_collocate_density
 
   PUBLIC :: calculate_total_rho,calculate_total_abs_rho
 
+! *** Public type ***
+
+  TYPE lgrid_type
+     INTEGER :: ldim
+     REAL(dp), DIMENSION(:), POINTER :: r
+  END TYPE lgrid_type
+
+  PUBLIC :: lgrid_type
+
 !!***
 ! *****************************************************************************
 
@@ -248,6 +258,10 @@ CONTAINS
 
       dir = rs_rho%direction
 
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(iatom,j,atom_a,ra) &
+!$OMP shared(bo,tasks,dir,rs_rho,atom_list,particle_set,cell)
       DO iatom=bo(1),bo(2)
 
         j = iatom - bo(1) + 1
@@ -265,12 +279,18 @@ CONTAINS
       CALL rs_get_my_tasks ( rs_rho, tasks, npme )
 
       ithread=0
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(j,iatom,atom_a,ra,ithread) &
+!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
+!$OMP shared(cube_info,l_info,eps_rho_rspace,alpha)
       DO j=1,npme
 
         iatom = tasks(1,j)
         atom_a = atom_list(iatom)
         ra(:) = pbc(particle_set(atom_a)%r,cell)
 
+!$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
              (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
              cube_info,l_info,eps_rho_rspace,ithread=ithread)
@@ -347,14 +367,14 @@ CONTAINS
                 ilist,ineighbor,inode,ipgf,iset,ishell,istat,j,jatom,jco,jkind,&
                 jpgf,jset,jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,&
                 ncob,nkind,nlist,nneighbor,nnode,nseta,nsetb,sgfa,sgfb,&
-                ijatoms,ijsets
+                ijatoms,ijsets,k
     INTEGER  :: handled,brow,bcol,pdim1,pdim2,n,dir,tp,itask,npme,nmax,maxsgf
     LOGICAL  :: reread
 
     REAL(KIND = dp), DIMENSION(3) :: ra,rab,rb,rp
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: pab,work,pblock
-    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: dist_ab
+    REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: dist_ab,pabt,workt
     REAL(KIND = dp), DIMENSION(:,:), POINTER   :: dab_local
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
@@ -370,16 +390,20 @@ CONTAINS
     INTEGER, PARAMETER                  :: max_tasks = 2000, add_tasks = 1000
     INTEGER                             :: curr_tasks, natom_pairs
     INTEGER, DIMENSION(:,:), POINTER    :: asets, atasks
+    INTEGER                             :: ithread, nthread, nalimit(2)
+    INTEGER                             :: omp_get_thread_num, omp_get_max_threads
+    INTEGER, DIMENSION(:), POINTER      :: ub, lb
+    TYPE(lgrid_type)                    :: lgrid
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
-         rs_rho,pw_env,rs_pools,para_env,pab,work,pblock,dist_ab,dab_local,&
+         rs_rho,pw_env,rs_pools,para_env,pblock,dist_ab,dab_local,&
          set_radius_a,set_radius_b,la_max,la_min,&
          lb_max,lb_min,npgfa,npgfb,nsgfa,nsgfb,p_block,p_old_block,&
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
-         tasks,tasks_local,ival,latom,ntasks,asets,atasks)
+         tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -398,6 +422,9 @@ CONTAINS
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
+    nthread = 1
+!$  nthread = omp_get_max_threads()
+
 !   *** Allocate work storage ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -405,10 +432,19 @@ CONTAINS
                              maxsgf=maxsgf,&
                              maxsgf_set=maxsgf_set)
 
+    IF ( nthread > 1 ) THEN
+      n=0
+      DO igrid_level = 1,gridlevel_info%ngrid_levels
+        n = MAX(n,rs_rho(igrid_level)%rs_grid%ngpts_local)
+      END DO
+      n = n*nthread
+      CALL reallocate(lgrid%r,1,n)
+    END IF
+
     nkind = SIZE(atomic_kind_set)
 
-    CALL reallocate(pab,1,maxco,1,maxco)
-    CALL reallocate(work,1,maxco,1,maxsgf_set)
+    CALL reallocate(pabt,1,maxco,1,maxco,0,nthread-1)
+    CALL reallocate(workt,1,maxco,1,maxsgf_set,0,nthread-1)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
@@ -609,7 +645,9 @@ CONTAINS
                      tasks (6,n,igrid_level) = jset
                      tasks (7,n,igrid_level) = ipgf
                      tasks (8,n,igrid_level) = jpgf
-                     dist_ab (:,n,igrid_level) = rab(:)
+                     dist_ab (1,n,igrid_level) = rab(1)
+                     dist_ab (2,n,igrid_level) = rab(2)
+                     dist_ab (3,n,igrid_level) = rab(3)
 
                    END DO
 
@@ -638,16 +676,60 @@ CONTAINS
           IF ( n > SIZE ( dab_local, 2 ) ) &
             CALL reallocate(dab_local,1,3,1,n)
 
-          tasks_local=0
-          tasks_local(1:2,1:n) = tasks(1:2,1:n,igrid_level)
-          ival(1:6,1:n) = tasks(3:8,1:n,igrid_level)
-          latom(1:2,1:n) = tasks(3:4,1:n,igrid_level)
-          dab_local(1:3,1:n) = dist_ab(1:3,1:n,igrid_level)
+!$OMP parallel do private(i)
+          DO i=1,n
+            tasks_local(1,i) = tasks(1,i,igrid_level)
+            tasks_local(2,i) = tasks(2,i,igrid_level)
+            latom(1,i) = tasks(3,i,igrid_level)
+            latom(2,i) = tasks(4,i,igrid_level)
+            ival(1,i) = tasks(3,i,igrid_level)
+            ival(2,i) = tasks(4,i,igrid_level)
+            ival(3,i) = tasks(5,i,igrid_level)
+            ival(4,i) = tasks(6,i,igrid_level)
+            ival(5,i) = tasks(7,i,igrid_level)
+            ival(6,i) = tasks(8,i,igrid_level)
+            dab_local(1,i) = dist_ab(1,i,igrid_level)
+            dab_local(2,i) = dist_ab(2,i,igrid_level)
+            dab_local(3,i) = dist_ab(3,i,igrid_level)
+          END DO
+!$OMP parallel do private(i)
+          DO i=n+1,SIZE(tasks_local,2)
+            tasks_local(1,i) = 0
+            tasks_local(2,i) = 0
+          END DO
           npme = 0
           CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
                npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom )
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
  
+          IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
+            lb => rs_rho(igrid_level)%rs_grid%lb_local
+            ub => rs_rho(igrid_level)%rs_grid%ub_local
+            lgrid%ldim = rs_rho(igrid_level)%rs_grid%ngpts_local
+!$OMP parallel private(ithread,n)
+!$          ithread = omp_get_thread_num()
+            n = ithread*lgrid%ldim + 1
+            CALL dcopy(lgrid%ldim,0._dp,0,lgrid%r(n),1)
+!$OMP end parallel
+          END IF
+!$OMP parallel &
+!$OMP default(none) &
+!$OMP private(ijatoms,ithread,itask,iatom,jatom,ra,brow,bcol,p_block) &
+!$OMP private(ijsets,iset,jset,ncoa,ncob,sgfa,sgfb) &
+!$OMP private(work,pab,istat,nalimit) &
+!$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
+!$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
+!$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
+!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
+!$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
+!$OMP shared(workt,pabt)
+          ithread = 0
+!$        ithread = omp_get_thread_num()
+          nalimit = get_limit(natom_pairs,nthread,ithread)
+          pab => pabt(:,:,ithread)
+          work => workt(:,:,ithread)
+!         DO ijatoms = nalimit(1),nalimit(2)
+!$OMP do
           DO ijatoms = 1,natom_pairs
             itask = atasks(1,asets(1,ijatoms))
             iatom  = ival (1,itask)
@@ -712,20 +794,38 @@ CONTAINS
                   scale = 2.0_dp
                 END IF
  
-                IF (iatom <= jatom) THEN
-                  CALL collocate_pgf_product_rspace(&
-                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                    ra,rab,rab2,scale,pab,na1-1,nb1-1,&
-                    rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                    l_info,eps_rho_rspace)
+                IF ( nthread > 1 ) THEN
+                  IF (iatom <= jatom) THEN
+                    CALL collocate_pgf_product_rspace(&
+                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                      ra,rab,rab2,scale,pab,na1-1,nb1-1,&
+                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread)
+                  ELSE
+                    CALL collocate_pgf_product_rspace(&
+                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                      rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
+                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread)
+                  END IF
                 ELSE
-                  CALL collocate_pgf_product_rspace(&
-                    lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                    la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                    rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
-                    rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                    l_info,eps_rho_rspace)
+                  IF (iatom <= jatom) THEN
+                    CALL collocate_pgf_product_rspace(&
+                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                      ra,rab,rab2,scale,pab,na1-1,nb1-1,&
+                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      l_info,eps_rho_rspace)
+                  ELSE
+                    CALL collocate_pgf_product_rspace(&
+                      lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                      la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                      rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
+                      rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
+                      l_info,eps_rho_rspace)
+                  END IF
                 END IF
  
               END DO
@@ -733,6 +833,21 @@ CONTAINS
             END DO
  
           END DO
+!$OMP end parallel
+          IF ( nthread > 1 .AND. natom_pairs > 0 ) THEN
+            n = (ub(1)-lb(1)+1)*(ub(2)-lb(2)+1)
+            DO i=1,nthread
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(j,k) &
+!$OMP shared(i,lb,ub,lgrid,rs_rho,n,igrid_level)
+              DO j=lb(3),ub(3)
+                k = lgrid%ldim*(i-1) + n*(j-lb(3)) + 1
+                CALL daxpy (n,1._dp,lgrid%r(k),1,&
+                  rs_rho(igrid_level)%rs_grid%r(lb(1),lb(2),j),1)
+              END DO
+            END DO
+          END IF
 
         END DO
 
@@ -744,9 +859,14 @@ CONTAINS
 
     CALL deallocate_matrix ( deltap )
 
-    DEALLOCATE (pab,work,ntasks,tasks,tasks_local,ival,latom,&
+    IF ( nthread > 1 ) THEN
+      DEALLOCATE (lgrid%r,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"lgrid%r")
+    END IF
+
+    DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,&
         dist_ab,dab_local,asets,atasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab,work,ntasks,&
+    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,&
         &tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
     IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
@@ -1067,16 +1187,16 @@ CONTAINS
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,&
-                                          eps_rho_rspace,ithread)
+                                          eps_rho_rspace,lgrid,ithread)
 
-    ! TYPE(pw_type), INTENT(INOUT), TARGET :: pw
     TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
-    TYPE(cube_info_type), INTENT(IN)     :: cube_info
-    TYPE(l_info_type), INTENT(IN)        :: l_info
-    REAL(KIND = dp), INTENT(IN)                 :: eps_rho_rspace,rab2,scale,zeta,zetb
-    INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
+    TYPE(cube_info_type), INTENT(IN)  :: cube_info
+    TYPE(l_info_type), INTENT(IN)     :: l_info
+    REAL(KIND = dp), INTENT(IN)       :: eps_rho_rspace,rab2,scale,zeta,zetb
+    INTEGER, INTENT(IN)               :: la_max,la_min,lb_max,lb_min
     REAL(KIND = dp), DIMENSION(3), INTENT(IN)   :: ra,rab
-    INTEGER, INTENT(IN), OPTIONAL        :: ithread
+    TYPE(lgrid_type),OPTIONAL         :: lgrid
+    INTEGER, INTENT(IN), OPTIONAL     :: ithread
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER    :: pab
     INTEGER                              :: o1,o2
@@ -1109,11 +1229,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-!   IF (PRESENT(ithread)) THEN
-!      ithread_l=ithread
-!   ELSE
+    IF (PRESENT(ithread)) THEN
+       ithread_l=ithread
+    ELSE
        ithread_l=0
-!   ENDIF
+    ENDIF
 
     coef_max=la_max+lb_max+1
 
@@ -1293,6 +1413,13 @@ CONTAINS
       ENDDO
     ENDDO
 
+    IF ( PRESENT ( lgrid ) ) THEN
+      ig = lgrid%ldim * ithread_l + 1
+      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
+              polz(1,-cmax),lgrid%r(ig),alpha(1,1),lx_max,lxy_max,&
+              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
+              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
+    ELSE
 !   *** do the loop over the grid
 !   notice this is not the same as critical or so, since we may have 
 !   several different rsgrids that all use the same function
@@ -1300,13 +1427,13 @@ CONTAINS
 !   on an uptodate copy of the grid
 !$  CALL omp_set_lock(rsgrid%lock)
 !$OMP FLUSH(grid)                    
-    CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax), &
-                        polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
-                        lxyz_max,coef_max, &
-                        cmax,ly_max(1),lz_max(1),gridbounds(1,1),&
-                        map(-cmax,1),sphere_bounds(1))
+      CALL collocate_core(pzyx(1),polx(1,-cmax),poly(1,-cmax),&
+              polz(1,-cmax),grid(1,1,1),alpha(1,1),lx_max,lxy_max,&
+              lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
+              gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
 !$OMP FLUSH(grid)
 !$  CALL omp_unset_lock(rsgrid%lock)
+    END IF
 
   END SUBROUTINE collocate_pgf_product_rspace
 
