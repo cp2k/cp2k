@@ -1012,7 +1012,7 @@ CONTAINS
        END IF
        res=lggr%default_global_unit_nr
     ELSE
-       IF (lggr%default_local_unit_nr<0) THEN
+       IF (lggr%default_local_unit_nr<=0) THEN
           CALL cp_logger_generate_filename(lggr,filename,lggr%local_filename,&
                ".out",local=.TRUE.)
           !INQUIRE (FILE=TRIM(filename),EXIST=exists)
