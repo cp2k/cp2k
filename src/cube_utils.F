@@ -94,17 +94,17 @@ CONTAINS
 !   count and allocate
     DO i=1,imr
       k=1
-      radius=imr*drmin
+      radius=i*drmin 
       radius2=radius**2
       kgmin=CEILING(-dzi*radius)
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(radius2-kg2*dz2))
+         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_wp)))
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
+          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_wp)))
           k=k+1
          ENDDO
       ENDDO
@@ -124,12 +124,12 @@ CONTAINS
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(radius2-kg2*dz2))
+         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_wp)))
          info%sphere_bounds(i)%p(k)=jgmin
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(radius2-kg2*dz2-jg2*dy2))
+          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_wp)))
           info%sphere_bounds(i)%p(k)=igmin
           k=k+1
          ENDDO
