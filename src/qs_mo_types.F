@@ -409,39 +409,54 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,globenv)
+  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
 
 !   History: - Creation (03.03.03,MK)
+!            - Modification that computes it as a full block, several times (e.g. 20) 
+!              faster at the cost of some additional memory
 
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: w_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
+    TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors
 
 !   *** Local variables ***
 
-    REAL(wp) :: eigocc
-    INTEGER  :: handle,imo
+    REAL(wp), DIMENSION(:), POINTER :: eigocc
+    INTEGER  :: handle,imo,istat
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_w_matrix_1","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
+    NULLIFY(weighted_vectors)
 
     CALL set_matrix(w_matrix,0.0_wp)
+    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
+    CALL copy_blacs_to_blacs_matrix(mo_set%eigenvectors,weighted_vectors)
 
+    ! scale every column with the occupation
+    ALLOCATE(eigocc(mo_set%homo),stat=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"eigocc")
     DO imo=1,mo_set%homo
-      eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-      CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                              matrix_v=mo_set%eigenvectors,&
-                              first_col=imo,&
-                              ncol=imo,&
-                              alpha=eigocc)
-    END DO
+       eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
+    ENDDO
+    CALL blacs_scale_matrix(weighted_vectors,eigocc,mo_set%homo)
+    DEALLOCATE(eigocc)
 
+    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
+                            matrix_v=mo_set%eigenvectors,&
+                            matrix_g=weighted_vectors,&
+                            first_col=1,&
+                            ncol=mo_set%homo)
+
+    CALL cp_fm_release(weighted_vectors)
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_w_matrix_1
