@@ -463,7 +463,7 @@ CONTAINS
                IF (rebuild) THEN
                  loop1: DO j=1,SIZE(p_block,2)
                    DO i=1,SIZE(p_block,1)
-                     IF (ABS(p_block(i,j)) > 1.0E-14_wp) THEN
+                     IF (100.0_wp*ABS(p_block(i,j)) > eps_rho_rspace) THEN
                        skip_block = .FALSE.
                        EXIT loop1
                      END IF
@@ -487,7 +487,7 @@ CONTAINS
                  END IF
                  loop2: DO j=1,SIZE(p_block,2)
                    DO i=1,SIZE(p_block,1)
-                     IF (ABS(p_block(i,j) - p_old_block(i,j)) > 1.0E-14_wp) THEN
+                     IF (100.0_wp*ABS(p_block(i,j) - p_old_block(i,j)) > eps_rho_rspace) THEN
                        skip_block = .FALSE.
                        EXIT loop2
                      END IF
