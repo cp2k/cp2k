@@ -116,7 +116,7 @@ MODULE qs_scf
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
-  USE machine,                         ONLY: m_cputime,&
+  USE machine,                         ONLY: m_walltime,&
                                              m_flush
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
@@ -528,7 +528,7 @@ CONTAINS
          pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
          scf_work1,ortho,scf_work2)
     logger => cp_error_get_logger(error)
-    t1 = m_cputime()
+    t1 = m_walltime()
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -591,7 +591,7 @@ CONTAINS
             REPEAT("-",77)
     END IF
     
-    IF (.NOT. logger%print_keys%timecumul) t1 = m_cputime()
+    IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 
 !   *** SCF loop ***
 
@@ -717,7 +717,7 @@ CONTAINS
 
        CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
 
-       t2 = m_cputime()
+       t2 = m_walltime()
 
        IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
           WRITE (UNIT=output_unit,&
@@ -725,7 +725,6 @@ CONTAINS
                scf_env%iter_count,TRIM(scf_env%iter_method),&
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
        END IF
-       CALL timestop(0.0_wp,handle2)
 
 ! ** convergece check
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
@@ -733,21 +732,25 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run converged ***"
           END IF
+          CALL timestop(0.0_wp,handle2)
           EXIT scf_loop
        ELSE IF (scf_env%iter_count == scf_control%max_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
+          CALL timestop(0.0_wp,handle2)
           EXIT scf_loop
        END IF
 
-       IF (.NOT. logger%print_keys%timecumul) t1 = m_cputime()
+       IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 
 ! ** update qs_env%rho
        CALL qs_rho_update_rho(rho, rho_ao_new=scf_env%p_new, qs_env=qs_env,&
             rebuild=rebuild, error=error)
        CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)      
+
+       CALL timestop(0.0_wp,handle2)
 
     END DO scf_loop
 
@@ -1574,7 +1577,7 @@ CONTAINS
          (scf_control%density_guess == "RANDOM" .OR.  &
          (scf_control%density_guess == "RESTART" .AND. &
          scf_control%level_shift == 0.0_wp))) THEN
-       CALL stop_program("calculate_first_density_matrix","NYI")
+       CALL stop_program("calculate_first_density_matrix","OT needs GUESS RESTART : other options NYI")
     ENDIF
 
     IF (scf_control%density_guess == "RESTART") THEN
