@@ -387,7 +387,12 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
   
   nnodes = SIZE ( struc % pnode )
-  ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
+  SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+  CASE ( 402 )
+    ncoef = SIZE ( struc % coef_vel (1) % ao % cr )
+  CASE ( 401 )
+    ncoef = SIZE ( struc % coef_vel (1) % pw % cc )
+  END SELECT
 
   IF ( ionode .AND. itimes == 0 ) THEN
      tem = get_unit()
@@ -440,10 +445,18 @@ SUBROUTINE energy_coef ( itimes, constant, simpar, struc, thermo,  &
   END IF
 
   IF (ionode .AND. mod(itimes,icoef)==0) THEN
-     DO i=1, ncoef
-        WRITE (coe,'(i6,3f20.12 )' ) itimes, struc%coef_pos(1) %ao%cr (i), &
-               struc%coef_vel(1) %ao%cr (i),  struc%coef_force(1) %ao%cr (i)
-     END DO
+    SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
+    CASE ( 402 )
+       DO i=1, ncoef
+          WRITE (coe,'(i6,3f20.12 )' ) itimes, struc%coef_pos(1) %ao%cr (i), &
+                 struc%coef_vel(1) %ao%cr (i),  struc%coef_force(1) %ao%cr (i)
+       END DO
+    CASE ( 401 )
+       DO i=1, ncoef
+          WRITE (coe, *) itimes, struc%coef_pos(1)%pw%cc (i), &
+                 struc%coef_vel(1) %pw%cc (i),  struc%coef_force(1) %pw%cc (i)
+       END DO
+    END SELECT
   END IF
 
   IF (ionode .AND. mod(itimes,iepol)==0) THEN
