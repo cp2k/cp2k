@@ -1084,7 +1084,6 @@ CONTAINS
                                                 coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                                 error=error)
              CASE("NONE")          
-                WRITE(6,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
                 EXIT Atoms
              CASE DEFAULT
                 WRITE(6,'(T3,A)')"Unknown Coupling..."
@@ -1099,19 +1098,27 @@ CONTAINS
        END DO Coords       
     END DO Atoms
     
-    WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
-    DO I =  1, num_mm_atoms
-       IndMM = mm_atom_index(I)
-       Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dbl
-       Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dbl
-       Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dbl
-       WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
-                         Analytical_Forces(I,2),Err(2),&
-                         Analytical_Forces(I,3),Err(3) 
-       CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,error,failure)
-       CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
-       CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
-    END DO
+    SELECT CASE(qmmm_env%qmmm_coupl_type)
+    CASE("GRID","GAUSS")
+       WRITE(*,'(/A/)')"CHECKING NUMERICAL Vs ANALYTICAL FORCES (Err%):"
+       DO I =  1, num_mm_atoms
+          IndMM = mm_atom_index(I)
+          Err(1) = (Analytical_Forces(I,1)-Num_Forces(I,1))/Num_Forces(I,1)*100.0_dbl
+          Err(2) = (Analytical_Forces(I,2)-Num_Forces(I,2))/Num_Forces(I,2)*100.0_dbl
+          Err(3) = (Analytical_Forces(I,3)-Num_Forces(I,3))/Num_Forces(I,3)*100.0_dbl
+          WRITE(*,100)IndMM,Analytical_Forces(I,1),Err(1),&
+                            Analytical_Forces(I,2),Err(2),&
+                            Analytical_Forces(I,3),Err(3) 
+          CPPostcondition(ABS(Err(1))<=MaxErr,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ABS(Err(2))<=MaxErr,cp_failure_level,routineP,error,failure)
+          CPPostcondition(ABS(Err(3))<=MaxErr,cp_failure_level,routineP,error,failure)
+       END DO
+    CASE("NONE")
+       WRITE(6,'(T3,A)')"No QM/MM Derivatives to debug. Just Mechanical Coupling!"
+    CASE DEFAULT
+       WRITE(6,'(T3,A)')"Unknown Coupling..."
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
 
     DEALLOCATE(Num_Forces,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
