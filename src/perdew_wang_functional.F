@@ -3,29 +3,33 @@
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-!!****m* cp2k/perdew_wang_functional *
+!!****m* cp2k/perdew_wang_funcional *
 !!
 !!   NAME
 !!     perdew_wang_functional
 !!
 !!   FUNCTION
-!!     Calculates the correlation energy according to the
-!!     functional due to Perdew and Wang
+!!     Calculate the Perdew-Wang correlation potential and its
+!!     derivatives with respect to the spin-up and spin-down
+!!     densities up to 3rd order.
 !!
 !!   SYNOPSIS
-!!     
+!!     perdew_wang ( method, cutoff )
+!!     perdew_wang ( reference, shortform )
+!!     perdew_wang ( rho, ec, order )
+!!     perdew_wang ( rhoa, rhob, ec, order )
 !!
 !!   MODIFICATION HISTORY
-!!     , TCH, working version
+!!     18-MAR-2002, TCH, working version
 !!
 !!   SEE ALSO
-!!     
+!!     functionals_utilities
 !!
 !!****
 
 MODULE perdew_wang_functional
 
-  USE functionals_utilities, ONLY : calc_fx, calc_rs, calc_rs_d, set_util, calc_z
+  USE functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
   USE termination, ONLY : stop_program
   
@@ -33,7 +37,11 @@ MODULE perdew_wang_functional
 
   LOGICAL :: initialized = .FALSE.
   REAL(DBL), DIMENSION(-1:1) :: A, a1, b1, b2, b3, b4
-  REAL(DBL), PARAMETER :: epsilon = 5.E-13
+  REAL(DBL), DIMENSION(-1:1) :: c0, c1, c2, c3
+  REAL(DBL), DIMENSION(-1:1) :: d0, d1
+  REAL(DBL), PARAMETER :: &
+       epsilon = 5.E-13, &
+       fpp = 0.584822362263464620726223866376013788782_dbl ! d^2f(0)/dz^2
 
   PRIVATE
 
@@ -47,29 +55,50 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!****f* cp2k/perdew_wang_functional/pw_init *
+!!
+!!   NAME
+!!     perdew_wnag
+!!
+!!   FUNCTION
+!!     Initializes the functionals
+!!
+!!   ARGUMENTS
+!!     method - CHARACTER(3) - name of the method used for parameters
+!!     cutoff - REAL(DBL) - the cutoff density
+!!
+!!   MODIFICATION HISTORY
+!!     18-MAR-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     functionals_utilities
+!!
+!!****
   SUBROUTINE pw_init(method, cutoff)
     
     IMPLICIT NONE
 
     CHARACTER(3), INTENT(IN) :: method
     REAL(DBL), INTENT(IN) :: cutoff
+
+    INTEGER :: k
     
     CALL set_util(cutoff)
     
     initialized = .FALSE.
 
     ! values for -ac are the same for all methods
-    A(-1)  = 0.016887
-    a1(-1) = 0.11125 
-    b1(-1) = 10.357  
-    b2(-1) = 3.6231
-    b3(-1) = 0.88026
-    b4(-1) = 0.49671
+    A(-1)  = 0.016887_dbl
+    a1(-1) = 0.11125_dbl
+    b1(-1) = 10.357_dbl 
+    b2(-1) = 3.6231_dbl
+    b3(-1) = 0.88026_dbl
+    b4(-1) = 0.49671_dbl
 
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program("perdew_zunger_functional/pz_init", "unknown method")
+       CALL stop_program("perdew_wang_functional/pw_init", "unknown method")
 
     CASE ('PWO')
        A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
@@ -97,12 +126,53 @@ CONTAINS
        
     END SELECT
           
+    DO k=-1, 1, 1
+       c0(k) = A(k)
+       c1(k) = -2._dbl*c0(k)*LOG(2._dbl*c0(k)*b1(k))
+       c2(k) = A(k)*a1(k)
+       c3(k) = -2._dbl*A(k)*(a1(k)*LOG(2._dbl*A(k)*b1(k)) &
+            - (b2(k)/b1(k))**2 + (b3(k)/b1(k)))
+       d0(k) = a1(k)/b4(k)
+       d1(k) = a1(k)*b3(k)/b4(k)**2
+    END DO
+
     initialized = .TRUE.
 
   END SUBROUTINE pw_init
   
 ! *****************************************************************************
 
+!!****f* cp2k/perdew_wang_functional/pw_lda *
+!!
+!!   NAME
+!!     perdew_wang
+!!
+!!   FUNCTION
+!!     Calculate the correlation energy and its derivatives
+!!     wrt to rho (the electron density) up to 3rd order. This
+!!     is the LDA version of the Perdew-Wang correlation energy
+!!     If no order argument is given, then the routine calculates
+!!     just the energy.
+!!
+!!   ARGUMENTS
+!!     rho - REAL(DBL), DIMENSION(1:n) - the electron density
+!!     ec - REAL(DBL), DIMENSION(1:n,0:) - the potential and derivatives
+!!     order - INTEGER, OPTIONAL - order of derivatives to calculate
+!!
+!!     order must lie between -3 and 3. If it is negative then only
+!!     that order will be calculated, otherwise all derivatives up to
+!!     that order will be calculated.
+!!     ec must be large enough to accomodate the derivatives you ask
+!!     for. If order is 2 then SIZE(ec,2) must be at least3 (0,1 and 2).
+!!     If order is -3 then SIZE(ec,2) must be at least 1.
+!!
+!!   MODIFICATION HISTORY
+!!     18-MAR-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     functionals_utilities
+!!
+!!****
   SUBROUTINE pw_lda(rho, ec, order)
 
     IMPLICIT NONE
@@ -113,9 +183,9 @@ CONTAINS
 
     INTEGER :: k, n, m, order_ = 0
     LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
+    REAL(DBL), DIMENSION(0:3) :: e0, r
+    REAL(DBL) :: e, en, enn, ennn
 
-    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: rs, ec0, ac
-    
     IF (PRESENT(order)) order_ = order
 
     !! check order_ with an assertion here instead
@@ -136,37 +206,82 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
-    ALLOCATE(rs(1:n,0:order_), ec0(1:n,0:order_))
-
-    CALL calc_rs_d(rho, rs(:,0:order_), order_)
-
     DO k=1, n
-       CALL calc_g(rs(k,0), 0, ec0(k,0:0), order_)
+
+       CALL calc_rs(rho(k), r(0))
+       CALL calc_g(r(0), 0, e0(0:order_), order_)
+
+       e = e0(0)
+       IF (order_ >= 1) THEN
+          r(1) = (-1._dbl/3._dbl)*r(0)/rho(k)
+          en = e0(1)*r(1)
+       END IF
+       IF (order_ >= 2) THEN
+          r(2) = (-4._dbl/3._dbl)*r(1)/rho(k)
+          enn = e0(2)*r(1)**2 + e0(1)*r(2)
+       END IF
+       IF (order_ >= 3) THEN
+          r(3) = (-7._dbl/3._dbl)*r(2)/rho(k)
+          ennn = e0(3)*r(1)**3 + e0(2)*3._dbl*r(1)*r(2) + e0(1)*r(3)
+       END IF
+
+       m = 0
+       IF (calc(0)) THEN
+          ec(k,m) = rho(k)*e
+          m = m + 1
+       END IF
+       IF (calc(1)) THEN
+          ec(k,m) = e + rho(k)*en
+          m =  m + 1
+       END IF
+       IF (calc(2)) THEN
+          ec(k,m) = 2._dbl*en + rho(k)*enn
+          m = m + 1
+       END IF
+       IF (calc(3)) THEN
+          ec(k,m) = 3._dbl*enn + rho(k)*ennn
+       END IF
+    
     END DO
-
-    m = 0
-    IF (calc(0)) THEN
-       ec(:,0) = ec0(:,0)
-       m = m + 1
-    END IF
-    IF (calc(1)) THEN
-       ec(:,m) = ec0(:,1)*rs(:,1)
-       m =  m + 1
-    END IF
-    IF (calc(2)) THEN
-       ec(:,m) = ec0(:,2)*rs(:,1)**2 + ec0(:,1)*rs(:,2)
-       m = m + 1
-    END IF
-    IF (calc(3)) THEN
-       ec(:,m) = ec0(:,3)*rs(:,1)**3 + ec0(:,2)*3._dbl*rs(:,1)*rs(:,2) + ec0(:,1)*rs(:,3)
-    END IF
-
-    DEALLOCATE(rs, ec0)
 
   END SUBROUTINE pw_lda
   
 ! *****************************************************************************
 
+!!****f* cp2k/perdew_wang_functional/pw_lsd *
+!!
+!!   NAME
+!!     perdew_wang
+!!
+!!   FUNCTION
+!!     Calculate the correlation energy and its derivatives
+!!     wrt to rho (the electron density) up to 3rd order. This
+!!     is the LSD version of the Perdew-Wang correlation energy
+!!     If no order argument is given, then the routine calculates
+!!     just the energy.
+!!
+!!   ARGUMENTS
+!!     rhoa - REAL(DBL), DIMENSION(1:n) - the density of spin up electrons
+!!     rhob - REAL(DBL), DIMENSION(1:n) - the density of spin up electrons
+!!     ec - REAL(DBL), DIMENSION(1:n,0:) - the potential and derivatives
+!!     order - INTEGER, OPTIONAL - order of derivatives to calculate
+!!
+!!     order must lie between -3 and 3. If it is negative then only
+!!     that order will be calculated, otherwise all derivatives up to
+!!     that order will be calculated.
+!!     ec must be large enough to accomodate the derivatives you ask
+!!     for. If order is 2 then SIZE(ec,2) must be at least 6 (1 for 0th
+!!     order, 2 for 1st order and 3 for 2nd order)
+!!     If order is -3 then SIZE(ec,2) must be at least 4 (derivatives wrt
+!!     to aaa, aab, abb and bbb)
+!!
+!!   MODIFICATION HISTORY
+!!     18-MAR-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     functionals_utilities
+!!
+!!****
   SUBROUTINE pw_lsd(a, b, ec, order)
 
     IMPLICIT NONE
@@ -177,20 +292,16 @@ CONTAINS
 
     INTEGER :: k, l, n, m, order_ = 0
     LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
-    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: f
-    REAL(DBL), DIMENSION(1:SIZE(a)) :: rs
-    REAL(DBL) :: fpp, rho
+    REAL(DBL) :: rho
+    REAL(DBL) :: e, ea, eb, eaa, eab, ebb, eaaa, eaab, eabb, ebbb
     REAL(DBL) :: tr, tz, trr, trz, tzz, trrr, trrz, trzz, tzzz
-    REAL(DBL), DIMENSION(:), ALLOCATABLE :: ac, e0, e1, r
-    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: z
-
-    !! d^2f(0)/dz^2 (second derivative of f at z=0)
-    fpp = 1._dbl/(4._dbl/9._dbl*2._dbl/(2._dbl**(4._dbl/3._dbl) - 2))
+    REAL(DBL), DIMENSION(0:3) :: ac, e0, e1, f, r
+    REAL(DBL), DIMENSION(0:3,0:3) :: z
 
     IF (PRESENT(order)) order_ = order
     IF (ABS(order_) > 3) CALL stop_program("perdew_wang_functional/pw_lsd", &
          "order must be between -3 and 3")
-
+    
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
     IF (order_ > 0) THEN
@@ -208,67 +319,64 @@ CONTAINS
     IF (SIZE(ec,2) < m) &
          CALL stop_program("perdew_wang_functional/pw_lda", "SIZE(ec,2) too small")
 
-    ALLOCATE (ac(0:order_), &
-         e0(0:order_), &
-         e1(0:order_), &
-         r(0:order_), &
-         z(0:order_,0:order_))
-    
-    ALLOCATE (f(1:n,0:order_))
- 
-    CALL calc_rs(a+b, rs)
-    CALL calc_fx(a, b, f, order_)
-
     DO k=1, n
 
-       r(0) = rs(k); rho = a(k) + b(k)
+       rho = a(k) + b(k)
 
-       CALL calc_g(r(0), -1, ac, order_)
-       CALL calc_g(r(0), 0, e0, order_)
-       CALL calc_g(r(0), 1, e1, order_)
-       CALL calc_z(a(k), b(k), z, order_)
+       CALL calc_fx(a(k), b(k), f(0:order_), order_)
+       CALL calc_rs(rho, r(0))
+       CALL calc_g(r(0), -1, ac(0:order_), order_)
+       CALL calc_g(r(0), 0, e0(0:order_), order_)
+       CALL calc_g(r(0), 1, e1(0:order_), order_)
+       CALL calc_z(a(k), b(k), z(0:order_,0:order_), order_)
        
+       IF (calc(0) .OR. calc(1)) e = e0(0) &
+            + fpp*ac(0)*f(0)*(1._dbl - z(0,0)**4) &
+            + (e1(0)-e0(0))*f(0)*z(0,0)**4
+
        !! calculate first partial derivatives
        IF (order_ >= 1) THEN
-
           r(1) = (-1._dbl/3._dbl)*r(0)/rho
-
           tr = e0(1) &
-               + fpp*ac(1)*f(k,0) &
-               - fpp*ac(1)*f(k,0)*z(0,0)**4 &
-               + (e1(1)-e0(1))*f(k,0)*z(0,0)**4
-
-          tz = fpp*ac(0)*f(k,1) &
-               - fpp*ac(0)*f(k,1)*z(0,0)**4 &
-               - fpp*ac(0)*f(k,0)*4._dbl*z(0,0)**3 &
-               + (e1(0)-e0(0))*f(k,1)*z(0,0)**4 &
-               + (e1(0)-e0(0))*f(k,0)*4._dbl*z(0,0)**3
-          
+               + fpp*ac(1)*f(0) &
+               - fpp*ac(1)*f(0)*z(0,0)**4 &
+               + (e1(1)-e0(1))*f(0)*z(0,0)**4
+          tz = fpp*ac(0)*f(1) &
+               - fpp*ac(0)*f(1)*z(0,0)**4 &
+               - fpp*ac(0)*f(0)*4._dbl*z(0,0)**3 &
+               + (e1(0)-e0(0))*f(1)*z(0,0)**4 &
+               + (e1(0)-e0(0))*f(0)*4._dbl*z(0,0)**3
+          IF (calc(1) .OR. calc(2)) THEN
+             ea = tr*r(1) + tz*z(1,0)
+             eb = tr*r(1) + tz*z(0,1)
+          END IF
        END IF
        
        !! calculate second partial derivatives
        IF (order_ >= 2) THEN
-          
           r(2) = (-4._dbl/3._dbl)*r(1)/rho
-          
           trr = e0(2) &
-               + fpp*ac(2)*f(k,0) &
-               - fpp*ac(2)*f(k,0)*z(0,0)**4 &
-               + (e1(2)-e0(2))*f(k,0)*z(0,0)**4
-          
-          trz = fpp*ac(1)*f(k,1) &
-               - fpp*ac(1)*f(k,1)*z(0,0)**4 &
-               - fpp*ac(1)*f(k,0)*4._dbl*z(0,0)**3 &
-               + (e1(1)-e0(1))*f(k,1)*z(0,0)**4 &
-               + (e1(1)-e0(1))*f(k,0)*4._dbl*z(0,0)**3
-          
-          tzz = fpp*ac(0)*f(k,2) &
-               - fpp*ac(0)*f(k,2)*z(0,0)**4 &
-               - fpp*ac(0)*f(k,1)*8._dbl*z(0,0)**3 &
-               - fpp*ac(0)*f(k,0)*12._dbl*z(0,0)**2 &
-               + (e1(0)-e0(0))*f(k,2)*z(0,0)**4 &
-               + (e1(0)-e0(0))*f(k,1)*8._dbl*z(0,0)**3 &
-               + (e1(0)-e0(0))*f(k,0)*12._dbl*z(0,0)**2
+               + fpp*ac(2)*f(0) &
+               - fpp*ac(2)*f(0)*z(0,0)**4 &
+               + (e1(2)-e0(2))*f(0)*z(0,0)**4
+          trz = fpp*ac(1)*f(1) &
+               - fpp*ac(1)*f(1)*z(0,0)**4 &
+               - fpp*ac(1)*f(0)*4._dbl*z(0,0)**3 &
+               + (e1(1)-e0(1))*f(1)*z(0,0)**4 &
+               + (e1(1)-e0(1))*f(0)*4._dbl*z(0,0)**3
+          tzz = fpp*ac(0)*f(2) &
+               - fpp*ac(0)*f(2)*z(0,0)**4 &
+               - fpp*ac(0)*f(1)*8._dbl*z(0,0)**3 &
+               - fpp*ac(0)*f(0)*12._dbl*z(0,0)**2 &
+               + (e1(0)-e0(0))*f(2)*z(0,0)**4 &
+               + (e1(0)-e0(0))*f(1)*8._dbl*z(0,0)**3 &
+               + (e1(0)-e0(0))*f(0)*12._dbl*z(0,0)**2
+          eaa = trr*r(1)**2 + 2._dbl*trz*r(1)*z(1,0) &
+               + tr*r(2) + tzz*z(1,0)**2 + tz*z(2,0)
+          eab = trr*r(1)**2 + trz*r(1)*(z(0,1)+z(1,0)) &
+               + tr*r(2) + tzz*z(1,0)*z(0,1) + tz*z(1,1)
+          ebb = trr*r(1)**2 + 2._dbl*trz*r(1)*z(0,1) &
+               + tr*r(2) + tzz*z(0,1)**2 + tz*z(0,2)
        END IF
 
        !! calculate third derivatives
@@ -277,79 +385,41 @@ CONTAINS
           r(3) = (-7._dbl/3._dbl)*r(2)/rho
 
           trrr = e0(3) &
-               + fpp*ac(3)*f(k,0) &
-               - fpp*ac(3)*f(k,0)*z(0,0)**4 &
-               + (e1(3)-e0(3))*f(k,0)*z(0,0)**4
+               + fpp*ac(3)*f(0) &
+               - fpp*ac(3)*f(0)*z(0,0)**4 &
+               + (e1(3)-e0(3))*f(0)*z(0,0)**4
 
-          trrz = fpp*ac(2)*f(k,1) &
-               - fpp*ac(2)*f(k,1)*z(0,0)**4 &
-               - fpp*ac(2)*f(k,0)*4._dbl*z(0,0)**3 &
-               + (e1(2)-e0(2))*f(k,1)*z(0,0)**4 &
-               + (e1(2)-e0(2))*f(k,0)*4._dbl*z(0,0)**3
+          trrz = fpp*ac(2)*f(1) &
+               - fpp*ac(2)*f(1)*z(0,0)**4 &
+               - fpp*ac(2)*f(0)*4._dbl*z(0,0)**3 &
+               + (e1(2)-e0(2))*f(1)*z(0,0)**4 &
+               + (e1(2)-e0(2))*f(0)*4._dbl*z(0,0)**3
 
-          trzz = fpp*ac(1)*f(k,2) &
-               - fpp*ac(1)*f(k,2)*z(0,0)**4 &
-               - fpp*ac(1)*f(k,1)*8._dbl*z(0,0)**3 &
-               - fpp*ac(1)*f(k,0)*12._dbl*z(0,0)**2 &
-               + (e1(1)-e0(1))*f(k,2)*z(0,0)**4 &
-               + (e1(1)-e0(1))*f(k,1)*8._dbl*z(0,0)**3 &
-               + (e1(1)-e0(1))*f(k,0)*12._dbl*z(0,0)**2
+          trzz = fpp*ac(1)*f(2) &
+               - fpp*ac(1)*f(2)*z(0,0)**4 &
+               - fpp*ac(1)*f(1)*8._dbl*z(0,0)**3 &
+               - fpp*ac(1)*f(0)*12._dbl*z(0,0)**2 &
+               + (e1(1)-e0(1))*f(2)*z(0,0)**4 &
+               + (e1(1)-e0(1))*f(1)*8._dbl*z(0,0)**3 &
+               + (e1(1)-e0(1))*f(0)*12._dbl*z(0,0)**2
 
-          tzzz = fpp*ac(0)*f(k,3) &
-               - fpp*ac(0)*f(k,3)*z(0,0)**4 &
-               - fpp*ac(0)*f(k,2)*12._dbl*z(0,0)**3 &
-               - fpp*ac(0)*f(k,1)*36._dbl*z(0,0)**2 &
-               - fpp*ac(0)*f(k,0)*24._dbl*z(0,0) &
-               + (e1(0)-e0(0))*f(k,3)*z(0,0)**4 &
-               + (e1(0)-e0(0))*f(k,2)*12._dbl*z(0,0)**3 &
-               + (e1(0)-e0(0))*f(k,1)*36._dbl*z(0,0)**2 &
-               + (e1(0)-e0(0))*f(k,0)*24._dbl*z(0,0)
+          tzzz = fpp*ac(0)*f(3) &
+               - fpp*ac(0)*f(3)*z(0,0)**4 &
+               - fpp*ac(0)*f(2)*12._dbl*z(0,0)**3 &
+               - fpp*ac(0)*f(1)*36._dbl*z(0,0)**2 &
+               - fpp*ac(0)*f(0)*24._dbl*z(0,0) &
+               + (e1(0)-e0(0))*f(3)*z(0,0)**4 &
+               + (e1(0)-e0(0))*f(2)*12._dbl*z(0,0)**3 &
+               + (e1(0)-e0(0))*f(1)*36._dbl*z(0,0)**2 &
+               + (e1(0)-e0(0))*f(0)*24._dbl*z(0,0)
           
-       END IF
-
-
-       m=0
-       IF (calc(0)) THEN
-          
-          ec(k,0) = e0(0) &
-               + fpp*ac(0)*f(k,0)*(1._dbl - z(0,0)**4) &
-               + (e1(0)-e0(0))*f(k,0)*z(0,0)**4
-          m = m + 1
-
-       END IF
-
-       IF (calc(1)) THEN
-
-          ec(k,m) = tr*r(1) + tz*z(1,0)
-          ec(k,m+1) = tr*r(1) + tz*z(0,1)
-
-          m = m + 2
-       END IF
-       
-       IF (calc(2)) THEN
-          
-          ec(k,m) = &
-               trr*r(1)**2 + 2._dbl*trz*r(1)*z(1,0) + tr*r(2) &
-               + tzz*z(1,0)**2 + tz*z(2,0)
-          ec(k,m+1) = &
-               trr*r(1)**2 + trz*r(1)*(z(0,1)+z(1,0)) + tr*r(2) &
-               + tzz*z(1,0)*z(0,1) + tz*z(1,1)
-          ec(k,m+2) = &
-               trr*r(1)**2 + 2._dbl*trz*r(1)*z(0,1) + tr*r(2) &
-               + tzz*z(0,1)**2 + tz*z(0,2)
-
-          m = m + 3
-       END IF
-       
-       IF (calc(3)) THEN
-          
-          ec(k,m) = &
+          eaaa = &
                trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(1,0) &
                + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(1,0) + tr*r(3) &
                + 3._dbl*trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**3 &
                + 3._dbl*trz*r(1)*z(2,0) &
                + 3._dbl*tzz*z(1,0)*z(2,0) + tz*z(3,0)
-          ec(k,m+1) = &
+          eaab = &
                trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(1,0)+z(0,1)) &
                + 2._dbl*trzz*r(1)*z(1,0)*z(0,1) &
                + 2._dbl*trz*(r(2)*z(1,0)+r(1)*z(1,1)) &
@@ -357,7 +427,7 @@ CONTAINS
                + trzz*r(1)*z(1,0)**2 + tzzz*z(1,0)**2*z(0,1) &
                + 2._dbl*tzz*z(1,0)*z(1,1) &
                + trz*r(1)*z(2,0) + tzz*z(2,0)*z(0,1) + tz*z(2,1)
-          ec(k,m+2) = &
+          eabb = &
                trrr*r(1)**3 + trrz*r(1)**2*(2._dbl*z(0,1)+z(1,0)) &
                + 2._dbl*trzz*r(1)*z(0,1)*z(1,0) &
                + 2._dbl*trz*(r(2)*z(0,1)+r(1)*z(1,1)) &
@@ -365,7 +435,7 @@ CONTAINS
                + trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**2*z(1,0) &
                + 2._dbl*tzz*z(0,1)*z(1,1) &
                + trz*r(1)*z(0,2) + tzz*z(0,2)*z(1,0) + tz*z(1,2)
-          ec(k,m+3) = &
+          ebbb = &
                trrr*r(1)**3 + 3._dbl*trrz*r(1)**2*z(0,1) &
                + 3._dbl*trr*r(1)*r(2) + 3._dbl*trz*r(2)*z(0,1) + tr*r(3) &
                + 3._dbl*trzz*r(1)*z(0,1)**2 + tzzz*z(0,1)**3 &
@@ -374,9 +444,30 @@ CONTAINS
 
        END IF
 
+       m=0
+       IF (calc(0)) THEN
+          ec(k,m) = rho*e
+          m = m + 1
+       END IF
+       IF (calc(1)) THEN
+          ec(k,m)   = e + rho*ea
+          ec(k,m+1) = e + rho*eb
+          m = m + 2
+       END IF
+       IF (calc(2)) THEN
+          ec(k,m)   = 2._dbl*ea + rho*eaa
+          ec(k,m+1) = ea + eb + rho*eab
+          ec(k,m+2) = 2._dbl*eb + rho*ebb
+          m = m + 3
+       END IF
+       IF (calc(3)) THEN
+          ec(k,m)   = 3._dbl*eaa + rho*eaaa
+          ec(k,m+1) = 2._dbl*eab + eaa + rho*eaab
+          ec(k,m+2) = 2._dbl*eab + ebb + rho*eabb
+          ec(k,m+3) = 3._dbl*ebb + rho*ebbb
+       END IF
+       
     END DO
-    
-    DEALLOCATE (ac, e0, e1, f, z)
 
   END SUBROUTINE pw_lsd
 
@@ -398,7 +489,8 @@ CONTAINS
     INTEGER, INTENT(IN) :: order
 
     INTEGER :: k, n, order_
-    REAL(DBL) :: A_, a1_, b1_, b2_, b3_, b4_, sr, rsr, rr
+    REAL(DBL) :: A_, a1_, b1_, b2_, b3_, b4_
+    REAL(DBL) :: sr, rsr, rr
     REAL(DBL) :: t3, t11, t12, t14, t15, t16, t20, t22
     REAL(DBL) :: t40, t44, t45, t47, t48, t55, t56
         
@@ -409,61 +501,98 @@ CONTAINS
     rsr = r*sr
     rr = r*r
 
-    t3 = 1._dbl+a1_*r
-    t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
-    t12 = t11**2
-    t15 = 1._dbl + 0.5_dbl/A_/t11
-    t16 = LOG(t15)
-    t20 = 0.5_dbl*b1_/sr + b2_ + 1.5_dbl*b3_*sr + 2._dbl*b4_*r
+    IF (r < 1._dbl) THEN
 
-    ! order 0 must always be calculated
-    g(0) = -2._dbl*A_*t3*t16
+       g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
+       IF (order_ >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
+       IF (order_ >= 2) g(2) = -c0(z)/rr + c2(z)/r
+       IF (order_ >= 3) g(3) = 2._dbl*c0(z)/(rr*r) - c2(z)/rr
 
-    IF (order >= 1) THEN
-       
-       g(1) = -2._dbl*A_*a1_*t16 + t3*t20/(t12*t15)
-       
-    END IF
-    
-    IF (order >= 2) THEN
+    ELSE IF (r <= 100._dbl) THEN
 
-       t40 = -0.25_dbl*b1_/rsr + 0.75_dbl*b3_/sr + 2._dbl*b4_
+       t3 = 1._dbl+a1_*r
+       t11 = b1_*sr + b2_*r + b3_*rsr + b4_*rr
+       t12 = t11**2
+       t15 = 1._dbl + 0.5_dbl/A_/t11
+       t16 = LOG(t15)
+       t20 = 0.5_dbl*b1_/sr + b2_ + 1.5_dbl*b3_*sr + 2._dbl*b4_*r
 
-       g(2) = 2._dbl*a1_*t20/(t12*t15) &
-            - 2._dbl*(t20**2)*t3/(t12*t11*t15) &
-            + t3*t40/(t12*t15) &
-            + 0.5_dbl*t3*(t20**2)/(A_*(t12**2)*(t15**2))
+       ! order 0 must always be calculated
+       g(0) = -2._dbl*A_*t3*t16
 
-    END IF
+       IF (order >= 1) THEN
 
-    IF (order >= 3) THEN
+          g(1) = -2._dbl*A_*a1_*t16 + t3*t20/(t12*t15)
 
-       t14 = 1._dbl/t12/t11
-       t22 = t20**2
-       t56 = t22*t20
-       t47 = t15**2
-       t48 = 1._dbl/t47
-          
-       t44 = t12**2
-       t45 = 1._dbl/t44
-       t55 = t3*t45
+       END IF
 
-       g(3) = &
-            - 6._dbl*a1_*t14*t22/t15 &
-            + 3._dbl*a1_*t40/(t15*t12) &
-            + 1.5_dbl*a1_*t45*t22*t48/A_ &
-            + 6._dbl*t55*t56/t15 &
-            - 6._dbl*t3*t14*t20*t40/t15 &
-            - 3._dbl*t3*t56*t48/(A_*t44*t11) &
-            + 0.375_dbl*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
-            + 1.5_dbl*t55*t40*t48*t20/A_ &
-            + 0.5_dbl*t3*t56/((A_**2)*t44*t12*t47*t15)
+       IF (order >= 2) THEN
+
+          t40 = -0.25_dbl*b1_/rsr + 0.75_dbl*b3_/sr + 2._dbl*b4_
+
+          g(2) = 2._dbl*a1_*t20/(t12*t15) &
+               - 2._dbl*(t20**2)*t3/(t12*t11*t15) &
+               + t3*t40/(t12*t15) &
+               + 0.5_dbl*t3*(t20**2)/(A_*(t12**2)*(t15**2))
+
+       END IF
+
+       IF (order >= 3) THEN
+
+          t14 = 1._dbl/t12/t11
+          t22 = t20**2
+          t56 = t22*t20
+          t47 = t15**2
+          t48 = 1._dbl/t47
+
+          t44 = t12**2
+          t45 = 1._dbl/t44
+          t55 = t3*t45
+
+          g(3) = &
+               - 6._dbl*a1_*t14*t22/t15 &
+               + 3._dbl*a1_*t40/(t15*t12) &
+               + 1.5_dbl*a1_*t45*t22*t48/A_ &
+               + 6._dbl*t55*t56/t15 &
+               - 6._dbl*t3*t14*t20*t40/t15 &
+               - 3._dbl*t3*t56*t48/(A_*t44*t11) &
+               + 0.375_dbl*t3*(b1_/(rr*sr)-b3_/rsr)/(t12*t15) &
+               + 1.5_dbl*t55*t40*t48*t20/A_ &
+               + 0.5_dbl*t3*t56/((A_**2)*t44*t12*t47*t15)
+       END IF
+
+    ELSE
+
+       g(0) = -d0(z)/r + d1(z)/rsr
+       IF (order_ >= 1) g(1) = d0(z)/rr - 1.5_dbl*d1(z)/(rsr*r)
+       IF (order_ >= 2) g(2) = -2._dbl*d0(z)/(rr*r) + 3.75_dbl*d1(z)/(rsr*rr)
+       IF (order_ >= 3) g(3) = 6._dbl*d0(z)/(rr*rr) - 13.125_dbl*d1(z)/(rsr*rr*r)
+
     END IF
 
   END SUBROUTINE calc_g
 
 ! *****************************************************************************
 
+!!****f* cp2k/perdew_wang_functional/pw_info *
+!!
+!!   NAME
+!!     perdew_wang
+!!
+!!   FUNCTION
+!!     Return some info on the functionals.
+!!
+!!   ARGUMENTS
+!!     reference - CHARACTER(*), INTENT(OUT), OPTIONAL - full reference
+!!     shortform - CHARACTER(*), INTENT(OUT), OPTIONAL - short reference
+!!
+!!   MODIFICATION HISTORY
+!!     18-MAR-2002, TCH, working version
+!!
+!!   SEE ALSO
+!!     
+!!
+!!****
   SUBROUTINE pw_info ( reference, shortform )
 
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference

@@ -74,10 +74,12 @@ MODULE functionals_tests
   INTEGER, PARAMETER :: n=20
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: rhoref, rhorefa, rhorefb
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: rho, rhoa, rhob, grho, grhoref
-  REAL(dbl), DIMENSION(:), ALLOCATABLE :: grhoa, grhob, grhorefa, grhorefb
+  REAL(dbl), DIMENSION(:), ALLOCATABLE :: grhoa, grhob, grhorefa, grhorefb, &
+                                          grhorefab, grhoab
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: pot, potp, potm, potx
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potgp, potgm
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potgpa, potgpb, potgma, potgmb
+  REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potgpab, potgmab
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: potpa, potpb, potma, potmb
   REAL(dbl), PARAMETER :: rrho=1.E-5_dbl, epsilon=1.E-15_dbl
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: relerr, abserr
@@ -91,7 +93,7 @@ MODULE functionals_tests
   END INTERFACE
 
   INTERFACE fungga
-    MODULE PROCEDURE funggau, funggap, fun_init, fun_info
+    MODULE PROCEDURE funggau, funggap, funggab, fun_init, fun_info
   END INTERFACE
 
 ! *****************************************************************************
@@ -274,6 +276,7 @@ SUBROUTINE functional_test ( globenv )
        grhorefa(i)=7.e3 * EXP(-r)
        rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
        grhorefb(i)=7.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
+       grhorefab(i)=(grhorefa(i)+grhorefb(i))*0.5_dbl
      END DO
      rhoref = 2._dbl*rhorefa
      grhoref= 2._dbl*grhorefa
@@ -283,27 +286,55 @@ SUBROUTINE functional_test ( globenv )
        IF ( funtype /= 12 .AND. funtype /= 13 ) CYCLE
        CALL fungga ( i, reference=fun_string )
        WRITE (iw,'(A80)') ADJUSTR(fun_string)
-       CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
-       CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-       rhoa = rhorefa + rrho*rhorefa
-       rhob = rhorefb
-       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-       rhoa = rhorefa - rrho*rhorefa
-       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-       rhoa = rhorefa
-       rhob = rhorefb + rrho*rhorefb
-       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-       rhob = rhorefb - rrho*rhorefb
-       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-       grhoa = grhorefa + rrho*grhorefa
-       CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-       grhoa = grhorefa - rrho*grhorefa
-       CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-       grhob = grhorefb + rrho*grhorefb
-       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-       grhob = grhorefb - rrho*grhorefb
-       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
+       IF ( crossterm ) THEN
+          CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
+          CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhorefab, pot, 3 )
+          rhoa = rhorefa + rrho*rhorefa
+          rhob = rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpa, 3 )
+          rhoa = rhorefa - rrho*rhorefa
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potma, 3 )
+          rhoa = rhorefa
+          rhob = rhorefb + rrho*rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potpb, 3 )
+          rhob = rhorefb - rrho*rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, grhorefab, potmb, 3 )
+          grhoa = grhorefa + rrho*grhorefa
+          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgpa, 3 )
+          grhoa = grhorefa - rrho*grhorefa
+          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, grhorefab, potgma, 3 )
+          grhob = grhorefb + rrho*grhorefb
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgpb, 3 )
+          grhob = grhorefb - rrho*grhorefb
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, grhorefab, potgmb, 3 )
+          grhoab = grhorefab + rrho*grhorefab
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgpab, 3 )
+          grhoab = grhorefab - rrho*grhorefab
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, grhoab, potgmab, 3 )
+       ELSE
+          CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
+          CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
+          rhoa = rhorefa + rrho*rhorefa
+          rhob = rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
+          rhoa = rhorefa - rrho*rhorefa
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potma, 3 )
+          rhoa = rhorefa
+          rhob = rhorefb + rrho*rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
+          rhob = rhorefb - rrho*rhorefb
+          CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
+          grhoa = grhorefa + rrho*grhorefa
+          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
+          grhoa = grhorefa - rrho*grhorefa
+          CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
+          grhob = grhorefb + rrho*grhorefb
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
+          grhob = grhorefb - rrho*grhorefb
+          CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
+       END IF
        !
        abserr(:) = ABS(potx(:,1)-potx(:,2))
        relerr(:) = abserr(:)/ABS(potx(:,1))
@@ -311,7 +342,11 @@ SUBROUTINE functional_test ( globenv )
                    " Compare GGA-LDA/GGA-LSD Functionals " )
        !
        IF ( crossterm ) THEN
-         CALL stop_program("test","not available")
+         CALL testder (" First Derivative Ra",pot(:,1),potpa(:,0),potma(:,0),rhorefa)
+         CALL testder (" First Derivative Ga",pot(:,2),potgpa(:,0),potgma(:,0),grhorefa)
+         CALL testder (" First Derivative Rb",pot(:,3),potpb(:,0),potmb(:,0),rhorefb)
+         CALL testder (" First Derivative Gb",pot(:,4),potgpb(:,0),potgmb(:,0),grhorefb)
+         CALL testder (" First Derivative Gab",pot(:,5),potgpab(:,0),potgmab(:,0),grhorefab)
        ELSE
          CALL testder (" First Derivative Ra",pot(:,1),potpa(:,0),potma(:,0),rhorefa)
          CALL testder (" First Derivative Ga",pot(:,2),potgpa(:,0),potgma(:,0),grhorefa)
@@ -374,7 +409,7 @@ END SUBROUTINE output
 
 SUBROUTINE allocate_arrays
      INTEGER :: ierr
-     INTEGER :: mm=19
+     INTEGER :: mm=57
 
      ALLOCATE ( abserr ( n ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "abserr", n )
@@ -411,6 +446,8 @@ SUBROUTINE allocate_arrays
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefa", n )
      ALLOCATE ( grhorefb ( n ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefb", n )
+     ALLOCATE ( grhorefab ( n ), STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefab", n )
      ALLOCATE ( rhoa ( n ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "rhoa", n )
      ALLOCATE ( rhob ( n ), STAT = ierr )
@@ -419,6 +456,8 @@ SUBROUTINE allocate_arrays
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhoa", n )
      ALLOCATE ( grhob ( n ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhob", n )
+     ALLOCATE ( grhoab ( n ), STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhoab", n )
      ALLOCATE ( potx ( n, mm ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potx", 2*mm )
      ALLOCATE ( potpa ( n, 0:mm-1 ), STAT = ierr )
@@ -433,10 +472,14 @@ SUBROUTINE allocate_arrays
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgpa", mm*n )
      ALLOCATE ( potgpb ( n, 0:mm-1 ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgpb", mm*n )
+     ALLOCATE ( potgpab ( n, 0:mm-1 ), STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgpab", mm*n )
      ALLOCATE ( potgma ( n, 0:mm-1 ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgma", mm*n )
      ALLOCATE ( potgmb ( n, 0:mm-1 ), STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgmb", mm*n )
+     ALLOCATE ( potgmab ( n, 0:mm-1 ), STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgmab", mm*n )
      !
 END SUBROUTINE allocate_arrays
 
@@ -480,6 +523,8 @@ SUBROUTINE deallocate_arrays
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefa" )
      DEALLOCATE ( grhorefb, STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefb" )
+     DEALLOCATE ( grhorefab, STAT = ierr )
+     IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhorefab" )
      DEALLOCATE ( grhoa, STAT = ierr )
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "grhoa" )
      DEALLOCATE ( grhob, STAT = ierr )
@@ -616,7 +661,7 @@ SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
     CASE (23)
       CALL cs1 ( cutoff, debug=.TRUE. )
       crossterm=.TRUE.
-      funtype=11
+      funtype=13
     END SELECT
 
 END SUBROUTINE fun_init
@@ -699,6 +744,7 @@ SUBROUTINE fun_lda ( fun, rho, pot, order )
     CASE (6)
       CALL perdew_zunger ( rho, pot, order )
     CASE DEFAULT
+      CALL stop_program("fun_lda","functional not found")
     END SELECT
 
 END SUBROUTINE fun_lda
@@ -719,7 +765,10 @@ SUBROUTINE fun_lsd ( fun, rhoa, rhob, pot, order )
       CALL thomas_fermi ( rhoa, rhob, pot, order )
     CASE (5)
       CALL perdew_wang ( rhoa, rhob, pot, order )
+    CASE (6)
+      CALL perdew_zunger ( rhoa, rhob, pot, order )
     CASE DEFAULT
+      CALL stop_program("fun_lsd","functional not found")
     END SELECT
 
 END SUBROUTINE fun_lsd
@@ -767,6 +816,7 @@ SUBROUTINE funggau ( fun, rho, grho, pot, order )
     CASE (23)
       CALL cs1 ( rho, grho, pot, order )
     CASE DEFAULT
+      CALL stop_program("funggau","functional not found")
     END SELECT
 
 END SUBROUTINE funggau
@@ -809,9 +859,27 @@ SUBROUTINE funggap ( fun, rhoa, rhob, grhoa, grhob, pot, order )
     CASE (20)
       CALL optx ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE DEFAULT
+      CALL stop_program("funggap","functional not found")
     END SELECT
 
 END SUBROUTINE funggap
+
+SUBROUTINE funggab ( fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    SELECT CASE (fun)
+    CASE (23)
+      CALL cs1 ( rhoa, rhob, grhoa, grhob, grhoab, pot, order )
+    CASE DEFAULT
+      CALL stop_program("funggap","functional not found")
+    END SELECT
+
+END SUBROUTINE funggab
 
 ! *****************************************************************************
 

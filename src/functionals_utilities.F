@@ -33,13 +33,23 @@ MODULE functionals_utilities
 ! *** Global parameters ***
 
   REAL(dbl), PARAMETER :: pi = 3.14159265358979323846264338_dbl
+  REAL(dbl), PARAMETER :: rsfac = 0.6203504908994000166680065_dbl ! (4*pi/3)^(-1/3)
   REAL(dbl), PARAMETER :: f13 = 1.0_dbl/3.0_dbl, &
                           f23 = 2.0_dbl*f13, &
                           f43 = 4.0_dbl*f13, &
                           f53 = 5.0_dbl*f13
+  REAL(dbl), PARAMETER :: fxfac = 1.923661050931536319759455_dbl ! 1/(2^(4/3) - 2)
 
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
-            calc_wave_vector, calc_srs, calc_rs_d, calc_z
+            calc_wave_vector, calc_srs, calc_z
+
+  INTERFACE calc_fx
+     MODULE PROCEDURE calc_fx_array, calc_fx_single
+  END INTERFACE
+
+  INTERFACE calc_rs
+     MODULE PROCEDURE calc_rs_array, calc_rs_single
+  END INTERFACE
 
   REAL(dbl) :: eps_rho
 
@@ -141,36 +151,53 @@ CONTAINS
 
 ! *****************************************************************************
 
-    SUBROUTINE calc_rs ( rho, rs )
+    SUBROUTINE calc_rs_single ( rho, rs )
 
 !   ---------------------------------------------------------------------------
 !   rs parameter : f*rho**(-1/3)
 !   ---------------------------------------------------------------------------
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:), INTENT(OUT) :: rs
-
-!   *** Local variables ***
-
-    INTEGER :: n, ip
-    REAL(dbl) :: rsfac
+    REAL(dbl), INTENT(IN)  :: rho
+    REAL(dbl), INTENT(OUT) :: rs
 
 !   ---------------------------------------------------------------------------
 
-    rsfac = (f43*pi)**(-f13)
-    n = SIZE ( rho )
-    IF ( n > SIZE(rs) ) &
-      CALL stop_program ( "calc_rs", "Incompatible array sizes" )
+    IF ( rho < eps_rho ) THEN
+       rs = 0.0_dbl
+    ELSE
+       rs = rsfac * rho**(-f13)
+    END IF
 
-    DO ip = 1, n
-      IF ( rho(ip) < eps_rho ) THEN
-         rs(ip) = 0.0_dbl
-      ELSE
-         rs(ip) = rsfac * rho(ip)**(-f13)
-      END IF
+  END SUBROUTINE calc_rs_single
+
+! *****************************************************************************
+
+  SUBROUTINE calc_rs_array ( rho, rs )
+    
+!   ---------------------------------------------------------------------------
+!   rs parameter : f*rho**(-1/3)
+!   ---------------------------------------------------------------------------
+
+    REAL(dbl), INTENT(IN), DIMENSION(:)  :: rho
+    REAL(dbl), INTENT(OUT), DIMENSION(:) :: rs
+
+    INTEGER :: k
+
+!   ---------------------------------------------------------------------------
+
+    IF (SIZE(rs) < SIZE(rho)) THEN
+       CALL stop_program("functionals_utilities/calc_rs_array","size of array rs too small")
+    END IF
+
+    DO k=1, SIZE(rs)
+       IF ( rho(k) < eps_rho ) THEN
+          rs(k) = 0.0_dbl
+       ELSE
+          rs(k) = rsfac * rho(k)**(-f13)
+       END IF
     END DO
 
-  END SUBROUTINE calc_rs
+  END SUBROUTINE calc_rs_array
 
 ! *****************************************************************************
 
@@ -269,7 +296,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_fx ( rhoa, rhob, fx, m )
+  SUBROUTINE calc_fx_array ( rhoa, rhob, fx, m )
 
 !   ---------------------------------------------------------------------------
 !   spin interpolation function and derivatives
@@ -288,11 +315,10 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: n, na, nb, ip
-    REAL(dbl) :: fac, x, rhoab
+    REAL(dbl) :: x, rhoab
 
 !   ---------------------------------------------------------------------------
 
-    fac = 1._dbl/(2._dbl**f43-2._dbl)
     na = SIZE ( rhoa )
     nb = SIZE ( rhob )
     n = MAX ( na, nb)
@@ -310,47 +336,86 @@ CONTAINS
          x = (rhoa(ip) - rhob(ip)) / rhoab
          IF ( x < -1._dbl ) THEN
            IF ( m >= 0 ) fx(ip,1) = 1._dbl
-           IF ( m >= 1 ) fx(ip,2) = -f43*fac*2._dbl**f13
-           IF ( m >= 2 ) fx(ip,3) = f13*f43*fac/2._dbl**f23
-           IF ( m >= 3 ) fx(ip,4) = f23*f13*f43*fac/2._dbl**f53
+           IF ( m >= 1 ) fx(ip,2) = -f43*fxfac*2._dbl**f13
+           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2._dbl**f23
+           IF ( m >= 3 ) fx(ip,4) = f23*f13*f43*fxfac/2._dbl**f53
          ELSE IF ( x > 1._dbl ) THEN
            IF ( m >= 0 ) fx(ip,1) = 1._dbl
-           IF ( m >= 1 ) fx(ip,2) = f43*fac*2._dbl**f13
-           IF ( m >= 2 ) fx(ip,3) = f13*f43*fac/2._dbl**f23
-           IF ( m >= 3 ) fx(ip,4) = -f23*f13*f43*fac/2._dbl**f53
+           IF ( m >= 1 ) fx(ip,2) = f43*fxfac*2._dbl**f13
+           IF ( m >= 2 ) fx(ip,3) = f13*f43*fxfac/2._dbl**f23
+           IF ( m >= 3 ) fx(ip,4) = -f23*f13*f43*fxfac/2._dbl**f53
          ELSE
            IF ( m >= 0 ) &
-              fx(ip,1) = ( (1._dbl+x)**f43 + (1._dbl-x)**f43 - 2._dbl ) * fac
+              fx(ip,1) = ( (1._dbl+x)**f43 + (1._dbl-x)**f43 - 2._dbl ) * fxfac
            IF ( m >= 1 ) &
-              fx(ip,2) = ( (1._dbl+x)**f13 - (1._dbl-x)**f13 ) * fac * f43
+              fx(ip,2) = ( (1._dbl+x)**f13 - (1._dbl-x)**f13 ) * fxfac * f43
            IF ( m >= 2 ) &
               fx(ip,3) = ( (1._dbl+x)**(-f23) + (1._dbl-x)**(-f23) ) * &
-                         fac * f43 * f13
+                         fxfac * f43 * f13
            IF ( m >= 3 ) &
               fx(ip,4) = ( (1._dbl+x)**(-f53) - (1._dbl-x)**(-f53) ) * &
-                         fac * f43 * f13 * (-f23)
+                         fxfac * f43 * f13 * (-f23)
          END IF
       END IF
     END DO
 
-  END SUBROUTINE calc_fx
+  END SUBROUTINE calc_fx_array
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_rs_d(rho, rs, order)
+  SUBROUTINE calc_fx_single ( rhoa, rhob, fx, m )
 
-    IMPLICIT NONE
+!   ---------------------------------------------------------------------------
+!   spin interpolation function and derivatives
+!   
+!   f(x) = ( (1+x)^(4/3) + (1-x)^(4/3) - 2 ) / (2^(4/3)-2)
+!   df(x) = (4/3)( (1+x)^(1/3) - (1-x)^(1/3) ) / (2^(4/3)-2)
+!   d2f(x) = (4/9)( (1+x)^(-2/3) + (1-x)^(-2/3) ) / (2^(4/3)-2)
+!   d3f(x) = (-8/27)( (1+x)^(-5/3) - (1-x)^(-5/3) ) / (2^(4/3)-2)
+!
+!   ---------------------------------------------------------------------------
 
-    REAL(DBL), DIMENSION(1:), INTENT(IN) :: rho
-    REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: rs
-    INTEGER, INTENT(IN) :: order
+    REAL(dbl), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:), INTENT(OUT) :: fx
+    INTEGER, INTENT(IN) :: m
 
-    CALL calc_rs(rho, rs(:,0))
-    IF (order >= 1) rs(:,1) = (-1._dbl/3._dbl) * rs(:,0) / rho(:)
-    IF (order >= 2) rs(:,2) = (-4._dbl/3._dbl) * rs(:,1) / rho(:)
-    IF (order >= 3) rs(:,3) = (-7._dbl/3._dbl) * rs(:,2) / rho(:) 
+!   *** Local variables ***
 
-  END SUBROUTINE calc_rs_d
+    INTEGER :: n, na, nb, ip
+    REAL(dbl) :: x, rhoab
+
+!   ---------------------------------------------------------------------------
+
+    rhoab = rhoa + rhob
+    IF ( rhoab < eps_rho ) THEN
+       fx(1:m) = 0.0_dbl
+    ELSE
+       x = (rhoa - rhob) / rhoab
+       IF ( x < -1._dbl ) THEN
+          IF ( m >= 0 ) fx(1) = 1._dbl
+          IF ( m >= 1 ) fx(2) = -f43*fxfac*2._dbl**f13
+          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2._dbl**f23
+          IF ( m >= 3 ) fx(4) = f23*f13*f43*fxfac/2._dbl**f53
+       ELSE IF ( x > 1._dbl ) THEN
+          IF ( m >= 0 ) fx(1) = 1._dbl
+          IF ( m >= 1 ) fx(2) = f43*fxfac*2._dbl**f13
+          IF ( m >= 2 ) fx(3) = f13*f43*fxfac/2._dbl**f23
+          IF ( m >= 3 ) fx(4) = -f23*f13*f43*fxfac/2._dbl**f53
+       ELSE
+          IF ( m >= 0 ) &
+               fx(1) = ( (1._dbl+x)**f43 + (1._dbl-x)**f43 - 2._dbl ) * fxfac
+          IF ( m >= 1 ) &
+               fx(2) = ( (1._dbl+x)**f13 - (1._dbl-x)**f13 ) * fxfac * f43
+          IF ( m >= 2 ) &
+               fx(3) = ( (1._dbl+x)**(-f23) + (1._dbl-x)**(-f23) ) * &
+               fxfac * f43 * f13
+          IF ( m >= 3 ) &
+               fx(4) = ( (1._dbl+x)**(-f53) - (1._dbl-x)**(-f53) ) * &
+               fxfac * f43 * f13 * (-f23)
+       END IF
+    END IF
+    
+  END SUBROUTINE calc_fx_single
 
 ! *****************************************************************************
 
@@ -368,18 +433,18 @@ CONTAINS
 
     z(0,0) = (a-b)/c
     IF (order >= 1) THEN
-       d = c**2
+       d = c*c
        z(1,0) = 2._dbl*b/d
        z(0,1) = -2._dbl*a/d
     END IF
     IF (order >= 2) THEN
-       d = c**3
+       d = d*c
        z(2,0) = -4._dbl*b/d
        z(1,1) = 2._dbl*(a-b)/d
        z(0,2) = 4._dbl*a/d
     END IF
     IF (order >= 3) THEN
-       d = c**4
+       d = d*c
        z(3,0) = 12._dbl*b/d
        z(2,1) = -4._dbl*(a-2._dbl*b)/d
        z(1,2) = -4._dbl*(2._dbl*a-b)/d

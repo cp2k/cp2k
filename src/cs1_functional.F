@@ -157,12 +157,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_p ( rhoa, rhob, grhoa, grhob, pot, order )
+  SUBROUTINE cs1_p ( rhoa, rhob, grhoa, grhob, grhoab, pot, order )
 
 !   ---------------------------------------------------------------------------
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob, grhoab
     REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
@@ -187,25 +187,26 @@ CONTAINS
     ALLOCATE ( r13b(n), STAT=error )
     IF ( error /= 0 ) CALL stop_memory ( "cs1_p", "r13b", n )
 
+!   first: sigma-sigma correlation terms
     CALL calc_rho13 ( rhoa, r13a )
     CALL calc_rho13 ( rhob, r13b )
     IF ( calc(0) ) THEN
-       CALL cs1_p_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot(:,1) )
+       CALL cs1_ss_0 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
        m2=mx(1,2)
-       CALL cs1_p_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot(:,m1:m2) )
+       CALL cs1_ss_1 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot(:,m1:m2) )
     END IF
     IF ( calc(2) ) THEN
        m1=mx(2,1)
        m2=mx(2,2)
-       CALL cs1_p_2 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot(:,m1:m2) )
+       CALL cs1_ss_2 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot(:,m1:m2) )
     END IF
     IF ( calc(3) ) THEN
        m1=mx(3,1)
        m2=mx(3,2)
-       CALL cs1_p_3 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot(:,m1:m2) )
+       CALL cs1_ss_3 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot(:,m1:m2) )
     END IF
 
     DEALLOCATE ( r13a, STAT=error )
@@ -297,11 +298,11 @@ CONTAINS
          od = 1._dbl/(r3+d)
          oc = 1._dbl/(r*r*r3*r3 + c*g*g)
          dF1 = c1*f13*r3*(3*r3+4*dp)*odp*odp
-         drF2 = -f13*c2p*g**4*r3*(13*r**3-3*r3*cp*g*g+12*r*r*r/r3*dp-&
+         drF2 = -f13*c2p*g**4*r3*(13*r**3-3*r3*cp*g*g+12*r*r*r3*r3*dp-&
                  4*dp*cp*g*g)*odp**2*ocp**3
          dgF2 = 4*c2p*g**3*r**4*odp*ocp**3
          dF3 = f13*r3*c3p*(3*r3+4*d)*od*od
-         drF4 = -f13*c4p*g**4*r3*(13*r**3-3*r3*c*g*g+12*r*r*r/r3*d-&
+         drF4 = -f13*c4p*g**4*r3*(13*r**3-3*r3*c*g*g+12*r*r*r3*r3*d-&
                  4*d*c*g*g)*od**2*oc**3
          dgF4 = 4*c4p*g**3*r**4*od*oc**3
          pot(ip,1) = dF1 + drF2 + dF3 + drF4
@@ -436,7 +437,6 @@ CONTAINS
                   *odp*odp*ocp**5
          d3gF2 = c2p*24*g*r**3*r3*(r**6-5*cp*g*g*r**3*r3+2*cp*cp*g**4*r3*r3)*odp*ocp**5
          d3F3 = -f23*f13*f13*c3p*d*r3/(r*r)*(11*d*r3+4*d*d+4*r3*r3)*od**4
-
          t1 = g**2; t2 = t1**2; t3 = r3; t4 = t3**2; t8 = d**2; t9 = t8*d
          t10 = c**2; t11 = t10*c; t13 = t2*t1; t16 = r**2; t17 = t4*t16
          t19 = t10*t2; t22 = t16**2; t23 = t22**2; t32 = t22*t16; t37 = t16*r
@@ -447,20 +447,16 @@ CONTAINS
                1976*t23*r-11535*t4*t58*t8*t61-11412*t1*t32*c*d
          t76 = (t3+d)**2; t77 = t76**2; t80 = t17+t61; t81 = t80**2; t82 = t81**2
          d3rF4 = -f23*f13*f13*c4p*t2/t4/r*t74/t77/t82/t80
-
          t4 = t3*r; t6 = r**2; t7 = t6**2; t8 = t7*t6; t9 = d**2; t15 = t1**2
          t17 = c**2; t23 = t3**2; t26 = t6*r; t29 = c*t1; t33 = t17*t15; t44 = t3+d
          t45 = t44**2; t50 = t23*t6+t29; t51 = t50**2; t52 = t51**2
          d2rgF4 = c4p*f23*f43*t1*g*t4*(90*t8*t9+193*t3*t8*d+44*t15*t4*t17-236*t1 &
                   *t7*c+104*t23*t8-240*t3*t26*t9*t29+54*t23*t9*t33-478*t23*t26*d*t29 &
                   +97*r*d*t33)/t45/t44/t52/t50
-
          dr2gF4 = -4*c4p*g*g*r*r*r3*(-40*r**3*r3*d*c*g*g+12*r3*r3*d*c*c*g**4 &
                   +13*r**6*r3-40*r**3*r3*r3*c*g*g+11*r*c*c*g**4+12*r**6*d) &
                   *od*od*oc**5
-
          d3gF4 = c4p*24*g*r**3*r3*(r**6-5*c*g*g*r**3*r3+2*c*c*g**4*r3*r3)*od*oc**5
-
          pot(ip,1) = d3F1 + d3rF2 + d3F3 + d3rF4
          pot(ip,2) = d2rgF2 + d2rgF4
          pot(ip,3) = dr2gF2 + dr2gF4
@@ -473,79 +469,133 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_p_0 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
+  SUBROUTINE cs1_ss_0 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
                                             r13a, r13b
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
 
     INTEGER :: ip, npoints
+    REAL(dbl) :: F1a, F1b, F2a, F2b
+    REAL(dbl) :: ra, r3a, ga, xa, oda, oca
+    REAL(dbl) :: rb, r3b, gb, xb, odb, ocb
 !   ---------------------------------------------------------------------------
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "cs1_p_0", "Inconsistent array sizes" )
+       CALL stop_program ( "cs1_ss_0", "Inconsistent array sizes" )
 
-    IF ( .NOT. debug_flag ) CALL stop_program("cs1_p_0","Routine not tested")
-
-    DO ip = 1, npoints
-
-      IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
-         pot(ip) = 0.0_dbl
-      END IF
-      IF ( rhob(ip) > eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      END IF
-
-    END DO
-
-  END SUBROUTINE cs1_p_0
-
-! *****************************************************************************
-
-  SUBROUTINE cs1_p_1 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
-
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
-                                            r13a, r13b
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
-
-    INTEGER :: ip, npoints
-!   ---------------------------------------------------------------------------
-
-    npoints = SIZE ( rhoa )
-    IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "cs1_p_1", "Inconsistent array sizes" )
-
-    IF ( .NOT. debug_flag ) CALL stop_program("cs1_p_1","Routine not tested")
+    IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_0","Routine not tested")
 
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
+         F1a = 0._dbl
+         F2a = 0._dbl
       ELSE
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
+         ra = rhoa(ip)
+         r3a = r13a(ip)
+         ga = grhoa(ip)
+         xa = ga/(ra*r3a)
+         oda = 1._dbl/(r3a+d)
+         oca = 1._dbl/(ra*ra*r3a*r3a + c*ga*ga)
+         F1a = c1*ra*r3a*oda
+         F2a = c2*ga**4*r3a*ra*oda*oca*oca
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
+         F1b = 0._dbl
+         F2b = 0._dbl
       ELSE
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
+         rb = rhob(ip)
+         r3b = r13b(ip)
+         gb = grhob(ip)
+         xb = gb/(rb*r3b)
+         odb = 1._dbl/(r3b+d)
+         ocb = 1._dbl/(rb*rb*r3b*r3b + c*gb*gb)
+         F1b = c1*rb*r3b*odb
+         F2b = c2*gb**4*r3b*rb*odb*ocb*ocb
       END IF
+
+      pot(ip) = F1a + F1b + F2a + F2b
 
     END DO
 
-  END SUBROUTINE cs1_p_1
+  END SUBROUTINE cs1_ss_0
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_p_2 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
+  SUBROUTINE cs1_ss_1 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
+                                            r13a, r13b
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+
+    INTEGER :: ip, npoints
+    REAL(dbl) :: dF1a, dF1b, drF2a, dgF2a, drF2b, dgF2b
+    REAL(dbl) :: ra, r3a, ga, oda, oca
+    REAL(dbl) :: rb, r3b, gb, odb, ocb
+!   ---------------------------------------------------------------------------
+
+    npoints = SIZE ( rhoa )
+    IF ( npoints > SIZE(pot,1) ) &
+       CALL stop_program ( "cs1_ss_1", "Inconsistent array sizes" )
+
+    IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_1","Routine not tested")
+
+    DO ip = 1, npoints
+
+      IF ( rhoa(ip) < eps_rho ) THEN
+         dF1a = 0._dbl
+         drF2a = 0._dbl
+         dgF2a = 0._dbl
+      ELSE
+         ra = rhoa(ip)
+         r3a = r13a(ip)
+         ga = grhoa(ip)
+         oda = 1._dbl/(r3a+d)
+         oca = 1._dbl/(ra*ra*r3a*r3a + c*ga*ga)
+         dF1a = c1*f13*r3a*(3*r3a+4*d)*oda*oda
+
+         drF2a = -f13*c2*ga**4*r3a*(13*ra**3-3*r3a*c*ga*ga+12*ra*ra*r3a*r3a*d-&
+                 4*d*c*ga*ga)*oda**2*oca**3
+
+         dgF2a = 4*c2*ga**3*ra**4*oda*oca**3
+
+      END IF
+      IF ( rhob(ip) < eps_rho ) THEN
+         dF1b = 0.0_dbl
+         drF2b = 0._dbl
+         dgF2b = 0._dbl
+      ELSE
+         rb = rhob(ip)
+         r3b = r13b(ip)
+         gb = grhob(ip)
+         odb = 1._dbl/(r3b+d)
+         ocb = 1._dbl/(rb*rb*r3b*r3b + c*gb*gb)
+         dF1b = c1*f13*r3b*(3*r3b+4*d)*odb*odb
+
+         drF2b = -f13*c2*gb**4*r3b*(13*rb**3-3*r3b*c*gb*gb+12*rb*rb*r3b*r3b*d-&
+                 4*d*c*gb*gb)*odb**2*ocb**3
+
+         dgF2b = 4*c2*gb**3*rb**4*odb*ocb**3
+
+      END IF
+
+      pot(ip,1) = dF1a + drF2a
+      pot(ip,2) = dgF2a 
+      pot(ip,3) = dF1b + drF2b
+      pot(ip,4) = dgF2b
+      pot(ip,5) = 0._dbl
+
+    END DO
+
+  END SUBROUTINE cs1_ss_1
+
+! *****************************************************************************
+
+  SUBROUTINE cs1_ss_2 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
+
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
                                             r13a, r13b
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
@@ -554,9 +604,9 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "cs1_p_2", "Inconsistent array sizes" )
+       CALL stop_program ( "cs1_ss_2", "Inconsistent array sizes" )
 
-    IF ( .NOT. debug_flag ) CALL stop_program("cs1_p_2","Routine not tested")
+    IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_2","Routine not tested")
 
     DO ip = 1, npoints
 
@@ -581,13 +631,13 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE cs1_p_2
+  END SUBROUTINE cs1_ss_2
 
 ! *****************************************************************************
 
-  SUBROUTINE cs1_p_3 ( rhoa, rhob, grhoa, grhob, r13a, r13b, pot )
+  SUBROUTINE cs1_ss_3 ( rhoa, rhob, grhoa, grhob, grhoab, r13a, r13b, pot )
 
-    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, &
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, grhoa, grhob, grhoab, &
                                             r13a, r13b
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
@@ -596,9 +646,9 @@ CONTAINS
 
     npoints = SIZE ( rhoa )
     IF ( npoints > SIZE(pot,1) ) &
-       CALL stop_program ( "cs1_p_3", "Inconsistent array sizes" )
+       CALL stop_program ( "cs1_ss_3", "Inconsistent array sizes" )
 
-    IF ( .NOT. debug_flag ) CALL stop_program("cs1_p_3","Routine not tested")
+    IF ( .NOT. debug_flag ) CALL stop_program("cs1_ss_3","Routine not tested")
 
     DO ip = 1, npoints
 
@@ -627,7 +677,7 @@ CONTAINS
 
     END DO
 
-  END SUBROUTINE cs1_p_3
+  END SUBROUTINE cs1_ss_3
 
 ! *****************************************************************************
 
