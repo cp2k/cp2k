@@ -20,7 +20,8 @@
 !******************************************************************************
 
 MODULE occupations
-  
+
+  USE erf_fn, ONLY : erfc  
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi
   USE termination, ONLY : stop_program
@@ -59,8 +60,6 @@ SUBROUTINE occupations_assign ( efermi, broadening_method, mp_order, &
   INTEGER :: st, order
   REAL ( dbl ) :: x, h, AN, SN, S0, HN, HNm1
   REAL ( dbl ) :: pp, qq, entr, entr_mp, occ
-  
-  REAL ( dbl ), EXTERNAL :: erfc
   
 !------------------------------------------------------------------------------
   

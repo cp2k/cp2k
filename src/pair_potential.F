@@ -22,6 +22,7 @@ MODULE pair_potential
 
   USE atomic_kind_types,        ONLY : atomic_kind_type,&
                                        get_atomic_kind
+  USE erf_fn,                   ONLY : erfc
   USE ewald_parameters_types,   ONLY : ewald_parameters_type
   USE kinds,                    ONLY : dbl
   USE mathconstants,            ONLY : zero, pi
@@ -116,8 +117,7 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_param )
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
 
 ! Locals
-  EXTERNAL erfc
-  REAL ( dbl ) :: ener_coul, erfc
+  REAL ( dbl ) :: ener_coul
   REAL ( dbl ), PARAMETER :: ifourpi = 1.0_dbl / ( 4.0_dbl * pi )
   REAL ( dbl ), PARAMETER:: eps = 1.0E-6_dbl
 

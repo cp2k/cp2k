@@ -26,6 +26,7 @@ MODULE qs_core_energies
                                              get_atomic_kind_set
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE erf_fn,                          ONLY: erfc
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
@@ -220,8 +221,6 @@ CONTAINS
     TYPE(local_atoms_type), DIMENSION(:), ALLOCATABLE :: atom
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE        :: alpha,radius
     INTEGER, DIMENSION(:), ALLOCATABLE                :: zeff
-
-    REAL(KIND = dp), EXTERNAL :: erfc
 
 !   ---------------------------------------------------------------------------
 

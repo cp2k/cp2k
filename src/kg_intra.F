@@ -29,6 +29,7 @@ MODULE kg_intra
                                       get_atomic_kind_set
   USE basis_set_types,          ONLY: get_gto_basis_set,&
                                       gto_basis_set_type
+  USE erf_fn,                   ONLY: erf
   USE global_types,             ONLY : global_environment_type
   USE kg_environment_types,     ONLY: kg_environment_type, &
                                       get_kg_env
@@ -109,8 +110,6 @@ CONTAINS
     TYPE ( linklist_atoms ), POINTER :: llat
     REAL(KIND = dp), DIMENSION(:), ALLOCATABLE             :: alpha,qnuc
     INTEGER, DIMENSION(:), ALLOCATABLE              :: atom_of_kind
-
-    REAL(KIND = dp), EXTERNAL :: erf
 
 !   ---------------------------------------------------------------------------
 

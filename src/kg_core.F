@@ -23,6 +23,7 @@ MODULE kg_core
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE erf_fn,                          ONLY: erfc
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -123,8 +124,6 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:,:,:), ALLOCATABLE       :: grid_max,grid_min
     INTEGER, DIMENSION(:,:,:), ALLOCATABLE          :: nijk
     INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE        :: ijk
-
-    REAL(dbl), EXTERNAL :: erfc
 
 !   ---------------------------------------------------------------------------
 
