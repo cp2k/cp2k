@@ -1693,15 +1693,15 @@ CONTAINS
         END DO
 
         IF (trps2 == 0.0_dp) THEN
-          scale = 1.0_dp
+          DO isgf=1,nao
+            IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
+          END DO
         ELSE
           scale = (REAL(nelectron,dp) - trps1)/trps2
+          DO isgf=1,nao 
+            IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+          END DO
         END IF
-
-        DO isgf=1,nao
-          IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
-          trps1 = trps1 + pdiag(isgf)
-        END DO
 
         CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
 
