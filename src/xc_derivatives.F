@@ -140,17 +140,6 @@ CONTAINS
     IF (.not.failure) THEN
 
        !-------------------------!
-       ! allocate the data array !
-       !-------------------------!
-       IF (.not.failure) THEN
-          npot = xc_get_pot_size(do_lsd, ANY(xc_control%gradient_functionals), &
-                                 do_lsd .AND. ANY(xc_control%crossterms), order)
-          ! for compatability 0:npot-1 later simply npot
-          ALLOCATE(derivative_set%data(SIZE(rhoa),0:npot-1), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       
-       !-------------------------!
        ! call the (old) routines !
        !-------------------------!
        CALL xc_set(xc_control%density_cut, xc_control%gradient_cut)
