@@ -325,7 +325,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
 
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   & 
-                                para_env )
+                                para_env, error = error )
 ! Write some useful info
        IF ( ionode ) THEN
          WRITE ( output_unit, '( A,T71,E10.4 )' ) &

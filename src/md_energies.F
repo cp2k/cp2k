@@ -173,7 +173,7 @@ END SUBROUTINE set_energies
 
     CHARACTER(LEN=200)                       :: title
     CHARACTER(len=50)                        :: filename
-    INTEGER                                  :: handle, istat, isubsys, iw
+    INTEGER                                  :: handle, istat, isubsys, iw, delta_t
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: file_exists, replace_file
     REAL(KIND=dp)                            :: cons, e_diff, e_old, ekin, &
@@ -258,7 +258,8 @@ END SUBROUTINE set_energies
                               "BACKSPACE command failed for file <"//&
                               TRIM(ener_file_name)//">")
           END IF
-          READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old,x,x,x,e_old,e_diff
+          READ (UNIT=ene,FMT=*,IOSTAT=istat) itimes_old,t_old,x,x,x, &
+                                             e_old,e_diff
           IF (istat /= 0) THEN
             CALL print_warning(routine_name,&
                                "Could not read the last line of the file <"//&
@@ -324,7 +325,7 @@ END SUBROUTINE set_energies
         END DO
         pv_scalar = pv_scalar/3._dbl/cell%deth
         pv_scalar = pv_scalar * unit % bar
-     ENDIF
+      ENDIF
 
 
 
@@ -339,7 +340,8 @@ END SUBROUTINE set_energies
         END IF
 
 ! average quantities:
-       SELECT CASE (itimes)
+       delta_t = itimes - itimes_old
+       SELECT CASE (delta_t)
        CASE (1)
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
           averages%avetemp = temp
@@ -355,30 +357,30 @@ END SUBROUTINE set_energies
           econs_avg =  0._dbl
        CASE DEFAULT
           IF ( virial % pv_availability ) &
-          averages%avepress = (averages%avepress*REAL(itimes-1,dbl)+pv_scalar)/ &
-          REAL ( itimes, dbl )
-          averages%avetemp = (averages%avetemp*REAL(itimes-1,dbl)+temp)/ &
-               REAL(itimes,dbl)
-          averages%avepot = (averages%avepot*REAL(itimes-1,dbl)+epot)/ &
-               REAL(itimes,dbl)
-          averages%avekin = (averages%avekin*REAL(itimes-1,dbl)+ekin)/ &
-               REAL(itimes,dbl)
-          averages%avevol = (averages%avevol*REAL(itimes-1,dbl)+cell%deth)/ &
-               REAL(itimes,dbl)
-          averages%aveca = (averages%aveca*REAL(itimes-1,dbl)+cell_length(1))/REAL(itimes,dbl)
-          averages%avecb = (averages%avecb*REAL(itimes-1,dbl)+cell_length(2))/REAL(itimes,dbl)
-          averages%avecc = (averages%avecc*REAL(itimes-1,dbl)+cell_length(3))/REAL(itimes,dbl)
-          averages%aveal = (averages%aveal*REAL(itimes-1,dbl)+cell_angle(3))/ &
-               REAL(itimes,dbl)
-          averages%avebe = (averages%avebe*REAL(itimes-1,dbl)+cell_angle(2))/ &
-               REAL(itimes,dbl)
-          averages%avega = (averages%avega*REAL(itimes-1,dbl)+cell_angle(1))/ &
-          REAL(itimes,dbl)
+          averages%avepress = (averages%avepress*REAL(delta_t-1,dbl)+pv_scalar)/ &
+          REAL ( delta_t, dbl )
+          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dbl)+temp)/ &
+               REAL(delta_t,dbl)
+          averages%avepot = (averages%avepot*REAL(delta_t-1,dbl)+epot)/ &
+               REAL(delta_t,dbl)
+          averages%avekin = (averages%avekin*REAL(delta_t-1,dbl)+ekin)/ &
+               REAL(delta_t,dbl)
+          averages%avevol = (averages%avevol*REAL(delta_t-1,dbl)+cell%deth)/ &
+               REAL(delta_t,dbl)
+          averages%aveca = (averages%aveca*REAL(delta_t-1,dbl)+cell_length(1))/REAL(delta_t,dbl)
+          averages%avecb = (averages%avecb*REAL(delta_t-1,dbl)+cell_length(2))/REAL(delta_t,dbl)
+          averages%avecc = (averages%avecc*REAL(delta_t-1,dbl)+cell_length(3))/REAL(delta_t,dbl)
+          averages%aveal = (averages%aveal*REAL(delta_t-1,dbl)+cell_angle(3))/ &
+               REAL(delta_t,dbl)
+          averages%avebe = (averages%avebe*REAL(delta_t-1,dbl)+cell_angle(2))/ &
+               REAL(delta_t,dbl)
+          averages%avega = (averages%avega*REAL(delta_t-1,dbl)+cell_angle(1))/ &
+          REAL(delta_t,dbl)
           econs_avg = econs_avg + abs((cons-constant)/constant)
        END SELECT
 !
 
-       IF ( ( itimes /= 0 ) .AND. ( MOD ( itimes, iscreen ) == 0 ) ) THEN
+       IF ( ( delta_t /= 0 ) .AND. ( MOD ( itimes, iscreen ) == 0 ) ) THEN
 
           WRITE ( iw, '( )' )
           WRITE ( iw, '( A,A )' ) ' **************************************', &
@@ -390,9 +392,9 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( A,T60,1(1X,E20.12) )' ) ' CONSERVED QNTY               = ', &
                cons
           WRITE ( iw, '( )' )
-          WRITE ( iw, '( T47,A )' ) 'INSTANTANEOUS             AVERAGES'
-          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
-               econs, econs_avg/REAL(itimes,dbl)
+          WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
+          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
+               econs, econs_avg/REAL(delta_t,dbl)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
@@ -451,7 +453,7 @@ END SUBROUTINE set_energies
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
             itimes,t,ekin,temp,epot,&
-            cons,cons-constant
+            econs, econs_avg/REAL(itimes,dbl)
           CALL m_flush(ene)
         END IF
 

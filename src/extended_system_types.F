@@ -73,6 +73,7 @@ MODULE extended_system_types
      TYPE ( particle_scale_type ), POINTER :: p_scale ( :, : )
      REAL ( dbl ), POINTER :: v_scale ( : )
      REAL ( dbl ), POINTER :: s_kin ( : )
+     INTEGER, POINTER :: index ( : )
   END TYPE lnhc_parameters_type
 
   TYPE extended_system_type

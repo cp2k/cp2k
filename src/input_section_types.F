@@ -1152,7 +1152,8 @@ SUBROUTINE section_vals_add_values(section_vals,error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      section_vals%values => new_values
      DO i=1,SIZE(new_values,1)
-        NULLIFY(new_values(i,SIZE(new_values,2))%list)
+        j=SIZE ( new_values, 2 )
+        NULLIFY(new_values(i,j)%list)
      END DO
 
      IF (SIZE(new_values,2)>1) THEN
@@ -1168,7 +1169,8 @@ SUBROUTINE section_vals_add_values(section_vals,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         section_vals%subs_vals => new_sps
         DO i=1,SIZE(new_sps,1)
-           NULLIFY(new_sps(i,SIZE(new_sps,2))%section_vals)
+           j = SIZE ( new_sps, 2 )
+           NULLIFY(new_sps(i,j)%section_vals)
            CALL section_vals_create(new_sps(i,SIZE(new_sps,2))%section_vals,&
                 section=section_vals%section%subsections(i)%section,error=error)
         END DO

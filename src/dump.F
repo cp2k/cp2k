@@ -32,6 +32,8 @@ MODULE dump
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE extended_system_types,           ONLY: lnhc_parameters_type,&
+                                             npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_write_variables
@@ -92,15 +94,19 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "dump_force_env_variables", &
       routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: dump_unit, handle, i
+    INTEGER                                  :: dump_unit, handle, i, j, size1, size2
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger, new_logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
+    TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_coef( : ), &
+                                                nhc_baro( : )
+    TYPE(npt_info_type), POINTER   :: npt( :, : )
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_md_env ( md_env, force_env_p = force_env_p )
+    CALL get_md_env ( md_env, force_env_p = force_env_p, nhc_part = nhc_part, &
+                      nhc_baro = nhc_baro, npt = npt )
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY (para_env,new_logger)
@@ -130,35 +136,85 @@ CONTAINS
 
 !     *** Particle thermostat positions, velocities, masses ***
 
-!MK      nhc_part => md_env%nhc_part
-!MK
-!MK      IF (ASSOCIATED(nhc_part)) THEN
-!MK
-!MK        size1 = SIZE(nhc_part(1)%nvt,1)
-!MK        size2 = SIZE(nhc_part(1)%nvt,2)
-!MK
-!MK        WRITE (UNIT=dump_unit,FMT=*) size1,size2
-!MK
-!MK        DO i=1,size1
-!MK          DO j=1,size2
-!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
-!MK          END DO
-!MK        END DO
-!MK
-!MK        DO i=1,size1
-!MK          DO j=1,size2
-!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
-!MK          END DO
-!MK        END DO
-!MK
-!MK        DO i=1,size1
-!MK          DO j=1,size2
-!MK            WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
-!MK          END DO
-!MK        END DO
-!MK
-!MK      END IF
-!MK
+
+
+       size1 = SIZE(nhc_part(1)%nvt,1)
+       size2 = SIZE(nhc_part(1)%nvt,2)
+
+       WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%eta
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%v
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%f
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_part(1)%nvt(i,j)%mass
+         END DO
+       END DO
+
+
+       size1 = SIZE(nhc_baro(1)%nvt,1)
+       size2 = SIZE(nhc_baro(1)%nvt,2)
+
+       WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_baro(1)%nvt(i,j)%eta
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_baro(1)%nvt(i,j)%v
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_baro(1)%nvt(i,j)%f
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) nhc_baro(1)%nvt(i,j)%mass
+         END DO
+       END DO
+
+!     *** barostat velocities, masses ***
+       size1 = SIZE(npt,1)
+       size2 = SIZE(npt,2)
+
+       WRITE (UNIT=dump_unit,FMT=*) size1,size2
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) npt(i,j)%v
+         END DO
+       END DO
+
+       DO i=1,size1
+         DO j=1,size2
+           WRITE (UNIT=dump_unit,FMT=*) npt(i,j)%mass
+         END DO
+       END DO
+
 !MK!     *** Close dump unit and keep it ***
 
       CALL close_file (unit_number=dump_unit)

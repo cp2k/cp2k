@@ -356,6 +356,11 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
         ENDDO
         DO i = 1, size1
           DO j = 1, size2
+            READ ( iunit, * ) nhc_part % nvt ( i, j ) % f 
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
             READ ( iunit, * ) nhc_part % nvt ( i, j ) % mass
           ENDDO
         ENDDO
@@ -373,6 +378,11 @@ SUBROUTINE read_md_restart ( rtype, globenv, particle_set, cell, cell_ref,  &
         DO i = 1, size1
           DO j = 1, size2
             READ ( iunit, * ) nhc_baro % nvt ( i, j ) % v
+          ENDDO
+        ENDDO
+        DO i = 1, size1
+          DO j = 1, size2
+            READ ( iunit, * ) nhc_baro % nvt ( i, j ) % f
           ENDDO
         ENDDO
         DO i = 1, size1

@@ -2,7 +2,6 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-#include "cp_prep_globals.h"
 !!****** cp2k/dgs [1.0] *
 !!
 !!   NAME
@@ -104,27 +103,27 @@ CONTAINS
 
 !******************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               para_env, grid_ref )
+                               para_env, grid_ref, error )
 
 
-    TYPE(cell_type), INTENT(IN)              :: box_b
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
-    REAL(dbl), INTENT(IN)                    :: cutoff_radius
-    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
+    TYPE(cell_type), INTENT(IN)               :: box_b
+    INTEGER, DIMENSION(:), INTENT(IN)         :: npts_s
+    REAL(dbl), INTENT(IN)                     :: cutoff_radius
+    TYPE(pw_grid_type), INTENT(INOUT)         :: grid_s, grid_b
+    TYPE(cp_para_env_type), POINTER           :: para_env
+    TYPE(pw_grid_type), INTENT(IN), OPTIONAL  :: grid_ref
+    TYPE ( cp_error_type ), OPTIONAL          :: error
 
     REAL(dbl)                                :: cutoff, ecut
     TYPE(cell_type)                          :: box_s, unit_box
     INTEGER                                  :: output_unit
     LOGICAL                                  :: ionode
     TYPE ( cp_logger_type ), POINTER         :: logger
-    TYPE ( cp_error_type ), POINTER          :: error
 
 !------------------------------------------------------------------------------
-!  logger => cp_error_get_logger(error)
-!  ionode=(logger%para_env%mepos==logger%para_env%source)
-!  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
+  logger => cp_error_get_logger(error)
+  ionode=(logger%para_env%mepos==logger%para_env%source)
+  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
 
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 

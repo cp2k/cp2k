@@ -813,7 +813,7 @@ END SUBROUTINE set_integrator
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: work
+      DIMENSION(:, :)                        :: pos, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -880,10 +880,14 @@ END SUBROUTINE set_integrator
 
 !     *** Allocate work storage for positions and velocities ***
 
-      ALLOCATE (work(3,nparticle),STAT=istat)
+      ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work",3*nparticle*dp_size)
-      work(:,:) = 0.0_dp
+                                       "pos",3*nparticle*dp_size)
+      ALLOCATE (vel(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vel",3*nparticle*dp_size)
+      pos(:,:) = 0.0_dp
+      vel(:,:) = 0.0_dp
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set)
@@ -897,26 +901,26 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) +&
-                                         dm*particle_set(iparticle)%f(:)
-          work(:,iparticle) = particle_set(iparticle)%r(:) +&
-                              dt*particle_set(iparticle)%v(:)
+          vel (:,iparticle) = particle_set(iparticle)%v(:) +&
+                              dm * particle_set(iparticle)%f(:)
+          pos (:,iparticle) = particle_set(iparticle)%r(:) +&
+                              dt * vel ( :, iparticle )
         END DO
       END DO
 
-!     *** Broadcast the new particle positions ***
-
-      CALL mp_sum(work,int_group)
-
-      DO iparticle=1,nparticle
-        particle_set(iparticle)%r(:) = work(:,iparticle)
-        work(:,iparticle) = 0.0_dp
-      END DO
 
       IF (simpar%constraint) CALL shake_control(atomic_kind_set, local_particles, &
                                                 local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
-                                                simpar, int_group )
+                                                pos, vel, simpar )
+
+!     *** Broadcast the new particle positions ***
+
+      CALL update_particle_set ( particle_set, int_group, pos = pos )
+
+      DEALLOCATE (pos,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"pos")
+
 !     *** coefficients
     
       IF(ASSOCIATED(dyn_coeff_set)) THEN
@@ -964,26 +968,21 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          work ( :, iparticle) = particle_set(iparticle)%v(:) +&
-                              dm*particle_set(iparticle)%f(:)
+          vel ( :, iparticle) = vel ( :, iparticle) +&
+                                dm*particle_set(iparticle)%f(:)
         END DO
-      END DO
-
-!     *** Broadcast the new particle velocities ***
-
-      CALL mp_sum(work,int_group)
-
-      DO iparticle=1,nparticle
-        particle_set(iparticle)%v(:) = work(:,iparticle)
       END DO
 
       IF (simpar%constraint) CALL rattle_control(atomic_kind_set, local_particles, &
                                                  local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
-                                                 simpar, int_group)
+                                                 vel, simpar )
 
-      DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+!     *** Broadcast the new particle velocities ***
+      CALL update_particle_set ( particle_set, int_group, vel = vel )
+
+      DEALLOCATE (vel,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
 !     *** coefficients
 
@@ -1058,7 +1057,7 @@ END SUBROUTINE set_integrator
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: work
+      DIMENSION(:, :)                        :: pos, vel
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1126,10 +1125,14 @@ END SUBROUTINE set_integrator
 
 !     *** Allocate work storage for positions and velocities ***
 
-      ALLOCATE (work(3,nparticle),STAT=istat)
+      ALLOCATE (pos(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work",3*nparticle*dp_size)
-      work(:,:) = 0.0_dp
+                                       "pos",3*nparticle*dp_size)
+      ALLOCATE (vel(3,nparticle),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vel",3*nparticle*dp_size)
+      pos(:,:) = 0.0_dp
+      vel(:,:) = 0.0_dp
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), atomic_kind_set, &
@@ -1147,26 +1150,22 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) +&
-                                         dm*particle_set(iparticle)%f(:)
-          work(:,iparticle) = particle_set(iparticle)%r(:) +&
-                              dt*particle_set(iparticle)%v(:)
+          vel ( :, iparticle ) = particle_set(iparticle)%v(:) + dm*particle_set(iparticle)%f(:)
+          pos ( :, iparticle ) = particle_set(iparticle)%r(:) + dt*vel(:,iparticle)
         END DO
       END DO
 
-!     *** Broadcast the new particle positions ***
-
-      CALL mp_sum(work,int_group)
-
-      DO iparticle=1,nparticle
-        particle_set(iparticle)%r(:) = work(:,iparticle)
-        work(:,iparticle) = 0.0_dp
-      END DO
 
       IF (simpar%constraint) CALL shake_control( atomic_kind_set, local_particles, &
                                                  local_molecules, molecule_set,   &
                                                  molecule_kind_set, particle_set, &
-                                                 simpar, int_group )
+                                                 pos, vel, simpar )
+
+!     *** Broadcast the new particle positions ***
+      CALL update_particle_set ( particle_set, int_group, pos = pos )
+
+      DEALLOCATE (pos,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
 
 !     *** coefficients
 
@@ -1215,52 +1214,28 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          work ( :, iparticle ) = particle_set(iparticle)%v(:) +&
-                                  dm*particle_set(iparticle)%f(:)
+          vel ( :, iparticle ) = vel ( :, iparticle ) + &
+                                 dm*particle_set(iparticle)%f(:)
         END DO
-      END DO
-
-!     *** Broadcast the new particle velocities ***
-
-      CALL mp_sum(work,int_group)
-
-      DO iparticle=1,nparticle
-        particle_set(iparticle)%v(:) = work(:,iparticle)
       END DO
 
       IF (simpar%constraint) CALL rattle_control( atomic_kind_set, local_particles, &
                                                   local_molecules, molecule_set, &
-                                                  molecule_kind_set, particle_set, &
-                                                  simpar, int_group)
+                                                  molecule_kind_set, particle_set, &  
+                                                  vel, simpar )
 
 ! perform Nose'-Hoover chain dynamimcs
-      CALL lnhc ( nhc ( isubsys ), atomic_kind_set, particle_set,  &
+      CALL lnhc ( nhc ( isubsys ), atomic_kind_set, vel,  &
                   local_particles, int_group )
+
+!     *** Broadcast the new particle velocities ***
+      CALL update_particle_set ( particle_set, int_group, vel = vel )
 
 !     *** Update constraint virial ***
 !MK   IF (simpar%constraint) CALL pv_constraint(struc%molecule,thermo,"FULL",int_group)
 
-! copy to work
-      DO iparticle_kind=1,nparticle_kind
-        atomic_kind => atomic_kind_set(iparticle_kind)
-        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-        nparticle_local = local_particles%n_el(iparticle_kind)
-        DO iparticle_local=1,nparticle_local
-          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          work(:,iparticle) = particle_set(iparticle)%v(:)
-        END DO
-      END DO
-
-!     *** Broadcast the new particle velocities ***
-
-      CALL mp_sum(work,int_group)
-
-      DO iparticle=1,nparticle
-        particle_set(iparticle)%v(:) = work(:,iparticle)
-      END DO
-
-      DEALLOCATE (work,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"work")
+      DEALLOCATE (vel,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"vel")
 
 !     *** coefficients
 
@@ -2334,6 +2309,39 @@ END SUBROUTINE pressure
 !  CALL pressure ( struc ( 1 ) % pnode, thermo )
   
 !END SUBROUTINE nvt_pimd
+!******************************************************************************
+SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel )
+                                
+  IMPLICIT NONE
+  TYPE ( particle_type ), POINTER :: particle_set ( : )
+  REAL ( dbl ), INTENT ( INOUT ), OPTIONAL :: pos ( :, : ), vel ( :, : )
+  INTEGER, INTENT ( IN ) :: int_group
+! locals
+  REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: work 
+  INTEGER :: nparticle, iparticle
+
+  nparticle = SIZE ( particle_set )
+
+  IF ( ( PRESENT ( pos ) ).AND. ( .NOT. PRESENT ( vel ) ) ) THEN
+    CALL mp_sum( pos,int_group)
+    DO iparticle=1,nparticle
+      particle_set(iparticle)%r(:) = pos(:,iparticle)
+    END DO
+  ELSEIF ( ( PRESENT ( vel ) ) .AND. ( .NOT. PRESENT ( pos ) ) ) THEN
+    CALL mp_sum( vel,int_group)
+    DO iparticle=1,nparticle
+      particle_set(iparticle)%v(:) = vel(:,iparticle)
+    END DO
+  ELSEIF ( ( PRESENT ( vel ) ) .AND. ( PRESENT ( pos ) ) ) THEN
+    CALL mp_sum( pos,int_group)
+    CALL mp_sum( vel,int_group)
+    DO iparticle=1,nparticle
+      particle_set(iparticle)%v(:) = vel(:,iparticle)
+      particle_set(iparticle)%r(:) = pos(:,iparticle)
+    END DO
+  ENDIF
+
+END SUBROUTINE update_particle_set 
 
 !!*****
 !******************************************************************************

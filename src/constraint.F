@@ -26,7 +26,6 @@ MODULE constraint
                                              dp_size
   USE linear_systems,                  ONLY: solve_system
   USE md,                              ONLY: simulation_parameters_type
-  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
                                              g3x3_constraint_type, &
@@ -61,16 +60,17 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE shake_control( atomic_kind_set, local_particles, local_molecules, &
-                          molecule_set, molecule_kind_set, particle_set, simpar, int_group )
+                          molecule_set, molecule_kind_set, particle_set, pos, &
+                          vel, simpar )
 
     TYPE ( atomic_kind_type ), POINTER       :: atomic_kind_set ( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules, local_particles
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set ( : )
+    TYPE ( particle_type ), POINTER           :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )           :: pos ( :, : ), vel ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT ( IN ) :: int_group
 ! locals
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "shake_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
@@ -87,27 +87,8 @@ SUBROUTINE shake_control( atomic_kind_set, local_particles, local_molecules, &
 
 !------------------------------------------------------------------------------
      CALL timeset ( 'SHAKE_CONTROL', 'I', ' ', handle )
-     nparticle_kind = SIZE ( atomic_kind_set )
      nkind = SIZE ( molecule_kind_set )
-     npart = SIZE ( particle_set )
-     ALLOCATE ( work_pos ( 3, npart ), STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work_pos",npart*dp_size*3)
-     ALLOCATE ( work_vel ( 3, npart ), STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work_vel",npart*dp_size*3)
-! Assign temporary work array
-     work_pos = 0.0_dbl
-     work_vel = 0.0_dbl
-     DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-         work_pos ( :, iparticle ) = particle_set ( iparticle ) % r ( : )
-         work_vel ( :, iparticle ) = particle_set ( iparticle ) % v ( : )
-       END DO
-     END DO
+
 MOL:  DO ikind = 1, nkind
          nmol_per_kind = local_molecules % n_el ( ikind )
          DO imol = 1, nmol_per_kind
@@ -118,7 +99,7 @@ MOL:  DO ikind = 1, nkind
 
 ! 3x3
            IF ( n3x3con /= 0 ) CALL shake_3x3( molecule, particle_set,  &
-                                               work_pos, work_vel, simpar, ishake )
+                                               pos, vel, simpar, ishake )
 
 !! 4x6
 !           IF ( n4x6con /= 0 ) CALL shake_4x6( molecule, particle_set, &
@@ -132,25 +113,13 @@ MOL:  DO ikind = 1, nkind
             CONS: DO WHILE (abs(max_sigma)>=simpar%shake_tol)
                max_sigma = 0._dbl
                ishake = ishake + 1
-               CALL shake( molecule, particle_set, simpar, &
+               CALL shake( molecule, particle_set, pos, vel, simpar, &
                            max_sigma,ishake )
             END DO CONS
          END IF
        END DO
      END DO MOL
-! Broadcast new particle positions
-     CALL mp_sum ( work_pos, int_group )
-     CALL mp_sum ( work_vel, int_group )
-     DO i = 1, npart
-       particle_set ( i ) % r ( : ) = work_pos  ( :, i ) 
-       particle_set ( i ) % v ( : ) = work_vel  ( :, i ) 
-     ENDDO
-     DEALLOCATE ( work_pos, STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work")
-     DEALLOCATE ( work_vel, STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work")
+
      CALL timestop ( 0.0_dbl, handle )
 
 END SUBROUTINE shake_control
@@ -158,18 +127,18 @@ END SUBROUTINE shake_control
 !******************************************************************************
 
 SUBROUTINE rattle_control( atomic_kind_set, local_particles, local_molecules,   &
-                           molecule_set, molecule_kind_set, &
-                           particle_set, simpar, int_group )
+                           molecule_set, molecule_kind_set, particle_set,  &
+                           vel, simpar )
 
 
+    TYPE ( particle_type ), POINTER          :: particle_set ( : )
     TYPE ( atomic_kind_type ), POINTER       :: atomic_kind_set ( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules, local_particles
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )           :: vel ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT ( IN )                   :: int_group
 ! locals
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "rattle_control"
     INTEGER                                  :: iconst, ikind, nkind, i, first_atom
@@ -186,22 +155,7 @@ SUBROUTINE rattle_control( atomic_kind_set, local_particles, local_molecules,   
 
 !------------------------------------------------------------------------------
      CALL timeset ( 'RATTLE_CONTROL', 'I', ' ', handle )
-     nparticle_kind = SIZE ( atomic_kind_set )
      nkind = SIZE ( molecule_kind_set )
-     npart = SIZE ( particle_set )
-     ALLOCATE ( work ( 3, npart ), STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work",3*npart*dp_size)
-! Assign temporary work array
-     work = 0.0_dbl
-     DO iparticle_kind=1,nparticle_kind
-       atomic_kind => atomic_kind_set(iparticle_kind)
-       nparticle_local = local_particles%n_el(iparticle_kind)
-       DO iparticle_local=1,nparticle_local
-         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-         work ( :, iparticle )= particle_set ( iparticle ) % v ( : )
-       END DO
-     END DO
 MOL: DO ikind = 1, nkind
          nmol_per_kind = local_molecules % n_el ( ikind )
          DO imol = 1, nmol_per_kind
@@ -211,8 +165,7 @@ MOL: DO ikind = 1, nkind
            CALL get_molecule_kind ( molecule_kind, ndist = ndcon, ng3x3 = n3x3con )
 
 ! 3x3
-         IF ( n3x3con /= 0 ) CALL rattle_3x3 ( molecule, particle_set, &
-                                               work, simpar )
+         IF ( n3x3con /= 0 ) CALL rattle_3x3 ( molecule, particle_set, vel, simpar )
 
 !! 4x6
 !         IF ( n4x6con /= 0 ) CALL rattle_4x6 ( molecule, particle_set, &
@@ -225,19 +178,11 @@ MOL: DO ikind = 1, nkind
             CONS: DO WHILE ( ABS ( max_sigma ) >= simpar % shake_tol )
                max_sigma = 0.0_dbl
                irattle = irattle + 1
-               CALL rattle ( molecule, particle_set, simpar, max_sigma, irattle )
+               CALL rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
             END DO CONS
          END IF
        END DO
      END DO MOL
-! Broadcast new particle positions
-     CALL mp_sum ( work, int_group )
-     DO i = 1, npart
-       particle_set ( i ) % v ( : )  = work ( :, i ) 
-     ENDDO
-     DEALLOCATE ( work, STAT = isos )
-     IF (isos /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "work")
      CALL timestop ( 0.0_dbl, handle )
 
 END SUBROUTINE rattle_control
@@ -386,10 +331,10 @@ END SUBROUTINE rattle_control
 
 !******************************************************************************
 
-SUBROUTINE shake_3x3( molecule, particle_set, work_pos, work_vel, simpar, ishake )
-
+SUBROUTINE shake_3x3( molecule, particle_set, pos, vel, simpar, ishake )
+    
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
-    REAL ( dbl ), INTENT ( INOUT )                    :: work_pos ( :, : ), work_vel ( :, : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: pos ( :, : ), vel ( :, : )
     TYPE ( molecule_type ), POINTER                   :: molecule
     TYPE(simulation_parameters_type), &
       INTENT(IN)                                      :: simpar
@@ -427,9 +372,9 @@ SUBROUTINE shake_3x3( molecule, particle_set, work_pos, work_vel, simpar, ishake
      index_a = g3x3_list ( iconst ) % a + first_atom -1
      index_b = g3x3_list ( iconst ) % b + first_atom -1
      index_c = g3x3_list ( iconst ) % c + first_atom -1
-     r0_12=particle_set ( index_a ) % r - particle_set ( index_b ) % r
-     r0_13=particle_set ( index_a ) % r - particle_set ( index_c ) % r
-     r0_23=particle_set ( index_b ) % r - particle_set ( index_c ) % r
+     r0_12 ( : ) = pos ( :, index_a ) - pos ( :,index_b ) 
+     r0_13 ( : ) = pos ( :, index_a ) - pos ( :,index_c ) 
+     r0_23 ( : ) = pos ( :, index_b ) - pos ( :,index_c ) 
      atomic_kind => particle_set ( index_a ) % atomic_kind
      CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
      imass1 = 1._dbl/mass
@@ -489,12 +434,12 @@ SUBROUTINE shake_3x3( molecule, particle_set, work_pos, work_vel, simpar, ishake
             lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
         fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
             lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
-        r1 ( : ) = work_pos ( :, index_a ) + imass1*dtsqby2*fc1 ( : )
-        r2 ( : ) = work_pos ( :, index_b ) + imass2*dtsqby2*fc2 ( : )
-        r3 ( : ) = work_pos ( :, index_c ) + imass3*dtsqby2*fc3 ( : )
-        v1 ( : ) = work_vel ( :, index_a ) + imass1*dtby2*fc1 ( : )
-        v2 ( : ) = work_vel ( :, index_b ) + imass2*dtby2*fc2 ( : )
-        v3 ( : ) = work_vel ( :, index_c ) + imass3*dtby2*fc3 ( : )
+        r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*fc1 ( : )
+        r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*fc2 ( : )
+        r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*fc3 ( : )
+        v1 ( : ) = vel ( :, index_a ) + imass1*dtby2*fc1 ( : )
+        v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*fc2 ( : )
+        v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*fc3 ( : )
         r12=r1-r2
         r13=r1-r3
         r23=r2-r3
@@ -512,14 +457,14 @@ SUBROUTINE shake_3x3( molecule, particle_set, work_pos, work_vel, simpar, ishake
      END DO CONS
 
 ! update positions with full multiplier
-     work_pos ( :, index_a ) = r1 ( : )
-     work_pos ( :, index_b ) = r2 ( : )
-     work_pos ( :, index_c ) = r3 ( : )
+     pos ( :, index_a ) = r1 ( : )
+     pos ( :, index_b ) = r2 ( : )
+     pos ( :, index_c ) = r3 ( : )
 
 ! update velocites with full multiplier
-     work_vel ( :, index_a ) = v1 ( : )
-     work_vel ( :, index_b ) = v2 ( : )
-     work_vel ( :, index_c ) = v3 ( : )
+     vel ( :, index_a ) = v1 ( : )
+     vel ( :, index_b ) = v2 ( : )
+     vel ( :, index_c ) = v3 ( : )
   END DO
 
 END SUBROUTINE shake_3x3
@@ -1245,11 +1190,11 @@ END SUBROUTINE shake_3x3
 !
 !******************************************************************************
 
-SUBROUTINE rattle_3x3( molecule, particle_set, work, simpar)
+SUBROUTINE rattle_3x3( molecule, particle_set, vel, simpar)
 
 
     TYPE ( molecule_type ), POINTER                   :: molecule
-    REAL ( dbl ), INTENT ( INOUT )              :: work ( :, : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
     TYPE(simulation_parameters_type), &
     INTENT(IN)                             :: simpar
@@ -1282,12 +1227,12 @@ SUBROUTINE rattle_3x3( molecule, particle_set, work, simpar)
      index_a = g3x3_list ( iconst ) % a + first_atom - 1
      index_b = g3x3_list ( iconst ) % b + first_atom - 1
      index_c = g3x3_list ( iconst ) % c + first_atom - 1
-     v12=particle_set ( index_a ) % v - particle_set ( index_b ) % v
-     v13=particle_set ( index_a ) % v - particle_set ( index_c ) % v
-     v23=particle_set ( index_b ) % v - particle_set ( index_c ) % v
-     r12=particle_set ( index_a ) % r - particle_set ( index_b ) % r
-     r13=particle_set ( index_a ) % r - particle_set ( index_c ) % r
-     r23=particle_set ( index_b ) % r - particle_set ( index_c ) % r
+     v12 ( : ) = vel ( :, index_a ) - vel ( :, index_b ) 
+     v13 ( : ) = vel ( :, index_a ) - vel ( :, index_c ) 
+     v23 ( : ) = vel ( :, index_b ) - vel ( :, index_c ) 
+     r12 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_b ) % r ( : )
+     r13 ( : ) = particle_set ( index_a ) % r ( : ) - particle_set ( index_c ) % r ( : )
+     r23 ( : ) = particle_set ( index_b ) % r ( : ) - particle_set ( index_c ) % r ( : )
      atomic_kind=>particle_set ( index_a ) % atomic_kind
      CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
      imass1 = 1._dbl/mass
@@ -1329,9 +1274,9 @@ SUBROUTINE rattle_3x3( molecule, particle_set, work, simpar)
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
      fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
-     work ( :, index_a ) = particle_set ( index_a ) % v ( : ) + imass1 * dtby2 * fc1 ( : )
-     work ( :, index_b ) = particle_set ( index_b ) % v ( : ) + imass2 * dtby2 * fc2 ( : )
-     work ( :, index_c ) = particle_set ( index_c ) % v ( : ) + imass3 * dtby2 * fc3 ( : )
+     vel ( :, index_a ) = vel ( :, index_a ) + imass1 * dtby2 * fc1 ( : )
+     vel ( :, index_b ) = vel ( :, index_b ) + imass2 * dtby2 * fc2 ( : )
+     vel ( :, index_c ) = vel ( :, index_c ) + imass3 * dtby2 * fc3 ( : )
   END DO
 
 END SUBROUTINE rattle_3x3
@@ -1709,10 +1654,11 @@ END SUBROUTINE rattle_3x3
 !END SUBROUTINE rattle_roll_4x6
 
 !******************************************************************************
-SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
+SUBROUTINE shake( molecule, particle_set, pos, vel, simpar, max_sigma, ishake )
 ! updates the multiplier one molecule type at a time
     TYPE ( molecule_type ), POINTER                   :: molecule
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : ), pos ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     INTEGER, INTENT(INOUT)                     :: ishake
@@ -1755,16 +1701,16 @@ SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
                                            ldist ( iconst ) % rb_old )
 
 ! update positions with full multiplier
-         particle_set ( index_a ) % r = particle_set ( index_a ) % r + &
-             imass1*dtsqby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
-         particle_set ( index_b ) % r = particle_set ( index_b ) % r - &
-             imass2*dtsqby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
+         pos ( :, index_a ) = pos ( :, index_a ) + &
+             imass1*dtsqby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
+         pos ( :, index_b ) = pos ( :, index_b ) - &
+             imass2*dtsqby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
 
 ! update velocites with full multiplier
-         particle_set ( index_a ) % v = particle_set ( index_a ) % v + &
-             imass1*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
-         particle_set ( index_b ) % v = particle_set ( index_b ) % v - &
-             imass2*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : ) 
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : ) 
      END DO
 
   ELSE
@@ -1790,16 +1736,16 @@ SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
         ldist ( iconst ) % lambda = ldist ( iconst ) % lambda + del_lam
 
 ! update positions by delta_lam
-         particle_set ( index_a ) % r = particle_set ( index_a ) % r + &
-             imass1*dtsqby2*del_lam * ldist ( iconst ) % f
-         particle_set ( index_b ) % r = particle_set ( index_b ) % r - &
-             imass2*dtsqby2*del_lam * ldist ( iconst ) % f
+         pos ( :, index_a ) = pos ( :, index_a ) + &
+             imass1*dtsqby2*del_lam * ldist ( iconst ) % f ( : )
+         pos ( :, index_b ) = pos ( :, index_b ) - &
+             imass2*dtsqby2*del_lam * ldist ( iconst ) % f ( : )
 
 ! update velocites by delta_lam
-         particle_set ( index_a ) % v = particle_set ( index_a ) % v + &
-             imass1*dtby2*del_lam * ldist ( iconst ) % f
-         particle_set ( index_b ) % v = particle_set ( index_b ) % v - &
-             imass2*dtby2*del_lam * ldist ( iconst ) % f
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*del_lam * ldist ( iconst ) % f ( : ) 
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*del_lam * ldist ( iconst ) % f ( : ) 
      END DO
   END IF
 
@@ -1807,7 +1753,7 @@ SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
   DO iconst = 1, ndist
      index_a = dist_list ( iconst ) % a + first_atom -1
      index_b = dist_list ( iconst ) % b + first_atom -1
-     r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
+     r12 ( : ) = pos ( :, index_a ) -  pos ( :, index_b )
      ldist ( iconst ) % sigma = dot_product(r12,r12) - dist_list ( iconst ) % dab * &
                                                        dist_list ( iconst ) % dab
      max_sigma = MAX(ABS(ldist ( iconst ) % sigma),max_sigma)
@@ -1816,10 +1762,11 @@ SUBROUTINE shake( molecule, particle_set, simpar, max_sigma, ishake )
 END SUBROUTINE shake
 
 !!******************************************************************************
-SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
+SUBROUTINE rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
 ! updates the multiplier one molecule type at a time
     TYPE ( molecule_type ), POINTER                   :: molecule
     TYPE ( particle_type ), POINTER                   :: particle_set ( : )
+    REAL ( dbl ), INTENT ( INOUT )                    :: vel ( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     INTEGER, INTENT(INOUT)                     :: irattle
@@ -1858,10 +1805,10 @@ SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
         ldist ( iconst ) % f = -2._dbl * ( particle_set ( index_a ) % r - &
                                            particle_set ( index_b ) % r )
 ! update velocites with full multiplier
-         particle_set ( index_a ) % v = particle_set ( index_a ) % v + &
-             imass1*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
-         particle_set ( index_b ) % v = particle_set ( index_b ) % v - &
-             imass2*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*ldist ( iconst ) % lambda * ldist ( iconst ) % f ( : )
      END DO
 
   ELSE
@@ -1871,8 +1818,8 @@ SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
 ! computing sigma
         index_a = dist_list ( iconst ) % a + first_atom -1
         index_b = dist_list ( iconst ) % b + first_atom -1
-        r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
-        v12 = particle_set ( index_a ) % v -  particle_set ( index_b ) % v
+        r12 ( : ) = particle_set ( index_a ) % r ( : ) -  particle_set ( index_b ) % r ( : )
+        v12 ( : ) = vel ( :, index_a ) -  vel ( :, index_b ) 
         ldist ( iconst ) % sigma = 2._dbl*dot_product(r12,v12)
 
 ! computing f(dt)
@@ -1889,10 +1836,10 @@ SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
         ldist ( iconst ) % lambda = ldist ( iconst ) % lambda + del_lam
 
 !update velocites with del_lam
-         particle_set ( index_a ) % v = particle_set ( index_a ) % v + &
-             imass1*dtby2*del_lam * ldist ( iconst ) % f
-         particle_set ( index_b ) % v = particle_set ( index_b ) % v - &
-             imass2*dtby2*del_lam * ldist ( iconst ) % f
+         vel ( :, index_a ) = vel ( :, index_a ) + &
+             imass1*dtby2*del_lam * ldist ( iconst ) % f ( : )
+         vel ( :, index_b ) = vel ( :, index_b ) - &
+             imass2*dtby2*del_lam * ldist ( iconst ) % f ( : )
      END DO
   END IF
 
@@ -1901,7 +1848,7 @@ SUBROUTINE rattle ( molecule, particle_set, simpar, max_sigma, irattle )
      index_a = dist_list ( iconst ) % a + first_atom -1
      index_b = dist_list ( iconst ) % b + first_atom -1
      r12 = particle_set ( index_a ) % r -  particle_set ( index_b ) % r
-     v12 = particle_set ( index_a ) % v -  particle_set ( index_b ) % v
+     v12 = vel ( :, index_a ) -  vel ( :, index_b )
      ldist ( iconst ) % sigma = dot_product(r12,v12)
      max_sigma = MAX(ABS(ldist ( iconst ) % sigma),max_sigma)
   END DO

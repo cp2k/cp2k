@@ -252,7 +252,7 @@ CONTAINS
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: s
-    INTEGER, DIMENSION(:), INTENT(IN), &
+    INTEGER, DIMENSION(:), POINTER, &
       OPTIONAL                               :: exclusion_list
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "add_neighbor_node"
@@ -267,10 +267,12 @@ CONTAINS
 !     *** Check for exclusions ***
 
       IF (PRESENT(exclusion_list)) THEN
-        DO iatom=1,SIZE(exclusion_list)
-          IF (exclusion_list(iatom) == 0) EXIT
-          IF (exclusion_list(iatom) == neighbor) RETURN
-        END DO
+        IF ( ASSOCIATED ( exclusion_list ) ) THEN
+          DO iatom=1,SIZE(exclusion_list)
+            IF (exclusion_list(iatom) == 0) EXIT
+            IF (exclusion_list(iatom) == neighbor) RETURN
+          END DO
+        END IF
       END IF
 
       IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN

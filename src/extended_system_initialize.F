@@ -23,7 +23,7 @@ MODULE extended_system_initialize
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_bcast,&
-                                             mp_sum
+                                             mp_sum, mp_allgather
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -63,23 +63,60 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
 
-    INTEGER                                  :: i, j, number
+! locals
+    INTEGER                                  :: i, j, number, isos, iproc, &
+                                                rannumneed, tot_rn, &
+                                                icount
     REAL(dbl)                                :: akin, temp, v
+    INTEGER, DIMENSION ( : ), ALLOCATABLE    :: rn_need_per_proc
+    REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE    :: array_of_rn
 
 ! first initializing the mass of the nhc variables
 
   nhc % nvt ( :, : ) % mass = nhc % nvt ( :, : ) % nkt * tau_nhc * tau_nhc
-! initializing velocities
+
+  rannumneed = nhc%num_nhc*nhc%nhc_len
+  ALLOCATE ( rn_need_per_proc( globenv % num_pe ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                'failed to allocate rn_need_per_proc')
+  rn_need_per_proc ( : ) = 0
+
+  CALL mp_allgather ( rannumneed, rn_need_per_proc, globenv % group )
+
+  IF (nhc % dis_type=='INTER_REP') THEN
+    tot_rn = rn_need_per_proc(1)
+  ELSE
+    tot_rn = SUM ( rn_need_per_proc )
+  ENDIF
+
+  DEALLOCATE ( rn_need_per_proc, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                'failed to deallocate rn_need_per_proc')
+
+  ALLOCATE(array_of_rn( tot_rn), STAT = isos)
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                'failed to allocate array_of_rn')
+  array_of_rn(:) = 0.0_dbl
+
+  DO i=1,tot_rn
+    array_of_rn(i) = gasdev ( globenv % idum )
+  END DO
+
+
+! Map deterministically determined random number to nhc % v
   DO i = 1, nhc % num_nhc
+     icount = nhc % index(i)
+     icount = (icount-1) * nhc % nhc_len
      DO j = 1, nhc % nhc_len
-        v = gasdev(globenv % idum)
-#if defined(__parallel)
-        IF (nhc % dis_type=='INTER_REP') CALL mp_bcast(v,globenv % source, &
-             globenv % group)
-#endif
-        nhc % nvt(j,i) % v = v
+        icount = icount + 1
+        nhc % nvt(j,i) % v = array_of_rn ( icount )
      END DO
   END DO
+
+  DEALLOCATE ( array_of_rn, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                                'failed to deallocate array_of_rn')
+  
   akin = 0.0_dbl
   DO i = 1, nhc % num_nhc
      DO j = 1, nhc % nhc_len
@@ -89,10 +126,9 @@ SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
      END DO
   END DO
   number = nhc % num_nhc
-#if defined(__parallel)
+
   IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv % group)
   IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv % group)
-#endif
 
 ! scale velocities to get the correct initial temperature
   temp = 2.0_dbl*akin/REAL(number)
@@ -200,9 +236,6 @@ SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 ! dbg 
      END DO
   END DO
-
-! initialize the position
-  IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
 
 END SUBROUTINE initialize_npt
 
