@@ -147,7 +147,7 @@ MODULE qs_mo_types
   END INTERFACE
 
   INTERFACE calculate_subspace_eigenvalues
-    MODULE PROCEDURE subspace_eigenvalues_ks,subspace_eigenvalues_vec
+    MODULE PROCEDURE subspace_eigenvalues_ks ! outdated ,subspace_eigenvalues_vec
   END INTERFACE
 
   INTERFACE calculate_w_matrix
@@ -528,7 +528,7 @@ CONTAINS
 !   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
 !            and rotates them to make them eigenvectors
 !            if evals_arg is present its filled
-!            if not, the eigenvalues go to the screen
+!            if scr and ionode are present they go to the screen as well.
 
 !   ***************************************************************************
 
@@ -600,12 +600,12 @@ CONTAINS
 
     ! give output
     IF (PRESENT(evals_arg)) THEN
-
       evals_arg(:)=evals(:)
+    ENDIF
 
-    ELSE
-      IF (.NOT. PRESENT(IONODE)) CALL stop_program("subspace evals","IONODE?")
-      IF (.NOT. PRESENT(SCR)) CALL stop_program("subspace evals","SCR?")
+    IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
+      IF (.NOT. PRESENT(ionode)) CALL stop_program("subspace evals","IONODE?")
+      IF (.NOT. PRESENT(scr)) CALL stop_program("subspace evals","SCR?")
       IF (ionode) THEN
          DO i=1,ncol_global,4
             j=MIN(3,ncol_global-i)
@@ -621,7 +621,6 @@ CONTAINS
             END SELECT
          ENDDO
       ENDIF
-
     ENDIF
 
     CALL cp_fm_release(weighted_vectors)
@@ -635,117 +634,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE subspace_eigenvalues_vec(orbitals_p,evals_arg,globenv)
-
-!   here orbitals is the array of orbitals 1,2 are V and HV respectively,
-!   all other orbitals are rotated as we
-!   Purpose: Calculates the eigenvalues (ritz values) for a set of orbitals
-!            and rotates them to make them eigenvectors
-!            if evals_arg is present its filled
-!            if not, the eigenvalues go to the screen
-
-!   ***************************************************************************
-
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER          :: orbitals_p
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    REAL(wp), DIMENSION(:),  POINTER, OPTIONAL :: evals_arg
-
-!   *** Local variables ***
-    TYPE(cp_full_matrix_type), POINTER          :: weighted_vectors,h_block,e_vectors
-    REAL(wp), DIMENSION(:), ALLOCATABLE       :: evals
-    INTEGER  :: handle,imo,ncol_global,nrow_global,nrow_block,ncol_block,i,j
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_subspace_eigenvalues","I","",handle)
-
-    IF (SIZE(orbitals_p).LT.2)  &
-       CALL stop_program("subspace_eigenvalues_vec","size orb_p")
-
-    NULLIFY(weighted_vectors,h_block,e_vectors)
-    CALL cp_fm_get_info(matrix=orbitals_p(1)%matrix, &
-                                 ncol_global=ncol_global, &
-                                 nrow_global=nrow_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block)
-
-    ALLOCATE(evals(ncol_global))
-
-    CALL cp_fm_create2(new_matrix=weighted_vectors,&
-                                 nrow_global=nrow_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="weighted_vectors", &
-                                 globenv=globenv)
-
-    CALL cp_fm_create2(new_matrix=h_block,&
-                                 nrow_global=ncol_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="h block", &
-                                 globenv=globenv)
-
-    CALL cp_fm_create2(new_matrix=e_vectors,&
-                                 nrow_global=ncol_global, &
-                                 ncol_global=ncol_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block, &
-                                 name="e_vectors", &
-                                 globenv=globenv)
-
-    ! h subblock and diag
-
-
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    orbitals_p(1)%matrix,orbitals_p(2)%matrix,0.0_wp,h_block)
-
-    CALL blacs_syevd(h_block,e_vectors,evals)
-
-    ! rotate the orbitals
-
-    DO i=1,SIZE(orbitals_p)
-      CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                      orbitals_p(i)%matrix,e_vectors,0.0_wp,weighted_vectors)
-      CALL copy_blacs_to_blacs_matrix(weighted_vectors,orbitals_p(i)%matrix)
-    ENDDO
-
-    ! give output
-    IF (PRESENT(evals_arg)) THEN
-
-      evals_arg(:)=evals(:)
-
-    ELSE
-
-      IF (globenv%ionode) THEN
-         DO i=1,ncol_global,4
-            j=MIN(3,ncol_global-i)
-            SELECT CASE (j)
-            CASE(3)
-             WRITE(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
-            CASE(2)
-             WRITE(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
-            CASE(1)
-             WRITE(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
-            CASE(0)
-             WRITE(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
-            END SELECT
-         ENDDO
-      ENDIF
-
-    ENDIF
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
-    CALL cp_fm_release(e_vectors)
-
-    DEALLOCATE(evals)
-    CALL timestop(0.0_wp,handle)
-
-  END SUBROUTINE subspace_eigenvalues_vec
-
-! *****************************************************************************
 
   SUBROUTINE correct_mo_eigenvalues(mo_set,level_shift)
 
@@ -1204,8 +1092,7 @@ CONTAINS
                                        nshell_max*nset_max*natom_read*int_size)
 
       IF (nao_read /= nao) THEN
-        WRITE(globenv%scr,*) "READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
-        WRITE(globenv%scr,*) "writing out mapping"
+        WRITE(globenv%scr,*) " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
         did_change=.TRUE.
       END IF
 
@@ -1309,11 +1196,11 @@ CONTAINS
                   IF (use_this) THEN
                     IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
                       ! this indicates a bug
-                      IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
+                      ! IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
                       vecbuffer(1,irow)=0.0_wp
                     ELSE
                       vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                      IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
+                      ! IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
                     END IF
                   ELSE
                     vecbuffer(1,irow) = 0.0_wp
@@ -1331,7 +1218,7 @@ CONTAINS
 
         END IF
 
-        CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
+        CALL mp_bcast(vecbuffer,source,group)
         CALL blacs_replicated_copy(mo_array(ispin)%mo_set%eigenvectors,&
                                    vecbuffer,i,1,1,"R2B")
         did_change=.FALSE.

@@ -137,7 +137,6 @@ MODULE qs_ep_methods
                                              qs_ks_retain
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
-                                             calculate_subspace_eigenvalues,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
                                              init_mo_set,&

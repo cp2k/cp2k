@@ -200,6 +200,7 @@ OBJECTS_GENERIC =\
  qs_blacs.o\
  qs_charges_types.o\
  qs_collocate_density.o\
+ qs_conductivity.o\
  qs_core_energies.o\
  qs_core_hamiltonian.o\
  qs_diis.o\

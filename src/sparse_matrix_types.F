@@ -921,8 +921,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
-    LOGICAL :: owner, symmetric
-    REAL(wp) :: flops,alpha_l
+    LOGICAL :: owner, symmetric, antisymmetric
+    REAL(wp) :: flops,alpha_l,alpha_l_ji
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
     INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads
@@ -944,13 +944,26 @@ END SUBROUTINE cp_sm_scale_and_add
       CALL stop_program(routine,"The input matrix pointer is not associated")
     END IF
 
-    IF (sparse_matrix%symmetry == "symmetric") THEN
-       symmetric=.TRUE.
-    ELSE
-       symmetric=.FALSE.
-    END IF
+    symmetric=.FALSE.
+    antisymmetric=.FALSE.
 
-    IF (symmetric .AND. (sparse_matrix%nrow .NE. sparse_matrix%ncol)) THEN
+    SELECT CASE(TRIM(sparse_matrix%symmetry))
+    CASE("symmetric")
+       symmetric=.TRUE.
+       alpha_l_ji=alpha_l  ! we have the same sign for the multiply
+    CASE("antisymmetric")
+       antisymmetric=.TRUE.
+       alpha_l_ji=-alpha_l  ! we have the opposite sign for the multiply
+    CASE("none","no symmetry")
+       ! nothing
+    CASE DEFAULT
+       ! possibly just OK (i.e. general matrix) just provide an empty slot
+       write(6,*) sparse_matrix%symmetry
+       CALL stop_program(routine,"wrong matrix symmetry specification")
+    END SELECT
+
+    IF ((symmetric .OR. antisymmetric) &
+           .AND. (sparse_matrix%nrow .NE. sparse_matrix%ncol)) THEN
        CALL stop_program(routine,"error nonsquare symmetric matrix")
     END IF
     IF (sparse_matrix%ncol .NE. SIZE(rep_v_in,2)) THEN
@@ -962,7 +975,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Traverse all block nodes of the sparse matrix ***
 !   no simple parallel do because we write both the iblock_row and iblock_col
 
-!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops)
+!$OMP PARALLEL PRIVATE(ithread,nthread,iblock_row,block_node,iblock_col,sparse_block,owner,sbnrow,sbncol), REDUCTION(+:flops) SHARED(symmetric,antisymmetric)
     ithread=0
     nthread=1
 !$  nthread=omp_get_num_threads()
@@ -999,10 +1012,10 @@ END SUBROUTINE cp_sm_scale_and_add
                          nblock)
            ENDIF
            
-           IF (iblock_col .NE. iblock_row .AND. symmetric) THEN
+           IF (iblock_col .NE. iblock_row .AND. (symmetric .or. antisymmetric)) THEN
               IF (MOD(iblock_col,nthread).eq.ithread) THEN 
                  flops=flops+2.0_wp*sbnrow*sbncol*ncol
-                 CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l, &
+                 CALL DGEMM('N','N',ncol,sbncol,sbnrow,alpha_l_ji, &
                       rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
                       nblock, &
                       sparse_block(1,1),sbnrow, &

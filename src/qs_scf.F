@@ -196,6 +196,7 @@ MODULE qs_scf
                                              calculate_total_abs_rho,&
                                              calculate_total_rho,&
                                              calculate_wavefunction
+  USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_core_energies,                ONLY: calculate_ecore,&
                                              calculate_ecore_overlap,&
                                              calculate_ecore_self
@@ -1901,10 +1902,15 @@ CONTAINS
     TYPE(qs_rho_type), POINTER :: rho
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
+    REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
     TYPE(qs_loc_env_type), POINTER :: qs_loc_env
     TYPE(scf_control_type), POINTER :: scf_control
-    TYPE(cp_full_matrix_type), POINTER :: unoccupied_orbs
+    TYPE(cp_full_matrix_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
+    TYPE evals_p_type
+         REAL(wp), DIMENSION(:), POINTER :: evals
+    END TYPE
+    TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
     INTEGER :: ispin,n, output_unit, stat
     CHARACTER(LEN=6)   :: extension
@@ -1915,7 +1921,8 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
          mgrid_rspace,c,atomic_kind_set,particle_set,rho, mo_eigenvectors,&
-         ks_rmpv,qs_loc_env, scf_control,unoccupied_orbs,pfull)
+         ks_rmpv,qs_loc_env, scf_control,unoccupied_orbs,pfull,mo_eigenvalues, &
+          unoccupied_evals)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -2019,12 +2026,13 @@ CONTAINS
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
 ! write eigenvalues and a set of cubes
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo)
+             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+                                              eigenvalues=mo_eigenvalues,homo=homo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
              CALL calculate_subspace_eigenvalues(mo_eigenvectors,&
-                  ks_rmpv(ispin)%matrix, &
+                  ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                   para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
                   ionode=globenv%ionode)
 
@@ -2078,7 +2086,11 @@ CONTAINS
 
 
        IF (globenv%print%lumos) THEN
+          ALLOCATE(unoccupied_orbs(dft_control%nspins))
+          ALLOCATE(unoccupied_evals(dft_control%nspins))
           DO ispin=1,dft_control%nspins
+             NULLIFY(unoccupied_orbs(ispin)%matrix)
+             NULLIFY(unoccupied_evals(ispin)%evals)
 ! write eigenvalues and a set of cubes
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
@@ -2086,36 +2098,38 @@ CONTAINS
              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao)
              CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n)
              nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
-             CALL cp_fm_create2(new_matrix=unoccupied_orbs, &
+             ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
+             CALL cp_fm_create2(new_matrix=unoccupied_orbs(ispin)%matrix, &
                   nrow_block=scf_control%nrow_block, &
                   ncol_block=scf_control%ncol_block, &
                   nrow_global=n, &
                   ncol_global=nlumos, &
                   name="unoccupied_orbs", &
                   globenv=globenv)
-             CALL cp_fm_init_random(unoccupied_orbs,nlumos)
+             CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos)
 
              CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=s(1)%matrix, &
-                  matrix_c=unoccupied_orbs, &
+                  matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_eigenvectors, &
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=scf_env%ot_preconditioner, &
                   iter_max=scf_control%max_iter_lumos,globenv=globenv)
 
-             CALL calculate_subspace_eigenvalues(unoccupied_orbs,ks_rmpv(ispin)%matrix,&
+             CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
+                  unoccupied_evals(ispin)%evals, &
                   para_env=globenv%para_env,ctxt=globenv%blacs_env,scr=globenv%scr, &
                   ionode=globenv%ionode)
 
              IF (globenv%print%localization) THEN
                 WRITE(filename,'(a13,I1.1)') "LUMO_CENTERS_",ispin
                 IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-                CALL qs_loc_compute_set(qs_loc_env,unoccupied_orbs,globenv%ionode,21)
+                CALL qs_loc_compute_set(qs_loc_env,unoccupied_orbs(ispin)%matrix,globenv%ionode,21)
                 IF (globenv%ionode) CLOSE(21)
              ENDIF
 
              IF (globenv%print%cubes) THEN
                 DO ivector=1,nlumos
-                   CALL calculate_wavefunction(mo_vectors=unoccupied_orbs,&
+                   CALL calculate_wavefunction(mo_vectors=unoccupied_orbs(ispin)%matrix,&
                         ivector=ivector,rho=wf_r, &
                         rho_gspace=wf_g,&
                         mgrid_rspace=mgrid_rspace,&
@@ -2155,6 +2169,31 @@ CONTAINS
           DEALLOCATE(qs_loc_env) 
        ENDIF
 
+       IF (globenv%print%optical_conductivity) THEN
+           IF (globenv%ionode) WRITE(globenv%scr,*) " "
+           IF (globenv%ionode) WRITE(globenv%scr,*) " Computing the optical conductivity "
+           IF (.NOT. globenv%print%lumos) CALL stop_program("optical_conductivity","put LUMOS XX in the print section")
+           IF (.NOT. globenv%print%homos) CALL stop_program("optical_conductivity","put HOMOS XX in the print section")
+           IF (globenv%ionode) THEN
+              File_name="CONDUCTIVITY"
+              CALL Open_file(File_name=File_name,&
+                  File_action="Write",&
+                  File_form="Formatted",&
+                  File_status="Replace",&
+                  Unit_number=File_unit)
+           ENDIF
+           DO ispin=1,dft_control%nspins
+              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+                                                     eigenvalues=mo_eigenvalues)
+              CALL optical_conductivity(s,mo_eigenvectors,mo_eigenvalues, &
+                                          unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
+                                          globenv%ionode,File_unit) 
+           ENDDO
+           IF (globenv%ionode) CALL Close_file(Unit_number=File_unit)
+           IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
+       ENDIF
+
+
        IF (globenv%print%density_matrix) THEN
           CALL write_sparse_matrix(rho%rho_ao(1)%matrix,4,6,qs_env,globenv)
        END IF
@@ -2180,13 +2219,21 @@ CONTAINS
           CALL Deallocate_matrix(Pfull)
           CALL Close_file(Unit_number=File_unit)
        ENDIF
-
        IF (Globenv%print%kohn_sham_matrix) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                rebuild=.TRUE.,error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)
           CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
        END IF
+
+       IF (globenv%print%lumos) THEN
+        DO ispin=1,dft_control%nspins
+           deallocate(unoccupied_evals(ispin)%evals)
+           CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
+        ENDDO
+        deallocate(unoccupied_evals)
+        deallocate(unoccupied_orbs)
+       ENDIF
 
     END IF
   END SUBROUTINE scf_env_post_calc
