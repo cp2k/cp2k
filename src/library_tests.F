@@ -1011,7 +1011,6 @@ SUBROUTINE mpi_test(comm)
     integer :: ierror, ierr, taskid,nprocs
     logical :: ionode
     integer :: Ntot,Nloc,left,right,partner,I,J,itests,npow,itask,jtask,ncount,nbufmax
-    integer :: comm
     integer, ALLOCATABLE, DIMENSION(:) :: rcount,scount,sdispl,rdispl
 
     INTEGER, PARAMETER :: dbl=KIND(0.0D0)
