@@ -653,7 +653,9 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
 ! Locals
   INTEGER :: gmin, gmax, nx, ny, nz, np, ns, i, j, k, l, m, n, handle
   INTEGER :: lo ( 2 ), ip, ierr, gneg, lby, lbz, coor ( 2 ), rsd ( 2 ), ipl
+  INTEGER :: i1, i2
   REAL ( dbl ) :: tfun, tt
+  INTEGER, ALLOCATABLE, DIMENSION ( :, : ) :: yz_index
 
 !------------------------------------------------------------------------------
 
@@ -743,20 +745,20 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
     DO ip = 0, np - 1
       CALL mp_cart_coords ( pw_grid % para % rs_group, ip, coor )
       ! distribution xyZ
-      pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit ( nx, rsd ( 1 ), coor ( 1 ) )
-      pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit ( ny, rsd ( 2 ), coor ( 2 ) )
+      pw_grid % para % bo ( 1:2, 1, ip, 1 ) = get_limit (nx,rsd(1),coor(1))
+      pw_grid % para % bo ( 1:2, 2, ip, 1 ) = get_limit (ny,rsd(2),coor(2))
       pw_grid % para % bo ( 1, 3, ip, 1 ) = 1
       pw_grid % para % bo ( 2, 3, ip, 1 ) = nz
       ! distribution xYz
-      pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit ( nx, rsd ( 1 ), coor ( 1 ) )
+      pw_grid % para % bo ( 1:2, 1, ip, 2 ) = get_limit (nx,rsd(1),coor(1))
       pw_grid % para % bo ( 1, 2, ip, 2 ) = 1
       pw_grid % para % bo ( 2, 2, ip, 2 ) = ny
-      pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit ( nz, rsd ( 2 ), coor ( 2 ) )
+      pw_grid % para % bo ( 1:2, 3, ip, 2 ) = get_limit (nz,rsd(2),coor(2))
       ! distribution Xyz
       pw_grid % para % bo ( 1, 1, ip, 3 ) = 1
       pw_grid % para % bo ( 2, 1, ip, 3 ) = nx
-      pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit ( ny, rsd ( 1 ), coor ( 1 ) )
-      pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit ( nz, rsd ( 2 ), coor ( 2 ) )
+      pw_grid % para % bo ( 1:2, 2, ip, 3 ) = get_limit (ny,rsd(1),coor(1))
+      pw_grid % para % bo ( 1:2, 3, ip, 3 ) = get_limit (nz,rsd(2),coor(2))
     END DO
 
 !..find the g space distribution
@@ -785,30 +787,34 @@ SUBROUTINE pw_grid_distribute ( pw_grid, yz_mask, ref_grid, blocking )
       ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
       ! of g vectors in turn
   
-      DO
-        DO i = 1, 2*np
-          IF ( i > np ) THEN
-            ip = 2*np - i
-          ELSE
-            ip = i - 1
-          ENDIF
-          lo = MAXLOC ( yz_mask )
-          gmax = yz_mask ( lo(1), lo(2) )
-          IF ( gmax == 0 ) EXIT
-          yz_mask ( lo(1), lo(2) ) = 0
-          IF ( ip == pw_grid % para % my_pos ) THEN
-            pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
-          END IF
-          pw_grid % para % yzq ( lo(1), lo(2) ) = ip
-          IF ( pw_grid % grid_span == HALFSPACE ) THEN
-            m = -lo(1) - 2*lby + 2
-            n = -lo(2) - 2*lbz + 2
-            pw_grid % para % yzq ( m, n ) = ip
-            yz_mask ( m, n ) = 0
-          END IF
-        END DO
-        IF ( gmax == 0 ) EXIT
+      i1 = SIZE ( yz_mask, 1 )
+      i2 = SIZE ( yz_mask, 2 )
+      ALLOCATE ( yz_index(2,i1*i2), STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "pw_grid_distribute", &
+                                          "yz_index", 2*i1*i2 )
+      CALL order_mask ( yz_mask, yz_index )
+      DO i = 1, i1*i2
+        lo(1) = yz_index(1,i)
+        lo(2) = yz_index(2,i)
+        IF ( lo(1)*lo(2) == 0 ) CYCLE
+        gmax = yz_mask ( lo(1), lo(2) )
+        IF ( gmax == 0 ) CYCLE
+        yz_mask ( lo(1), lo(2) ) = 0
+        ip = MOD ( i-1, 2*np )
+        IF ( ip > np - 1 ) ip = 2*np - ip - 1
+        IF ( ip == pw_grid % para % my_pos ) THEN
+          pw_grid % ngpts_cut_local = pw_grid % ngpts_cut_local + gmax
+        END IF
+        pw_grid % para % yzq ( lo(1), lo(2) ) = ip
+        IF ( pw_grid % grid_span == HALFSPACE ) THEN
+          m = -lo(1) - 2*lby + 2
+          n = -lo(2) - 2*lbz + 2
+          pw_grid % para % yzq ( m, n ) = ip
+          yz_mask ( m, n ) = 0
+        END IF
       END DO
+      DEALLOCATE ( yz_index, STAT = ierr )
+      IF ( ierr /= 0 ) CALL stop_memory ( "", "yz_index" )
 
       ! Count the total number of rays on each processor
       pw_grid % para % nyzray = 0
@@ -961,6 +967,60 @@ SUBROUTINE pre_tag ( pw_grid, yz_mask, ref_grid )
   END DO
 
 END SUBROUTINE pre_tag
+
+!------------------------------------------------------------------------------
+
+SUBROUTINE order_mask ( yz_mask, yz_index )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: yz_mask
+  INTEGER, DIMENSION ( :, : ), INTENT ( OUT ) :: yz_index
+
+! Locals
+  INTEGER, ALLOCATABLE, DIMENSION ( : ) :: irow, rindex, icol, cindex
+  INTEGER :: i, i1, i2, j, j1, j2, isum, icount, ierr
+!------------------------------------------------------------------------------
+
+  i1 = SIZE ( yz_mask, 1 )
+  i2 = SIZE ( yz_mask, 2 )
+  ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
+  ALLOCATE ( icol(i1), cindex(i2), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow", 2*i1+2*i2 )
+
+  yz_index = 0
+  DO i = 1, i1
+    irow(i) = SUM(yz_mask(i,:))
+  END DO
+  CALL sort ( irow, i1, rindex )
+  icount = 0
+  DO i = i1, 1, -1
+    j1 = rindex ( i )
+    icol = yz_mask(i,:)
+    CALL sort ( icol, i2, cindex )
+    DO j = i2, 1, -1
+      j2 = cindex ( j )
+      IF ( yz_mask(j1,j2) /= 0 ) THEN
+        icount = icount + 1
+        yz_index(1,icount) = j1
+        yz_index(2,icount) = j2
+      END IF
+    END DO
+  END DO
+
+  j=100000000
+  do i=1,icount
+    j1=yz_index(1,icount)
+    j2=yz_index(2,icount)
+    if(j < yz_mask(j1,j2)) stop
+    j = yz_mask(j1,j2)
+  enddo
+
+  DEALLOCATE ( irow, rindex, icol, cindex, STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow" )
+
+END SUBROUTINE order_mask
 
 !******************************************************************************
 !!****** pw_grids/pw_grid_count [1.1] *
