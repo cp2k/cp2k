@@ -254,19 +254,13 @@ MODULE qs_scf
 
 ! *** Global variables ***
 
-  TYPE(qs_ot_type)                  :: qs_ot_env
-  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
-
   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: scf_work1
   TYPE(cp_full_matrix_type), POINTER  :: ortho,scf_work2
-  TYPE(cell_type), POINTER          :: cell
-  TYPE(dft_control_type), POINTER   :: dft_control
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-  INTEGER :: nelectron,ispin
+  INTEGER :: nelectron
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
 ! *** Public variables ***
@@ -297,6 +291,7 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_type), POINTER :: mo_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
     REAL(wp) :: delta,diis_error,method_par,pmix,t1,t2,tmp
@@ -339,6 +334,11 @@ CONTAINS
     CHARACTER(LEN=60)  :: method
     CHARACTER(LEN=80)  :: filename
     TYPE(preconditioner_type), TARGET :: ot_preconditioner
+    TYPE(qs_ot_type)                  :: qs_ot_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
+    TYPE(cell_type), POINTER          :: cell ! is this one used here 
+    INTEGER :: ispin
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
 
 !   ---------------------------------------------------------------------------
@@ -400,7 +400,7 @@ CONTAINS
 
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
-    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho)
+    CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho,c=c)
 
     NULLIFY(p_new)
     ALLOCATE(p_new(dft_control%nspins))
@@ -964,6 +964,7 @@ CONTAINS
     TYPE(cp_fm_struct_type), POINTER :: ao_mo_mstruct
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
     TYPE(dft_control_type), POINTER   :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
 !   ---------------------------------------------------------------------------
 
