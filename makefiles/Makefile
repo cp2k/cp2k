@@ -35,11 +35,11 @@ CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
 ### Master rules ###
 
 $(VERSION_TARGETS):
-	cd $(EXEDIR) || mkdir -p $(EXEDIR)
-	cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
-	cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
-	$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
-	$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
+	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
+	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
+	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	@$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
+	@$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
 
 $(CLEAN_TARGETS):
 	$(SMAKE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
@@ -60,13 +60,13 @@ LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 dependencies: $(DEPENDENCIES)
 
-all: $(LIB1_ARCHIVE) $(PROG)
+all: $(PROG)
+
+$(PROG): $(OBJECTS) $(LIB1_ARCHIVE)
+	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
-
-$(PROG): $(OBJECTS)
-	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) $(LIBRARIES)
 
 %.o: %.F
 	$(FC) -c $(FCFLAGS) $<
