@@ -298,7 +298,7 @@ CONTAINS
             error=error)
        
        ! alloc m_epsilon
-       CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%S_psi0,&
+       CALL fm_pools_create_fm_vect(mo_mo_fm_pools,elements=p_env%m_epsilon,&
             name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
             "%m_epsilon",&
             error=error)
