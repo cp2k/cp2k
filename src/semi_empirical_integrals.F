@@ -66,10 +66,10 @@ CONTAINS
 
       x(:)=-rijv(:)
       rij=x(1)*x(1)+x(2)*x(2)+x(3)*x(3)
+      w(:)=0._dp
       IF (rij < 0.00002_dp) THEN
          ! SMALL RIJ CASE
-         w(:)=0._dp
- 
+         ! w is zero 
       ELSE
          ! The repulsion integrals over molecular frame (w) are stored in the
          ! order in which they will later be used.  ie.  (i,j/k,l) where
