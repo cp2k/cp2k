@@ -53,7 +53,7 @@ MODULE qs_rho_atom_methods
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
-                                             list_type, &
+                                             qlist_type, &
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
@@ -365,7 +365,7 @@ MODULE qs_rho_atom_methods
     TYPE(oce_matrix_type), POINTER      :: oce
     TYPE(rho_atom_type), DIMENSION(:), &
                               POINTER   :: rho_atom
-    TYPE(list_type), POINTER            :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:),           POINTER   :: sab_orb, sac_oce, sbc_oce
     TYPE(neighbor_list_type), POINTER   :: sac_oce_neighbor_list, &

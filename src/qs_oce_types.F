@@ -35,7 +35,7 @@ MODULE qs_oce_types
                                              first_node,&
                                              get_neighbor_list,&
                                              get_neighbor_node,&
-                                             list_type,&
+                                             qlist_type,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
@@ -64,7 +64,7 @@ MODULE qs_oce_types
 ! *** Define a oce matrix type ***
 
   TYPE voce_type
-    TYPE(list_type), DIMENSION(:,:,:), POINTER :: neighbor
+    TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
   END TYPE voce_type
 
 
@@ -170,7 +170,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_voce"
 
-    TYPE(list_type), POINTER    :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER    :: sac_oce_neighbor
     INTEGER  iat, icell, istat, jcell, kcell, kkind, natom, nkind
 
 ! *****************************************************************************
@@ -341,7 +341,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(list_type), POINTER            :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
     TYPE(neighbor_list_type), POINTER   :: sac_oce_neighbor_list
     TYPE(neighbor_node_type), POINTER   :: sac_oce_neighbor_node
 

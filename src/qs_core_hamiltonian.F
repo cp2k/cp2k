@@ -113,7 +113,7 @@ MODULE qs_core_hamiltonian
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
-                                             list_type,&
+                                             qlist_type,&
                                              block_p_type,& 
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
@@ -157,6 +157,24 @@ MODULE qs_core_hamiltonian
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_core_hamiltonian"
 
+!   *** Local types ***
+
+    TYPE vppl_type
+      REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
+      REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
+      REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
+      INTEGER, DIMENSION(:), POINTER           :: neighbor
+    END TYPE vppl_type
+
+    TYPE vppnl_type
+      TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
+      REAL(KIND = dp)                            :: ppnl_radius
+      REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl
+      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,vprj_ppnl
+      INTEGER                                    :: lppnl,nppnl
+      INTEGER, DIMENSION(:), POINTER             :: nprj_ppnl
+    END TYPE vppnl_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: build_core_hamiltonian_matrix
@@ -185,24 +203,6 @@ CONTAINS
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
 
-!   *** Local types ***
-
-    TYPE vppl_type
-      REAL(KIND = dp)                          :: alpha_ppl,ppl_radius
-      REAL(KIND = dp), DIMENSION(:), POINTER   :: cexp_ppl,r2
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: r
-      INTEGER, DIMENSION(:), POINTER           :: neighbor
-    END TYPE vppl_type
-
-    TYPE vppnl_type
-      TYPE(list_type), DIMENSION(:,:,:), POINTER :: neighbor
-      REAL(KIND = dp)                            :: ppnl_radius
-      REAL(KIND = dp), DIMENSION(:), POINTER     :: alpha_ppnl
-      REAL(KIND = dp), DIMENSION(:,:), POINTER   :: cprj,vprj_ppnl
-      INTEGER                                    :: lppnl,nppnl
-      INTEGER, DIMENSION(:), POINTER             :: nprj_ppnl
-    END TYPE vppnl_type
-
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "core_hamiltonian"
@@ -213,7 +213,7 @@ CONTAINS
     TYPE(distribution_2d_type), POINTER :: distribution_2d
     TYPE(gth_potential_type), POINTER   :: gth_potential
     TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
-    TYPE(list_type), POINTER            :: sac_ppnl_neighbor
+    TYPE(qlist_type), POINTER            :: sac_ppnl_neighbor
     TYPE(neighbor_list_type), POINTER   :: sab_orb_neighbor_list,&
                                            sab_orb_neighbor_list_local,&
                                            sac_ppl_neighbor_list,&
@@ -257,7 +257,7 @@ CONTAINS
     TYPE(vppnl_type), DIMENSION(:), POINTER      :: vppnl
     TYPE(vppl_type), DIMENSION(:,:), POINTER     :: vpplt
     TYPE(vppnl_type), DIMENSION(:,:), POINTER    :: vppnlt
-    TYPE(list_type), DIMENSION(:,:,:), POINTER   :: neighbor_att
+    TYPE(qlist_type), DIMENSION(:,:,:), POINTER   :: neighbor_att
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER     :: hab,pab,sab,work
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: sdab

@@ -39,13 +39,13 @@ MODULE qs_neighbor_list_types
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
   END TYPE block_p_type
 
-  TYPE list_type
+  TYPE qlist_type
     TYPE(block_p_type), DIMENSION(:), POINTER :: sac
     REAL(KIND = dp), DIMENSION(:), POINTER    :: r2
     REAL(KIND = dp), DIMENSION(:,:), POINTER  :: r
     INTEGER                                   :: n
     INTEGER, DIMENSION(:), POINTER            :: index_list,list
-  END TYPE list_type
+  END TYPE qlist_type
 
   TYPE neighbor_node_type
     PRIVATE
@@ -88,7 +88,7 @@ MODULE qs_neighbor_list_types
             neighbor_list_set_p_type,&
             neighbor_list_type,&
             neighbor_node_type,&
-            list_type,&
+            qlist_type,&
             block_p_type
 
 ! *** Public subroutines ***
@@ -108,6 +108,7 @@ MODULE qs_neighbor_list_types
             set_neighbor_list,&
             set_neighbor_list_set,&
             set_neighbor_node
+
 
 ! *** Public functions ***
 

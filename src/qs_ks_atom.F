@@ -38,7 +38,7 @@ MODULE qs_ks_atom
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
-                                             list_type, &
+                                             qlist_type, &
                                              get_neighbor_list,&
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
@@ -100,7 +100,7 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), &
                DIMENSION(:),  POINTER        :: sab_orb, sac_oce, sbc_oce
 
-    TYPE(list_type), POINTER                 :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER                 :: sac_oce_neighbor
     TYPE(neighbor_list_type), POINTER        :: sac_oce_neighbor_list, &
                                                 sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local,&

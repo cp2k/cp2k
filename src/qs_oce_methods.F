@@ -40,7 +40,7 @@ MODULE qs_oce_methods
                                              first_node,&
                                              get_neighbor_list,&
                                              get_neighbor_node,&
-                                             list_type,&
+                                             qlist_type,&
                                              block_p_type,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_type,&
@@ -370,7 +370,7 @@ CONTAINS
                                            sbc_oce_neighbor_list
     TYPE(neighbor_node_type), POINTER   :: sac_oce_neighbor_node,&
                                            sbc_oce_neighbor_node
-    TYPE(list_type), POINTER            :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER            :: sac_oce_neighbor
 
     INTEGER                             :: i, iac, ibc, katom, kkind, kneighbor,& 
                                            kkneighbor, nkind, nneighbor

@@ -1123,8 +1123,8 @@ CONTAINS
            qs_control%gapw_control%quadrature,&
            "QS| GAPW|      atom-s-grid:  max l :",&
            qs_control%gapw_control%lmax_sphere  
-      ELSE
-        qs_control%gapw_control%lmax_sphere = 1
+!      ELSE
+!        qs_control%gapw_control%lmax_sphere = 1
       END IF
     END IF
 
