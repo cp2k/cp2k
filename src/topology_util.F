@@ -2420,7 +2420,9 @@ SUBROUTINE topology_force_field_pack ( molecule_kind_set,molecule_set,&
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
 
-
+  NULLIFY(atomic_kind,molecule_kind,molecule,atom_list,bond_list,bend_list,&
+       torsion_list,map_bond_kind,map_bend_kind,map_torsion_kind,&
+       bond_kind_set, bend_kind_set, torsion_kind_set)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
