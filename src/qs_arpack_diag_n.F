@@ -181,6 +181,12 @@ CONTAINS
     arpack_counter = 0
     reverse_comm: DO 
 
+       IF (DEBUG_THIS_MODULE) THEN
+          arpack_counter = arpack_counter + 1
+          IF (glob_env%ionode) &
+               WRITE (glob_env%scr,'(1X,A,I4)') 'iteration ', arpack_counter
+       END IF
+       
        CALL dnaupd(ido, bmat, nrows, which, n_ev, tol, resid, &
                    n_kv, v, ldv, param, pntr, workd, workl, lworkl, info)
        IF (info < 0) THEN
@@ -193,11 +199,6 @@ CONTAINS
           CPAAssert(SIZE(vin)==nrows)
           vout => workd(pntr(2):pntr(2)+nrows-1)
           CPAAssert(SIZE(vout)==nrows)
-
-          IF (DEBUG_THIS_MODULE) THEN
-             arpack_counter = arpack_counter + 1
-             WRITE (*,*) arpack_counter, ':'
-          END IF
 
           ! call the correct operator
           IF (PRESENT(op_tddfpt)) THEN

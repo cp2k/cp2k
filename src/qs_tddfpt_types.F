@@ -256,7 +256,9 @@ CONTAINS
                                                  routineP = moduleN//'/'//routineN
   
   	! code
+    IF (DEBUG_THIS_MODULE) WRITE (glob_env%scr,'(1X,A)') "calling CPAAssert"
     CPAAssert(check_tddfpt_env(t_env))
+    IF (DEBUG_THIS_MODULE) WRITE (glob_env%scr,'(1X,A)') "... done"
 
     DO spin=1, n_spins
        DEALLOCATE(t_env%eval_x(spin)%values, t_env%eval_y(spin)%values, stat=stat)
@@ -269,7 +271,6 @@ CONTAINS
     IF (stat /= 0) &
          CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y")
     NULLIFY(t_env%eval_x); NULLIFY(t_env%eval_y)
-    NULLIFY(t_env%x); NULLIFY(t_env%y)
 
     DO ev=1, t_env%n_ev
        DO spin=1, n_spins
@@ -287,8 +288,7 @@ CONTAINS
     DEALLOCATE(t_env%x, t_env%y, stat=stat)
     IF (stat /= 0) &
          CALL stop_memory(routineP, "t_env%x, t_env%y")
-    NULLIFY(t_env%x)
-    NULLIFY(t_env%y)
+    NULLIFY(t_env%x); NULLIFY(t_env%y)
 
   END SUBROUTINE tddfpt_env_deallocate
 
