@@ -182,8 +182,10 @@ SUBROUTINE p_proj_create(p_proj, atoms, proj_indexes, particle_set, error)
         routineP=moduleN//':'//routineN
 
   failure=.FALSE.
-    NULLIFY(p_proj%atoms, p_proj%proj_indexes)
+  ALLOCATE(p_proj, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
+     NULLIFY(p_proj%atoms, p_proj%proj_indexes)
      ALLOCATE(p_proj%atoms(SIZE(atoms)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF

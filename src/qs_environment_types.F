@@ -21,12 +21,15 @@
 !******************************************************************************
 
 MODULE qs_environment_types
-  USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE coefficient_types,               ONLY: coeff_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             deallocate_atomic_kind_set
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
                                              cp_bmstruct_create,&
                                              cp_bmstruct_release
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                             cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
@@ -36,7 +39,8 @@ MODULE qs_environment_types
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error,&
-                                             cp_unimplemented_error
+                                             cp_unimplemented_error,&
+                                             cp_unimplemented_error_nr
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_create,&
@@ -63,7 +67,8 @@ MODULE qs_environment_types
   USE dft_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: wp => dp
   USE pao_types,                       ONLY: pao_env_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: deallocate_particle_set,&
+                                             particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
@@ -71,13 +76,17 @@ MODULE qs_environment_types
                                              qs_charges_release,&
                                              qs_charges_retain,&
                                              qs_charges_type
-  USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_energy_types,                 ONLY: deallocate_qs_energy,&
+                                             qs_energy_type
+  USE qs_force_types,                  ONLY: deallocate_qs_force,&
+                                             qs_force_type
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_mo_types,                     ONLY: mo_set_p_type
-  USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+  USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                             mo_set_p_type
+  USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
+                                             neighbor_list_set_p_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
@@ -85,7 +94,8 @@ MODULE qs_environment_types
                                              scf_c_retain,&
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
@@ -95,6 +105,7 @@ MODULE qs_environment_types
   PRIVATE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_types'
+  INTEGER, PRIVATE, SAVE :: last_qs_env_id_nr=0
 
 ! *** Public data types ***
 
@@ -104,7 +115,8 @@ MODULE qs_environment_types
 
   PUBLIC :: get_qs_env,&
             init_qs_env,&
-            set_qs_env
+            set_qs_env,&
+            qs_env_create, qs_env_retain, qs_env_release
 
 !!***
 !****************************************************************************
@@ -121,6 +133,8 @@ MODULE qs_environment_types
 !!     -
 !!
 !!   ATTRIBUTES
+!!     - id_nr: identification number, guarateed to be unique
+!!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
 !!       present in the system
 !!     - cell: the simulation cell (box)
@@ -166,6 +180,7 @@ MODULE qs_environment_types
 !!*** *********************************************************************
   TYPE qs_environment_type
 !   PRIVATE
+    INTEGER :: id_nr, ref_count
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(cell_type), POINTER                              :: cell
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -354,6 +369,9 @@ CONTAINS
     qs_env%para_env => para_env
     CALL cp_blacs_env_retain(blacs_env,error=error)
     qs_env%blacs_env => blacs_env
+    qs_env%ref_count=1
+    last_qs_env_id_nr=last_qs_env_id_nr+1
+    qs_env%id_nr=last_qs_env_id_nr
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
@@ -458,5 +476,248 @@ CONTAINS
   END SUBROUTINE set_qs_env
 
 ! *****************************************************************************
+
+!!****f* qs_environment_types/qs_env_create [1.0] *
+!!
+!!   NAME
+!!     qs_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_create(qs_env, para_env, blacs_env, error)
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Type(cp_blacs_env_type), Pointer:: blacs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_create
+!!
+!!   FUNCTION
+!!     allocates and intitializes a qs_env
+!!
+!!   ARGUMENTS
+!!     - qs_env: the object to create
+!!     - para_env: the parallel environement for the qs_env
+!!     - blacs_env: the blacs env for the qs_env (for full matrixes,
+!!       it must be coerent with the para_env)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_create(qs_env,para_env,blacs_env,error)
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_para_env_type), POINTER :: para_env
+  TYPE(cp_blacs_env_type), POINTER :: blacs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  ALLOCATE(qs_env, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL init_qs_env(qs_env,para_env=para_env, blacs_env=blacs_env,&
+          error=error)
+  END IF
+END SUBROUTINE qs_env_create
+!***************************************************************************
+
+!!****f* qs_environment_types/qs_env_retain [1.0] *
+!!
+!!   NAME
+!!     qs_env_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_retain(qs_env, error)
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_retain
+!!
+!!   FUNCTION
+!!     retains the given qs_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - qs_env: the object to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_retain(qs_env,error)
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_retain',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     qs_env%ref_count=qs_env%ref_count+1
+  END IF
+END SUBROUTINE qs_env_retain
+!***************************************************************************
+
+!!****f* qs_environment_types/qs_env_release [1.0] *
+!!
+!!   NAME
+!!     qs_env_release
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_env_release(qs_env, error)
+!!       Type(qs_environment_type), Pointer:: qs_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_env_release
+!!
+!!   FUNCTION
+!!     releases the given qs_env (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - qs_env: the object to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_env_release(qs_env,error)
+  TYPE(qs_environment_type), POINTER :: qs_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='qs_env_release',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: i, stat
+  failure=.FALSE.
+
+  IF (ASSOCIATED(qs_env)) THEN
+     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     qs_env%ref_count=qs_env%ref_count-1
+     IF (qs_env%ref_count<1) THEN
+        IF (ASSOCIATED(qs_env%atomic_kind_set)) &
+             CALL deallocate_atomic_kind_set(qs_env%atomic_kind_set)
+        IF (ASSOCIATED(qs_env%c)) THEN
+           DO i=1,SIZE(qs_env%c)
+              CALL deallocate_mo_set(qs_env%c(i)%mo_set)
+           END DO
+           DEALLOCATE(qs_env%c, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
+        IF (ASSOCIATED(qs_env%sab_orb)) THEN
+           DO i=1,SIZE(qs_env%sab_orb)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sab_orb(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sab_orb,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sac_erfc)) THEN
+           DO i=1,SIZE(qs_env%sac_erfc)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sac_erfc(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sac_erfc,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sac_ppl)) THEN
+           DO i=1,SIZE(qs_env%sac_ppl)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sac_ppl(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sac_ppl,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sca_ppnl)) THEN
+           DO i=1,SIZE(qs_env%sca_ppnl)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sca_ppnl(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sca_ppnl,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%scb_ppnl)) THEN
+           DO i=1,SIZE(qs_env%scb_ppnl)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%scb_ppnl(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%scb_ppnl,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+
+        IF (ASSOCIATED(qs_env%particle_set)) &
+             CALL deallocate_particle_set(qs_env%particle_set)
+        IF (ASSOCIATED(qs_env%energy)) &
+             CALL deallocate_qs_energy(qs_env%energy)
+        IF (ASSOCIATED(qs_env%force))&
+             CALL deallocate_qs_force(qs_env%force)
+        IF (ASSOCIATED(qs_env%h))&
+             CALL deallocate_matrix_set(qs_env%h)
+        IF (ASSOCIATED(qs_env%k))&
+             CALL deallocate_matrix_set(qs_env%k)
+        IF (ASSOCIATED(qs_env%p))&
+             CALL deallocate_matrix_set(qs_env%p)
+        IF (ASSOCIATED(qs_env%s))&
+             CALL deallocate_matrix_set(qs_env%s)
+        IF (ASSOCIATED(qs_env%kinetic))&
+             CALL deallocate_matrix_set(qs_env%kinetic)
+        CALL cp_bmstruct_release(qs_env%s_mstruct,error=error)
+        CALL qs_rho_release(qs_env%rho, error=error)
+        CALL scf_c_release(qs_env%scf_control, error=error)
+        CALL fm_pools_dealloc(qs_env%ao_mo_fm_pools, error=error)
+        CALL pw_env_release(qs_env%pw_env, error=error)
+        CALL cp_para_env_release(qs_env%para_env, error=error)
+        CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
+        IF (ASSOCIATED(qs_env%rho_core)) &
+             CALL coeff_deallocate(qs_env%rho_core)
+        CALL qs_charges_release(qs_env%qs_charges, error=error)
+        CALL qs_ks_release(qs_env%ks_env, error=error)
+
+!FM        if (associated(qs_env%pao_env)) then ! circular ref
+!FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
+!FM           deallocate(qs_env%pao_env,stat=stat)
+!FM           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+!FM        end if
+
+        CALL cp_assert(.FALSE.,cp_warning_level, cp_unimplemented_error_nr,&
+             routineP, &
+             "qs_env%cell, qs_env%pao_env and qs_env%dft_control "//&
+             "not fully deallocated"//&
+             CPSourceFileRef,&
+             error)
+        NULLIFY(qs_env%cell, qs_env%dft_control,qs_env%pao_env)
+
+        DEALLOCATE(qs_env, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(qs_env)
+END SUBROUTINE qs_env_release
+!***************************************************************************
 
 END MODULE qs_environment_types

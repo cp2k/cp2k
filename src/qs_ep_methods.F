@@ -60,7 +60,8 @@ MODULE qs_ep_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
@@ -97,7 +98,7 @@ MODULE qs_ep_methods
                                              qs_env_rebuild_rho,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             init_qs_env,&
+                                             qs_env_create,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ep_types,                     ONLY: qs_ep_env_type,&
@@ -196,191 +197,201 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='qs_ep_create',&
          routineP=moduleN//':'//routineN
-!FM    INTEGER :: ikind, isub, iatom, natoms, natoms_kind, ispin, stat,&
-!FM         handle, nat1, nat2, n_ao, n_mo, nelectron, next_cgf, next_sgf
-!FM    INTEGER, DIMENSION(:), POINTER :: atom_list, atom_list1, atom_list2
-!FM    TYPE(dft_control_type), POINTER :: dft_control
-!FM    TYPE(scf_control_type), POINTER :: scf_control
-!FM    TYPE(cp_para_env_type), POINTER :: para_env
-!FM    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
-!FM    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,h,s
-!FM    TYPE(cp_logger_type), POINTER :: logger
-!FM    TYPE(cp_full_matrix_type), POINTER :: eigenvectors
-!FM    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-!FM    TYPE(qs_charges_type), POINTER :: qs_charges
-!FM    TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
-!FM    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
-!FM    TYPE(qs_ks_env_type), POINTER :: ks_env
-!FM    TYPE(coeff_type), POINTER   :: rho_core
-!FM    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-!FM    TYPE(pw_env_type), POINTER :: pw_env
-!FM    TYPE(cell_type), POINTER :: cell
+    INTEGER :: ikind, isub, iatom, natoms, ispin, stat, isub_atom,&
+         handle, nat, n_ao, n_mo, nelectron, next_cgf, next_sgf, nsub
+    INTEGER, DIMENSION(:), POINTER :: atom_list, sub_atom_list
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(scf_control_type), POINTER :: scf_control
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: sub_c
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(qs_charges_type), POINTER :: sub_qs_charges
+    TYPE(qs_p_projection_type), POINTER :: proj
+    TYPE(qs_environment_type), POINTER :: sub_qs
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set, p_set
+    TYPE(coeff_type), POINTER   :: sub_rho_core
+    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(cell_type), POINTER :: sub_cell
+    TYPE(cp_logger_type), POINTER :: logger
 
-!FM    failure=.FALSE.
-!FM    NULLIFY(atom_list, atom_list1, atom_list2,dft_control,scf_control,&
-!FM         para_env,c,k,p,h,s,logger,eigenvectors,atomic_kind_set,qs_charges,&
-!FM         sub_proj, particle_set, ks_env, rho_core, auxbas_pw_pool, pw_env)
-!FM
-!FM    allocate(ep_env, stat=stat)
-!FM    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM    if (.not. failure) then
-!FM       ep_env%ref_count=1
-!FM       last_ep_env_id=last_ep_env_id+1
-!FM       ep_env%id_nr=last_ep_env_id
-!FM       allocate(ep_env%sub_qs_env(size(projections)),&
-!FM            ep_env%sub_proj(size(projections)),stat=stat)
-!FM       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM       
-!FM    end if
-!FM    DO isub_qs=1,2
-!FM       CALL init_qs_env(sub_qs_env(isub_qs),para_env=para_env,&
-!FM            blacs_env=qs_env%blacs_env,error=error)
-!FM    END DO
-!FM    natoms=SIZE(qs_env%particle_set)
-!FM    ALLOCATE(sub_qs_env(1)%particle_set(natoms/2),&
-!FM         sub_qs_env(2)%particle_set((natoms+1)/2),&
-!FM         stat=stat)
-!FM    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM
-!FM    sub_qs_env(1)%particle_set = qs_env%particle_set(1:(natoms/2))
-!FM    sub_qs_env(2)%particle_set = qs_env%particle_set((natoms/2+1):natoms)
-!FM
-!FM    ALLOCATE(sub_qs_env(1)%atomic_kind_set(SIZE(qs_env%atomic_kind_set)),&
-!FM         sub_qs_env(2)%atomic_kind_set(SIZE(qs_env%atomic_kind_set)),&
-!FM         stat=stat)
-!FM    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM
-!FM    DO isub_qs=1,2
-!FM       sub_qs_env(isub_qs)%atomic_kind_set = qs_env%atomic_kind_set
-!FM       ALLOCATE(sub_qs_env(isub_qs)%cell, stat=stat)
-!FM       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM       sub_qs_env(isub_qs)%cell = qs_env%cell
-!FM       sub_qs_env(isub_qs)%dft_control => qs_env%dft_control
-!FM       sub_qs_env(isub_qs)%scf_control => qs_env%scf_control
-!FM       CALL scf_c_retain(qs_env%scf_control, error=error)
-!FM       sub_qs_env(isub_qs)%pw_env => qs_env%pw_env
-!FM       CALL pw_env_retain(qs_env%pw_env, error=error)
-!FM    END DO
-!FM
-!FM    ! atomic_kind_set setup
-!FM    DO ikind=1,SIZE(qs_env%atomic_kind_set)
-!FM       CALL get_atomic_kind(qs_env%atomic_kind_set(ikind),&
-!FM            atom_list=atom_list)
-!FM
-!FM       natoms_kind=0
-!FM       DO iatom=1,SIZE(atom_list)
-!FM          IF (atom_list(iatom) <= natoms/2) natoms_kind=natoms_kind+1
-!FM       END DO
-!FM
-!FM       ALLOCATE(atom_list1(natoms_kind),&
-!FM            atom_list2(SIZE(atom_list)-natoms_kind),&
-!FM            stat=stat)
-!FM       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM
-!FM       nat1=0; nat2=0
-!FM       DO iatom=1,SIZE(atom_list)
-!FM          IF (atom_list(iatom) <= natoms/2) THEN
-!FM             nat1=nat1+1
-!FM             atom_list1(nat1)=atom_list(iatom)
-!FM             sub_qs_env(1)%particle_set(atom_list1(nat1))%atomic_kind &
-!FM                  => sub_qs_env(1)%atomic_kind_set(ikind)
-!FM          ELSE
-!FM             nat2=nat2+1
-!FM             atom_list2(nat2)=atom_list(iatom)-natoms/2
-!FM             sub_qs_env(2)%particle_set(atom_list2(nat2))%atomic_kind &
-!FM                  => sub_qs_env(2)%atomic_kind_set(ikind)
-!FM          END IF
-!FM       END DO
-!FM
-!FM       CALL set_atomic_kind(sub_qs_env(1)%atomic_kind_set(ikind),&
-!FM            atom_list=atom_list1)
-!FM       CALL set_atomic_kind(sub_qs_env(2)%atomic_kind_set(ikind),&
-!FM            atom_list=atom_list2)
-!FM    END DO
-!FM
-!FM    DO isub_qs=1,2
-!FM       particle_set => sub_qs_env(isub_qs)%particle_set
-!FM       next_cgf=1
-!FM       next_sgf=1
-!FM       DO iatom=1,SIZE(particle_set)
-!FM          particle_set(iatom)%last_cgf=next_cgf+particle_set(iatom)%last_cgf-&
-!FM               particle_set(iatom)%first_cgf
-!FM          particle_set(iatom)%first_cgf=next_cgf
-!FM          next_cgf=particle_set(iatom)%last_cgf+1
-!FM          particle_set(iatom)%last_sgf=next_sgf+particle_set(iatom)%last_sgf-&
-!FM               particle_set(iatom)%first_sgf
-!FM          particle_set(iatom)%first_sgf=next_sgf
-!FM          next_sgf=particle_set(iatom)%last_sgf+1
-!FM          !FM cgf_aux not initialized! (at the Moment unused)
-!FM          particle_set(iatom)%iatom=iatom
-!FM       END DO
-!FM    END DO
-!FM
-!FM    DO isub_qs=1,2
-!FM       !   *** allocate mo_types ***
-!FM       CALL get_qs_env(sub_qs_env(isub_qs), atomic_kind_set=atomic_kind_set, &
-!FM            dft_control=dft_control, scf_control=scf_control)
-!FM       CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=nelectron)
-!FM       nelectron = nelectron-dft_control%charge
-!FM       IF (globenv%print%mo_eigenvalues.OR.&
-!FM            (scf_control%level_shift /= 0.0_wp).OR.&
-!FM            (scf_control%smear /= 0.0_wp).OR.&
-!FM            (scf_control%eps_jacobi /= 0.0_wp)) THEN
-!FM          n_mo = n_ao
-!FM       ELSE
-!FM          n_mo = nelectron/2
-!FM       END IF
-!FM       ALLOCATE(c(dft_control%nspins),stat=stat)
-!FM       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM       IF (.NOT.failure) THEN
-!FM          DO ispin=1,dft_control%nspins
-!FM             NULLIFY(c(ispin)%mo_set)
-!FM             IF (dft_control%nspins==1) THEN
-!FM                CALL allocate_mo_set(c(ispin)%mo_set,&
-!FM                     nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_wp,&
-!FM                     error=error)
-!FM             ELSE
-!FM                CALL allocate_mo_set(c(ispin)%mo_set,&
-!FM                     nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_wp,&
-!FM                     error=error)
-!FM             END IF
-!FM          END DO
-!FM       END IF
-!FM       CALL set_qs_env(sub_qs_env(isub_qs), c=c, error=error)
-!FM
-!FM       !   *** Allocate the data structure for Quickstep energies ***
-!FM       CALL allocate_qs_energy(sub_qs_env(isub_qs)%energy)
-!FM       ! allocate qs_charges
-!FM       CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
-!FM       CALL set_qs_env(sub_qs_env(isub_qs), qs_charges=qs_charges,error=error)
-!FM       CALL qs_charges_release(qs_charges, error=error)
-!FM       ! rebuilds ao_mo_fm_pools
-!FM       CALL qs_env_rebuild_aomo_pools(sub_qs_env(isub_qs), error=error)
-!FM       ! init green's function
-!FM       CALL get_qs_env(sub_qs_env(isub_qs), cell=cell, pw_env=pw_env,&
-!FM            rho_core=rho_core, error=error)
-!FM       CALL pw_green_fn_init(cell%green,&
-!FM            pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
-!FM       ! reallocate rho_core
-!FM       IF (ASSOCIATED(rho_core)) THEN
-!FM          CALL coeff_deallocate(rho_core)
-!FM          DEALLOCATE(rho_core,stat=stat)
-!FM          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-!FM       ELSE
-!FM          ALLOCATE(rho_core,stat=stat)
-!FM          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM       END IF
-!FM       IF (.NOT.failure) THEN
-!FM          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
-!FM          CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=rho_core, &
-!FM               use_data=COMPLEXDATA1D, error=error)
-!FM          rho_core%pw%in_space=RECIPROCALSPACE
-!FM          CALL set_qs_env(sub_qs_env(isub_qs), rho_core=rho_core,error=error)
-!FM       END IF
-!FM       
-!FM    END DO
-!FM
-!FM    CALL timestop(0.0_wp,handle)
+    CALL timeset(routineN,"I","",handle)
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
+    NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
+         para_env, blacs_env, sub_c,atomic_kind_set,sub_qs_charges,&
+         proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
+         pw_env, sub_cell, logger)
+
+    ALLOCATE(ep_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (.NOT. failure) THEN
+       nsub=SIZE(projections)
+       CALL get_qs_env(main_qs_env, dft_control=dft_control, &
+            particle_set=particle_set,&
+            atomic_kind_set=atomic_kind_set,&
+            scf_control=scf_control,&
+            pw_env=pw_env,&
+            para_env=para_env,&
+            blacs_env=blacs_env, error=error)
+
+       ep_env%ref_count=1
+       last_ep_env_id=last_ep_env_id+1
+       ep_env%id_nr=last_ep_env_id
+       ep_env%main_qs_env => main_qs_env
+       ALLOCATE(ep_env%sub_qs_env(nsub),&
+            ep_env%sub_proj(nsub),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.not.failure) THEN
+       natoms=SIZE(particle_set)
+       DO isub=1,nsub
+          CALL qs_env_create(ep_env%sub_qs_env(isub)%qs_env,&
+               para_env=para_env,&
+               blacs_env=blacs_env,error=error)
+
+          ep_env%sub_proj(isub)%projection => projections(isub)%projection
+          CALL p_proj_retain(ep_env%sub_proj(isub)%projection, error=error)
+
+          sub_qs => ep_env%sub_qs_env(isub)%qs_env
+          proj => ep_env%sub_proj(isub)%projection
+          ALLOCATE(sub_qs%particle_set(SIZE(proj%atoms)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END DO
+
+       DO isub=1,nsub
+          sub_qs => ep_env%sub_qs_env(isub)%qs_env
+          proj => ep_env%sub_proj(isub)%projection
+          p_set => sub_qs%particle_set
+
+          DO iatom=1,SIZE(proj%atoms)
+             p_set(iatom) = particle_set(proj%atoms(iatom))
+          END DO
+
+          ALLOCATE(sub_qs%atomic_kind_set(SIZE(atomic_kind_set)),&
+               stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          sub_qs%atomic_kind_set = atomic_kind_set
+          ALLOCATE(sub_qs%cell, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          sub_qs%cell = ep_env%main_qs_env%cell
+          sub_qs%dft_control => dft_control
+          sub_qs%scf_control => scf_control
+          CALL scf_c_retain(scf_control, error=error)
+          sub_qs%pw_env => pw_env
+          CALL pw_env_retain(pw_env, error=error)
+
+          ! atomic_kind_set setup
+          DO ikind=1,SIZE(atomic_kind_set)
+             CALL get_atomic_kind(atomic_kind_set(ikind),&
+                  atom_list=atom_list)
+
+             ALLOCATE(sub_atom_list(SIZE(atom_list)),&
+                  stat=stat)! alloc outside the do?
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+             nat=0
+             DO iatom=1,SIZE(atom_list)
+                DO isub_atom=1,SIZE(proj%atoms)
+                   IF (atom_list(iatom) == proj%atoms(isub_atom)) THEN
+                      nat=nat+1
+                      sub_atom_list(nat)=isub_atom
+
+                      sub_qs%particle_set(isub_atom)%atomic_kind &
+                           => sub_qs%atomic_kind_set(ikind)
+                      EXIT
+                   END IF
+                END DO
+             END DO
+
+             CALL set_atomic_kind(sub_qs%atomic_kind_set(ikind),&
+                  atom_list=sub_atom_list(1:nat))
+             DEALLOCATE(sub_atom_list, stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END DO
+
+          next_cgf=1
+          next_sgf=1
+          DO iatom=1,SIZE(p_set)
+             p_set(iatom)%last_cgf=next_cgf+p_set(iatom)%last_cgf-&
+                  p_set(iatom)%first_cgf
+             p_set(iatom)%first_cgf=next_cgf
+             next_cgf=p_set(iatom)%last_cgf+1
+             p_set(iatom)%last_sgf=next_sgf+p_set(iatom)%last_sgf-&
+                  p_set(iatom)%first_sgf
+             p_set(iatom)%first_sgf=next_sgf
+             next_sgf=p_set(iatom)%last_sgf+1
+!FM cgf_aux not initialized! (at the moment unused)
+             p_set(iatom)%iatom=iatom
+          END DO
+
+          !   *** allocate mo_types ***
+          CALL get_atomic_kind_set(sub_qs%atomic_kind_set,&
+               nsgf=n_ao, nelectron=nelectron)
+          CPPrecondition(dft_control%charge==0,cp_failure_level,routineP,error,failure)
+          nelectron = nelectron-dft_control%charge
+          IF (logger%print_keys%mo_eigenvalues.OR.&
+               (scf_control%level_shift /= 0.0_wp).OR.&
+               (scf_control%smear /= 0.0_wp).OR.&
+               (scf_control%eps_jacobi /= 0.0_wp)) THEN
+             n_mo = n_ao
+          ELSE
+             n_mo = nelectron/2
+          END IF
+          ALLOCATE(sub_c(dft_control%nspins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT.failure) THEN
+             DO ispin=1,dft_control%nspins
+                NULLIFY(sub_c(ispin)%mo_set)
+                IF (dft_control%nspins==1) THEN
+                   CALL allocate_mo_set(sub_c(ispin)%mo_set,&
+                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=2.0_wp,&
+                        error=error)
+                ELSE
+                   CALL allocate_mo_set(sub_c(ispin)%mo_set,&
+                        nao=n_ao,nmo=n_mo,nelectron=nelectron,maxocc=1.0_wp,&
+                        error=error)
+                END IF
+             END DO
+          END IF
+          CALL set_qs_env(sub_qs, c=sub_c, error=error)
+
+          !   *** Allocate the data structure for Quickstep energies ***
+          CALL allocate_qs_energy(sub_qs%energy)
+          ! allocate qs_charges
+          CALL qs_charges_create(sub_qs_charges,nspins=dft_control%nspins,error=error)
+          CALL set_qs_env(sub_qs, qs_charges=sub_qs_charges,error=error)
+          CALL qs_charges_release(sub_qs_charges, error=error)
+          ! rebuilds ao_mo_fm_pools
+          CALL qs_env_rebuild_aomo_pools(sub_qs, error=error)
+          ! init green's function
+          CALL get_qs_env(sub_qs, cell=sub_cell, pw_env=pw_env,&
+               rho_core=sub_rho_core, error=error)
+          CALL pw_green_fn_init(sub_cell%green,&
+               pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+          ! reallocate rho_core
+          IF (ASSOCIATED(sub_rho_core)) THEN
+             CALL coeff_deallocate(sub_rho_core)
+             DEALLOCATE(sub_rho_core,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          ELSE
+             ALLOCATE(sub_rho_core,stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+             CALL pw_pool_init_coeff(pool=auxbas_pw_pool, coeff=sub_rho_core, &
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+             CALL set_qs_env(sub_qs, rho_core=sub_rho_core,error=error)
+          END IF
+
+       END DO
+    END IF
+
+    CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE qs_ep_create
 !***************************************************************************
@@ -430,6 +441,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
   TYPE(qs_ep_env_type), POINTER :: ep_env
   TYPE(cp_logger_type), POINTER :: logger
+  TYPE(qs_environment_type), POINTER :: sub_qs
   INTEGER, DIMENSION(:), ALLOCATABLE :: atoms
 
   CALL timeset(routineN,"I","",handle)
@@ -465,7 +477,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      DO iatom=1,(natoms+1)/2
         atoms(iatom)=iatom+natoms/2
      END DO
-     CALL p_proj_create(sub_proj(1)%projection, atoms=atoms,&
+     CALL p_proj_create(sub_proj(2)%projection, atoms=atoms,&
           particle_set=particle_set, error=error)
      DEALLOCATE(atoms,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -478,10 +490,11 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   END IF
 
   ! energy in subsystem with diag
-  DO isub=1,2
+  DO isub=1,SIZE(ep_env%sub_qs_env)
      CALL cp_log(logger,cp_note_level,routineP,&
           "Diagonalization of subsystem "//ADJUSTL(cp_to_string(isub)))
-!     CALL qs_energies(sub_qs_env(isub),globenv)
+     sub_qs => ep_env%sub_qs_env(isub)%qs_env
+     CALL qs_energies(sub_qs,globenv)
   END DO
   
   ! perturbative approach for complete system
@@ -529,8 +542,8 @@ SUBROUTINE qs_ep_finish_qs_init(qs_env,globenv,error)
   TYPE(cp_full_matrix_type), POINTER :: eigenvectors
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(dft_control_type), POINTER :: dft_control
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,h,s
- 
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,h,s
+
   failure=.FALSE.
   NULLIFY(ks_env, c, eigenvectors, para_env, dft_control,k,p,h,s)
 
@@ -605,6 +618,7 @@ SUBROUTINE qs_ep_finish_qs_init(qs_env,globenv,error)
   CALL calculate_ecore_self(qs_env)
   CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
 
+  CALL timestop(0.0_wp,handle)
 END SUBROUTINE qs_ep_finish_qs_init
 !***************************************************************************
 
