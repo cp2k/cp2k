@@ -5,8 +5,8 @@
 
 #include "cp_prep_globals.h"
 ! less not much meningful...
-#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%identifier < el2%identifier )
-#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%identifier == el2%identifier )
+#define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+#define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 
 !!****h* cp2k/cp_linked_list_rs_grid [1.0] *
 !!
@@ -1587,8 +1587,8 @@ END FUNCTION cp_sll_rs_grid_contains2
 !  arrayEl = "%rs_grid"
 !  defines = 
 !    "! less not much meningful...
-!     #define CP_SLL_RS_LESS_Q(el1,el2) ( el1%identifier < el2%identifier )
-!     #define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%identifier == el2%identifier )
+!     #define CP_SLL_RS_LESS_Q(el1,el2) ( el1%id_nr < el2%id_nr )
+!     #define CP_SLL_RS_EQUAL_Q(el1,el2) ( el1%id_nr == el2%id_nr )
 !     "
 !  equalQ = "CP_SLL_RS_EQUAL_Q"
 !  lessQ = "CP_SLL_RS_LESS_Q"
