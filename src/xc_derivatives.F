@@ -43,6 +43,8 @@ MODULE xc_derivatives
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
                                              lyp_lsd_info
+  USE xc_optx,                         ONLY: optx_lda_eval,&
+                                             optx_lda_info
   USE xc_pade,                         ONLY: pade,&
                                              pade_lda_pw_eval,&
                                              pade_lsd_pw_eval
@@ -311,6 +313,9 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("HCTH407")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(407,reference, shortform, needs=needs, error=error)
+     CASE("OPTX")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL optx_lda_info(reference, shortform, needs=needs, error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -461,6 +466,10 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("HCTH407")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_eval(iparset=407,rho_set=rho_set,deriv_set=deriv_set,&
+                grad_deriv=deriv_order,error=error)
+     CASE("OPTX")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL optx_lda_eval(rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("NONE")
         !
