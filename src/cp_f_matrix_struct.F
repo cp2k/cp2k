@@ -49,9 +49,15 @@ MODULE cp_f_matrix_struct
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_f_matrix_struct'
   INTEGER,SAVE,PRIVATE :: last_fmstruct_id_nr=0
 
+! the default blacs block sizes
+! consider using #ifdefs to give them the optimal values
+  INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
+  INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
+
   PUBLIC :: cp_f_matrix_struct_type
+  PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent
+       cp_fmstruct_equivalent, cp_fmstruct_write
 !***
 !****************************************************************************
 
@@ -156,14 +162,15 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
-     nrow_block, ncol_block, context, descriptor, first_p_pos, error)
+SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
+     ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, error)
   TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
-  TYPE(cp_para_env_type), POINTER :: para_env
-  INTEGER, INTENT(in) :: nrow_global,ncol_global,nrow_block,ncol_block
-  TYPE(cp_blacs_env_type), POINTER :: context
-  INTEGER, DIMENSION(9), INTENT(in), OPTIONAL :: descriptor
-  INTEGER,OPTIONAL, DIMENSION(2) :: first_p_pos
+  TYPE(cp_para_env_type), POINTER        :: para_env
+  INTEGER, INTENT(in)                    :: nrow_global,ncol_global
+  INTEGER, INTENT(in), OPTIONAL          :: nrow_block,ncol_block
+  TYPE(cp_blacs_env_type), POINTER       :: context
+  INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
+  INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
 #if defined(__SCALAPACK)
@@ -196,8 +203,14 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,nrow_global,ncol_global,&
      ! checks for more processes than matrix elements
      CPAssert(context%num_pe(1)<=nrow_global,cp_warning_level,routineP,error,failure)
      CPAssert(context%num_pe(2)<=ncol_global,cp_warning_level,routineP,error,failure)
-     fmstruct%nrow_block=MAX(1,MIN(nrow_block,nrow_global/context%num_pe(1)))
-     fmstruct%ncol_block=MAX(1,MIN(ncol_block,ncol_global/context%num_pe(2)))
+     fmstruct%nrow_block=optimal_blacs_row_block_size
+     IF (PRESENT(nrow_block)) fmstruct%nrow_block=nrow_block
+     fmstruct%ncol_block=optimal_blacs_col_block_size
+     IF (PRESENT(ncol_block)) fmstruct%ncol_block=ncol_block
+     fmstruct%nrow_block=MAX(1,&
+          MIN(fmstruct%nrow_block,nrow_global/context%num_pe(1)))
+     fmstruct%ncol_block=MAX(1,&
+          MIN(fmstruct%ncol_block,ncol_global/context%num_pe(2)))
      IF (fmstruct%nrow_global==fmstruct%ncol_global) THEN
         ! square matrix -> square blocks (otherwise some op fail)
         fmstruct%nrow_block=MIN(fmstruct%nrow_block,fmstruct%ncol_block)
@@ -466,8 +479,9 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
   IF (PRESENT(long_description)) l_desc=long_description
   IF (ASSOCIATED(fmstruct)) THEN
      WRITE (unit=unit_nr,&
-          fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,' ref_count=',i10,',')",&
+          fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
+     CPPostcondition(iostat==0,cp_warning_level,routineP,error,failure)
      WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
           iostat=iostat) fmstruct%nrow_global, fmstruct%ncol_global
      WRITE (unit=unit_nr,fmt="(' nrow_block=',i8,', ncol_block=',i8,',')",&
