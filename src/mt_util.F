@@ -84,8 +84,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: pw_pool_aux
     TYPE (pw_grid_type), POINTER             :: pw_grid
     REAL(KIND=dp) :: ecut, alpha2
-    INTEGER                                  :: ig
-    REAL(KIND=dp)                            :: g2, g3d
+    INTEGER                                  :: ig, iz
+    REAL(KIND=dp)                            :: g2, g3d, zlength, gz, gxy
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -100,14 +100,14 @@ CONTAINS
     CALL pw_grid_setup ( cell, pw_grid, cutoff = ecut, &
          ref_grid=pw_pool%pw_grid, fft_usage = .TRUE. )
     CALL pw_pool_create ( pw_pool_aux, pw_grid = pw_grid )
+    CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
+         in_space=RECIPROCALSPACE,error=error)
     SELECT CASE( method )
     CASE(MT0D)
        CALL pw_pool_create_pw(pw_pool_aux, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
             error=error)
        CALL pw_pool_create_pw(pw_pool_aux, Vlocg, use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE,&
             error=error)
-       CALL pw_pool_create_pw(pw_pool, screen_function, use_data=COMPLEXDATA1D,&
-            in_space=RECIPROCALSPACE,error=error)
        CALL mt0din( Vloc, alpha)
        CALL pw_transfer ( Vloc,  Vlocg )
        CALL pw_zero( screen_function )
@@ -125,20 +125,18 @@ CONTAINS
        END DO
        IF ( screen_function % pw_grid % have_g0 ) &
             screen_function%cc(1) = screen_function%cc(1) + fourpi / (4.0E0_dp*alpha2)      
-    CASE(MT1D)
-          
- !         iz = gftype % special_dimension ! iz is the direction with NO PBC
- !         zlength = gftype % slab_size    ! zlength is the thickness of the cell
- !         DO ig = grid % first_gne0, grid % ngpts_cut_local
- !            nz = grid % g_hat ( iz, ig )
- !            g2 = grid % gsq ( ig )
- !            g3d = fourpi / g2
- !            gg = 0.5_dp * SQRT ( g2 )
- !            gf % cc ( ig ) = g3d * ( 1.0_dp - (-1.0_dp)**nz * EXP ( - gg * zlength ) )
- !         END DO
- !         IF ( grid % have_g0 ) gf % cc ( 1 ) = 0.0_dp
-          
     CASE(MT2D)
+       iz = special_dimension ! iz is the direction with NO PBC
+       zlength = slab_size    ! zlength is the thickness of the cell
+       DO ig = screen_function % pw_grid % first_gne0, screen_function % pw_grid % ngpts_cut_local
+          gz = screen_function % pw_grid % g ( iz, ig )
+          g2 = screen_function % pw_grid % gsq ( ig )
+          gxy = SQRT ( ABS(g2 - gz * gz ) ) 
+          g3d = fourpi / g2
+          screen_function%cc(ig) = - g3d * COS( gz * zlength / 2.0_dp) * EXP(- gxy * zlength / 2.0_dp)
+       END DO
+       IF ( screen_function% pw_grid % have_g0 )  screen_function%cc ( 1 ) = pi * zlength*zlength / 2.0_dp
+    CASE(MT1D)
        CALL cp_unimplemented_error(routineP, "MT2D unimplemented", error, cp_failure_level)
     END SELECT
     CALL pw_pool_release ( pw_pool_aux, error=error )
@@ -180,36 +178,34 @@ CONTAINS
                                                 rmin, x, y, y2, z, z2, omega, fact
     TYPE(pw_grid_type), POINTER              :: grid
     REAL(KIND=dp), DIMENSION(3)              :: box, box2
+    INTEGER, DIMENSION(:,:), POINTER         :: bo
+    INTEGER, DIMENSION(:), POINTER           :: glb
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     grid => Vloc%pw_grid
+    bo   => grid%bounds_local
+    glb  => grid%bounds(1,:)
     Vloc%cr3d=0.0_dp
     box = REAL(grid%npts,kind=dp)*grid%dr
     box2 = box/2.0_dp
     omega = PRODUCT(box)
     fact =omega
-!    WRITE(*,*) grid%npts 
-!    WRITE(*,*) grid%dr 
-!    WRITE(*,*) grid%bounds_local(:,1)
-!    WRITE(*,*) grid%bounds_local(:,2)
-!    WRITE(*,*) grid%bounds_local(:,3)
-!    WRITE(*,*) box
     dx=grid%dr(1)
     dy=grid%dr(2)
     dz=grid%dr(3)
-    kk = grid%bounds_local(1,3)
-    DO k=1,grid%npts(3)
-       z=REAL(k-1,dp)*dz; IF (z.GT.box2(3)) z=box(3)-z
+    kk = bo(1,3)
+    DO k=bo(1,3),bo(2,3)
+       z=REAL(k-glb(3),dp)*dz; IF (z.GT.box2(3)) z=box(3)-z
        z2=z*z
-       jj = grid%bounds_local(1,2)
-       DO j=1,grid%npts(2)
-          y=REAL(j-1,dp)*dy; IF (y.GT.box2(2)) y=box(2)-y
+       jj = bo(1,2)
+       DO j=bo(1,2),bo(2,2)
+          y=REAL(j-glb(2),dp)*dy; IF (y.GT.box2(2)) y=box(2)-y
           y2=y*y
-          ii = grid%bounds_local(1,1)
-          DO i=1,grid%npts(1)
-             x=REAL(i-1,dp)*dx; IF (x.GT.box2(1)) x=box(1)-x
+          ii = bo(1,1)
+          DO i=bo(1,1),bo(2,1)
+             x=REAL(i-glb(1),dp)*dx; IF (x.GT.box2(1)) x=box(1)-x
              r2=x*x+y2+z2
              r = SQRT( r2 )
              IF(r.GT.1.0E-10_dp) THEN
