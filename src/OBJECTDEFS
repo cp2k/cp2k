@@ -171,7 +171,6 @@ OBJECTS_GENERIC =\
  kg_scf.o\
  kg_scf_types.o\
  kinds.o\
- kinetic.o\
  l_utils.o\
  lapack.o\
  lebedev.o\
