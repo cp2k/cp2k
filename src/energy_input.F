@@ -20,8 +20,8 @@ MODULE energy_input
   PUBLIC :: read_energy_section, energy_min_type, min_info_type
 
   TYPE min_info_type
-    REAL ( dbl ) :: e, de, tol, e_over, e_class, e_thk, e_electro, err
-    REAL ( dbl ) :: e_electro_0, e_electro_1, e_electro_2             
+    REAL ( dbl ) :: e, de, tol, e_over, e_class, e_thk, e_electro, e_pol, err
+    REAL ( dbl ) :: e_electro_0, e_electro_1, e_electro_2, e_over_ii, e_over_ij             
   END TYPE min_info_type
 
   TYPE energy_min_type
