@@ -45,14 +45,13 @@ MODULE kg_main
   USE kg_environment_types, ONLY : kg_environment_type,  &
                                    kg_thermodynamic_type, &
                                    set_kg_env, init_kg_env
+  USE kg_force, ONLY : kg_force_release
   USE linklist_types, ONLY : linklist_internal_data_type
   USE mathconstants, ONLY : zero, twopi
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, mdio_parameters_type, virial_type
-!gt not yet written!
-!  USE md_kg_energies, ONLY : set_kg_energies, set_kg_energies_param, &
-!                          md_energy_kg
-!gt
+  USE md_kg_energies, ONLY : set_kg_energies, set_kg_energies_param, &
+                          md_energy_kg
   USE md_environment_types, ONLY :  set_md_env, init_md_env, & 
                                     md_environment_type, zero_virial
   USE molecule_input, ONLY : read_molecule_section, read_setup_section, &
@@ -394,13 +393,10 @@ SUBROUTINE kg ( globenv )
                                     extended_type % nhc_baro (1) )
   CALL release_mem ( ainp )
 
-!gt not yet written !!
-!  CALL set_kg_energies_param ( units % pconv, units % econv, units % l_label, &
-!       units % vol_label, units % e_label, units % pres_label, &
-!       units % temp_label, units % angl_label )
-!gt
+  CALL set_kg_energies_param ( units % pconv, units % econv, units % l_label, &
+       units % vol_label, units % e_label, units % pres_label, &
+       units % temp_label, units % angl_label )
 
-!
   CALL timestop ( zero, handle2 )
 
 ! set the fist_env
@@ -496,6 +492,8 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 
   END SELECT
 
+  CALL kg_force_release (kg_env, globenv)
+
   DEALLOCATE ( struc, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'deallocstruc', 'struc' )
   CALL timestop ( zero, handle )
@@ -543,9 +541,7 @@ END SUBROUTINE control_work
 !------------------------------------------------------------------------------
 
 ! initialize the environment for md_energies
-!gt to be written
-! CALL set_kg_energies ( globenv, mdio )
-!gt
+  CALL set_kg_energies ( globenv, mdio )
 
 ! initialize integrator
   CALL set_integrator ( globenv )
@@ -556,33 +552,30 @@ END SUBROUTINE control_work
 
   CALL force ( globenv, box_change )
 
-!gt to be written
 ! Initial call to md energy
-!  CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
-!                        kg_env % ll_data ( 1 ), &
-!                         md_env % nhc_part ( 1 ), md_env % nhc_baro ( 1 ),  &
-!                         md_env % npt, md_env % simpar,            &
-!                         md_env % struc ( 1 ), kg_env % thermo )
+  CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
+                         md_env % nhc_part ( 1 ),  &
+                         md_env % simpar,            &
+                         md_env % struc ( 1 ), kg_env % thermo )
 ! Main MD loop
-!  DO itimes = 1, md_env % simpar % nsteps
+  DO itimes = 1, md_env % simpar % nsteps
 
 ! Call the integrator
-!     CALL velocity_verlet ( md_env )
+    CALL velocity_verlet ( md_env )
 
 ! Call the energy routines
-!    CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
+    CALL md_energy_kg ( md_env % itimes, md_env % constant, kg_env % box, &
+                        md_env % nhc_part ( 1 ), md_env % simpar, &
+                        md_env % struc ( 1 ), kg_env % thermo )
 
 ! Test for the dump cycle
-!     IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN
-!       CALL dump_variables ( md_env, fist_env % rep_env, mdio % dump_file_name, &
-!                                globenv, fist_env % pimd )
-!    END IF
+    IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN
+       CALL dump_variables ( md_env, kg_env, mdio % dump_file_name, globenv )
+    END IF
 
-! END DO
-!  CALL dump_variables ( md_env, fist_env % rep_env, mdio % dump_file_name, globenv,  &
-!                       fist_env % pimd )
-! IF ( globenv % ionode ) CALL close_unit ( 10, 99 )
-!gt to be written
+  END DO
+  CALL dump_variables ( md_env, kg_env, mdio % dump_file_name, globenv )
+  IF ( globenv % ionode ) CALL close_unit ( 10, 99 )
  
 END SUBROUTINE control_md_work
 
