@@ -512,8 +512,8 @@ CONTAINS
        tau_cutoff,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: local_bounds
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff,&
-         tau_cutoff
+    REAL(kind=dp), INTENT(in), OPTIONAL      :: rho_cutoff, drho_cutoff, &
+                                                tau_cutoff
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -759,8 +759,8 @@ CONTAINS
                                                 rhoa_1_3, rhob_1_3
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: drhoa, drhob
-    REAL(kind=dp), INTENT(out), OPTIONAL     :: rho_cutoff, drho_cutoff,&
-         tau_cutoff
+    REAL(kind=dp), INTENT(out), OPTIONAL     :: rho_cutoff, drho_cutoff, &
+                                                tau_cutoff
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: tau, tau_a, tau_b
     INTEGER, DIMENSION(:, :), OPTIONAL, &
@@ -859,7 +859,7 @@ CONTAINS
        END IF
        IF (PRESENT(rho_cutoff)) rho_cutoff=rho_set%rho_cutoff
        IF (PRESENT(drho_cutoff)) drho_cutoff=rho_set%drho_cutoff
-       if (present(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
+       IF (PRESENT(tau_cutoff)) tau_cutoff=rho_set%tau_cutoff
        IF (PRESENT(local_bounds)) local_bounds => rho_set%local_bounds
     END IF
   END SUBROUTINE xc_rho_set_get
@@ -1114,6 +1114,13 @@ CONTAINS
                 my_rho_g => rho_g(ispin)%pw
              END IF
           END IF
+
+          my_rho_r_local=.TRUE.
+          CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
+               use_data=REALDATA3D, in_space=REALSPACE, &
+               error=error)
+          CALL pw_copy(rho_r(ispin)%pw,my_rho_r(ispin)%pw)
+          CALL zero_core(my_rho_r(ispin)%pw,atoms,set_shift=0,error=error)
        ELSE
           my_rho_r_local=.TRUE.
           CALL pw_pool_create_pw(pw_pool, my_rho_r(ispin)%pw,&
@@ -1146,6 +1153,7 @@ CONTAINS
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
+          CALL zero_core(my_rho_r(ispin)%pw,atoms,set_shift=0,error=error)
        END IF
        IF (needs_rho_g.AND..NOT.ASSOCIATED(my_rho_g)) THEN
           my_rho_g_local=.TRUE.
@@ -1264,7 +1272,7 @@ CONTAINS
                   error=error)
           END IF
           DO idir=1,3
-             CALL zero_core(drho_r(idir,ispin)%pw,atoms,error=error)
+             CALL zero_core(drho_r(idir,ispin)%pw,atoms,set_shift=2,error=error)
           END DO
        END IF
     END DO
@@ -1565,9 +1573,10 @@ CONTAINS
 !!     fawzi
 !!
 !!*** *********************************************************************
-  SUBROUTINE zero_core(deriv,subsys,error)
+  SUBROUTINE zero_core(deriv,subsys,set_shift,error)
     TYPE(pw_type), POINTER                   :: deriv
     TYPE(cp_subsystem_p_type), DIMENSION(:)  :: subsys
+    INTEGER, INTENT(in)                      :: set_shift
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1583,11 +1592,10 @@ CONTAINS
     LOGICAL                                  :: atBoundary, failure
     REAL(dp)                                 :: int_radius, r, r_n, r_n2, &
                                                 radius, radius_2, range_2
-    REAL(dp), DIMENSION(2)                   :: ldaCoreRadius
     REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr, rv
+    REAL(dp), DIMENSION(4)                   :: ldaCoreRadius
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
@@ -1604,14 +1612,14 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind,&
                ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
 
-          IF (ldaCoreRadius(2)>0) THEN
+          IF (ldaCoreRadius(set_shift+2)>0._dp) THEN
              CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
              CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
-             int_radius=ldaCoreRadius(1)
-             radius=MAXVAL(dr)*ldaCoreRadius(2)
+             int_radius=ldaCoreRadius(set_shift+1)
+             radius=MAXVAL(dr)*ldaCoreRadius(set_shift+2)
              range_2=(radius-int_radius)/2.0_dp
              radius_2=int_radius+range_2
-             iRadius=CEILING(ldaCoreRadius(2))
+             iRadius=CEILING(ldaCoreRadius(set_shift+2))
              DO iatom=1,natom
                 pos=particles%els(atom_list(iatom))%r
                 bo=deriv%pw_grid%bounds_local
@@ -1743,9 +1751,10 @@ CONTAINS
 !!     fawzi
 !!
 !!*** *********************************************************************
-  SUBROUTINE zero_core_force(energy,subsys,error)
+  SUBROUTINE zero_core_force(energy,subsys,set_shift,error)
     TYPE(pw_type), POINTER                   :: energy
     TYPE(cp_subsystem_p_type), DIMENSION(:)  :: subsys
+    INTEGER, INTENT(in)                      :: set_shift
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1762,15 +1771,15 @@ CONTAINS
     REAL(dp)                                 :: int_radius, r, r_n, r_n2, &
                                                 radius, radius_2, range_2, tmp
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: f
-    REAL(dp), DIMENSION(2)                   :: ldaCoreRadius
     REAL(dp), DIMENSION(3)                   :: dr, pos, posCorr, rv
+    REAL(dp), DIMENSION(4)                   :: ldaCoreRadius
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_list_type), POINTER        :: particles
 
 !JV    logger => cp_error_get_logger(error)
+
     dr=energy%pw_grid%dr
     npoints=energy%pw_grid%npts
     failure=.FALSE.
@@ -1785,14 +1794,14 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind,&
                ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
 
-          IF (ldaCoreRadius(2)>0) THEN
+          IF (ldaCoreRadius(set_shift+2)>0) THEN
              CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
              CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
-             int_radius=ldaCoreRadius(1)
-             radius=MAXVAL(dr)*ldaCoreRadius(2)
+             int_radius=ldaCoreRadius(set_shift+1)
+             radius=MAXVAL(dr)*ldaCoreRadius(set_shift+2)
              range_2=(radius-int_radius)/2.0_dp
              radius_2=int_radius+range_2
-             iRadius=CEILING(ldaCoreRadius(2))
+             iRadius=CEILING(ldaCoreRadius(set_shift+2))
              ALLOCATE(f(3,natom),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              f=0.0_dp

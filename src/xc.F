@@ -603,7 +603,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
 
   failure=.FALSE.
   NULLIFY(vxc_rho2,vxc_tau2,tau2,dSet1,dSet2,rho_set1,rho_set2,split_desc,pot,pot3,pot3,&
-       deriv,deriv2,deriv3)
+       deriv,deriv2,deriv3,rho2_g)
 
   IF (.NOT. failure) THEN
      bo = rho_r(1)%pw%pw_grid%bounds_local
@@ -896,8 +896,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        CALL xc_dset_release(dSet1, error=error)
        DO ispin=1,2
           CALL pw_pool_give_back_pw(pw_pool,rho2_r(ispin)%pw,&
-               error=error)
-          CALL pw_pool_give_back_pw(pw_pool,rho2_g(ispin)%pw,&
                error=error)
           CALL pw_pool_give_back_pw(pw_pool,vxc_rho2(ispin)%pw,&
                error=error)
@@ -2534,7 +2532,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
       lsd, my_calculate_forces, zero_result
     REAL(KIND=dp)                            :: drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
-    REAL(kind=dp), DIMENSION(2)              :: max_ldaCoreRadius
+    REAL(kind=dp), DIMENSION(4)              :: max_ldaCoreRadius
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, norm_drho, &
                                                 norm_drho_spin, rho, rhoa, &
@@ -2562,12 +2560,13 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
      NULLIFY(vxc_to_deriv(i)%pw)
   END DO
   my_calculate_forces=.FALSE.
-  IF (calculate_forces) my_calculate_forces=calculate_forces
+  IF (PRESENT(calculate_forces)) my_calculate_forces=calculate_forces
   ldaCore=.FALSE.
   DO i=1,SIZE(atoms)
      CALL get_atomic_kind_set(atoms(i)%subsys%atomic_kinds%els,&
           max_ldaCoreRadius=max_ldaCoreRadius)
-     ldaCore=ldaCore.OR.(max_ldaCoreRadius(2)>0.0_dbl)
+     ldaCore=ldaCore.OR.(max_ldaCoreRadius(2)>0.0_dbl).OR.&
+          (max_ldaCoreRadius(4)>0.0_dbl)
   END DO
   pw_grid => rho_r(1)%pw%pw_grid
 
@@ -2617,10 +2616,15 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
               CASE("(rho)","(rhoa)","(rhob)","(norm_drho)","(norm_drhoa)",&
                    "(norm_drhob)")
                  n_deriv=n_deriv+1
-              CASE("(tau)","(taua)","(taub)")
+              CASE("(tau)","(tau_a)","(tau_b)")
                  has_tau=.TRUE.
                  n_deriv=n_deriv+1
               CASE default
+                 !FM if you are looking at this error probably you are missing the
+                 !FM cross term (drhoa_drhob), I never got round to implement it,
+                 !FM in the functionals that I have implemented I use norm_drho
+                 !FM instead, either do the same or implement it, it shouldn't be
+                 !FM difficult (I am just lazy ;)
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "unknown functional derivative (LSD): '"//&
                       TRIM(desc)//"' in "//&
@@ -2629,6 +2633,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
               END SELECT
            ELSE
               SELECT CASE(desc)
+              CASE("(z)")
               CASE("(rho)","(norm_drho)")
                  n_deriv=n_deriv+1
               CASE("(tau)")
@@ -2761,7 +2766,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                  END DO
               END DO
            END IF
-           CALL zero_core_force(tmp_r,atoms,error=error)
+           CALL zero_core_force(tmp_r,atoms,set_shift=2,error=error)
            CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
         END IF
            
@@ -3083,7 +3088,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                  END IF
               END DO
               IF (ldaCore) THEN
-                 CALL zero_core(tmp_r,atoms,error=error)
+                 CALL zero_core(tmp_r,atoms,set_shift=2,error=error)
                  CALL pw_sumup(tmp_r,vxc_rho(ispin)%pw)
                  CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
               ELSE
@@ -3092,7 +3097,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            END IF
         END IF
 
-!FM        CALL zero_core(vxc_rho(ispin)%pw,atoms,error=error)
+        CALL zero_core(vxc_rho(ispin)%pw,atoms,set_shift=0,error=error)
 
         IF (pw_grid%spherical) THEN
            ! filter vxc
@@ -3185,7 +3190,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
            NULLIFY(vxc_tau(ispin)%pw)
         END DO
         IF (lsd) THEN
-           deriv_att => xc_dset_get_derivative(deriv_set, "(taua)", error=error)
+           deriv_att => xc_dset_get_derivative(deriv_set, "(tau_a)", error=error)
            IF (ASSOCIATED(deriv_att)) THEN
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                    error=error)
@@ -3195,7 +3200,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                    cr3d_ptr=deriv_data, error=error)
               NULLIFY(deriv_att%deriv_data)
            END IF
-           deriv_att => xc_dset_get_derivative(deriv_set, "(taub)", error=error)
+           deriv_att => xc_dset_get_derivative(deriv_set, "(tau_b)", error=error)
            IF (ASSOCIATED(deriv_att)) THEN
               CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
                    error=error)

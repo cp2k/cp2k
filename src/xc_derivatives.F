@@ -91,7 +91,9 @@ MODULE xc_derivatives
                                              thomas_fermi_lda_eval,&
                                              thomas_fermi_lsd_eval
   USE xc_tpss,                         ONLY: my_tpss_lda_eval => tpss_lda_eval,&
-                                             my_tpss_lda_info => tpss_lda_info
+                                             my_tpss_lda_info => tpss_lda_info,&
+                                             my_tpss_lsd_eval => tpss_lsd_eval,&
+                                             my_tpss_lsd_info => tpss_lsd_info
   USE xc_tpss_p,                       ONLY: tpss_lsd_eval,&
                                              tpss_lsd_info
   USE xc_tpss_u,                       ONLY: tpss_lda_eval,&
@@ -393,8 +395,11 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
            CALL tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
         END IF
      CASE("MY_TPSS")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+        IF (lsd) THEN
+           CALL my_tpss_lsd_info(reference,shortform,needs,max_deriv,error=error)
+        ELSE
+           CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
+        END IF
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -640,8 +645,11 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
            CALL tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         END IF
      CASE("MY_TPSS")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        IF (lsd) THEN
+           CALL my_tpss_lsd_eval(rho_set,deriv_set,deriv_order,error=error)
+        ELSE
+           CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
+        END IF
      CASE("NONE")
         !
      CASE default
