@@ -899,6 +899,8 @@ CONTAINS
 
     CALL timeset("cp_fm_maxval","I","",handle)
 
+    my_block => matrix%local_data
+
     a_max = MAXVAL(ABS(my_block))
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
