@@ -49,6 +49,7 @@ MODULE kg_gpw_correction
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
                                              rs_pools_dealloc
@@ -74,6 +75,7 @@ MODULE kg_gpw_correction
                                              l_info_retain,&
                                              l_info_release,&
                                              l_info_type
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -188,6 +190,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER              :: atomic_kind
     TYPE(cell_type), POINTER                     :: cell_mol
     TYPE(coeff_type), DIMENSION(:), POINTER      :: vxc_rho, vxc_tau
+    TYPE(cp_para_env_type), POINTER              :: para_env
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                    :: fm_mol_blocks
@@ -216,11 +219,11 @@ CONTAINS
     ! initialize to zero
     ekin_mol = 0.0_dp
 
-    NULLIFY(atomic_kind_set,atomic_kind,particle_set)
-    NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,vxc_tau,tau)
+    NULLIFY(atomic_kind_set,atomic_kind,particle_set,para_env)
+    NULLIFY(dft_control,rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-                    dft_control=dft_control,rho=rho_global)
+                    dft_control=dft_control,rho=rho_global,para_env=para_env)
 
     ! Modify temporarely dft_control to calculate only the kinetic energy functional
     functionals_tmp(1:3) = dft_control%xc_control%functionals(1:3)
@@ -448,6 +451,7 @@ CONTAINS
 
       END DO ! imolecule_kind
 
+       CALL mp_sum(ekin_mol,para_env%group)
     END IF ! failure
 
 
