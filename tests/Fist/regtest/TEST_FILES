@@ -22,7 +22,8 @@ argon.inp                 2
 argon_npt.inp             2 
 water_1.inp               2
 water_2.inp               2
-water_3.inp               2
+water_3_g3x3.inp          2
+water_3_dist.inp          2
 ethene.inp                2
 butane.inp                2
 deca_ala.inp              2
