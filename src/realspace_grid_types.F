@@ -549,11 +549,11 @@ SUBROUTINE rs_pw_transfer ( rs, pw, dir )
      IF ( rs % group_dim ( 1 ) == 1 ) THEN
        !Only one type of grid, this is easy
 
+       np = pw % pw_grid % para % group_size
        bo => pw % pw_grid % para % bo (1:2,1:3,0:np-1,1)
        pbo => pw % pw_grid % bounds
        group = pw % pw_grid % para % rs_group
        mepos = pw % pw_grid % para % rs_mpo 
-       np = pw % pw_grid % para % group_size
        ALLOCATE ( rcount ( 0 : np - 1 ), STAT = ierr )
        IF ( ierr /= 0 ) CALL stop_memory ( "rs_pw_transfer", "rcount", 2*np )
        DO ip = 1, np
