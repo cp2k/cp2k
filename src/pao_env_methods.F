@@ -32,7 +32,7 @@ module pao_env_methods
   use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
        cp_error_message, cp_assertion_failed, cp_error_init,&
        cp_error_get_print_level, cp_error_get_stop_level, cp_error_get_level,&
-       cp_dealloc_ref, cp_error_get_logger
+       cp_dealloc_ref, cp_error_get_logger, cp_internal_error
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -40,11 +40,13 @@ module pao_env_methods
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use cp_sparse_matrix, only: cp_sparse_matrix_type, cp_sparse_matrix_p_type,&
        cp_create, cp_dealloc, cp_get_matrix, cp_retain, cp_release
-  use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set, &
-        pao_g_ang_did_change
+  use pao_glob_angles_methods, only: pao_g_ang_init, cp_dealloc, cp_set
   use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type
-  use pao_bas_projection_types, only: pao_bas_projection_type
+  use pao_bas_projection_types, only: pao_bas_projection_type,cp_proj_get
   use pao_qs_env_methods, only: cp_get_b_projection
+  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type, &
+       cp_bmstruct_create, cp_bmstruct_release
   implicit none
   private
 
@@ -53,14 +55,14 @@ module pao_env_methods
   character(len=*), private, parameter :: moduleN='pao_env_methods'
 
 ! core procedures
-  public :: cp_init, cp_dealloc_ref, cp_set, cp_did_change
+  public :: cp_init, cp_dealloc_ref, cp_set
 
 ! core functions
   public :: cp_validate
 
 ! underlying routines
   public :: pao_env_init, pao_env_dealloc_ref, pao_env_validate,&
-       pao_env_set, pao_env_did_change
+       pao_env_set
 
 ! ============== interfaces ===========
 
@@ -89,12 +91,6 @@ module pao_env_methods
 !! the optional attributes depend on the type of the first
   interface cp_set
      module procedure pao_env_set
-  end interface
-
-!! tells the object that its internal values have changes and its cached
-!! values may be invalid
-  interface cp_did_change
-     module procedure pao_env_did_change
   end interface
 
 ! +++ end of the core methods +++
@@ -164,24 +160,68 @@ contains
     logical :: failure
     character(len=*), parameter :: routineP='pao_env_methods:pao_env_init'
     type(cp_error_type) :: iError
-    integer :: stat, i, n_atoms, size_excl_bas, size_min_bas
+    integer :: stat, i, n_atoms, size_excl_bas, size_min_bas, size_full_bas,j
     type(real_matrix_p_type), dimension(:), pointer :: p
     type(pao_bas_projection_type), pointer :: bproj
+    integer, dimension(:), allocatable :: min_bas_sizes, full_bas_sizes
+    type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
+    integer, dimension(:), pointer :: atom_list
+    character(len=60) :: name
     failure=.false.
     call cp_error_init(iError, template_error=error)
 
     nullify(pao_env%angles_begin_at)
     pao_env%min_d_m_valid=.false.
 
-! check min_bas/full_bas
-! to do
+    ! check projection
+    call get_qs_env(qs_env, atomic_kind_set= atomic_kind_set,natoms=n_atoms)
+    CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
+    if (.not.failure) then
+       allocate(min_bas_sizes(n_atoms), full_bas_sizes(n_atoms),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    end if
+    if (.not.failure) then
+       do i=1,size(atomic_kind_set)
+          call get_atomic_kind(atomic_kind_set(i),pao_bas_proj=bproj,&
+               atom_list=atom_list)
+          if (.not.associated(bproj)) then
+             call get_atomic_kind(atomic_kind_set(i),name=name)
+             call cp_assert(.false.,cp_failure_level, cp_internal_error,&
+                  routineP,&
+                  "projection (PAO_MIN_BAS) not defined in kind "//name &
+                  //", "//&
+                  CPSourceFileRef,&
+                  error=error,failure=failure)
+          else
+             call cp_proj_get(bproj,size_min_bas=size_min_bas,&
+                  size_full_bas=size_full_bas,error=error)
+             do j=1,size(atom_list)
+                min_bas_sizes(atom_list(i))=size_min_bas
+                full_bas_sizes(atom_list(i))=size_full_bas
+             end do
+          end if
+       end do
+       
+       ! min_bas_m_struct / full_bas_m_struct
+       if (.not.failure) then
+          call cp_bmstruct_create(pao_env%min_bas_m_struct,&
+               symmetric=.true.,&
+               global_env=global_env,&
+               b_row_sizes=min_bas_sizes,&
+               b_col_sizes=min_bas_sizes,&
+               error=error)
+          call cp_bmstruct_create(pao_env%full_bas_m_struct,&
+               symmetric=.true.,&
+               global_env=global_env,&
+               b_row_sizes=full_bas_sizes,&
+               b_col_sizes=full_bas_sizes,&
+               error=error)
+       end if
+       deallocate(min_bas_sizes, full_bas_sizes, stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+    end if
 
-! min_bas_m_struct / full_bas_m_struct
-! to do
-    nullify(pao_env%min_bas_m_struct, pao_env%full_bas_m_struct)
-    CPAssert(.false.,cp_failure_level,routineP,error,failure)
-
-! others
+    ! others
     call get_qs_env(qs_env,p=p, natoms=n_atoms)
     allocate(pao_env%min_density_m(size(p)),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -195,7 +235,7 @@ contains
     pao_env%wanted_subspace_pos_precision=1.0e-4_wp
     pao_env%wanted_in_subspace_precision=1.0e-4_wp
     pao_env%initialized=.true.
-! min_d
+    ! min_d
     if (.not.failure) then
        do i=1,size(pao_env%min_density_m)
           call cp_create(pao_env%min_density_m(i)%matrix,&
@@ -203,12 +243,12 @@ contains
                global_env=global_env, error=error)
        end do
     end if
-! angles_att
+    ! angles_att
     if (.not.failure) then
        call pao_g_ang_init(pao_env%angles_att, global_env=global_env,&
             qs_env=qs_env, error=error)
     end if
-! angles_begin_at
+    ! angles_begin_at
     if (.not.failure) then
        allocate(pao_env%angles_begin_at(n_atoms+1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -299,6 +339,14 @@ contains
        if (associated(pao_env%angles_begin_at)) then
           deallocate(pao_env%angles_begin_at,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       end if
+       if (associated(pao_env%min_bas_m_struct)) then
+          call cp_bmstruct_release(pao_env%min_bas_m_struct,error=error)
+          nullify(pao_env%min_bas_m_struct)
+       end if
+       if (associated(pao_env%full_bas_m_struct)) then
+          call cp_bmstruct_release(pao_env%full_bas_m_struct, error=error)
+          nullify(pao_env%full_bas_m_struct)
        end if
        pao_env%initialized=.false.
     end if failureIf
@@ -551,64 +599,6 @@ contains
     end if
     call cp_dealloc_ref(iError,error=error)
   end subroutine pao_env_set
-!***************************************************************************
-
-!!****f* pao_env_methods/pao_env_did_change [1.0] *
-!!
-!!   NAME
-!!     pao_env_did_change
-!!
-!!   SYNOPSIS
-!!     Subroutine pao_env_did_change(pao_env, h_changed, s_changed,&
-!!         angles_changed, full_reset, error)
-!!       Type(pao_env_type), Intent (INOUT):: pao_env
-!!       Logical, Intent (IN), Optional:: h_changed, s_changed,&
-!!         angles_changed, full_reset
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pao_env_did_change
-!!
-!!   FUNCTION
-!!     invalidates the cache when some data changes
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 2.2002
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** **********************************************************************
-subroutine pao_env_did_change(pao_env,h_changed, s_changed,&
-     angles_changed, full_reset, error)
-  type (pao_env_type), intent(inout) :: pao_env
-  logical, intent(in), optional :: h_changed, s_changed, &
-       angles_changed, full_reset
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_env_did_change',&
-       routineP=moduleN//':'//routineN
-  logical :: h_c, s_c, a_c, full_r
-  failure=.false.
-  h_c=.true. ; s_c=.true. ; a_c=.true. ; full_r=.false.
-  
-  CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     if (present(h_changed)) h_c=h_changed
-     if (present(s_changed)) s_c=s_changed
-     if (present(angles_changed)) a_c=angles_changed
-     if (present(full_reset)) full_r=full_reset
-     call pao_g_ang_did_change(pao_env%angles_att, h_changed, s_changed,&
-          angles_changed, full_reset, error)
-  end if
-end subroutine pao_env_did_change
 !***************************************************************************
 
 end module pao_env_methods

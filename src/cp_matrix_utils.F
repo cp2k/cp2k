@@ -37,6 +37,8 @@ module cp_matrix_utils
   use timings, only: timeset, timestop
   use sparse_matrix_types
   use message_passing, only: mp_sum
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type,&
+       cp_b_distribution_type
   !use qs_blacs, only:
   implicit none
   private
@@ -59,7 +61,8 @@ module cp_matrix_utils
   public :: cp_sm_diag_trace, cp_sm_set_to, cp_matrix_b_i_init,&
        cp_matrix_b_i_dealloc_ref, cp_matrix_b_i_get, &
        cp_matrix_b_i_next_block, cp_matrix_b_i_valid, &
-       cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks
+       cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
+       cp_sm_set_dist_sparsity_from_sm
 
   ! return the trace of the given matrices
   interface cp_trace
@@ -1050,6 +1053,63 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
   res=.not.failure
   !call timestop(0.0_wp,handle)
 end function cp_sm_is_block_diagonal
+!***************************************************************************
+
+!!****f* cp_matrix_utils/cp_sm_set_dist_sparsity_from_sm [1.0] *
+!!
+!!   NAME
+!!     cp_sm_set_dist_sparsity_from_sm
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
+!!         sample_matrix, error)
+!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: m_struct
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(real_matrix_type), Pointer:: sample_matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_set_dist_sparsity_from_sm
+!!
+!!   FUNCTION
+!!     sets the distribution and sparsity taking them from the given
+!!     sparse matrix
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - m_struct: the matrix structure to be initialized
+!!     - global_env: the global environment (for mpi)
+!!     - sample_matrix: the matrix you get the info from
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sm_set_dist_sparsity_from_sm(m_struct, global_env,&
+     sample_matrix,error)
+  type(cp_b_matrix_struct_type), intent(inout) :: m_struct
+  type(global_environment_type), intent(in), target :: global_env
+  type(real_matrix_type), pointer :: sample_matrix
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sm_set_dist_sparsity_from_sm',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+#ifdef __parallel
+  ! to do
+  CPAssert(.false.,cp_failure_level,routineP,error,failure)
+#else
+  m_struct%distribution%block_owner = global_env%source
+  if (associated(m_struct%sparsity)) m_struct%sparsity=.true.
+#endif
+end subroutine cp_sm_set_dist_sparsity_from_sm
 !***************************************************************************
 
 end module cp_matrix_utils

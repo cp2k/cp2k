@@ -50,7 +50,7 @@ module cp_sparse_matrix
   public :: cp_sp_create, cp_sp_dealloc, cp_sp_retain, cp_sp_release,&
        cp_sp_consolidate_matrix, cp_sp_get_local_block,&
        cp_sp_release_block, cp_sp_set_local_block, cp_sp_remove_block,&
-       cp_sp_array_dealloc, cp_sp_get_matrix
+       cp_sp_array_dealloc, cp_sp_get_matrix, cp_sp_array_release
 
   interface cp_create
      module procedure cp_sp_create
@@ -62,7 +62,7 @@ module cp_sparse_matrix
      module procedure cp_sp_retain
   end interface
   interface cp_release
-     module procedure cp_sp_release
+     module procedure cp_sp_release, cp_sp_array_release
   end interface
   interface cp_get_matrix
      module procedure cp_sp_get_matrix
@@ -998,5 +998,52 @@ contains
     end if
   end subroutine cp_sp_array_dealloc
   !***************************************************************************
+
+!!****f* cp_sparse_matrix/cp_sp_array_release [1.0] *
+!!
+!!   NAME
+!!     cp_sp_array_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sp_array_release(array, error)
+!!       Type(cp_sparse_matrix_p_type), Dimension(:), Intent (INOUT)::&
+!!         array
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sp_array_release
+!!
+!!   FUNCTION
+!!     releases all the elements of an array of cp_sparse_matrix_p_type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - array: the array to be released
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sp_array_release(array,error)
+  type(cp_sparse_matrix_p_type), dimension(:), intent(inout) :: array
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sp_array_release',&
+        routineP=moduleN//':'//routineN
+  integer :: i
+  failure=.false.
+  
+  do i=1,size(array)
+     call cp_release(array(i)%matrix,error=error)
+     nullify(array(i)%matrix)
+  end do
+end subroutine cp_sp_array_release
+!***************************************************************************
 
 end module cp_sparse_matrix

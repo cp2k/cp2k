@@ -146,9 +146,9 @@ contains
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN), Optional:: ut_calculated
 !!       Type(cp_sparse_matrix_type), Intent (IN), Optional, Target::&
-!!         unitary_t, min_overlap_m
-!!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
-!!         Optional:: min_hamiltonian_m
+!!         unitary_t
+!!       Type(cp_sparse_matrix_p_type), Intent (IN), Optional,&
+!!         Dimension(:):: min_overlap_m, min_hamiltonian_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_init
 !!
@@ -179,10 +179,9 @@ contains
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
     logical, dimension(:), intent(in), optional :: ut_calculated
-    type(cp_sparse_matrix_type), intent(in), optional, target :: unitary_t,&
-         min_overlap_m
-    type(cp_sparse_matrix_p_type), intent(in), dimension(:), optional ::&
-         min_hamiltonian_m
+    type(cp_sparse_matrix_type), intent(in), optional, target :: unitary_t
+    type(cp_sparse_matrix_p_type), intent(in), optional, &
+         dimension(:) :: min_overlap_m, min_hamiltonian_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -332,10 +331,9 @@ contains
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Intent (IN), Optional:: source
 !!       Logical, Dimension(:), Intent (IN):: ut_calculated
-!!       Type(cp_sparse_matrix_type), Intent (IN), Target:: unitary_t,&
-!!         min_overlap_m
+!!       Type(cp_sparse_matrix_type), Intent (IN), Target:: unitary_t
 !!       Type(cp_sparse_matrix_p_type), Intent (IN), Dimension(:),&
-!!         Optional:: min_hamiltonian_m
+!!         Optional:: min_hamiltonian_m, min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_create
 !!
@@ -368,10 +366,10 @@ contains
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), intent(in), optional :: source
     logical, dimension(:), intent(in) :: ut_calculated
-    type(cp_sparse_matrix_type), intent(in), target :: unitary_t,&
-         min_overlap_m
+    type(cp_sparse_matrix_type), intent(in), target :: unitary_t
+
     type(cp_sparse_matrix_p_type), intent(in), dimension(:), optional ::&
-         min_hamiltonian_m
+         min_hamiltonian_m, min_overlap_m
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -498,18 +496,21 @@ contains
 !!   SYNOPSIS
 !!     Subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,&
 !!         source, ut_calculated, unitary_t, min_overlap_m,&
-!!         min_hamiltonian_m, m_s_m_valid, m_h_m_valid, error)
+!!         min_hamiltonian_m, m_s_m_valid, m_h_m_valid, angles_val, error)
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Real(Kind=wp), Optional, Dimension(:), Intent (IN):: angles
 !!       Type(pao_glob_angles_type), Optional, Intent (IN):: source
+!!       Type(cp_sparse_matrix_p_type), Optional, Intent (IN),&
+!!         Dimension(:):: min_overlap_m
 !!       Type(cp_sparse_matrix_type), Optional, Intent (IN), Target::&
-!!         min_overlap_m, unitary_t
+!!         unitary_t
 !!       Type(cp_sparse_matrix_p_type), Dimension(:), Intent (IN),&
 !!         Optional:: min_hamiltonian_m
 !!       Logical, Dimension(:), Optional, Intent (IN):: ut_calculated
 !!       Logical, Intent (IN), Optional:: m_h_m_valid, m_s_m_valid
+!!       Real(Kind=wp), Intent (IN), Optional:: angles_val
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_set
 !!
@@ -544,18 +545,20 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_ang_set(glob_angles, qs_env, global_env, angles,source,&
        ut_calculated, unitary_t,min_overlap_m, min_hamiltonian_m,&
-       m_s_m_valid, m_h_m_valid, error)
+       m_s_m_valid, m_h_m_valid, angles_val, error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
     type(global_environment_type), intent(in), target :: global_env
     real(kind=wp), optional, dimension(:), intent(in) :: angles
     type(pao_glob_angles_type), optional, intent(in) :: source
-    type(cp_sparse_matrix_type), optional, intent(in), target :: &
-         min_overlap_m, unitary_t
+    type(cp_sparse_matrix_p_type), optional, intent(in), dimension(:) :: &
+         min_overlap_m
+    type(cp_sparse_matrix_type), optional, intent(in), target :: unitary_t
     type(cp_sparse_matrix_p_type), dimension(:), intent(in),&
          optional :: min_hamiltonian_m
     logical, dimension(:), optional, intent(in) :: ut_calculated
     logical, intent(in), optional :: m_h_m_valid, m_s_m_valid
+    real(kind=wp), intent(in), optional :: angles_val
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -617,6 +620,16 @@ contains
           if (.not. failure) then
              glob_angles%angles = angles
           end if
+       end if
+       if (present(angles_val)) then
+          call cp_1d_r_guarantee_size(glob_angles%angles,&
+               pao_env%angles_begin_at(size(pao_env%angles_begin_at)-1),&
+               error=iError)
+          call cp_error_propagate_error(iError,routineP,&
+               message="error in cp_guarantee_size called in "//&
+               CPSourceFileRef,&
+               error=error,failure_level=cp_failure_level,failure=failure)
+          glob_angles%angles=angles_val
        end if
        call pao_g_angles_set_unitary_t(glob_angles,&
             ut_calculated=ut_calculated,&
@@ -910,20 +923,29 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_angles_set_min_s_m(glob_angles, new_value,error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_sparse_matrix_type), target :: new_value
+    type(cp_sparse_matrix_p_type), dimension(:),optional, &
+         intent(in) :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineP='pao_glob_angles_methods:pao_g_angles_set_min_s_m'
-    type(cp_sparse_matrix_type), pointer :: n_value
+    integer :: i, stat
+    type(cp_sparse_matrix_type), pointer :: n_val
     failure=.false.
-    n_value => new_value
 
-    if (associated(n_value)) then
+    if (present(new_value)) then
        glob_angles%m_s_m_valid=.true.
-       call cp_retain(new_value, error=error)
-       call cp_release(glob_angles%min_overlap_m,error=error)
-       glob_angles%min_overlap_m => new_value
+       do i=1,size(new_value)
+          n_val => new_value(i)%matrix
+          call cp_retain(n_val, error=error)
+       end do
+       if (associated(glob_angles%min_overlap_m)) then
+          call cp_dealloc(glob_angles%min_overlap_m,error=error)
+       end if
+       allocate(glob_angles%min_overlap_m(size(new_value)),stat=stat)
+       do i=1,size(new_value)
+          glob_angles%min_overlap_m(i)%matrix => new_value(i)%matrix
+       end do
     else if (associated(glob_angles%min_overlap_m)) then
 ! do not dealloc ??
        call cp_dealloc(glob_angles%min_overlap_m,error=error)
@@ -958,33 +980,33 @@ contains
 !!*** **********************************************************************
   subroutine pao_g_angles_set_min_h_m(glob_angles, new_value,error)
     type(pao_glob_angles_type), intent(inout) :: glob_angles
-    type(cp_sparse_matrix_p_type), dimension(:), target :: new_value
+    type(cp_sparse_matrix_p_type), dimension(:), optional, &
+         intent(in) :: new_value
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
     character(len=*), parameter :: routineN='pao_g_angles_set_min_h_m',&
          routineP=moduleN//':'//routineN
-    type(cp_sparse_matrix_p_type), dimension(:), pointer :: n_value
     integer :: i, stat
-    type(cp_sparse_matrix_p_type), dimension(:), pointer :: tmp_array
+    type(cp_sparse_matrix_type), pointer :: n_val
     failure=.false.
-    n_value => new_value
 
-    if (associated(n_value)) then
-       glob_angles%m_h_m_valid=.true.
-       allocate(tmp_array(size(new_value)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          do i=1,size(new_value)
-             call cp_retain(new_value(i)%matrix, error=error)
-             tmp_array(i)%matrix => new_value(i)%matrix
-          end do
-          call cp_dealloc(glob_angles%min_hamiltonian_m, error=error)
-          glob_angles%min_hamiltonian_m => tmp_array
+    if (present(new_value)) then
+       glob_angles%m_s_m_valid=.true.
+       do i=1,size(new_value)
+          n_val => new_value(i)%matrix
+          call cp_retain(n_val, error=error)
+       end do
+       if (associated(glob_angles%min_overlap_m)) then
+          call cp_dealloc(glob_angles%min_overlap_m,error=error)
        end if
-    else if (associated(glob_angles%min_hamiltonian_m)) then
-       ! do not dealloc ??
-       call cp_dealloc(glob_angles%min_hamiltonian_m,error=error)
+       allocate(glob_angles%min_overlap_m(size(new_value)),stat=stat)
+       do i=1,size(new_value)
+          glob_angles%min_overlap_m(i)%matrix => new_value(i)%matrix
+       end do
+    else if (associated(glob_angles%min_overlap_m)) then
+! do not dealloc ??
+       call cp_dealloc(glob_angles%min_overlap_m,error=error)
     end if
   end subroutine pao_g_angles_set_min_h_m
 !***************************************************************************
@@ -995,9 +1017,11 @@ contains
 !!     pao_g_ang_did_change
 !!
 !!   SYNOPSIS
-!!     Subroutine pao_g_ang_did_change(glob_angles, h_changed, s_changed,&
-!!         angles_changed, full_reset, error)
-!!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
+!!     Subroutine pao_g_ang_did_change(glob_angles, qs_env, global_env,&
+!!         h_changed, s_changed, angles_changed, full_reset, error)
+!!       Type(pao_glob_angles_type), Intent (INOUT), Target:: glob_angles
+!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Logical, Intent (IN), Optional:: h_changed, s_changed,&
 !!         angles_changed, full_reset
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -1026,9 +1050,12 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_g_ang_did_change(glob_angles,h_changed, s_changed,&
+  subroutine pao_g_ang_did_change(glob_angles,qs_env,global_env,&
+       h_changed, s_changed,&
        angles_changed, full_reset, error)
-    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(pao_glob_angles_type), intent(inout),target :: glob_angles
+    type(qs_environment_type), intent(in),target :: qs_env
+    type(global_environment_type), intent(in),target ::global_env
     logical, intent(in), optional :: h_changed, s_changed, &
          angles_changed, full_reset
     type(cp_error_type), optional, intent(inout) :: error
@@ -1037,7 +1064,7 @@ contains
     integer :: handle, stat
     character(len=*), parameter :: routineN='pao_g_ang_did_change',&
          routineP=moduleN//':'//routineN
-    logical :: h_c, s_c, a_c, full_r
+    logical :: h_c,s_c, a_c, full_r
     !call timeset(routineN,'I',moduleN,handle)
     failure=.false.
     h_c=.true. ; s_c=.true. ; a_c=.true. ; full_r=.false.

@@ -34,9 +34,9 @@
 module cp_lbfgs_optimizer_gerd_f
   use cp_lbfgs, only: setulb, cp_lbfgs_unit_nr
   use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
-	cp_assertion_failed, cp_get_logger
+        cp_assertion_failed, cp_get_logger
   use cp_log_handling, only: cp_to_string, cp_warning_level, cp_failure_level,&
-	cp_std_out_unit_nr, cp_get_default_unit_nr
+        cp_std_out_unit_nr, cp_get_default_unit_nr
   use kinds, only: wp=>dp
   use global_types, only: global_environment_type
   use timings, only: timeset, timestop
@@ -183,6 +183,26 @@ contains
 !!   NAME
 !!     cp_opt_gerd_f_init
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_init(optimizer, global_env, obj_funct, x0,&
+!!         m, print_every, wanted_relative_f_delta,&
+!!         wanted_projected_gradient, lower_bound, upper_bound,&
+!!         kind_of_bound, master, max_f_per_iter, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (OUT):: optimizer
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(pao_gerd_functional_type), Intent (IN), Target:: obj_funct
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
+!!       Integer, Intent (IN), Optional:: m, print_every, master,&
+!!         max_f_per_iter
+!!       Real(Kind=wp), Intent (IN), Optional:: wanted_projected_gradient,&
+!!         wanted_relative_f_delta
+!!       Real(Kind=wp), Intent (IN), Dimension(size(x0)), Optional::&
+!!         lower_bound, upper_bound
+!!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
+!!         kind_of_bound
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_init
+!!
 !!   FUNCTION
 !!     initializes the optimizer
 !!
@@ -293,6 +313,12 @@ contains
 !!   NAME
 !!     cp_opt_gerd_f_dealloc_ref
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_dealloc_ref(optimizer, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_dealloc_ref
+!!
 !!   FUNCTION
 !!     deallocates teh memory used by the optimizer
 !!
@@ -378,6 +404,27 @@ contains
 !!
 !!   NAME
 !!     cp_opt_gerd_f_get
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_get(optimizer, global_env, obj_funct, m,&
+!!         print_every, wanted_relative_f_delta, wanted_projected_gradient,&
+!!         x, lower_bound, upper_bound, kind_of_bound, master,&
+!!         actual_projected_gradient, n_var, n_iter, status, max_f_per_iter,&
+!!         at_end, is_master, last_f, f, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (IN):: optimizer
+!!       Type(global_environment_type), Pointer, Optional:: global_env
+!!       Type(pao_gerd_functional_type), Pointer, Optional:: obj_funct
+!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
+!!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
+!!         master, status, max_f_per_iter
+!!       Logical, Intent (OUT), Optional:: is_master, at_end
+!!       Real(Kind=wp), Intent (OUT), Optional:: wanted_projected_gradient,&
+!!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
+!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: lower_bound,&
+!!         upper_bound
+!!       Integer, Pointer, Dimension(:), Optional:: kind_of_bound
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_get
 !!
 !!   FUNCTION
 !!     takes different valuse from the optimizer
@@ -480,6 +527,17 @@ contains
 !!
 !!   NAME
 !!     cp_opt_gerd_f_step
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_step(optimizer, n_iter, f, last_f,&
+!!         projected_gradient, converged, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Integer, Intent (OUT), Optional:: n_iter
+!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!         projected_gradient
+!!       Logical, Intent (OUT), Optional:: converged
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_step
 !!
 !!   FUNCTION
 !!     does one optimization step
@@ -699,6 +757,18 @@ contains
 !!   NAME
 !!     cp_opt_gerd_f_next
 !!
+!!   SYNOPSIS
+!!     Function cp_opt_gerd_f_next(optimizer, n_iter, f, last_f,&
+!!         projected_gradient, converged, error) Result(res)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Integer, Intent (OUT), Optional:: n_iter
+!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!         projected_gradient
+!!       Logical, Intent (OUT), Optional:: converged
+!!       Logical:: res
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_opt_gerd_f_next
+!!
 !!   FUNCTION
 !!     goes to the next optimal point (after an optimizer iteration)
 !!     returns true if converged
@@ -719,9 +789,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_opt_gerd_f_next(optimizer,error) result(res)
-    logical ::res
+  function cp_opt_gerd_f_next(optimizer,n_iter,f,last_f,&
+       projected_gradient, converged, error) result(res)
     type(cp_lbfgs_opt_gerd_f_type), intent(inout) :: optimizer
+    integer, intent(out), optional :: n_iter
+    real(kind=wp), intent(out), optional :: f, last_f, projected_gradient
+    logical, intent(out), optional :: converged
+    logical ::res
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -733,7 +807,9 @@ contains
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_opt_gerd_f_step(optimizer,error=error)
+       call cp_opt_gerd_f_step(optimizer,n_iter=n_iter,f=f,&
+            last_f=last_f, projected_gradient=projected_gradient,&
+            converged=converged,error=error)
        res= optimizer%status<4
     else
        res=.false.
@@ -747,6 +823,12 @@ contains
 !!
 !!   NAME
 !!     cp_opt_gerd_f_stop
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_opt_gerd_f_stop(optimizer, error)
+!!       Type(cp_lbfgs_opt_gerd_f_type), Intent (INOUT):: optimizer
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_opt_gerd_f_stop
 !!
 !!   FUNCTION
 !!     stops the optimization

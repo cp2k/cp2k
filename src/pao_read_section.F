@@ -43,6 +43,7 @@ module pao_read_section
   use pao_types, only: pao_env_type
   use pao_bas_projection_types, only: pao_bas_projection_type, cp_get
   use atomic_kind_types, only: atomic_kind_type, get_atomic_kind
+  use pao_env_methods, only: pao_env_init
   implicit none
   private
 
@@ -175,22 +176,12 @@ contains
              exit
           end select
        end do
-       ! check projection
-       call get_qs_env(qs_env, atomic_kind_set= atomic_kind_set)
-       CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-         do i=1,size(atomic_kind_set)
-            call get_atomic_kind(atomic_kind_set(i),pao_bas_proj=pao_bas_proj)
-            if (.not.associated(pao_bas_proj)) then
-              call get_atomic_kind(atomic_kind_set(i),name=name)
-              call cp_assert(.false.,cp_failure_level, cp_internal_error,&
-                   routineP,&
-                  "mimimal basis not defined in kind "//name//", "//&
-                  CPSourceFileRef,&
-                  error=error,failure=failure)
-            end if
-         end do
-       end if
+
+       ! initializes pao_env
+       call pao_env_init(pao_env, qs_env=qs_env, global_env=global_env,&
+            wanted_subspace_pos_precision=wanted_subspace_pos_precision,&
+            wanted_in_subspace_precision=wanted_in_subspace_precision,&
+            error=error)
     else
        call cp_log(cp_error_get_logger(error),cp_warning_level,routineP,&
             "no pao section found")

@@ -37,7 +37,8 @@ module pao_proj_methods
   use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
   use cp_matrix_utils, only: cp_matrix_block_iterator, cp_next, cp_init,&
        cp_dealloc_ref, cp_get
-  use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type
+  use cp_sparse_matrix, only: cp_sparse_matrix_p_type, cp_sparse_matrix_type,&
+       cp_sp_create
   use pao_l_angles_methods, only: pao_local_angles_type, cp_get, cp_init, &
        cp_dealloc_ref, cp_set
   use pao_qs_env_methods, only: pao_qs_env_get
@@ -45,6 +46,7 @@ module pao_proj_methods
        get_block_node, add_block_node
   use qs_environment_types, only: qs_environment_type, get_qs_env
   use message_passing, only: mp_sum
+  use cp_b_matrix_structure, only: cp_b_matrix_struct_type
   implicit none
   private
 
@@ -56,8 +58,8 @@ module pao_proj_methods
 ! projection - injection
   public :: cp_m2f, cp_f2m, cp_m2f_with_B_M_pi
 
-  public :: pao_g_ang_get_min_m, sp_matrix_transf_to_m,&
-       sp_matrix_transf_to_f, pao_m_m2f_with_b_m_pi
+  public :: pao_g_ang_get_min_m, sm_matrix_transf_to_m,&
+       sm_matrix_transf_to_f, pao_m_m2f_with_b_m_pi
 
   interface cp_get
      module procedure pao_g_ang_get_min_m
@@ -65,12 +67,12 @@ module pao_proj_methods
 
   ! transfer from full basis to min basis
   interface cp_f2m
-     module procedure sp_matrix_transf_to_m
+     module procedure sm_matrix_transf_to_m
   end interface
 
   !transfer from min basis to full basis
   interface cp_m2f
-     module procedure sp_matrix_transf_to_f
+     module procedure sm_matrix_transf_to_f
   end interface
   
   ! tranfser to full basis with B matrix pi
@@ -121,7 +123,7 @@ contains
 !!*** **********************************************************************
   subroutine pao_m_m2f_with_b_m_pi(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
-    type(real_matrix_type), pointer :: source_m ! make targeg?
+    type(real_matrix_type), pointer :: source_m ! make target?
     type(real_matrix_type), pointer :: target_m ! make target?
     type(pao_glob_angles_type), intent(in) :: glob_angles
     type(qs_environment_type), intent(in), target :: qs_env
@@ -234,13 +236,13 @@ contains
 !***************************************************************************
 
 
-!!****f* pao_types/sp_matrix_transf_to_f [1.0] *
+!!****f* pao_types/sm_matrix_transf_to_f [1.0] *
 !!
 !!   NAME
-!!     sp_matrix_transf_to_f
+!!     sm_matrix_transf_to_f
 !!
 !!   SYNOPSIS
-!!     Subroutine sp_matrix_transf_to_f(source_m, target_m, glob_angles,&
+!!     Subroutine sm_matrix_transf_to_f(source_m, target_m, glob_angles,&
 !!         qs_env, global_env, error)
 !!       Type(real_matrix_type), Pointer:: source_m
 !!       Type(real_matrix_type), Pointer:: target_m
@@ -248,7 +250,7 @@ contains
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sp_matrix_transf_to_f
+!!     End Subroutine sm_matrix_transf_to_f
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the full basis.
@@ -271,7 +273,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine sp_matrix_transf_to_f(source_m, target_m, glob_angles,&
+  subroutine sm_matrix_transf_to_f(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
     type(real_matrix_type), pointer :: source_m ! make target?
     type(real_matrix_type), pointer :: target_m ! make target ?
@@ -281,7 +283,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='sp_matrix_transf_to_f',&
+    character(len=*), parameter :: routineN='sm_matrix_transf_to_f',&
          routineP=moduleN//':'//routineN
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
@@ -388,16 +390,16 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine sp_matrix_transf_to_f
+  end subroutine sm_matrix_transf_to_f
 !***************************************************************************
 
-!!****f* pao_types/sp_matrix_transf_to_m [1.0] *
+!!****f* pao_types/sm_matrix_transf_to_m [1.0] *
 !!
 !!   NAME
-!!     sp_matrix_transf_to_m
+!!     sm_matrix_transf_to_m
 !!
 !!   SYNOPSIS
-!!     Subroutine sp_matrix_transf_to_m(source_m, target_m, glob_angles,&
+!!     Subroutine sm_matrix_transf_to_m(source_m, target_m, glob_angles,&
 !!         qs_env, global_env, error)
 !!       Type(real_matrix_type), Pointer:: source_m
 !!       Type(real_matrix_type), Pointer:: target_m
@@ -405,7 +407,7 @@ contains
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine sp_matrix_transf_to_m
+!!     End Subroutine sm_matrix_transf_to_m
 !!
 !!   FUNCTION
 !!     Transform the given matrix to the minimal basis.
@@ -428,7 +430,7 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine sp_matrix_transf_to_m(source_m, target_m, glob_angles,&
+  subroutine sm_matrix_transf_to_m(source_m, target_m, glob_angles,&
        qs_env, global_env, error)
     type(real_matrix_type), pointer :: source_m ! make target?
     type(real_matrix_type), pointer :: target_m ! make target?
@@ -438,7 +440,7 @@ contains
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
-    character(len=*), parameter :: routineN='sp_matrix_transf_to_m',&
+    character(len=*), parameter :: routineN='sm_matrix_transf_to_m',&
          routineP=moduleN//':'//routineN
     type(cp_matrix_block_iterator) :: iterator
     integer :: brow,bcol, stat, max_bsize,i,j
@@ -541,7 +543,7 @@ contains
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     end if
     call cp_dealloc_ref(iError,error=error)
-  end subroutine sp_matrix_transf_to_m
+  end subroutine sm_matrix_transf_to_m
 !***************************************************************************
 
 !!****f* pao_proj_methods/pao_g_ang_get_min_m [1.0] *
@@ -555,9 +557,9 @@ contains
 !!       Type(pao_glob_angles_type), Intent (INOUT):: glob_angles
 !!       Type(qs_environment_type), Intent (IN), Target:: qs_env
 !!       Type(global_environment_type), Intent (IN), Target:: global_env
-!!       Type(cp_sparse_matrix_p_type), Pointer, Optional, Dimension(:)::&
+!!       Type(cp_sparse_matrix_p_type), Dimension(:), Pointer, Optional::&
 !!         min_hamiltonian_m
-!!       Type(cp_sparse_matrix_p_type), Pointer, Dimension(:)::&
+!!       Type(cp_sparse_matrix_p_type), Dimension(:), Pointer::&
 !!         min_overlap_m
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine pao_g_ang_get_min_m
@@ -586,80 +588,90 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-subroutine pao_g_ang_get_min_m(glob_angles,qs_env,global_env,&
-     min_overlap_m,  min_hamiltonian_m, error)
-  type(pao_glob_angles_type), intent(inout) :: glob_angles
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_sparse_matrix_p_type), pointer, optional, dimension(:) :: &
-       min_hamiltonian_m
-  type(cp_sparse_matrix_p_type), pointer, dimension(:) ::  min_overlap_m
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  integer :: handle
-  character(len=*), parameter :: routineN='pao_g_ang_get_min_m',&
-       routineP=moduleN//':'//routineN
-  type(cp_error_type) :: iError
-  call cp_error_init(iError, template_error=error)
-  failure=.false.
-  
-  !call timeset(routineN//','//moduleN,'I',"",handle)
-  CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-  ! to do
-  CPAssert(.false.,cp_failure_level,routineP,error,failure)
-!!FM  if (.not. failure) then
-!!FM     call get_qs_env(qs_env,h=full
-!!FM!       if (present(min_overlap_m)) then
-!!FM          if (.not.glob_angles%m_s_m_valid) then
-!!FM             if (.not.associated(glob_angles%min_overlap_m)) then
-!!FM                
-!!FM                call cp_create(glob_angles%min_overlap_m, &
-!!FM                     min_bas_cols=.true., min_bas_rows=.true.,&
-!!FM                     pao_env=glob_angles%pao_env)
-!!FM             end if
-!!FM             call pao_matrix_transf_to_m(source_m=&
-!!FM                  glob_angles%pao_env%full_overlap_m, &
-!!FM                  target_m=glob_angles%min_overlap_m,&
-!!FM                  glob_angles=glob_angles,error=error)
-!!FM             glob_angles%m_s_m_valid=.true.
-!!FM          end if
-!!FM          CPAssert(associated(glob_angles%min_overlap_m),cp_failure_level,routineP,error,failure)
-!!FM          if (glob_angles%m_s_m_valid) then
-!!FM             min_overlap_m => glob_angles%min_overlap_m
-!!FM          else
-!!FM             nullify(min_overlap_m)
-!!FM          end if
-!!FM!       end if
-!!FM       if (present(min_hamiltonian_m)) then
-!!FM          if (.not.glob_angles%m_h_m_valid) then
-!!FM             if (.not.associated(glob_angles%min_hamiltonian_m)) then
-!!FM                call cp_create(glob_angles%min_hamiltonian_m, &
-!!FM                     min_bas_cols=.true., min_bas_rows=.true.,&
-!!FM                     pao_env=glob_angles%pao_env,error=iError)
-!!FM                call cp_error_propagate_error(iError,routineP,&
-!!FM                     CPSourceFileRef,&
-!!FM                     error,failure)
-!!FM             end if
-!!FM             if (.not.failure) then
-!!FM                call pao_matrix_transf_to_m(source_m=&
-!!FM                     glob_angles%pao_env%full_hamiltonian_m, &
-!!FM                     target_m=glob_angles%min_hamiltonian_m,&
-!!FM                     glob_angles=glob_angles,error=error)
-!!FM                glob_angles%m_h_m_valid=.true.
-!!FM             end if
-!!FM          end if
-!!FM          CPAssert(associated(glob_angles%min_overlap_m),cp_failure_level,routineP,error,failure)
-!!FM          if (glob_angles%m_h_m_valid) then
-!!FM             min_hamiltonian_m => glob_angles%min_hamiltonian_m
-!!FM          else
-!!FM             nullify(min_hamiltonian_m)
-!!FM          end if
-!!FM       end if
-!!FM     
-!!FM  end if
-  !call timestop(0.0_wp,handle)
-end subroutine pao_g_ang_get_min_m
+  subroutine pao_g_ang_get_min_m(glob_angles,qs_env,global_env,&
+       min_overlap_m,  min_hamiltonian_m, error)
+    type(pao_glob_angles_type), intent(inout) :: glob_angles
+    type(qs_environment_type), intent(in), target :: qs_env
+    type(global_environment_type), intent(in), target :: global_env
+    type(cp_sparse_matrix_p_type), dimension(:), pointer, optional :: &
+         min_hamiltonian_m
+    type(cp_sparse_matrix_p_type), dimension(:), pointer ::  min_overlap_m
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    integer :: handle, stat
+    character(len=*), parameter :: routineN='pao_g_ang_get_min_m',&
+         routineP=moduleN//':'//routineN
+    type(cp_error_type) :: iError
+    type(real_matrix_p_type), pointer :: full_s
+    type(real_matrix_p_type), dimension(:), pointer :: full_h
+    type(cp_b_matrix_struct_type), pointer :: min_bas_m_struct, &
+         full_bas_m_struct
+    type(pao_env_type), pointer :: pao_env
+    call cp_error_init(iError, template_error=error)
+    failure=.false.
+
+    !call timeset(routineN//','//moduleN,'I',"",handle)
+    CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
+    if (.not. failure) then
+       call get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
+       CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
+    end if
+    if (.not.failure) then
+       call pao_env_get(pao_env,min_bas_m_struct=min_bas_m_struct,&
+            full_bas_m_struct=full_bas_m_struct,error=error)
+       !       if (present(min_overlap_m)) then
+       if (.not.glob_angles%m_s_m_valid) then
+          if (.not.associated(glob_angles%min_overlap_m)) then
+             allocate(glob_angles%min_overlap_m(1),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             call cp_sp_create(glob_angles%min_overlap_m(1)%matrix,&
+                  matrix_structure=min_bas_m_struct,&
+                  global_env=global_env,error=iError)
+          end if
+          call sm_matrix_transf_to_m(source_m=full_s%matrix, &
+               target_m=glob_angles%min_overlap_m(1)%matrix%matrix,&
+               glob_angles=glob_angles,qs_env=qs_env,&
+               global_env=global_env,error=error)
+          glob_angles%m_s_m_valid=.true.
+       end if
+       CPAssert(associated(glob_angles%min_overlap_m),cp_failure_level,routineP,error,failure)
+       if (glob_angles%m_s_m_valid) then
+          min_overlap_m => glob_angles%min_overlap_m
+       else
+          nullify(min_overlap_m)
+       end if
+       !       end if
+       if (present(min_hamiltonian_m)) then
+          if (.not.glob_angles%m_h_m_valid) then
+             if (.not.associated(glob_angles%min_hamiltonian_m)) then
+                allocate(glob_angles%min_hamiltonian_m(1),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                call cp_sp_create(glob_angles%min_hamiltonian_m(1)%matrix, &
+                     matrix_structure=full_bas_m_struct,&
+                     global_env=global_env,error=iError)
+                call cp_error_propagate_error(iError,routineP,&
+                     CPSourceFileRef,&
+                     error,failure)
+             end if
+             if (.not.failure) then
+                call sm_matrix_transf_to_m(source_m=full_h(1)%matrix,&
+                     target_m=glob_angles%min_hamiltonian_m(1)%matrix%matrix,&
+                     glob_angles=glob_angles,qs_env=qs_env,&
+                     global_env=global_env,error=error)
+                glob_angles%m_h_m_valid=.true.
+             end if
+          end if
+          CPAssert(associated(glob_angles%min_overlap_m),cp_failure_level,routineP,error,failure)
+          if (glob_angles%m_h_m_valid) then
+             min_hamiltonian_m => glob_angles%min_hamiltonian_m
+          else
+             nullify(min_hamiltonian_m)
+          end if
+       end if
+    end if
+    !call timestop(0.0_wp,handle)
+  end subroutine pao_g_ang_get_min_m
 !***************************************************************************
 
 end module pao_proj_methods

@@ -119,7 +119,7 @@ module pao_types
      real(kind=wp), dimension(:), pointer :: angles
      logical, dimension(:), pointer :: ut_calculated
      type(cp_sparse_matrix_type), pointer :: unitary_t
-     type(cp_sparse_matrix_type), pointer :: min_overlap_m
+     type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_overlap_m
      type(cp_sparse_matrix_p_type), dimension(:), pointer :: min_hamiltonian_m
   end type pao_glob_angles_type
 !!***

@@ -719,9 +719,13 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_opt_[nametype1]_next(optimizer,error) result(res)
-    logical ::res
+  function cp_opt_[nametype1]_next(optimizer,n_iter,f,last_f,&
+       projected_gradient, converged, error) result(res)
     type(cp_lbfgs_opt_[nametype1]_type), intent(inout) :: optimizer
+    integer, intent(out), optional :: n_iter
+    real(kind=wp), intent(out), optional :: f, last_f, projected_gradient
+    logical, intent(out), optional :: converged
+    logical ::res
     type(cp_error_type), optional, intent(inout) :: error
 
     logical :: failure
@@ -733,7 +737,9 @@ contains
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-       call cp_opt_[nametype1]_step(optimizer,error=error)
+       call cp_opt_[nametype1]_step(optimizer,n_iter=n_iter,f=f,&
+            last_f=last_f, projected_gradient=projected_gradient,&
+            converged=converged,error=error)
        res= optimizer%status<4
     else
        res=.false.

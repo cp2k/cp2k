@@ -54,7 +54,8 @@ module cp_b_matrix_structure
        cp_bmstruct_create, cp_bmstruct_dealloc, cp_bmstruct_freeze_sparsity,&
        cp_bmstruct_get_sparsity_frozen, cp_bmstruct_retain,&
        cp_bmstruct_release, cp_bmstruct_get_block_info,&
-       cp_bs_iter_init, cp_bs_iter_dealloc_ref, cp_bs_iter_next
+       cp_bs_iter_init, cp_bs_iter_dealloc_ref, cp_bs_iter_next,&
+       cp_bmstruct_get
 
   interface cp_create
      module procedure cp_dstruct_create
@@ -93,6 +94,9 @@ module cp_b_matrix_structure
   end interface
   interface cp_freeze_sparsity
      module procedure cp_bmstruct_freeze_sparsity
+  end interface
+  interface cp_get
+     module procedure cp_bmstruct_get
   end interface
   interface cp_get_sparsity_frozen
      module procedure cp_bmstruct_get_sparsity_frozen
@@ -1004,6 +1008,73 @@ contains
   end subroutine cp_bmstruct_dealloc
   !***************************************************************************
 
+!!****f* cp_b_matrix_structure/cp_bmstruct_get [1.0] *
+!!
+!!   NAME
+!!     cp_bmstruct_get
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_bmstruct_get(m_struct, global_env, sparsity,&
+!!         sparsity_frozen, symmetric, b_dims, distribution, id_nr,&
+!!         ref_count, error)
+!!       Type(cp_b_matrix_struct_type), Intent (IN):: m_struct
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_b_dims_type), Pointer, Optional:: b_dims
+!!       Type(cp_b_distribution_type), Pointer, Optional:: distribution
+!!       Logical, Dimension(:,:), Pointer, Optional:: sparsity
+!!       Integer, Intent (OUT), Optional:: ref_count, id_nr
+!!       Logical, Intent (OUT), Optional:: sparsity_frozen, symmetric
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_bmstruct_get
+!!
+!!   FUNCTION
+!!     returns various attributes of the matrix structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     4.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_bmstruct_get(m_struct, global_env, sparsity, sparsity_frozen,&
+     symmetric,&
+     b_dims, distribution, id_nr, ref_count, error)
+  type(cp_b_matrix_struct_type), intent(in) :: m_struct
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_b_dims_type), pointer, optional :: b_dims
+  type(cp_b_distribution_type), pointer, optional :: distribution
+  logical, dimension(:,:), pointer, optional :: sparsity
+  integer, intent(out), optional:: ref_count, id_nr
+  logical, intent(out), optional:: sparsity_frozen, symmetric
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_bmstruct_get',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  CPPrecondition(m_struct%initialized,cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     if (present(sparsity)) sparsity => m_struct%sparsity
+     if (present(sparsity_frozen)) &
+          sparsity_frozen = cp_bmstruct_get_sparsity_frozen(m_struct,error)
+     if (present(symmetric)) symmetric=m_struct%symmetric
+     if (present(b_dims)) b_dims => m_struct%b_dims
+     if (present(distribution)) distribution => m_struct%distribution
+     if (present(ref_count)) ref_count=m_struct%ref_count
+     if (present(id_nr)) id_nr=m_struct%id_nr
+  end if
+end subroutine cp_bmstruct_get
+!***************************************************************************
+
 !!****f* cp_b_matrix_structureure/cp_bmstruct_freeze_sparsity [1.0] *
 !!
 !!   NAME
@@ -1090,10 +1161,12 @@ contains
 !!     cp_bmstruct_get_sparsity_frozen
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_bmstruct_get_sparsity_frozen(matrix_struct, error)
-!!       Type(cp_b_matrix_struct_type), Intent (INOUT):: matrix_struct
+!!     Function cp_bmstruct_get_sparsity_frozen(matrix_struct, error)&
+!!         Result(res)
+!!       Type(cp_b_matrix_struct_type), Intent (IN):: matrix_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_bmstruct_get_sparsity_frozen
+!!       Logical:: res
+!!     End Function cp_bmstruct_get_sparsity_frozen
 !!
 !!   FUNCTION
 !!     returns true if the sparsity structure is frozen
@@ -1114,9 +1187,10 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_bmstruct_get_sparsity_frozen(matrix_struct,error)
-    type(cp_b_matrix_struct_type), intent(inout) :: matrix_struct
+  function cp_bmstruct_get_sparsity_frozen(matrix_struct,error) result(res)
+    type(cp_b_matrix_struct_type), intent(in) :: matrix_struct
     type(cp_error_type), optional, intent(inout) :: error
+    logical :: res
 
     logical :: failure
     integer :: handle
@@ -1127,10 +1201,12 @@ contains
     call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(matrix_struct%initialized,cp_failure_level,routineP,error,failure)
     if (.not. failure) then
-
+       CPPrecondition(.false.,cp_warning_level,routineP,error,failure)
+       ! to do
     end if
+    res=.false.
     call timestop(0.0_wp,handle)
-  end subroutine cp_bmstruct_get_sparsity_frozen
+  end function cp_bmstruct_get_sparsity_frozen
   !***************************************************************************
 
 !!****f* cp_matrix_structure/cp_bmstruct_retain [1.0] *

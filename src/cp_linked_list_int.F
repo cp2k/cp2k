@@ -120,10 +120,8 @@ module cp_linked_list_int
   end interface
 ! inserts one element call cp_insert(list,element,...)
   interface cp_insert
-     module procedure cp_sll_int_insert_el
-  end interface
-  interface cp_insert_el_at
-     module procedure cp_sll_int_insert_el_at
+     module procedure cp_sll_int_insert_el, &
+          cp_sll_int_insert_el_at
   end interface
 ! removes an element
   interface cp_remove_el
