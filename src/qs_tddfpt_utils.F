@@ -21,7 +21,8 @@
 
 MODULE qs_tddfpt_utils
 
-  USE cp_control_types,                ONLY: gapw_control_type
+  USE cp_control_types,                ONLY: gapw_control_type,&
+                                             tddfpt_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
                                              cp_fm_scale_and_add,&
                                              cp_fm_trace
@@ -52,7 +53,9 @@ MODULE qs_tddfpt_utils
                                              qs_p_env_type
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
   USE qs_rho0_methods,                 ONLY: init_rho0
-  USE qs_tddfpt_types
+  USE qs_tddfpt_types,                 ONLY: tddfpt_env_allocate,&
+                                             tddfpt_env_deallocate,&
+                                             tddfpt_env_type
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory

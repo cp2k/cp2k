@@ -293,7 +293,7 @@ CONTAINS
                 END IF
              END DO
           ELSE
-             CALL stop_program(routineP, "Unknown method.");
+             CALL stop_program(routineP, "Unknown method :"//TRIM(qs_env%dft_control%tddfpt_control%diag_method));
           END IF
           DO j=1, n_reortho
              CALL p_preortho(p_env, qs_env, b(i,:))
@@ -321,7 +321,6 @@ CONTAINS
        IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
        IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
 
-
     END DO iteration
 
     !-------------------!
@@ -343,9 +342,13 @@ CONTAINS
     !----------!
     ! clean up !
     !----------!
+    IF (ASSOCIATED(Atilde%matrix)) CALL cp_fm_release(Atilde%matrix)
+    IF (ASSOCIATED(Us%matrix)) CALL cp_fm_release(Us%matrix)
+    IF (ASSOCIATED(tilde_fm_struct)) CALL cp_fm_struct_release(tilde_fm_struct)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, X)
     CALL fm_pools_give_back_fm_vect(ao_mo_fm_pools, R)
     DO spin=1, n_spins
+       CALL cp_fm_struct_release(kv_fm_struct(spin)%struct)
        DO i=1, max_krylovvec
           IF (ASSOCIATED(b(i,spin)%matrix)) &
              CALL cp_fm_release(b(i,spin)%matrix)
@@ -355,8 +358,8 @@ CONTAINS
              CALL cp_fm_release(Sb(i,spin)%matrix)
        END DO
     END DO
-    DEALLOCATE(b, Ab, Sb, evals, K_diagonal, S_diagonal)
-    NULLIFY(X, R, b, Ab, Sb)
+    DEALLOCATE(b, Ab, Sb, evals, K_diagonal, S_diagonal, kv_fm_struct)
+    NULLIFY(X, R, b, Ab, Sb, kv_fm_struct)
     
     CALL timestop(0.0_dbl, handle)
 

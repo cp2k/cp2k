@@ -5422,11 +5422,11 @@ END FUNCTION xc_exc_calc
                                    routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, idesc, ispin, j, &
-                                                k, nspins, order
+                                                k, nspins, order, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
     TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_g_pw, rho_r_pw, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r
     TYPE(xc_control_type)                    :: xc_control
 
@@ -5451,7 +5451,8 @@ END FUNCTION xc_exc_calc
     IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
        ! In this case we need to do a unrestricted calculation to
        ! differenciate beween singlets and triplets
-       ALLOCATE(rho_r_pw(2))
+       ALLOCATE(rho_r_pw(2), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, 2
           CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, &
                rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
@@ -5460,7 +5461,8 @@ END FUNCTION xc_exc_calc
                0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
        END DO
     ELSE
-       ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
+       ALLOCATE(rho_r_pw(nspins), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, nspins
           rho_r_pw(ispin)%pw => rho_r(ispin)%pw
        END DO
@@ -5470,6 +5472,13 @@ END FUNCTION xc_exc_calc
     CALL xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
        rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,atoms=atoms,&
        needs_basic_components=.TRUE.,error=error)
+
+    IF (dft_control%do_tddfpt_calculation .AND. nspins == 1) THEN
+       CALL pw_release(rho_r_pw(1)%pw)
+       CALL pw_release(rho_r_pw(2)%pw)
+    END IF
+    DEALLOCATE(rho_r_pw, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     bo = rho_r(1)%pw%pw_grid%bounds_local
     

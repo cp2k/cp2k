@@ -49,7 +49,8 @@ MODULE qs_p_env_types
                                              local_rho_type
   USE qs_oce_types,                    ONLY: deallocate_oce_set,&
                                              oce_matrix_type
-  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_rho_types,                    ONLY: qs_rho_type,&
+                                             qs_rho_release
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
@@ -248,11 +249,13 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
+          CALL qs_rho_release(p_env%rho1)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
           IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)
           IF (ASSOCIATED(p_env%oce)) CALL deallocate_oce_set(p_env%oce)
-          IF (ASSOCIATED(p_env%local_rho_set)) &
-               CALL local_rho_set_release(p_env%local_rho_set)
+          IF (ASSOCIATED(p_env%local_rho_set)) THEN
+             CALL local_rho_set_release(p_env%local_rho_set)
+          END IF
           IF (ASSOCIATED(p_env%hartree_local)) THEN
              NULLIFY(p_env%hartree_local%vtriple) ! we must not deallocate this
              CALL hartree_local_release(p_env%hartree_local)

@@ -598,11 +598,13 @@ CONTAINS
       END DO
 
       ! some cleanup
-      DEALLOCATE(rho_h, rho_s, vxc_h, vxc_s, weight, stat=stat)
+      DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s, weight, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
          DEALLOCATE(drho_h, drho_s, oodrho_h, oodrho_s, vxg_h, vxg_s, stat=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         DEALLOCATE(drho1_h, drho1_s, oodrho1_h, oodrho1_s, stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
          NULLIFY(drho_h, drho_s, oodrho_h, oodrho_s)
       END IF
