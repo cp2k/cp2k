@@ -24,6 +24,9 @@ MODULE nddo_methods
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: sto_basis_set_type,&
                                              get_sto_basis_set
+  USE coefficient_types,               ONLY: coeff_type, &
+                                             coeff_transform_space,&
+                                             coeff_scale
   USE cp_control_types,                ONLY: dft_control_type,&
                                              semi_empirical_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -42,17 +45,37 @@ MODULE nddo_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
+                                             cp_rs_pool_p_type,&
+                                             rs_pool_give_back_rs,&
+                                             rs_pool_create_rs
+  USE cube_utils,                      ONLY: cube_info_type
+  USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
+  USE l_utils,                         ONLY: l_info_type
   USE mathconstants,                   ONLY: pi,fourpi,fac,dfac
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: ncoset,nsoset,nco,nso,indco
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
+  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+                                             pw_pool_init_coeff,&
+                                             pw_pool_type,&
+                                             pw_pool_p_type
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
+  USE pws,                             ONLY: init_pw_poisson_solver,&
+                                             cleanup_pw_poisson_solver
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              set_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
@@ -68,17 +91,22 @@ MODULE nddo_methods
   USE qs_rho0_types,                   ONLY: allocate_multipoles,&
                                              allocate_rho0_atom,&
                                              allocate_rho0_mpole,&
+                                             get_rho0_mpole,&
                                              initialize_mpole_rho,&
                                              rho0_mpole_type, &
                                              rho0_atom_type
   USE qs_util,                         ONLY: gaussint_sph,exp_radius
+  USE realspace_grid_types,            ONLY: realspace_grid_type,&
+                                             rs_get_my_tasks,&
+                                             rs_grid_zero,&
+                                             rs_pw_transfer
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              rotint
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
                                              get_se_param
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,pbc
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              first_block_node,&
@@ -89,6 +117,7 @@ MODULE nddo_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
 
   IMPLICIT NONE
 
@@ -428,11 +457,12 @@ CONTAINS
 
        END DO ! ikind
 
-       energy%hartree=0._dp
        IF (ewald) THEN
          ! calculate Coulomb long range forces
          CALL nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&
               calculate_forces,just_energy,error)
+       ELSE
+         energy%hartree=0._dp
        END IF
 
        energy%hartree=energy%hartree-energy%core
@@ -982,85 +1012,85 @@ CONTAINS
     pk(16) = pab(3,3)
 
     kab(1,1)= &
-      +PK( 1)*W(  1)+PK( 2)*W(  2)+PK( 3)*W(  4)+PK( 4)*W(  7) &
-      +PK( 5)*W( 11)+PK( 6)*W( 12)+PK( 7)*W( 14)+PK( 8)*W( 17) &
-      +PK( 9)*W( 31)+PK(10)*W( 32)+PK(11)*W( 34)+PK(12)*W( 37) &
-      +PK(13)*W( 61)+PK(14)*W( 62)+PK(15)*W( 64)+PK(16)*W( 67)
+      +pk( 1)*w(  1)+pk( 2)*w(  2)+pk( 3)*w(  4)+pk( 4)*w(  7) &
+      +pk( 5)*w( 11)+pk( 6)*w( 12)+pk( 7)*w( 14)+pk( 8)*w( 17) &
+      +pk( 9)*w( 31)+pk(10)*w( 32)+pk(11)*w( 34)+pk(12)*w( 37) &
+      +pk(13)*w( 61)+pk(14)*w( 62)+pk(15)*w( 64)+pk(16)*w( 67)
     kab(1,4)= &
-      +PK( 1)*W(  2)+PK( 2)*W(  3)+PK( 3)*W(  5)+PK( 4)*W(  8) &
-      +PK( 5)*W( 12)+PK( 6)*W( 13)+PK( 7)*W( 15)+PK( 8)*W( 18) &
-      +PK( 9)*W( 32)+PK(10)*W( 33)+PK(11)*W( 35)+PK(12)*W( 38) &
-      +PK(13)*W( 62)+PK(14)*W( 63)+PK(15)*W( 65)+PK(16)*W( 68)
+      +pk( 1)*w(  2)+pk( 2)*w(  3)+pk( 3)*w(  5)+pk( 4)*w(  8) &
+      +pk( 5)*w( 12)+pk( 6)*w( 13)+pk( 7)*w( 15)+pk( 8)*w( 18) &
+      +pk( 9)*w( 32)+pk(10)*w( 33)+pk(11)*w( 35)+pk(12)*w( 38) &
+      +pk(13)*w( 62)+pk(14)*w( 63)+pk(15)*w( 65)+pk(16)*w( 68)
     kab(1,2)= &
-      +PK( 1)*W(  4)+PK( 2)*W(  5)+PK( 3)*W(  6)+PK( 4)*W(  9) &
-      +PK( 5)*W( 14)+PK( 6)*W( 15)+PK( 7)*W( 16)+PK( 8)*W( 19) &
-      +PK( 9)*W( 34)+PK(10)*W( 35)+PK(11)*W( 36)+PK(12)*W( 39) &
-      +PK(13)*W( 64)+PK(14)*W( 65)+PK(15)*W( 66)+PK(16)*W( 69)
+      +pk( 1)*w(  4)+pk( 2)*w(  5)+pk( 3)*w(  6)+pk( 4)*w(  9) &
+      +pk( 5)*w( 14)+pk( 6)*w( 15)+pk( 7)*w( 16)+pk( 8)*w( 19) &
+      +pk( 9)*w( 34)+pk(10)*w( 35)+pk(11)*w( 36)+pk(12)*w( 39) &
+      +pk(13)*w( 64)+pk(14)*w( 65)+pk(15)*w( 66)+pk(16)*w( 69)
     kab(1,3)= &
-      +PK( 1)*W(  7)+PK( 2)*W(  8)+PK( 3)*W(  9)+PK( 4)*W( 10) &
-      +PK( 5)*W( 17)+PK( 6)*W( 18)+PK( 7)*W( 19)+PK( 8)*W( 20) &
-      +PK( 9)*W( 37)+PK(10)*W( 38)+PK(11)*W( 39)+PK(12)*W( 40) &
-      +PK(13)*W( 67)+PK(14)*W( 68)+PK(15)*W( 69)+PK(16)*W( 70)
+      +pk( 1)*w(  7)+pk( 2)*w(  8)+pk( 3)*w(  9)+pk( 4)*w( 10) &
+      +pk( 5)*w( 17)+pk( 6)*w( 18)+pk( 7)*w( 19)+pk( 8)*w( 20) &
+      +pk( 9)*w( 37)+pk(10)*w( 38)+pk(11)*w( 39)+pk(12)*w( 40) &
+      +pk(13)*w( 67)+pk(14)*w( 68)+pk(15)*w( 69)+pk(16)*w( 70)
     kab(4,1)= &
-      +PK( 1)*W( 11)+PK( 2)*W( 12)+PK( 3)*W( 14)+PK( 4)*W( 17) &
-      +PK( 5)*W( 21)+PK( 6)*W( 22)+PK( 7)*W( 24)+PK( 8)*W( 27) &
-      +PK( 9)*W( 41)+PK(10)*W( 42)+PK(11)*W( 44)+PK(12)*W( 47) &
-      +PK(13)*W( 71)+PK(14)*W( 72)+PK(15)*W( 74)+PK(16)*W( 77)
+      +pk( 1)*w( 11)+pk( 2)*w( 12)+pk( 3)*w( 14)+pk( 4)*w( 17) &
+      +pk( 5)*w( 21)+pk( 6)*w( 22)+pk( 7)*w( 24)+pk( 8)*w( 27) &
+      +pk( 9)*w( 41)+pk(10)*w( 42)+pk(11)*w( 44)+pk(12)*w( 47) &
+      +pk(13)*w( 71)+pk(14)*w( 72)+pk(15)*w( 74)+pk(16)*w( 77)
     kab(4,4)= &
-      +PK( 1)*W( 12)+PK( 2)*W( 13)+PK( 3)*W( 15)+PK( 4)*W( 18) &
-      +PK( 5)*W( 22)+PK( 6)*W( 23)+PK( 7)*W( 25)+PK( 8)*W( 28) &
-      +PK( 9)*W( 42)+PK(10)*W( 43)+PK(11)*W( 45)+PK(12)*W( 48) &
-      +PK(13)*W( 72)+PK(14)*W( 73)+PK(15)*W( 75)+PK(16)*W( 78)
+      +pk( 1)*w( 12)+pk( 2)*w( 13)+pk( 3)*w( 15)+pk( 4)*w( 18) &
+      +pk( 5)*w( 22)+pk( 6)*w( 23)+pk( 7)*w( 25)+pk( 8)*w( 28) &
+      +pk( 9)*w( 42)+pk(10)*w( 43)+pk(11)*w( 45)+pk(12)*w( 48) &
+      +pk(13)*w( 72)+pk(14)*w( 73)+pk(15)*w( 75)+pk(16)*w( 78)
     kab(4,2)= &
-      +PK( 1)*W( 14)+PK( 2)*W( 15)+PK( 3)*W( 16)+PK( 4)*W( 19) &
-      +PK( 5)*W( 24)+PK( 6)*W( 25)+PK( 7)*W( 26)+PK( 8)*W( 29) &
-      +PK( 9)*W( 44)+PK(10)*W( 45)+PK(11)*W( 46)+PK(12)*W( 49) &
-      +PK(13)*W( 74)+PK(14)*W( 75)+PK(15)*W( 76)+PK(16)*W( 79)
+      +pk( 1)*w( 14)+pk( 2)*w( 15)+pk( 3)*w( 16)+pk( 4)*w( 19) &
+      +pk( 5)*w( 24)+pk( 6)*w( 25)+pk( 7)*w( 26)+pk( 8)*w( 29) &
+      +pk( 9)*w( 44)+pk(10)*w( 45)+pk(11)*w( 46)+pk(12)*w( 49) &
+      +pk(13)*w( 74)+pk(14)*w( 75)+pk(15)*w( 76)+pk(16)*w( 79)
     kab(4,3)= &
-      +PK( 1)*W( 17)+PK( 2)*W( 18)+PK( 3)*W( 19)+PK( 4)*W( 20) &
-      +PK( 5)*W( 27)+PK( 6)*W( 28)+PK( 7)*W( 29)+PK( 8)*W( 30) &
-      +PK( 9)*W( 47)+PK(10)*W( 48)+PK(11)*W( 49)+PK(12)*W( 50) &
-      +PK(13)*W( 77)+PK(14)*W( 78)+PK(15)*W( 79)+PK(16)*W( 80)
+      +pk( 1)*w( 17)+pk( 2)*w( 18)+pk( 3)*w( 19)+pk( 4)*w( 20) &
+      +pk( 5)*w( 27)+pk( 6)*w( 28)+pk( 7)*w( 29)+pk( 8)*w( 30) &
+      +pk( 9)*w( 47)+pk(10)*w( 48)+pk(11)*w( 49)+pk(12)*w( 50) &
+      +pk(13)*w( 77)+pk(14)*w( 78)+pk(15)*w( 79)+pk(16)*w( 80)
     kab(2,1)= &
-      +PK( 1)*W( 31)+PK( 2)*W( 32)+PK( 3)*W( 34)+PK( 4)*W( 37) &
-      +PK( 5)*W( 41)+PK( 6)*W( 42)+PK( 7)*W( 44)+PK( 8)*W( 47) &
-      +PK( 9)*W( 51)+PK(10)*W( 52)+PK(11)*W( 54)+PK(12)*W( 57) &
-      +PK(13)*W( 81)+PK(14)*W( 82)+PK(15)*W( 84)+PK(16)*W( 87)
+      +pk( 1)*w( 31)+pk( 2)*w( 32)+pk( 3)*w( 34)+pk( 4)*w( 37) &
+      +pk( 5)*w( 41)+pk( 6)*w( 42)+pk( 7)*w( 44)+pk( 8)*w( 47) &
+      +pk( 9)*w( 51)+pk(10)*w( 52)+pk(11)*w( 54)+pk(12)*w( 57) &
+      +pk(13)*w( 81)+pk(14)*w( 82)+pk(15)*w( 84)+pk(16)*w( 87)
     kab(2,4)= &
-      +PK( 1)*W( 32)+PK( 2)*W( 33)+PK( 3)*W( 35)+PK( 4)*W( 38) &
-      +PK( 5)*W( 42)+PK( 6)*W( 43)+PK( 7)*W( 45)+PK( 8)*W( 48) &
-      +PK( 9)*W( 52)+PK(10)*W( 53)+PK(11)*W( 55)+PK(12)*W( 58) &
-      +PK(13)*W( 82)+PK(14)*W( 83)+PK(15)*W( 85)+PK(16)*W( 88)
+      +pk( 1)*w( 32)+pk( 2)*w( 33)+pk( 3)*w( 35)+pk( 4)*w( 38) &
+      +pk( 5)*w( 42)+pk( 6)*w( 43)+pk( 7)*w( 45)+pk( 8)*w( 48) &
+      +pk( 9)*w( 52)+pk(10)*w( 53)+pk(11)*w( 55)+pk(12)*w( 58) &
+      +pk(13)*w( 82)+pk(14)*w( 83)+pk(15)*w( 85)+pk(16)*w( 88)
     kab(2,2)= &
-      +PK( 1)*W( 34)+PK( 2)*W( 35)+PK( 3)*W( 36)+PK( 4)*W( 39) &
-      +PK( 5)*W( 44)+PK( 6)*W( 45)+PK( 7)*W( 46)+PK( 8)*W( 49) &
-      +PK( 9)*W( 54)+PK(10)*W( 55)+PK(11)*W( 56)+PK(12)*W( 59) &
-      +PK(13)*W( 84)+PK(14)*W( 85)+PK(15)*W( 86)+PK(16)*W( 89)
+      +pk( 1)*w( 34)+pk( 2)*w( 35)+pk( 3)*w( 36)+pk( 4)*w( 39) &
+      +pk( 5)*w( 44)+pk( 6)*w( 45)+pk( 7)*w( 46)+pk( 8)*w( 49) &
+      +pk( 9)*w( 54)+pk(10)*w( 55)+pk(11)*w( 56)+pk(12)*w( 59) &
+      +pk(13)*w( 84)+pk(14)*w( 85)+pk(15)*w( 86)+pk(16)*w( 89)
     kab(2,3)= &
-      +PK( 1)*W( 37)+PK( 2)*W( 38)+PK( 3)*W( 39)+PK( 4)*W( 40) &
-      +PK( 5)*W( 47)+PK( 6)*W( 48)+PK( 7)*W( 49)+PK( 8)*W( 50) &
-      +PK( 9)*W( 57)+PK(10)*W( 58)+PK(11)*W( 59)+PK(12)*W( 60) &
-      +PK(13)*W( 87)+PK(14)*W( 88)+PK(15)*W( 89)+PK(16)*W( 90)
+      +pk( 1)*w( 37)+pk( 2)*w( 38)+pk( 3)*w( 39)+pk( 4)*w( 40) &
+      +pk( 5)*w( 47)+pk( 6)*w( 48)+pk( 7)*w( 49)+pk( 8)*w( 50) &
+      +pk( 9)*w( 57)+pk(10)*w( 58)+pk(11)*w( 59)+pk(12)*w( 60) &
+      +pk(13)*w( 87)+pk(14)*w( 88)+pk(15)*w( 89)+pk(16)*w( 90)
     kab(3,1)= &
-      +PK( 1)*W( 61)+PK( 2)*W( 62)+PK( 3)*W( 64)+PK( 4)*W( 67) &
-      +PK( 5)*W( 71)+PK( 6)*W( 72)+PK( 7)*W( 74)+PK( 8)*W( 77) &
-      +PK( 9)*W( 81)+PK(10)*W( 82)+PK(11)*W( 84)+PK(12)*W( 87) &
-      +PK(13)*W( 91)+PK(14)*W( 92)+PK(15)*W( 94)+PK(16)*W( 97)
+      +pk( 1)*w( 61)+pk( 2)*w( 62)+pk( 3)*w( 64)+pk( 4)*w( 67) &
+      +pk( 5)*w( 71)+pk( 6)*w( 72)+pk( 7)*w( 74)+pk( 8)*w( 77) &
+      +pk( 9)*w( 81)+pk(10)*w( 82)+pk(11)*w( 84)+pk(12)*w( 87) &
+      +pk(13)*w( 91)+pk(14)*w( 92)+pk(15)*w( 94)+pk(16)*w( 97)
     kab(3,4)= &
-      +PK( 1)*W( 62)+PK( 2)*W( 63)+PK( 3)*W( 65)+PK( 4)*W( 68) &
-      +PK( 5)*W( 72)+PK( 6)*W( 73)+PK( 7)*W( 75)+PK( 8)*W( 78) &
-      +PK( 9)*W( 82)+PK(10)*W( 83)+PK(11)*W( 85)+PK(12)*W( 88) &
-      +PK(13)*W( 92)+PK(14)*W( 93)+PK(15)*W( 95)+PK(16)*W( 98)
+      +pk( 1)*w( 62)+pk( 2)*w( 63)+pk( 3)*w( 65)+pk( 4)*w( 68) &
+      +pk( 5)*w( 72)+pk( 6)*w( 73)+pk( 7)*w( 75)+pk( 8)*w( 78) &
+      +pk( 9)*w( 82)+pk(10)*w( 83)+pk(11)*w( 85)+pk(12)*w( 88) &
+      +pk(13)*w( 92)+pk(14)*w( 93)+pk(15)*w( 95)+pk(16)*w( 98)
     kab(3,2)= &
-      +PK( 1)*W( 64)+PK( 2)*W( 65)+PK( 3)*W( 66)+PK( 4)*W( 69) &
-      +PK( 5)*W( 74)+PK( 6)*W( 75)+PK( 7)*W( 76)+PK( 8)*W( 79) &
-      +PK( 9)*W( 84)+PK(10)*W( 85)+PK(11)*W( 86)+PK(12)*W( 89) &
-      +PK(13)*W( 94)+PK(14)*W( 95)+PK(15)*W( 96)+PK(16)*W( 99)
+      +pk( 1)*w( 64)+pk( 2)*w( 65)+pk( 3)*w( 66)+pk( 4)*w( 69) &
+      +pk( 5)*w( 74)+pk( 6)*w( 75)+pk( 7)*w( 76)+pk( 8)*w( 79) &
+      +pk( 9)*w( 84)+pk(10)*w( 85)+pk(11)*w( 86)+pk(12)*w( 89) &
+      +pk(13)*w( 94)+pk(14)*w( 95)+pk(15)*w( 96)+pk(16)*w( 99)
     kab(3,3)= &
-      +PK( 1)*W( 67)+PK( 2)*W( 68)+PK( 3)*W( 69)+PK( 4)*W( 70) &
-      +PK( 5)*W( 77)+PK( 6)*W( 78)+PK( 7)*W( 79)+PK( 8)*W( 80) &
-      +PK( 9)*W( 87)+PK(10)*W( 88)+PK(11)*W( 89)+PK(12)*W( 90) &
-      +PK(13)*W( 97)+PK(14)*W( 98)+PK(15)*W( 99)+PK(16)*W(100)
+      +pk( 1)*w( 67)+pk( 2)*w( 68)+pk( 3)*w( 69)+pk( 4)*w( 70) &
+      +pk( 5)*w( 77)+pk( 6)*w( 78)+pk( 7)*w( 79)+pk( 8)*w( 80) &
+      +pk( 9)*w( 87)+pk(10)*w( 88)+pk(11)*w( 89)+pk(12)*w( 90) &
+      +pk(13)*w( 97)+pk(14)*w( 98)+pk(15)*w( 99)+pk(16)*w(100)
 
   END SUBROUTINE exchange_sp
 
@@ -1086,9 +1116,13 @@ CONTAINS
     INTEGER                                  :: handle,output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(atomic_kind_type), DIMENSION(:), &
                                POINTER       :: atomic_kind_set
     TYPE(rho0_mpole_type),     POINTER       :: nddo_mpole
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(coeff_type)                         :: v_gspace
     REAL(KIND=dp)                            :: tot_rs_int
 
 ! -----------------------------------------------------------------------------
@@ -1101,15 +1135,43 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    logger => cp_error_get_logger(error)
-    ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    IF (.NOT.failure) THEN
+      logger => cp_error_get_logger(error)
+      ionode = logger%para_env%mepos==logger%para_env%source
+      IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    nddo_mpole=nddo_mpole)
-    CALL calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
-    CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
+      CALL get_qs_env(qs_env=qs_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      nddo_mpole=nddo_mpole)
+
+      CALL calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
+      CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
+
+      NULLIFY (cell,pw_env,auxbas_pw_pool)
+      CALL get_qs_env(qs_env=qs_env, cell=cell, pw_env=pw_env)
+      CPPostcondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
+      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
+      CPPostcondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
+      CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
+                              use_data = COMPLEXDATA1D,&
+                              in_space = RECIPROCALSPACE, error=error)
+
+      CALL init_pw_poisson_solver(cell%green,error=error)
+      CALL calculate_hartree(nddo_mpole%rho0_s_gs,energy%hartree,v_gspace)
+      CALL cleanup_pw_poisson_solver(cell%green,error=error)
+
+      IF (.NOT. just_energy) THEN
+          CALL coeff_transform_space(v_gspace,ks_env%v_hartree_rspace)
+          CALL coeff_scale(ks_env%v_hartree_rspace, &
+               ks_env%v_hartree_rspace%pw%pw_grid%dvol)
+          CALL integrate_vhg0_rspace(qs_env,ks_matrix,&
+               ks_env%v_hartree_rspace,calculate_forces,error)
+      END IF
+
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
+
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
@@ -1147,10 +1209,11 @@ CONTAINS
 
     failure=.FALSE.
 
+    ! We assume that matrix_p(1) is the total density
     matrix_p => rho%rho_ao
     IF (SIZE(matrix_p) == 2) THEN
       CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-           matrix_p(2)%matrix,1.0_dp)
+           matrix_p(2)%matrix,-1.0_dp)
     END IF
 
     nkind = SIZE(atomic_kind_set)
@@ -1407,6 +1470,275 @@ CONTAINS
     END DO
 
   END SUBROUTINE calculate_sto_mpoles
+
+! *****************************************************************************
+
+  SUBROUTINE integrate_vhg0_rspace(qs_env,ks_matrix,v_rspace,&
+             calculate_forces,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(coeff_type)                         :: v_rspace
+    LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "integrate_vhg0_rspace",&
+                     routineP = moduleN//':'//routineN
+
+    TYPE(atomic_kind_type), DIMENSION(:),&
+                            POINTER          :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atom_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(rho0_mpole_type),      POINTER      :: nddo_mpole
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
+      POINTER                                :: rs_pools
+    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
+    TYPE(pw_pool_type), POINTER              :: pw_pool, pw_aux
+    TYPE(cube_info_type),  DIMENSION(:), &
+                         POINTER             :: cube_info
+    TYPE(l_info_type)                        :: l_info
+    TYPE(realspace_grid_type), POINTER       :: rs_v
+    INTEGER, DIMENSION(:,:), POINTER         :: tasks
+    REAL(dp), DIMENSION(:), POINTER          :: norm_l
+    REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
+    REAL(dp), DIMENSION(:),     POINTER      :: Qlm
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL   :: failure
+    REAL(dp)  :: c4pi,zet0,eps_rho_rspace,rpgf0,ra(3),opt,force_tmp(3)
+    INTEGER   :: handle,nspins,igrid,lmax0,auxbas_grid,nthread,ikind
+    INTEGER   :: nat,ncurr,l0_ikind,dir,bo(2),npme,istat,j,iat,iatom
+    INTEGER   :: nch_max,is,iso,lshell,ic,ico,lx,ly,lz,lm
+    INTEGER   :: omp_get_max_threads,ithread
+    REAL(dp), DIMENSION(:,:), POINTER        :: pab
+    REAL(dp), DIMENSION(:,:), POINTER        :: hab
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: habt
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab,hadb
+    REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt,hadbt
+    REAL(dp), DIMENSION(:), POINTER          :: hab_sph
+    REAL(dp), DIMENSION(:,:), POINTER        :: hab_spht
+    REAL(dp), DIMENSION(:,:), POINTER        :: hdab_sph
+    REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab_spht
+    REAL(dp), DIMENSION(:,:), POINTER        :: h_block
+!   ---------------------------------------------------------------------------
+    failure=.FALSE.
+    c4pi = fourpi
+
+    CALL timeset("integrate_vhg0_rspace","I","",handle)
+
+    NULLIFY(atomic_kind_set,dft_control,para_env,particle_set,cell,&
+            force,pw_env,nddo_mpole)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    cell=cell,&
+                    dft_control=dft_control,&
+                    para_env=para_env,&
+                    force=force,pw_env=pw_env,&
+                    nddo_mpole=nddo_mpole,&
+                    particle_set=particle_set)
+
+    nspins = dft_control%nspins
+
+    CALL get_rho0_mpole(rho0_mpole=nddo_mpole,lmax_0=lmax0,&
+                        zet0_s=zet0,igrid_zet0_s=igrid,&
+                        norm_g0l_s=norm_l)
+
+    NULLIFY(rs_pools, pw_pools)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ! assign from pw_env
+    auxbas_grid=pw_env%auxbas_grid
+    cube_info => pw_env%cube_info
+    l_info=pw_env%l_info_rho0
+
+    ! Get the potential on the right grid
+    NULLIFY(rs_pool,pw_pool)
+    rs_pool => rs_pools(igrid)%pool
+    pw_pool => pw_pools(igrid)%pool
+
+    CPPrecondition(igrid==auxbas_grid,cp_failure_level,routineN,error,failure)
+
+    ! set up the rs grid at level igrid
+    NULLIFY(rs_v)
+    CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
+    CALL rs_grid_zero(rs_v)
+    CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
+
+    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
+
+    nthread = 1
+!$  nthread = omp_get_max_threads()
+
+    ! Allocate work storage ***
+    nch_max = ncoset(lmax0)
+    NULLIFY(pab)
+    CALL reallocate(pab,1,nch_max,1,1)
+    NULLIFY(habt,hdabt,hadbt)
+    CALL reallocate(habt,1,nch_max,1,1,0,nthread)
+    CALL reallocate(hdabt,1,3,1,nch_max,1,1,0,nthread)
+    CALL reallocate(hadbt,1,3,1,nch_max,1,1,0,nthread)
+    CALL reallocate(hab_spht,1,nch_max,0,nthread)
+    CALL reallocate(hdab_spht,1,3,1,nch_max,0,nthread)
+
+    ncurr = -1
+
+    DO ikind = 1,SIZE(atomic_kind_set,1)
+      atom_kind => atomic_kind_set(ikind)
+      NULLIFY(atom_list) 
+      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
+                           natom=nat)
+
+      NULLIFY(Qlm_gg)
+      CALL get_rho0_mpole(rho0_mpole=nddo_mpole,ikind=ikind,&
+                          l0_ikind=l0_ikind,Qlm_gg=Qlm_gg,rpgf0_s=rpgf0)
+      CPPostcondition(ASSOCIATED(Qlm_gg),cp_failure_level,routineN,error,failure)
+
+      ! Initialize the local KS integrals
+
+      pab = 1.0_dp
+
+      bo = get_limit ( nat, para_env%num_pe, para_env%mepos )
+
+      npme = bo(2) - bo(1) + 1
+      IF ( ncurr < npme ) THEN
+        CALL reallocate ( tasks, 1, 2, 1, npme )
+        ncurr = npme
+      ELSE
+        tasks = 0
+      END IF
+
+      dir = rs_v%direction
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(iat,j,iatom,ra) &
+!$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
+      DO iat=bo(1),bo(2)
+        j = iat - bo(1) + 1
+        tasks ( 1, j ) = iat
+        IF ( dir /= 0) THEN
+          iatom = atom_list(iat)
+          ra(:) = pbc(particle_set(iatom)%r,cell)
+          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
+          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
+          tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
+        END IF
+      END DO
+      CALL rs_get_my_tasks ( rs_v, tasks, npme )
+
+      ithread=0
+!$OMP parallel do &
+!$OMP default(none) &
+!$OMP private(iat,j,iatom,ra,Qlm,ithread,hab,hdab,hadb,hab_sph,hdab_sph) &
+!$OMP private(lshell,is,iso,ic,ico,lx,ly,lz,opt,force_tmp,lm,Qlm_gg) &
+!$OMP shared(npme,tasks,atom_list,particle_set,cell,nddo_mpole) &
+!$OMP shared(pab,habt,hdabt,hadbt,hab_spht,hdab_spht) & 
+!$OMP shared(l0_ikind,calculate_forces,orbtramat,norm_l,force) & 
+!$OMP shared(nspins,ks_matrix)
+      DO j=1,npme
+
+!$      ithread=omp_get_thread_num()
+        iat =  tasks(1,j)
+        iatom = atom_list(iat)
+        ra(:) = pbc(particle_set(iatom)%r,cell) 
+
+        NULLIFY(Qlm)
+        CALL  get_rho0_mpole(rho0_mpole=nddo_mpole,iat=iatom,Qlm_car_s=Qlm)
+        CPPostcondition(ASSOCIATED(Qlm),cp_failure_level,routineN,error,failure)
+
+        hab => habt(:,:,ithread)
+        hab = 0.0_dp
+        hdab => hdabt(:,:,:,ithread)
+        hdab = 0.0_dp
+        hadb => hadbt(:,:,:,ithread)
+        hadb = 0.0_dp
+        hab_sph => hab_spht(:,ithread)
+        hdab_sph => hdab_spht(:,:,ithread)
+
+        CALL integrate_pgf_product_rspace(&
+             l0_ikind,zet0,0,0,0.0_dp,0,&
+             ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,&
+             cube_info(igrid),l_info,hab,pab,o1=0,o2=0,&
+             eps_gvg_rspace=eps_rho_rspace,&
+             calculate_forces=calculate_forces,&
+             hdab=hdab,hadb=hadb,ithread=ithread,&
+             collocate_rho0=.TRUE.,rpgf0_s=rpgf0)
+
+        ! Convert from cartesian to spherical
+        DO lshell = 0,l0_ikind
+          DO is = 1,nso(lshell)
+            iso = is + nsoset(lshell-1) 
+            hab_sph(iso) = 0.0_dp
+            IF (calculate_forces) hdab_sph(1:3,iso) = 0.0_dp
+            DO ic = 1,nco(lshell)
+              ico = ic + ncoset(lshell-1)
+              lx = indco(1,ico)
+              ly = indco(2,ico)
+              lz = indco(3,ico)
+
+              opt = fourpi*norm_l(lshell)/SQRT(c4pi*dfac(2*lx-1)*&
+                    dfac(2*ly-1)*dfac(2*lz-1)/dfac(2*lshell+1))
+              hab_sph(iso) = hab_sph(iso) + &
+                  orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*opt
+              IF (calculate_forces) THEN
+                hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
+                    orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)*opt
+              END IF
+
+            END DO  ! ic
+          END DO  ! is
+        END DO  ! lshell
+
+        IF (calculate_forces) THEN
+
+          force_tmp(1:3) = 0.0_dp
+          DO iso = 1,nsoset(l0_ikind)
+            force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
+            force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
+            force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
+          END DO
+
+          force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
+                                            force_tmp(1:3)
+
+        END IF
+
+        DO is=1,nspins
+          CALL get_block_node(matrix=ks_matrix(is)%matrix,&
+               block_row=iatom,block_col=iatom,block=h_block)
+          CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineN,error,failure)
+          DO lm=1,SIZE(Qlm_gg,3)
+            h_block(:,:) = h_block(:,:) + Qlm_gg(:,:,lm)*hab_sph(lm)
+          END DO
+        END DO
+
+      END DO  ! j
+
+    END DO  ! ikind  
+
+    CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
+
+    IF (ASSOCIATED(tasks)) THEN
+      DEALLOCATE (tasks,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    END IF
+    DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE integrate_vhg0_rspace
 
 ! *****************************************************************************
 
