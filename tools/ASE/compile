@@ -1,0 +1,10 @@
+#!/bin/bash
+
+gcc -c -g -Wall -pedantic cp2k_c_bridge.c
+if [[ $? ]]; then
+ gcc -c -g -Wall -pedantic test.c
+ if [[ $? ]]; then
+  f95 -g test.o cp2k_c_bridge.o -L/Users/fawzi/cp2k/lib/Darwin-PowerMacintosh-nag/sdbg/ -lcp2k_lib -lcp2k_base_lib -Wl,-framework -Wl,vecLib -Wl,-Xlinker -Wl,-Y -Wl,-Xlinker -Wl,10
+ fi
+fi
+
