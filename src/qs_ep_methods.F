@@ -291,7 +291,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      CALL cp_error_check(error,failure)
   END IF
 
-  IF (cp_debug .AND. debug_this_module) THEN
+  IF (debug_this_module) THEN
      IF (.not.failure) THEN
         CALL cp_sm_output(logger=logger, &
              outputName="ep_s", &
@@ -328,7 +328,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
        long_description=debug_this_module, local=.FALSE.,&
        error=error)
 
-  IF (cp_debug .AND. debug_this_module) THEN
+  IF (debug_this_module) THEN
      IF (.not.failure) THEN
         DO ispin=1,nspins
            CALL cp_sm_output(logger=logger, &
@@ -373,6 +373,11 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
        v=psi1, res=L_psi1,error=error)
 
+  CALL cp_fm_vect_write(matrixes=L_psi1, &
+       unit_nr=cp_logger_get_default_unit_nr(logger), &
+       long_description=.TRUE.,&
+       local=.FALSE., error=error)
+
   CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
        v=psi1, res=L_psi1,&
        alpha=1.0_wp,beta=1.0_wp,error=error)
@@ -393,9 +398,9 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,psi1,error=error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,L_psi1,error=error)
 
-!FM  CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
-!FM       qs_env=ep_env%main_qs_env, &
-!FM       name="ep_op", error=error)
+  CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
+       qs_env=ep_env%main_qs_env, &
+       name="ep_op", error=error)
 
   CALL stupid_solve(ep_env,eps_r=1.0e-5_wp,error=error)
 
@@ -889,7 +894,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
            CALL get_mo_set(sub_c(ispin)%mo_set,eigenvectors=sub_orbitals,&
                 nmo=sub_nmo)
            CPInvariant(start_col+sub_nmo<nmo+2,cp_failure_level,routineP,error,failure)
-           IF (cp_debug.and.debug_this_module) THEN
+           IF (debug_this_module) THEN
               IF (logger%print_keys%perturb_psi0) THEN
                  WRITE (unit=unit_nr,fmt="(a,i4,a,i4,a,i4)")&
                       "Printing psi of sub_env ",isub,&
@@ -907,7 +912,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
            start_col=start_col+sub_nmo
         END DO
 
-        IF (cp_debug.and.debug_this_module) THEN
+        IF (debug_this_module) THEN
            logger => cp_error_get_logger(error)
            IF (logger%print_keys%perturb_psi0) THEN
               WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&

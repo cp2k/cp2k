@@ -1145,7 +1145,7 @@ CONTAINS
        IF (.not.loc.and.long_description) THEN
           matrix%print_count=matrix%print_count+1
           IF (para_env%mepos==para_env%source) THEN
-             filename=TRIM(matrix%name)//&
+             filename=TRIM(matrix%name)//'-'//&
                   ADJUSTL(cp_to_string(matrix%print_count))
              CALL compress_all(filename)
              WRITE (unit=desc_unit,&

@@ -443,6 +443,7 @@ CONTAINS
                v_rspace_new(ispin)%pw%cr3d(:,:,:) +&
                v_hartree_rspace%pw%cr3d(:,:,:)
 
+          ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
           IF (my_rebuild) CALL set_matrix(kpp1_env%v_ao(ispin)%matrix,0.0_wp)
           CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                mgrid_rspace=mgrid_rspace,&
@@ -456,6 +457,8 @@ CONTAINS
                h=kpp1_env%v_ao(ispin),&
                qs_env=qs_env,&
                calculate_forces=.FALSE.,error=error)
+          call transfer_matrix(kpp1_env%v_ao(ispin)%matrix,&
+               k_p_p1(ispin)%matrix)
        END DO
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&

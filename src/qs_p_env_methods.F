@@ -75,6 +75,7 @@ MODULE qs_p_env_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
@@ -123,13 +124,14 @@ MODULE qs_p_env_methods
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
-  USE string_utilities,                ONLY: compress
+  USE string_utilities,                ONLY: compress_all
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_env_methods'
   INTEGER, PRIVATE, SAVE :: last_p_env_id=0
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
   PRIVATE
   PUBLIC :: p_env_create, p_env_psi0_changed
@@ -348,7 +350,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           IF (.NOT. failure) THEN
              name="p_env"//cp_to_string(p_env%id_nr)//"%kpp1-"
-             CALL compress(name)
+             CALL compress_all(name)
              DO ispin=1,nspins
                 NULLIFY(p_env%kpp1(ispin)%matrix)
                 CALL replicate_matrix_structure(s(1)%matrix,&
@@ -868,11 +870,15 @@ END SUBROUTINE p_env_did_change
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(qs_rho_type), POINTER :: rho
+    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER, SAVE :: iter=0
 
     failure=.FALSE.
     my_alpha=1.0_wp
     my_beta=0.0_wp
+    iter=iter+1
     NULLIFY(p1_new, s, dft_control, para_env, rho)
+    logger => cp_error_get_logger(error)
     IF (PRESENT(alpha)) my_alpha=alpha
     IF (PRESENT(beta)) my_beta=beta
 
@@ -906,6 +912,13 @@ END SUBROUTINE p_env_did_change
                matrix_v=p_env%psi0d(ispin)%matrix,&
                matrix_g=v(ispin)%matrix,&
                ncol=p_env%n_mo(ispin),error=error)
+          IF (debug_this_module) THEN
+             CALL cp_sm_output(logger=logger, &
+                  outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+                  "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+                  fromWhere=routineP, iter=iter, matrix=p1_new(ispin)%matrix,&
+                  para_env=qs_env%para_env, error=error)
+          END IF
        END DO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
             rho_ao_new=p1_new,qs_env=qs_env,&
@@ -915,9 +928,9 @@ END SUBROUTINE p_env_did_change
             rebuild=.TRUE.,error=error)
        DO ispin=1,n_spins
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
-               v_in=v(ispin)%matrix,v_out=res(ispin)%matrix,&
+               v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&
                ncol=p_env%n_mo(ispin),&
-               para_env=para_env, &
+               para_env=para_env,&
                alpha=my_alpha,beta=my_beta,error=error)
        END DO
     END IF
