@@ -430,13 +430,13 @@ CONTAINS
           j=MIN(3,ncol_global-i)
           select case (j)
           case(3)
-           write(globenv%scr,'(X4F12.8)') evals(i:i+j)
+           write(globenv%scr,'(1X,4F12.8)') evals(i:i+j)
           case(2)
-           write(globenv%scr,'(X3F12.8)') evals(i:i+j)
+           write(globenv%scr,'(1X,3F12.8)') evals(i:i+j)
           case(1)
-           write(globenv%scr,'(X2F12.8)') evals(i:i+j)
+           write(globenv%scr,'(1X,2F12.8)') evals(i:i+j)
           case(0)
-           write(globenv%scr,'(X1F12.8)') evals(i:i+j)
+           write(globenv%scr,'(1X,1F12.8)') evals(i:i+j)
           end select
        enddo
     endif
