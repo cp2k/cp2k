@@ -141,21 +141,24 @@ arg_loop: DO WHILE (i_arg<n_arg)
            ENDIF
         CASE default
            ! if the last argument does not start with a - it is an input filename
-           IF (i_arg.EQ.n_arg .AND. .NOT. arg_att(1:1)=='-') THEN  
+!MK in order to digest the additional flags of mpirun
+           IF ((.NOT.has_input).AND.&
+               (i_arg == n_arg).AND.&
+               (.NOT.arg_att(1:1) == "-")) THEN
               input_file_name=arg_att
               has_input=.TRUE.
-           ELSE
-              WRITE (output_unit,'(a)') ''
-              WRITE (output_unit,'(a)') 'ERROR: the command line argument '//TRIM(arg_att)//' can not be parsed'     
-              IF (arg_att(1:1)=='-') THEN
-                 WRITE (output_unit,'(a)') '       notice that you can not yet write [-eri] and spaces are required'
-              ELSE
-                 WRITE (output_unit,'(a)') '       notice that [-i] is required before the input file name,'
-                 WRITE (output_unit,'(a)') '       unless it is the last argument'
-              ENDIF
-              command_line_error=.TRUE.
-              EXIT arg_loop
-           ENDIF
+!MK           ELSE
+!MK              WRITE (output_unit,'(a)') ''
+!MK              WRITE (output_unit,'(a)') 'ERROR: the command line argument '//TRIM(arg_att)//' can not be parsed'     
+!MK              IF (arg_att(1:1)=='-') THEN
+!MK                 WRITE (output_unit,'(a)') '       notice that you can not yet write [-eri] and spaces are required'
+!MK              ELSE
+!MK                 WRITE (output_unit,'(a)') '       notice that [-i] is required before the input file name,'
+!MK                 WRITE (output_unit,'(a)') '       unless it is the last argument'
+!MK              ENDIF
+!MK              command_line_error=.TRUE.
+!MK              EXIT arg_loop
+           END IF
         END SELECT
      END DO arg_loop
 
