@@ -197,8 +197,8 @@ CONTAINS
     TYPE(cell_type), POINTER :: cell
 
     failure=.FALSE.
-    ALLOCATE(my_rho_r(1), my_vxc(1), stat=stat)
     NULLIFY(my_rho_g, cell, my_rho_r, my_vxc)
+    ALLOCATE(my_rho_r(1), my_vxc(1), stat=stat)
     my_rho_r(1)%pw => rho_r
     my_vxc(1)%pw => vxc
     my_dft_control => dft_control
