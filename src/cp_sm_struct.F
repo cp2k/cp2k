@@ -482,9 +482,9 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
 
   failure=.FALSE.
   NULLIFY(row_att, col_att, new_node)
-  
-  CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
-  CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+  ! most assertions commented away, as the take too much time 
+  ! CPPrecondition(ASSOCIATED(sm_struct),cp_failure_level,routineP,error,failure)
+  ! CPPrecondition(sm_struct%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (.not.ASSOCIATED(sm_struct%local_blocks)) THEN
         ALLOCATE(sm_struct%local_blocks,stat=stat)
@@ -498,14 +498,14 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
   END IF
   IF (.not.failure) THEN
      row_att => sm_struct%local_blocks
-     CPAssert(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
+     ! CPAssert(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(row_att%next_row)) EXIT
         IF (row_att%next_row%row > block_row) EXIT
         row_att => row_att%next_row
      END DO
-     CPPostcondition(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
-     CPPostcondition(row_att%row<=block_row,cp_failure_level,routineP,error,failure)
+     ! CPPostcondition(ASSOCIATED(row_att),cp_failure_level,routineP,error,failure)
+     ! CPPostcondition(row_att%row<=block_row,cp_failure_level,routineP,error,failure)
      IF (row_att%row /= block_row) THEN
         ALLOCATE(new_node,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -528,14 +528,14 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
 
   IF (.NOT. failure) THEN
      col_att => sm_struct%local_blocks
-     CPAssert(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
+     ! CPAssert(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
      DO WHILE (.TRUE.)
         IF (.not.ASSOCIATED(col_att%next_col)) EXIT
         IF (col_att%next_col%col > block_col) EXIT
         col_att => col_att%next_col
      END DO
-     CPPostcondition(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
-     CPPostcondition(col_att%col<=block_col,cp_failure_level,routineP,error,failure)
+     ! CPPostcondition(ASSOCIATED(col_att),cp_failure_level,routineP,error,failure)
+     ! CPPostcondition(col_att%col<=block_col,cp_failure_level,routineP,error,failure)
      IF (col_att%col /= block_col) THEN
         ALLOCATE(new_node,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -558,9 +558,9 @@ SUBROUTINE sm_struct_add_local_block(sm_struct, block_row, block_col, error)
 
   IF (.not.failure) THEN
      IF (col_att%row == block_row) THEN
-        CPAssert(row_att%col == block_col,cp_failure_level,routineP,error,failure)
+        ! CPAssert(row_att%col == block_col,cp_failure_level,routineP,error,failure)
      ELSE
-        CPAssert(row_att%col /= block_col,cp_failure_level,routineP,error,failure)
+        ! CPAssert(row_att%col /= block_col,cp_failure_level,routineP,error,failure)
         ALLOCATE(new_node,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         new_node%col=block_col
