@@ -297,12 +297,6 @@ contains
     failure=.false.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-!!FM    if (.not.failure) then
-!!FM       CPPrecondition(source_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(source_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(.not.target_m%min_bas_cols,cp_failure_level,routineP,error,failure)
-!!FM       CPPrecondition(.not.target_m%min_bas_rows,cp_failure_level,routineP,error,failure)
-!!FM    end if
     if (.not.failure) then
        call cp_init(l_angles_col,atom_nr=1, &
             glob_angles=glob_angles, qs_env=qs_env, global_env=global_env,&
@@ -358,8 +352,8 @@ contains
 ! size(u_col,1)==size(u_col,2)==size(target_m,2)
 
 ! t1_m = t2_m u^*
-             call dgemm('N','T',size(u_row,1),size(u_col,1),&
-                  size(u_col,2),1.0_wp,&
+             call dgemm('N','T',size(u_row,2),size(u_col,2),&
+                  size(u_col,1),1.0_wp,&
                   t2_m,size(t2_m,1),&
                   u_col,size(u_col,1),&
                   0.0_wp,t1_m,size(t1_m,1))
@@ -373,11 +367,11 @@ contains
              end if
 ! block_val = u t1_m
              if (.not.failure) then
-                call dgemm('N','N',size(u_row,1),size(u_row,2),&
-                     size(u_col,2),1.0_wp,&
+                call dgemm('N','N',size(u_row,1),size(u_col,2),&
+                     size(u_row,2),1.0_wp,&
                      u_row,size(u_row,1),&
-                     block_val,size(block_val,1),&
-                     0.0_wp,t2_m,size(t2_m,1))
+                     t1_m,size(t1_m,1),&
+                     0.0_wp,block_val,size(block_val,1))
              end if
 
           end do blocksDo
