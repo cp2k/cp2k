@@ -505,11 +505,6 @@ CONTAINS
         CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list")
       END IF
 
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The requested neighbor list is not associated")
-
     END IF
 
   END SUBROUTINE deallocate_neighbor_list
@@ -552,11 +547,6 @@ CONTAINS
       IF (istat /= 0) THEN
         CALL stop_memory(routine_name,module_name,__LINE__,"neighbor_list_set")
       END IF
-
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The requested neighbor list set is not associated")
 
     END IF
 
@@ -1024,11 +1014,15 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list)) THEN
+
       IF (PRESENT(atom)) neighbor_list%atom = atom
       IF (PRESENT(cell)) neighbor_list%cell(:) = cell(:)
+
     ELSE
+
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor list is not associated")
+
     END IF
 
   END SUBROUTINE set_neighbor_list
@@ -1053,10 +1047,14 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_list_set)) THEN
+
       IF (PRESENT(r_max)) neighbor_list_set%r_max = r_max
+
     ELSE
+
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor list set is not associated")
+
     END IF
 
   END SUBROUTINE set_neighbor_list_set
@@ -1083,12 +1081,16 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(neighbor_node)) THEN
+
       IF (PRESENT(neighbor)) neighbor_node%neighbor = neighbor
       IF (PRESENT(r)) neighbor_node%r(:) = r(:)
       IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
+
     ELSE
+
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "The requested neighbor node is not associated")
+
     END IF
 
   END SUBROUTINE set_neighbor_node
