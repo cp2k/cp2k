@@ -128,40 +128,42 @@ MODULE dft_types
      REAL(wp) :: e_cutoff_dual
   END TYPE wave_control_type
 
-! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
+  ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
 
-!!****s* dft_types/tddfpt_control_type
-!!
-!! NAME
-!!   tddfpt_control_type
-!!
-!! FUNCTION
-!!   A type that holds controling information for a time-dependent
-!!   perturbation calculation.
-!!
-!! ATTRIBUTES
-!!   - n_ev       : number of eigenvalues to calculate
-!!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
-!!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
-!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
-!!                 to calculate
-!!   - functional : the functional to use in the perturbation kernel
-!!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
-!!   - lumos      : holds the first few lumos (if calculated in QS)
-!!
-!! NOTES  
-!!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
-!!   calculation, since they can be used to construct the solutions of the
-!!   TDDFPT operator without the perturbation kernel.
-!!  
-!!***
+  !!****s* dft_types/tddfpt_control_type
+  !!
+  !! NAME
+  !!   tddfpt_control_type
+  !!
+  !! FUNCTION
+  !!   A type that holds controling information for a time-dependent
+  !!   perturbation calculation.
+  !!
+  !! ATTRIBUTES
+  !!   - n_ev       : number of eigenvalues to calculate
+  !!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
+  !!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
+  !!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
+  !!                  to calculate
+  !!   - functional : the functional to use in the perturbation kernel
+  !!   - gradient_functionals:
+  !!   - crossterms :
+  !!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
+  !!   - lumos      : holds the first few lumos (if calculated in QS)
+  !!
+  !! NOTES  
+  !!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
+  !!   calculation, since they can be used to construct the solutions of the
+  !!   TDDFPT operator without the perturbation kernel.
+  !!  
+  !!***
   TYPE tddfpt_control_type
      INTEGER                                   :: n_ev
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
      CHARACTER(LEN=7)                          :: restricted_excitations_type
      CHARACTER(LEN=40), DIMENSION(3)           :: functional
-     LOGICAL, DIMENSION (2,3)                  :: ftags
+     LOGICAL, DIMENSION (3)                    :: gradient_functionals, crossterms
      REAL(kind=wp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
   END TYPE tddfpt_control_type
@@ -192,7 +194,6 @@ MODULE dft_types
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         derive_function_rho
-     LOGICAL, DIMENSION (2,3)        :: ftags
      LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
   END TYPE dft_control_type
 
@@ -287,7 +288,8 @@ CONTAINS
     dft_control % density_cut = 1.0E-10_wp
     dft_control % gradient_cut = 1.0E-8_wp
     dft_control % nspins = 1
-    dft_control % ftags = .FALSE.
+    dft_control % gradient_functionals = .FALSE.
+    dft_control % crossterms = .FALSE.
     dft_control % xc_rho_smooth_id = xc_rho_no_smooth
     dft_control % xc_deriv_method_id = xc_deriv_pw
     dft_control % derive_function_rho = .FALSE.
@@ -421,9 +423,6 @@ CONTAINS
         END IF
       END DO
     END IF
-
-    dft_control % ftags ( 1, : ) = dft_control % gradient_functionals
-    dft_control % ftags ( 2, : ) = dft_control % crossterms
 
     CALL finish_parser()
 
@@ -1023,19 +1022,19 @@ CONTAINS
                 "XCFUN","FUNCTIONAL","FUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (0, field, t_control%functional, &
-                                        t_control%ftags(1,:), t_control%ftags(2,:) )
+                                        t_control%gradient_functionals, t_control%crossterms )
           CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (1, field, t_control%functional, &
-                                        t_control%ftags(1,:), t_control%ftags(2,:) )
+                                        t_control%gradient_functionals, t_control%crossterms )
           CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (2, field, t_control%functional, &
-                                        t_control%ftags(1,:), t_control%ftags(2,:) )
+                                        t_control%gradient_functionals, t_control%crossterms )
           CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
             CALL read_object(field, lower_to_upper=.TRUE.)
             CALL xc_get_functional (3, field, t_control%functional, &
-                                        t_control%ftags(1,:), t_control%ftags(2,:) )
+                                        t_control%gradient_functionals, t_control%crossterms )
        CASE DEFAULT
           CALL stop_parser(routineP, "unrecognized option <"//TRIM(keyword)//">")
 
@@ -1044,7 +1043,7 @@ CONTAINS
    END DO
    
    CALL finish_parser()
-    
+
   END SUBROUTINE read_tddfpt_control
 
 !   ***************************************************************************

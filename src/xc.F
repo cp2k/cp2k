@@ -1024,19 +1024,21 @@ END SUBROUTINE xc_prep_2nd_deriv1
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     ! locals
-    LOGICAL :: failure, gradient_f, crossterms, do_lsd, do_restricted_tddfpt
-    CHARACTER(len=*), PARAMETER :: routineN='xc_prep_2nd_deriv',&
-         routineP=moduleN//':'//routineN
+    LOGICAL :: failure, gradient_f, use_crossterms, do_lsd, do_restricted_tddfpt
+    LOGICAL, DIMENSION (3) :: gradient_functionals, crossterms
     INTEGER :: handle, nspins, spin, ii, i,j,k, n(3), n_tot, idir, ipot,ntot,&
-         stat, order,npot
-    TYPE(pw_type), POINTER :: tmp_g
-    REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: rgrid, drgrid
+               stat, order,npot
     INTEGER, DIMENSION (3,3) :: nd 
     INTEGER, DIMENSION (2,3) :: bo
+    REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: rgrid, drgrid
+    REAL(kind=wp) :: rgrid_sum
+    TYPE(pw_type), POINTER :: tmp_g
     TYPE(cp_logger_type), POINTER :: logger
-    REAL(KIND=wp) :: rgrid_sum
-    CHARACTER(LEN=40), DIMENSION(3)           :: functional
-    LOGICAL, DIMENSION (2,3)                  :: ftags
+    CHARACTER(LEN=40), DIMENSION(3) :: functional
+
+    ! parameters
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv',&
+                                   routineP = moduleN//':'//routineN
     
     ! ------------------------------------------------------------------------
 
@@ -1056,17 +1058,18 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
        if (dft_control%do_tddfpt_calculation) then
           functional = dft_control%tddfpt_control%functional
-          ftags      = dft_control%tddfpt_control%ftags
+          gradient_functionals = dft_control%tddfpt_control%gradient_functionals
+          crossterms = dft_control%tddfpt_control%crossterms
        else
           functional = dft_control%functional
-          ftags      = dft_control%ftags
+          gradient_functionals = dft_control%gradient_functionals
        endif
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
-       crossterms = do_lsd .AND. ANY(ftags(2,:))
-       gradient_f = ANY(ftags(1,:))
+       use_crossterms = do_lsd .AND. ANY(crossterms)
+       gradient_f = ANY(gradient_functionals)
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(rho_g),cp_failure_level,routineP,error,failure)
@@ -1151,7 +1154,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
     IF (.NOT.failure) THEN
        order = -2
 ! allocate potential
-       npot = xc_get_pot_size ( do_lsd, gradient_f, crossterms, order )
+       npot = xc_get_pot_size ( do_lsd, gradient_f, use_crossterms, order )
        ALLOCATE ( pot ( ntot, npot ), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -1172,13 +1175,13 @@ END SUBROUTINE xc_prep_2nd_deriv1
              CALL dscal (ntot, 0.5_wp, rgrid(:,1), 1)
              IF (gradient_f) THEN
                 CALL dscal (ntot, 0.5_wp, drgrid(:,1), 1)
-                CALL xc_lsd ( functional, ftags(1,:), ftags(2,:), &
+                CALL xc_lsd ( functional, gradient_functionals, crossterms, &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               drho_a=drgrid(:,1), drho_b=drgrid(:,1), &
                               error=error )
              ELSE
-                CALL xc_lsd ( functional, ftags(1,:), ftags(2,:), &
+                CALL xc_lsd ( functional, gradient_functionals, crossterms, &
                               rgrid(:,1), rgrid(:,1), &
                               pot, order, &
                               error=error )
@@ -1187,13 +1190,13 @@ END SUBROUTINE xc_prep_2nd_deriv1
           ELSE
              IF (gradient_f) THEN
                 CALL xc_lda ( functional,&
-                              ftags(1,:), ftags(2,:), &
+                              gradient_functionals, crossterms, &
                               rgrid(:,1), &
                               pot, order, &
                               drho=drgrid(:,1), error=error )
              ELSE
                 CALL xc_lda ( functional,&
-                              ftags(1,:), ftags(2,:), &
+                              gradient_functionals, crossterms, &
                               rgrid(:,1), &
                               pot, order, &
                               error=error )
@@ -1207,7 +1210,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
        END IF
 
        CALL xc_create_2nd_deriv_info( lsd=do_lsd, gradient=gradient_f,&
-            crossterms=crossterms, spin_pot=spin_pot, grad_pot=grad_pot,&
+            crossterms=use_crossterms, spin_pot=spin_pot, grad_pot=grad_pot,&
             ndiag_term=ndiag_term, error=error)
 
     END IF
@@ -1512,7 +1515,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     ! locals
     LOGICAL                                      :: failure, gradient_f, &
-                                                    crossterms, do_restricted_tddfpt, do_lsd
+                                                    do_restricted_tddfpt, do_lsd
     REAL(kind=wp)                                :: diag_factor
     INTEGER                                      :: handle, &
                                                     nspins, spin, &
@@ -1526,7 +1529,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
     INTEGER, DIMENSION (2,3)                     :: bounds
     TYPE(cp_logger_type), POINTER                :: logger
     CHARACTER(LEN=40), DIMENSION(3)              :: functional
-    LOGICAL, DIMENSION (2,3)                     :: ftags
+    LOGICAL, DIMENSION (3)                       :: gradient_functionals
 
     CHARACTER(len=*), PARAMETER :: routineN='xc_calc_2nd_deriv',&
          routineP=moduleN//':'//routineN
@@ -1550,17 +1553,16 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
        if (dft_control%do_tddfpt_calculation) then
           functional = dft_control%tddfpt_control%functional
-          ftags      = dft_control%tddfpt_control%ftags
+          gradient_functionals = dft_control%tddfpt_control%gradient_functionals
        else
           functional = dft_control%functional
-          ftags      = dft_control%ftags
+          gradient_functionals = dft_control%gradient_functionals
        endif
 
        nspins     = dft_control%nspins
        do_restricted_tddfpt  = (dft_control%do_tddfpt_calculation .AND. (nspins==1))
-       gradient_f = ANY(ftags(1,:))
+       gradient_f = ANY(gradient_functionals)
        do_lsd     = (nspins==2) .OR. do_restricted_tddfpt
-       crossterms = do_lsd .AND. ANY(ftags(2,:))
        IF (dft_control%tddfpt_control%restricted_excitations_type=="SINGLET") THEN
           diag_factor = 1.0_wp
        ELSE
