@@ -161,6 +161,11 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   IF ( first_time ) THEN
 !
+! Setting up PLANEWAVES
+!
+     coef_pos % pw % pw_grid => pw_grid
+
+!
 ! Setting up double grids for ATOMICORBIALS
 !
 
@@ -186,17 +191,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
      CALL pol_grids_initialize ( dg_proj, dg_atom, part, pnode, proj % ao, &
             drho_basis_info, rho0_basis_info, fc_global,  box, &
-            small_grid, big_grid, iref, npts_max, cutoff_radius_max )    
-!
-! Setting up PLANEWAVES
-!
-     coef_pos % pw % pw_grid => pw_grid
+            small_grid, big_grid, iref, npts_max, cutoff_radius_max, pw_grid )    
      
 !
 ! Initializing green function to PW grid
 !
      IF ( pw_grid % cutoff < big_grid ( iref ) % cutoff ) THEN
-       WRITE ( *, * ) pw_grid % cutoff, big_grid ( iref ) % cutoff
+       WRITE ( *, * ) "PW CUTOFF = ",  pw_grid % cutoff
+       WRITE ( *, * ) "REF CUTOFF = ", big_grid ( iref ) % cutoff
        CALL stop_program ( 'pol_force_pw', 'PW cutoff too small' )
      ENDIF
      CALL pw_green_fn_init ( box % green, pw_grid )
