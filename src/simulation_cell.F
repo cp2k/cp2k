@@ -988,7 +988,7 @@ CONTAINS
 
       CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamma)
 
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,F20.3)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T61,F20.3)")&
         "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
         cell%deth/cell%unit_of_length**3
       WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&

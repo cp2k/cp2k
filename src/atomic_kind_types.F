@@ -34,7 +34,8 @@ MODULE atomic_kind_types
                                              write_aux_basis_set,&
                                              write_gto_basis_set,&
                                              write_orb_basis_set
-  USE cp_control_types,                ONLY: gapw_control_type
+  USE cp_control_types,                ONLY: dft_control_type, &
+                                             gapw_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -62,6 +63,7 @@ MODULE atomic_kind_types
                                              gth_potential_type,&
                                              init_potential,&
                                              read_potential,&
+                                             set_default_all_potential,&
                                              set_potential,&
                                              write_potential
   USE global_types,                    ONLY: global_environment_type
@@ -143,6 +145,7 @@ MODULE atomic_kind_types
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_atomic_kind_set,&
+            check_atomic_kind_set,&
             deallocate_atomic_kind_set,&
             get_atomic_kind,&
             get_atomic_kind_set,&
@@ -153,9 +156,6 @@ MODULE atomic_kind_types
             write_atomic_kind,&
             write_atomic_kind_set,&
             write_gto_basis_sets
-
-  PUBLIC :: attach_atomic_kind_set,&
-            detach_atomic_kind_set
 
 ! *** Public data types ***
 
@@ -1124,7 +1124,7 @@ CONTAINS
     failure = .FALSE.
     aux_basis_set_name = ""
     orb_basis_set_name = ""
-    potential_name = "GTH"
+    potential_name = ""
     potential_type = ""
     z = -1
     atomic_kind%mass=-1.0_dp
@@ -1247,12 +1247,6 @@ CONTAINS
           END SELECT
         END IF
       END DO
-    ELSE
-      WRITE(globenv%scr,*)
-      WRITE(globenv%scr,*)
-      WRITE(globenv%scr,'(A)') " *** No section KIND DEFAULT and no section KIND "&
-                               //TRIM(atomic_kind%name)//" *** "
-      CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
     END IF
 
     CALL finish_parser()
@@ -1291,25 +1285,6 @@ CONTAINS
                         "element symbol in the input section <KIND "//&
                         TRIM(atomic_kind%name)//"> or select a valid "//&
                         "element symbol for the atomic kind name",globenv)
-    END IF
-
-    ! this should be done in e.g. QS itself.  
-    ! this routine should just read in what it finds in the input 
-    IF (globenv%program_name == "QS") THEN 
-      IF (orb_basis_set_name == '') THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "No orbital basis set was defined for the atomic "//&
-                          "kind <"//TRIM(atomic_kind%name)//">. Specify a "//&
-                          "valid orbital basis set name in the input "//&
-                          "section <KIND "//TRIM(atomic_kind%name)//">",globenv)
-      END IF
-      IF (potential_name == '') THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                          "No atomic potential type was defined for the "//&
-                          "atomic kind <"//TRIM(atomic_kind%name)//">. "//&
-                          "Specify a valid potential type in the input "//&
-                          "section <KIND "//TRIM(atomic_kind%name)//">",globenv)
-      END IF
     END IF
 
 !   *** Allocate and initialise the orbital basis set data set structure ***
@@ -1374,6 +1349,11 @@ CONTAINS
                           TRIM(globenv%input_file_name)//">",globenv)
       END SELECT
 
+    ELSE
+
+      CALL allocate_potential(atomic_kind%all_potential)
+      CALL set_default_all_potential(atomic_kind%all_potential,z)
+
     END IF
 
     IF (.not.cp_sll_int_get_empty(min_bas_sll)) THEN
@@ -1428,6 +1408,92 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_atomic_kind_set
+
+! *****************************************************************************
+  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,globenv)
+
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(dft_control_type),INTENT(IN)        :: dft_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind", &
+      routineP = module_name//':'//routine_name
+
+    REAL(dp)                             :: mass
+    INTEGER                              :: z
+    CHARACTER(LEN=default_string_length) :: name
+    TYPE(gto_basis_set_type), POINTER    :: orb_basis_set
+    TYPE(all_potential_type), POINTER    :: all_potential
+    TYPE(elp_potential_type), POINTER    :: elp_potential
+    TYPE(gth_potential_type), POINTER    :: gth_potential
+!   ---------------------------------------------------------------------------
+
+    NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
+    CALL get_atomic_kind(atomic_kind,name=name,z=z,mass=mass,&
+                         orb_basis_set=orb_basis_set,&
+                         all_potential=all_potential,&
+                         elp_potential=elp_potential,&
+                         gth_potential=gth_potential)
+    IF (z < 1) THEN
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                     "No valid element is assign to the atomic kind ",globenv)
+    END IF
+
+    IF (globenv%program_name == "QS") THEN
+      IF (.NOT. dft_control%qs_control%semi_empirical) THEN
+        IF ( .NOT. ASSOCIATED(gth_potential) .AND. &
+             .NOT. ASSOCIATED(all_potential) .AND. &
+             .NOT. ASSOCIATED(elp_potential) .AND. &
+             mass > 0._dp ) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                      "No potential type was defined for the "//&
+                      "atomic kind <"//TRIM(atomic_kind%name),globenv)
+        END IF
+        IF ( .NOT. ASSOCIATED(orb_basis_set) ) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                      "No basis set type was defined for the "//&
+                      "atomic kind <"//TRIM(atomic_kind%name),globenv)
+        END IF
+      ELSE
+!de
+      END IF
+    ELSE IF (globenv%program_name == "KG") THEN
+      !no checks programmed yet
+    END IF
+
+  END SUBROUTINE check_atomic_kind
+
+! *****************************************************************************
+
+  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
+
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(dft_control_type),INTENT(IN)        :: dft_control
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "check_atomic_kind_set"
+
+    INTEGER                                  :: ikind, nkind
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(atomic_kind_set)) THEN
+      nkind = SIZE(atomic_kind_set)
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL check_atomic_kind(atomic_kind,dft_control,globenv)
+      END DO
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer atomic_kind_set is not associated",&
+                        globenv)
+    END IF
+
+  END SUBROUTINE check_atomic_kind_set
 
 ! *****************************************************************************
 
@@ -1685,138 +1751,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_gto_basis_sets
-
-! *****************************************************************************
-
-  SUBROUTINE attach_atomic_kind_set(new_atomic_kind_set,atomic_kind_set)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: new_atomic_kind_set, &
-                                                atomic_kind_set
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "attach_atomic_kind_set"
-
-    INTEGER                                  :: iset, nset
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(atomic_kind_set) .AND. &
-        ASSOCIATED(new_atomic_kind_set) ) THEN
-
-      nset = SIZE(atomic_kind_set)
-      IF ( nset /= SIZE(new_atomic_kind_set)) THEN
-        CALL stop_program(routine_name,module_name,__LINE__,&
-          "Sets have different sizes")
-      END IF
-
-      DO iset = 1, nset
-
-        IF (ASSOCIATED(atomic_kind_set(iset)%all_potential)) THEN
-           new_atomic_kind_set(iset)%all_potential => &
-               atomic_kind_set(iset)%all_potential
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%all_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(iset)%elp_potential)) THEN
-           new_atomic_kind_set(iset)%elp_potential => &
-               atomic_kind_set(iset)%elp_potential
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%elp_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(iset)%gth_potential)) THEN
-           new_atomic_kind_set(iset)%gth_potential => &
-               atomic_kind_set(iset)%gth_potential
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%gth_potential)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(iset)%aux_basis_set)) THEN
-           new_atomic_kind_set(iset)%aux_basis_set => &
-               atomic_kind_set(iset)%aux_basis_set
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%aux_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(iset)%orb_basis_set)) THEN
-           new_atomic_kind_set(iset)%orb_basis_set => &
-               atomic_kind_set(iset)%orb_basis_set
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%orb_basis_set)
-        END IF
-        IF (ASSOCIATED(atomic_kind_set(iset)%pao_bas_proj)) THEN
-           new_atomic_kind_set(iset)%pao_bas_proj => &
-               atomic_kind_set(iset)%pao_bas_proj 
-        ELSE
-           NULLIFY(new_atomic_kind_set(iset)%pao_bas_proj)
-        END IF
-
-        new_atomic_kind_set(iset)%name = atomic_kind_set(iset)%name
-        new_atomic_kind_set(iset)%element_symbol = &
-            atomic_kind_set(iset)%element_symbol
-        new_atomic_kind_set(iset)%mass = atomic_kind_set(iset)%mass
-        new_atomic_kind_set(iset)%kind_number = &
-            atomic_kind_set(iset)%kind_number
-        new_atomic_kind_set(iset)%number_of_grid_points = &
-            atomic_kind_set(iset)%number_of_grid_points
-        new_atomic_kind_set(iset)%natom = 0
-        new_atomic_kind_set(iset)%ldaCoreRadius= &
-             atomic_kind_set(iset)%ldaCoreRadius
-        NULLIFY(new_atomic_kind_set(iset)%atom_list)
-
-      END DO
-
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-       "The pointer atomic_kind_set or new_atomic_kind_set is not associated")
-
-    END IF
-
-  END SUBROUTINE attach_atomic_kind_set
-
-! *****************************************************************************
-
-  SUBROUTINE detach_atomic_kind_set(atomic_kind_set)
-
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "detach_atomic_kind_set"
-
-    INTEGER                                  :: iset, istat, nset
-
-!   ---------------------------------------------------------------------------
-
-    IF (ASSOCIATED(atomic_kind_set) ) THEN
-
-      nset = SIZE(atomic_kind_set)
-      DO iset = 1, nset
-        NULLIFY(atomic_kind_set(iset)%all_potential)
-        NULLIFY(atomic_kind_set(iset)%elp_potential)
-        NULLIFY(atomic_kind_set(iset)%gth_potential)
-        NULLIFY(atomic_kind_set(iset)%aux_basis_set)
-        NULLIFY(atomic_kind_set(iset)%orb_basis_set)
-        NULLIFY(atomic_kind_set(iset)%pao_bas_proj)
-        atomic_kind_set(iset)%name = ""
-        atomic_kind_set(iset)%element_symbol = ""
-        atomic_kind_set(iset)%mass = 0
-        atomic_kind_set(iset)%kind_number = 0
-        atomic_kind_set(iset)%number_of_grid_points = 0
-        atomic_kind_set(iset)%natom = 0
-        atomic_kind_set(iset)%ldaCoreRadius=0.0_dp
-        IF ( ASSOCIATED(atomic_kind_set(iset)%atom_list) ) THEN
-          DEALLOCATE(atomic_kind_set(iset)%atom_list,STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                         "atomic_kind_set(iset)%atom_list")
-        END IF
-      END DO
-
-    ELSE
-
-      CALL stop_program(routine_name,module_name,__LINE__,&
-       "The pointer atomic_kind_set is not associated")
-
-    END IF
-
-  END SUBROUTINE detach_atomic_kind_set
 
 ! *****************************************************************************
 

@@ -36,6 +36,7 @@ MODULE external_potential_types
                                              ncoset,&
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
+  USE periodic_table,                  ONLY: ptable
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              search_object,&
@@ -122,6 +123,7 @@ MODULE external_potential_types
             init_potential,&
             read_potential,&
             set_potential,&
+            set_default_all_potential,&
             write_potential
 
 ! *** Public data types ***
@@ -1248,6 +1250,48 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE set_default_all_potential(potential,z)
+
+    TYPE(all_potential_type), POINTER        :: potential
+    INTEGER, INTENT(IN)                      :: z
+
+    CHARACTER(LEN=default_string_length)     :: name
+    REAL(KIND=dp)                            :: r, alpha
+    REAL(KIND=dp)                            :: alpha_core_charge, &
+                                                ccore_charge, &
+                                                core_charge_radius
+    INTEGER                                  :: zeff
+    INTEGER, DIMENSION(:),POINTER            :: elec_conf
+
+    ALLOCATE ( elec_conf(0:3) )
+    elec_conf(0:3) = ptable(z)%e_conv(0:3)
+    zeff = SUM ( elec_conf )
+    name = ptable(z)%name
+
+    r = ptable(z)%covalent_radius * 0.5_dp
+    r = MAX ( r, 0.2_dp )
+    r = MIN ( r, 1.0_dp )
+    alpha = 1.0_dp/(2.0_dp*r**2)
+
+    core_charge_radius = r
+    alpha_core_charge = alpha
+    ccore_charge = REAL(zeff,dp)*SQRT((alpha/pi)**3)
+
+    CALL set_all_potential(potential,&
+                           name=name,&
+                           alpha_core_charge=alpha_core_charge,&
+                           ccore_charge=ccore_charge,&
+                           core_charge_radius=core_charge_radius,&
+                           z=z,&
+                           zeff=zeff,&
+                           elec_conf=elec_conf)
+    
+    DEALLOCATE ( elec_conf )
+
+  END SUBROUTINE set_default_all_potential
+
+! *****************************************************************************
+
   SUBROUTINE set_all_potential(potential,name,alpha_core_charge,&
                                ccore_charge,core_charge_radius,z,zeff,&
                                elec_conf)
@@ -1281,7 +1325,12 @@ CONTAINS
         potential%core_charge_radius = core_charge_radius
       IF (PRESENT(z)) potential%z = z
       IF (PRESENT(zeff)) potential%zeff = zeff
-      IF (PRESENT(elec_conf)) potential%elec_conf(:) = elec_conf(:)
+      IF (PRESENT(elec_conf)) THEN
+        IF ( .NOT. ASSOCIATED( potential%elec_conf ) ) THEN
+          CALL reallocate(potential%elec_conf,0,SIZE(elec_conf)-1)
+        END IF
+        potential%elec_conf(:) = elec_conf(:)
+      END IF
 
     ELSE
 

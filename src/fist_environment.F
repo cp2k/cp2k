@@ -21,11 +21,7 @@ MODULE fist_environment
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind_set,&
-                                             init_atomic_kind_set,&
-                                             read_atomic_kind_set,&
-                                             write_atomic_kind_set,&
-                                             write_gto_basis_sets
+                                             write_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&

@@ -601,7 +601,8 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE xc_get_functional ( tag, string, functional, gradient_functionals, crossterms, error )
+  SUBROUTINE xc_get_functional ( tag, string, functional, &
+                                 gradient_functionals, crossterms, error )
 
     INTEGER, INTENT(in)                      :: tag
     CHARACTER(LEN=*), INTENT(IN)             :: string

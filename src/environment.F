@@ -981,6 +981,7 @@ CONTAINS
 
     IF (globenv%ionode.AND.(globenv%print%level > SILENT)) THEN
       output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT=*)
       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
         start_section_label//"| Program name",&
         ADJUSTR(globenv%program_name(:40)),&

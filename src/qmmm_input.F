@@ -29,7 +29,6 @@ MODULE qmmm_input
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             read_atomic_kind_set, &
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE cp_error_handling,               ONLY: cp_a_l,&

@@ -93,6 +93,7 @@ MODULE cp_control_types
     LOGICAL                         :: map_paa
     LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gpw,pao
+    LOGICAL                         :: semi_empirical
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
     TYPE (mulliken_restraint_type)  :: mulliken_restraint_control

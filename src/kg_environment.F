@@ -26,6 +26,7 @@ MODULE kg_environment
                                              atomic_kind_p_type,&
                                              atomic_kind_type,&
                                              atomic_kind_p_type,&
+                                             check_atomic_kind_set,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              read_atomic_kind_set,&
@@ -214,12 +215,10 @@ CONTAINS
     NULLIFY ( particle_set )
     NULLIFY ( scf_control )
 
-    ! Read the input section with the dft control parameters *
+    ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
-    CALL write_dft_control ( dft_control, globenv )
-
-    ! Read the input section with the KG control parameters 
     CALL read_qs_control ( dft_control % qs_control, globenv )
+    CALL write_dft_control ( dft_control, globenv )
     CALL write_qs_control ( dft_control % qs_control, globenv )
 
     ! Read/write the input section with the cell parameters
@@ -234,6 +233,7 @@ CONTAINS
 
     ! Read/write the atomic kind set
     CALL read_atomic_kind_set(atomic_kind_set,globenv)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
     CALL write_gto_basis_sets(atomic_kind_set,globenv)
 
     ! Initialize the spherical harmonics

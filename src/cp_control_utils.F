@@ -495,10 +495,12 @@ CONTAINS
                 dft_control % xc_control % functional_routine = &
                      xc_debug_new_routine                
              CASE DEFAULT
-                CALL stop_parser(routine=routine,message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
+                CALL stop_parser(routine=routine,&
+                  message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
              END SELECT
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD "//keyword)
+            CALL stop_parser(routine=routine,&
+                 message="INVALID_KEYWORD "//keyword)
           END SELECT
         END IF
       END DO
@@ -513,8 +515,8 @@ CONTAINS
        END IF
     END DO
     IF (.NOT.xc_fun_set) THEN
-       dft_control % xc_control % functionals ( 1 ) = "SLATER"
-       dft_control % xc_control % functionals ( 2 ) = "PZ"
+       dft_control % xc_control % functionals ( 1 ) = "XALPHA"
+       dft_control % xc_control % functionals ( 2 ) = "PZ81_DMC"
     END IF    
     
     IF (.NOT.failure) THEN
@@ -596,7 +598,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(INOUT)                          :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_qs_control (MODULE dft_types)"
@@ -628,6 +630,7 @@ CONTAINS
     qs_control%gapw = .FALSE.
     qs_control%gpw = .TRUE.
     qs_control%pao = .FALSE.
+    qs_control%semi_empirical = .FALSE.
     qs_control%pw_grid_opt%spherical = .FALSE.
     qs_control%pw_grid_opt%fullspace = .TRUE.
     qs_control%rs_distributed = .FALSE.
@@ -789,6 +792,9 @@ CONTAINS
             CASE ("KG_GPW")
               qs_control%method = "KG_GPW"
               qs_control%polarization = .FALSE.
+            CASE ("EHT")
+              qs_control%method = "EHT"
+              qs_control%semi_empirical = .TRUE.
             CASE DEFAULT
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")
@@ -974,6 +980,10 @@ CONTAINS
          CALL stop_program (routine,"Multi grids not ordered")
       END IF
     END DO
+    ! do not print dft section for semi empirical methods
+    IF(qs_control%semi_empirical) THEN
+      globenv%print%dft_control_parameters=.FALSE.
+    END IF
 
   END SUBROUTINE read_qs_control
 

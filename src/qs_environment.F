@@ -29,6 +29,7 @@ MODULE qs_environment
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             check_atomic_kind_set,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
                                              init_gapw_basis_set,&
@@ -187,7 +188,6 @@ CONTAINS
 
 !   *** Read the particle coordinates and allocate the atomic kind, ***
 !   *** the molecule kind, and the molecule data structures         ***
-! topology_control
     CALL topology_control (atomic_kind_set,particle_set,&
                          molecule_kind_set,molecule_set,&
                          globenv)
@@ -207,6 +207,7 @@ CONTAINS
     
     CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
          globenv,.FALSE.,error)
+
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
     CALL cp_subsys_release(subsystem,error=error)
@@ -297,21 +298,29 @@ CONTAINS
 
     CALL read_dft_control(dft_control,globenv)
 
-!   *** Print the DFT control parameters ***
-
-    CALL write_dft_control(dft_control,globenv)
-
 !   *** Read the input section with the Quickstep control parameters ***
 
     CALL read_qs_control(dft_control%qs_control,globenv)
+
+!   *** Print the DFT control parameters ***
+
+    CALL write_dft_control(dft_control,globenv)
 
 !   *** Print the Quickstep control parameters ***
 
     CALL write_qs_control(dft_control%qs_control,globenv)
 
+!   *** Read the cntl section ***
+
     CALL read_cntl_section(setup,globenv)
 
+!   *** Read the setup section ***
+
     CALL read_setup_section(setup,globenv)
+
+!   *** Check basis and fill in missing parts ***
+
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv)
 
 !   *** Print the unnormalized basis set information (input data) ***
 
