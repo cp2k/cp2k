@@ -50,6 +50,16 @@ MODULE input_cp2k
          xc_deriv_spline3_smooth
   USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
   USE cp_output_handling, only: cp_print_key_section_create
+  use greens_fn, only: periodic3d,& 
+                      analytic2d,& 
+                      analytic1d,& 
+                      analytic0d,& 
+                      mt2d,&       
+                      mt1d,&       
+                      mt0d,&       
+                      hockney2d,&  
+                      hockney1d,&  
+                      hockney0d 
   implicit none
   private
 
@@ -68,6 +78,52 @@ MODULE input_cp2k
        core_guess=4
   INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
          spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
+     
+
+  integer, parameter, public :: do_gapw_gcs=1,&
+                                do_gapw_gct=2,&
+                                do_gapw_log=3
+  integer, parameter, public :: do_pwgrid_spherical=1,&
+                                do_pwgrid_ns_fullspace=2,&
+                                do_pwgrid_ns_halfspace=3
+  INTEGER, PARAMETER, PUBLIC :: do_etrxpl_use_guess=0,&
+                                do_etrxpl_use_prev_p=1,&
+                                do_etrxpl_use_prev_rho_r=2,&
+                                do_etrxpl_linear_wf=3,&
+                                do_etrxpl_linear_p=4,&
+                                do_etrxpl_linear_ps=5,&
+                                do_etrxpl_use_prev_wf=6,&
+                                do_etrxpl_ps=7
+  INTEGER, PARAMETER, PUBLIC :: do_method_gapw=1,&
+                                do_method_gpw=2,&
+                                do_method_kg_pol=3,&
+                                do_method_kg_nopol=4,&
+                                do_method_kg_gpw=5
+  integer, parameter, public :: do_tddfpt_singlet=0,&
+                                do_tddfpt_triplet=1,&
+                                do_tddfpt_davidson=0,&
+                                do_tddfpt_lanczos=1
+  integer, parameter, public :: use_unit_angstrom=0,&
+                                use_unit_bohr=1,&
+                                use_unit_scaled_angstrom=2,&
+                                use_unit_scaled_bohr=3
+  integer, parameter, public :: do_rsgrid_distributed=0,&
+                                do_rsgrid_replicated=1
+
+  integer, parameter, public :: do_extrpl_ps=0,&
+                                do_extrpl_use_guess=1,&
+                                do_extrpl_use_prev_p=2,&
+                                do_extrpl_use_prev_wf=3,&
+                                do_extrpl_use_prev_rho_r=4,&
+                                do_extrpl_linear_wf=5,&
+                                do_extrpl_linear_p=6,&
+                                do_extrpl_linear_ps=7
+  integer, parameter, public :: do_qmmm_none=0,&
+                                do_qmmm_grid=1,&
+                                do_qmmm_gauss=2
+
+
+
   public :: create_cp2k_root_section
   !!***
   !****************************************************************************
@@ -540,13 +596,13 @@ contains
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
-!FM    CALL create_qs_section(subsection,error)
-!FM    CALL section_add_subsection(section, subsection, error=error)
-!FM    CALL section_release(subsection,error=error)
-    
-!FM    CALL create_tddfpt_section(subsection,error)
-!FM    CALL section_add_subsection(section, subsection, error=error)
-!FM    CALL section_release(subsection,error=error)
+    CALL create_qs_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+ 
+    CALL create_tddfpt_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
 
     CALL create_mgrid_section(subsection,error=error)
     CALL section_add_subsection(section, subsection,error=error)
@@ -558,6 +614,388 @@ contains
 
   END SUBROUTINE create_dft_section
   !***************************************************************************
+
+!!****f* input_cp2k/create_qs_section [1.0] *
+!!
+!!   NAME
+!!     create_qs_section
+!!
+!!   FUNCTION
+!!     creates the input section for the qs part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE create_qs_section(section,error)
+  ! Arguments
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  ! Local Variables
+  logical :: failure
+  character(len=*), parameter :: routineN='create_qs_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), pointer :: subsection
+  TYPE(keyword_type), pointer :: keyword
+
+  failure=.false.
+
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"qs",&
+          description="parameters needed to set up the Quick-Step framework",&
+          n_keywords=34, n_subsections=2, repeats=.FALSE., required=.FALSE.,&
+          error=error)
+
+     NULLIFY(subsection,keyword)
+    
+     ! Reals
+     CALL keyword_create(keyword, name="EPS_DEFAULT",&
+          description="Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
+          usage="EPS_DEFAULT real", default_r_val=1.0E-10_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)     
+
+     CALL keyword_create(keyword, name="EPS_CORE_CHARGE",&
+          description="Precision for mapping the core charges",&
+          usage="EPS_CORE_CHARGE real", default_r_val=1.0E-12_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)     
+
+     CALL keyword_create(keyword, name="EPS_GVG_RSPACE",&
+          variants=(/"EPS_GVG"/),&
+          description="Sets precision of the realspace KS matrix element integration",&
+          usage="EPS_GVG_RSPACE real", default_r_val=1.0E-5_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_PGF_ORB",&
+          description="Sets precision of the overlap matrix elements",&
+          usage="EPS_PGF_ORB real", default_r_val=1.0E-5_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+     CALL keyword_create(keyword, name="EPS_PPL",&
+          description="Sets precision of the local part of the pseudo potential",&
+          usage="EPS_PPL real", default_r_val=1.0E-12_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_PPNL",&
+          description="Sets precision of the non-local part of the pseudo potential",&
+          usage="EPS_PPNL real", default_r_val=1.0E-12_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_RHO",&
+          description="Sets precision of the density mapping on the grids",&
+          usage="EPS_RHO real", default_r_val=1.0E-10_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_RHO_RSPACE",&
+          description="Sets precision of the density mapping in rspace",&
+          usage="EPS_RHO_RSPACE real", default_r_val=1.0E-10_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPSFIT",&
+          variants=(/"EPS_FIT"/),&
+          description="GAPW : precision to give the extention of a hard gaussian ",&
+          usage="EPSFIT real", default_r_val=1.0E-4_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPSISO",&
+          variants=(/"EPS_ISO"/),&
+          description="GAPW : precision to determine an isolated projector",&
+          usage="EPSISO real", default_r_val=1.0E-12_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPSRHO0",&
+          variants=(/"EPSVRHO0 ",&
+                     "EPS_VRHO0"/),&
+          description="GAPW : precision to determine the range of V(rho0-rho0soft)",&
+          usage="EPSRHO0 real", default_r_val=1.0E-6_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ALPHA0_HARD",&
+          variants=(/"ALPHA0_H"/),&
+          description="GAPW : Exponent for hard compensation charge",&
+          usage="ALPHA0_HARD real", default_r_val=0.0_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ALPHA0_SOFT",&
+          variants=(/"ALPHA0_S"/),&
+          description="GAPW : Exponent for soft compensation charge",&
+          usage="ALPHA0_SOFT real", default_r_val=0.0_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     ! Logicals
+     CALL keyword_create(keyword, name="MAP_PAA",&
+          description="Put diagonal density matrix elements on the highest cutoff multigrid",&
+          usage="MAP_PAA",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="MAP_CONSISTENT",&
+          description="Guarantee an exact derivative (Hks) of the energy",&
+          usage="MAP_CONSISTENT",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="MULLIKEN_RESTRAINT",&
+          description="Employ a restraint on the mulliken charges",&
+          usage="MULLIKEN_RESTRAINT",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)     
+
+     ! Integers
+     CALL keyword_create(keyword, name="LMAXN1",&
+          variants=(/"LMAXRHO1"/),&
+          description="GAPW : max L number for espansion of the atomic densities in spherical gaussians",&
+          usage="LMAXN1 integer",&
+          default_i_val=6,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="LMAXN0",&
+          variants=(/"LMAXRHO0"/),&
+          description="GAPW : max L number for the expansion compensation densities in spherical gaussians",&
+          usage="LMAXN0 integer",&
+          default_i_val=2,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+     
+     CALL keyword_create(keyword, name="LADDN0",&
+          description="GAPW : XXXXXXXXXX",&
+          usage="LADDN0 integer",&
+          default_i_val=99,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     ! Characters
+     CALL keyword_create(keyword, name="QUADRATURE",&
+          description="GAPW: algorithm to construct the atomic radial grids",&
+          usage="QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
+          enum_c_vals=(/&
+          "GC_SIMPLE     ",&
+          "GC_TRANSFORMED",&
+          "GC_LOG        "/),&
+          enum_i_vals=(/ do_gapw_gcs,do_gapw_gct,do_gapw_log/),&
+          default_i_val=do_gapw_log, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="PW_GRID",&
+          description="What kind of PW_GRID should be employed",&
+          usage="PW_GRID {SPHERICAL|NS-FULLSPACE|NS-HALFSPACE}",&
+          enum_c_vals=(/&
+          "SPHERICAL     ",&
+          "NS-FULLSPACE  ",&
+          "NS-HALFSPACE  "/),&
+          enum_i_vals=(/ do_pwgrid_spherical, do_pwgrid_ns_fullspace,do_pwgrid_ns_halfspace/),&
+          default_i_val=do_pwgrid_ns_fullspace, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="RS_GRID",&
+          description="Parallellisation strategy of the realspace grids",&
+          usage="RS_GRID {DISTRIBUTED|REPLICATED}",&
+          enum_c_vals=(/&
+          "DISTRIBUTED   ",&
+          "REPLICATED    "/),&
+          enum_i_vals=(/ do_rsgrid_distributed, do_rsgrid_replicated/),&
+          default_i_val=do_rsgrid_replicated, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EXTRAPOLATION",&
+          variants=(/"INTERPOLATION   ",&
+                     "WF_INTERPOLATION"/),&
+          description="Extrapolation strategy for e.g. MD",&
+          usage="EXTRAPOLATION {PS|USE_GUESS|USE_PREV_P|USE_PREV_WF|"//&
+                 "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS}",&
+          enum_c_vals=(/&
+          "PS            ",&
+          "USE_GUESS     ",&
+          "USE_PREV_P    ",&
+          "USE_PREV_WF   ",&
+          "USE_PREV_RHO_R",&
+          "LINEAR_WF     ",&
+          "LINEAR_P      ",&
+          "LINEAR_PS     "/),&
+          enum_i_vals=(/ do_extrpl_ps,&
+                         do_extrpl_use_guess,&
+                         do_extrpl_use_prev_p,&
+                         do_extrpl_use_prev_wf,&
+                         do_extrpl_use_prev_rho_r,&
+                         do_extrpl_linear_wf,&
+                         do_extrpl_linear_p,&
+                         do_extrpl_linear_ps /),&
+          default_i_val=do_extrpl_linear_p, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="METHOD",&
+          description="What method should be employed",&
+          usage="METHOD {GAPW|GPW|KG_POL|KG_NOPOL|KG_GPW}",&
+          enum_c_vals=(/&
+          "GAPW          ",&
+          "GPW           ",&
+          "KG_POL        ",&
+          "KG_NOPOL      ",&
+          "KG_GPW        "/),&
+          enum_i_vals=(/ do_method_gapw, do_method_gpw, do_method_kg_pol,&
+                         do_method_kg_nopol, do_method_kg_gpw/),&
+          default_i_val=do_method_gpw, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+  END IF
+
+END SUBROUTINE create_qs_section
+
+!!****f* input_cp2k/create_tddfpt_section [1.0] *
+!!
+!!   NAME
+!!     create_tddfpt_section
+!!
+!!   FUNCTION
+!!     creates the input section for the tddfpt part
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE create_tddfpt_section(section,error)
+  ! Arguments
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  ! Local Variables
+  logical :: failure
+  character(len=*), parameter :: routineN='create_tddfpt_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), pointer :: subsection
+  TYPE(keyword_type), pointer :: keyword
+
+  failure=.false.
+
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"tddfpt",&
+          description="parameters needed to set up the Time Dependent Density Functional PT",&
+          n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
+          error=error)
+
+     NULLIFY(subsection,keyword)
+
+     ! Integer
+     CALL keyword_create(keyword, name="NEV",&
+          variants=(/"N_EV",&
+                     "EV  "/),&
+          description=" number of electrons",&
+          usage="NEV integer",&
+          n_var=1,type_of_var=integer_t,&
+          required=.TRUE., error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="NREORTHO",&
+          variants=(/"N_REORTHO           ",&
+                     "REORTHO             ",&
+                     "REORTHOGONALITAZIONS"/),&
+          description=" number of reorthogonalization steps",&
+          usage="NREORTHO integer",&
+          n_var=1,type_of_var=integer_t,&
+          required=.TRUE., error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+
+     ! Logical
+     CALL keyword_create(keyword, name="KERNEL",&
+          description="compute the kernel (debug purpose only)",&
+          usage="KERNEL",&
+          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     ! Character
+     CALL keyword_create(keyword, name="RES_ETYPE",&
+          variants=(/"RESTRICTED_EXCITATIONS_TYPE",&
+                     "RES_E_TYPE                 "/),& 
+          description="(singlets/triplets) for restricted calculation",&
+          usage="RES_ETYPE {SINGLET[S]|TRIPLET[S]|S|T}",&
+          enum_c_vals=(/&
+          "S             ",&
+          "SINGLET       ",&
+          "SINGLETS      ",&
+          "T             ",&
+          "TRIPLET       ",&
+          "TRIPLETS      "/),&
+          enum_i_vals=(/ do_tddfpt_singlet, do_tddfpt_singlet, do_tddfpt_singlet,&
+                         do_tddfpt_triplet, do_tddfpt_triplet, do_tddfpt_triplet/),&
+          default_i_val=do_tddfpt_singlet, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+     
+     CALL keyword_create(keyword, name="DIAG_METHOD",&
+          variants=(/"DIAGONALIZATION_METHOD"/),& 
+          description="Diagonalization method used in tddfpt.",&
+          usage="RES_ETYPE {SINGLET[S]|TRIPLET[S]|S|T}",&
+          enum_c_vals=(/&
+          "DAVIDSON ",&
+          "LANCZOS  "/),&
+          enum_i_vals=(/ do_tddfpt_davidson, do_tddfpt_lanczos/),&
+          default_i_val=do_tddfpt_davidson, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)      
+
+     CALL create_xc_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
+
+  END IF
+
+
+END SUBROUTINE create_tddfpt_section
 
 !!****f* input_cp2k/create_xc_section [1.0] *
 !!
@@ -895,14 +1333,18 @@ END SUBROUTINE create_scf_section
 !FM    CALL create_mm_section(subsection,error)
 !FM    CALL section_add_subsection(section, subsection, error=error)
 !FM    CALL section_release(subsection,error=error)
-!FM    
-!FM    CALL create_qmmm_section(subsection,error)
-!FM    CALL section_add_subsection(section, subsection, error=error)
-!FM    CALL section_release(subsection,error=error)
-!FM
+
+    CALL create_qmmm_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
 !FM    CALL create_metadyn_section(subsection,error)
 !FM    CALL section_add_subsection(section, subsection, error=error)
 !FM    CALL section_release(subsection,error=error)
+
+    CALL create_poisson_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)    
 
     CALL create_subsys_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -1051,10 +1493,10 @@ SUBROUTINE create_subsys_section(section,error)
          error=error)
 
     nullify(subsection)
-!FM    CALL create_cell_section(subsection,error=error)
-!FM    CALL section_add_subsection(section,subsection,error=error)
-!FM    CALL section_release(subsection,error=error)
-!FM
+    CALL create_cell_section(subsection,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+
 !FM    CALL create_coord_section(subsection,error=error)
 !FM    CALL section_add_subsection(section,subsection,error=error)
 !FM    CALL section_release(subsection,error=error)
@@ -1070,7 +1512,309 @@ SUBROUTINE create_subsys_section(section,error)
   end if
 END SUBROUTINE create_subsys_section
 !***************************************************************************
+!!****f* input_cp2k/create_qmmm_section [1.0] *
+!!
+!!   NAME
+!!     create_qmmm_section
+!!
+!!   FUNCTION
+!!     Creates the QM/MM section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE create_qmmm_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_qmmm_section',&
+        routineP=moduleN//':'//routineN
+  type(section_type), pointer :: subsection 
+  TYPE(keyword_type), pointer :: keyword
 
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+    CALL section_create(section,name="qmmm",&
+         description="Input for QM/MM calculations.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+    
+    nullify(keyword, subsection)
+    CALL keyword_create(keyword, name="QM_ATOMS",&
+         variants=(/"QMATOMS"/),&
+         description="Set and specifies the number, the typo and the index of the QM Atoms",&
+         usage="QM_ATOMS integer integer .. integer",&
+         n_var=-1,type_of_var=integer_t,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+         CALL keyword_create(keyword, name="A_QM",&
+          description="Set the A vector of the QM Cell to the Reals value. The other values will be"//&
+          "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
+          usage="A_QM real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="B_QM",&
+          description="Set the B vector of the QM Cell to the Reals value. The other values will be"//&
+          "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
+          usage="B_QM real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="C_QM",&
+          description="Set the C vector of the QM Cell to the Reals value. The other values will be"//&
+          "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
+          usage="C_QM real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ABC_QM",&
+          description="Set the A,B,C vectors of  QM Cell to the Reals value."//&
+         "It changes the overall shape of the QM cell.",&
+          usage="ABC_QM real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+    
+    CALL keyword_create(keyword, name="eps_mm_rspace",&
+         description="Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
+         "Standard value set to 1.0D-10",&
+         usage="eps_mm_rspace real",&
+         default_r_val=1.0E-10_dp, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)     
+
+    CALL keyword_create(keyword, name="E_COUPL",&
+          variants=(/"QMMM_COUPLING",&
+                     "ECOUPL       "/),& 
+          description="Set the Coupling's type between QM and MM system. Possible Options:"//&
+         "(1) NONE: Just Mechanical Coupling. (2) GRID: Computing the electrostatic"//&
+         "potential analytically on the Grid. (3) GAUSS: Mapping the MM electrostatic"//&
+         "potential on the Grid with Gaussian.",&
+          usage="E_COUPL char",&
+          enum_c_vals=(/&
+          "NONE          ",&
+          "GRID          ",&
+          "GAUSS         "/),&
+          enum_i_vals=(/ do_qmmm_none,&
+                         do_qmmm_grid,&
+                         do_qmmm_gauss/),&
+          default_i_val=do_qmmm_gauss, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+
+    CALL section_create(subsection,name="ELECTROSTATIC_POTENTIAL",&
+         description="Set the charge radius to evaluate the MM electrostatic potential in the QM/MM"//&
+         "coupling.",&
+         n_keywords=2, n_subsections=0, repeats=.true., required=.true.,&
+         error=error)
+    
+    CALL keyword_create(keyword, name="TYPE",&
+         variants=(/"KINDS","TYPES"/),&
+         description="Specifies the atomic kinds connected to the radius",&
+         usage="TYPE char1 char2 char3 .. char_n",&
+         n_var=-1,type_of_var=char_t,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="RADIUS",&
+         variants=(/"RADS  ",&
+                    "RAGGI ",&
+                    "RAGGIO"/),&
+         description="Specifies the radius of the atomic kinds",&
+         usage="RADIUS real1 real2 real3 .. real_n",&
+         n_var=-1,type_of_var=real_t,error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)    
+
+  end if
+  
+END SUBROUTINE create_qmmm_section
+!***************************************************************************
+!!****f* input_cp2k/create_poisson_section [1.0] *
+!!
+!!   NAME
+!!     create_poisson_section
+!!
+!!   FUNCTION
+!!     Creates the Poisson section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE create_poisson_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_poisson_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(keyword_type), pointer :: keyword
+
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+    CALL section_create(section,name="poisson",&
+         description="Sets up the poisson resolutor.",&
+         n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+    
+    nullify(keyword)
+    CALL keyword_create(keyword, name="POISSON_SOLVER",&
+          variants=(/"POISSON", "PSOLVER"/),& 
+          description="Specify which kind of solver to use to solve the Poisson equation.",&
+          usage="POISSON_SOLVER char",&
+          enum_c_vals=(/&
+          "PERIODIC3D    ",&
+          "ANALYTIC2D    ",&
+          "ANALYTIC1D    ",&
+          "ANALYTIC0D    ",&
+          "MT2D          ",&
+          "MT1D          ",&
+          "MT0D          ",&
+          "HOCKNEY2D     ",&
+          "HOCKNEY1D     ",&
+          "HOCKNEY0D     "/),&
+          enum_i_vals=(/ periodic3d,&
+                         analytic2d,&
+                         analytic1d,&
+                         analytic0d,&
+                         mt2d,&
+                         mt1d,&
+                         mt0d,&
+                         hockney2d,&
+                         hockney1d,&
+                         hockney0d /),&
+          default_i_val=periodic3d, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+
+  end if
+END SUBROUTINE create_poisson_section
+!***************************************************************************
+
+
+!!****f* input_cp2k/create_cell_section *
+!!
+!!   NAME
+!!     create_cell_section
+!!
+!!   FUNCTION
+!!     creates the cell section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+SUBROUTINE create_cell_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_cell_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), POINTER :: subsection,print_key
+  TYPE(keyword_type), pointer :: keyword
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"cell",&
+         description="parameters needed to set up the cell",&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+         error=error)
+
+     nullify(keyword)
+     ! Real
+     CALL keyword_create(keyword, name="A",&
+          description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
+          usage="A real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="B",&
+          description="Read the hmat(1,2); hmat(2,2); hmat(3,2)",&
+          usage="B real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="C",&
+          description="Read the hmat(1,3); hmat(2,3); hmat(3,3)",&
+          usage="C real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ABC",&
+          description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
+          usage="ABC real real real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="SUBCELLS",&
+          description="??? SUBCELLS ???",&
+          usage="SUBCELLS real",&
+          n_var=-1,type_of_var=real_t,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     ! Character
+     CALL keyword_create(keyword, name="UNITS",&
+          variants=(/"UNIT"/),& 
+          description="Specify the global units used in the input.",&
+          usage="UNITS {ANGSTROM|BOHR|SCALED_ANGSTROM|SCALED_BOHR}",&
+          enum_c_vals=(/&
+          "ANGSTROM        ",&
+          "SCALED_ANGSTROM ",&
+          "BOHR            ",&
+          "SCALED_BOHR     "/),&
+          enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
+          use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
+          default_i_val=use_unit_bohr, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)     
+
+  END IF
+END SUBROUTINE create_cell_section
 
 !!****f* input_cp2k/create_mgrid_section *
 !!
@@ -1133,6 +1877,14 @@ SUBROUTINE create_mgrid_section(section,error)
               lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="REL_CUTOFF",&
+          variants=(/"RELATIVE_CUTOFF"/),&
+          description="Determines the grid at which a Gaussian is mapped,"//&
+                      " giving the cutoff used for a gaussian with alpha=1",&
+          usage="RELATIVE_CUTOFF real", default_r_val=15.0_dp,&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
 
     nullify(subsection)
     CALL section_create(subsection,name="interpolator",&

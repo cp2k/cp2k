@@ -65,7 +65,7 @@ MODULE input_keyword_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_keyword_types'
 
   INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length,&
-       usage_string_length=default_string_length
+       usage_string_length=default_string_length*2
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
   
   PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
