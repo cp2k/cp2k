@@ -89,7 +89,7 @@ MODULE pws
             pw_collect
 
 ! Global variable
-  TYPE ( greens_function_type ), POINTER :: gf
+  TYPE ( greens_function_type ), POINTER, PRIVATE :: gf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pws'
 
 !!*****
