@@ -26,7 +26,7 @@ $(PROG): $(OBJECTS)
 	$(LDR) $(LFLAGS) -o $(PROG) $(OBJECTS) $(LIBS)
 
 %.o: %.c
-	$(CC) -c $(CFLAGS) $<
+	$(CC) -c -I$(SRCDIR) $(CFLAGS) $<
 
 clean:
 	rm -f *.o
