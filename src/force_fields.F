@@ -1631,7 +1631,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
 
   REAL(dbl)                                :: rmin,epsilon
-  INTEGER                                  :: ii, jj
+  INTEGER                                  :: ii, jj, imul
 
   CHARACTER(LEN=default_string_length)     :: atmname
   REAL(dbl), DIMENSION(:), POINTER         :: charge
@@ -2373,6 +2373,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                            natom=natom,atom_list=atom_list,&
                            ntorsion=ntorsion,torsion_list=torsion_list)
     DO j=1,ntorsion
+     IF(torsion_list(j)%torsion_kind%name == "UNSET") THEN
       atm_a = torsion_list(j)%a
       atomic_kind => atom_list(atm_a)%atomic_kind
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2423,14 +2424,18 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
-            torsion_list(j)%torsion_kind%name   = "CHARMM"
-            torsion_list(j)%torsion_kind%k      = chm_info%torsion_k(k)
-            torsion_list(j)%torsion_kind%m      = chm_info%torsion_m(k)
-            torsion_list(j)%torsion_kind%cosphi0 = chm_info%torsion_cosphi0(k)
+            imul = torsion_list(j)%torsion_kind%nmul + 1
+            CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+            CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+            CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+            torsion_list(j)%torsion_kind%name    = "CHARMM"
+            torsion_list(j)%torsion_kind%k(imul) = chm_info%torsion_k(k)
+            torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
+            torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
+            torsion_list(j)%torsion_kind%nmul = imul
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
             found = .TRUE.
-            EXIT
           END IF
         END DO
       END IF
@@ -2465,6 +2470,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         CALL stop_program("FF_pack","missing torsion parm")
 
       END IF
+     END IF
     END DO
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
                            torsion_list=torsion_list)

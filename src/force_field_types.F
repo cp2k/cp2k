@@ -59,8 +59,9 @@ MODULE force_field_types
 
   TYPE torsion_kind_type
     CHARACTER(LEN=default_string_length) :: name
-    INTEGER                        :: m
-    REAL(KIND = dp)                :: k,cosphi0
+    INTEGER                        :: nmul
+    INTEGER, POINTER               :: m(:)
+    REAL(KIND = dp), POINTER       :: k(:),cosphi0(:)
     REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
@@ -280,10 +281,11 @@ CONTAINS
                                      "torsion_kind_set",nkind*int_size)
 
     DO ikind=1,nkind
-      torsion_kind_set(ikind)%name = ""
-      torsion_kind_set(ikind)%k = 0.0_dp
-      torsion_kind_set(ikind)%m = 0
-      torsion_kind_set(ikind)%cosphi0 = 0.0_dp
+      torsion_kind_set(ikind)%name = "UNSET"
+      torsion_kind_set(ikind)%nmul = 0
+      NULLIFY(torsion_kind_set(ikind)%k)
+      NULLIFY(torsion_kind_set(ikind)%m)
+      NULLIFY(torsion_kind_set(ikind)%cosphi0)
       torsion_kind_set(ikind)%kind_number = ikind
     END DO
 

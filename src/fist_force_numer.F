@@ -550,7 +550,7 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
   REAL ( dbl ), INTENT ( IN ) :: numerical_shift
 
 ! Locals
-  INTEGER :: idim, imol, itorsion, index_a, index_b, index_c, index_d
+  INTEGER :: idim, imol, imul, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, ntorsions, first_atom, nkind, ikind
   REAL ( dbl ) :: s32, s32m, s32p, is32, is32m, is32p
   REAL ( dbl ) :: w1, w1m, w1p, iw1, iw1m, iw1p
@@ -602,12 +602,13 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
         iw1 = 1._dbl/w1
         iw2 = 1._dbl/w2
         ! get the energy
+       DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
         pot_torsion = pot_torsion + e0
 
@@ -627,11 +628,11 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1m = 1._dbl/w1m
            iw2 = 1._dbl/w2
            CALL force_torsions(is32,dist1m,dist2,u1m,u2,iw1m,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,em,fscalar)
            t12_plus_delta = t12 + delta
            s32 = sqrt(dot_product(t32,t32))
@@ -645,11 +646,11 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1p = 1._dbl/w1p
            iw2 = 1._dbl/w2
            CALL force_torsions(is32,dist1p,dist2,u1p,u2,iw1p,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_a) = f_torsion_numer(idim,index_a) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
@@ -672,11 +673,11 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1m = 1._dbl/w1m
            iw2m = 1._dbl/w2m
            CALL force_torsions(is32m,dist1m,dist2m,u1m,u2m,iw1m,iw2m, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                              gt1,gt2,gt3,gt4,em,fscalar)
            t32_plus_delta = t32 + delta
            s32p = sqrt(dot_product(t32_plus_delta,t32_plus_delta))
@@ -690,11 +691,11 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1p = 1._dbl/w1p
            iw2p = 1._dbl/w2p
            CALL force_torsions(is32p,dist1p,dist2p,u1p,u2p,iw1p,iw2p, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
@@ -717,11 +718,11 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1 = 1._dbl/w1
            iw2m = 1._dbl/w2m
            CALL force_torsions(is32,dist1,dist2m,u1,u2m,iw1,iw2m, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,em,fscalar)
            t43_plus_delta = t43 + delta
            s32 = sqrt(dot_product(t32,t32))
@@ -735,16 +736,17 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            iw1 = 1._dbl/w1
            iw2p = 1._dbl/w2p
            CALL force_torsions(is32,dist1,dist2p,u1,u2p,iw1,iw2p, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_d) = f_torsion_numer(idim,index_d) + (em-ep)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) - (em-ep)
            delta = 0.0_dbl
         END DO
+       END DO
 
      END DO TORSION
    END DO
@@ -2571,7 +2573,7 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
   REAL ( dbl ), INTENT ( OUT ) :: energy
 
 ! Locals
-  INTEGER :: idim, imol, itorsion, index_a, index_b, index_c, index_d
+  INTEGER :: idim, imol, imul, itorsion, index_a, index_b, index_c, index_d
   INTEGER :: nmol_per_kind, i, ntorsions, first_atom, ikind, nkind
   REAL ( dbl ), DIMENSION (3) :: t12, t32, t43, u1, u2, gt1, gt2, gt3, gt4
   REAL ( dbl ) :: s32, is32, dist1, dist2, w1, w2, iw1, iw2, e0, fscalar
@@ -2611,14 +2613,16 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
         w2 = sqrt(dot_product(u2,u2))
         iw1 = 1._dbl/w1
         iw2 = 1._dbl/w2
+       DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
         energy = energy + e0
+       END DO
      END DO TORSION
    END DO
   END DO MOL

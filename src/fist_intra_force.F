@@ -102,7 +102,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     INTENT(INOUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
  
   INTEGER                                  :: handle, ibend, ibond, ionef, imol, &
-                                             itorsion, nkind, index_a,&
+                                             itorsion, imul, nkind, index_a,&
                                              index_b, index_c, index_d, i, &
                                              nbonds, nbends, ntorsions, first_atom, &
                                              nmol_per_kind, nub, nimptors, nonefs, & 
@@ -279,22 +279,24 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         w2 = sqrt(dot_product(u2,u2))
         iw1 = 1._dbl/w1
         iw2 = 1._dbl/w2
-        CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
-                            torsion_list ( itorsion ) % torsion_kind % a, &
-                            torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
-                            torsion_list ( itorsion ) % torsion_kind % m, &
-                            torsion_list ( itorsion ) % torsion_kind % name, &
+        DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
+          CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+                            torsion_list(itorsion)%torsion_kind%a(imul), &
+                            torsion_list(itorsion)%torsion_kind%k(imul), &
+                            torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
+                            torsion_list(itorsion)%torsion_kind%m(imul), &
+                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,energy,fscalar)
-        pot_torsion = pot_torsion + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      + gt1 * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      + gt2 * fscalar
-        particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                      + gt3 * fscalar
-        particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                      + gt3 * fscalar
+          pot_torsion = pot_torsion + energy
+          particle_set ( index_a )% f = particle_set ( index_a ) % f &
+                                        + gt1 * fscalar
+          particle_set ( index_b )% f = particle_set ( index_b ) % f &
+                                        + gt2 * fscalar
+          particle_set ( index_c )% f = particle_set ( index_c ) % f &
+                                        + gt3 * fscalar
+          particle_set ( index_d )% f = particle_set ( index_d ) % f &
+                                        + gt3 * fscalar
+        END DO
 
 ! computing the pressure tensor
         CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
@@ -312,7 +314,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                 fscalar*gt2
            f_torsion(:,index_c) = f_torsion(:,index_c) + &
                 fscalar*gt3
-          f_torsion(:,index_d) = f_torsion(:,index_d) + &
+           f_torsion(:,index_d) = f_torsion(:,index_d) + &
                 fscalar*gt4
         END IF
 
