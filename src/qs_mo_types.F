@@ -78,10 +78,22 @@ MODULE qs_mo_types
   CHARACTER(len=*), PARAMETER :: module_name = "qs_mo_types"
 
   TYPE mo_set_type
-    REAL(KIND = dp)                           :: maxocc
-    INTEGER                            :: homo,lfomo,nao,nelectron,nmo
-    REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
+    ! the actual MO coefficients as a matrix
     TYPE(cp_fm_type), POINTER :: eigenvectors
+    ! number of molecular orbitals (# cols in eigenvectors)
+    INTEGER                                   :: nmo       
+    ! number of atomic orbitals (# rows in eigenvectors)
+    INTEGER                                   :: nao       
+    ! occupation - eigenvalues  of the nmo states (if eigenstates)
+    REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
+    ! maximum allowed occupation number of an MO (1-2)
+    REAL(KIND = dp)                           :: maxocc
+    ! number of electrons (taking occupation into account)
+    INTEGER                                   :: nelectron 
+    ! highest non-zero occupied orbital
+    INTEGER                                   :: homo 
+    ! lowest non maxocc occupied orbital (e.g. fractional or zero)
+    INTEGER                                   :: lfomo
   END TYPE mo_set_type
 
   TYPE mo_set_p_type
@@ -405,7 +417,7 @@ CONTAINS
     mo_set%homo = nomo
     mo_set%lfomo = nomo + 1
 
-    IF (smear /= 0.0_dp) THEN
+    perform_smear: IF (smear /= 0.0_dp) THEN
 
 !     *** Define the energy window for the eigenvalues ***
 
@@ -421,7 +433,7 @@ CONTAINS
         END IF
       END DO
 
-!     *** Find the highest fractional occupied MO which will be the HOMO ***
+!     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
 
       DO imo=mo_set%nmo,nomo,-1
         IF (mo_set%eigenvalues(imo) < e2) THEN
@@ -455,8 +467,7 @@ CONTAINS
         mo_set%homo = nomo
         mo_set%lfomo = nomo + 1
       END IF
-
-    END IF
+    END IF perform_smear
 
   END SUBROUTINE set_mo_occupation
 

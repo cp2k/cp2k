@@ -340,7 +340,7 @@ CONTAINS
 
     CALL set_matrix(density_matrix,0.0_dp)
 
-    IF ( mo_set%lfomo .LT. mo_set%homo) THEN
+    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
        NULLIFY(fm_tmp)
        CALL cp_fm_create(fm_tmp,mo_set%eigenvectors%matrix_struct)
        CALL cp_fm_to_fm(mo_set%eigenvectors,fm_tmp)
@@ -455,7 +455,7 @@ CONTAINS
     CALL cp_fm_struct_release(fm_struct_tmp)
 
 
-    IF (mo_set%homo /= ncol_global) THEN
+    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
       CALL stop_program("calculate_w_matrix_2","NYI")
     END IF
 

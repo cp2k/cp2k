@@ -1336,7 +1336,6 @@ CONTAINS
     ENDIF
 
     IF (use_cholesky) THEN
-       ! CALL cp_fm_write(ks,6,long_description=.true.)
        CALL cp_fm_cholesky_reduce(ks,ortho)
 
        IF (use_jacobi) THEN
@@ -1348,8 +1347,8 @@ CONTAINS
           CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        ELSE
-          CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
-          CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
+          CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        END IF
 
     ELSE IF (use_jacobi) THEN
@@ -1374,7 +1373,7 @@ CONTAINS
        CALL cp_fm_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
             jacobi_threshold,homo+1)
 
-    ELSE
+    ELSE ! full S^-1 has been computed
 
        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
        CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)

@@ -86,7 +86,8 @@ MODULE scf_control_types
   INTEGER, PARAMETER, PRIVATE :: key_EPS_LUMO=18
   INTEGER, PARAMETER, PRIVATE :: key_MAX_ITER_LUMO=19
   INTEGER, PARAMETER, PRIVATE :: key_WRITE_RESTART_EACH=20
-  INTEGER, PARAMETER, PRIVATE :: Nkeywords=20 ! should updated if keywords are added
+  INTEGER, PARAMETER, PRIVATE :: key_ADDED_MOS=21
+  INTEGER, PARAMETER, PRIVATE :: Nkeywords=21 ! should updated if keywords are added
   TYPE(keyword_type), PRIVATE, DIMENSION(1:Nkeywords) :: keywords 
 
 !***
@@ -124,6 +125,7 @@ MODULE scf_control_types
 !!     - ncol_block: number of of columns in a block of a full matrix
 !!     - id_nr: unique number to identify an scf control
 !!     - ref_count: reference count (see cp2k/doc/ReferenceCounting.html)
+!!     - added_mos: additional number of MOs that might be used in the SCF
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -134,15 +136,17 @@ MODULE scf_control_types
 !!   SOURCE
 !***************************************************************************
   TYPE scf_control_type
-     CHARACTER(LEN=10) :: density_guess
-     REAL(KIND = dp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
-          work_syevx,eps_lumos, eps_diis,eps_jacobi,jacobi_threshold
-     INTEGER           :: max_iter_lumos, max_diis
-     INTEGER           :: max_scf,nrow_block,&
-          ncol_block,maxl,nkind, write_restart_each
-     LOGICAL           :: gradient_functional,gth_potential_present,&
-          use_cholesky,use_ot
-     INTEGER           :: ref_count,id_nr
+     CHARACTER(LEN=10)     :: density_guess
+     REAL(KIND = dp)       :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
+                              work_syevx,eps_lumos, eps_diis,eps_jacobi,&
+                              jacobi_threshold
+     INTEGER               :: max_iter_lumos, max_diis
+     INTEGER               :: max_scf,nrow_block,&
+                              ncol_block,maxl,nkind, write_restart_each
+     LOGICAL               :: gradient_functional,gth_potential_present,&
+                              use_cholesky,use_ot
+     INTEGER               :: ref_count,id_nr
+     INTEGER, DIMENSION(2) :: added_mos
   END TYPE scf_control_type
 !!***
 !****************************************************************************
@@ -233,6 +237,10 @@ SUBROUTINE init_keywords()
                                         "NROW_BLOCK integer",&
                                         "sets the number of rows in a scalapack block",&
                                         "","","")
+  keywords(key_ADDED_MOS)=keyword_type("ADDED_MOS", &
+                                        "ADDED_MOS integer integer",&
+                                        "number of additional MOS added for each spin",&
+                                        "","","")
 END SUBROUTINE
 
 ! *****************************************************************************
@@ -307,6 +315,7 @@ END SUBROUTINE
        scf_control%eps_jacobi = 0.0_dp
        scf_control%jacobi_threshold = 1.0E-7_dp
        scf_control%write_restart_each=10
+       scf_control%added_mos=0
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -515,6 +524,10 @@ END SUBROUTINE
              CALL read_object(scf_control%max_iter_lumos)
           CASE (key_WRITE_RESTART_EACH)
              CALL read_object(scf_control%write_restart_each)
+          CASE (key_ADDED_MOS)
+             ! specify the number for each spin
+             CALL read_object(scf_control%added_mos(1))
+             CALL read_object(scf_control%added_mos(2))
           CASE DEFAULT
             CALL list_keywords(keywords,globenv%scr)
             CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
@@ -591,7 +604,7 @@ END SUBROUTINE
           output_unit = globenv%scr
           WRITE (UNIT=output_unit,&
            FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),3(/,T25,A,T76,I5),&
-           &T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),4(/,T25,A,T76,F5.2))")&
+           &T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),4(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
                "SCF PARAMETERS",&
                "Density guess:     ",ADJUSTR(TRIM(scf_control%density_guess)),&
                "max_scf:           ",scf_control%max_scf,&
@@ -605,7 +618,8 @@ END SUBROUTINE
                "p_mix:             ",scf_control%p_mix,&
                "work_syevx:        ",scf_control%work_syevx,&
                "level_shift [a.u.]:",scf_control%level_shift,&
-               "smear [a.u.]:      ",scf_control%smear
+               "smear [a.u.]:      ",scf_control%smear,&
+               "added MOs          ",scf_control%added_mos
        END IF
     END IF
   END SUBROUTINE scf_c_write_parameters

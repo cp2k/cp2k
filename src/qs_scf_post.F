@@ -247,9 +247,13 @@ CONTAINS
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
-                                              eigenvalues=mo_eigenvalues,homo=homo)
+                                              eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+             IF (homo .NE. nmo) THEN
+                IF (globenv%ionode) WRITE(globenv%scr,*) &
+                    " and ",nmo-homo," added MO eigenvalues" 
+             ENDIF
              IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
              CALL calculate_subspace_eigenvalues(mo_eigenvectors,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
@@ -293,6 +297,10 @@ CONTAINS
              IF (.NOT.globenv%print%homos) THEN
                 IF (globenv%ionode) WRITE(globenv%scr,*) " "
                 IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
+                IF (homo .NE. nmo) THEN
+                   IF (globenv%ionode) WRITE(globenv%scr,*) &
+                       " and ",nmo-homo," added MO eigenvalues" 
+                ENDIF
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
                 CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
                      mo_eigenvalues, &

@@ -523,8 +523,11 @@ CONTAINS
 
     END IF
 
-!   *** Some options require that all MOs are computed ... ***
+!   *** if additional mos need to be taken along, we do it here ***
+    n_mo(1) = n_mo(1) + scf_control%added_mos(1)
+    IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
+!   *** Some options require that all MOs are computed ... ***
     IF (globenv%print%mo_eigenvalues.OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
