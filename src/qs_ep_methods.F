@@ -777,7 +777,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 !FM      CALL deallocate_matrix(h(1)%matrix)
 !FM      CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
 !FM                                      "CORE HAMILTONIAN MATRIX")
-!FM      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix)
+!FM      CALL copy_full_matrix_to_real_matrix(scf_work1,h(1)%matrix)
 !FM      CALL set_qs_env(qs_env,h=h)
 !FM    END IF
 

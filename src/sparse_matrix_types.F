@@ -115,7 +115,8 @@ MODULE sparse_matrix_types
             sparse_plus_rep_rept, &
             remove_block_node, &
             write_blocks_maxabsval, &
-            add_all_real_matrix_blocks
+            add_all_real_matrix_blocks,&
+            get_real_matrix_occupation
 
 ! *** Public functions ***
 
@@ -2077,5 +2078,44 @@ CONTAINS
     END IF
   END SUBROUTINE remove_real_matrix_block
 !***************************************************************************
+
+  SUBROUTINE get_real_matrix_occupation(matrix, block_occupation)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(real_matrix_type), POINTER :: matrix
+    REAL(wp), INTENT(OUT)     :: block_occupation
+
+    ! locals
+    INTEGER                         :: i, j
+    INTEGER                         :: block_counter, max_blocks, n_diagonal_blocks
+    TYPE(real_block_node_type), POINTER :: node
+
+    ! code
+    IF (SIZE(matrix%block_list) /= SIZE(matrix%first_col)) THEN
+       CALL stop_program("get_real_matrix_occupation", "precondition")
+    END IF
+
+    max_blocks = matrix%nblock_row * matrix%nblock_col
+    block_counter = 0
+    n_diagonal_blocks = 0
+
+    DO i=1, matrix%nblock_row
+       node => first_block_node(matrix, i)
+       DO WHILE (ASSOCIATED(NODE))
+          j = node%block_col
+          IF (i == j) n_diagonal_blocks = n_diagonal_blocks + 1
+          block_counter = block_counter + 1
+          node => next_block_node(node)
+       END DO
+    END DO
+    
+    IF (TRIM(matrix%symmetry) == "symmetric") THEN
+       block_counter = 2*(block_counter - n_diagonal_blocks) + n_diagonal_blocks
+    END IF
+    block_occupation = REAL(block_counter, wp) / REAL(max_blocks, wp)
+
+  END SUBROUTINE get_real_matrix_occupation
 
 END MODULE sparse_matrix_types

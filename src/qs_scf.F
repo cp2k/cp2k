@@ -152,7 +152,7 @@ MODULE qs_scf
                                              blacs_make_basis,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_blacs_to_sparse_matrix,&
+                                             copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
                                              cp_fm_add,&
                                              cp_fm_cholesky_decompose,&
@@ -340,7 +340,6 @@ CONTAINS
     INTEGER :: ispin
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
 
-
 !   ---------------------------------------------------------------------------
 
     NULLIFY(mo_eigenvectors,pao_obj_f,pao_optimizer,pao_env,min_density_m,&
@@ -364,7 +363,7 @@ CONTAINS
          qs_charges=qs_charges,&
          ks_env=ks_env,&
          scf_control=scf_control)
-    
+
 !   *** Quick return, if no SCF iteration is requested ***
 
     IF (scf_control%max_scf < 1) RETURN
@@ -1099,7 +1098,7 @@ CONTAINS
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
-      CALL copy_blacs_to_sparse_matrix(scf_work1(1)%matrix,h(1)%matrix)
+      CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,h(1)%matrix)
       CALL set_qs_env(qs_env,h=h)
     END IF
 
@@ -1508,7 +1507,7 @@ CONTAINS
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       END IF
       CALL calculate_density_matrix(mo_set,work1,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix)
+      CALL copy_full_matrix_to_real_matrix(work1,p%matrix)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
@@ -1623,7 +1622,7 @@ CONTAINS
         END DO
       END DO
 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix)
+      CALL copy_full_matrix_to_real_matrix(work1,p%matrix)
 
     ELSE
 

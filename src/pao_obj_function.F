@@ -95,7 +95,7 @@ MODULE pao_obj_function
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_blacs_to_sparse_matrix,&
+                                             copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
@@ -655,7 +655,7 @@ CONTAINS
             density_matrix=gf_env%min_blacs_2,&
             globenv=g_env)
        
-       CALL copy_blacs_to_sparse_matrix(gf_env%min_blacs_2,&
+       CALL copy_full_matrix_to_real_matrix(gf_env%min_blacs_2,&
             min_density_m)
 
        CALL symmetrise_diagonal_blocks(min_density_m)
@@ -725,7 +725,7 @@ CONTAINS
           CALL cp_fm_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
                gf_env%min_blacs_1)
-          CALL copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
+          CALL copy_full_matrix_to_real_matrix(gf_env%min_blacs_1,&
                cp_get_matrix(gf_env%min_work_m))
           CALL cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&

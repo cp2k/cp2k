@@ -137,7 +137,7 @@ MODULE qs_blacs
        cp_fm_release,cp_fm_vect_dealloc,&
        cp_fm_init_random,&
        copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
-       copy_blacs_to_sparse_matrix, copy_real_matrix_to_full_matrix,&
+       copy_full_matrix_to_real_matrix, copy_real_matrix_to_full_matrix,&
        blacs_replicated_copy,&
        blacs_column_copy,&
        cp_fm_get_info,&
@@ -1396,7 +1396,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_blacs_to_sparse_matrix(blacs_matrix,sparse_matrix)
+  SUBROUTINE copy_full_matrix_to_real_matrix(full_matrix,real_matrix)
 
 !   Purpose: Copy a BLACS matrix to a sparse matrix. The BLACS matrix blocks
 !            are deallocated during the copy procedure.
@@ -1405,13 +1405,13 @@ CONTAINS
 !   08.2002 adapted to local_data, could be optimized
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
-    TYPE(real_matrix_type), POINTER           :: sparse_matrix
+    TYPE(cp_full_matrix_type), POINTER          :: full_matrix
+    TYPE(real_matrix_type), POINTER           :: real_matrix
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_blacs_to_sparse_matrix (MODULE qs_blacs)"
+      "SUBROUTINE copy_full_matrix_to_real_matrix (MODULE qs_blacs)"
 
 !   *** Local variables ***
 
@@ -1423,7 +1423,7 @@ CONTAINS
                ncol_local,npcol,npe,nprow,nrow_block,nrow_local
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: blacs_block,sparse_block
+    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix_block,real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
@@ -1432,12 +1432,12 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("copy_blacs_to_sparse_matrix","I","",handle)
+    CALL timeset("copy_full_matrix_to_real_matrix","I","",handle)
 
-    group = blacs_matrix%matrix_struct%para_env%group
-    context => blacs_matrix%matrix_struct%context
+    group = full_matrix%matrix_struct%para_env%group
+    context => full_matrix%matrix_struct%context
 
-    CALL get_matrix_info(matrix=sparse_matrix,&
+    CALL get_matrix_info(matrix=real_matrix,&
                          nblock_row=nblock_row,&
                          first_row=first_row,&
                          first_col=first_col,&
@@ -1449,8 +1449,8 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    nrow_block = blacs_matrix%matrix_struct%nrow_block
-    ncol_block = blacs_matrix%matrix_struct%ncol_block
+    nrow_block = full_matrix%matrix_struct%nrow_block
+    ncol_block = full_matrix%matrix_struct%ncol_block
 
 #if defined(__SCALAPACK)
 
@@ -1460,57 +1460,57 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = blacs_matrix%matrix_struct%nrow_local(iprow)
-          ncol_local = blacs_matrix%matrix_struct%ncol_local(ipcol)
-          ALLOCATE (blacs_block(nrow_local,ncol_local),&
+          nrow_local = full_matrix%matrix_struct%nrow_local(iprow)
+          ncol_local = full_matrix%matrix_struct%ncol_local(ipcol)
+          ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"alloc blacs_block",&
+            CALL stop_memory(routine,"alloc full_matrix_block",&
                              nrow_local*ncol_local*wp_size)
           END IF
         ELSE
-          blacs_block => blacs_matrix%local_data
+          full_matrix_block => full_matrix%local_data
         END IF
 
 
-        CALL mp_bcast(blacs_block,ipe,group)
+        CALL mp_bcast(full_matrix_block,ipe,group)
 
         DO iblock_row=1,nblock_row
 
-          block_node => first_block_node(matrix=sparse_matrix,&
+          block_node => first_block_node(matrix=real_matrix,&
                                          block_row=iblock_row)
 
           DO WHILE (ASSOCIATED(block_node))
 
             CALL get_block_node(block_node=block_node,&
                                 block_col=iblock_col,&
-                                BLOCK=sparse_block)
+                                BLOCK=real_matrix_block)
 
             icol = 1
 
             DO icol_global=first_col(iblock_col),last_col(iblock_col)
 
               jpcol = indxg2p(icol_global,ncol_block,mypcol,&
-                   blacs_matrix%matrix_struct%first_p_pos(2),npcol)
+                   full_matrix%matrix_struct%first_p_pos(2),npcol)
 
               IF (jpcol == ipcol) THEN
 
                 icol_local = indxg2l(icol_global,ncol_block,mypcol,&
-                     blacs_matrix%matrix_struct%first_p_pos(2),npcol)
+                     full_matrix%matrix_struct%first_p_pos(2),npcol)
 
                 irow = 1
 
                 DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
                   jprow = indxg2p(irow_global,nrow_block,myprow,&
-                       blacs_matrix%matrix_struct%first_p_pos(1),nprow)
+                       full_matrix%matrix_struct%first_p_pos(1),nprow)
 
                   IF (jprow == iprow) THEN
 
                      irow_local = indxg2l(irow_global,nrow_block,myprow,&
-                          blacs_matrix%matrix_struct%first_p_pos(1),nprow)
+                          full_matrix%matrix_struct%first_p_pos(1),nprow)
 
-                    sparse_block(irow,icol) = blacs_block(irow_local,&
+                    real_matrix_block(irow,icol) = full_matrix_block(irow_local,&
                                                           icol_local)
 
                   END IF
@@ -1532,9 +1532,9 @@ CONTAINS
         END DO
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (blacs_block,STAT=istat)
+          DEALLOCATE (full_matrix_block,STAT=istat)
           IF (istat /= 0) THEN
-             CALL stop_memory(routine,"dealloc blacs_block")
+             CALL stop_memory(routine,"dealloc full_matrix_block")
           END IF
         END IF
 
@@ -1543,18 +1543,18 @@ CONTAINS
 
 #else
 
-    blacs_block => blacs_matrix%local_data
+    full_matrix_block => full_matrix%local_data
 
     DO iblock_row=1,nblock_row
 
-      block_node => first_block_node(matrix=sparse_matrix,&
+      block_node => first_block_node(matrix=real_matrix,&
                                      block_row=iblock_row)
 
       DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            BLOCK=sparse_block)
+                            BLOCK=real_matrix_block)
 
         icol = 1
 
@@ -1564,7 +1564,7 @@ CONTAINS
 
           DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-            sparse_block(irow,icol) = blacs_block(irow_global,icol_global)
+            real_matrix_block(irow,icol) = full_matrix_block(irow_global,icol_global)
 
             irow = irow + 1
 
@@ -1583,7 +1583,7 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_blacs_to_sparse_matrix
+  END SUBROUTINE copy_full_matrix_to_real_matrix
 
 ! *****************************************************************************
 
@@ -1612,8 +1612,8 @@ CONTAINS
                jpcol,jprow,mypcol,mype,myprow,nblock_row,ncol_block,&
                ncol_local,npcol,npe,nprow,nrow_block,nrow_local
 
-    INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
-    REAL(wp), DIMENSION(:,:), POINTER :: blacs_block,sparse_block
+    INTEGER, DIMENSION(:), POINTER    :: first_col,first_row, last_col, last_row
+    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix_block, real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
@@ -1652,17 +1652,17 @@ CONTAINS
         IF (ipe /= mype) THEN
           nrow_local = full_matrix%matrix_struct%nrow_local(iprow)
           ncol_local = full_matrix%matrix_struct%ncol_local(ipcol)
-          ALLOCATE (blacs_block(nrow_local,ncol_local),&
+          ALLOCATE (full_matrix_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
             CALL stop_memory(routine,"alloc full_matrix block",&
                              nrow_local*ncol_local*wp_size)
           END IF
         ELSE
-           blacs_block => full_matrix%local_data
+           full_matrix_block => full_matrix%local_data
         END IF
 
-        blacs_block(:,:) = 0.0_wp
+        full_matrix_block(:,:) = 0.0_wp
 
         DO iblock_row=1,nblock_row
 
@@ -1673,7 +1673,7 @@ CONTAINS
 
             CALL get_block_node(block_node=block_node,&
                                 block_col=iblock_col,&
-                                BLOCK=sparse_block)
+                                BLOCK=real_matrix_block)
 
             icol = 1
 
@@ -1699,7 +1699,7 @@ CONTAINS
                     irow_local = indxg2l(irow_global,nrow_block,myprow,&
                          full_matrix%matrix_struct%first_p_pos(1),nprow)
 
-                    blacs_block(irow_local,icol_local) = sparse_block(irow,&
+                    full_matrix_block(irow_local,icol_local) = real_matrix_block(irow,&
                                                                       icol)
 
                   END IF
@@ -1720,10 +1720,10 @@ CONTAINS
 
         END DO
 
-        CALL mp_sum(blacs_block,ipe,group)
+        CALL mp_sum(full_matrix_block,ipe,group)
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (blacs_block,STAT=istat)
+          DEALLOCATE (full_matrix_block,STAT=istat)
           IF (istat /= 0) THEN
             CALL stop_memory(routine,"dealloc full_matrix block")
           END IF
@@ -1745,9 +1745,9 @@ CONTAINS
       END IF
     END IF
 
-    blacs_block => full_matrix%local_data
+    full_matrix_block => full_matrix%local_data
 
-    blacs_block(:,:) = 0.0_wp
+    full_matrix_block(:,:) = 0.0_wp
 
     DO iblock_row=1,nblock_row
 
@@ -1758,7 +1758,7 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            BLOCK=sparse_block)
+                            BLOCK=real_matrix_block)
 
         icol = 1
 
@@ -1768,7 +1768,7 @@ CONTAINS
 
           DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-            blacs_block(irow_global,icol_global) = sparse_block(irow,icol)
+            full_matrix_block(irow_global,icol_global) = real_matrix_block(irow,icol)
 
             irow = irow + 1
 

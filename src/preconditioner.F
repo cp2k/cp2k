@@ -40,7 +40,7 @@ MODULE preconditioner
                                              blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
-                                             copy_blacs_to_sparse_matrix,&
+                                             copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
                                              cp_fm_add,&
                                              cp_fm_cholesky_decompose,&
@@ -927,7 +927,7 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
   CALL cp_fm_symm('R','U',n,n,1.0_wp,fm_z, &
                         fm_zi, &
                         0.0_wp,fm_yi)
-  CALL copy_blacs_to_sparse_matrix(fm_yi,matrix_h)
+  CALL copy_full_matrix_to_real_matrix(fm_yi,matrix_h)
 
   CALL cp_fm_release(fm_zi)
   CALL cp_fm_release(fm_yi)
