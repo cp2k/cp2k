@@ -333,7 +333,8 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             all_potential_present=all_potential_present)
-    IF(all_potential_present .AND..NOT.(dft_control%qs_control%method == "GAPW"))&
+    IF(all_potential_present .AND. .NOT.(dft_control%qs_control%method == "GAPW"&
+          .OR. dft_control%qs_control%semi_empirical))&
       CALL stop_program(routine_name,module_name,__LINE__,&
                         "all-el calculations with GPW are not implemented ")      
 
