@@ -1208,21 +1208,19 @@ CONTAINS
 
   FUNCTION calculate_total_rho(rho) RESULT(total_rho)
 
-    TYPE(coeff_type), INTENT(IN), TARGET     :: rho
+    TYPE(coeff_type), INTENT(IN)             :: rho
     REAL(KIND=dp)                            :: total_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "FUNCTION calculate_total_rho (MODULE qs_collocate_density)"
 
-    INTEGER, DIMENSION(:), POINTER           :: lb_grid
-
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(rho%pw%cc3d)) THEN
-      lb_grid => rho%pw%pw_grid%bounds(1,:)
-      total_rho = -rho%pw%pw_grid%vol*rho%pw%cc3d(lb_grid(1),&
-                                                  lb_grid(2),&
-                                                  lb_grid(3))
+      total_rho = -rho%pw%pw_grid%vol*rho%pw%cc3d(      &
+                            rho%pw%pw_grid%bounds(1,1), &
+                            rho%pw%pw_grid%bounds(1,2), &
+                            rho%pw%pw_grid%bounds(1,3))
     ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
       total_rho = -rho%pw%pw_grid%dvol*SUM(rho%pw%cr3d)
     ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
@@ -1244,7 +1242,7 @@ CONTAINS
 
   FUNCTION calculate_total_abs_rho(rho) RESULT(total_abs_rho)
 
-    TYPE(coeff_type), INTENT(IN), TARGET     :: rho
+    TYPE(coeff_type), INTENT(IN)             :: rho
     REAL(KIND=dp)                            :: total_abs_rho
 
     CHARACTER(LEN=*), PARAMETER :: &

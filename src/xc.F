@@ -270,7 +270,7 @@ CONTAINS
        cell,pw_pool,atoms,calculate_forces,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
-      INTENT(inout)                          :: rho_r
+      INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(dft_control_type), POINTER          :: dft_control
