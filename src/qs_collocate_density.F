@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2002 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_collocate_density [1.0] *
 !!
@@ -25,6 +25,8 @@
 !!     - Updated with the new QS data structures (09.04.02,MK)
 !!     - introduction of the real space grid type ( prelim. version JVdV 05.02)
 !!     - parallel FFT (JGH 22.05.02)
+!!     - multigrid arrays independent from density (JGH 30.08.02)
+!!     - old density stored in g space (JGH 30.08.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -212,12 +214,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,p_old,rebuild,rho,rho_rspace_old,rho_gspace,&
+  SUBROUTINE calculate_rho_elec(p,p_old,rebuild,rho,rho_gspace,rho_gspace_old,&
+                                mgrid_rspace,mgrid_gspace,&
                                 gridlevel_info,cube_info,l_info,total_rho,&
                                 qs_env,globenv)
 
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: rho,rho_gspace,&
-                                                   rho_rspace_old
+    TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
+    TYPE(coeff_type), INTENT(INOUT)             :: rho_gspace_old
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(global_environment_type), INTENT(IN)   :: globenv
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
@@ -279,7 +283,7 @@ CONTAINS
     nsmax(:)=100
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),rho(igrid_level)%pw%pw_grid, & 
+       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
                           nsmax)
        call rs_grid_allocate(rs_rho(igrid_level))
        call rs_grid_zero(rs_rho(igrid_level))
@@ -584,41 +588,28 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
+       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
        call rs_grid_deallocate(rs_rho(igrid_level))
     ENDDO
     deallocate(rs_rho)
 
-    IF (.NOT. rebuild) THEN
-      DO igrid_level=1,gridlevel_info%ngrid_levels
-        CALL coeff_sumup(rho_rspace_old(igrid_level),rho(igrid_level))
-      END DO
-    END IF
+!   *** Get the density on the auxillary basis cutoff grid ***
+
+    CALL coeff_zero(rho_gspace)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
+      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
+    END DO
 
 !   *** Save real-space density ***
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_copy(rho(igrid_level),rho_rspace_old(igrid_level))
-    END DO
-
-!   *** Get the density on the highest cutoff grid ***
-
-    IF ((gridlevel_info%ngrid_levels > 1).OR.&
-        (rho_gspace(1)%pw%in_use /= COMPLEXDATA3D)) THEN
-      CALL coeff_transform_space(rho(1),rho_gspace(1))
+    IF (.NOT. rebuild) THEN
+      CALL coeff_add(rho_gspace,rho_gspace_old,rho_gspace)
     END IF
-
-    DO igrid_level=2,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(rho(igrid_level),rho_gspace(igrid_level))
-      CALL coeff_add(rho_gspace(1),rho_gspace(igrid_level),rho_gspace(1))
-    END DO
+    CALL coeff_copy(rho_gspace,rho_gspace_old)
 
 !   *** The latter is needed for a consistent density in real and g space ***
 
-    IF ((gridlevel_info%ngrid_levels > 1).OR.&
-        (rho_gspace(1)%pw%in_use/=COMPLEXDATA3D)) THEN
-      CALL coeff_transform_space(rho_gspace(1),rho(1))
-    END IF
+    CALL coeff_transform_space(rho_gspace,rho)
 
 !   *** Release work storage ***
 
@@ -633,7 +624,7 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine,"pab_old")
     END IF
 
-    total_rho = calculate_total_rho(rho(1))
+    total_rho = calculate_total_rho(rho)
     CALL timestop(0.0_wp,handle)
 
 
@@ -647,13 +638,15 @@ CONTAINS
 ! Currently it's only meant to provide a way to plot an MO
 ! *****************************************************************************
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace,&
+                                    mgrid_rspace,mgrid_gspace,&
                                     gridlevel_info,cube_info,l_info,&
                                     qs_env,globenv)
 
     TYPE(blacs_matrix_type), POINTER :: mo_vectors
     INTEGER :: ivector
 
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: rho,rho_gspace
+    TYPE(coeff_type), INTENT(INOUT)             :: rho,rho_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(global_environment_type), INTENT(IN)   :: globenv
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
@@ -724,7 +717,7 @@ CONTAINS
     nsmax(:)=1000
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_rho(igrid_level),rho(igrid_level)%pw%pw_grid, & 
+       call rs_grid_setup(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, & 
                           nsmax)
        call rs_grid_allocate(rs_rho(igrid_level))
        call rs_grid_zero(rs_rho(igrid_level))
@@ -815,28 +808,17 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_pw_transfer(rs_rho(igrid_level),rho(igrid_level)%pw,"FORWARD")
+       call rs_pw_transfer(rs_rho(igrid_level),mgrid_rspace(igrid_level)%pw,"FORWARD")
        call rs_grid_deallocate(rs_rho(igrid_level))
     ENDDO
 
-!   *** Get the density on the highest cutoff grid ***
-
-    IF ((gridlevel_info%ngrid_levels > 1).OR.&
-        (rho_gspace(1)%pw%in_use /= COMPLEXDATA3D)) THEN
-      CALL coeff_transform_space(rho(1),rho_gspace(1))
-    END IF
-
-    DO igrid_level=2,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(rho(igrid_level),rho_gspace(igrid_level))
-      CALL coeff_add(rho_gspace(1),rho_gspace(igrid_level),rho_gspace(1))
+    CALL coeff_zero(rho_gspace)
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
+      CALL coeff_add(rho_gspace,mgrid_gspace(igrid_level),rho_gspace)
     END DO
 
-!   *** The latter is needed for a consistent density in real and g space ***
-
-    IF ((gridlevel_info%ngrid_levels > 1).OR.&
-        (rho_gspace(1)%pw%in_use/=COMPLEXDATA3D)) THEN
-      CALL coeff_transform_space(rho_gspace(1),rho(1))
-    END IF
+    CALL coeff_transform_space(rho_gspace,rho)
 
 !   *** Release work storage ***
     deallocate(rs_rho)

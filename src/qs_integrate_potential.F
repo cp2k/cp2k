@@ -22,6 +22,7 @@
 !!           4) new way to go over the grid
 !!     Joost VandeVondele (05.2002)
 !!           1) prelim. introduction of the real space grid type
+!!     JGH [30.08.02] multigrid arrays independent from potential
 !!
 !!   SOURCE
 !******************************************************************************
@@ -207,11 +208,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integrate_v_rspace(v_rspace,v_gspace,gridlevel_info,&
+  SUBROUTINE integrate_v_rspace(v_rspace,mgrid_rspace,mgrid_gspace,&
+                                auxbas_grid,gridlevel_info,&
                                 v_rspace_old,cube_info,l_info,rebuild,&
                                 p,h,qs_env,globenv,calculate_forces)
 
-    TYPE(coeff_type), DIMENSION(:), POINTER     :: v_rspace,v_gspace
+    TYPE(coeff_type)                            :: v_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER     :: mgrid_rspace,mgrid_gspace
+    INTEGER, INTENT (IN)                        :: auxbas_grid
     TYPE(coeff_type), INTENT(INOUT)             :: v_rspace_old
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(gridlevel_info_type), INTENT(IN)       :: gridlevel_info
@@ -274,38 +278,36 @@ CONTAINS
     IF (rebuild) THEN
       vratio = 1.0_wp
     ELSE
-      maxvnew = MAXVAL(ABS(v_rspace(1)%pw%cr3d))
+      maxvnew = MAXVAL(ABS(v_rspace%pw%cr3d))
 #if defined(__parallel)
-      call mp_max(maxvnew,v_rspace(1)%pw%pw_grid%para%group)
+      call mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
 #endif
-      v_rspace(1)%pw%cr3d = v_rspace(1)%pw%cr3d - v_rspace_old%pw%cr3d
-      maxvdiff = MAXVAL(ABS(v_rspace(1)%pw%cr3d))
+      v_rspace%pw%cr3d = v_rspace%pw%cr3d - v_rspace_old%pw%cr3d
+      maxvdiff = MAXVAL(ABS(v_rspace%pw%cr3d))
 #if defined(__parallel)
-      call mp_max(maxvdiff,v_rspace(1)%pw%pw_grid%para%group)
+      call mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
 #endif
       vratio = maxvdiff/maxvnew
     END IF
 
 !   *** Get the potential on the subgrids in real space, via fft ***
 
-    IF (gridlevel_info%ngrid_levels > 1) THEN
+    CALL coeff_transform_space(v_rspace,mgrid_gspace(auxbas_grid))
 
-      CALL coeff_transform_space(v_rspace(1),v_gspace(1))
+    DO igrid_level=1,gridlevel_info%ngrid_levels
 
-      DO igrid_level=2,gridlevel_info%ngrid_levels
+      IF ( igrid_level /= auxbas_grid )  &
+           CALL coeff_copy(mgrid_gspace(auxbas_grid),mgrid_gspace(igrid_level))
+      CALL coeff_transform_space(mgrid_gspace(igrid_level),mgrid_rspace(igrid_level))
 
-        CALL coeff_copy(v_gspace(1),v_gspace(igrid_level))
-        CALL coeff_transform_space(v_gspace(igrid_level),v_rspace(igrid_level))
+!     *** Multiply by the grid volume element ratio ***
+      IF ( igrid_level /= auxbas_grid ) THEN
+         scale = mgrid_rspace(igrid_level)%pw%pw_grid%dvol/&
+                 mgrid_rspace(auxbas_grid)%pw%pw_grid%dvol
+         mgrid_rspace(igrid_level)%pw%cr3d = scale*mgrid_rspace(igrid_level)%pw%cr3d
+      END IF
 
-!       *** Multiply by the grid volume element ratio ***
-
-        scale = v_rspace(igrid_level)%pw%pw_grid%dvol/&
-                v_rspace(1)%pw%pw_grid%dvol
-        v_rspace(igrid_level)%pw%cr3d = scale*v_rspace(igrid_level)%pw%cr3d
-
-      END DO
-
-    ENDIF
+    END DO
 
     allocate(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
     if (istat.ne.0) then
@@ -313,10 +315,10 @@ CONTAINS
     endif
     nsmax(:)=100
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_v(igrid_level),v_rspace(igrid_level)%pw%pw_grid, &
+       call rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
             nsmax)
        call rs_grid_allocate(rs_v(igrid_level))
-       call rs_pw_transfer(rs_v(igrid_level),v_rspace(igrid_level)%pw,&
+       call rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
                            "BACKWARD")
     ENDDO
 
@@ -641,10 +643,10 @@ CONTAINS
 !   *** Reconstruct the potential ***
 
     IF (.NOT.rebuild) THEN
-      v_rspace(1)%pw%cr3d = v_rspace(1)%pw%cr3d + v_rspace_old%pw%cr3d
+      v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_rspace_old%pw%cr3d
     END IF
 
-    v_rspace_old%pw%cr3d = v_rspace(1)%pw%cr3d
+    v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
 
     CALL timestop(0.0_wp,handle)
 

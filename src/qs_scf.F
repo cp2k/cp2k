@@ -116,8 +116,6 @@ MODULE qs_scf
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type,&
                                       set_qs_env
-  USE qs_integrate_potential,   ONLY: integrate_v_rspace, &
-                                      integrate_v_core_rspace
   USE qs_mo_types,              ONLY: allocate_mo_set,&
                                       calculate_density_matrix,&
                                       correct_mo_eigenvalues,&
@@ -702,8 +700,8 @@ CONTAINS
 
       DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
          ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace, &
-                                     ks_env%rho_gspace,&
+         CALL calculate_wavefunction(mo_eigenvectors,ivector,ks_env%rho_elec_rspace(1), &
+                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,ks_env%mgrid_gspace,&
                                      ks_env%gridlevel_info,ks_env%cube_info, &
                                      ks_env%l_info,&
                                      qs_env,globenv)
@@ -746,8 +744,8 @@ CONTAINS
 
       DO ivector=1,nlumos
          ! overwrites rho_rspace with a wavefunction !
-         CALL calculate_wavefunction(unoccupied_orbs,ivector,ks_env%rho_elec_rspace, &
-                                     ks_env%rho_gspace,&
+         CALL calculate_wavefunction(unoccupied_orbs,ivector,ks_env%rho_elec_rspace(1), &
+                                     ks_env%rho_gspace(1),ks_env%mgrid_rspace,ks_env%mgrid_gspace,&
                                      ks_env%gridlevel_info,ks_env%cube_info, &
                                      ks_env%l_info,&
                                      qs_env,globenv)
@@ -1482,7 +1480,7 @@ CONTAINS
       CASE ("EPS_LUMOS","EPS_LUMO")
         CALL read_object(eps_lumos)
       CASE ("MAX_ITER_LUMOS","MAX_ITER_LUMO")
-	CALL read_object(max_iter_lumos)
+        CALL read_object(max_iter_lumos)
       END SELECT
     END DO
 
