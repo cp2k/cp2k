@@ -987,8 +987,9 @@ SUBROUTINE order_mask ( yz_mask, yz_index )
   i1 = SIZE ( yz_mask, 1 )
   i2 = SIZE ( yz_mask, 2 )
   ALLOCATE ( irow(i1), rindex(i1), STAT = ierr )
+  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow", 2*i1 )
   ALLOCATE ( icol(i2), cindex(i2), STAT = ierr )
-  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "irow", 2*i1+2*i2 )
+  IF ( ierr /= 0 ) CALL stop_memory ( "order_mask", "icol", 2*i2 )
 
   yz_index = 0
   DO i = 1, i1
@@ -1010,7 +1011,7 @@ SUBROUTINE order_mask ( yz_mask, yz_index )
     END DO
   END DO
 
-  j=100000000
+  j=HUGE(j)
   do i=1,icount
     j1=yz_index(1,icount)
     j2=yz_index(2,icount)
