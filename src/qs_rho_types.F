@@ -338,7 +338,8 @@ CONTAINS
        IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
        IF (PRESENT(rho_elec_r_valid)) rho_struct%rho_elec_r_valid=rho_elec_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
-       CALL cp_assert(rho_ao_valid.OR.rho_elec_r_valid.OR.rho_g_valid,&
+       CALL cp_assert(rho_struct%rho_ao_valid.OR.&
+            rho_struct%rho_elec_r_valid.OR.rho_struct%rho_g_valid,&
             cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
             message="at least one representation must be valid "//&
             CPSourceFileRef,&
