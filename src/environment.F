@@ -368,7 +368,6 @@ SUBROUTINE cp2k_read(globenv)
        CALL cp_logger_set(logger,&
             local_filename=TRIM(globenv%project_name)//"_localLog")
     END IF
-    PRINT *,"======= PRINT_LEVEL ",globenv%print_level," ========="
     logger%iter_info%print_level=globenv%print%level
 
     IF (globenv%ionode) THEN
