@@ -169,7 +169,8 @@ MODULE message_passing
   ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
   INTEGER, PARAMETER :: max_stack_size = 10
   INTEGER            :: stack_pointer = 0
-  TYPE ( mp_perf_env_p_type ), DIMENSION (max_stack_size) :: mp_perf_stack
+  ! target attribute needed as a hack around ifc 7.1 bug 
+  TYPE ( mp_perf_env_p_type ), DIMENSION (max_stack_size), TARGET :: mp_perf_stack
 
   CHARACTER ( LEN = 20 ), PARAMETER :: sname ( MAX_PERF ) =  &
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
