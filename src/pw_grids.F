@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/pw_grids [1.1] *
 !!
@@ -259,6 +259,7 @@ END function pw_grid_compare
 !!     JGH (21-Mar-2001) : New optional argument symm_usage
 !!     JGH (22-Mar-2001) : Simplify group assignment (mp_comm_dup)
 !!     JGH (21-May-2002) : Remove orthorhombic keyword (code is fast enough)
+!!     JGH (19-Feb-2003) : Negative cutoff can be used for non-spheric grids
 !!
 !!*** *************************************************************************
 
@@ -328,19 +329,29 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
   END IF
 
   IF ( PRESENT ( cutoff ) ) THEN
-     ecut = cutoff
+     pw_grid % cutoff = ABS ( cutoff )
      IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) &
-          CALL pw_grid_find_bounds ( pw_grid % bounds, cell % h_inv, ecut, fft )
-     pw_grid % spherical = .TRUE.
-     pw_grid % cutoff = ABS ( ecut )
+          CALL pw_grid_find_bounds ( pw_grid % bounds, cell % h_inv, &
+                                     pw_grid % cutoff, fft )
+     IF ( cutoff < 0._dbl ) THEN
+        pw_grid % spherical = .FALSE.
+        ecut = 1.e10_dbl
+     ELSE
+        pw_grid % spherical = .TRUE.
+        ecut = cutoff
+     END IF
   ELSE
      ecut = 1.e10_dbl              ! all g-vectors in the box will be included
-     IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) THEN
-        CALL stop_program ( "grid_setup", &
-                            "provide initial values for bounds yourself" )
-     END IF
      pw_grid % spherical = .FALSE.
      pw_grid % cutoff = 0._dbl
+  END IF
+
+  IF ( .NOT. pw_grid % spherical ) THEN
+
+     IF ( SUM ( ABS ( pw_grid % bounds ( :, : ) ) ) == 0 ) THEN
+        CALL stop_program ( "grid_setup", &
+                            "provide initial values for bounds" )
+     END IF
 
      IF ( fft ) THEN
 
@@ -374,6 +385,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
      pw_grid % bounds ( 1, : ) = - n / 2
      pw_grid % bounds ( 2, : ) = pw_grid % bounds ( 1, : ) + n - 1
+
   END IF
 
   pw_grid % npts ( : ) = &
@@ -1426,6 +1438,8 @@ END SUBROUTINE pw_grid_allocate
 !!     JGH (01-05-2001) : sort spherical cutoff grids also within shells
 !!                        reference grids for non-spherical cutoffs
 !!     JGH (20-06-2001) : do not sort non-spherical grids
+!!     JGH (19-02-2003) : Order all grids, this makes subgrids also for
+!!                        non-spherical cutoffs possible
 !!
 !!*** *************************************************************************
 
@@ -1447,68 +1461,53 @@ SUBROUTINE pw_grid_sort ( pw_grid, ref_grid )
 
   CALL timeset("pw_grid_sort","I","",handle)
 
+  ng = SIZE ( pw_grid % gsq  )
+  ALLOCATE ( idx ( ng ), STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
+  ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp", ng )
+  ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp", ng )
+
   IF ( pw_grid % spherical ) THEN
 
-    ! spherical grids are (locally) ordered by length of G-vectors
-    ng = SIZE ( pw_grid % gsq  )
-    ALLOCATE ( idx ( ng ), STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx", ng )
-    ALLOCATE ( int_tmp ( ng ), STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp", ng )
-    ALLOCATE ( real_tmp ( ng ), STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp", ng )
-
-    CALL sort ( pw_grid % gsq, ng, idx )
-    CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
-
-    real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
-    pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
-    pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
-    pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
-    pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
-    pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-    int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
-    pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
-
-    DEALLOCATE ( idx, STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
-    DEALLOCATE ( int_tmp, STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp" )
-    DEALLOCATE ( real_tmp, STAT = allocstat )
-    IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp" )
+     ! grids are (locally) ordered by length of G-vectors
+     CALL sort ( pw_grid % gsq, ng, idx )
+     ! within shells order wrt x,y,z
+     CALL sort_shells ( pw_grid % gsq, pw_grid % g_hat, idx )
 
   ELSE
 
-    ! We do not sort non-spherical grids, but we have to make sure that
-    ! possible reference grids are compatible.
-    ! Nevertheless we have to move g=0 to the first position
-    IF ( pw_grid % have_g0 ) THEN
-       ig = SUM ( MINLOC ( pw_grid % gsq ) )
-       rt(:) = pw_grid % g ( :, ig )
-       pw_grid % g ( :, ig ) = pw_grid % g ( :, 1 )
-       pw_grid % g ( :, 1 ) = rt(:)
-       it(:) = pw_grid % g_hat ( :, ig )
-       pw_grid % g_hat ( :, ig ) = pw_grid % g_hat ( :, 1 )
-       pw_grid % g_hat ( :, 1 ) = it(:)
-    END IF
-    IF ( PRESENT ( ref_grid ) ) THEN
-      IF ( ALL ( pw_grid % npts >= ref_grid % npts ) ) THEN
-        idx = 0
-        ngr = SIZE ( ref_grid % gsq  )
-        ! stop here as this code is not yet working
-        CALL stop_program ( "pw_grid_sort", "Reference grid code for"//&
-            " non-spherical cutoff not yet working")
-      ELSE
-        CALL stop_program ( "pw_grid_sort", "Reference grid has to"//&
-            " be smaller then new grid for non-spherical cutoff")
-      END IF
-    END IF
+     !grids are locally ordered wrt MAX(ABS(x,y,z))
+     DO ig = 1 ,ng
+       int_tmp ( ig )  = MAX ( ABS ( pw_grid % g_hat ( 1, ig ) ), &
+                               ABS ( pw_grid % g_hat ( 2, ig ) ), &
+                               ABS ( pw_grid % g_hat ( 3, ig ) ) )
+     END DO
+     CALL sort ( int_tmp, ng, idx )
+     CALL sort_hulls ( int_tmp, pw_grid % g_hat, idx )
 
   END IF
+
+  real_tmp ( 1:ng ) = pw_grid % g ( 1, 1:ng )
+  pw_grid % g ( 1, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+  real_tmp ( 1:ng ) = pw_grid % g ( 2, 1:ng )
+  pw_grid % g ( 2, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+  real_tmp ( 1:ng ) = pw_grid % g ( 3, 1:ng )
+  pw_grid % g ( 3, 1:ng ) = real_tmp ( idx ( 1:ng ) )
+  int_tmp ( 1:ng ) = pw_grid % g_hat ( 1, 1:ng )
+  pw_grid % g_hat ( 1, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+  int_tmp ( 1:ng ) = pw_grid % g_hat ( 2, 1:ng )
+  pw_grid % g_hat ( 2, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+  int_tmp ( 1:ng ) = pw_grid % g_hat ( 3, 1:ng )
+  pw_grid % g_hat ( 3, 1:ng ) = int_tmp ( idx ( 1:ng ) )
+   
+  DEALLOCATE ( idx, STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "idx" )
+  DEALLOCATE ( int_tmp, STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "int_tmp" )
+  DEALLOCATE ( real_tmp, STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "pw_grid_sort", "real_tmp" )
 
   ! check if ordering is compatible to reference grid
   IF ( PRESENT ( ref_grid ) ) THEN
@@ -1556,6 +1555,38 @@ SUBROUTINE sort_shells ( gsq, g_hat, idx )
   CALL redist ( g_hat, idx, s1, s2 )
 
 END SUBROUTINE sort_shells
+
+SUBROUTINE sort_hulls ( ind, g_hat, idx )
+
+  IMPLICIT NONE
+
+! Argument
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: ind
+  INTEGER, DIMENSION ( :, : ), INTENT ( IN ) :: g_hat
+  INTEGER, DIMENSION ( : ), INTENT ( INOUT ) :: idx
+
+! Locals
+  REAL ( dbl ), PARAMETER :: small = 1.e-12_dbl
+  INTEGER :: ng, ig, s1, s2, s_begin
+
+  ng = SIZE ( ind )
+  s_begin = -10000000
+  s1 = 0
+  s2 = 0
+  ig = 1
+  DO ig = 1, ng
+    IF ( ABS ( REAL ( ind ( ig ) - s_begin, dbl ) ) < small ) THEN
+      s2 = ig
+    ELSE
+      CALL redist ( g_hat, idx, s1, s2)
+      s_begin = ind ( ig )
+      s1 = ig
+      s2 = ig
+    END IF
+  END DO
+  CALL redist ( g_hat, idx, s1, s2 )
+
+END SUBROUTINE sort_hulls
 
 SUBROUTINE redist ( g_hat, idx, s1, s2 )
 
