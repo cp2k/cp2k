@@ -849,8 +849,11 @@ CONTAINS
          DO  iunit = mol,mol+2
             ry = particles%els(iunit)%r(2) - nycm
             rz = particles%els(iunit)%r(3) - nzcm
-            rynew = cosdg * ry + sindg * rz
-            rznew = cosdg * rz - sindg * ry
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!            rynew = cosdg * ry + sindg * rz
+!            rznew = cosdg * rz - sindg * ry
+            rynew = cosdg * ry - sindg * rz
+            rznew = cosdg * rz + sindg * ry
                
             particles%els(iunit)%r(2) = rynew + nycm
             particles%els(iunit)%r(3) = rznew + nzcm
@@ -878,8 +881,11 @@ CONTAINS
          DO  iunit = mol,mol+2
             rx = particles%els(iunit)%r(1) - nxcm
             ry = particles%els(iunit)%r(2) - nycm
-            rxnew = cosdg * rx + sindg * ry
-            rynew = cosdg * ry - sindg * rx
+!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!            rxnew = cosdg * rx + sindg * ry
+!            rynew = cosdg * ry - sindg * rx
+            rxnew = cosdg * rx - sindg * ry
+            rynew = cosdg * ry + sindg * rx
                
             particles%els(iunit)%r(1) = rxnew + nxcm
             particles%els(iunit)%r(2) = rynew + nycm
