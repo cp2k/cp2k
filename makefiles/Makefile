@@ -5,11 +5,11 @@ SHELL = /bin/sh
 CP2KHOME  := $(PWD)/..
 ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 1
+PMAKE     = $(SMAKE) -j 16
 LIB1      = cp2k_base_lib
 LIBCP2K   = cp2k_lib
 export VERSION=sopt
-export WHAT   =progr
+export WHAT   =_progr
 
 ### Dependent variables ###
 
@@ -37,9 +37,12 @@ SRCENTRY     = $(wildcard $(SRCDIR)/CVS/Entr*)
 ### Definition of the multiple targets ###
 
 VERSION_TARGETS = sopt sdbg popt pdbg ssmp psmp
+LIB_TARGETS = sopt/lib sdbg/lib popt/lib pdbg/lib ssmp/lib psmp/lib
+ALL_TARGETS = sopt/all sdbg/all popt/all pdbg/all ssmp/all psmp/all
 CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
                   sopt/realclean sdbg/realclean popt/realclean pdbg/realclean
-.PHONY : all libs progr lib build clean realclean distclean $(CLEAN_TARGETS)
+.PHONY : _all libs _progr _lib build clean realclean distclean $(CLEAN_TARGETS)\
+         $(ALL_TARGETS) $(LIB_TARGETS) $(VERSION_TARGETS) dependencies
 ### Master rules ###
 
 build:
@@ -55,13 +58,20 @@ build:
 	$(PMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) $(WHAT)
 
 libs:
-	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=lib build
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_lib build
+all:
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_all build
+progr:
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(VERSION) WHAT=_progr build
 
 $(VERSION_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$@ build
 
 $(CLEAN_TARGETS):
 	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) $(@F)
+
+$(ALL_TARGETS) $(LIB_TARGETS):
+	$(SMAKE) -f $(MAKEFILE) VERSION=$(@D) WHAT=_$(@F) build
 
 include $(OBJECTDEFS)
 
@@ -80,7 +90,7 @@ OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o mltfftsg_tools.o\
                mltfftsg.o grid_fast.o
 
-DEPENDENCIES = $(OBJECTS:.o=.dep)
+DEPENDENCIES = $(OBJECTS:.o=.dep) cp2k.dep
 
 LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
@@ -97,9 +107,9 @@ dependencies: $(DEPENDENCIES)
 	@echo "** LIBS     = $(LIBS)"
 	@echo
 
-all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG)
-progr: $(PROG)
-lib: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE)
+_all: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE) $(PROG)
+_progr: $(PROG)
+_lib: $(LIB1_ARCHIVE) $(LIB_CP2K_ARCHIVE)
 
 $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
@@ -165,7 +175,6 @@ distclean:
 
 # lib dependencies
 mltfftsg.o: mltfftsg_tools.o
-cp2k.o: $(LIB1_ARCHIVE) $(OBJECTS)
 f77_int_low.o: f77_interface.o
 
 # to recpp environment.F whenever the CVS/Entries file is updated (and exists)
