@@ -24,7 +24,8 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
-  USE cp_files,                        ONLY: open_file,close_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                              cp_get_default_logger,&
                                              cp_logger_create,&
@@ -368,6 +369,7 @@ SUBROUTINE cp2k_read(globenv)
        CALL cp_logger_set(logger,&
             local_filename=TRIM(globenv%project_name)//"_localLog")
     END IF
+    logger%iter_info%project_name=globenv%project_name
     logger%iter_info%print_level=globenv%print%level
 
     IF (globenv%ionode) THEN

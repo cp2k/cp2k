@@ -31,12 +31,17 @@ MODULE md_run
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -80,8 +85,6 @@ MODULE md_run
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: read_fixed_particles
   USE physcon,                         ONLY: kelvin
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
@@ -148,8 +151,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn2", &
       routineP = module_name//':'//routine_name
 
-    INTEGER                                  :: handle, i, ibead, iset, &
-                                                istat, istep, isubsys, &
+    INTEGER                                  :: handle, i, ibead, istat, &
+                                                istep, isubsys, iter_level, &
                                                 nbeads, nfixed
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
@@ -158,6 +161,7 @@ CONTAINS
                                                 time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -186,6 +190,7 @@ CONTAINS
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,nhc_part,nhc_baro)
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
+    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
@@ -333,9 +338,12 @@ CONTAINS
     END DO
     CALL md_energy ( md_env ) ! inits the print env at itimes == 0
     
-
+    CALL cp_add_iter_level(logger%iter_info,n_rlevel_new=iter_level,&
+         error=error)
     DO istep=1,simpar%nsteps
       itimes = itimes + 1
+      CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
+           iter_nr=itimes,error=error)
       CALL velocity_verlet(md_env)
       DO ibead=1,nbeads
         CALL temperature_control(simpar,force_env_p(ibead)%force_env,error)
@@ -359,6 +367,8 @@ CONTAINS
       CALL mp_bcast(should_stop,globenv%para_env%source,globenv%para_env%group) ! sync values of should_stop
       IF (should_stop) EXIT
     END DO 
+    CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
+         error=error)
 
     CALL md_env_release ( md_env, error )
 

@@ -24,7 +24,8 @@
 
 MODULE qs_scf_post
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_reduce,&
                                              coeff_sumup,&
@@ -36,7 +37,9 @@ MODULE qs_scf_post
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -47,42 +50,58 @@ MODULE qs_scf_post
                                              cp_fm_release,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_output_handling,              ONLY: cp_finished_output,&
+                                             cp_first_output,&
+                                             cp_iter_string,&
+                                             cp_should_output,&
+                                             cp_unitnr_for_output
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_type
   USE global_types,                    ONLY: WANNIER_NONE,&
                                              global_environment_type
-  USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE level_shift,                     ONLY: level_shift_testing
   USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
   USE mulliken,                        ONLY: mulliken_charges
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: angstrom
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
+                                             pw_pool_give_back_pw,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_sumup,&
+                                             pw_transfer,&
+                                             pw_type
   USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
-                                             qs_ks_did_change
+  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+                                             qs_ks_update_qs_env
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
@@ -94,8 +113,6 @@ MODULE qs_scf_post
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_overlap,                      ONLY: write_sparse_matrix
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
@@ -189,7 +206,7 @@ CONTAINS
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, matrix_s, matrix_p
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
 
@@ -538,13 +555,14 @@ CONTAINS
     REAL(KIND=dp)      :: s_square_ideal,s_square
     LOGICAL            :: all_equal
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
-    INTEGER            :: nmo
+    INTEGER            :: nmo, unit_nr
+    TYPE(section_vals_type), POINTER :: print_key, input
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
             mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,pfull,&
-            molecule_set)
+            molecule_set,input)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -553,7 +571,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
             mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,cell=cell,error=error)
+            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,&
+            input=input,cell=cell,error=error)
 
 !   *** Write last wavefunction to screen ***
        DO ispin=1,dft_control%nspins
@@ -629,6 +648,24 @@ CONTAINS
           IF (globenv%ionode) CLOSE(21)
        ENDIF
 
+!    *** stupid (non periodic) calculation of the dipole moment ***
+       print_key => section_vals_get_subs_vals(input,"DFT%QS%DIPOLE",&
+            error=error)
+       IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
+          unit_nr=cp_unitnr_for_output(logger, print_key, extension=".dipole",&
+               local=.FALSE., log_filename=.FALSE., error=error)
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+               error=error)
+          CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
+               aux_bas_pool=auxbas_pw_pool,cell=cell,globenv=globenv,&
+               unit_nr=unit_nr,&
+               print_header=cp_first_output(logger%iter_info,print_key,error=error),&
+               error=error)
+          CALL cp_finished_output(unit_nr, logger, print_key, local=.FALSE.,&
+               error=error)
+       END IF
+ 
 !    *** write the density matrix ***
        IF (globenv%print%density_matrix) THEN
          DO ispin=1,dft_control%nspins
@@ -698,14 +735,15 @@ CONTAINS
       POINTER                                :: matrix_s
     REAL(KIND=dp)                            :: s_square, s_square_ideal
 
+    INTEGER                                  :: i, j, na, nb, ncol_local, &
+                                                nrow, nrow_local
+    REAL(KIND=dp)                            :: tmp
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
+    TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: matrix_sc,matrix_overlap
-    TYPE(cp_fm_type), POINTER                :: c_alpha,c_beta
+    TYPE(cp_fm_type), POINTER                :: c_alpha, c_beta, &
+                                                matrix_overlap, matrix_sc
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_blacs_env_type), POINTER         :: context 
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: local_data
-    INTEGER :: na, nb, i, j, nrow, nrow_local,ncol_local
-    REAL(KIND=dp) :: tmp
 
     NULLIFY(fm_struct_tmp,matrix_sc,matrix_overlap,para_env,context,local_data)
 
@@ -747,5 +785,125 @@ CONTAINS
     END SELECT
 
   END SUBROUTINE
+
+!!****f* qs_scf_post/calc_stupid_dipole *
+!!
+!!   NAME
+!!     calc_stupid_dipole
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - subsystem: the atoms to calculate the center of mass
+!!     - rho_r: the electronic density in real space
+!!     - rho_core_g: the charge of the core in the reciprocal space
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
+     cell,globenv,unit_nr,print_header,error)
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(coeff_type), DIMENSION(:), &
+      INTENT(in)                             :: rho_r
+    TYPE(pw_type), POINTER                   :: rho_core_g
+    TYPE(pw_pool_type), POINTER              :: aux_bas_pool
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(global_environment_type), &
+      INTENT(in)                             :: globenv
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: print_header
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'calc_stupid_dipole', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: iter
+    INTEGER                                  :: i, ip, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure, my_print_header
+    REAL(kind=dp)                            :: mass, tot_m
+    REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
+                                                dipole_com, dr, r, r_com
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(pw_type), POINTER                   :: total_charge
+
+  failure=.FALSE.
+  my_print_header=.FALSE.
+  IF (PRESENT(print_header)) my_print_header=print_header 
+
+  logger => cp_error_get_logger(error)
+  com=0._dp
+  tot_m=0._dp
+  CALL cp_subsys_get(subsystem,particles=particles,error=error)
+  DO ip=1,particles%n_els
+     CALL get_atomic_kind(particles%els(ip)%atomic_kind,mass=mass)
+     tot_m=tot_m+mass
+     r=particles%els(ip)%r
+     com=com+mass*r
+     !com(1)=com(1)+mass*(MODULO(r(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp)
+     !com(2)=com(2)+mass*(MODULO(r(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp)
+     !com(3)=com(3)+mass*(MODULO(r(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp)
+  END DO
+  com=com/tot_m
+  com(1)=MODULO(com(1),cell%hmat(1,1))
+  com(2)=MODULO(com(2),cell%hmat(2,2))
+  com(3)=MODULO(com(3),cell%hmat(3,3))
+
+  
+  CALL pw_pool_create_pw(aux_bas_pool,total_charge,use_data=REALDATA3D,&
+       in_space=REALSPACE,error=error)
+  CALL pw_transfer(rho_core_g,total_charge)
+  DO i=1,SIZE(rho_r)
+     CALL pw_sumup(rho_r(i)%pw,total_charge)
+  END DO
+
+  dipole_center=0._dp
+  dipole_com=0._dp
+  bo=total_charge%pw_grid%bounds_local
+  dr=total_charge%pw_grid%dr
+  DO k=bo(1,3),bo(2,3)
+     r(3)=k*dr(3)
+     r_com(3)=MODULO(r(3)-com(3),cell%hmat(3,3))-cell%hmat(3,3)/2._dp
+     DO j=bo(1,2),bo(2,2)
+        r(2)=j*dr(2)
+        r_com(2)=MODULO(r(2)-com(2),cell%hmat(2,2))-cell%hmat(2,2)/2._dp
+        r(1)=bo(1,1)*dr(1)
+        r_com(1)=MODULO(r(1)-com(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
+        DO i=bo(1,1),bo(2,1)
+           dipole_com=dipole_com+total_charge%cr3d(i,j,k)*r_com
+           dipole_center=dipole_center+total_charge%cr3d(i,j,k)*r
+           r(1)=r(1)+dr(1)
+           r_com(1)=MODULO(r(1)-com(1),cell%hmat(1,1))-cell%hmat(1,1)/2._dp
+        END DO
+     END DO
+  END DO
+
+  dipole_center=dipole_center*total_charge%pw_grid%dvol
+  dipole_com=dipole_com*total_charge%pw_grid%dvol
+  
+  IF (unit_nr>0) THEN
+     IF (my_print_header) THEN
+        WRITE(unit=unit_nr,fmt="('# iteration com(x,y,z)[Angstrom]"//&
+             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au]')")
+     END IF
+     iter=cp_iter_string(logger%iter_info,error=error)
+     WRITE(unit=unit_nr,fmt="(a,9(f12.8))")&
+          TRIM(iter),&
+          com*angstrom,-dipole_com,-dipole_center
+  END IF
+  CALL pw_pool_give_back_pw(aux_bas_pool,total_charge,error=error)
+
+END SUBROUTINE calc_stupid_dipole
+!***************************************************************************
 
 END MODULE

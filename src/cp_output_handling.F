@@ -41,8 +41,8 @@ MODULE cp_output_handling
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_files,                        ONLY: open_file,&
-                                             close_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_iteration_info_type,&
@@ -54,6 +54,11 @@ MODULE cp_output_handling
                                              cp_to_string,&
                                              cp_warning_level,&
                                              max_iter_r_level
+  USE input_constants,                 ONLY: debug_print_level,&
+                                             high_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             silent_print_level
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enumeration_type
@@ -72,12 +77,7 @@ MODULE cp_output_handling
                                              default_string_length,&
                                              dp
   USE string_utilities,                ONLY: compress
-  USE input_constants,                 ONLY: silent_print_level,&
-                                             low_print_level,&
-                                             medium_print_level,&
-                                             high_print_level,&
-                                             debug_print_level
-  
+
   IMPLICIT NONE
   PRIVATE
 
@@ -85,7 +85,7 @@ MODULE cp_output_handling
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_output_handling'
   PUBLIC :: cp_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
-  PUBLIC :: cp_unitnr_for_output, cp_finished_output
+  PUBLIC :: cp_unitnr_for_output, cp_finished_output, cp_first_output
 
 !!***
 !****************************************************************************
@@ -317,6 +317,90 @@ CONTAINS
        END IF
     END IF
 END FUNCTION cp_should_output
+!***************************************************************************
+
+!!****f* cp_output_handling/cp_first_output [1.0] *
+!!
+!!   NAME
+!!     cp_first_output
+!!
+!!   FUNCTION
+!!     returns true if the given proprety is printed out for the first time
+!!     (so that some header or extra information can be printed out)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - iteration_info: information about the actual iteration level
+!!     - print_key: the section values of the key to be printed
+!!     - control_val: 0 output is always false, if 1 output is
+!!       controlled by the print key if 2 output is always done.
+!!       Defaults to 1.
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  FUNCTION cp_first_output(iteration_info,print_key,control_val,error)&
+       RESULT(res)
+    TYPE(cp_iteration_info_type), POINTER    :: iteration_info
+    TYPE(section_vals_type), POINTER         :: print_key
+    INTEGER, INTENT(in), OPTIONAL            :: control_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_first_output', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: ilevel, ival, my_control_val, &
+                                                print_level
+    INTEGER, DIMENSION(:), POINTER           :: add_last, each
+    LOGICAL                                  :: failure, level_passed
+
+    failure=.FALSE.
+    my_control_val=1
+    IF (PRESENT(control_val)) my_control_val=control_val
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (my_control_val==2) THEN
+       res=ALL(iteration_info%iteration(:iteration_info%n_rlevel)==1)
+    ELSE IF (my_control_val==0) THEN
+       res=.FALSE.
+    ELSE
+       IF (.NOT.ASSOCIATED(print_key)) THEN
+          res=(iteration_info%print_level > debug_print_level)
+       ELSE
+          CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+          CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+          res=.FALSE.
+          IF (.NOT. failure) THEN
+             NULLIFY(each,add_last)
+             CALL section_vals_val_get(print_key,"PRINT",i_val=print_level,error=error)
+             CALL section_vals_val_get(print_key,"EACH",i_vals=each,error=error)
+             CALL section_vals_val_get(print_key,"ADD_LAST",i_vals=add_last,error=error)
+             CPPrecondition(ASSOCIATED(each),cp_failure_level,routineP,error,failure)
+             CPPrecondition(ASSOCIATED(add_last),cp_failure_level,routineP,error,failure)
+             IF (SIZE(each)<=iteration_info%n_rlevel.AND.&
+                  iteration_info%print_level>=print_level) THEN
+                res=.TRUE.
+                DO ilevel=1,SIZE(each)
+                   level_passed=.FALSE.
+                   ival=each(SIZE(each)-ilevel+1)
+                   IF (iteration_info%iteration &
+                        (iteration_info%n_rlevel-ilevel+1)==1) THEN
+                      level_passed=.TRUE.
+                   END IF
+                   IF (.not.level_passed) res=.FALSE.
+                END DO
+             END IF
+          END IF
+       END IF
+    END IF
+END FUNCTION cp_first_output
 !***************************************************************************
 
 !!****f* cp_output_handling/cp_iter_string [1.0] *
@@ -612,7 +696,8 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
 
     CHARACTER(len=default_path_length)       :: filename
     CHARACTER(len=default_string_length)     :: my_middle_name, outPath
-    LOGICAL                                  :: failure, my_local
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, is_path, my_local
 
   failure=.FALSE.
   my_local=.FALSE.
@@ -630,12 +715,16 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
         IF (outPath=='__STD_OUT__') THEN
            res=cp_logger_get_default_unit_nr(logger,local=my_local)
         ELSE
-           IF (outPath==' ') THEN
+           is_path=.FALSE.
+           DO i=1,LEN_TRIM(outPath)
+              IF (outPath(i:i)=="/") is_path=.TRUE.
+           END DO
+           IF (.not.is_path) THEN
               my_middle_name=print_key%section%name
               IF (PRESENT(middle_name)) my_middle_name=middle_name
               CALL cp_logger_generate_filename(logger,res=filename,&
                    root=TRIM(logger%iter_info%project_name)//"-"//&
-                   TRIM(my_middle_name),&
+                   TRIM(outPath)//TRIM(my_middle_name),&
                    postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
                    extension,local=my_local)
            ELSE

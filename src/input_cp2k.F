@@ -1031,6 +1031,7 @@ SUBROUTINE create_qs_section(section,error)
   character(len=*), parameter :: routineN='create_qs_section',&
         routineP=moduleN//':'//routineN
   TYPE(keyword_type), pointer :: keyword
+  TYPE(section_type), pointer :: print_key
 
   failure=.false.
 
@@ -1259,6 +1260,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     nullify(print_key)
+     CALL cp_print_key_section_create(print_key,"DIPOLE",&
+          description="Calculates the dipole, for the moment it only supports"//&
+          "the stupid non periodic dipole, should be extended soon", &
+          print_level=high_print_level,each=(/1/),filename="dipole",&
+          error=error)
+     CALL section_add_subsection(section,print_key,error=error)
+     CALL section_release(print_key,error=error)
   END IF
 
 END SUBROUTINE create_qs_section
