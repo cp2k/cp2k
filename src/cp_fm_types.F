@@ -465,8 +465,6 @@ CONTAINS
 
 !   Purpose: Set the FULL matrix elements to alpha.
 
-!   History: - Creation (12.06.2001, Matthias Krack)
-
 !   ***************************************************************************
 
     TYPE(cp_full_matrix_type), POINTER           :: matrix
@@ -475,40 +473,33 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: mypcol,myprow
-    TYPE(cp_blacs_env_type), POINTER :: context
+    INTEGER :: matrix_size
 
 !   ---------------------------------------------------------------------------
 
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-
-    matrix%local_data(:,:) = alpha
+    matrix_size = size(matrix%local_data,1)*size(matrix%local_data,2)
+    CALL dcopy (matrix_size, alpha, 0, matrix%local_data, 1)
 
   END SUBROUTINE cp_fm_set_all
 
 ! *****************************************************************************
 
-!!****f* cp2k/m/s *
+!!****f* cp2k/cp_fm_types/cp_fm_get_element *
 !!
 !!   NAME
-!!     s
+!!     cp_fm_get_element
 !!
 !!   FUNCTION
-!!     -
+!!     return an element of a full_matrix
 !!
 !!   ARGUMENTS
-!!     -
+!!     - matrix: the matrix to read
+!!     - irow_global: the row
+!!     - icol_global: the col
+!!     - alpha: the value of matrix(irow_global, icol_global)
 !!
 !!   NOTES
 !!     -
-!!
-!!   MODIFICATION HISTORY
-!!     , TCH, created
-!!
-!!   SEE ALSO
-!!     
 !!
 !!****
   SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha)
