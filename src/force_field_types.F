@@ -25,6 +25,7 @@ MODULE force_field_types
 
   USE kinds,                           ONLY: dp,&
                                              int_size
+  USE pair_potential_types,            ONLY: pair_potential_type
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
@@ -64,13 +65,12 @@ MODULE force_field_types
   TYPE impr_kind_type
     CHARACTER(LEN=max_name_length) :: name
     REAL(KIND = dp)                :: k,phi0
-    REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
     CHARACTER(LEN=max_name_length) :: name
-    REAL(KIND = dp)                :: k,r0
+    TYPE ( pair_potential_type )   :: potparm
     INTEGER                        :: kind_number
   END TYPE onfo_kind_type
 
@@ -323,8 +323,6 @@ CONTAINS
 
     DO ikind=1,nkind
       onfo_kind_set(ikind)%name = ""
-      onfo_kind_set(ikind)%k = 0.0_dp
-      onfo_kind_set(ikind)%r0 = 0.0_dp
       onfo_kind_set(ikind)%kind_number = ikind
     END DO
 

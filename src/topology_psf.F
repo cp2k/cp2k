@@ -347,7 +347,7 @@ SUBROUTINE read_topology_mc (topology,globenv)
                                                 atm_res_name(:)
     INTEGER                                  :: i, iatom, ibond, ierror, &
                                                 ilen, iphi, itheta, iunit, &
-                                                iw, natom, nbond, nphi, ntheta
+                                                iw, natom, nbond, nphi, ntheta, istat
     INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
       map_mol_typ(:), phi_a(:), phi_b(:), phi_c(:), phi_d(:), theta_a(:), &
       theta_b(:), theta_c(:)

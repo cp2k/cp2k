@@ -23,7 +23,7 @@ MODULE mol_force
   USE kinds,                           ONLY: dbl
 
   PRIVATE
-  PUBLIC :: force_bonds, force_bends, force_torsions
+  PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 
 !!*****
@@ -167,6 +167,57 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
   gt3 = ( - dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
 
 END SUBROUTINE force_torsions
+
+!!*****
+!******************************************************************************
+!!****** mol_force/force_imp_torsions [1.0] *
+!!
+!!   NAME
+!!     force_imp_torsions
+!!
+!!   FUNCTION
+!!     Computes the forces from the torsions
+!!
+!!   AUTHOR
+!!     DG
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE force_imp_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
+                                k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
+
+
+    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2
+    REAL(dbl), DIMENSION(:), INTENT(IN)      :: u1, u2
+    REAL(dbl), INTENT(IN)                    :: iw1, iw2
+    REAL(dbl), INTENT(IN)                    :: k, phi0
+    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
+    REAL(dbl), INTENT(OUT)                   :: energy, fscalar
+
+    REAL(dbl)                                :: cosphi, phi
+
+!------------------------------------------------------------------------------
+! define cosphi
+
+  cosphi = DOT_PRODUCT ( u1, u2 ) * iw1 * iw2
+  phi = acos ( cosphi )
+! compute energy
+  energy = 0.5_dbl * k * ( phi - phi0 ) * ( phi - phi0 ) 
+
+! compute fscalar
+  fscalar = - ( phi - phi0 ) * SQRT ( 1._dbl / ( 1 - cosphi * cosphi ) )
+
+! compute the gradients
+  gt1 = ( u2 * iw2 - cosphi * u1 * iw1 ) * iw1
+  gt4 = ( u1 * iw1 - cosphi * u2 * iw2 ) * iw2
+  gt2 = ( dist1 * is32 ** 2 - 1._dbl ) * gt1 + dist2 * is32 ** 2 * gt4
+  gt3 = ( - dist2 * is32 ** 2 - 1._dbl ) * gt4 - dist1 * is32 ** 2 * gt1
+
+END SUBROUTINE force_imp_torsions
 
 !!*****
 !******************************************************************************

@@ -105,8 +105,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
   INTEGER :: node
-  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_torsion, vg_coulomb
-  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion
+  REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, pot_urey_bradley, pot_imp_torsion, pot_torsion, vg_coulomb
+  REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend, pv_torsion, pv_urey_bradley, pv_imp_torsion
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_g, ident
@@ -188,11 +188,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   pv_bc = 0._dbl
   pv_bond = 0.0_dbl
   pv_bend = 0.0_dbl
+  pv_urey_bradley = 0.0_dbl
   pv_torsion = 0.0_dbl
+  pv_imp_torsion = 0.0_dbl
   pot_nonbond = 0._dbl
   pot_bond = 0._dbl
   pot_bend = 0._dbl
+  pot_urey_bradley = 0._dbl
   pot_torsion = 0._dbl
+  pot_imp_torsion = 0._dbl
   vg_coulomb = 0._dbl
   thermo % pot = 0.0_dbl
   virial % pv_virial = 0.0_dbl
@@ -256,13 +260,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 !
   IF ( PRESENT ( debug )  ) THEN
      CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                               particle_set, pot_bond, pot_bend, pot_torsion, &
-                               pv_bond, pv_bend, pv_torsion, debug % f_bond,  &
-                               debug % f_bend, debug % f_torsion )
+                               particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                               pot_torsion, pot_imp_torsion, pv_bond, pv_bend,     &
+                               pv_urey_bradley, pv_torsion, pv_imp_torsion,        &
+                               debug % f_bond, debug % f_bend, debug % f_torsion )
   ELSE
      CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
-                                particle_set, pot_bond, pot_bend, pot_torsion, &
-                                pv_bond, pv_bend, pv_torsion )
+                               particle_set, pot_bond, pot_bend, pot_urey_bradley, &
+                               pot_torsion, pot_imp_torsion, pv_bond, pv_bend,     &
+                               pv_urey_bradley, pv_torsion, pv_imp_torsion )
   END IF
 
 !

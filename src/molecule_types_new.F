@@ -52,8 +52,9 @@ MODULE molecule_types_new
     REAL(KIND = dp)               :: scale,scale_old
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,fd,fe,ff,&
                               ra_old,rb_old,rc_old,rd_old,re_old,rf_old,&
-                              va,vb,vc,vd,ve,vf,del_lam,lambda,&
+                              va,vb,vc,vd,ve,vf,&
                               va_old,vb_old,vc_old,vd_old,ve_old,vf_old
+    REAL(KIND = dp), DIMENSION(6) :: del_lam,lambda
   END TYPE local_g4x6_constraint_type
 
   TYPE local_molecule_type

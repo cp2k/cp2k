@@ -286,6 +286,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                 - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
 
 ! getting the potential
+           WRITE ( *, * ) 'dij', qi,qj,idij,errf
            v_bonded_corr = v_bonded_corr - qi*qj*idij*errf
 
 ! subtracting the force from the total force
