@@ -113,8 +113,7 @@ MODULE input_constants
                                 do_conn_psf=0,&
                                 do_conn_gromos=1,&
                                 do_conn_generate=2,&
-                                do_conn_ohh_mc=3,&
-                                do_conn_off=4,&
+                                do_conn_off=3,&
                                 do_coord_pdb=0,&
                                 do_coord_chm=1,&
                                 do_coord_off=2

@@ -4309,10 +4309,10 @@ SUBROUTINE create_tddfpt_section(section,error)
             variants=(/ "CONNECTI"/),&
             description="Set up the way in which connectivities will be read. "// &
             "Default generates topology",&
-            usage="CONNECTIVITY (PSF||GROMOS||GENERATE||OHH_MC||OFF)", &
-            enum_c_vals=s2a( "PSF","GROMOS","GENERATE","OHH_MC","OFF"),&
+            usage="CONNECTIVITY (PSF||GROMOS||GENERATE||OFF)", &
+            enum_c_vals=s2a( "PSF","GROMOS","GENERATE","OFF"),&
             enum_i_vals=(/do_conn_psf, do_conn_gromos, do_conn_generate,&
-                          do_conn_ohh_mc, do_conn_off/),&
+                          do_conn_off/),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

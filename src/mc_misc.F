@@ -614,7 +614,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
 !      WRITE(unit,10000) "&END"
 !      WRITE(unit,*) 
       WRITE(unit,10000) "&TOPOLOGY"
-      WRITE(unit,10000) ' CONNECTIVITY   OHH_MC'
 !      WRITE(unit,10000) ' BONDPARM COVALENT 1.6'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
