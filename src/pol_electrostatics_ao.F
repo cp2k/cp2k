@@ -73,7 +73,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
-                         grid_b, ewald_param, iref, energy, f_coef, f_part )
+                         grid_b, ewald_param, iref, energy, e0, e1, e2, f_coef, f_part )
 
   IMPLICIT NONE
 
@@ -88,6 +88,9 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   INTEGER, INTENT ( IN ) :: iref
   REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e0
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e1
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e2
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( : ), OPTIONAL :: f_coef
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ), OPTIONAL :: f_part
 
@@ -302,7 +305,9 @@ SUBROUTINE electrostatics ( dg_part, dg_coef, part, coeff, box, grid_s,  &
   e_drho_rho0 = pw_integral_ab ( drho_ref % pw , phi1_r % pw )
 
   energy = ( e_rho0_rho0 + e_drho_drho + e_drho_rho0 ) * inv_fourpi_eps0
-
+  e0 = e_rho0_rho0 * inv_fourpi_eps0
+  e1 = e_drho_rho0 * inv_fourpi_eps0
+  e2 = e_drho_drho * inv_fourpi_eps0
   CALL coeff_deallocate ( phi2_r )
   CALL coeff_deallocate ( phi1_r )
 
