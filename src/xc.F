@@ -56,6 +56,7 @@ MODULE xc
   USE dft_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: dbl,&
                                              wp => dp
+  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_compare
@@ -83,6 +84,7 @@ MODULE xc
                                              pw_transfer,&
                                              pw_type,&
                                              pw_zero
+  USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -93,6 +95,7 @@ MODULE xc
                                              xc_lda,&
                                              xc_lsd,&
                                              xc_set
+  IMPLICIT NONE
   PRIVATE
   PUBLIC :: xc_calculate_pw_new, xc_calculate_pw1, xc_calculate_pw2, &
        xc_prep_2nd_deriv, xc_calc_2nd_deriv, xc_prep_2nd_deriv1, &
@@ -168,9 +171,10 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(1) :: my_rho_r, my_vxc
     TYPE(pw_p_type), DIMENSION(:), POINTER :: my_rho_g
     TYPE(dft_control_type),POINTER :: my_dft_control
+    TYPE(cell_type), POINTER :: cell
 
     failure=.FALSE.
-    NULLIFY(my_rho_g)
+    NULLIFY(my_rho_g, cell)
     my_rho_r(1)%pw => rho_r
     my_vxc(1)%pw => vxc
     my_dft_control => dft_control
@@ -187,7 +191,7 @@ CONTAINS
 
     CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
          vxc=my_vxc, exc=exc, dft_control=my_dft_control,&
-         pw_pool=pw_pool, error=error)
+         pw_pool=pw_pool,cell=cell, error=error)
 
     IF (ASSOCIATED(my_rho_g)) THEN
        DEALLOCATE(my_rho_g,stat=stat)
@@ -203,12 +207,13 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine xc_calculate_pw2(rho_r, rho_g, vxc, exc, dft_control,&
-!!         pw_pool, error)
+!!         cell, pw_pool, error)
 !!       Type(coeff_type), Dimension(:), Intent (IN):: rho_r
 !!       Type(coeff_type), Dimension(:), Pointer:: rho_g
 !!       Type(coeff_type), Dimension(:), Intent (OUT):: vxc
 !!       Real(Kind=wp), Intent (OUT):: exc
 !!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine xc_calculate_pw2
@@ -240,12 +245,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw2(rho_r,rho_g,vxc,exc,dft_control,&
-       pw_pool,error)
+       cell,pw_pool,error)
     TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
     TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
     TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
     REAL(kind=wp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(cell_type), POINTER                     :: cell
     TYPE(pw_pool_type), POINTER                  :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -285,7 +291,7 @@ CONTAINS
     IF (.not.failure) THEN
        CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
             vxc=my_vxc, exc=exc, dft_control=dft_control,&
-            pw_pool=pw_pool, error=error)
+            cell=cell, pw_pool=pw_pool, error=error)
     END IF
   END SUBROUTINE xc_calculate_pw2
 !***************************************************************************
@@ -297,12 +303,13 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine xc_calculate_pw_new(rho_r, rho_g, vxc, exc, dft_control,&
-!!         pw_pool, error)
+!!         cell, pw_pool, error)
 !!       Type(pw_p_type), Dimension(:), Intent (IN):: rho_r
 !!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
 !!       Type(pw_p_type), Dimension(:), Intent (OUT):: vxc
 !!       Real(Kind=wp), Intent (OUT):: exc
 !!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cell_type), Pointer:: cell
 !!       Type(pw_pool_type), Pointer:: pw_pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine xc_calculate_pw_new
@@ -337,19 +344,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
-       pw_pool,error)
-    TYPE(pw_p_type),DIMENSION(:), INTENT(in)    :: rho_r
-    TYPE(pw_p_type),DIMENSION(:), POINTER       :: rho_g
-    TYPE(pw_p_type),DIMENSION(:), INTENT(out)   :: vxc
+       cell,pw_pool,error)
+    TYPE(pw_p_type),DIMENSION(:), INTENT(in)     :: rho_r
+    TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
+    TYPE(pw_p_type),DIMENSION(:), INTENT(out)    :: vxc
     REAL(kind=wp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
+    TYPE(cell_type), POINTER                     :: cell
     TYPE(pw_pool_type), POINTER                  :: pw_pool
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL, PARAMETER :: tot_grad=.FALSE.
     LOGICAL :: failure, gradient_f, crossterms
     INTEGER :: nspins, ii, i, j, k, ntot, ngrad_spins, handle, stat, ispin,&
-         ipot, idir
+         ipot, idir, npot, ifun, handle2
     CHARACTER(len=*), PARAMETER :: routineN='xc_calculate_pw_new',&
          routineP=moduleN//':'//routineN
     INTEGER, DIMENSION(3) :: n
@@ -406,7 +414,7 @@ CONTAINS
 
        ! set rgrid
        DO ispin=1,nspins
-!$omp parallel do private(k,j,i,ii)
+          !$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
              ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
@@ -419,28 +427,46 @@ CONTAINS
        END DO
 
        IF (gradient_f) THEN
-          ! calc drho_r=grad rho
-          CALL pw_pool_create_pw(pw_pool,tmp_g, &
-               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
-               error=error)
-          DO ispin=1,nspins
-             DO idir=1,3
-                NULLIFY(drho_r(idir,ispin)%pw)
-                CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
-                     use_data=REALDATA3D, in_space=REALSPACE, &
-                     error=error)
-                CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
-                CALL pw_derive ( tmp_g, nd(:,idir) )
-                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+          IF (dft_control%smooth_gradient) THEN
+             ! spline deriv
+             DO ispin=1,nspins
+                DO idir=1,3
+                   NULLIFY(drho_r(idir,ispin)%pw)
+                   CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                END DO
              END DO
-          END DO
-          CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
-               error=error)
+             CALL pw_spline_deriv(rho_r=rho_r, drho_r=drho_r,&
+                  cell=cell,pw_pool=pw_pool, error=error)
+          ELSE
+             ! g-space deriv
+             CALL timeset("g_space_deriv","I","",handle2)
+             ! calc drho_r=grad rho
+             CALL pw_pool_create_pw(pw_pool,tmp_g, &
+                  use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
+                  error=error)
+             DO ispin=1,nspins
+                DO idir=1,3
+                   NULLIFY(drho_r(idir,ispin)%pw)
+                   CALL pw_pool_create_pw(pw_pool,drho_r(idir,ispin)%pw, &
+                        use_data=REALDATA3D, in_space=REALSPACE, &
+                        error=error)
+                   CALL pw_copy ( rho_g(ispin)%pw, tmp_g )
+                   CALL pw_derive ( tmp_g, nd(:,idir) )
+                   CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
+                END DO
+             END DO
+             CALL pw_pool_give_back_pw(pw_pool,tmp_g,&
+                  error=error)
+             CALL timestop(0.0_wp,handle2)
+          END IF
 
           CPAssert(.not.tot_grad,cp_failure_level,routineP,error,failure)
           DO ispin=1,nspins
              ! calc drgrid(:,ispin)=||grad rho_ispin||
-!$omp parallel do private(k,j,i,ii)
+             !$omp parallel do private(k,j,i,ii)
              DO k = bo(1,3), bo(2,3)
                 ii = (k-bo(1,3))*n(1)*n(2)
                 DO j = bo(1,2), bo(2,2)
@@ -519,7 +545,7 @@ CONTAINS
        ! compose vxc
        ! IF (spezgrid ) THEN should transform to lower cutoff
        DO ispin=1,nspins
-!$omp parallel do private(k,j,i,ii)
+          !$omp parallel do private(k,j,i,ii)
           DO k = bo(1,3), bo(2,3)
              ii = (k-bo(1,3))*n(1)*n(2)
              DO j = bo(1,2), bo(2,2)
@@ -542,7 +568,7 @@ CONTAINS
 
              ipot=nspins+ispin
 
-!$omp parallel do private(i)
+             !$omp parallel do private(i)
              DO i = 1, ntot
                 IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
                    pot(i,ipot) = -pot(i,ipot) / drgrid(i,ispin)
@@ -552,7 +578,7 @@ CONTAINS
              END DO
 
              DO idir = 1, 3
-!$omp parallel do private(k,j,i,ii)
+                !$omp parallel do private(k,j,i,ii)
                 DO k = bo(1,3), bo(2,3)
                    ii = (k-bo(1,3))*n(1)*n(2)
                    DO j = bo(1,2), bo(2,2)
@@ -574,7 +600,7 @@ CONTAINS
 
           CALL pw_pool_give_back_pw(pw_pool, tmp_g, error=error)
           CALL pw_pool_give_back_pw(pw_pool, vxc_g, error=error)
-          
+
           DO ispin=1,nspins
              DO idir=1,3
                 CALL pw_pool_give_back_pw(pw_pool,drho_r(idir,ispin)%pw,&
@@ -777,7 +803,7 @@ END SUBROUTINE xc_prep_2nd_deriv1
 
        nspins     = dft_control%nspins
 !       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       do_tddfpt = .false.
+       do_tddfpt = .FALSE.
        gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
@@ -1287,7 +1313,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
        nspins     = dft_control%nspins
 !       do_tddfpt  = dft_control%do_tddfpt_calculation .AND. (nspins==1)
-       do_tddfpt = .false.
+       do_tddfpt = .FALSE.
        gradient_f = ANY(dft_control%ftags(1,:))
        do_lsd     = (nspins==2) .OR. do_tddfpt
        crossterms = do_lsd .AND. ANY(dft_control%ftags(2,:))
@@ -1296,7 +1322,7 @@ END SUBROUTINE xc_calc_2nd_deriv1
        ELSE
           diag_factor = -1.0_wp
        END IF
-       npot = size(pot,2)
+       npot = SIZE(pot,2)
 
        IF (gradient_f) THEN
           CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
@@ -1688,6 +1714,239 @@ END SUBROUTINE xc_calc_2nd_deriv1
 
     CALL timestop(0.0_wp,handle)
   END SUBROUTINE xc_calc_2nd_deriv
+!***************************************************************************
+
+!!****f* xc/pw_spline_deriv [1.0] *
+!!
+!!   NAME
+!!     pw_spline_deriv
+!!
+!!   FUNCTION
+!!     puts the x,y,z derivatives of the spline that interpolates
+!!     rho_r into drho_r
+!!
+!!   NOTES
+!!     non parallel, no multigrid test
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE pw_spline_deriv(rho_r,drho_r, cell, pw_pool, error)
+    TYPE(pw_p_type),DIMENSION(:), INTENT(in)     :: rho_r
+    TYPE(pw_p_type), DIMENSION(:,:), POINTER     :: drho_r
+    TYPE(cell_type), POINTER                     :: cell
+    TYPE(pw_pool_type), POINTER                  :: pw_pool
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pw_spline_deriv',&
+         routineP=moduleN//':'//routineN
+    REAL (kind=wp), DIMENSION(3) :: cosVal, derivVal
+    REAL (kind=wp), DIMENSION(3,3) :: deriv_coeff, h_grid
+    REAL (kind=wp) :: c12, c_val, inv27,coeff
+    INTEGER, DIMENSION(3) :: n,n_tot,g_att
+    TYPE(pw_type), POINTER :: coeff_spline_g, coeff_spline_r
+    INTEGER :: nspins, ii, i, j, k, handle, stat, ispin,&
+         idir, ij
+    INTEGER, DIMENSION (2,3) :: bo
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    NULLIFY(coeff_spline_g, coeff_spline_r)
+    deriv_coeff = RESHAPE ((/ &
+         1.0_wp/72.0_wp, 1.0_wp/18.0_wp, 1.0_wp/72.0_wp,&
+         1.0_wp/18.0_wp, 2.0_wp/9.0_wp,  1.0_wp/18.0_wp,&
+         1.0_wp/72.0_wp, 1.0_wp/18.0_wp, 1.0_wp/72.0_wp /),(/3,3/))
+    nspins=SIZE(rho_r)
+    n(1:3) = rho_r(1)%pw%pw_grid%npts_local (1:3)
+    n_tot(1:3) = rho_r(1)%pw%pw_grid%npts (1:3)
+    bo = rho_r(1)%pw%pw_grid%bounds_local
+    inv27=1.0_wp/27.0_wp
+
+    CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(drho_r),cp_failure_level,routineP,error,failure)
+    
+    CALL pw_pool_create_pw(pw_pool,coeff_spline_g, &
+         use_data=COMPLEXDATA3D,in_space=RECIPROCALSPACE,&
+         error=error)
+    DO ispin=1,nspins
+       CALL pw_transfer ( rho_r(ispin)%pw, coeff_spline_g )
+
+       !$omp parallel do private(k,j,i,cosVal,coeff)
+       DO k = bo(1,3), bo(2,3)
+          cosVal(3)=COS(twopi/n_tot(3)*REAL(k,wp))
+          DO j = bo(1,2), bo(2,2)
+             cosVal(2)=COS(twopi/n_tot(2)*REAL(j,wp))
+             DO i = bo(1,1), bo(2,1)
+                cosVal(1)=COS(twopi/n(1)*REAL(i,wp))
+
+          ! no opt
+!FM                coeff=(cosVal(1)*cosVal(2)*cosVal(3))/27.0_wp+&
+!FM                     (cosVal(1)*cosVal(2)+cosVal(1)*cosVal(3)+&
+!FM                     cosVal(2)*cosVal(3))*2.0_wp/27.0_wp+&
+!FM                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp/27.0_wp+&
+!FM                     8.0_wp/27.0_wp
+          ! opt
+                c12=cosVal(1)*cosVal(2)
+                coeff=(c12*cosVal(3)+&
+                     (c12+cosVal(1)*cosVal(3)+cosVal(2)*cosVal(3))*2.0_wp+&
+                     (cosVal(1)+cosVal(2)+cosVal(3))*4.0_wp+&
+                     8.0_wp)*inv27
+
+                coeff_spline_g%cc3d(i,j,k)=coeff_spline_g%cc3d(i,j,k)/coeff
+             END DO
+          END DO
+       END DO
+
+       CALL pw_pool_create_pw(pw_pool,coeff_spline_r, &
+            use_data=REALDATA3D, in_space=REALSPACE, &
+            error=error)
+
+       CALL pw_transfer (coeff_spline_g, coeff_spline_r)
+
+       CALL pw_pool_give_back_pw(pw_pool,coeff_spline_g,&
+            error=error)
+
+!FM derivative could be done in g space (but slower?)
+!FM single processor only!!!
+       ! x deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i+1,n(1)),&
+                           bo(1,2)+MODULO(j+ii,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           -&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i-1,n(1)),&
+                           bo(1,2)+MODULO(j+ii,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           )
+                   END DO
+                END DO
+                drho_r(1,ispin)%pw%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+
+       ! y deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+1,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           -&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j-1,n(2)),&
+                           bo(1,3)+MODULO(k+ij,n(3)))&
+                           )
+                   END DO
+                END DO
+                drho_r(2,ispin)%pw%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+
+       ! z deriv
+       !$omp parallel do private(k,j,i,ii,ij,c_val)
+       DO k = 0,n(3)-1
+          DO j = 0,n(2)-1
+             DO i = 0,n(1)-1
+
+                c_val=0.0_wp
+                DO ii=-1,1
+                   DO ij=-1,1
+                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
+                           (&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+ij,n(2)),&
+                           bo(1,3)+MODULO(k+1,n(3)))&
+                           -&
+                           coeff_spline_r%cr3d &
+                           (bo(1,1)+MODULO(i+ii,n(1)),&
+                           bo(1,2)+MODULO(j+ij,n(2)),&
+                           bo(1,3)+MODULO(k-1,n(3)))&
+                           )
+                   END DO
+                END DO
+                drho_r(3,ispin)%pw%cr3d&
+                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
+
+             END DO
+          END DO
+       END DO
+
+       ! map grid to real derivative
+       h_grid=cell%hmat
+       DO j=1,3
+          DO i=1,3
+             h_grid(i,j)=h_grid(i,j)/&
+                  REAL(n_tot(j),wp)
+          END DO
+       END DO
+       !$omp parallel do private(k,j,i,idir,derivVal)
+       DO k = bo(1,3), bo(2,3)
+          DO j = bo(1,2), bo(2,2)
+             DO i = bo(1,1), bo(2,1)
+
+                DO idir=1,3
+                   derivVal(idir)= &
+                        h_grid(idir,1)*&
+                        drho_r(1,ispin)%pw%cr3d(i,j,k)&
+                        +h_grid(idir,2)*&
+                        drho_r(2,ispin)%pw%cr3d(i,j,k)&
+                        +h_grid(idir,3)*&
+                        drho_r(3,ispin)%pw%cr3d(i,j,k)
+                END DO
+                DO idir=1,3
+                   drho_r(idir,ispin)%pw%cr3d(i,j,k)=&
+                        derivVal(idir)
+                END DO
+
+             END DO
+          END DO
+       END DO
+
+
+    END DO
+    CALL pw_pool_give_back_pw(pw_pool,coeff_spline_r,&
+         error=error)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE pw_spline_deriv
 !***************************************************************************
 
 END MODULE xc

@@ -773,6 +773,7 @@ END SUBROUTINE qs_ks_did_change
     TYPE(qs_energy_type), POINTER :: energy
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(cell_type), POINTER :: cell
 
     LOGICAL :: failure
     INTEGER :: i
@@ -784,13 +785,15 @@ END SUBROUTINE qs_ks_did_change
     CALL timeset( routineN ,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool)
+    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
+         cell)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
-                    energy=energy)
+                    energy=energy,&
+                    cell=cell)
 
     ! test if the real space density is available
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -812,7 +815,7 @@ END SUBROUTINE qs_ks_did_change
          CALL xc_calculate_pw2(rho_r=rho_struct%rho_r,&
               rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
               dft_control=dft_control,&
-              pw_pool=auxbas_pw_pool,error=error)
+              cell=cell, pw_pool=auxbas_pw_pool,error=error)
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF

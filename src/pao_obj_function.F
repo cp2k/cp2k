@@ -109,6 +109,7 @@ MODULE pao_obj_function
                                              symmetrise_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              deallocate_mo_set,&
@@ -286,9 +287,9 @@ CONTAINS
     TYPE(cp_b_matrix_struct_type), POINTER :: min_bas_m_struct, full_bas_m_struct
     TYPE(pao_env_type), POINTER :: pao_env
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+    TYPE(qs_matrix_pools_type), POINTER :: mpools
     NULLIFY(diagMatrix, min_bas_m_struct, full_bas_m_struct, pao_env,&
-         atomic_kind_set)
+         atomic_kind_set,mpools)
     failure=.FALSE.
 
     gf_env%qs_env => qs_env
@@ -296,7 +297,7 @@ CONTAINS
     gf_env%n_eval = 0
     IF (.NOT.failure) THEN
        CALL get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
-            atomic_kind_set=atomic_kind_set, ao_mo_fm_pools=ao_mo_fm_pools)
+            atomic_kind_set=atomic_kind_set, mpools=mpools)
        CALL pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
             pao_tot_min_bas=ntot_min_bas,&
@@ -342,7 +343,8 @@ CONTAINS
           CALL allocate_mo_set(gf_env%mo_set(1)%mo_set,nao=ntot_min_bas,&
                nmo=nelectron/2,&
                nelectron=nelectron,maxocc=2.0_wp)
-          CALL init_mo_set(gf_env%mo_set(1)%mo_set,ao_mo_fm_pools(1)%pool,&
+          CALL init_mo_set(gf_env%mo_set(1)%mo_set,&
+               mpools%ao_mo_fm_pools(1)%pool,&
                "pao_min_bas_mo")
           gf_env%should_dealloc_mo=.TRUE.
        END IF

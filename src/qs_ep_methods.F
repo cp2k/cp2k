@@ -115,8 +115,7 @@ MODULE qs_ep_methods
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pools,&
-                                             qs_env_update_s_mstruct
+  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_create,&
                                              qs_environment_p_type,&
@@ -135,6 +134,9 @@ MODULE qs_ep_methods
                                              qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             mpools_rebuild_fm_pools,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
                                              correct_mo_eigenvalues,&
@@ -492,6 +494,7 @@ END SUBROUTINE qs_ep_calculation
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+    TYPE(qs_matrix_pools_type), POINTER :: mpools
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -499,7 +502,7 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_c,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, psi0, ao_mo_fm_pools)
+         pw_env, sub_cell, psi0, ao_mo_fm_pools, mpools)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -646,7 +649,10 @@ END SUBROUTINE qs_ep_calculation
           CALL set_qs_env(sub_qs, qs_charges=sub_qs_charges,error=error)
           CALL qs_charges_release(sub_qs_charges, error=error)
           ! rebuilds ao_mo_fm_pools
-          CALL qs_env_rebuild_aomo_pools(sub_qs, error=error)
+          CALL mpools_rebuild_fm_pools(sub_qs%mpools, mos=sub_qs%c, &
+               blacs_env=sub_qs%blacs_env, para_env=sub_qs%para_env,&
+               nrow_block=scf_control%nrow_block,&
+               ncol_block=scf_control%ncol_block,error=error)
           ! init green's function
           CALL get_qs_env(sub_qs, cell=sub_cell, pw_env=pw_env,&
                rho_core=sub_rho_core, error=error)
@@ -675,8 +681,10 @@ END SUBROUTINE qs_ep_calculation
             orthogonal_orbitals=.FALSE.,error=error)
 
        ! alloc m_pi_Hrho_psi0d
-       CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
+       CALL get_qs_env(ep_env%main_qs_env, mpools=mpools,&
             error=error)
+       CALL mpools_get(mpools,ao_mo_fm_pools=ao_mo_fm_pools, error=error)
+       
        CALL fm_pools_create_fm_vect(ao_mo_fm_pools,ep_env%m_pi_Hrho_psi0d,&
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//&
             "%m_pi_Hrho_psi0d",error=error)
@@ -801,7 +809,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
         CALL get_mo_set(c(ispin)%mo_set,eigenvectors=eigenvectors)
         IF (.NOT.ASSOCIATED(eigenvectors)) THEN
            CALL init_mo_set(c(ispin)%mo_set, &
-                qs_env%ao_mo_fm_pools(ispin)%pool,&
+                qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                 name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                 "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
                 error=error)
@@ -973,19 +981,21 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+  TYPE(qs_matrix_pools_type), POINTER :: mpools
   REAL(kind=wp) :: r_norm2, r_norm2_s, r_z,r_z_s,r_z_new, alpha, beta,&
        Ap_p, Ap_p_s, p_ortho_norm, p_ortho_norm_s
   INTEGER :: i,j, ispin, nspins
 
   failure=.FALSE.
   logger => cp_error_get_logger(error)
-  NULLIFY(p,p_ortho,Ap,r,z,ao_mo_fm_pools,dft_control,s)
+  NULLIFY(p,p_ortho,Ap,r,z,ao_mo_fm_pools,dft_control,s,mpools)
 
   CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
-          dft_control=dft_control,s=s,error=error)
+     CALL get_qs_env(ep_env%main_qs_env, &
+          dft_control=dft_control,s=s,mpools=mpools,error=error)
+     CALL mpools_get(mpools,ao_mo_fm_pools=ao_mo_fm_pools, error=error)
      nspins=dft_control%nspins
 
      CALL fm_pools_create_fm_vect(ao_mo_fm_pools,p,name="ep_CG_p",&
@@ -1316,8 +1326,10 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
   CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
+     CALL get_qs_env(qs_env,&
           dft_control=dft_control,s=s,error=error)
+     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
+          error=error)
      CALL fm_pools_create_fm_vect(ao_mo_fm_pools,v,error=error)
      CALL fm_pools_create_fm_vect(ao_mo_fm_pools,res,name=name,&
           error=error)

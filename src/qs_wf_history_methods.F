@@ -81,6 +81,8 @@ MODULE qs_wf_history_methods
                                              qs_env_reorthogonalize_vectors,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: calculate_density_matrix,&
                                              get_mo_set,&
                                              mo_set_p_type,&
@@ -228,8 +230,10 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   failure=.FALSE.
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
        rho, rho_r,rho_g,rho_ao,overlap, S_sm_pools)
-  CALL get_qs_env(qs_env, pw_env=pw_env, ao_mo_fm_pools=ao_mo_pools,&
+  CALL get_qs_env(qs_env, pw_env=pw_env,&
        dft_control=dft_control,rho=rho,s=overlap,&
+       error=error)
+  CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
        S_sm_pools=S_sm_pools, error=error)
   CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, error=error)
 
@@ -459,8 +463,8 @@ END SUBROUTINE wfi_create
 !!     wfi_get_method_label
 !!
 !!   SYNOPSIS
-!!     Function wfi_get_method_label(wf_history, error) Result(res)
-!!       Type(qs_wf_history_type), Pointer:: wf_history
+!!     Function wfi_get_method_label(method_nr, error) Result(res)
+!!       Integer, Intent (IN):: method_nr
 !!       Character(Len=30):: res
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function wfi_get_method_label
@@ -529,12 +533,12 @@ END FUNCTION wfi_get_method_label
 !!     wfi_extrapolate
 !!
 !!   SYNOPSIS
-!!     Subroutine wfi_extrapolate(wf_history, qs_env, dt, extrapolated,&
-!!         orthogonal_wf, error)
+!!     Subroutine wfi_extrapolate(wf_history, qs_env, dt,&
+!!         extrapolation_method_nr, orthogonal_wf, error)
 !!       Type(qs_wf_history_type), Pointer:: wf_history
 !!       Type(qs_environment_type), Pointer:: qs_env
 !!       Real(Kind=wp), Intent (IN):: dt
-!!       Logical, Intent (OUT):: extrapolated
+!!       Integer, Intent (OUT), Optional:: extrapolation_method_nr
 !!       Logical, Intent (OUT), Optional:: orthogonal_wf
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine wfi_extrapolate
@@ -590,8 +594,10 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools, c=mos,&
+     CALL get_qs_env(qs_env, c=mos,&
           rho=rho,error=error)
+     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
+          error=error)
 
      ! chooses the method for this extrapolation
      IF (wf_history%snapshot_count<1) THEN
@@ -614,7 +620,7 @@ SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
         END IF
      END SELECT
 
-     if (present(extrapolation_method_nr)) &
+     IF (PRESENT(extrapolation_method_nr)) &
           extrapolation_method_nr=actual_extrapolation_method_nr
      my_orthogonal_wf=.FALSE.
 

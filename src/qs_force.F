@@ -43,6 +43,8 @@ MODULE qs_force
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: calculate_density_matrix,&
                                              calculate_w_matrix,&
                                              mo_set_p_type,&
@@ -79,7 +81,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv)
+  SUBROUTINE qs_forces(qs_env, globenv, neighbor_lists_from_scratch)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -89,6 +91,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), POINTER        :: qs_env
+    LOGICAL, INTENT(in), OPTIONAL             :: neighbor_lists_from_scratch
 
 !   *** Local parameters ***
 
@@ -123,7 +126,8 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
     NULLIFY(atomic_kind_set, c, particle_set, force, k, p, s, ks_env,matrix_w)
 
-    CALL qs_energies(qs_env,globenv,neighbor_lists_from_scratch=.true.)
+    CALL qs_energies(qs_env,globenv,&
+         neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -150,7 +154,7 @@ CONTAINS
          gth_potential_present=gth_potential_present)
     IF (gth_potential_present) THEN
        ! to do calculate redundant density
-       CALL sm_pools_create_matrix_vect(qs_env%H_redundant_sm_pools,p)
+       CALL sm_pools_create_matrix_vect(qs_env%mpools%H_redundant_sm_pools,p)
        DO ispin=1,SIZE(c)
           CALL calculate_density_matrix(c(ispin)%mo_set,p(ispin)%matrix)
        END DO
@@ -192,7 +196,7 @@ CONTAINS
                                        w=matrix_w)
     
     IF (gth_potential_present) THEN
-       CALL sm_pools_give_back_matrix_vect(qs_env%H_redundant_sm_pools,&
+       CALL sm_pools_give_back_matrix_vect(qs_env%mpools%H_redundant_sm_pools,&
             p)
     ELSE
        NULLIFY(p)
@@ -233,7 +237,7 @@ CONTAINS
 
     CALL write_forces(force,atomic_kind_set,globenv)
 
-    DO ispin=1,size(c)
+    DO ispin=1,SIZE(c)
        CALL deallocate_matrix(matrix_w(ispin)%matrix)
     ENDDO
     DEALLOCATE(matrix_w)

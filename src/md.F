@@ -82,6 +82,7 @@ MODULE md
 !***************************************************************************
   TYPE qs_md_parameters_type
      INTEGER :: wf_interpolation_method_nr
+     LOGICAL :: neighbor_lists_from_scratch
   END TYPE qs_md_parameters_type
 !!***
 !****************************************************************************
@@ -194,7 +195,8 @@ CONTAINS
 !!I   timecon:  tau_cell  &                 barostat time constant            I
 !!I qs_md_parameter &                                                         I
 !!I   wf_interpolation: [use_guess,use_prev_p,use_prev_rho_r,linear_wf,       I
-!!I                      linear_p,linear_ps, use_prev_wf]                     I
+!!I                      linear_p,linear_ps, use_prev_wf] &                   I
+!!I   neighbor_lists_from_scratch: [true, false]                              I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
@@ -262,6 +264,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
   simpar % qs_md_param % wf_interpolation_method_nr = wfi_use_prev_p_method_nr
+  simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
 
   iw = mdpar % scr
 
@@ -578,6 +581,24 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                     simpar % qs_md_param % wf_interpolation_method_nr = &
                          wfi_linear_ps_method_nr
                  END SELECT
+                 CASE ( 'NEIGHB' )
+                 ilen = 5
+                 CALL get_next ( string, ilen )
+                 CALL uppercase ( string )
+                 
+                 SELECT CASE ( string )
+                 CASE DEFAULT
+                    CALL p_error()
+                    CALL stop_parser ( 'read_md_section%qs_md_param', &
+                         'neighbor_lists_from_scratch must be either true '//&
+                         'or false' )
+                 CASE ( 'TRUE')
+                    simpar % qs_md_param % neighbor_lists_from_scratch = &
+                         .TRUE.
+                 CASE ( 'FALSE')
+                    simpar % qs_md_param % neighbor_lists_from_scratch = &
+                         .FALSE.
+                 END SELECT
               END SELECT
            END DO
            
@@ -771,7 +792,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
         atomic_kind => part (i) % atomic_kind
         CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         part(i) % v ( : ) = part(i) % v ( : ) - vcom ( : )
-        sum ( : ) = sum ( : ) + mass*part(i) % v ( : )
+        SUM ( : ) = SUM ( : ) + mass*part(i) % v ( : )
      END DO
   END IF
 
@@ -783,11 +804,11 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
   IF ( mdpar % ionode .AND. mdpar % print_level > 1 ) THEN
      WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction x:', sum ( 1 )
+          ' Centre of mass velocity in direction x:', SUM ( 1 )
      WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction y:', sum ( 2 )
+          ' Centre of mass velocity in direction y:', SUM ( 2 )
      WRITE ( iw, '( A, T69, E12.6 )' ) &
-          ' Centre of mass velocity in direction z:', sum ( 3 )
+          ' Centre of mass velocity in direction z:', SUM ( 3 )
      WRITE ( iw, '( A, A, A, / )' ) ' ***********************', &
           ' end of velocity initialization ', '************************'
   END IF

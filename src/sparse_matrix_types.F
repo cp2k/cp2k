@@ -74,12 +74,13 @@ MODULE sparse_matrix_types
     CHARACTER(LEN=40)                                 :: symmetry
     INTEGER                                           :: nblock_col,&
                                                          nblock_row,&
-                                                         ncol,nrow,&
-                                                         id_nr, ref_count
+                                                         ncol,nrow
+    INTEGER :: id_nr, ref_count!, print_count
     INTEGER, DIMENSION(:), POINTER                    :: first_col,&
                                                          first_row,&
                                                          last_col,&
                                                          last_row
+    !TYPE(cp_sm_struct_type), pointer                  :: matrix_struct
   END TYPE real_matrix_type
 
   TYPE real_matrix_p_type
@@ -2150,36 +2151,36 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  !!****f* sparse_matrix_types/transfer_real_matrix [1.0] *
-  !!
-  !!   NAME
-  !!     transfer_real_matrix
-  !!
-  !!   FUNCTION
-  !!   Transfers source matrix to target matrix (copies the values) 
-  !!   filtering the result trough the structure (sparsity) of target matrix
-  !!
-  !!   NOTES
-  !!     assumes that both matrixes have the same distribution
-  !!
-  !!   INPUTS
-  !!     source_matrix: the matrix to copy
-  !!     target_matrix: the matrix that will contain the copy
-  !!     error: variable to control error logging, stopping,... 
-  !!            see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!   MODIFICATION HISTORY
-  !!     - 10.04.2002 Creation [MK]
-  !!     - 4.2003 extended for matrixes with different structures [fawzi]
-  !!
-  !!*** *********************************************************************
+!!****f* sparse_matrix_types/transfer_real_matrix [1.0] *
+!!
+!!   NAME
+!!     transfer_real_matrix
+!!
+!!   FUNCTION
+!!   Transfers source matrix to target matrix (copies the values) 
+!!   filtering the result trough the structure (sparsity) of target matrix
+!!
+!!   NOTES
+!!     assumes that both matrixes have the same distribution
+!!
+!!   INPUTS
+!!     source_matrix: the matrix to copy
+!!     target_matrix: the matrix that will contain the copy
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     - 10.04.2002 Creation [MK]
+!!     - 4.2003 extended for matrixes with different structures [fawzi]
+!!
+!!*** *********************************************************************
   SUBROUTINE transfer_real_matrix(source_matrix,target_matrix ,error)
 
     TYPE(real_matrix_type), POINTER :: source_matrix,target_matrix
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -2188,7 +2189,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Local variables ***
 
-    logical :: failure
+    LOGICAL :: failure
     TYPE(real_block_node_type), POINTER :: block_node
 
     INTEGER :: iblock_col,iblock_row, handle
@@ -2200,7 +2201,7 @@ END SUBROUTINE cp_sm_scale_and_add
 !   *** Check the association status of the source matrix ***
 
     CALL timeset(routineN,"I","",handle)
-    failure=.false.
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(source_matrix),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(target_matrix),cp_failure_level,routineP,error,failure)
 

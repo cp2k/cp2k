@@ -20,28 +20,22 @@
 !******************************************************************************
 
 MODULE qs_parser
-
 ! *****************************************************************************
-
 ! icol             : Number of the current column in the current input line
 ! icol1            : First column of the current input string
 ! icol2            : Last column of the current input string
 ! input_line_number: Number of the current input line read from the input file
 ! input_unit       : Logical unit number of the input file
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: wp => dp
-
-  USE global_types,     ONLY: global_environment_type
-  USE message_passing,  ONLY: mp_bcast,&
-                              mp_sync
-  USE output_utilities, ONLY: print_warning
-  USE string_utilities, ONLY: compress,&
-                              uppercase
-  USE termination,      ONLY: get_error_unit,&
-                              stop_program
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sync
+  USE output_utilities,                ONLY: print_warning
+  USE string_utilities,                ONLY: compress,&
+                                             uppercase
+  USE termination,                     ONLY: get_error_unit,&
+                                             stop_program
   IMPLICIT NONE
 
   PRIVATE
@@ -96,7 +90,8 @@ MODULE qs_parser
 ! *****************************************************************************
 
   INTERFACE read_object
-    MODULE PROCEDURE read_integer_object,read_real_object,read_string_object
+    MODULE PROCEDURE read_integer_object,read_real_object,read_string_object,&
+         read_logical_object
   END INTERFACE
 
 !!***
@@ -857,6 +852,59 @@ CONTAINS
     END IF
 
   END SUBROUTINE read_string_object
+
+!!****f* qs_parser/read_logical_object [1.0] *
+!!
+!!   NAME
+!!     read_logical_object
+!!
+!!   FUNCTION
+!!     reads a logical value (0,1,true,false,t,f,yes,no,y,n)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE read_logical_object(value)
+  LOGICAL, INTENT(out) :: value
+  
+  CHARACTER(len=*), PARAMETER :: routineN='read_logical_object',&
+        routineP=module_name//':'//routineN
+
+  CHARACTER(len=20) :: stringVal
+  
+  CALL read_string_object(stringVal, lower_to_upper=.TRUE.,&
+       newline=.FALSE.,skip_lines=0)
+  SELECT CASE(stringVal(1:1))
+  CASE ("0")
+     value=.FALSE.
+  CASE("1")
+     value=.TRUE.
+  CASE("N")
+     value=.FALSE.
+  CASE("Y")
+     value=.TRUE.
+  CASE("F")
+     value=.FALSE.
+  CASE("T")
+     value=.TRUE.
+  CASE default
+     CALL stop_program(routineP,&
+        error_message="parsin error, expected a logical value but found '"//&
+        stringVal//"'")
+  END SELECT
+END SUBROUTINE read_logical_object
+!***************************************************************************
 
 ! *****************************************************************************
 

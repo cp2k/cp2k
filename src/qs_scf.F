@@ -94,8 +94,8 @@ MODULE qs_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_matrix_utils,                 ONLY: cp_sm_output
-  USE cp_para_types,                   ONLY: cp_para_env_type,&
-       cp_blacs_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create_matrix,&
@@ -224,8 +224,11 @@ MODULE qs_scf
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&
                                              qs_loc_init
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              calculate_density_matrix,&
+                                             calculate_orthonormality,&
                                              calculate_subspace_eigenvalues,&
                                              correct_mo_eigenvalues,&
                                              get_mo_set,&
@@ -234,8 +237,7 @@ MODULE qs_scf
                                              mo_set_type,&
                                              read_mo_set,&
                                              set_mo_occupation,&
-                                             write_mo_set, &
-                                             calculate_orthonormality
+                                             write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
@@ -260,8 +262,8 @@ MODULE qs_scf
                                              scf_env_release,&
                                              scf_env_retain
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
-                                             wfi_update,&
-                                             wfi_get_method_label
+                                             wfi_get_method_label,&
+                                             wfi_update
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              qs_wf_snapshot_p_type,&
                                              qs_wf_snapshot_type,&
@@ -648,7 +650,7 @@ CONTAINS
        IF (logger%print_keys%mo_orthonormality) THEN
           CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
           IF (ionode) THEN
-             write(output_unit,'(T8,A,T60,E20.4)') " Maximum deviation from MO S-orthonormality",orthonormality
+             WRITE(output_unit,'(T8,A,T60,E20.4)') " Maximum deviation from MO S-orthonormality",orthonormality
           ENDIF
        ENDIF
 
@@ -984,9 +986,9 @@ CONTAINS
 
     CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
     IF (gth_potential_present) THEN
-       CALL sm_pool_give_back_matrix(qs_env%H_redundant_sm_pools(1)%pool,&
+       CALL sm_pool_give_back_matrix(qs_env%mpools%H_redundant_sm_pools(1)%pool,&
             qs_env%h(1)%matrix,error=error)
-       CALL sm_pool_create_matrix(qs_env%S_sm_pools(1)%pool,h(1)%matrix,&
+       CALL sm_pool_create_matrix(qs_env%mpools%S_sm_pools(1)%pool,h(1)%matrix,&
             name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//"%h-1",&
             error=error)
        CALL copy_full_matrix_to_real_matrix(scf_work1(1)%matrix,&
@@ -1176,9 +1178,10 @@ CONTAINS
          c=c,&
          k=k,&
          ks_env=ks_env,&
-         ao_mo_fm_pools=ao_mo_fm_pools,&
-         S_sm_pools=S_sm_pools,&
          s=s)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
+         S_sm_pools=S_sm_pools,&
+         error=error)
 
 !   *** finish initialization of the MOs ***
     CPPrecondition(ASSOCIATED(c),cp_failure_level,routineP,error,failure)
@@ -1330,9 +1333,9 @@ CONTAINS
     REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
          eps_jacobi,jacobi_threshold,&
          smear
-    TYPE(cp_para_env_type), pointer :: para_env
-    TYPE(cp_blacs_env_type), pointer :: blacs_env
-    TYPE(cp_error_type), INTENT(inout), optional :: error
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local variables ***
     INTEGER :: handle,imo,nao,nmo,homo,ncv
@@ -1852,7 +1855,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER :: handle, nmo, ispin, extrapolation_method_nr
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
-    TYPE(cp_logger_type), pointer :: logger
+    TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -2333,7 +2336,7 @@ CONTAINS
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,S_sm_pools=S_sm_pools,error=error)
+       CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,error=error)
 
 !   *** Release SCF work storage ***
 

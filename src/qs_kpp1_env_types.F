@@ -48,13 +48,6 @@ MODULE qs_kpp1_env_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                             cp_fm_pool_type,&
-                                             fm_pool_create_fm,&
-                                             fm_pool_get_el_struct,&
-                                             fm_pool_give_back_fm,&
-                                             fm_pools_create_fm_vect,&
-                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&

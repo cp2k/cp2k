@@ -46,13 +46,8 @@ MODULE qs_environment_types
   USE cp_fm_basic_linalg,              ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
-                                             fm_pool_create,&
                                              fm_pool_create_fm,&
-                                             fm_pool_give_back_fm,&
-                                             fm_pool_release,&
-                                             fm_pool_retain,&
-                                             fm_pools_copy,&
-                                             fm_pools_dealloc
+                                             fm_pool_give_back_fm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
@@ -106,6 +101,10 @@ MODULE qs_environment_types
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             mpools_release,&
+                                             mpools_retain,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -147,7 +146,6 @@ MODULE qs_environment_types
             init_qs_env,&
             set_qs_env,&
             qs_env_create, qs_env_retain, qs_env_release,&
-            qs_env_update_h_redundant_pools,&
             qs_env_reorthogonalize_vectors
 
 !!***
@@ -185,13 +183,8 @@ MODULE qs_environment_types
 !!     - s: the overlap matrix (s(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (s(2:4))
 !!     - kinetic: kinetic part of h
-!!     - S_sm_pools: pools of sparse matrixes with the structure of S
-!!     - H_redundant_sm_pools: pools of sparse matrixes with the redundant
-!!       structure of h (in the scf h is converted to the s structure)
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - scf_control: various parameters relevant to the scf cycle
-!!     - ao_mo_fm_pools: pools with (ao x mo) full matrixes (same order as
-!!       c).
 !!     - pw_env: various things to create and get info on the grids used
 !!       by qs
 !!     - para_env: parallel environement that should be  used to do the qs
@@ -202,10 +195,11 @@ MODULE qs_environment_types
 !!     - qs_charges: an object where to put the charges that are present on 
 !!       the various grids
 !!     - ks_env: environement for the calculation of the Kohn Sham matrix
-!!     - wf_history: place where the snapshots of the previous states are stored
-!!       (used during the md to extrapolate the new starting point)
+!!     - wf_history: place where the snapshots of the previous states are
+!!       stored (used during the md to extrapolate the new starting point)
 !!     - scf_env: place where temporary information used in the scf is stored
-!!
+!!     - mpools: all the pools of matrixes
+!!     
 !!   AUTHOR
 !!     Matthias Krack
 !!
@@ -228,11 +222,8 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: S_sm_pools
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER        :: H_redundant_sm_pools
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER        :: ao_mo_fm_pools
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
     TYPE(cp_blacs_env_type), POINTER                      :: blacs_env
@@ -241,6 +232,7 @@ MODULE qs_environment_types
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
+    TYPE(qs_matrix_pools_type), POINTER                   :: mpools
   END TYPE qs_environment_type
 ! *****************************************************************************
 
@@ -275,11 +267,11 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,s, S_sm_pools,&
-                        rho, ao_mo_fm_pools,ao_maxmo_fm_pool, pw_env, &
+                        particle_set,energy,force,h,k,s,&
+                        rho, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env,&
-                        wf_history,scf_env,H_redundant_sm_pools,&
+                        wf_history,scf_env,&
                         id_nr,error)
 
 !   Purpose: Get the QUICKSTEP environment.
@@ -306,14 +298,9 @@ CONTAINS
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: h,k,s,kinetic
-    TYPE(cp_sm_pool_p_type), DIMENSION(:), &
-         OPTIONAL, POINTER                      :: S_sm_pools,&
-                                                   H_redundant_sm_pools
+    TYPE(qs_matrix_pools_type), OPTIONAL, POINTER :: mpools
     TYPE(qs_rho_type), OPTIONAL, POINTER        :: rho
-    TYPE(cp_fm_pool_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                      :: ao_mo_fm_pools
     TYPE(pw_env_type), OPTIONAL, POINTER        :: pw_env
-    TYPE(cp_fm_pool_type), OPTIONAL, POINTER    :: ao_maxmo_fm_pool
     TYPE(cp_para_env_type), OPTIONAL, POINTER   :: para_env
     TYPE(cp_blacs_env_type), OPTIONAL, POINTER  :: blacs_env
     TYPE(scf_control_type), OPTIONAL, POINTER   :: scf_control
@@ -343,20 +330,9 @@ CONTAINS
     IF (PRESENT(k)) k => qs_env%k
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(s)) s => qs_env%s
-    IF (PRESENT(S_sm_pools)) S_sm_pools => qs_env%S_sm_pools
-    IF (PRESENT(H_redundant_sm_pools)) THEN
-       H_redundant_sm_pools => qs_env%H_redundant_sm_pools
-    END IF
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
-    IF (PRESENT(ao_mo_fm_pools)) ao_mo_fm_pools => qs_env%ao_mo_fm_pools
-    IF (PRESENT(ao_maxmo_fm_pool)) THEN
-       IF (ASSOCIATED(qs_env%ao_mo_fm_pools)) THEN
-          ao_maxmo_fm_pool => qs_env%ao_mo_fm_pools(1)%pool
-       ELSE
-          NULLIFY(ao_maxmo_fm_pool) ! raise an error?
-       END IF
-    END IF
+    IF (PRESENT(mpools)) mpools => qs_env%mpools
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(blacs_env)) blacs_env => qs_env%blacs_env
     IF (PRESENT(scf_control)) scf_control => qs_env%scf_control
@@ -403,10 +379,8 @@ CONTAINS
     NULLIFY (qs_env%k)
     NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%s)
-    NULLIFY (qs_env%S_sm_pools)
-    NULLIFY (qs_env%H_redundant_sm_pools)
+    NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
-    NULLIFY (qs_env%ao_mo_fm_pools)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
     NULLIFY (qs_env%qs_charges)
@@ -429,7 +403,7 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
                         particle_set,energy,force,h,k,s,&
-                        pw_env,ao_mo_fm_pools,rho,kinetic,&
+                        pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core, ks_env,&
                         wf_history, scf_env, error)
 
@@ -458,8 +432,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:),&
          OPTIONAL, POINTER                    :: h,k,s,kinetic
     TYPE(qs_rho_type), POINTER,OPTIONAL       :: rho
-    TYPE(cp_fm_pool_p_type), DIMENSION(:),&
-         OPTIONAL, POINTER                    :: ao_mo_fm_pools
     TYPE(pw_env_type), OPTIONAL, POINTER      :: pw_env
     TYPE(scf_control_type), OPTIONAL, POINTER :: scf_control
     TYPE(qs_charges_type), OPTIONAL, POINTER  :: qs_charges
@@ -467,13 +439,10 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER, OPTIONAL   :: ks_env
     TYPE(qs_wf_history_type), POINTER, OPTIONAL :: wf_history
     TYPE(qs_scf_env_type), POINTER, OPTIONAL  :: scf_env
+    TYPE(qs_matrix_pools_type), POINTER, OPTIONAL  :: mpools
     TYPE(cp_error_type),INTENT(inout),OPTIONAL:: error
 
-    TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: new_ao_mo_fm_pools
-
 !   ---------------------------------------------------------------------------
-
-    NULLIFY(new_ao_mo_fm_pools)
 
     IF (PRESENT(atomic_kind_set)) qs_env%atomic_kind_set => atomic_kind_set
     IF (PRESENT(cell)) qs_env%cell => cell
@@ -501,13 +470,6 @@ CONTAINS
       CALL pw_env_release(qs_env%pw_env,error=error)
       qs_env%pw_env => pw_env
     END IF
-    IF (PRESENT(ao_mo_fm_pools)) THEN
-      IF (ASSOCIATED(ao_mo_fm_pools)) THEN
-        CALL fm_pools_copy(ao_mo_fm_pools,new_ao_mo_fm_pools,error=error)
-      END IF
-      CALL fm_pools_dealloc(qs_env%ao_mo_fm_pools,error=error)
-      qs_env%ao_mo_fm_pools => new_ao_mo_fm_pools
-    END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
        CALL scf_c_retain(scf_control,error=error)
        CALL scf_c_release(qs_env%scf_control,error=error)
@@ -534,6 +496,11 @@ CONTAINS
        CALL scf_env_retain(scf_env,error=error)
        CALL scf_env_release(qs_env%scf_env, error=error)
        qs_env%scf_env => scf_env
+    END IF
+    IF (PRESENT(mpools)) THEN
+       CALL mpools_retain(mpools,error=error)
+       CALL mpools_release(mpools, error=error)
+       qs_env%mpools => mpools
     END IF
   END SUBROUTINE set_qs_env
 
@@ -746,11 +713,8 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL deallocate_matrix_set(qs_env%s)
         IF (ASSOCIATED(qs_env%kinetic))&
              CALL deallocate_matrix_set(qs_env%kinetic)
-        CALL sm_pools_dealloc(qs_env%S_sm_pools,error=error)
-        CALL sm_pools_dealloc(qs_env%H_redundant_sm_pools,error=error)
         CALL qs_rho_release(qs_env%rho, error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
-        CALL fm_pools_dealloc(qs_env%ao_mo_fm_pools, error=error)
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env, error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
@@ -758,6 +722,7 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL coeff_deallocate(qs_env%rho_core)
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
+        CALL mpools_release(qs_env%mpools,error=error)
 
 !FM        if (associated(qs_env%pao_env)) then ! circular ref
 !FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
@@ -781,100 +746,6 @@ SUBROUTINE qs_env_release(qs_env,error)
   END IF
   NULLIFY(qs_env)
 END SUBROUTINE qs_env_release
-!***************************************************************************
-
-
-!!****f* qs_environment_methods/qs_env_update_h_redundant_pools [1.0] *
-!!
-!!   NAME
-!!     qs_env_update_h_redundant_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_update_h_redundant_pools(qs_env, error)
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_update_h_redundant_pools
-!!
-!!   FUNCTION
-!!     updates the H_redundant_sm_pools, to be called after qs_env%h changes
-!!
-!!   NOTES
-!!     qs_env%S_sm_pools should be valid
-!!
-!!   ARGUMENTS
-!!     - qs_env: the qs_env to update
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE qs_env_update_h_redundant_pools(qs_env,error)
-  TYPE(qs_environment_type), POINTER :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, gth_potential_present
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_h_redundant_pools',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_sm_struct_type), POINTER :: s_mstruct, h_mstruct
-  INTEGER :: stat, ispin, handle
-
-  failure=.FALSE.
-  NULLIFY(s_mstruct, h_mstruct)
-  
-  CALL timeset(routineN,"I","",handle)
-  CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(qs_env%S_sm_pools),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CALL sm_pools_dealloc(qs_env%H_redundant_sm_pools,&
-          error=error) ! try to update ?
-
-     CALL get_atomic_kind_set(atomic_kind_set=qs_env%atomic_kind_set,&
-          gth_potential_present=gth_potential_present)
-
-     IF (.NOT.gth_potential_present) THEN
-        CALL sm_pools_copy(qs_env%S_sm_pools,qs_env%H_redundant_sm_pools,&
-             error=error)
-     ELSE
-        s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
-        CALL sm_struct_create(h_mstruct, &
-             block_begins_at_row=s_mstruct%block_begins_at_row,&
-             block_begins_at_col=s_mstruct%block_begins_at_col,&
-             para_env=s_mstruct%para_env, symmetry="symmetric",&
-             error=error)
-        NULLIFY(s_mstruct)
-        
-        CALL sm_struct_add_sm_local_blocks(h_mstruct,&
-             matrix=qs_env%h(1)%matrix,&
-             error=error)  
-        
-        ALLOCATE(qs_env%H_redundant_sm_pools(SIZE(qs_env%S_sm_pools)),&
-             stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
-        NULLIFY(qs_env%H_redundant_sm_pools(1)%pool)
-        CALL sm_pool_create(qs_env%H_redundant_sm_pools(1)%pool,&
-             matrix_struct=h_mstruct,&
-             error=error)
-        CALL sm_struct_release(h_mstruct,error=error)
-           
-        DO ispin=2,SIZE(qs_env%H_redundant_sm_pools)
-           qs_env%H_redundant_sm_pools(ispin)%pool => &
-                qs_env%H_redundant_sm_pools(1)%pool
-           CALL sm_pool_retain(qs_env%H_redundant_sm_pools(ispin)%pool,&
-                error=error)
-        END DO
-        ! in future should set qs_env%h(:)%matrix_structure
-     END IF
-  END IF
-  CALL timestop(0.0_wp,handle)
-
-END SUBROUTINE qs_env_update_h_redundant_pools
 !***************************************************************************
 
 !!****f* qs_environment_types/qs_env_reorthogonalize_vectors [1.0] *
@@ -929,11 +800,12 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
   TYPE(qs_scf_env_type), POINTER :: scf_env
   TYPE(scf_control_type), POINTER :: scf_control
   TYPE(cp_full_matrix_type), POINTER :: sv
-  TYPE(cp_fm_pool_type), POINTER :: ao_maxmo_fm_pool
+  TYPE(cp_fm_pool_type), POINTER :: maxao_maxmo_fm_pool
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+  TYPE(qs_matrix_pools_type), POINTER :: mpools
   
   failure=.FALSE.
-  NULLIFY(scf_env,scf_control,sv,ao_maxmo_fm_pool,s)
+  NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,s,mpools)
   
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(v_matrix),cp_failure_level,routineP,error,failure)
@@ -942,10 +814,12 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
 
      CALL cp_fm_get_info(v_matrix,ncol_global=my_n_col,error=error)
      IF (PRESENT(n_col)) my_n_col=n_col
-     CALL get_qs_env(qs_env,ao_maxmo_fm_pool=ao_maxmo_fm_pool,&
+     CALL get_qs_env(qs_env,mpools=mpools,&
           scf_env=scf_env,&
           scf_control=scf_control,&
           s=s,&
+          error=error)
+     CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
           error=error)
      IF (ASSOCIATED(scf_env)) THEN
         ortho_contains_cholesky=(scf_env%method /= ot_method_nr).AND.&
@@ -959,13 +833,13 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
         CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=scf_env%ortho,otype='CHOLESKY')
      ELSE
-        CALL fm_pool_create_fm(ao_maxmo_fm_pool,sv,error=error)
+        CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
         CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,v_in=v_matrix,&
              v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
              error=error)
         CALL blacs_make_basis(vmatrix=v_matrix,ncol=my_n_col,&
              ortho=sv,otype='SV')
-        CALL fm_pool_give_back_fm(ao_maxmo_fm_pool,sv,error=error)
+        CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
      END IF
   END IF
 END SUBROUTINE qs_env_reorthogonalize_vectors

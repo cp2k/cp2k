@@ -215,7 +215,8 @@ SUBROUTINE force_env_calculate_force ( force_env, globenv, box_change, error )
                                     box_change, globenv )
       END SELECT 
     CASE ( use_qs_force )
-      CALL qs_forces(force_env%qs_env,globenv)
+      CALL qs_forces(force_env%qs_env,globenv,&
+           neighbor_lists_from_scratch=.TRUE.)
     CASE ( use_pol_force )
     CASE ( use_kg_force )
       CALL kg_force_control ( force_env%kg_env, globenv )

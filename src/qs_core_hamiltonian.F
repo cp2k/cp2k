@@ -96,10 +96,11 @@ MODULE qs_core_hamiltonian
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_env_update_h_redundant_pools,&
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_h_r_sm_pools,&
+                                             qs_matrix_pools_type
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -262,7 +263,7 @@ CONTAINS
     LOGICAL            :: build_kinetic_energy_matrix
 
     TYPE block_type
-         REAL(wp), DIMENSION(:,:), POINTER :: block
+         REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
     END TYPE
 
 !   ---------------------------------------------------------------------------
@@ -693,15 +694,15 @@ CONTAINS
                                          block_row=iatom,&
                                          block_col=jatom,&
                                          BLOCK=tmp_block)
-                     ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                     ALLOCATE(p_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                      p_block(:,:)=tmp_block(:,:)
                      CALL get_block_node(matrix=w(1)%matrix,&
                                          block_row=iatom,&
                                          block_col=jatom,&
                                          BLOCK=tmp_block)
-                     ALLOCATE(w_block(size(tmp_block,1),size(tmp_block,2)))
+                     ALLOCATE(w_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                      w_block(:,:)=tmp_block(:,:)
-                  do ispin=2,size(p)
+                  DO ispin=2,SIZE(p)
                      CALL get_block_node(matrix=p(ispin)%matrix,&
                                          block_row=iatom,&
                                          block_col=jatom,&
@@ -712,7 +713,7 @@ CONTAINS
                                          block_col=jatom,&
                                          BLOCK=tmp_block)
                      w_block(:,:)=w_block(:,:)+tmp_block(:,:)
-                  enddo
+                  ENDDO
                 END IF
               ELSE
                 CALL get_block_node(matrix=h(1)%matrix,&
@@ -724,15 +725,15 @@ CONTAINS
                                       block_row=jatom,&
                                       block_col=iatom,&
                                       BLOCK=tmp_block)
-                  ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                  ALLOCATE(p_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                   p_block(:,:)=tmp_block(:,:)
                   CALL get_block_node(matrix=w(1)%matrix,&
                                       block_row=jatom,&
                                       block_col=iatom,&
                                       BLOCK=tmp_block)
-                  ALLOCATE(w_block(size(tmp_block,1),size(tmp_block,2)))
+                  ALLOCATE(w_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                   w_block(:,:)=tmp_block(:,:)
-                  do ispin=2,size(p)
+                  DO ispin=2,SIZE(p)
                      CALL get_block_node(matrix=p(ispin)%matrix,&
                                          block_row=jatom,&
                                          block_col=iatom,&
@@ -743,7 +744,7 @@ CONTAINS
                                          block_col=iatom,&
                                          BLOCK=tmp_block)
                      w_block(:,:)=w_block(:,:)+tmp_block(:,:)
-                  enddo
+                  ENDDO
                 END IF
               END IF
 
@@ -1203,7 +1204,7 @@ CONTAINS
 
 !   *** Update the H_redundant matrix pools ***
 
-    CALL qs_env_update_h_redundant_pools(qs_env)
+    CALL mpools_rebuild_h_r_sm_pools(qs_env%mpools,h_redundant=h)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
@@ -1724,9 +1725,9 @@ CONTAINS
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     BLOCK=tmp_block)
-                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                ALLOCATE(p_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                 p_block(:,:)=tmp_block(:,:)
-                DO ispin=2,size(p)
+                DO ispin=2,SIZE(p)
                    CALL get_block_node(matrix=p(ispin)%matrix,&
                                        block_row=iatom,&
                                        block_col=jatom,&
@@ -1781,9 +1782,9 @@ CONTAINS
                                     block_row=jatom,&
                                     block_col=iatom,&
                                     BLOCK=tmp_block)
-                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                ALLOCATE(p_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                 p_block(:,:)=tmp_block(:,:)
-                DO ispin=2,size(p)
+                DO ispin=2,SIZE(p)
                    CALL get_block_node(matrix=p(ispin)%matrix,&
                                        block_row=jatom,&
                                        block_col=iatom,&
@@ -1867,10 +1868,10 @@ CONTAINS
                                     block_row=iatom,&
                                     block_col=jatom,&
                                     BLOCK=tmp_block)
-                IF (.NOT.ASSOCIATED(tmp_block)) write(6,*) "BUG !"
-                ALLOCATE(p_block(size(tmp_block,1),size(tmp_block,2)))
+                IF (.NOT.ASSOCIATED(tmp_block)) WRITE(6,*) "BUG !"
+                ALLOCATE(p_block(SIZE(tmp_block,1),SIZE(tmp_block,2)))
                 p_block(:,:)=tmp_block(:,:)
-                DO ispin=2,size(p)
+                DO ispin=2,SIZE(p)
                    CALL get_block_node(matrix=p(ispin)%matrix,&
                                        block_row=iatom,&
                                        block_col=jatom,&

@@ -18,7 +18,6 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
-
 !TC  USE cp_error_handling,    ONLY : cp_simple_assert
 !TC  USE cp_fm_basic_linalg,   ONLY : cp_fm_gemm, cp_fm_symm, cp_fm_scale_and_add
 !TC  USE cp_fm_cholesky,       ONLY : cp_fm_cholesky_decompose, cp_fm_cholesky_invert
@@ -74,7 +73,7 @@ MODULE qs_tddfpt_eigensolver
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_element,&
                                              cp_fm_release,&
-                                             cp_fm_set_all, &
+                                             cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
@@ -90,6 +89,8 @@ MODULE qs_tddfpt_eigensolver
                                              cp_sm_plus_fm_fm_t
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_matrix_pools,                 ONLY: mpools_get,&
+                                             qs_matrix_pools_type
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l2,&
                                              p_postortho,&
@@ -97,15 +98,14 @@ MODULE qs_tddfpt_eigensolver
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_tddfpt_types
   USE qs_tddfpt_utils
-  USE sparse_matrix_types,  ONLY : set_matrix, &
-                                   replicate_matrix_structure, &
-                                   real_matrix_p_type, &
-                                   allocate_matrix, &
-                                   deallocate_matrix, &
-                                   get_matrix_info, &
-                                   add_all_real_matrix_blocks
-  USE termination,          ONLY : stop_program
-
+  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
+                                             allocate_matrix,&
+                                             deallocate_matrix,&
+                                             get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
 
   INTERFACE tddfpt_es
@@ -192,7 +192,7 @@ CONTAINS
     ! allocate the vectors !
     !----------------------!
     ALLOCATE(eigenvals(n_kv, MAX_ITER))
-    CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools)
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, X, &
                                      name=routineP//":X")
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools, R, &
@@ -265,7 +265,7 @@ CONTAINS
        ELSE
           CALL stop_program(routineP, &
                "The norm of the provided start vector is smaller than " &
-               //trim(cp_to_string(tol)))
+               //TRIM(cp_to_string(tol)))
        END IF
 
        beta = 0.0_dbl ! beta of the first vector is 0

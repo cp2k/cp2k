@@ -276,7 +276,7 @@ CONTAINS
       CALL velocity_verlet(md_env)
 
       CALL compute_conserved_quantity (md_env, energy%total, econs, ekin=ekin)
-      WRITE(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs            
+      WRITE(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs
 !!      nnodes = SIZE ( pnode)
 !!      ekin=0.0_wp
 !!      DO i = 1, nnodes

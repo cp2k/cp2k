@@ -24,23 +24,21 @@
 !******************************************************************************
 
 MODULE dft_types
-
-  USE kinds, ONLY: wp => dp,&
-                   wp_size => dp_size
-
-  USE band,           ONLY: band_structure_type
-  USE global_types,   ONLY: global_environment_type
-  USE pw_grid_types,  ONLY: pw_grid_type
-  USE qs_parser,      ONLY: finish_parser,&
-                            read_object,&
-                            start_parser,&
-                            stop_parser,&
-                            test_object
-  USE termination,    ONLY: stop_memory,&
-                            stop_program
-  USE xc_functionals, ONLY: xc_get_functional,&
-                            xc_print_info, xc_set
-
+  USE band,                            ONLY: band_structure_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_functionals,                  ONLY: xc_get_functional,&
+                                             xc_print_info,&
+                                             xc_set
   IMPLICIT NONE
 
   PRIVATE
@@ -319,6 +317,8 @@ CONTAINS
          CASE ("TDLR","TDDFPT")
             dft_control % do_tddfpt_calculation = .TRUE.
          END SELECT
+      CASE ("SMOOTH_GRADIENT")
+         CALL read_object(dft_control%smooth_gradient)
       END SELECT
     END DO
 
@@ -655,13 +655,13 @@ CONTAINS
         ! the /100 is used to set some of the parameters to a stricter value
         ! because they seem computationally not very expensive
         qs_control%eps_core_charge = value/100.0 
-        qs_control%eps_pgf_aux = sqrt(value) ! unknown to me
-        qs_control%eps_pgf_orb = sqrt(value)
+        qs_control%eps_pgf_aux = SQRT(value) ! unknown to me
+        qs_control%eps_pgf_orb = SQRT(value)
         qs_control%eps_ppl = value/100.0
         qs_control%eps_ppnl = value/100.0
         qs_control%eps_rho_gspace = value
         qs_control%eps_rho_rspace = value
-        qs_control%eps_gvg_rspace = sqrt(value)
+        qs_control%eps_gvg_rspace = SQRT(value)
       CASE ("EPS_CORE_CHARGE")
         CALL read_object(qs_control%eps_core_charge)
       CASE ("EPS_GVG_RSPACE","EPS_GVG")
@@ -956,16 +956,16 @@ CONTAINS
           "DFT| Force calculation"," NO"
       END IF
 
-      IF ( dft_control % nspins == 1 ) then
+      IF ( dft_control % nspins == 1 ) THEN
          !do nothing
-      ELSE IF ( dft_control % nspins == 2 ) then
+      ELSE IF ( dft_control % nspins == 2 ) THEN
          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
       ELSE
          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
             dft_control % nspins
       END IF
 
-      IF ( dft_control % charge /= 0 ) then
+      IF ( dft_control % charge /= 0 ) THEN
          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
               dft_control % charge
       END IF

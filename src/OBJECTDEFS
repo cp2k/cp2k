@@ -223,6 +223,7 @@ OBJECTS_GENERIC =\
  qs_localization.o\
  qs_localization_methods.o\
  qs_main.o\
+ qs_matrix_pools.o\
  qs_md.o\
  qs_mo_types.o\
  qs_neighbor_list_types.o\

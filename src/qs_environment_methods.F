@@ -29,16 +29,6 @@ MODULE qs_environment_methods
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type,&
-                                             cp_bmstruct_create,&
-                                             cp_bmstruct_release
-  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
-                                             cp_block_matrix_type,&
-                                             cp_sp_array_create,&
-                                             cp_sp_array_dealloc,&
-                                             cp_sp_create,&
-                                             cp_sp_multiplies_blacs,&
-                                             cp_sp_set_to
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -132,6 +122,9 @@ MODULE qs_environment_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
+  USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools,&
+                                             mpools_rebuild_s_sm_pools,&
+                                             qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
@@ -157,7 +150,7 @@ MODULE qs_environment_methods
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_environment_methods'
 
   PUBLIC :: qs_env_update_s_mstruct, qs_env_rebuild_pw_env,&
-       qs_env_rebuild_aomo_pools, qs_env_rebuild_rho, qs_env_setup
+       qs_env_rebuild_rho, qs_env_setup
 !***
 !****************************************************************************
 CONTAINS
@@ -203,24 +196,20 @@ SUBROUTINE qs_env_setup(qs_env,error)
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_setup',&
         routineP=moduleN//':'//routineN
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-  TYPE(cell_type), POINTER                      :: cell
   TYPE(dft_control_type), POINTER               :: dft_control
   TYPE(scf_control_type), POINTER               :: scf_control
-  TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
   TYPE(qs_charges_type), POINTER                :: qs_charges
-  TYPE(cp_fm_struct_type), POINTER        :: fmstruct
   INTEGER :: n_mo, n_ao
+
   failure=.FALSE.
+  NULLIFY(atomic_kind_set, dft_control, scf_control, qs_charges)
   
   CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
-       cell=cell, dft_control=dft_control, scf_control=scf_control,&
-       particle_set=particle_set, error=error)
+       dft_control=dft_control, scf_control=scf_control,&
+       error=error)
   CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
-
   IF (.NOT. failure) THEN
      ! allocate qs_charges
      CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
@@ -230,8 +219,11 @@ SUBROUTINE qs_env_setup(qs_env,error)
      ! set up pw_env
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
-     ! rebuilds ao_mo_fm_pools
-     CALL qs_env_rebuild_aomo_pools(qs_env, error=error)
+     ! rebuilds fm_pools
+     CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%c,&
+          blacs_env=qs_env%blacs_env, para_env=qs_env%para_env,&
+          nrow_block=scf_control%nrow_block, ncol_block=scf_control%ncol_block,&
+          error=error)
 
   END IF
 END SUBROUTINE qs_env_setup
@@ -277,86 +269,25 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_update_s_mstruct',&
         routineP=moduleN//':'//routineN
-  INTEGER :: n_atoms, stat, ispin, handle
-  INTEGER, DIMENSION(:), ALLOCATABLE :: block_begins_at
-  INTEGER, DIMENSION(:), POINTER :: first_row, first_col, last_row, last_col
+  INTEGER :: stat, handle
   TYPE(cp_para_env_type), POINTER :: para_env
-  TYPE(cp_sm_struct_type), POINTER :: s_mstruct
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(cp_logger_type), POINTER :: logger
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
-  NULLIFY(first_row, first_col, last_row, last_col, para_env,s_mstruct,&
-       dft_control)
+  NULLIFY(para_env, dft_control)
   logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
   CALL get_qs_env(qs_env, para_env=para_env, dft_control=dft_control,&
        error=error)
-  n_atoms=SIZE(qs_env%particle_set)
   
   ! *** rebuilds the S_sm_pools ***
-  CALL sm_pools_dealloc(qs_env%S_sm_pools,error=error) ! update instread?
-
-  ALLOCATE(block_begins_at(n_atoms+1), stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  block_begins_at(1:n_atoms)=qs_env%particle_set(1:n_atoms)%first_sgf
-  block_begins_at(n_atoms+1)=qs_env%particle_set(n_atoms)%last_sgf+1
-  
-  CALL sm_struct_create(s_mstruct, &
-       block_begins_at_row=block_begins_at,&
-       block_begins_at_col=block_begins_at,&
-       para_env=para_env, symmetry="symmetric",&
-       error=error)
-  
-  DEALLOCATE(block_begins_at,stat=stat)
-  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-  
-  CALL get_matrix_info(qs_env%s(1)%matrix,first_row=first_row,&
-       last_row=last_row, first_col=first_col,&
-       last_col=last_col)
-
-  CALL cp_assert(ALL(s_mstruct%block_begins_at_row(1:n_atoms)==&
-       first_row),cp_failure_level,cp_assertion_failed,routineP,&
-       "s has unexpected size, "//&
-       CPSourceFileRef,&
-       error)
-  CALL cp_assert(ALL(s_mstruct%block_begins_at_col(1:n_atoms)==&
-       first_col),cp_failure_level,cp_assertion_failed,routineP,&
-       "s has unexpected size, "//&
-       CPSourceFileRef,&
-       error)
-  CALL cp_assert(s_mstruct%block_begins_at_col(n_atoms+1)==&
-       last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
-       "s has unexpected size, "//&
-       CPSourceFileRef,&
-       error)
-  CALL cp_assert(s_mstruct%block_begins_at_row(n_atoms+1)==&
-       last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
-       "s has unexpected size, "//&
-       CPSourceFileRef,&
-       error)
-
-  ! at the moment read from s, maybe in the future s will take its structure
-  ! from this
-  CALL sm_struct_add_sm_local_blocks(s_mstruct,&
-       matrix=qs_env%s(1)%matrix,&
-       error=error)
-  
-  ALLOCATE(qs_env%S_sm_pools(dft_control%nspins),stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  
-  NULLIFY(qs_env%S_sm_pools(1)%pool)
-  CALL sm_pool_create(qs_env%S_sm_pools(1)%pool,matrix_struct=s_mstruct,&
-       error=error)
-  CALL sm_struct_release(s_mstruct,error=error)
-  
-  DO ispin=2,dft_control%nspins
-     qs_env%S_sm_pools(ispin)%pool => qs_env%S_sm_pools(1)%pool
-     CALL sm_pool_retain(qs_env%S_sm_pools(ispin)%pool,error=error)
-  END DO
+  CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%s,&
+       nspins=dft_control%nspins,particle_set=qs_env%particle_set,&
+       para_env=para_env, error=error)
  
   ! *** removes h, k , kinetic (that have the wrong structure)
   IF (ASSOCIATED(qs_env%h))&
@@ -395,119 +326,6 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   CALL timestop(0.0_wp,handle)
 
 END SUBROUTINE qs_env_update_s_mstruct
-!***************************************************************************
-
-!!****f* qs_environment_types/qs_env_rebuild_aomo_pools [1.0] *
-!!
-!!   NAME
-!!     qs_env_rebuild_aomo_pools
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_env_rebuild_aomo_pools(qs_env, error)
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_env_rebuild_aomo_pools
-!!
-!!   FUNCTION
-!!     rebuilds the pools of the (ao x mo) full matrixes
-!!     mo (qs_env%c) must contain up to date nmo and nao
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - qs_env: the environement where the pools should be rebuilt
-!!     - fmstruct: the matrix structure of the ao x mo matrixes
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
-  TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
-  
-  LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_aomo_pools',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle, nmo,nao, i, max_nmo, min_nmo, stat
-  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: aomo_pools
-  TYPE(cp_para_env_type), POINTER                :: para_env
-  TYPE(cp_blacs_env_type), POINTER               :: blacs_env
-  TYPE(mo_set_p_type), DIMENSION(:), POINTER     :: mos
-  TYPE(cp_fm_struct_type), POINTER         :: fmstruct
-  TYPE(scf_control_type), POINTER                :: scf_control
-  failure=.FALSE.
-  NULLIFY(aomo_pools,para_env,blacs_env,mos, fmstruct)
-  
-  CALL timeset(routineN,"I","",handle)
-  
-  ! frees the memory before allocating the new pools
-  CALL set_qs_env(qs_env, ao_mo_fm_pools=aomo_pools,error=error)
-
-  CALL get_qs_env(qs_env,para_env=para_env,blacs_env=blacs_env,&
-       c=mos,scf_control=scf_control, error=error)
-  
-  CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     ALLOCATE(aomo_pools(SIZE(mos)), stat=stat)
-     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF (.NOT. failure) THEN
-
-     CALL get_mo_set(mos(1)%mo_set,nao=nao,nmo=min_nmo)
-     max_nmo=min_nmo
-     DO i=2,SIZE(mos)
-        CALL get_mo_set(mos(i)%mo_set,nmo=nmo)
-        IF (max_nmo<nmo) THEN
-           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                routineP,&
-                "the mo with the most orbitals must be the first "//&
-                CPSourceFileRef,&
-                error=error,&
-                failure=failure)
-        END IF
-        min_nmo=MIN(min_nmo,nmo)
-     END DO
-  END IF
-  IF (.NOT.failure) THEN
-     IF (max_nmo==min_nmo) THEN
-        CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
-             ncol_global=max_nmo, para_env=para_env,&
-             context=blacs_env,&
-             nrow_block=scf_control%nrow_block,&
-             ncol_block=scf_control%ncol_block)
-        CALL fm_pool_create(aomo_pools(1)%pool,fmstruct,error=error)
-        CALL cp_fm_struct_release(fmstruct,error=error)
-        DO i=2,SIZE(mos)
-           aomo_pools(i)%pool => aomo_pools(1)%pool
-           CALL fm_pool_retain(aomo_pools(1)%pool,error=error)
-        END DO
-     ELSE
-        DO i=1,SIZE(mos)
-           NULLIFY(aomo_pools(i)%pool)
-           CALL get_mo_set(mos(i)%mo_set,nmo=nmo,nao=nao) 
-           CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
-                ncol_global=nmo, para_env=para_env,&
-                context=blacs_env,&
-                nrow_block=scf_control%nrow_block,&
-                ncol_block=scf_control%ncol_block)
-           CALL fm_pool_create(aomo_pools(i)%pool,fmstruct,error=error)
-           CALL cp_fm_struct_release(fmstruct,error=error)
-        END DO
-     END IF
-     
-     CALL set_qs_env(qs_env, ao_mo_fm_pools=aomo_pools,error=error)
-     CALL fm_pools_dealloc(aomo_pools,error=error)
-  END IF
-  
-  CALL timestop(0.0_wp,handle)
-END SUBROUTINE qs_env_rebuild_aomo_pools
 !***************************************************************************
 
 !!****f* qs_environment_methods/qs_env_rebuild_pw_env [1.0] *

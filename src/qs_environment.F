@@ -47,8 +47,8 @@ MODULE qs_environment
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type, &
-                                             optimal_blacs_col_block_size, &
+                                             cp_fm_struct_type,&
+                                             optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -86,8 +86,7 @@ MODULE qs_environment
                                              start_blacs
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pools,&
-                                             qs_env_rebuild_pw_env,&
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
                                              qs_env_setup
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              init_qs_env,&
@@ -108,7 +107,8 @@ MODULE qs_environment
   USE simulation_cell,                 ONLY: cell_type,&
                                              read_cell,&
                                              write_cell
-  USE termination,                     ONLY: stop_memory,stop_program
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -140,7 +140,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), pointer           :: qs_env
+    TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
@@ -342,11 +342,11 @@ CONTAINS
 
      multiplicity = dft_control%multiplicity
 
-     IF (.not.(dft_control%nspins.eq.1 .or. dft_control%nspins.eq.2)) THEN
+     IF (.NOT.(dft_control%nspins.eq.1 .OR. dft_control%nspins.eq.2)) THEN
         CALL stop_program(routine,"nspins should be 1 or 2 for the time being...")
      ENDIF
 
-     IF (MOD(nelectron,2).ne.0 .and. dft_control%nspins.eq.1) THEN
+     IF (MOD(nelectron,2).ne.0 .AND. dft_control%nspins.eq.1) THEN
         CALL stop_program(routine,"use the LSD option for an odd number of electrons")
      ENDIF
 
@@ -384,7 +384,7 @@ CONTAINS
           (scf_control%smear /= 0.0_wp).OR.&
           (scf_control%eps_jacobi /= 0.0_wp)) THEN
         n_mo(1) = n_ao
-        if (n_mo(2).ne.0) n_mo(2) = n_ao
+        IF (n_mo(2).ne.0) n_mo(2) = n_ao
      END IF
 
      ALLOCATE(c(dft_control%nspins),stat=istat)
@@ -400,7 +400,7 @@ CONTAINS
 
       CALL set_qs_env(qs_env, c=c,error=error)
 
-!   *** Sets up pw_env, qs_charges, ao_mo_fm_pools... ***
+!   *** Sets up pw_env, qs_charges, mpools... ***
      CALL qs_env_setup(qs_env,error=error)
 
 !   *** Read the pao section ***
