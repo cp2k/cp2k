@@ -35,6 +35,7 @@ MODULE fist_force_numer
                                              bond_type, &
                                              bend_type, &
                                              ub_type, &
+                                             onfo_type, &
                                              impr_type, &
                                              torsion_type
   USE molecule_types_new,              ONLY: molecule_type, &
@@ -80,7 +81,9 @@ MODULE fist_force_numer
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
             force_nonbond_numer, ewald_force_numer, force_imptors_numer
   PUBLIC :: pv_bond_numer, pv_bend_numer, pv_torsion_numer, pv_nonbond_numer
-  PUBLIC :: pv_g_numer, force_g_numer, potential_g_numer, ewald_energy_numer
+  PUBLIC :: pv_g_numer, force_g_numer, ewald_energy_numer
+  PUBLIC :: pv_ub_numer, force_ub_numer
+  PUBLIC :: pv_onefour_numer, force_onefour_numer
   PUBLIC :: pme_force_numer, pv_imptors_numer
 
 ! *** Global parameters (in this module) ***
@@ -183,6 +186,193 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
     f_bond_numer = f_bond_numer / ( 2.0_dbl * numerical_shift )
 
 END SUBROUTINE force_bond_numer
+!******************************************************************************
+!!****** fist_force_numer/force_onefour_numer [1.0] *
+!!
+!!   NAME
+!!     force_onefour_numer
+!!
+!!   FUNCTION
+!!     Computes numerically the forces from the onefours
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                                particle_set, f_numer, pot, numerical_shift )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_numer
+  REAL ( dbl ), INTENT ( OUT ) :: pot
+  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+
+! Locals
+  INTEGER :: imol, ibond, idim, index_a, index_b, first_atom
+  INTEGER :: nmol_per_kind, i, nonfo, nkind, ikind, akind, bkind
+  REAL ( dbl ), DIMENSION (3) :: rij
+  REAL ( dbl ) :: e0, ep, em, fscalar, rab2, rab2_minus_delta, rab2_plus_delta
+  REAL ( dbl ), DIMENSION (3) :: delta
+  TYPE ( onfo_type ), POINTER              :: onfo_list ( : )
+  TYPE ( molecule_type ), POINTER          :: molecule
+  TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
+  TYPE ( pair_potential_type ), POINTER      :: potparm ( :, : )
+  TYPE ( atomic_kind_type ), POINTER      :: atomic_kind
+  TYPE ( spline_environment_type ), POINTER      :: spline_env
+
+!------------------------------------------------------------------------------
+
+! initializing the forces
+  f_numer = 0.0_dbl
+  pot = 0.0_dbl
+  nkind = SIZE ( molecule_kind_set )
+  delta = 0._dbl
+  MOL: DO ikind = 1, nkind
+     nmol_per_kind = local_molecules % n_el ( ikind )
+     DO imol = 1, nmol_per_kind
+       i = local_molecules % list ( ikind ) % array ( imol )
+       molecule => molecule_set ( i )
+       molecule_kind => molecule % molecule_kind
+       CALL get_molecule_kind ( molecule_kind, nonfo = nonfo,  &
+                               onfo_list = onfo_list )
+     BOND: DO ibond = 1, nonfo
+        CALL get_molecule ( molecule, first_atom=first_atom )
+        index_a = onfo_list ( ibond ) % a + first_atom - 1
+        atomic_kind => particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
+        index_b = onfo_list ( ibond ) % b + first_atom - 1
+        atomic_kind => particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+! get the energy
+        rab2 = DOT_PRODUCT ( rij, rij )
+        spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
+        potparm => spline_env % potparm
+        CALL potential_f ( rab2, potparm, 0._dbl, 0._dbl, &
+                          akind, bkind, e0 )
+        pot = pot + e0
+
+! get the forces
+        DO idim = 1, 3
+           delta(idim) = numerical_shift
+           rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
+           CALL potential_f ( rab2_minus_delta, potparm, 0._dbl, 0._dbl, &
+                             akind, bkind, em )
+           rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
+           CALL potential_f ( rab2_plus_delta, potparm, 0._dbl, 0._dbl, &
+                             akind, bkind, ep )
+           f_numer(idim,index_a) = f_numer(idim,index_a) + (em-ep)
+           f_numer(idim,index_b) = f_numer(idim,index_b) - (em-ep)
+           delta = 0.0_dbl
+        END DO
+
+     END DO BOND
+     END DO
+    END DO MOL
+
+    f_numer = f_numer / ( 2.0_dbl * numerical_shift )
+
+END SUBROUTINE force_onefour_numer
+
+!******************************************************************************
+!!****** fist_force_numer/force_ub_numer [1.0] *
+!!
+!!   NAME
+!!     force_bond_numer
+!!
+!!   FUNCTION
+!!     Computes numerically the forces from the urey bradley
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                            particle_set, f_ub_numer, pot_ub, numerical_shift )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: f_ub_numer
+  REAL ( dbl ), INTENT ( OUT ) :: pot_ub
+  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+
+! Locals
+  INTEGER :: imol, iub, idim, index_a, index_b, ikind, first_atom
+  INTEGER :: nmol_per_kind, i, nub, nkind
+  REAL ( dbl ), DIMENSION (3) :: rij, rij_minus_delta, rij_plus_delta
+  REAL ( dbl ) :: e0, ep, em, fscalar
+  REAL ( dbl ), DIMENSION (3) :: delta
+  TYPE ( ub_type ), POINTER                :: ub_list ( : )
+  TYPE ( molecule_type ), POINTER          :: molecule
+  TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
+
+!------------------------------------------------------------------------------
+
+! initializing the forces
+  f_ub_numer = 0.0_dbl
+  pot_ub = 0.0_dbl
+  nkind = SIZE ( molecule_kind_set )
+  delta = 0._dbl
+  MOL: DO ikind = 1, nkind
+     nmol_per_kind = local_molecules % n_el ( ikind )
+     DO imol = 1, nmol_per_kind
+       i = local_molecules % list ( ikind ) % array ( imol )
+       molecule => molecule_set ( i )
+       molecule_kind => molecule % molecule_kind
+       CALL get_molecule_kind ( molecule_kind, nub = nub,  &
+                                ub_list = ub_list )
+     BOND: DO iub = 1, nub
+        CALL get_molecule ( molecule, first_atom=first_atom )
+        index_a = ub_list ( iub ) % a + first_atom - 1
+        index_b = ub_list ( iub ) % b + first_atom - 1
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+! get the energy
+        CALL force_bonds ( rij, ub_list ( iub ) % ub_kind % r0, &
+             ub_list ( iub ) % ub_kind  % k, e0, fscalar )
+        pot_ub = pot_ub + e0
+
+! get the forces
+        DO idim = 1, 3
+           delta(idim) = numerical_shift
+           rij_minus_delta = rij - delta
+           CALL force_bonds ( rij_minus_delta, ub_list ( iub ) % ub_kind % r0, &
+             ub_list ( iub ) % ub_kind  % k, em, fscalar )
+           rij_plus_delta = rij + delta
+           CALL force_bonds ( rij_plus_delta, ub_list ( iub ) % ub_kind % r0, &
+                ub_list ( iub ) % ub_kind % k, ep, fscalar )
+           f_ub_numer(idim,index_a) = f_ub_numer(idim,index_a) + (em-ep)
+           f_ub_numer(idim,index_b) = f_ub_numer(idim,index_b) - (em-ep)
+           delta = 0.0_dbl
+        END DO
+
+     END DO BOND
+     END DO
+    END DO MOL
+
+    f_ub_numer = f_ub_numer / ( 2.0_dbl * numerical_shift )
+
+END SUBROUTINE force_ub_numer
 
 !!*****
 !******************************************************************************
@@ -1004,6 +1194,236 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
   CALL cell_release ( cell_local )
 
 END SUBROUTINE pv_bond_numer
+
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/pv_onefour_numer [1.0] *
+!!
+!!   NAME
+!!     pv_onefour_numer
+!!
+!!   FUNCTION
+!!     Computes numerically the pressure tensor from the onefours
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                           particle_set, cell, pv_test, delta )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  TYPE(cell_type), POINTER                 :: cell
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL ( dbl ), INTENT ( IN ) :: delta
+
+! Locals
+  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
+  REAL ( dbl ) :: idelta, vm, vp, vnb
+  INTEGER :: i, j, k, ii, jj, natoms, isos
+  TYPE ( cell_type ), POINTER :: cell_local
+
+!------------------------------------------------------------------------------
+
+  NULLIFY ( cell_local )
+ 
+  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_retain ( cell_local )
+
+! assigning the local variables
+  natoms = SIZE(particle_set)
+  ALLOCATE (s(3,natoms),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 's', 3 * natoms )
+  DO i = 1, natoms
+     s(:,i) = MATMUL ( cell_local % h_inv, particle_set ( i ) % r ( : ) )
+  END DO
+
+! Initializing pv_test
+  pv_test = 0.0_dbl
+! Defining the increments
+  idelta = 1.0_dbl/(2.0_dbl*delta)
+  LOOP1: DO ii = 1, 3
+     LOOP2: DO jj = 1, 3
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
+
+! get inverse
+        CALL get_hinv(cell_local)
+
+! get coords from perturbed hmat
+        DO i = 1, natoms
+           particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+        CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
+                              particle_set, vp )
+
+! tweak again
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+
+! get inverse
+        CALL get_hinv ( cell_local )
+
+! get coords from perturbed hmat
+        DO i = 1, natoms
+           particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+        CALL potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
+                                 particle_set, vm )
+
+! calculate the derivative
+        dvdh(ii,jj) = (vm-vp)*idelta
+! resetting the hmat
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
+        CALL get_hinv(cell_local)
+! resetting particle_set
+        DO i = 1, natoms
+           particle_set ( i ) % r = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+     END DO LOOP2
+  END DO LOOP1
+
+! computing pv_test
+  DO i = 1, 3
+     DO j = 1, 3
+        DO k = 1, 3
+           pv_test(i,j) = pv_test(i,j) + dvdh(i,k)*cell_local % hmat(j,k)
+        END DO
+     END DO
+  END DO
+
+  DEALLOCATE (s,STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'pv_onefour_numer', 's' )
+
+  CALL cell_release ( cell_local )
+
+END SUBROUTINE pv_onefour_numer
+
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/pv_ub_numer [1.0] *
+!!
+!!   NAME
+!!     pv_ub_numer
+!!
+!!   FUNCTION
+!!     Computes numerically the pressure tensor from the urey-bradley
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                           particle_set, cell, pv_test, delta )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  TYPE(cell_type), POINTER                 :: cell
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_test
+  REAL ( dbl ), INTENT ( IN ) :: delta
+
+! Locals
+  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: s
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: dvdh
+  REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
+  REAL ( dbl ) :: idelta, vm, vp, vnb
+  INTEGER :: i, j, k, ii, jj, natoms, isos
+  TYPE ( cell_type ), POINTER :: cell_local
+
+!------------------------------------------------------------------------------
+
+  NULLIFY ( cell_local )
+ 
+  CALL cell_create ( cell_local, hmat = cell % hmat )
+  CALL cell_retain ( cell_local )
+
+! assigning the local variables
+  natoms = SIZE(particle_set)
+  ALLOCATE (s(3,natoms),STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 's', 3 * natoms )
+  DO i = 1, natoms
+     s(:,i) = MATMUL ( cell_local % h_inv, particle_set ( i ) % r ( : ) )
+  END DO
+
+! Initializing pv_test
+  pv_test = 0.0_dbl
+! Defining the increments
+  idelta = 1.0_dbl/(2.0_dbl*delta)
+  LOOP1: DO ii = 1, 3
+     LOOP2: DO jj = 1, 3
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
+
+! get inverse
+        CALL get_hinv(cell_local)
+
+! get coords from perturbed hmat
+        DO i = 1, natoms
+           particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+        CALL potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
+                              particle_set, vp )
+
+! tweak again
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) - 2.0_dbl*delta
+
+! get inverse
+        CALL get_hinv ( cell_local )
+
+! get coords from perturbed hmat
+        DO i = 1, natoms
+           particle_set ( i ) % r ( : ) = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+        CALL potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
+                              particle_set, vm )
+
+! calculate the derivative
+        dvdh(ii,jj) = (vm-vp)*idelta
+! resetting the hmat
+        cell_local % hmat(ii,jj) = cell_local % hmat(ii,jj) + delta
+        CALL get_hinv(cell_local)
+! resetting particle_set
+        DO i = 1, natoms
+           particle_set ( i ) % r = MATMUL(cell_local % hmat,s(:,i))
+        END DO
+     END DO LOOP2
+  END DO LOOP1
+
+! computing pv_test
+  DO i = 1, 3
+     DO j = 1, 3
+        DO k = 1, 3
+           pv_test(i,j) = pv_test(i,j) + dvdh(i,k)*cell_local % hmat(j,k)
+        END DO
+     END DO
+  END DO
+
+  DEALLOCATE (s,STAT=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'pv_ub_numer', 's' )
+
+  CALL cell_release ( cell_local )
+
+END SUBROUTINE pv_ub_numer
 
 !!*****
 !******************************************************************************
@@ -1898,6 +2318,150 @@ SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
   END DO MOL
 
 END SUBROUTINE potential_bond
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/potential_onefour [1.0] *
+!!
+!!   NAME
+!!     potential_bond
+!!
+!!   FUNCTION
+!!     Computes analytically the potential from the onefours
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules, &
+                               particle_set, energy )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: energy
+
+! Locals
+  INTEGER :: imol, ibond, index_a, index_b, ikind, first_atom, nkind
+  INTEGER :: nmol_per_kind, i, nonfo, akind, bkind
+  REAL ( dbl ), DIMENSION ( 3 ) :: rij
+  REAL ( dbl ) :: e0, fscalar, rab2
+  TYPE ( onfo_type ), POINTER              :: onfo_list ( : )
+  TYPE ( molecule_type ), POINTER          :: molecule
+  TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
+  TYPE ( atomic_kind_type ), POINTER      :: atomic_kind
+  TYPE ( spline_environment_type ), POINTER      :: spline_env
+  TYPE ( pair_potential_type ), POINTER      :: potparm ( :, : )
+
+!------------------------------------------------------------------------------
+
+! initializing
+  energy = 0.0_dbl
+  nkind = SIZE ( molecule_kind_set )
+  MOL: DO ikind = 1, nkind
+     nmol_per_kind = local_molecules % n_el ( ikind )
+     DO imol = 1, nmol_per_kind
+       i = local_molecules % list ( ikind ) % array ( imol )
+       molecule => molecule_set ( i )
+       molecule_kind => molecule % molecule_kind
+       CALL get_molecule_kind ( molecule_kind, nonfo = nonfo, &
+                                onfo_list = onfo_list )
+     BOND: DO ibond = 1, nonfo
+        CALL get_molecule ( molecule, first_atom=first_atom )
+        index_a = onfo_list ( ibond ) % a + first_atom - 1
+        atomic_kind => particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
+        index_b = onfo_list ( ibond ) % b + first_atom - 1
+        atomic_kind => particle_set ( index_a ) % atomic_kind
+        CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        rab2 = DOT_PRODUCT ( rij, rij )
+        spline_env => onfo_list ( ibond ) % onfo_kind % spline_env
+        potparm => spline_env % potparm
+        CALL potential_f ( rab2, potparm, 0._dbl, 0._dbl, &
+                          akind, bkind, e0 )
+        energy = energy + e0
+     END DO BOND
+    END DO
+  END DO MOL
+
+END SUBROUTINE potential_onefour
+
+!!*****
+!******************************************************************************
+!!****** fist_force_numer/potential_ub [1.0] *
+!!
+!!   NAME
+!!     potential_ub
+!!
+!!   FUNCTION
+!!     Computes analytically the potential from the urey-bradley
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
+                           particle_set, energy )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE(distribution_1d_type), POINTER      :: local_molecules
+  TYPE(molecule_type), POINTER             :: molecule_set( : )
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set ( : )
+  REAL ( dbl ), INTENT ( OUT ) :: energy
+
+! Locals
+  INTEGER :: imol, iub, index_a, index_b, ikind, first_atom, nkind
+  INTEGER :: nmol_per_kind, i, nub
+  REAL ( dbl ), DIMENSION ( 3 ) :: rij
+  REAL ( dbl ) :: e0, fscalar
+  TYPE ( ub_type ), POINTER              :: ub_list ( : )
+  TYPE ( molecule_type ), POINTER          :: molecule
+  TYPE ( molecule_kind_type ), POINTER      :: molecule_kind
+
+!------------------------------------------------------------------------------
+
+! initializing
+  energy = 0.0_dbl
+  nkind = SIZE ( molecule_kind_set )
+  MOL: DO ikind = 1, nkind
+     nmol_per_kind = local_molecules % n_el ( ikind )
+     DO imol = 1, nmol_per_kind
+       i = local_molecules % list ( ikind ) % array ( imol )
+       molecule => molecule_set ( i )
+       molecule_kind => molecule % molecule_kind
+       CALL get_molecule_kind ( molecule_kind, nub = nub, &
+                                ub_list = ub_list )
+     BOND: DO iub = 1, nub
+        CALL get_molecule ( molecule, first_atom=first_atom )
+        index_a = ub_list ( iub ) % a + first_atom - 1
+        index_b = ub_list ( iub ) % b + first_atom - 1
+        rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
+        CALL force_bonds(rij,ub_list ( iub ) % ub_kind % r0, &
+                         ub_list ( iub ) % ub_kind % k, &
+                         e0,fscalar)
+        energy = energy + e0
+     END DO BOND
+    END DO
+  END DO MOL
+
+END SUBROUTINE potential_ub
 
 !!*****
 !******************************************************************************

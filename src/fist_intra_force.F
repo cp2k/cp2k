@@ -106,7 +106,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                              index_b, index_c, index_d, i, &
                                              nbonds, nbends, ntorsions, first_atom, &
                                              nmol_per_kind, nub, nimptors, nonefs, & 
-                                             ikind, jkind
+                                             ikind, akind, bkind 
   REAL(dbl)                                :: d12, d32, dist, dist1, dist2, &
                                              energy, fscalar, id12, id32, &
                                              is32, iw1, iw2, s32, theta, &
@@ -381,17 +381,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = onef_list ( ionef ) % a + first_atom - 1
         atomic_kind => particle_set ( index_a ) % atomic_kind
-        CALL get_atomic_kind ( atomic_kind, kind_number =  ikind )
+        CALL get_atomic_kind ( atomic_kind, kind_number =  akind )
         index_b = onef_list ( ionef ) % b + first_atom - 1
         atomic_kind => particle_set ( index_b ) % atomic_kind
-        CALL get_atomic_kind ( atomic_kind, kind_number =  jkind )
+        CALL get_atomic_kind ( atomic_kind, kind_number =  bkind )
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_env => onef_list ( ionef ) % onfo_kind % spline_env
         spline_table => spline_env % spline_table
         spltab => spline_env % spltab
         CALL potential_s ( spline_table, spltab, rab2,  &
-                           ikind, jkind, energy, fscalar )
+                           akind, bkind, energy, fscalar )
         pot_onef = pot_onef + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
                                       -rij * fscalar

@@ -34,6 +34,8 @@ MODULE fist_debug
                                                         force_torsion_numer,   &
                                                         force_imptors_numer,   &
                                                         force_nonbond_numer,   &
+                                                        force_onefour_numer,   &
+                                                        force_ub_numer,   &
                                                         ewald_energy_numer,    &
                                                         ewald_force_numer,     &
                                                         pv_bond_numer,         &
@@ -41,6 +43,8 @@ MODULE fist_debug
                                                         pv_torsion_numer,      &
                                                         pv_imptors_numer,      &
                                                         pv_nonbond_numer,      &
+                                                        pv_onefour_numer,      &
+                                                        pv_ub_numer,      &
                                                         pv_g_numer,            &
                                                         pme_force_numer
   USE fist_nonbond_env_types,          ONLY : fist_nonbond_env_type, fist_nonbond_env_get
@@ -392,6 +396,210 @@ SUBROUTINE  debug_control ( force_env, globenv )
            WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_bond(i,:)
         END DO
         WRITE ( iw, '( A )' ) ' PV NUM BOND'
+        DO i = 1, 3
+           WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+        END DO
+     END IF
+
+! Debug urey-bradley
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR UREY-BRADLEYS (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                                particle_set, f_numer, energy_numer, delta )
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E ANA UREY-BRADLEY = ', dbg % pot_urey_bradley
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E DBG UREY-BRADLEY = ', energy_numer
+
+! write out all particle numbers and forces
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=urey-bradley, 1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        OPEN (UNIT = iwf, &
+              FILE = 'urey-bradley', STATUS = 'REPLACE', ACTION = 'WRITE')
+        DO iatom = 1, natoms
+        WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+        WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+             ' F ANA UREY-BRADLEY =', dbg % f_ub(:,iatom)
+        WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+             ' F NUM UREY-BRADLEY =', f_numer(:,iatom)
+        END DO
+        CLOSE (iwf)
+     END IF
+
+! compute the absolute value of the differences in the forces
+        diff = ABS ( ABS (dbg % f_ub) - ABS (f_numer) )
+! find the maximum difference and the relative and absolute errors.
+        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) )  rel = diff / ABS (dbg % f_ub)
+
+! find the maximum difference and the relative and absolute errors
+        WRITE ( iw, '( A,T61,G20.12 )' ) &
+             ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
+              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
+
+! write out the particle number and forces of
+! the max absolute and relative error
+        dum = MAXLOC ( diff )
+        WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA UREY-BRADLEY =', dbg % f_ub(:,dum(2))
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
+
+        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA UREY-BRADLEY =', dbg % f_ub(:,dum(2))
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM UREY-BRADLEY =', f_numer(:,dum(2))
+        END IF
+     END IF
+
+! Debug ub virial
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR UREY-BRADLEY VIRIAL (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+
+! get numerical virial
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1 .OR. delta <= 0 ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                             particle_set, cell, pv_test, delta )
+
+! write out the virials
+        WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
+        DO i = 1, 3
+           WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_ub(i,:)
+        END DO
+        WRITE ( iw, '( A )' ) ' PV NUM UREY-BRADLEY'
+        DO i = 1, 3
+           WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
+        END DO
+     END IF
+
+! Debug onefours
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR ONE-FOURS (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL force_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                              particle_set, f_numer, energy_numer, delta )
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E ANA ONE-FOUR = ', dbg % pot_onef
+        WRITE ( iw, '( A, T61, G20.12 )' ) &
+             ' E DBG ONE-FOUR = ', energy_numer
+
+! write out all particle numbers and forces
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO GET THE FORCES ON ALL PARTICLES (FILE=onefours, 1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+        OPEN (UNIT = iwf, &
+              FILE = 'onefours', STATUS = 'REPLACE', ACTION = 'WRITE')
+        DO iatom = 1, natoms
+        WRITE ( iwf, '( A,T71,I10 )' ) ' ATOM NUMBER ', iatom
+        WRITE ( iwf, '( A,T21,3G20.12 )' ) &
+             ' F ANA ONE-FOUR =', dbg % f_onef(:,iatom)
+        WRITE ( iwf, '( A,T21,3G20.12,/ )' ) &
+             ' F NUM ONE-FOUR =', f_numer(:,iatom)
+        END DO
+        CLOSE (iwf)
+     END IF
+
+! compute the absolute value of the differences in the forces
+        diff = ABS ( ABS (dbg % f_onef) - ABS (f_numer) )
+! find the maximum difference and the relative and absolute errors.
+        IF ( .NOT. ANY ( dbg % f_onef == 0._dbl ) )  rel = diff / ABS (dbg % f_onef)
+
+! find the maximum difference and the relative and absolute errors
+        WRITE ( iw, '( A,T61,G20.12 )' ) &
+             ' MAXIMUM ABSOLUTE ERROR = ', MAXVAL ( diff )
+        IF ( .NOT. ANY ( dbg % f_onef == 0._dbl ) ) THEN
+          WRITE ( iw, '( A,T61,G20.12 )' ) &
+              ' MAXIMUM RELATIVE ERROR = ', MAXVAL ( rel )
+        ENDIF
+
+! write out the particle number and forces of
+! the max absolute and relative error
+        dum = MAXLOC ( diff )
+        WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA ONE-FOUR =', dbg % f_onef(:,dum(2))
+        WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM ONE-FOUR =', f_numer(:,dum(2))
+
+        IF ( .NOT. ANY ( dbg % f_ub == 0._dbl ) ) THEN
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+             ' PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F ANA ONE-FOUR =', dbg % f_onef(:,dum(2))
+          WRITE ( iw, '( A,T21,3G20.12 )' ) &
+             ' F NUM ONE-FOUR =', f_numer(:,dum(2))
+        END IF
+     END IF
+
+! Debug ub virial
+     WRITE ( iw, '( /,A )' ) &
+          ' DO YOU WANT TO DEBUG YOUR ONE-FOUR VIRIAL (1=yes)?'
+     READ ( ir, * ) iflag
+     IF ( iflag == 1 ) THEN
+
+! get numerical virial
+        WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+        READ ( ir, * ) delta
+        IF ( delta >= 1 .OR. delta <= 0 ) THEN
+           delta = 1.0E-5_dbl
+           WRITE ( iw, '( A, T61, G20.12 )' ) &
+                ' DELTA (changed to default) = ', delta
+        ELSE
+           WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
+        END IF
+        CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
+                                particle_set, cell, pv_test, delta )
+
+! write out the virials
+        WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
+        DO i = 1, 3
+           WRITE ( iw, '( T21,3G20.12 )' ) dbg % pv_onef(i,:)
+        END DO
+        WRITE ( iw, '( A )' ) ' PV NUM ONE-FOUR'
         DO i = 1, 3
            WRITE ( iw, '( T21, 3G20.12 )' ) pv_test ( i, : )
         END DO
