@@ -431,9 +431,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule_kind, istat, &
-                                                nelectron_global,&
+                                                nao_global, nelectron_global,&
                                                 nkind, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
+    REAL(dp)                                 :: maxocc_global(2)
     LOGICAL                                  :: failure, nmo_eq_nao, use_ref_cell
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -582,6 +583,8 @@ CONTAINS
     CALL kg_fm_mol_set_create(kg_fm,nmolecule_kind,error=error)
     CALL kg_sub_pw_env_create(kg_sub_pw_env,nmolecule_kind,error=error)
     nelectron_global = 0
+    nao_global = 0
+    maxocc_global(1:2) = 0.0_dp
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
       CALL build_local_fm_mol(kg_fm%kg_fm_mol_set(imolecule_kind),&
@@ -590,7 +593,9 @@ CONTAINS
                               molecule_set,particle_set,&
                               nspins,nmo_eq_nao,added_mos,&
                               scf_control%use_cholesky,&
-                              nelectron_global)
+                              nelectron_global,nao_global,&
+                              maxocc_global=maxocc_global,&
+                              error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
       molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
@@ -602,7 +607,10 @@ CONTAINS
     CALL kg_sub_pw_env_release(kg_sub_pw_env,error=error)
 
     CALL mp_sum(nelectron_global, para_env%group)
+    CALL mp_sum(nao_global, para_env%group)
     kg_fm%nelectron_global = nelectron_global
+    kg_fm%nao_global = nao_global
+    kg_fm%maxocc_global = maxocc_global
     kg_fm%nmolecule_global = SIZE(molecule_set,1)
     CALL set_kg_env(kg_env=kg_env,&
                     kg_fm_set=kg_fm,&

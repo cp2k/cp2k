@@ -77,6 +77,7 @@ MODULE kg_environment_types
   USE kg_scf_types,                    ONLY: kg_scf_env_type,&
                                              kg_scf_env_retain,&
                                              kg_scf_env_release
+  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -152,7 +153,9 @@ CONTAINS
                          use_ref_cell,sub_qs_env,&
                          dft_control,distribution_2d,&
                          dyn_coeff_set,energy,force,&
-                         kg_fm_set,local_particles,local_molecules,&
+                         kg_fm_set,nao_global,&
+                         nelectron_global,maxocc_global,&
+                         local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
                          blacs_env,particle_set,rho,rspw,scf_env,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
@@ -177,6 +180,10 @@ CONTAINS
     TYPE(kg_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
+    INTEGER, INTENT(OUT), OPTIONAL           :: nao_global
+    INTEGER, INTENT(OUT), OPTIONAL           :: nelectron_global
+    REAL(dp), DIMENSION(2), INTENT(OUT), &
+      OPTIONAL                               :: maxocc_global
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
@@ -216,7 +223,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
 !   ---------------------------------------------------------------------------
-!   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     NULLIFY(atomic_kinds, particles,molecule_kinds_new, molecules_new) 
@@ -236,6 +242,18 @@ CONTAINS
     IF (PRESENT(force)) force => kg_env%force
     IF (PRESENT(id_nr)) id_nr=kg_env%id_nr
     IF (PRESENT(kg_fm_set))  kg_fm_set => kg_env%kg_fm_set
+    IF (PRESENT(nao_global)) THEN
+        CPPrecondition(ASSOCIATED(kg_env%kg_fm_set),cp_failure_level,routineP,error,failure)
+        nao_global = kg_env%kg_fm_set%nao_global
+    END IF
+    IF (PRESENT(nelectron_global)) THEN
+        CPPrecondition(ASSOCIATED(kg_env%kg_fm_set),cp_failure_level,routineP,error,failure)
+        nelectron_global = kg_env%kg_fm_set%nelectron_global
+    END IF
+    IF (PRESENT(maxocc_global)) THEN
+        CPPrecondition(ASSOCIATED(kg_env%kg_fm_set),cp_failure_level,routineP,error,failure)
+        maxocc_global = kg_env%kg_fm_set%maxocc_global
+    END IF
     IF (PRESENT(subsys)) subsys => kg_env%subsys
     IF (PRESENT(para_env)) para_env => kg_env%para_env
     IF (PRESENT(scf_env)) scf_env => kg_env%scf_env

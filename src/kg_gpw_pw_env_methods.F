@@ -252,7 +252,7 @@ CONTAINS
     molbox_env%rab_max = rab_max
     molbox_env%rad_max = rad_max
     length = rab_max + 1.5_dp*rad_max
-
+ 
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       IF(Li<length) THEN
@@ -870,13 +870,15 @@ CONTAINS
                nat_mol, nmol, nmolecule_kind
     INTEGER, DIMENSION(:), POINTER              :: index_atom
     LOGICAL :: failure, my_rebuild_grids, my_rebuild_ao
-    REAL(dp) :: Lo2(3), oonat_mol, r_ref(3), r0(3), r0_pbc(3), rab_pbc(3), rb(3)
+    REAL(dp) :: dref(3), Lo2(3), oonat_mol, r_ref(3), r0(3), r0_pbc(3), rab_pbc(3), rb(3)
     REAL(dp), DIMENSION(:,:), POINTER           :: r_mbox
     REAL(dp), DIMENSION(:,:), POINTER           :: r_tbox
     TYPE(kg_molbox_env_type), POINTER           :: molbox_env
     TYPE(cell_type) , POINTER                   :: cell_mol
     TYPE(pw_env_type) , POINTER                 :: pw_env_mol
+    TYPE(pw_grid_type), POINTER                 :: pw_grid_mol
     TYPE(pw_pool_type), POINTER                 :: auxbas_pw_pool
+
     TYPE(qs_rho_type), POINTER                  :: rho_mol
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                   :: rho_mol_blocks
@@ -899,13 +901,22 @@ CONTAINS
         CALL get_molbox_env(molbox_env=molbox_env, natom = nat_mol, cell_mol=cell_mol,&
                             pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
 
+
+        CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
+        pw_grid_mol => auxbas_pw_pool%pw_grid
+
         oonat_mol = 1.0_dp/REAL(nat_mol,dp)
         nmol = SIZE(rho_mol_blocks,1)
         DO i = 1,3
-          Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
+!          Lo2(i) = cell_mol%hmat(i,i)/2.0_dp
+          Lo2(i) = pw_grid_mol%dr(i)*FLOOR(pw_grid_mol%npts(i)/2.0_dp)
+!dbg
+!  write(*,*) 'side ', i, cell_mol%hmat(i,i)
+!  write(*,*) 'npt ', i, pw_grid_mol%npts(i), ' dr ',pw_grid_mol%dr(i) 
+!  write(*,*) 'center side ', i, Lo2(i), ' pt ', FLOOR(pw_grid_mol%npts(i)/2.0_dp)
+!dbg
         END DO
 
-        CALL pw_env_get(pw_env=pw_env_mol,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
         DO imol = 1,nmol
           NULLIFY(rho_block,rho_mol,index_atom)
@@ -914,6 +925,16 @@ CONTAINS
                                  r_in_molbox=r_mbox,r_in_totbox=r_tbox)
           r0(1:3) = 0.0_dp
           r_ref(1:3) = particle_set( index_atom(1) )%r(1:3) 
+          dref(1) = r_ref(1)-FLOOR(r_ref(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+          dref(2) = r_ref(2)-FLOOR(r_ref(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+          dref(3) = r_ref(3)-FLOOR(r_ref(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
+!dbg
+!     write(*,'(A,3f16.8)') 'atom ref mol ', r_ref(1:3)
+!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
+!     write(*,'(A,3I6)') 'pt ', FLOOR(r_ref(1)/pw_grid_mol%dr(1)),&
+!                               FLOOR(r_ref(2)/pw_grid_mol%dr(2)),&
+!                               FLOOR(r_ref(3)/pw_grid_mol%dr(3))
+!dbg
           DO iat = 1,nat_mol
             iatom = index_atom(iat)
             rb(1:3) = particle_set( iatom ) %r(1:3)
@@ -927,14 +948,35 @@ CONTAINS
             r0(i) = r0(i)*oonat_mol
           END DO
           CALL set_rho_mol_block(rho_block=rho_block,r0_molecule=r0)
+          dref(1) = r0(1)-FLOOR(r0(1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+          dref(2) = r0(2)-FLOOR(r0(2)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+          dref(3) = r0(3)-FLOOR(r0(3)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
+!dbg
+!     write(*,'(A,3f16.8)') 'atom center mol ', r0(1:3)
+!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
+!     write(*,'(A,3I6)') 'pt ', FLOOR(r0(1)/pw_grid_mol%dr(1)),&
+!                               FLOOR(r0(2)/pw_grid_mol%dr(2)),&
+!                               FLOOR(r0(3)/pw_grid_mol%dr(3))
+!dbg
           DO iat = 1,nat_mol
             rb(1:3) = r_tbox(1:3,iat) 
             rab_pbc(:) = pbc(r0(:),rb(:),cell)
             DO i = 1,3
-              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) 
+              r_mbox(i,iat) = rab_pbc(i) + Lo2(i) + dref(i) 
             END DO
           END DO
 
+          dref(1) = r_mbox(1,1)-FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1))*pw_grid_mol%dr(1)
+          dref(2) = r_mbox(2,1)-FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2))*pw_grid_mol%dr(2)
+          dref(3) = r_mbox(3,1)-FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))*pw_grid_mol%dr(3)
+!dbg
+!     write(*,'(A,3f16.8)') 'atom 1 mol int ', r_mbox(1:3,1)
+!     write(*,'(A,3f16.8)') 'displ. wrt node ',dref(1) ,  dref(2), dref(3)
+!     write(*,'(A,3I6)') 'pt ', FLOOR(r_mbox(1,1)/pw_grid_mol%dr(1)),&
+!                               FLOOR(r_mbox(2,1)/pw_grid_mol%dr(2)),&
+!                               FLOOR(r_mbox(3,1)/pw_grid_mol%dr(3))
+ !  stop
+!dbg
           IF (.NOT.ASSOCIATED(rho_mol)) THEN
             my_rebuild_grids=.TRUE.
             my_rebuild_ao=.FALSE.

@@ -100,7 +100,8 @@ CONTAINS
                                  local_molecules, molecule_set,&
                                  particle_set, nspins, nmo_eq_nao, &
                                  added_mos,use_cholesky,&
-                                 nelectron_global,error)
+                                 nelectron_global,nao_global,&
+                                 maxocc_global,error)
 
 !   Purpose: 
 
@@ -120,6 +121,8 @@ CONTAINS
     INTEGER, DIMENSION(2), INTENT(IN)          :: added_mos
     LOGICAL, INTENT(IN)                        :: use_cholesky
     INTEGER , INTENT(INOUT)                    :: nelectron_global
+    INTEGER , INTENT(INOUT)                    :: nao_global
+    REAL(dp), DIMENSION(2), INTENT(INOUT)      :: maxocc_global
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
 
@@ -174,7 +177,8 @@ CONTAINS
       nelectron_spin(2) = 0
       n_mo(1) = nelectron/2
       n_mo(2) = 0
-
+      maxocc_global(1) = max( maxocc_global(1),maxocc)
+      maxocc_global(2) = 0.0_dp
     ELSE
 
       maxocc=1.0_dp
@@ -197,6 +201,8 @@ CONTAINS
 
       n_mo(1) = nelectron_spin(1)
       n_mo(2) = nelectron_spin(2)
+      maxocc_global(1) = max( maxocc_global(1),maxocc)
+      maxocc_global(2) = max( maxocc_global(2),maxocc)
 
     END IF
 
@@ -219,6 +225,7 @@ CONTAINS
      CALL allocate_fm_mol_blocks(fm_mol_set,nmol_local,error=error)
 
      nelectron_global = nelectron_global + nmol_local * nelectron
+     nao_global = nao_global + nmol_local * n_ao
      DO imol = 1,nmol_local
         iglobal = index_mol_local(imol)
         fm_mol_set%fm_mol_blocks(imol)%imol_global = iglobal

@@ -232,7 +232,8 @@ MODULE kg_gpw_fm_mol_types
   TYPE kg_fm_p_type
     TYPE(kg_fm_mol_set_type), DIMENSION(:),& 
        POINTER                                :: kg_fm_mol_set
-    INTEGER  :: nelectron_global, nmolecule_global, ref_count
+    INTEGER  :: nao_global, nelectron_global, nmolecule_global, ref_count
+    REAL(dp) :: maxocc_global(2)
   END TYPE kg_fm_p_type
 
 ! *** Public subroutines ***
@@ -539,6 +540,9 @@ CONTAINS
 
     ALLOCATE(kg_fm,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    kg_fm%nelectron_global = 0
+    kg_fm%nao_global = 0
+    kg_fm%nmolecule_global = 0
     NULLIFY(kg_fm%kg_fm_mol_set)
     ALLOCATE(kg_fm%kg_fm_mol_set(nmolecule_kind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
