@@ -388,6 +388,12 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
      CALL close_file(file_unit)
   END IF
 
+  IF (print_ep_matrixes) THEN
+     CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
+          long_description=debug_this_module, local=.FALSE.,&
+          error=error)
+  END IF
+
   CALL timestop(0.0_wp, handle)
 END SUBROUTINE qs_ep_calculation
 !***************************************************************************

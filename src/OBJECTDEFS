@@ -59,6 +59,7 @@ OBJECTS_GENERIC =\
  cp_para_env.o\
  cp_para_types.o\
  cp_sll_int_tests.o\
+ cp_sm_struct.o\
  cube_utils.o\
  densities.o\
  density_types.o\

@@ -215,6 +215,7 @@ CONTAINS
        last_kpp1_id_nr=last_kpp1_id_nr+1
        kpp1_env%id_nr=last_kpp1_id_nr
        kpp1_env%iter=0
+       kpp1_env%print_count=0
     END IF
   END SUBROUTINE kpp1_create
 !***************************************************************************

@@ -70,7 +70,8 @@ MODULE qs_kpp1_env_types
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_generate_filename
   USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
@@ -81,6 +82,13 @@ MODULE qs_kpp1_env_types
                                              mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
+  use qs_parser, only: open_file, close_file
+  USE realspace_grid_types,            ONLY: rs_pw_to_cube
+  use cp_array_i_utils, only: cp_2d_i_output
+  use cp_array_r_utils, only: cp_2d_r_output
+  use cp_array_logical_utils, only: cp_2d_logical_output,&
+       cp_1d_logical_output
+  use string_utilities, only: compress_all
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              deallocate_matrix_set,&
                                              get_matrix_info,&
@@ -125,7 +133,8 @@ MODULE qs_kpp1_env_types
 !!     - updates_since_rebuild: how many updates have been done since the
 !!       last rebuild (if -1, forcces the rebuild)
 !!     - id_nr: identification number, unique for each kpp1 env
-!!     - iter: counter for the iteration number
+!!     - print_count: counter to create unique filename
+!!     - iter: number of iterations
 !!     - drho_r(idir,ispin): the derivative of rho wrt. x,y,z in the real space
 !!     - deriv_xc(ii,ipot): the second derivative of the xc potential at psi0 
 !!       (qs_env%c), if grad pot is true it should already be divised
@@ -150,7 +159,7 @@ MODULE qs_kpp1_env_types
   !***************************************************************************
   TYPE qs_kpp1_env_type
      INTEGER :: ref_count, rebuild_each, updates_since_rebuild, id_nr,&
-          iter
+          print_count, iter
      TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: v_ao
      TYPE(pw_p_type), DIMENSION(:,:), pointer :: drho_r
@@ -350,7 +359,8 @@ CONTAINS
 !!     12.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local, error)
+  SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
+       error)
     TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
     INTEGER, INTENT(in) :: unit_nr
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
@@ -361,6 +371,9 @@ CONTAINS
          routineP=moduleN//':'//routineN
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
+    character(len=30) :: base_filename
+    character(len=60) :: filename
+    integer :: ispin, idir, file_unit
 
     failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
 
@@ -371,10 +384,146 @@ CONTAINS
     should_w=my_local .OR. para_env%mepos==para_env%source
 
     IF (ASSOCIATED(kpp1_env)) THEN
+       kpp1_env%print_count=kpp1_env%print_count+1
+
        IF (should_w) THEN
+          base_filename="kpp1-"//trim(adjustl(cp_to_string(kpp1_env%id_nr)))&
+               //"-"//trim(adjustl(cp_to_string(kpp1_env%print_count)))
+          call compress_all(base_filename)
           WRITE (unit=unit_nr,&
                fmt="(' <kpp1_env>:{ id_nr=',i10,' ref_count=',i10,',')")&
                kpp1_env%id_nr, kpp1_env%ref_count
+
+          if (associated(kpp1_env%v_rspace)) then
+             if (my_long_description) then
+                do ispin=1,size(kpp1_env%v_rspace)
+                   call cp_logger_generate_filename(logger=logger,res=filename,&
+                        root=trim(base_filename)//"%v_rspace-"//&
+                        trim(adjustl(cp_to_string(ispin))), postfix=".cube",&
+                        local=my_local)
+                   CALL open_file(file_name=trim(filename),file_status="UNKNOWN",&
+                        file_action="WRITE",unit_number=file_unit)
+                   CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                        iunit=file_unit,&
+                        ionode=logger%para_env%mepos==logger%para_env%source,&
+                        title="v_rspace")
+                   CALL close_file(file_unit)
+                end do
+                WRITE (unit=unit_nr,fmt="(a,a,a)") " v_rspace=*written to ",&
+                     trim(filename),"*"
+             else
+                WRITE (unit=unit_nr,fmt="(a)") " v_rspace=*associated*"
+             end if
+          else
+             WRITE (unit=unit_nr,fmt="(a)") " v_rspace=*null*"
+          end if
+
+          if (associated(kpp1_env%v_ao)) then
+             if (my_long_description) then
+                do ispin=1,size(kpp1_env%v_ao)
+                   call cp_sm_output(logger=logger,&
+                        outputName=trim(base_filename)//"%v_ao-"//&
+                        trim(adjustl(cp_to_string(ispin))),&
+                        fromWhere=routineP,iter=kpp1_env%print_count,&
+                        matrix=kpp1_env%v_ao(ispin)%matrix,&
+                        para_env=logger%para_env,&
+                        error=error)
+                end do
+                WRITE (unit=unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
+                     filename,"*"
+             else
+                write (unit=unit_nr,fmt="(a)") " v_ao=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " v_ao=*null*"
+          end if
+
+          if (associated(kpp1_env%drho_r)) then
+             if (my_long_description) then
+                do ispin=1,size(kpp1_env%drho_r,2)
+                   do idir=1,size(kpp1_env%drho_r,1)
+                      call cp_logger_generate_filename(logger=logger,&
+                           res=filename,&
+                           root=trim(base_filename)//"%drho_r-"//&
+                           trim(adjustl(cp_to_string(ispin)))//&
+                           trim(adjustl(cp_to_string(idir))),&
+                           postfix=".cube",&
+                           local=my_local)
+                      CALL open_file(file_name=trim(filename),&
+                           file_status="UNKNOWN",&
+                           file_action="WRITE",unit_number=file_unit)
+                      CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
+                           iunit=file_unit,&
+                           ionode=logger%para_env%mepos==logger%para_env%source,&
+                           title="drho_r")
+                      CALL close_file(file_unit)
+                   end do
+                end do
+                WRITE (unit=unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
+                     filename,"*"
+             else
+                write (unit=unit_nr,fmt="(a)") " drho_r=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " drho_r=*null*"
+          end if
+
+          if (associated(kpp1_env%deriv_xc)) then
+             if (my_long_description) then
+                call cp_2d_r_output(logger=logger,&
+                     outputName=base_filename//"%deriv_xc", &
+                     fromWhere=routineP, iter=kpp1_env%print_count,&
+                     array=kpp1_env%deriv_xc,&
+                     local=my_local, error=error)
+             else
+                write (unit=unit_nr,fmt="(a)") " deriv_xc=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " deriv_xc=*null*"
+          end if
+
+          if (associated(kpp1_env%spin_pot)) then
+             if (my_long_description) then
+                call cp_2d_i_output(logger=logger,&
+                     outputName=base_filename//"%spin_pot", &
+                     fromWhere=routineP, iter=kpp1_env%print_count,&
+                     array=kpp1_env%spin_pot,&
+                     local=my_local, error=error)
+             else
+                write (unit=unit_nr,fmt="(a)") " spin_pot=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " spin_pot=*null*"
+          end if
+
+          if (associated(kpp1_env%grad_pot)) then
+             if (my_long_description) then
+                call cp_2d_logical_output(logger=logger,&
+                     outputName=base_filename//"%grad_pot", &
+                     fromWhere=routineP, iter=kpp1_env%print_count,&
+                     array=kpp1_env%grad_pot,&
+                     local=my_local, error=error)
+             else
+                write (unit=unit_nr,fmt="(a)") " grad_pot=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " grad_pot=*null*"
+          end if
+
+          if (associated(kpp1_env%ndiag_term)) then
+             if (my_long_description) then
+                call cp_1d_logical_output(logger=logger,&
+                     outputName=base_filename//"%ndiag_term", &
+                     fromWhere=routineP, iter=kpp1_env%print_count,&
+                     array=kpp1_env%ndiag_term,&
+                     local=my_local, error=error)
+             else
+                write (unit=unit_nr,fmt="(a)") " ndiag_term=*associated*"
+             end if
+          else
+             write (unit=unit_nr,fmt="(a)") " ndiag_term=*null*"
+          end if
+
        end IF
     ELSE
        IF (should_w) THEN
