@@ -70,8 +70,6 @@ MODULE qs_environment_types
   USE cp_matrix_utils,                 ONLY: sm_struct_add_sm_local_blocks
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_blacs_env,                    ONLY: cp_blacs_env_retain, &
-                                             cp_blacs_env_release
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
