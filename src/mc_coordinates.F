@@ -385,9 +385,9 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       ENDDO
 
 ! sum up the total energy
-!      classical_energy_new=bend_energy+&
-!                stretch_energy+LJ_energy+charge_energy
-    classical_energy_new=LJ_energy+charge_energy
+      classical_energy_new=bend_energy+&
+                stretch_energy+LJ_energy+charge_energy
+!    classical_energy_new=LJ_energy+charge_energy
 !!!!!!!!!!!!!! 
 
 ! scale the total energy to get classical vs. Quickstep energy diffs closer
@@ -446,25 +446,25 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 
       
 ! --- these pshift make the potential zero at 7.8 angstroms
-      pshift(1)=0.127827d0 ! Hartree
-      pshift(2)=2.22408d0
-      pshift(3)=0.256530d0
+!      pshift(1)=0.127827d0 ! Hartree
+!      pshift(2)=2.22408d0
+!      pshift(3)=0.256530d0
 !!!!!!!!!!!!!!!
 ! --- these make it zero at 6.211 angstroms
-!      pshift(1)=0.128426d0 ! Hartree
-!      pshift(2)=2.223850d0
-!      pshift(3)=0.256652d0
+      pshift(1)=0.128426d0 ! Hartree
+      pshift(2)=2.223850d0
+      pshift(3)=0.256652d0
       m(1) = 0.0d0   ! Hartree/a.u.
       m(2) = -0.00437054d0
       m(3) = 0.00377391d0
 ! --- these b make the potential zero at 7.8 angstroms
-      b(1) = 1.0d23 ! Hartree
-      b(2) = 0.0313652d0
-      b(3) = -0.0206204d0
-! --- these b make the potential zero at 6.211 angstroms
 !      b(1) = 1.0d23 ! Hartree
-!      b(2) = 0.0311350d0
-!      b(3) = -0.0204983d0
+!      b(2) = 0.0313652d0
+!      b(3) = -0.0206204d0
+! --- these b make the potential zero at 6.211 angstroms
+      b(1) = 1.0d23 ! Hartree
+      b(2) = 0.0311350d0
+      b(3) = -0.0204983d0
       r_core(1)=0.9d0 ! a.u.
       r_core(2)=2.95d0
       r_core(3)=3.165d0
