@@ -2,6 +2,7 @@
   PROJECT    water
   PROGRAM    kg
   IOLEVEL    1
+  RUN_TYPE   md
   FFTLIB     FFTSG
 &END
 
@@ -14,17 +15,20 @@
 &END
 
 &DFT
-FUNCTIONAL Pade
+X-FUNCTIONAL  becke88
+C-FUNCTIONAL  lyp  
+KE-FUNCTIONAL tfw
 &END 
 
 &KG
- cutoff 10.0
+ cutoff 220.0
  eps_core_charge 1.0E-8
- eps_pgf_orb 1.0E-7
- eps_gvg_rspace 1.0E-7
+ eps_pgf_orb 1.0E-8
+ eps_gvg_rspace 1.0E-8
  eps_rho 1.0E-8
  method  KG_NOPOL
- ngrid_level 1
+ ngrid_level 6
+ rel_cutoff  30
 &END
 
 &PRINT
@@ -33,16 +37,6 @@ CORE_CHARGE_RADII
 RADII
 POTENTIALS
 &END
-
-
-&COORD
-O  0.0  -0.757136    0.520545
-H  0.0   0.0        -0.065587
-H 0.0    0.757136   0.520545
-O  2.0  -0.757136    0.520545
-H  2.0   0.0        -0.065587
-H 2.0    0.757136   0.520545
-&END 
 
 &KIND H
 BASIS_SET  KG-PDM-BARKER
@@ -56,14 +50,13 @@ POTENTIAL  EPC
 
 &MD
   ensemble:     nvt                      (nve,nvt,npt_i,npt_f)
-  steps:        10
-  timestep:     2.5                      time step [fs]
+  steps:        2000
+  timestep:     2.0                      time step [fs]
   temperature:  277.0                    temperature [K]
   restart:      posvel                      start type (pos,posvel)
   constraints:  on
   shake:        1.e-10
   verlet_skin:   1
-  cell:        13 13 13
   nose_parameter   &
     length:    1        &
     Yoshida:   3        &
@@ -72,6 +65,6 @@ POTENTIAL  EPC
   barostat_parameter:   &
     pressure: 0.        &
     timecon: 1000.
-  print  files          10
-  print  screen         1
+  print  files          5
+  print  screen         5  
 &END
