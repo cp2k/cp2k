@@ -488,6 +488,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 !
 
+    failure = .FALSE.
     nmolecule_kind=SIZE(fm_mol_set_a,1)
     CPPostcondition(SIZE(fm_mol_set_b,1)==nmolecule_kind,cp_failure_level,routineP,error,failure)
 
