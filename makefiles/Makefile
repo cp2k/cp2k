@@ -35,9 +35,9 @@ CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
 ### Master rules ###
 
 $(VERSION_TARGETS):
-	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
-	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
-	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	cd $(EXEDIR) || mkdir -p $(EXEDIR)
+	cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
+	cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
 	$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
 	$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
 
@@ -73,15 +73,16 @@ $(PROG): $(OBJECTS)
 
 %.d: %.F
 	$(CPP) $(CPPFLAGS) $< $*.f
-	$(FORPAR) $*.f
+	-$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
 
 parallel_include.o: parallel_include.F
-	$(CPP) $(CPPFLAGS) $< $@
+	$(FC_fixed) -c $(FCFLAGS) $<
 
 parallel_include.d: parallel_include.F
 	$(CPP) $(CPPFLAGS) $< $*.f
+	-$(FORPAR) -fix $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
 
