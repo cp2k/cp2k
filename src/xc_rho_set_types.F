@@ -48,8 +48,7 @@ MODULE xc_rho_set_types
                                              cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_unimplemented_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -58,7 +57,7 @@ MODULE xc_rho_set_types
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_type
+                                             cp_subsystem_p_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
@@ -234,13 +233,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_cflags_setall
 !!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_cflags_setall(cflags, value, error)
-!!       Type(xc_rho_cflags_type), Intent (OUT):: cflags
-!!       Logical, Intent (IN):: value
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_cflags_setall
-!!
 !!   FUNCTION
 !!     sets all the flags to the given value
 !!
@@ -281,13 +273,6 @@ CONTAINS
 !!
 !!   NAME
 !!     xc_rho_cflags_or
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_cflags_or(cflags1, cflags2, error)
-!!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
-!!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_cflags_or
 !!
 !!   FUNCTION
 !!     performs an OR on all the flags (cflags1=cflag1.or.cflags2)
@@ -332,13 +317,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_cflags_and
 !!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_cflags_and(cflags1, cflags2, error)
-!!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
-!!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_cflags_and
-!!
 !!   FUNCTION
 !!     performs an AND on all the flags (cflags1=cflag1.and.cflags2)
 !!
@@ -382,14 +360,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_cflags_equal
 !!
-!!   SYNOPSIS
-!!     Function xc_rho_cflags_equal(cflags1, cflags2, error) Result(equal)
-!!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
-!!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical:: equal
-!!     End Function xc_rho_cflags_equal
-!!
 !!   FUNCTION
 !!     return true if the two cflags are equal
 !!
@@ -432,15 +402,6 @@ CONTAINS
 !!
 !!   NAME
 !!     xc_rho_cflags_contain
-!!
-!!   SYNOPSIS
-!!     Function xc_rho_cflags_contain(cflags1, cflags2, error)&
-!!         Result(contain)
-!!       Type(xc_rho_cflags_type), Intent (INOUT):: cflags1
-!!       Type(xc_rho_cflags_type), Intent (IN):: cflags2
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical:: contain
-!!     End Function xc_rho_cflags_contain
 !!
 !!   FUNCTION
 !!     return true if all the true flags in cflags2 are also true in cflags1
@@ -538,15 +499,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_set_create
 !!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_set_create(rho_set, local_bounds, rho_cutoff,&
-!!         drho_cutoff, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Integer, Dimension(2,3), Intent (IN):: local_bounds
-!!       Real(Kind=dp), Intent (IN), Optional:: rho_cutoff, drho_cutoff
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_set_create
-!!
 !!   FUNCTION
 !!     allocates and does (minimal) initialization of a rho_set
 !!
@@ -607,12 +559,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_set_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_set_retain(rho_set, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_set_retain
-!!
 !!   FUNCTION
 !!     retains the given rho_set
 !!
@@ -645,13 +591,6 @@ CONTAINS
 !!
 !!   NAME
 !!     xc_rho_set_release
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_set_release(rho_set, pw_pool, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(pw_pool_type), Optional, Pointer:: pw_pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_set_release
 !!
 !!   FUNCTION
 !!     releases the given rho_set
@@ -785,27 +724,6 @@ CONTAINS
 !!
 !!   NAME
 !!     xc_rho_set_get
-!!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_set_get(rho_set, can_return_null, rho, drho,&
-!!         norm_drho, rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob,&
-!!         rho_1_3, rhoa_1_3, rhob_1_3, drhoa, drhob, rho_cutoff,&
-!!         drho_cutoff, tau, tau_a, tau_b, local_bounds, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Logical, Intent (IN), Optional:: can_return_null
-!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: rho
-!!       Type(cp_3d_r_p_type), Dimension(:), Optional, Pointer:: drho
-!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: norm_drho,&
-!!         rhoa, rhob, norm_drhoa, norm_drhob, drhoa_drhob, rho_1_3,&
-!!         rhoa_1_3, rhob_1_3
-!!       Type(cp_3d_r_p_type), Dimension(:), Optional, Pointer:: drhoa,&
-!!         drhob
-!!       Real(Kind=dp), Intent (OUT), Optional:: rho_cutoff, drho_cutoff
-!!       Real(Kind=dp), Dimension(:,:,:), Optional, Pointer:: tau, tau_a,&
-!!         tau_b
-!!       Integer, Dimension(:,:), Optional, Pointer:: local_bounds
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_set_get
 !!
 !!   FUNCTION
 !!     returns the various attributes of rho_set
@@ -1081,20 +999,6 @@ CONTAINS
 !!   NAME
 !!     xc_rho_set_update
 !!
-!!   SYNOPSIS
-!!     Subroutine xc_rho_set_update(rho_set, rho_r, rho_g, needs,&
-!!         dft_control, cell, pw_pool, atoms, error)
-!!       Type(xc_rho_set_type), Pointer:: rho_set
-!!       Type(pw_p_type), Dimension(:), Intent (INOUT), Target:: rho_r
-!!       Type(pw_p_type), Dimension(:), Pointer:: rho_g
-!!       Type(xc_rho_cflags_type), Intent (IN):: needs
-!!       Type(dft_control_type), Pointer:: dft_control
-!!       Type(cell_type), Pointer:: cell
-!!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Type(cp_subsystem_type), Pointer:: atoms
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine xc_rho_set_update
-!!
 !!   FUNCTION
 !!     updates the given rho set with the density given by
 !!     rho_r (and rho_g). The rho set will contain the components specified
@@ -1113,17 +1017,17 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!*** **********************************************************************
-  SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, needs,&
+  SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
        dft_control,cell,pw_pool,atoms,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, tau
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_type), POINTER         :: atoms
+    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1347,7 +1251,7 @@ CONTAINS
 
           IF (dft_control%xc_deriv_method_id/=xc_deriv_pw &
                .AND.dft_control%xc_deriv_method_id/=xc_deriv_fd &
-             ) THEN
+               ) THEN
              DO idir=1,3
                 drho_r_att(idir)%pw => drho_r(idir,ispin)%pw
              END DO
@@ -1578,12 +1482,6 @@ CONTAINS
           rho_set%has%drho_spin=.TRUE.
        END IF
     END SELECT
-    IF (needs%tau.OR.needs%tau_spin) THEN
-       CALL cp_unimplemented_error(fromWhere=routineP, &
-            message="tau part not yet implemented",&
-            error=error, error_level=cp_failure_level)
-    END IF
-
     ! post cleanup
     DO ispin=1,nspins
        DO idir=1,3
@@ -1598,6 +1496,44 @@ CONTAINS
        END DO
     END IF
 
+    ! tau part
+    IF (needs%tau.OR.needs%tau_spin) THEN
+       CPPrecondition(ASSOCIATED(tau),cp_failure_level,routineP,error,failure)
+       DO ispin=1,nspins
+          CPPrecondition(ASSOCIATED(tau(ispin)%pw),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(tau(ispin)%pw%cr3d),cp_failure_level,routineP,error,failure)
+       END DO
+    END IF
+    IF (needs%tau) THEN
+       IF (nspins==2) THEN
+          CALL pw_pool_create_cr3d(pw_pool,rho_set%tau,&
+               error=error)
+          !$omp parallel do default(none) private(i,j,k) shared(rho_set,tau)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+             DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+
+                   rho_set%tau(i,j,k)=&
+                        tau(1)%pw%cr3d(i,j,k)+&
+                        tau(2)%pw%cr3d(i,j,k)
+                END DO
+             END DO
+          END DO
+          rho_set%owns%tau=.TRUE.
+       ELSE
+          rho_set%tau => tau(1)%pw%cr3d
+          rho_set%owns%tau=.FALSE.
+       END IF
+       rho_set%has%tau=.TRUE.
+    END IF
+    IF (needs%tau_spin) THEN
+       CPPrecondition(nspins==2,cp_failure_level,routineP,error,failure)
+       rho_set%tau_a => tau(1)%pw%cr3d
+       rho_set%tau_b => tau(2)%pw%cr3d
+       rho_set%owns%tau_spin=.FALSE.
+       rho_set%has%tau_spin=.TRUE.
+    END IF
+
     CPPostcondition(xc_rho_cflags_equal(rho_set%has,needs),cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE xc_rho_set_update
@@ -1608,13 +1544,6 @@ CONTAINS
 !!   NAME
 !!     zero_core
 !!
-!!   SYNOPSIS
-!!     Subroutine zero_core(deriv, atoms, error)
-!!       Type(pw_type), Pointer:: deriv
-!!       Type(cp_subsystem_type), Pointer:: atoms
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine zero_core
-!!
 !!   FUNCTION
 !!     switches to zero the pw deriv towrds the cores of the atoms
 !!
@@ -1623,7 +1552,7 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - deriv: the pw the zero out in the core region
-!!     - atoms: subsytem with the positions of the atoms
+!!     - subsys: subsytems with the positions of the atoms
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1631,17 +1560,18 @@ CONTAINS
 !!     fawzi
 !!
 !!*** *********************************************************************
-  SUBROUTINE zero_core(deriv,atoms,error)
+  SUBROUTINE zero_core(deriv,subsys,error)
     TYPE(pw_type), POINTER                   :: deriv
-    TYPE(cp_subsystem_type), POINTER         :: atoms
+    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: subsys
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'zero_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ikind, iRadius, j, &
-                                                k, myi, myj, myk, natom
+    INTEGER                                  :: i, iatom, ikind, iRadius, &
+                                                isubsys, j, k, myi, myj, myk, &
+                                                natom
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: indexPos, npoints
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -1660,44 +1590,45 @@ CONTAINS
     dr=deriv%pw_grid%dr
     npoints=deriv%pw_grid%npts
     NULLIFY(atom_list,atomic_kinds,particles)
+    DO isubsys=1,SIZE(subsys)
+       CPPrecondition(ASSOCIATED(subsys(isubsys)%subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys(isubsys)%subsys, atomic_kinds=atomic_kinds, &
+            particles=particles,error=error)
+       DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind,&
+               ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
 
-    CALL cp_subsys_get(atoms, atomic_kinds=atomic_kinds, &
-         particles=particles,error=error)
-    DO ikind=1,atomic_kinds%n_els
-       atomic_kind => atomic_kinds%els(ikind)
-       CALL get_atomic_kind(atomic_kind,&
-            ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
-
-       IF (ldaCoreRadius(2)>0) THEN
-          CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
-          CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
-          int_radius=ldaCoreRadius(1)
-          radius=MAXVAL(dr)*ldaCoreRadius(2)
-          range_2=(radius-int_radius)/2.0_dp
-          radius_2=int_radius+range_2
-          iRadius=CEILING(ldaCoreRadius(2))
-          DO iatom=1,natom
-             pos=particles%els(atom_list(iatom))%r
-             bo=deriv%pw_grid%bounds_local
-             atBoundary=.FALSE.
-             DO i=1,3
-                posCorr(i)=MODULO(pos(i),REAL(npoints(i),dp)*dr(i))&
-                     -REAL(npoints(i),dp)/2.0_dp*dr(i)
-                indexPos(i)=MODULO(NINT(pos(i)/dr(i)),&
-                     npoints(i))-npoints(i)/2
-                IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
-                   atBoundary=.TRUE.
-                   bo(1,i)=indexPos(i)-iRadius
-                ELSE
-                   bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
-                END IF
-                IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
-                   atBoundary=.TRUE.
-                   bo(2,i)=indexPos(i)+iRadius
-                ELSE
-                   bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
-                END IF
-             END DO
+          IF (ldaCoreRadius(2)>0) THEN
+             CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
+             CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
+             int_radius=ldaCoreRadius(1)
+             radius=MAXVAL(dr)*ldaCoreRadius(2)
+             range_2=(radius-int_radius)/2.0_dp
+             radius_2=int_radius+range_2
+             iRadius=CEILING(ldaCoreRadius(2))
+             DO iatom=1,natom
+                pos=particles%els(atom_list(iatom))%r
+                bo=deriv%pw_grid%bounds_local
+                atBoundary=.FALSE.
+                DO i=1,3
+                   posCorr(i)=MODULO(pos(i),REAL(npoints(i),dp)*dr(i))&
+                        -REAL(npoints(i),dp)/2.0_dp*dr(i)
+                   indexPos(i)=MODULO(NINT(pos(i)/dr(i)),&
+                        npoints(i))-npoints(i)/2
+                   IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
+                      atBoundary=.TRUE.
+                      bo(1,i)=indexPos(i)-iRadius
+                   ELSE
+                      bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
+                   END IF
+                   IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
+                      atBoundary=.TRUE.
+                      bo(2,i)=indexPos(i)+iRadius
+                   ELSE
+                      bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
+                   END IF
+                END DO
 
 !FM    WRITE(cp_logger_get_default_unit_nr(logger),"('indexPos=(',i6,',',i6,',',i6,')')")&
 !FM         indexPos(1),indexPos(2),indexPos(3)
@@ -1710,78 +1641,79 @@ CONTAINS
 !FM    WRITE(cp_logger_get_default_unit_nr(logger),*) 'radii:',int_radius,radius_2,&
 !FM         radius, 'range_2=',range_2
 
-             IF (atBoundary) THEN
-                DO k=bo(1,3),bo(2,3)
-                   myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
-                   IF (myk< deriv%pw_grid%bounds_local(1,3).OR.&
-                        myk> deriv%pw_grid%bounds_local(2,3)) CYCLE
-                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
-                   DO j=bo(1,2),bo(2,2)
-                      myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
-                      IF (myj< deriv%pw_grid%bounds_local(1,2).OR.&
-                           myj> deriv%pw_grid%bounds_local(2,2)) CYCLE
-                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
-                      DO i=bo(1,1),bo(2,1)
-                         myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
-                         IF (myi< deriv%pw_grid%bounds_local(1,1).OR.&
-                              myj> deriv%pw_grid%bounds_local(2,1)) CYCLE
-                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
-                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
+                IF (atBoundary) THEN
+                   DO k=bo(1,3),bo(2,3)
+                      myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
+                      IF (myk< deriv%pw_grid%bounds_local(1,3).OR.&
+                           myk> deriv%pw_grid%bounds_local(2,3)) CYCLE
+                      rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
+                      DO j=bo(1,2),bo(2,2)
+                         myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
+                         IF (myj< deriv%pw_grid%bounds_local(1,2).OR.&
+                              myj> deriv%pw_grid%bounds_local(2,2)) CYCLE
+                         rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
+                         DO i=bo(1,1),bo(2,1)
+                            myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
+                            IF (myi< deriv%pw_grid%bounds_local(1,1).OR.&
+                                 myj> deriv%pw_grid%bounds_local(2,1)) CYCLE
+                            rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                            r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 
-                         IF (r<radius) THEN
-                            IF (r<int_radius) THEN
-                               deriv%cr3d(myi,myj,myk)=0.0_dp
-                            ELSEIF (r<radius_2) THEN
+                            IF (r<radius) THEN
+                               IF (r<int_radius) THEN
+                                  deriv%cr3d(myi,myj,myk)=0.0_dp
+                               ELSEIF (r<radius_2) THEN
 !FM                      WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                           "('(',i6,',',i6,',',i6,') within radius2')") myi,myj,myk
-                               r_n=(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               deriv%cr3d(myi,myj,myk)=deriv%cr3d(myi,myj,myk)*&
-                                    r_n2*(r_n-0.5_dp*r_n2)
-                            ELSE
-                               r_n=2.0_dp-(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               deriv%cr3d(myi,myj,myk)=deriv%cr3d(myi,myj,myk)*&
-                                    (1.0_dp-r_n2*(r_n-0.5_dp*r_n2))
+                                  r_n=(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  deriv%cr3d(myi,myj,myk)=deriv%cr3d(myi,myj,myk)*&
+                                       r_n2*(r_n-0.5_dp*r_n2)
+                               ELSE
+                                  r_n=2.0_dp-(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  deriv%cr3d(myi,myj,myk)=deriv%cr3d(myi,myj,myk)*&
+                                       (1.0_dp-r_n2*(r_n-0.5_dp*r_n2))
+                               END IF
                             END IF
-                         END IF
+                         END DO
                       END DO
                    END DO
-                END DO
-             ELSE
-                DO k=bo(1,3),bo(2,3)
-                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
-                   DO j=bo(1,2),bo(2,2)
-                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
-                      DO i=bo(1,1),bo(2,1)
-                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
-                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
+                ELSE
+                   DO k=bo(1,3),bo(2,3)
+                      rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
+                      DO j=bo(1,2),bo(2,2)
+                         rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
+                         DO i=bo(1,1),bo(2,1)
+                            rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                            r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 !FM                WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                     "('r=',f8.3)") r
 
-                         IF (r<radius) THEN
-                            IF (r<int_radius) THEN
-                               deriv%cr3d(i,j,k)=0.0_dp
-                            ELSEIF (r<radius_2) THEN
+                            IF (r<radius) THEN
+                               IF (r<int_radius) THEN
+                                  deriv%cr3d(i,j,k)=0.0_dp
+                               ELSEIF (r<radius_2) THEN
 !FM                      WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                           "('(',i6,',',i6,',',i6,') within radius2')") i,j,k
-                               r_n=(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               deriv%cr3d(i,j,k)=deriv%cr3d(i,j,k)*&
-                                    r_n2*(r_n-0.5_dp*r_n2)
-                            ELSE
-                               r_n=2.0_dp-(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               deriv%cr3d(i,j,k)=deriv%cr3d(i,j,k)*&
-                                    (1.0_dp-r_n2*(r_n-0.5_dp*r_n2))
+                                  r_n=(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  deriv%cr3d(i,j,k)=deriv%cr3d(i,j,k)*&
+                                       r_n2*(r_n-0.5_dp*r_n2)
+                               ELSE
+                                  r_n=2.0_dp-(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  deriv%cr3d(i,j,k)=deriv%cr3d(i,j,k)*&
+                                       (1.0_dp-r_n2*(r_n-0.5_dp*r_n2))
+                               END IF
                             END IF
-                         END IF
+                         END DO
                       END DO
                    END DO
-                END DO
-             END IF
-          END DO
-       END IF
+                END IF
+             END DO
+          END IF
+       END DO
     END DO
   END SUBROUTINE zero_core
 
@@ -1789,13 +1721,6 @@ CONTAINS
 !!
 !!   NAME
 !!     zero_core_force
-!!
-!!   SYNOPSIS
-!!     Subroutine zero_core_force(energy, atoms, error)
-!!       Type(pw_type), Pointer:: energy
-!!       Type(cp_subsystem_type), Pointer:: atoms
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine zero_core_force
 !!
 !!   FUNCTION
 !!      adds the force due to the zero_core the the atoms.
@@ -1805,7 +1730,7 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - energy: the energy density
-!!     - atoms: subsytem with the atoms that will get the force added
+!!     - subsys: subsytems with the atoms that will get the force added
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1813,17 +1738,18 @@ CONTAINS
 !!     fawzi
 !!
 !!*** *********************************************************************
-  SUBROUTINE zero_core_force(energy,atoms,error)
+  SUBROUTINE zero_core_force(energy,subsys,error)
     TYPE(pw_type), POINTER                   :: energy
-    TYPE(cp_subsystem_type), POINTER         :: atoms
+    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: subsys
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'zero_core_force', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iatom, ikind, iRadius, j, &
-                                                k, myi, myj, myk, natom, stat
+    INTEGER                                  :: i, iatom, ikind, iRadius, &
+                                                isubsys, j, k, myi, myj, myk, &
+                                                natom, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: indexPos, npoints
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -1845,46 +1771,48 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(para_env,particles, atom_list, atomic_kinds)
-    CALL cp_subsys_get(atoms, atomic_kinds=atomic_kinds, &
-         particles=particles,para_env=para_env,error=error)
-    DO ikind=1,atomic_kinds%n_els
-       atomic_kind => atomic_kinds%els(ikind)
-       CALL get_atomic_kind(atomic_kind,&
-            ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
+    DO isubsys=1,SIZE(subsys)
+       CPPrecondition(ASSOCIATED(subsys(isubsys)%subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys(isubsys)%subsys, atomic_kinds=atomic_kinds, &
+            particles=particles,para_env=para_env,error=error)
+       DO ikind=1,atomic_kinds%n_els
+          atomic_kind => atomic_kinds%els(ikind)
+          CALL get_atomic_kind(atomic_kind,&
+               ldaCoreRadius=ldaCoreRadius, atom_list=atom_list,natom=natom)
 
-       IF (ldaCoreRadius(2)>0) THEN
-          CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
-          CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
-          int_radius=ldaCoreRadius(1)
-          radius=MAXVAL(dr)*ldaCoreRadius(2)
-          range_2=(radius-int_radius)/2.0_dp
-          radius_2=int_radius+range_2
-          iRadius=CEILING(ldaCoreRadius(2))
-          ALLOCATE(f(3,natom),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          f=0.0_dp
-          DO iatom=1,natom
-             pos=particles%els(atom_list(iatom))%r
-             bo=energy%pw_grid%bounds_local
-             atBoundary=.FALSE.
-             DO i=1,3
-                posCorr(i)=MODULO(pos(i),REAL(npoints(i),dp)*dr(i))&
-                     -REAL(npoints(i),dp)/2.0_dp*dr(i)
-                indexPos(i)=MODULO(NINT(pos(i)/dr(i)),&
-                     npoints(i))-npoints(i)/2
-                IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
-                   atBoundary=.TRUE.
-                   bo(1,i)=indexPos(i)-iRadius
-                ELSE
-                   bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
-                END IF
-                IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
-                   atBoundary=.TRUE.
-                   bo(2,i)=indexPos(i)+iRadius
-                ELSE
-                   bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
-                END IF
-             END DO
+          IF (ldaCoreRadius(2)>0) THEN
+             CPPrecondition(ASSOCIATED(atom_list),cp_failure_level,routineP,error,failure)
+             CPPrecondition(SIZE(atom_list)>=natom,cp_failure_level,routineP,error,failure)
+             int_radius=ldaCoreRadius(1)
+             radius=MAXVAL(dr)*ldaCoreRadius(2)
+             range_2=(radius-int_radius)/2.0_dp
+             radius_2=int_radius+range_2
+             iRadius=CEILING(ldaCoreRadius(2))
+             ALLOCATE(f(3,natom),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             f=0.0_dp
+             DO iatom=1,natom
+                pos=particles%els(atom_list(iatom))%r
+                bo=energy%pw_grid%bounds_local
+                atBoundary=.FALSE.
+                DO i=1,3
+                   posCorr(i)=MODULO(pos(i),REAL(npoints(i),dp)*dr(i))&
+                        -REAL(npoints(i),dp)/2.0_dp*dr(i)
+                   indexPos(i)=MODULO(NINT(pos(i)/dr(i)),&
+                        npoints(i))-npoints(i)/2
+                   IF (indexPos(i)-iRadius<-npoints(i)/2) THEN
+                      atBoundary=.TRUE.
+                      bo(1,i)=indexPos(i)-iRadius
+                   ELSE
+                      bo(1,i)=MAX(bo(1,i),indexPos(i)-iRadius)
+                   END IF
+                   IF (indexPos(i)+iRadius>(npoints(i)-1)/2) THEN
+                      atBoundary=.TRUE.
+                      bo(2,i)=indexPos(i)+iRadius
+                   ELSE
+                      bo(2,i)=MIN(bo(2,i),indexPos(i)+iRadius)
+                   END IF
+                END DO
 
 !FM    WRITE(cp_logger_get_default_unit_nr(logger),"('indexPos=(',i6,',',i6,',',i6,')')")&
 !FM         indexPos(1),indexPos(2),indexPos(3)
@@ -1897,101 +1825,102 @@ CONTAINS
 !FM    WRITE(cp_logger_get_default_unit_nr(logger),*) 'radii:',int_radius,radius_2,&
 !FM         radius, 'range_2=',range_2
 
-             IF (atBoundary) THEN
-                DO k=bo(1,3),bo(2,3)
-                   myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
-                   IF (myk< energy%pw_grid%bounds_local(1,3).OR.&
-                        myk> energy%pw_grid%bounds_local(2,3)) CYCLE
-                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
-                   DO j=bo(1,2),bo(2,2)
-                      myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
-                      IF (myj< energy%pw_grid%bounds_local(1,2).OR.&
-                           myj> energy%pw_grid%bounds_local(2,2)) CYCLE
-                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
-                      DO i=bo(1,1),bo(2,1)
-                         myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
-                         IF (myi< energy%pw_grid%bounds_local(1,1).OR.&
-                              myj> energy%pw_grid%bounds_local(2,1)) CYCLE
-                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
-                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
+                IF (atBoundary) THEN
+                   DO k=bo(1,3),bo(2,3)
+                      myk=MODULO(k+npoints(3)/2,npoints(3))-npoints(3)/2
+                      IF (myk< energy%pw_grid%bounds_local(1,3).OR.&
+                           myk> energy%pw_grid%bounds_local(2,3)) CYCLE
+                      rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
+                      DO j=bo(1,2),bo(2,2)
+                         myj=MODULO(j+npoints(2)/2,npoints(2))-npoints(2)/2
+                         IF (myj< energy%pw_grid%bounds_local(1,2).OR.&
+                              myj> energy%pw_grid%bounds_local(2,2)) CYCLE
+                         rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
+                         DO i=bo(1,1),bo(2,1)
+                            myi=MODULO(i+npoints(1)/2,npoints(1))-npoints(1)/2
+                            IF (myi< energy%pw_grid%bounds_local(1,1).OR.&
+                                 myj> energy%pw_grid%bounds_local(2,1)) CYCLE
+                            rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                            r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 
-                         IF (r<radius) THEN
-                            IF (r<int_radius) THEN
-                               energy%cr3d(myi,myj,myk)=0.0_dp
-                            ELSEIF (r<radius_2) THEN
+                            IF (r<radius) THEN
+                               IF (r<int_radius) THEN
+                                  energy%cr3d(myi,myj,myk)=0.0_dp
+                               ELSEIF (r<radius_2) THEN
 !FM                      WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                           "('(',i6,',',i6,',',i6,') within radius2')") myi,myj,myk
-                               r_n=(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               tmp=energy%cr3d(myi,myj,myk)*&
-                                    r_n2*(3.0_dp-2.0_dp*r_n)&
-                                    /range_2/r
-                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
-                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
-                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
-                            ELSE
-                               r_n=2.0_dp-(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               tmp=energy%cr3d(myi,myj,myk)*&
-                                    r_n2*(3.0_dp-2.0_dp*r_n)&
-                                    /range_2/r
-                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
-                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
-                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                                  r_n=(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  tmp=energy%cr3d(myi,myj,myk)*&
+                                       r_n2*(3.0_dp-2.0_dp*r_n)&
+                                       /range_2/r
+                                  f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                                  f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                                  f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                               ELSE
+                                  r_n=2.0_dp-(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  tmp=energy%cr3d(myi,myj,myk)*&
+                                       r_n2*(3.0_dp-2.0_dp*r_n)&
+                                       /range_2/r
+                                  f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                                  f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                                  f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                               END IF
                             END IF
-                         END IF
+                         END DO
                       END DO
                    END DO
-                END DO
-             ELSE
-                DO k=bo(1,3),bo(2,3)
-                   rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
-                   DO j=bo(1,2),bo(2,2)
-                      rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
-                      DO i=bo(1,1),bo(2,1)
-                         rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
-                         r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
+                ELSE
+                   DO k=bo(1,3),bo(2,3)
+                      rv(3)=REAL(k,dp)*dr(3)-posCorr(3)
+                      DO j=bo(1,2),bo(2,2)
+                         rv(2)=REAL(j,dp)*dr(2)-posCorr(2)
+                         DO i=bo(1,1),bo(2,1)
+                            rv(1)=REAL(i,dp)*dr(1)-posCorr(1)
+                            r=SQRT(rv(1)**2+rv(2)**2+rv(3)**2)
 !FM                WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                     "('r=',f8.3)") r
 
-                         IF (r<radius) THEN
-                            IF (r<int_radius) THEN
-                               energy%cr3d(i,j,k)=0.0_dp
-                            ELSEIF (r<radius_2) THEN
+                            IF (r<radius) THEN
+                               IF (r<int_radius) THEN
+                                  energy%cr3d(i,j,k)=0.0_dp
+                               ELSEIF (r<radius_2) THEN
 !FM                      WRITE(cp_logger_get_default_unit_nr(logger),&
 !FM                           "('(',i6,',',i6,',',i6,') within radius2')") i,j,k
-                               r_n=(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               tmp=energy%cr3d(i,j,k)*&
-                                    r_n2*(3.0_dp-2.0_dp*r_n)&
-                                    /range_2/r
-                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
-                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
-                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
-                            ELSE
-                               r_n=2.0_dp-(r-int_radius)/range_2
-                               r_n2=r_n*r_n
-                               tmp=energy%cr3d(i,j,k)*&
-                                    r_n2*(3.0_dp-2.0_dp*r_n)&
-                                    /range_2/r
-                               f(1,iatom)=f(1,iatom)+rv(1)*tmp
-                               f(2,iatom)=f(2,iatom)+rv(2)*tmp
-                               f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                                  r_n=(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  tmp=energy%cr3d(i,j,k)*&
+                                       r_n2*(3.0_dp-2.0_dp*r_n)&
+                                       /range_2/r
+                                  f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                                  f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                                  f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                               ELSE
+                                  r_n=2.0_dp-(r-int_radius)/range_2
+                                  r_n2=r_n*r_n
+                                  tmp=energy%cr3d(i,j,k)*&
+                                       r_n2*(3.0_dp-2.0_dp*r_n)&
+                                       /range_2/r
+                                  f(1,iatom)=f(1,iatom)+rv(1)*tmp
+                                  f(2,iatom)=f(2,iatom)+rv(2)*tmp
+                                  f(3,iatom)=f(3,iatom)+rv(3)*tmp
+                               END IF
                             END IF
-                         END IF
+                         END DO
                       END DO
                    END DO
-                END DO
-             END IF
-          END DO
-          CALL mp_sum(f,para_env%group)
-          DO iatom=1,natom
-             particles%els(atom_list(iatom))%f(1:3)=particles%els(atom_list(iatom))%f(1:3)&
-                  +f(1:3,iatom)
-          END DO
-          DEALLOCATE(f,stat=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       END IF
+                END IF
+             END DO
+             CALL mp_sum(f,para_env%group)
+             DO iatom=1,natom
+                particles%els(atom_list(iatom))%f(1:3)=particles%els(atom_list(iatom))%f(1:3)&
+                     +f(1:3,iatom)
+             END DO
+             DEALLOCATE(f,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          END IF
+       END DO
     END DO
   END SUBROUTINE zero_core_force
 

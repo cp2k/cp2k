@@ -33,13 +33,14 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE coefficient_types,               ONLY: coeff_add,&
+                                             coeff_init,&
                                              coeff_sumup,&
                                              coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
+                                             coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
+                                             cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
@@ -53,10 +54,9 @@ MODULE qs_ks_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_type
+  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
@@ -67,7 +67,8 @@ MODULE qs_ks_methods
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_p_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -79,17 +80,17 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
+  USE qs_ks_atom,                      ONLY: update_ks_vxc_atom
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
-  USE qs_ks_atom,                      ONLY: update_ks_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              transfer_matrix
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate_pw2
+  USE xc,                              ONLY: xc_exc_calc,&
+                                             xc_vxc_pw_create1
 
   IMPLICIT NONE
 
@@ -109,13 +110,6 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_ks_create
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_create(ks_env, qs_env, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine qs_ks_create
 !!
 !!   FUNCTION
 !!     allocates and initializes the given ks_env.
@@ -196,18 +190,6 @@ CONTAINS
 !!   NAME
 !!     qs_ks_build_kohn_sham_matrix
 !!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_build_kohn_sham_matrix(ks_env, qs_env, ks, rho,&
-!!         energy, calculate_forces, just_energy, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(qs_environment_type), Intent (INOUT):: qs_env
-!!       Type(real_matrix_p_type), Dimension(:), Intent (INOUT):: ks
-!!       Type(qs_rho_type), Pointer:: rho
-!!       Type(qs_energy_type), Intent (INOUT), Target:: energy
-!!       Logical, Intent (IN):: calculate_forces, just_energy
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine qs_ks_build_kohn_sham_matrix
-!!
 !!   FUNCTION
 !!     routine where the real calculations are made: the
 !!     KS matrix is calculated
@@ -264,9 +246,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace
-    TYPE(coeff_type), ALLOCATABLE, &
-      DIMENSION(:)                           :: v_rspace_new
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -282,7 +262,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
-         pw_env,rho_core,cell, logger)
+         pw_env,rho_core,cell, logger, v_rspace_new, v_tau_rspace)
     !   -----------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -295,14 +275,14 @@ CONTAINS
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control,&
-                    atomic_kind_set=atomic_kind_set,&
-                    h=h,&
-                    s=s,&
-                    pw_env=pw_env,&
-                    cell=cell,&
-                    rho_core=rho_core,&
-                    qs_charges=qs_charges)
+         dft_control=dft_control,&
+         atomic_kind_set=atomic_kind_set,&
+         h=h,&
+         s=s,&
+         pw_env=pw_env,&
+         cell=cell,&
+         rho_core=rho_core,&
+         qs_charges=qs_charges)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(h),cp_failure_level,routineP,error,failure)
@@ -312,23 +292,21 @@ CONTAINS
     CPPrecondition(SIZE(ks)>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
-    
+
     ! gets the tmp grids
     IF (.NOT. failure) THEN
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
             pw_pools=pw_pools)
-       ALLOCATE(v_rspace_new(nspins), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
        CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
-               use_data = COMPLEXDATA1D,&
-               in_space = RECIPROCALSPACE, error=error)
+            use_data = COMPLEXDATA1D,&
+            in_space = RECIPROCALSPACE, error=error)
     END IF
 
 ! ***  Prepare densities for gapw ***
        IF(dft_control%qs_control%gapw) THEN
-         call prepare_gapw_den(qs_env,error)
+         CALL prepare_gapw_den(qs_env,error)
        ENDIF
 
 ! *** calculate the hartree potential on the total density ***
@@ -380,34 +358,16 @@ CONTAINS
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
-! *** calculate the xc potential ***       
-       DO ispin=1,nspins
-          CALL pw_pool_init_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
-          CALL coeff_zero(v_rspace_new(ispin))
-       END DO
+       ! *** calculate the xc potential ***       
 
-       IF (dft_control%use_kinetic_energy_density) THEN
-           ALLOCATE(v_tau_rspace(nspins), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           DO ispin=1,nspins
-              CALL pw_pool_init_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
-                   use_data = REALDATA3D,&
-                   in_space = REALSPACE, error=error)
-           END DO
-       ELSE
-           NULLIFY(v_tau_rspace)
-       ENDIF
-
-       ! if just energy, we could do with just the xc energy (OT LS)
-       CALL calculate_xc_potential(qs_env=qs_env,&
-            v_rspace_new=v_rspace_new, v_tau_rspace=v_tau_rspace, &
-            calculate_forces=calculate_forces, error=error)
+       CALL qs_vxc_create(qs_env=qs_env,&
+            vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
+            calculate_forces=calculate_forces, &
+            just_energy=just_energy, error=error)
 
 ! ***  Single atom contributions ***
        IF(dft_control%qs_control%gapw) THEN
-         call calculate_vxc_atom(qs_env,error)
+         CALL calculate_vxc_atom(qs_env,error)
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
@@ -415,9 +375,9 @@ CONTAINS
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-            "Core Hamiltonian energy:                       ",energy%core,&
-            "Hartree energy:                                ",energy%hartree,&
-            "Exchange-correlation energy:                   ",energy%exc
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange-correlation energy:                   ",energy%exc
        END IF
 
        IF (.NOT. just_energy) THEN
@@ -426,24 +386,39 @@ CONTAINS
           END IF
 
           DO ispin=1,nspins
-             v_rspace_new(ispin)%pw%cr3d =&
-                  v_rspace_new(ispin)%pw%pw_grid%dvol*&
-                  v_rspace_new(ispin)%pw%cr3d +&
-                  ks_env%v_hartree_rspace%pw%cr3d
-          
              ! copy the core ham into the ks matrix
              CALL transfer_matrix(h(1)%matrix,ks(ispin)%matrix)
- 
-             ! add the part due to v_rspace
-             CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                  p=rho%rho_ao(ispin),h=ks(ispin),&
-                  qs_env=qs_env,&
-                  calculate_forces=calculate_forces,error=error)
-
           END DO
+          IF (ASSOCIATED(v_rspace_new)) THEN
+             DO ispin=1,nspins
+                v_rspace_new(ispin)%pw%cr3d =&
+                     v_rspace_new(ispin)%pw%pw_grid%dvol*&
+                     v_rspace_new(ispin)%pw%cr3d +&
+                     ks_env%v_hartree_rspace%pw%cr3d
 
-          IF (dft_control%use_kinetic_energy_density) THEN
-              DO ispin=1,nspins
+                ! add the part due to v_rspace
+                CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                     p=rho%rho_ao(ispin),h=ks(ispin),&
+                     qs_env=qs_env,&
+                     calculate_forces=calculate_forces,error=error)
+
+                CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                     error=error)
+             END DO
+             DEALLOCATE(v_rspace_new,stat=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             
+          ELSE
+             DO ispin=1,nspins
+                ! add oly v_hartree
+                CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                     p=rho%rho_ao(ispin),h=ks(ispin), qs_env=qs_env,&
+                     calculate_forces=calculate_forces,error=error)
+             END DO
+          END IF
+
+          IF (ASSOCIATED(v_tau_rspace)) THEN
+             DO ispin=1,nspins
                  v_tau_rspace(ispin)%pw%cr3d =&
                       v_tau_rspace(ispin)%pw%pw_grid%dvol*&
                       v_tau_rspace(ispin)%pw%cr3d 
@@ -454,34 +429,24 @@ CONTAINS
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
                       error=error)
 
+              CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+                   error=error)                 
+
               END DO
+              DEALLOCATE(v_tau_rspace, stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
 
 !        ***  Single atom contributions ***
-         IF(dft_control%qs_control%gapw) THEN
-           DO ispin = 1,nspins
-             call update_ks_vxc_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
-                                     ispin,calculate_forces,error)
-           ENDDO
-         ENDIF
+          IF(dft_control%qs_control%gapw) THEN
+             DO ispin = 1,nspins
+                CALL update_ks_vxc_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                     ispin,calculate_forces,error)
+             ENDDO
+          ENDIF
+          
        END IF
 
-       DO ispin=1,nspins
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
-               error=error)
-       END DO
-
-       IF (dft_control%use_kinetic_energy_density) THEN
-           DO ispin=1,nspins
-              CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
-                   error=error)
-           END DO
-           DEALLOCATE(v_tau_rspace, stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ENDIF
-
-       DEALLOCATE(v_rspace_new, stat=stat) 
-       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
 
     CALL timestop(0.0_dp,handle)
@@ -493,15 +458,6 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_ks_update_qs_env
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_update_qs_env(ks_env, qs_env, &
-!!         calculate_forces, just_energy, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
-!!       Logical, Intent (IN), Optional:: calculate_forces, just_energy
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine qs_ks_update_qs_env
 !!
 !!   FUNCTION
 !!     updates the Kohn Sham matrix of the given qs_env (facility method)
@@ -622,15 +578,6 @@ END SUBROUTINE qs_ks_update_qs_env
 !!   NAME
 !!     qs_ks_did_change
 !!
-!!   SYNOPSIS
-!!     Subroutine qs_ks_did_change(ks_env, s_mstruct_changed, rho_changed,&
-!!         full_reset, error)
-!!       Type(qs_ks_env_type), Pointer:: ks_env
-!!       Logical, Intent (IN), Optional:: s_mstruct_changed, rho_changed,&
-!!         full_reset
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine qs_ks_did_change
-!!
 !!   FUNCTION
 !!     tells that some of the things relevant to the ks calculation
 !!     did change. has to be called when changes happen otherwise
@@ -690,20 +637,33 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,erro
 END SUBROUTINE qs_ks_did_change
 !***************************************************************************
 
-!!****f* qs_ks_methods/calculate_xc_potential [1.0] *
+!!****f* qs_ks_methods/qs_vxc_create [1.0] *
 !!
 !!   NAME
-!!     calculate_xc_potential
+!!     qs_vxc_create
 !!
 !!   FUNCTION
-!!     -
+!!     calculates and allocates the xc potential, already reducing it to 
+!!     the dependence on rho and the one on tau
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - vxc_rho: will contain the v_xc part that depend on rho
+!!       (if one of the choosen xc functionals has it it is allocated and you
+!!       are responsible for it)
+!!     - vxc_tau: will contain the kinetic (tau) part of v_xc
+!!       (if one of the choosen xc functionals has it it is allocated and you
+!!       are responsible for it)
+!!     - qs_env: qs_environment to get all the needed things (rho,...)
+!!     - calculate_forces: if the forces should be calculated (so that you
+!!       might be able to add forces to the atoms is you do strange stuff in
+!!       the xc
+!!     - just_energy: if true calculates just the energy, and does not 
+!!       allocate v_*_rspace
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -717,103 +677,127 @@ END SUBROUTINE qs_ks_did_change
 !!     - moved to qs_ks_methods [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE calculate_xc_potential(v_rspace_new,v_tau_rspace,qs_env,&
-       calculate_forces,error)
-    TYPE(coeff_type), DIMENSION(:), &
-      INTENT(inout)                          :: v_rspace_new
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_tau_rspace
+SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
+     calculate_forces, just_energy, error)
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), INTENT(in), &
       TARGET                                 :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces
+    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_xc_potential', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_vxc_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: tau_xc_energy
+    INTEGER                                  :: handle, ispin, stat
+    LOGICAL                                  :: failure, my_just_energy
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+    TYPE(cp_subsystem_p_type), DIMENSION(1)  :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
+                                                rho_g, rho_r, tau
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho_struct
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset( routineN ,"I","",handle)
+  CALL timeset( routineN ,"I","",handle)
 
-    failure=.FALSE.
-    NULLIFY(dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
-         cell, subsys)
+  failure=.FALSE.
+  CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
+  NULLIFY(dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
+       cell, subsys(1)%subsys,my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau)
+  my_just_energy=.FALSE.
+  IF (PRESENT(just_energy)) my_just_energy=just_energy
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    dft_control=dft_control,&
-                    rho_soft=rho_struct,&
-                    pw_env=pw_env,&
-                    energy=energy,&
-                    subsys=subsys,&
-                    cell=cell)
+  CALL get_qs_env(qs_env=qs_env,&
+       dft_control=dft_control,&
+       rho_soft=rho_struct,&
+       pw_env=pw_env,&
+       energy=energy,&
+       subsys=subsys(1)%subsys,&
+       cell=cell)
 
-    ! test if the real space density is available
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
-    IF (dft_control%use_kinetic_energy_density) THEN
-        CPPrecondition(ASSOCIATED(v_tau_rspace),cp_failure_level,routineP,error,failure)
-        DO i=1,SIZE(v_tau_rspace)
-           CALL coeff_zero(v_tau_rspace(i))
-        ENDDO
-    ENDIF
-    IF ( .NOT. failure ) THEN
+  ! test if the real space density is available
+  CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
+  CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(rho_struct%rho_r_valid,cp_failure_level,routineP,error,failure)
+  CALL cp_assert( dft_control%nspins == 1 .OR. dft_control%nspins == 2,&
+       cp_failure_level,cp_assertion_failed,routineP,&
+       "nspins must be 1 or 2",error,failure)
 
-      ! for gradient corrected functional we need the density in g space
-      IF ( ANY(qs_env%dft_control%xc_control%gradient_functionals) ) THEN
-         IF ( .NOT. rho_struct%rho_g_valid ) THEN
-            DO i=1,SIZE(rho_struct%rho_r)
-               CALL coeff_transform_space(rho_struct%rho_r(i),rho_struct%rho_g(i))
-            END DO
-         END IF
-      END IF
+  IF ( .NOT. failure ) THEN
+     ALLOCATE(rho_r(dft_control%nspins),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     DO ispin=1,dft_control%nspins
+        rho_r(ispin)%pw => rho_struct%rho_r(ispin)%pw
+     END DO
+     IF (rho_struct%tau_r_valid) THEN
+        ALLOCATE(tau(dft_control%nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ispin=1,dft_control%nspins
+           tau(ispin)%pw => rho_struct%tau_r(ispin)%pw
+        END DO
+     END IF
+     ! for gradient corrected functional the density in g space might
+     ! be useful so if we have it, we pass it in
+     IF ( rho_struct%rho_g_valid ) THEN
+        ALLOCATE(rho_g(dft_control%nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ispin=1,dft_control%nspins
+           rho_g(ispin)%pw => rho_struct%rho_g(ispin)%pw
+        END DO
+     END IF
 
-      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
-         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
-         ! TPSS
-         ! this call needs to take tau_r / tau_g from rho_struct
-         ! and fill v_tau_rspace with the corresponding 'potential'
+     IF (my_just_energy) THEN
+        energy%exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
+             rho_g=rho_g, dft_control=dft_control,&
+             cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+             error=error)
+     ELSE
+        CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
+             rho_g=rho_g,tau=tau,exc=energy%exc,&
+             dft_control=dft_control,&
+             cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+             calculate_forces=calculate_forces,error=error)
+     END IF
+     DEALLOCATE(rho_r,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     IF (ASSOCIATED(rho_g)) THEN
+        DEALLOCATE(rho_g,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
 
-         CALL xc_calculate_pw2(rho_r=rho_struct%rho_r,&
-              rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
-              dft_control=dft_control,&
-              cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
-              calculate_forces=calculate_forces,error=error)
+     ! pw -> coeff
+     IF (ASSOCIATED(my_vxc_rho)) THEN
+        ALLOCATE(vxc_rho(dft_control%nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ispin=1,dft_control%nspins
+           CALL coeff_init(vxc_rho(ispin),pw=my_vxc_rho(ispin)%pw,&
+                error=error)
+        END DO
+        DEALLOCATE(my_vxc_rho,stat=stat)
+     END IF
+     IF (ASSOCIATED(my_vxc_tau)) THEN
+        ALLOCATE(vxc_tau(dft_control%nspins),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        DO ispin=1,dft_control%nspins
+           CALL coeff_init(vxc_tau(ispin),pw=my_vxc_tau(ispin)%pw,&
+                error=error)
+        END DO
+        DEALLOCATE(my_vxc_tau,stat=stat)
+     END IF
 
-        ! introducing the JV tau-xc, useful for superconducting plasmas and debugging
-        IF (dft_control%use_kinetic_energy_density) THEN
-            tau_xc_energy=0.0_dp
-            DO i=1,SIZE(v_tau_rspace)
-               tau_xc_energy=tau_xc_energy+0.5_dp*4.0D-2*v_tau_rspace(i)%pw%pw_grid%dvol* &
-                                SUM(rho_struct%tau_r(i)%pw%cr3d(:,:,:)**2)
-               v_tau_rspace(i)%pw%cr3d=4.0D-2*rho_struct%tau_r(i)%pw%cr3d 
-            ENDDO
-            CALL mp_sum(tau_xc_energy,qs_env%para_env%group)
-            WRITE(6,*) "tau xc energy ",tau_xc_energy
-            energy%exc=energy%exc+tau_xc_energy
-        ENDIF
+  END IF
 
-      ELSE
-         CALL stop_program(routineP,"nspins > 2")
-      END IF
+  CALL timestop(0.0_dp,handle)
 
-   END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE calculate_xc_potential
+END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
 

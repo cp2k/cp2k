@@ -25,7 +25,7 @@
 !!     - drhoa_drhob: scalar product between the gradient of rhoa and the
 !!       grandient of rhob
 !!     - tau: the local kinetic part
-!!     - tau_a, tau_b: the kinetic part of the different spins
+!!     - taua, taub: the kinetic part of the different spins
 !!
 !!   AUTHOR
 !!     thomas & fawzi
@@ -74,13 +74,6 @@ CONTAINS
 !!
 !!   NAME
 !!     standardize_dervitative_desc
-!!
-!!   SYNOPSIS
-!!     Function standardize_dervitative_desc(deriv_desc, error) Result(res)
-!!       Character(Len=*), Intent (IN):: deriv_desc
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Character(Len=max_derivative_desc_length):: res
-!!     End Function standardize_dervitative_desc
 !!
 !!   FUNCTION
 !!     returns a unique string for a given derivative string
@@ -140,13 +133,6 @@ CONTAINS
 !!
 !!   NAME
 !!     create_split_derivative_desc
-!!
-!!   SYNOPSIS
-!!     Function create_split_derivative_desc(deriv_desc, error) Result(res)
-!!       Character(Len=*), Intent (IN):: deriv_desc
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Character(Len=max_label_length), Dimension(:), Pointer:: res
-!!     End Function create_split_derivative_desc
 !!
 !!   FUNCTION
 !!     returns an array of 1st order derivative descriptions

@@ -17,9 +17,8 @@
 MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
-                                             qs_control_type,&
                                              gapw_control_create,&
-                                             gapw_control_type,&
+                                             qs_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type,&
                                              xc_debug_new_routine,&
@@ -374,6 +373,7 @@ CONTAINS
        dft_control % use_kinetic_energy_density=&
             dft_control % use_kinetic_energy_density .OR.&
             needs%tau .OR. needs%tau_spin
+       PRINT *, "dft_control % use_kinetic_energy_density",dft_control % use_kinetic_energy_density
        ! fills in the old structure (I would like to remove it)
        dft_control % xc_control % gradient_functionals=&
             dft_control % xc_control % gradient_functionals.OR.&
@@ -382,8 +382,6 @@ CONTAINS
        ! presence of crossterms cannot be determined before evaluating
        ! the functional
     END IF
-
-    dft_control % use_kinetic_energy_density = .FALSE.
 
     CALL finish_parser()
 
@@ -427,7 +425,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_control_type), INTENT(INOUT)       :: qs_control
+    TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 

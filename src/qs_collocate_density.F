@@ -55,7 +55,6 @@ MODULE qs_collocate_density
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
@@ -64,23 +63,11 @@ MODULE qs_collocate_density
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE pw_pool_types,                   ONLY: pw_pool_p_type,&
-                                             pw_pools_give_back_coeffs,&
-                                             pw_pools_init_coeffs
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             REALSPACE,&
-                                             RECIPROCALSPACE, &
-                                             pw_sumup, &
-                                             pw_copy, &
-                                             pw_prolongate
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -102,10 +89,20 @@ MODULE qs_collocate_density
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_type
-  USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
+                                             pw_pool_p_type,&
+                                             pw_pool_type,&
+                                             pw_pools_give_back_coeffs,&
+                                             pw_pools_init_coeffs
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_prolongate,&
+                                             pw_sumup
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -182,8 +179,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, bo(2), dir, handle, iatom, ierr, ikind, ithread, j, &
-      natom, ncurr, npme, omp_get_thread_num
+    INTEGER                                  :: atom_a, bo(2), dir, handle, &
+                                                iatom, ierr, ikind, ithread, &
+                                                j, natom, ncurr, npme, &
+                                                omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -196,14 +195,14 @@ CONTAINS
     TYPE(coeff_type)                         :: rhoc_r
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
+    TYPE(cube_info_type)                     :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
-    TYPE(cube_info_type)                     :: cube_info
-    TYPE(l_info_type)                        :: l_info
 
 !   ---------------------------------------------------------------------------
 
@@ -331,8 +330,7 @@ CONTAINS
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
     TYPE(qs_environment_type), INTENT(IN)    :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid
-    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -340,15 +338,15 @@ CONTAINS
       routine = "SUBROUTINE calculate_rho_elec (MODULE qs_collocate_density)"
     INTEGER, PARAMETER                       :: add_tasks = 1000, &
                                                 max_tasks = 2000
-    REAL(kind=dp), PARAMETER                 :: mult_tasks= 2.0_dp
+    REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
-      handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
-      ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
-      maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), natom_pairs, nb1, &
-      nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, igridlevel, &
-      omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp, stat
+      handle, i, iatom, igrid_level, igridlevel, ijatoms, ijsets, ikind, &
+      ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, &
+      jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), &
+      natom_pairs, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, &
+      nsetb, nthread, omp_get_max_threads, omp_get_thread_num, pdim1, pdim2, &
+      sgfa, sgfb, stat, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -356,7 +354,8 @@ CONTAINS
                                                 first_sgfb, ival, latom, &
                                                 tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
-    LOGICAL                                  :: my_compute_tau, my_soft
+    LOGICAL                                  :: failure, map_consistent, &
+                                                my_compute_tau, my_soft
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
@@ -371,11 +370,17 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
+                                                mgrid_temp_rspace
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(l_info_type)                        :: l_info
     TYPE(lgrid_type)                         :: lgrid
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -384,19 +389,14 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pw_pools
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace, mgrid_temp_rspace
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    LOGICAL                                  :: failure, map_consistent
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type)                        :: l_info
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
     NULLIFY(atomic_kind,cell,dft_control,orb_basis_set,sab_orb_neighbor_list,&
          sab_orb_neighbor_node,deltap,atomic_kind_set,sab_orb,particle_set,&
@@ -411,11 +411,8 @@ CONTAINS
     debug_count=debug_count+1
 
     ! by default, the full density is calculated
-    IF (PRESENT(soft_valid) .AND. soft_valid) THEN
-       my_soft = soft_valid 
-    ELSE
-       my_soft = .FALSE.
-    ENDIF 
+    my_soft=.FALSE.
+    IF (PRESENT(soft_valid)) my_soft = soft_valid 
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -426,9 +423,9 @@ CONTAINS
     ENDIF
 
     IF (my_compute_tau) THEN
-       call timeset("calculate_rho_tau","I","",handle)
+       CALL timeset("calculate_rho_tau","I","",handle)
     ELSE
-       call timeset("calculate_rho_elec","I","",handle)
+       CALL timeset("calculate_rho_elec","I","",handle)
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -1017,42 +1014,40 @@ CONTAINS
       "SUBROUTINE calculate_wavefunction (MODULE qs_collocate_density)"
 
     INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
-      maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, sgfa, stat
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, &
-                                                npgfa, nsgfa
+      maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, &
+      sgfa, stat
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa
-    LOGICAL                                  :: local
+    LOGICAL                                  :: failure, local
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, rab2, &
                                                 scale, zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector 
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  ::  pab, &
-                                                sphi_a,  work, zeta
-
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
+    TYPE(cube_info_type), DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(l_info_type)                        :: l_info
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(REALSPACE_GRID_P_TYPE), &
-      DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    LOGICAL                                  :: failure
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(l_info_type)                        :: l_info
+    TYPE(REALSPACE_GRID_P_TYPE), &
+      DIMENSION(:), POINTER                  :: rs_rho
 
 !   ---------------------------------------------------------------------------
+
     failure=.FALSE.
 
     CALL timeset("calculate_wavefunction","I","",handle)
@@ -1298,8 +1293,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
-    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent
+    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, ico_l, icoef, ig, &
       ithread_l, jco, jco_l, k, l, la_max_local, la_min_local, lb_max_local, &
@@ -1310,7 +1304,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_compute_tau, my_map_consistent
+    LOGICAL                                  :: my_compute_tau, &
+                                                my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp

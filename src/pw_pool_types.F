@@ -44,19 +44,19 @@ MODULE pw_pool_types
                                              cp_error_type
   USE cp_linked_list_3d_r,             ONLY: cp_sll_3d_r_dealloc,&
                                              cp_sll_3d_r_get_first_el,&
+                                             cp_sll_3d_r_get_length,&
                                              cp_sll_3d_r_insert_el,&
                                              cp_sll_3d_r_next,&
                                              cp_sll_3d_r_rm_first_el,&
-                                             cp_sll_3d_r_type,&
-                                             cp_sll_3d_r_get_length
+                                             cp_sll_3d_r_type
   USE cp_linked_list_pw,               ONLY: cp_sll_pw_dealloc,&
                                              cp_sll_pw_get_first_el,&
+                                             cp_sll_pw_get_length,&
                                              cp_sll_pw_insert_el,&
                                              cp_sll_pw_insert_ordered,&
                                              cp_sll_pw_next,&
                                              cp_sll_pw_rm_first_el,&
-                                             cp_sll_pw_type,&
-                                             cp_sll_pw_get_length
+                                             cp_sll_pw_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -77,9 +77,9 @@ MODULE pw_pool_types
                                              pw_release,&
                                              pw_type,&
                                              pw_write
-  USE timings,                         ONLY: timeset,&
-                                             timestop,&
-                                             print_stack
+  USE timings,                         ONLY: print_stack,&
+                                             timeset,&
+                                             timestop
 
   IMPLICIT NONE
   PRIVATE
@@ -172,13 +172,6 @@ CONTAINS
 !!   NAME
 !!     pw_pool_create
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_create(pool, pw_grid, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(pw_grid_type), Pointer:: pw_grid
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_create
-!!
 !!   FUNCTION
 !!     creates a pool for pw
 !!
@@ -201,7 +194,7 @@ CONTAINS
   SUBROUTINE pw_pool_create(pool, pw_grid, max_cache, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_grid_type), POINTER              :: pw_grid
-    INTEGER, optional :: max_cache
+    INTEGER, OPTIONAL                        :: max_cache
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -224,12 +217,12 @@ CONTAINS
        pool%id_nr=last_pw_pool_id_nr
        pool%ref_count=1
        pool%max_cache=default_max_cache
-       if (present(max_cache)) pool%max_cache=max_cache
+       IF (PRESENT(max_cache)) pool%max_cache=max_cache
        pool%max_cache=MIN(max_max_cache,pool%max_cache)
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
        NULLIFY(pool%real1d_pw, pool%real3d_pw, &
             pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
@@ -241,12 +234,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_retain
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_retain(pool, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_retain
 !!
 !!   FUNCTION
 !!     retains the pool (see cp2k/doc/ReferenceCounting.html)
@@ -289,7 +276,7 @@ CONTAINS
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)")&
                pool%id_nr, pool%ref_count
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
     END IF
   END SUBROUTINE pw_pool_retain
@@ -299,12 +286,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_flush_cache
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_flush_cache(pool, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_flush_cache
 !!
 !!   FUNCTION
 !!     deallocates all the cached grids
@@ -352,7 +333,7 @@ CONTAINS
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' is flushing the cache')") pool%id_nr
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
 
        iterator => pool%real1d_pw
@@ -401,12 +382,6 @@ CONTAINS
 !!   NAME
 !!     pw_pool_release
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_release(pool, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_release
-!!
 !!   FUNCTION
 !!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
 !!
@@ -447,7 +422,7 @@ CONTAINS
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' released ref_count=',i4)") &
                pool%id_nr, pool%ref_count
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
        IF (pool%ref_count==0) THEN
           pool%ref_count=1
@@ -504,17 +479,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_create_pw
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_create_pw(pool, pw, use_data, in_space, mass_flag,&
-!!         error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(pw_type), Pointer:: pw
-!!       Integer, Intent (IN):: use_data
-!!       Integer, Intent (IN), Optional:: in_space
-!!       Logical, Intent (IN), Optional:: mass_flag
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_create_pw
 !!
 !!   FUNCTION
 !!     returns a pw, allocating it if none is in the pool
@@ -651,15 +615,6 @@ CONTAINS
 !!   NAME
 !!     pw_pool_give_back_pw
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_give_back_pw(pool, pw, accept_non_compatible,&
-!!         error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(pw_type), Pointer:: pw
-!!       Logical, Intent (IN), Optional:: accept_non_compatible
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_give_back_pw
-!!
 !!   FUNCTION
 !!     returns the pw to the pool
 !!
@@ -687,14 +642,14 @@ CONTAINS
     TYPE(pw_type), POINTER                   :: pw
     LOGICAL, INTENT(in), OPTIONAL            :: accept_non_compatible
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_pool_give_back_pw', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: did_insert, failure, &
-         my_accept_non_compatible
+                                                my_accept_non_compatible
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
@@ -749,7 +704,7 @@ CONTAINS
                pool%id_nr, pw%id_nr
           CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                pw=pw,error=error)
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
 
        SELECT CASE(pw%in_use)
@@ -843,13 +798,6 @@ CONTAINS
 !!   NAME
 !!     pw_pool_create_cr3d
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_create_cr3d(pw_pool, cr3d, error)
-!!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_create_cr3d
-!!
 !!   FUNCTION
 !!     returns a 3d real array of coefficents as the one used by pw with
 !!     REALDATA3D, allocating it if none is present in the pool
@@ -920,7 +868,7 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' created cr3d reusing the one at 0x',z16.16)")&
                 pw_pool%id_nr, m_loc_r(cr3d)
-          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
      END IF
   END IF
 END SUBROUTINE pw_pool_create_cr3d
@@ -930,15 +878,6 @@ END SUBROUTINE pw_pool_create_cr3d
 !!
 !!   NAME
 !!     pw_pool_give_back_cr3d
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_give_back_cr3d(pw_pool, cr3d,&
-!!         accept_non_compatible, error)
-!!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Real(Kind=dp), Dimension(:,:,:), Pointer:: cr3d
-!!       Logical, Intent (IN), Optional:: accept_non_compatible
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_give_back_cr3d
 !!
 !!   FUNCTION
 !!     returns a 3d real array of coefficents as the one used by pw with
@@ -1036,17 +975,6 @@ END SUBROUTINE pw_pool_give_back_cr3d
 !!   NAME
 !!     pw_pool_init_coeff
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_init_coeff(pool, coeff, use_data, in_space,&
-!!         mass_flag, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(coeff_type), Intent (INOUT):: coeff
-!!       Integer, Intent (IN):: use_data
-!!       Integer, Intent (IN), Optional:: in_space
-!!       Logical, Intent (IN), Optional:: mass_flag
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_init_coeff
-!!
 !!   FUNCTION
 !!     initializes a coefficent with the corresponding grid type
 !!
@@ -1103,13 +1031,6 @@ END SUBROUTINE pw_pool_init_coeff
 !!   NAME
 !!     pw_pool_give_back_coeff
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_give_back_coeff(pool, coeff, error)
-!!       Type(pw_pool_type), Pointer:: pool
-!!       Type(coeff_type), Intent (INOUT):: coeff
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_give_back_coeff
-!!
 !!   FUNCTION
 !!     returns the pw part of the coeff to the pool
 !!
@@ -1151,17 +1072,6 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!
 !!   NAME
 !!     pw_pools_init_coeffs
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pools_init_coeffs(pools, coeffs, use_data, mass_flag,&
-!!         in_space, error)
-!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(coeff_type), Dimension(:), Intent (INOUT):: coeffs
-!!       Integer, Intent (IN):: use_data
-!!       Logical, Intent (IN), Optional:: mass_flag
-!!       Integer, Intent (IN), Optional:: in_space
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pools_init_coeffs
 !!
 !!   FUNCTION
 !!     initializes a multigrid structure of coeff
@@ -1222,13 +1132,6 @@ END SUBROUTINE pw_pools_init_coeffs
 !!   NAME
 !!     pw_pools_give_back_coeffs
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pools_give_back_coeffs(pools, coeffs, error)
-!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(coeff_type), Dimension(:), Intent (INOUT):: coeffs
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pools_give_back_coeffs
-!!
 !!   FUNCTION
 !!     returns the pw part of the coefficents into the pools
 !!
@@ -1278,13 +1181,6 @@ END SUBROUTINE pw_pools_give_back_coeffs
 !!
 !!   NAME
 !!     pw_pools_copy
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pools_copy(source_pools, target_pools, error)
-!!       Type(pw_pool_p_type), Dimension(:), Pointer:: source_pools,&
-!!         target_pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pools_copy
 !!
 !!   FUNCTION
 !!     copies a multigrid pool, the underlying pools are shared
@@ -1338,12 +1234,6 @@ END SUBROUTINE pw_pools_copy
 !!   NAME
 !!     pw_pools_dealloc
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pools_dealloc(pools, error)
-!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pools_dealloc
-!!
 !!   FUNCTION
 !!     deallocates the given pools (releasing each of the underlying
 !!     pools)
@@ -1393,12 +1283,6 @@ END SUBROUTINE pw_pools_dealloc
 !!   NAME
 !!     pw_pools_flush_cache
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_pools_flush_cache(pools, error)
-!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pools_flush_cache
-!!
 !!   FUNCTION
 !!     deallocates all the cached grids
 !!
@@ -1444,13 +1328,6 @@ END SUBROUTINE pw_pools_flush_cache
 !!
 !!   NAME
 !!     pw_pool_write
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_pool_write(pw_pool, unit_nr, error)
-!!       Type(pw_pool_type), Pointer:: pw_pool
-!!       Integer:: unit_nr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_pool_write
 !!
 !!   FUNCTION
 !!     writes the actual contents of the pw_pool

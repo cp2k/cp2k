@@ -223,7 +223,7 @@ CONTAINS
          e_rho_rho_rho, e_rho_rho_ndrho, e_rho_ndrho_ndrho, e_ndrho_ndrho_ndrho
     TYPE(xc_derivative_type), POINTER :: deriv
     REAL(kind=dbl) :: epsilon_rho
-    INTEGER :: stat,m
+    INTEGER :: m
 
     call timeset(routineN,"I","",handle)
     failure=.false.
@@ -321,7 +321,6 @@ CONTAINS
          rhoa_1_3, rhob_1_3,norm_drhob, e_0,e_rhoa,e_rhob,e_ndrhoa,e_ndrhob
     TYPE(xc_derivative_type), POINTER :: deriv
     REAL(kind=dbl) :: epsilon_rho
-    INTEGER :: stat
 
     call timeset(routineN,"I","",handle)
     failure=.false.

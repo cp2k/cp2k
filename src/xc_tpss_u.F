@@ -258,7 +258,7 @@ END SUBROUTINE tpss_lda_info
                sx=sx,v1x=v1x,v2x=v2x,vttx=vttx,sc=sc,v1c=v1c,v2c=v2c,vttc=vttc)
           e_0(ii)=e_0(ii)+sx+sc
           e_rho(ii)=e_rho(ii)+v1x+v1c
-          e_ndrho(ii)=e_ndrho(ii)+v2x+v2c ! * norm_drho(ii) probably
+          e_ndrho(ii)=e_ndrho(ii)+(v2x+v2c)* norm_drho(ii)! probably
           e_tau(ii)=e_tau(ii)+vttx+vttc
        END IF
     END DO

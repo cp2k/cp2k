@@ -21,7 +21,7 @@ MODULE xc_tpss_util
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dbl
+  USE kinds,                           ONLY: dbl
 
   IMPLICIT NONE
 
@@ -49,38 +49,38 @@ CONTAINS
       SUBROUTINE tpssux(rho,grho,tau,sx,v1x,v2x,vttx)
 !       exchange part of TPSS functional 
 
-        REAL(dbl), INTENT(IN) :: rho,grho,tau
-        REAL(dbl), INTENT(OUT):: sx,v1x,v2x,vttx
+    REAL(dbl), INTENT(IN)                    :: rho, grho, tau
+    REAL(dbl), INTENT(OUT)                   :: sx, v1x, v2x, vttx
 
-        REAL(dbl),PARAMETER   :: kappa = 0.804e0_dbl, &
-                                 c     = 1.59096e0_dbl, &
-                                 e     = 1.537e0_dbl, &
-                                 se    = 1.2397580409096_dbl, & !sqrt(e)
-                                 b     = 0.40e0_dbl, &
-                                 mu    = 0.21951e0_dbl
+    REAL(dbl), PARAMETER :: b = 0.40e0_dbl, c = 1.59096e0_dbl, &
+      e = 1.537e0_dbl, kappa = 0.804e0_dbl, mu = 0.21951e0_dbl, &
+      se = 1.2397580409096_dbl
 
-        REAL(dbl) :: exunif,p,z,alpha,qbt,x,fx
-        REAL(dbl) :: dfxdx,dqbtda,dqbtdp,dqbtdz,dxdqbt,dxdz,dxdp,dpdr, &
-                     dpdg,dzdr,dzdg,dzdt,dfxdr,dfxdg,dfxdt
+    REAL(dbl) :: alpha, dfxdg, dfxdr, dfxdt, dfxdx, dpdg, dpdr, dqbtda, &
+      dqbtdp, dqbtdz, dxdp, dxdqbt, dxdz, dzdg, dzdr, dzdt, exunif, fx, p, &
+      qbt, x, z
+
+!sqrt(e)
 ! -----------------------------------------------------------------------------
 !
+
         exunif = -3._dbl/(4._dbl*pi) * (3._dbl*pi*pi*rho)**f13
 !
         IF ( ABS(tau) > small .AND. grho > small ) THEN
           p=grho/(4._dbl*(3._dbl*pi*pi)**f23*rho**f83)
           z=0.125_dbl*grho/rho/tau
           alpha = 5._dbl*f13*p * (1._dbl/z - 1._dbl)
-          qbt = 0.45_dbl*(alpha-1._dbl)/sqrt(1._dbl+b*alpha*(alpha-1._dbl))+f23*p
+          qbt = 0.45_dbl*(alpha-1._dbl)/SQRT(1._dbl+b*alpha*(alpha-1._dbl))+f23*p
           x = ( f1081 + c*z*z/(1._dbl+z*z)**2 ) * &
               p + 146._dbl/2025._dbl*qbt**2 &
               - 73._dbl/405._dbl * qbt * &
-              sqrt ( 0.5_dbl*(0.6_dbl*z)**2+0.5_dbl*p*p) &
+              SQRT ( 0.5_dbl*(0.6_dbl*z)**2+0.5_dbl*p*p) &
               + f1081**2*p*p/kappa+2._dbl*se*f1081*(0.6_dbl*z)**2+e*mu*p**3
           x = x/(1._dbl+se*p)**2
           fx = 1._dbl + kappa - kappa/(1._dbl + x/kappa)
-        else
+        ELSE
           fx = 1._dbl
-        endif
+        ENDIF
         sx = rho*exunif*fX
 !
         IF ( ABS(tau) > small .AND. grho > small ) THEN
@@ -90,33 +90,33 @@ CONTAINS
           dqbtdp = dqbtda*5._dbl*f13*(1._dbl/z-1._dbl) + f23
           dqbtdz = dqbtda*5._dbl*f13*p*(-1._dbl/(z*z))
           dxdqbt = (146._dbl/2025._dbl * 2._dbl*qbt - &
-                   73._dbl/405._dbl * sqrt ( 0.5_dbl*(0.6_dbl*z)**2+0.5_dbl*p*p ))/ &
+                   73._dbl/405._dbl * SQRT ( 0.5_dbl*(0.6_dbl*z)**2+0.5_dbl*p*p ))/ &
                    (1._dbl+se*p)**2
           dxdz   = dxdqbt*dqbtdz + ( c*p*(2._dbl*z/(1._dbl+z*z)**2 - &
                    4._dbl*z**3/(1._dbl+z*z)**3 ) - 73._dbl/405._dbl * qbt*0.5_dbl * &
-                   0.36_dbl*z / sqrt ( 0.5_dbl*(0.6_dbl*z)**2 + 0.5_dbl*p*p ) + &
+                   0.36_dbl*z / SQRT ( 0.5_dbl*(0.6_dbl*z)**2 + 0.5_dbl*p*p ) + &
                    4._dbl*se*f1081*0.36_dbl*z ) / (1._dbl+se*p)**2
           dxdp   = -2._dbl*se*x/(1._dbl+se*p) + dxdqbt*dqbtdp + &
                    ( ( f1081 + c*z*z/(1._dbl+z*z)**2 ) - 73._dbl/405._dbl*qbt * &
-                   0.5_dbl*p/sqrt ( 0.5_dbl*(0.6_dbl*z)**2 + 0.5_dbl*p*p ) + &
+                   0.5_dbl*p/SQRT ( 0.5_dbl*(0.6_dbl*z)**2 + 0.5_dbl*p*p ) + &
                    2._dbl*f1081**2*p/kappa + 3._dbl*e*mu*p**2 )/(1._dbl+se*p)**2
           dpdr   = -f83*p/rho
-          dpdg   = 2._dbl*p/sqrt(grho)
+          dpdg   = 2._dbl*p/SQRT(grho)
           dzdr   = -z/rho
-          dzdg   = 2._dbl*z/sqrt(grho)
+          dzdg   = 2._dbl*z/SQRT(grho)
           dzdt   = -z/tau
           dfxdr  = dfxdx*(dxdp*dpdr + dxdz*dzdr)
           dfxdg  = dfxdx*(dxdp*dpdg + dxdz*dzdg)
           dfxdt  = dfxdx*dxdz*dzdt
 !
           v1x  = exunif*(fx + f13*fx + rho*dfxdr)
-          v2x  = rho*exunif*dfxdg/sqrt(grho)
+          v2x  = rho*exunif*dfxdg/SQRT(grho)
           vttx = rho*exunif*dfxdt
-        else
+        ELSE
           v1x  = exunif + f13*sx/rho
           v2x  = 0._dbl
           vttx = 0._dbl
-        endif
+        ENDIF
 
       END SUBROUTINE tpssux
 
@@ -125,18 +125,17 @@ CONTAINS
       SUBROUTINE tpbec(rho,grho,sc,v1c,v2c)
 !       PBE Correlation functional
 
-        REAL(dbl), INTENT(IN) :: rho,grho
-        REAL(dbl), INTENT(OUT):: sc,v1c,v2c
+    REAL(dbl), INTENT(IN)                    :: rho, grho
+    REAL(dbl), INTENT(OUT)                   :: sc, v1c, v2c
 
-        REAL(dbl),PARAMETER   :: be   = 0.06672455060314922_dbl, &
-                                 ga   = 0.031090690869654895_dbl, &
-                                 cx   = -0.001667_dbl, &
-                                 cxc0 = 0.002568_dbl, &
-                                 cc0  = -cx + cxc0
+    REAL(dbl), PARAMETER :: be = 0.06672455060314922_dbl, cx = -0.001667_dbl, &
+      cxc0 = 0.002568_dbl, cc0 = -cx + cxc0, ga = 0.031090690869654895_dbl
 
-        REAL(dbl)  :: rs,ec,vc,decdr,aa,a,xkf,xks,t,expe,af,y,xy,s1,h0
-        REAL(dbl)  :: dtdr,dadr,dsda,dsdt,dsdr,dhdt,dhdr
-        INTEGER    :: iflg
+    INTEGER                                  :: iflg
+    REAL(dbl)                                :: a, aa, af, dadr, decdr, dhdr, &
+                                                dhdt, dsda, dsdr, dsdt, dtdr, &
+                                                ec, expe, h0, rs, s1, t, vc, &
+                                                xkf, xks, xy, y
 
 ! -----------------------------------------------------------------------------
 
@@ -146,7 +145,7 @@ CONTAINS
         CALL pz_u(rs,ec,vc,iflg)
         decdr = (vc-ec)/rho
         aa    = grho
-        a     = sqrt(aa)
+        a     = SQRT(aa)
         xkf   = (9._dbl*pi/4._dbl)**f13/rs
         xks   = SQRT(4._dbl*xkf/pi)
         t     = a/(2._dbl*xks*rho)
@@ -173,18 +172,16 @@ CONTAINS
 
       SUBROUTINE tpbeca(rhoa,grhoaa,sc,v1ca,v2ca)
 
-        REAL(dbl), INTENT(IN) :: rhoa,grhoaa
-        REAL(dbl), INTENT(OUT):: sc,v1ca,v2ca
+    REAL(dbl), INTENT(IN)                    :: rhoa, grhoaa
+    REAL(dbl), INTENT(OUT)                   :: sc, v1ca, v2ca
 
-        REAL(dbl),PARAMETER   :: be   = 0.06672455060314922_dbl, &
-                                 ga   = 0.031090690869654895_dbl, &
-                                 cx   = -0.001667_dbl, &
-                                 cxc0 = 0.002568_dbl, &
-                                 cc0  = -cx + cxc0
+    REAL(dbl), PARAMETER :: be = 0.06672455060314922_dbl, cx = -0.001667_dbl, &
+      cxc0 = 0.002568_dbl, cc0 = -cx + cxc0, ga = 0.031090690869654895_dbl
 
-        REAL(dbl)  :: rho,phi,phi3,grho,rs,ec,vca,vcb,aa,a,xkf,xks,t,expe,af,y
-        REAL(dbl)  :: xy,s1,h0,decdra,dtdra,dadra,dsda,dsdt,dsdra,dhdt,dhdra
-        INTEGER    :: iflg
+    INTEGER                                  :: iflg
+    REAL(dbl) :: a, aa, af, dadra, decdra, dhdra, dhdt, dsda, dsdra, dsdt, &
+      dtdra, ec, expe, grho, h0, phi, phi3, rho, rs, s1, t, vca, vcb, xkf, &
+      xks, xy, y
 
 ! -----------------------------------------------------------------------------
 
@@ -236,17 +233,19 @@ CONTAINS
                         v1ca,v2ca,v1cb,v2cb,v2cab)
 !       PBE Correlation functional (spin polarized)
 
-        REAL(dbl), INTENT(IN) :: rhoa,rhob,grhoaa,grhoab,grhobb
-        REAL(dbl), INTENT(OUT):: sc,v1ca,v2ca,v1cb,v2cb,v2cab
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, grhoaa, grhoab, &
+                                                grhobb
+    REAL(dbl), INTENT(OUT)                   :: sc, v1ca, v2ca, v1cb, v2cb, &
+                                                v2cab
 
-        REAL(dbl),PARAMETER   :: be   = 0.06672455060314922_dbl, &
-                                 ga   = 0.031090690869654895_dbl
+    REAL(dbl), PARAMETER                     :: be = 0.06672455060314922_dbl, &
+                                                ga = 0.031090690869654895_dbl
 
-        REAL(dbl)  :: rho,eta,grho,rs,ec,vca,vcb,decdra,decdrb,phi,phi3,aa,a
-        REAL(dbl)  :: xkf,xks,t,expe,af,y,xy,s1,h0
-        REAL(dbl)  :: dtdphi,dphide,dedra,dedrb,dphida,dphidb,dtdra,dtdrb,&
-                      dadra,dadrb,dsda,dsdt,dsdra,dsdrb,dhdt,dhdra,dhdrb
-        INTEGER    :: iflg
+    INTEGER                                  :: iflg
+    REAL(dbl) :: a, aa, af, dadra, dadrb, decdra, decdrb, dedra, dedrb, &
+      dhdra, dhdrb, dhdt, dphida, dphidb, dphide, dsda, dsdra, dsdrb, dsdt, &
+      dtdphi, dtdra, dtdrb, ec, eta, expe, grho, h0, phi, phi3, rho, rs, s1, &
+      t, vca, vcb, xkf, xks, xy, y
 
 ! -----------------------------------------------------------------------------
 
@@ -320,19 +319,14 @@ CONTAINS
       SUBROUTINE pz_u(rs,epz,vpz,iflg)
 !       J.P. Perdew and Alex Zunger PRB 23, 5048 (1981)
 
-        REAL(dbl), INTENT(IN) :: rs
-        INTEGER, INTENT(IN)   :: iflg
-        REAL(dbl), INTENT(OUT):: epz,vpz
+    REAL(dbl), INTENT(IN)                    :: rs
+    REAL(dbl), INTENT(OUT)                   :: epz, vpz
+    INTEGER, INTENT(IN)                      :: iflg
 
-        REAL(dbl),PARAMETER   :: a  =  0.0311_dbl,&
-                                 b  = -0.048_dbl,&
-                                 c  =  0.0020_dbl,&
-                                 d  = -0.0116_dbl,&
-                                 gc = -0.1423_dbl,&
-                                 b1 =  1.0529_dbl,&
-                                 b2 =  0.3334_dbl
+    REAL(dbl), PARAMETER :: a = 0.0311_dbl, b = -0.048_dbl, b1 = 1.0529_dbl, &
+      b2 = 0.3334_dbl, c = 0.0020_dbl, d = -0.0116_dbl, gc = -0.1423_dbl
 
-        REAL(dbl)  :: xln,rs1,rs2,ox,dox
+    REAL(dbl)                                :: dox, ox, rs1, rs2, xln
 
 ! -----------------------------------------------------------------------------
 
@@ -360,27 +354,19 @@ CONTAINS
       SUBROUTINE pz_p(rs,eta,epz,vpza,vpzb,iflg)
 !       J.P. Perdew and Alex Zunger PRB 23, 5048 (1981)
 
-        REAL(dbl), INTENT(IN) :: rs,eta
-        INTEGER, INTENT(IN)   :: iflg
-        REAL(dbl), INTENT(OUT):: epz,vpza,vpzb
+    REAL(dbl), INTENT(IN)                    :: rs, eta
+    REAL(dbl), INTENT(OUT)                   :: epz, vpza, vpzb
+    INTEGER, INTENT(IN)                      :: iflg
 
-        REAL(dbl),PARAMETER   :: au =  0.0311_dbl,&
-                                 bu = -0.048_dbl,&
-                                 cu =  0.0020_dbl,&
-                                 du = -0.0116_dbl,&
-                                 gcu= -0.1423_dbl,&
-                                 b1u=  1.0529_dbl,&
-                                 b2u=  0.3334_dbl
-        REAL(dbl),PARAMETER   :: ap =  0.01555_dbl,&
-                                 bp = -0.0269_dbl,&
-                                 cp =  0.0007_dbl,&
-                                 dp = -0.0048_dbl,&
-                                 gcp= -0.0843_dbl,&
-                                 b1p=  1.3981_dbl,&
-                                 b2p=  0.2611_dbl
+    REAL(dbl), PARAMETER :: ap = 0.01555_dbl, au = 0.0311_dbl, &
+      b1p = 1.3981_dbl, b1u = 1.0529_dbl, b2p = 0.2611_dbl, b2u = 0.3334_dbl, &
+      bp = -0.0269_dbl, bu = -0.048_dbl, cp = 0.0007_dbl, cu = 0.0020_dbl, &
+      dp = -0.0048_dbl, du = -0.0116_dbl, gcp = -0.0843_dbl, &
+      gcu = -0.1423_dbl, small = 1.e-16_dbl
 
-        REAL(dbl)  :: xln,eu,ep,vu,vp,rs1,rs2,oxu,doxu,oxp,doxp,f43
-        REAL(dbl)  :: feta,dfeta
+    REAL(dbl)                                :: dfeta, doxp, doxu, ep, eu, &
+                                                f43, feta, oxp, oxu, rs1, &
+                                                rs2, vp, vu, xln
 
 ! -----------------------------------------------------------------------------
 
@@ -405,8 +391,13 @@ CONTAINS
         ep=gcp/oxp
         vp=ep*doxp/oxp
       ENDIF
-      feta=((1._dbl+eta)**f43+(1._dbl-eta)**f43-2._dbl)/(2._dbl**f43-2._dbl)
-      dfeta=f43*((1._dbl+eta)**f13-(1._dbl-eta)**f13)/(2._dbl**f43-2._dbl)
+      IF (eta>(1._dbl-small)) THEN
+         feta=0._dbl
+         dfeta=0._dbl
+      ELSE
+         feta=((1._dbl+eta)**f43+(1._dbl-eta)**f43-2._dbl)/(2._dbl**f43-2._dbl)
+         dfeta=f43*((1._dbl+eta)**f13-(1._dbl-eta)**f13)/(2._dbl**f43-2._dbl)
+      END IF
       epz=eu+feta*(ep-eu)
       vpza=vu+feta*(vp-vu)+(ep-eu)*(1._dbl-eta)*dfeta
       vpzb=vu+feta*(vp-vu)+(ep-eu)*(-1._dbl-eta)*dfeta
@@ -417,10 +408,11 @@ CONTAINS
 
       SUBROUTINE cgefun(xsi,eta2,cxe,dcdx,dcde)
 
-        REAL(dbl), INTENT(IN)  :: xsi,eta2
-        REAL(dbl), INTENT(OUT) :: cxe,dcdx,dcde
-    
-        REAL(dbl)  :: x2,cx0,dx0,f43,f73,xx,dxx,dno
+    REAL(dbl), INTENT(IN)                    :: xsi, eta2
+    REAL(dbl), INTENT(OUT)                   :: cxe, dcdx, dcde
+
+    REAL(dbl)                                :: cx0, dno, dx0, dxx, f43, f73, &
+                                                x2, xx
 
         IF(ABS(xsi) < small .AND. ABS(eta2) < small*small) THEN
           cxe  = 0.53_dbl
@@ -462,13 +454,17 @@ CONTAINS
       SUBROUTINE ccfun(rhoa,rhob,grhoaa,grhobb,grhoab,cxe,dcdra,dcdrb,&
                        dcdgaa,dcdgbb,dcdgab)
 
-        REAL(dbl), INTENT(IN)  :: rhoa,rhob,grhoaa,grhobb,grhoab
-        REAL(dbl), INTENT(OUT) :: cxe,dcdra,dcdrb,dcdgaa,dcdgbb,dcdgab
-    
-        REAL(dbl), PARAMETER   :: f43 = 4._dbl/3._dbl
+    REAL(dbl), INTENT(IN)                    :: rhoa, rhob, grhoaa, grhobb, &
+                                                grhoab
+    REAL(dbl), INTENT(OUT)                   :: cxe, dcdra, dcdrb, dcdgaa, &
+                                                dcdgbb, dcdgab
 
-        REAL(dbl) :: rho,xsi,dxsi0,oo,eta2,cnn,dcdx,dcde,dxdra,dxdrb
-        REAL(dbl) :: dedx,dedgaa,dedgbb,dedgab,dedra,dedrb
+    REAL(dbl), PARAMETER                     :: f43 = 4._dbl/3._dbl
+
+    REAL(dbl)                                :: cnn, dcde, dcdx, dedgaa, &
+                                                dedgab, dedgbb, dedra, dedrb, &
+                                                dedx, dxdra, dxdrb, dxsi0, &
+                                                eta2, oo, rho, xsi
 
         rho    = rhoa + rhob
         xsi    = ( rhoa - rhob ) / rho

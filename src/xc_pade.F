@@ -120,12 +120,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE pade_info ( reference, shortform, lsd, needs, error )
+  SUBROUTINE pade_info ( reference, shortform, lsd, needs, max_deriv, error )
 
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     LOGICAL, INTENT(IN), OPTIONAL            :: lsd
     TYPE(xc_rho_cflags_type), &
-      INTENT(inout), optional                :: needs
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -148,7 +149,9 @@ CONTAINS
        ELSE
           needs%rho = .TRUE.
        END IF
-    END IF    
+    END IF
+    
+    IF (PRESENT(max_deriv)) max_deriv=3
 
   END SUBROUTINE pade_info
 
@@ -238,32 +241,32 @@ CONTAINS
     IF ( calc(0) .AND. calc(1) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
                                      allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
                                      allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_r,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_r,error=error)
        CALL pade_lda_01(n, rho_set%rho, rs, e_0, e_r)
     ELSE IF ( calc(0) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
                                      allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
        CALL pade_lda_0(n, rho_set%rho, rs, e_0)
     ELSE IF ( calc(1) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)", &
                                      allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_r,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_r,error=error)
        CALL pade_lda_1(n, rho_set%rho, rs, e_r)
     END IF
     IF ( calc(2) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
                                       allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rr,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rr,error=error)
        CALL pade_lda_2(n, rho_set%rho, rs, e_rr)
     END IF
     IF ( calc(3) ) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)(rho)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rrr,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rrr,error=error)
        CALL pade_lda_3(n, rho_set%rho, rs, e_rrr)
     END IF
 
@@ -367,40 +370,40 @@ CONTAINS
     IF (calc(0)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_0,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
     END IF
     IF (calc(1)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_ra,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_ra,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rb,error=error)
     END IF
     IF (calc(2)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rara,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rara,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rarb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarb,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rbrb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rbrb,error=error)
     END IF
     IF (calc(3)) THEN
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhoa)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rarara,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarara,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhoa)(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rararb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rararb,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhoa)(rhob)(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rarbrb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rarbrb,error=error)
        deriv => xc_dset_get_derivative(deriv_set, "(rhob)(rhob)(rhob)", &
                                        allocate_deriv=.TRUE., error=error)
-       call xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
+       CALL xc_derivative_get(deriv,deriv_data=e_rbrbrb,error=error)
     END IF
 
 !$omp parallel do private(i,j,k,fx,rhoa,rhob,rs)

@@ -20,6 +20,17 @@
 
 MODULE coefficient_types
   USE ao_types,                        ONLY: ao_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
@@ -31,26 +42,27 @@ MODULE coefficient_types
                                              pw_add,&
                                              pw_allocate,&
                                              pw_copy,&
-                                             pw_deallocate,&
                                              pw_fft_wrap,&
                                              pw_reduce,&
+                                             pw_release,&
                                              pw_subtract,&
                                              pw_sumup,&
                                              pw_type,&
                                              pw_zero
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
-  
   PRIVATE
-  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero
+
+  PUBLIC :: coeff_type, coeff_allocate, coeff_deallocate, coeff_zero, coeff_init
   PUBLIC :: coeff_copy, coeff_add, coeff_sumup, coeff_subtract, coeff_reduce
   PUBLIC :: coeff_transform_space, coeff_array_type
   PUBLIC :: PLANEWAVES, ATOMICORBITALS
   PUBLIC :: PW_REALDATA1D, PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
   PUBLIC :: PW_NOSPACE, PW_REALSPACE, PW_RECIPROCALSPACE
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='coefficent_types'
+  
   ! 'group_id' to grid?
   TYPE coeff_type
      INTEGER :: in_use
@@ -59,11 +71,11 @@ MODULE coefficient_types
   END TYPE coeff_type
 
   TYPE coeff_array_type
-     TYPE(coeff_type), dimension(:), pointer :: coeff_array
+     TYPE(coeff_type), DIMENSION(:), POINTER :: coeff_array
   END TYPE coeff_array_type
 
   ! Flags for the structure member 'in_use'
-  INTEGER, PARAMETER :: PLANEWAVES = 401, ATOMICORBITALS = 402
+  INTEGER, PARAMETER :: PLANEWAVES = 401, ATOMICORBITALS = 402, NOTHING=0
 
   INTERFACE coeff_allocate
      MODULE PROCEDURE &
@@ -96,6 +108,50 @@ CONTAINS
 
 !******************************************************************************
 
+!!****f* coefficient_types/coeff_init [1.0] *
+!!
+!!   NAME
+!!     coeff_init
+!!
+!!   FUNCTION
+!!     initializes a coefficent
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - coeff: the coefficent to initialize
+!!     - pw: optional, a pw to initialize the coefficent
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE coeff_init(coeff, pw, error)
+    TYPE(coeff_type), INTENT(inout)          :: coeff
+    TYPE(pw_type), OPTIONAL, POINTER         :: pw
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'coeff_init', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  coeff%in_use=NOTHING
+  NULLIFY(coeff%pw)
+  IF (PRESENT(pw)) THEN
+     IF (ASSOCIATED(pw)) THEN
+        coeff%in_use=PLANEWAVES
+        coeff%pw => pw
+     END IF
+  END IF
+END SUBROUTINE coeff_init
+!***************************************************************************
+
 SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 
 
@@ -118,8 +174,8 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
              use_data = c_model % pw % in_use )
 
-     ELSE IF ( use_basis == PW_REALDATA1D .or. use_basis == PW_COMPLEXDATA1D &
-          .or. use_basis == PW_REALDATA3D .or. use_basis == PW_COMPLEXDATA3D &
+     ELSE IF ( use_basis == PW_REALDATA1D .OR. use_basis == PW_COMPLEXDATA1D &
+          .OR. use_basis == PW_REALDATA3D .OR. use_basis == PW_COMPLEXDATA3D &
           ) THEN
 
         c_out % in_use = PLANEWAVES
@@ -135,8 +191,8 @@ SUBROUTINE coeff_allocate_from_coeff ( c_out, c_model, use_basis )
 
   ELSE
      use_data = c_model % pw % in_use
-     IF ( use_data == PW_REALDATA1D .or. use_data == PW_COMPLEXDATA1D .or. &
-          use_data == PW_REALDATA3D .or. use_data == PW_COMPLEXDATA3D ) THEN
+     IF ( use_data == PW_REALDATA1D .OR. use_data == PW_COMPLEXDATA1D .OR. &
+          use_data == PW_REALDATA3D .OR. use_data == PW_COMPLEXDATA3D ) THEN
 
         c_out % in_use = PLANEWAVES
         CALL pw_allocate ( c_out % pw, c_model % pw % pw_grid, &
@@ -182,20 +238,13 @@ SUBROUTINE coeff_deallocate ( coeff )
 
     TYPE(coeff_type), INTENT(INOUT)          :: coeff
 
-    INTEGER                                  :: stat
-
 !------------------------------------------------------------------------------
 
   IF ( coeff % in_use == PLANEWAVES ) THEN
-     CALL pw_deallocate ( coeff % pw )
-  ELSE
+     CALL pw_release ( coeff % pw )
+     coeff%in_use=NOTHING
+  ELSEIF (coeff%in_use /= NOTHING) THEN
      CALL stop_program ( "coeff_deallocate", "no valid data type" )
-  END IF
-  IF (ASSOCIATED(coeff%pw)) THEN
-     DEALLOCATE(coeff%pw,stat=stat)
-     IF (stat /=0) THEN
-        CALL stop_memory("coeff_deallocate","coeff%pw")
-     END IF
   END IF
 
 END SUBROUTINE coeff_deallocate

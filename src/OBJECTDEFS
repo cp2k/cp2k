@@ -257,9 +257,9 @@ OBJECTS_GENERIC =\
  qs_harmonics_atom.o\
  qs_integrate_potential.o\
  qs_interactions.o\
- qs_ks_atom.o\
  qs_kpp1_env_methods.o\
  qs_kpp1_env_types.o\
+ qs_ks_atom.o\
  qs_ks_methods.o\
  qs_ks_types.o\
  qs_localization.o\
@@ -365,9 +365,11 @@ OBJECTS_GENERIC =\
  xc_tfw_new.o\
  xc_thomas_fermi.o\
  xc_thomas_fermi_new.o\
+ xc_tpss_p.o\
+ xc_tpss_u.o\
+ xc_tpss_util.o\
  xc_vwn.o\
  xc_vwn_new.o\
  xc_xalpha.o\
  xc_xalpha_new.o\
  xc_xbecke88.o
-
