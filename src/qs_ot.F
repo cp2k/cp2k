@@ -1014,7 +1014,7 @@ END SUBROUTINE qs_ot_p2m
 !*******************************************************************************
 FUNCTION qs_ot_sinc(x)
 
-	REAL(wp), INTENT(IN)               :: x
+        REAL(wp), INTENT(IN)               :: x
         REAL(wp)                           :: qs_ot_sinc
 ! locals
         REAL(wp)                           :: y
@@ -1041,7 +1041,7 @@ END FUNCTION qs_ot_sinc
 !*******************************************************************************
 FUNCTION qs_ot_sincf(xa,ya)
 
-	REAL(wp), INTENT(IN)               :: xa,ya
+        REAL(wp), INTENT(IN)               :: xa,ya
         REAL(wp)                           :: qs_ot_sincf
  
 ! locals

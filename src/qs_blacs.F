@@ -98,55 +98,31 @@ MODULE qs_blacs
             blacs_matrix_type
 
 ! *** Public subroutines ***
-
-  PUBLIC :: allocate_blacs_matrix,&
-            blacs_add,&
-            blacs_add_to_element,&
-            blacs_gemm,&
-            blacs_vector_symv,&
-            copy_vector_to_blacs, &
-            copy_blacs_to_vector, &
-            blacs_find_vector_distribution,&
-            blacs_daxpy, &
-            blacs_get_element,&
-            blacs_maxval,&
-            blacs_set_all,&
-            blacs_set_element,&
-            blacs_syevd,&
-            blacs_syevx,&
-            blacs_symm,&
-            blacs_syrk,&
-            blacs_trace,&
-            copy_blacs_to_blacs_matrix,&
-            copy_blacs_to_full_matrix,&
-            copy_blacs_to_sparse_matrix,&
-            copy_sparse_to_blacs_matrix,&
-            blacs_replicated_copy, &
-            deallocate_blacs_matrix,&
-            finish_blacs,&
-            get_blacs_info,&
-            get_blacs_matrix_info,&
-            power_blacs_matrix,&
-            read_blacs_matrix,&
-            replicate_blacs_matrix,&
-            start_blacs,&
-            symmetrise_blacs_matrix,&
-            write_blacs_matrix,&
-            blacs_diag_mult,&
-            add_blacs_to_block_diag_sm, &
-            blacs_cholesky_decompose, &
-            blacs_cholesky_invert, &
-            blacs_cholesky_reduce, &
-            blacs_cholesky_restore, &
-            blacs_jacobi_davidson, &
-            blacs_column_copy, &
-            blacs_make_basis, &
-            blacs_init_random, &
-            blacs_schur_product, &
-            blacs_transpose, &
-            blacs_scale_matrix, &
-            blacs_set_local_block, &
-            sparse_times_blacs, &
+! at most 39 continuation lines :-)
+  PUBLIC :: allocate_blacs_matrix, blacs_add,&
+            blacs_add_to_element, blacs_gemm,&
+            blacs_vector_symv, copy_vector_to_blacs, &
+            copy_blacs_to_vector, blacs_find_vector_distribution,&
+            blacs_daxpy,  blacs_get_element,&
+            blacs_maxval, blacs_set_all,&
+            blacs_set_element, blacs_syevd,&
+            blacs_syevx, blacs_symm,&
+            blacs_syrk, blacs_trace,&
+            copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
+            copy_blacs_to_sparse_matrix, copy_sparse_to_blacs_matrix,&
+            blacs_replicated_copy,  deallocate_blacs_matrix,&
+            finish_blacs, get_blacs_info,&
+            get_blacs_matrix_info, power_blacs_matrix,&
+            read_blacs_matrix, replicate_blacs_matrix,&
+            start_blacs, symmetrise_blacs_matrix,&
+            write_blacs_matrix, blacs_diag_mult,&
+            add_blacs_to_block_diag_sm,  blacs_cholesky_decompose, &
+            blacs_cholesky_invert,  blacs_cholesky_reduce, &
+            blacs_cholesky_restore,  blacs_jacobi_davidson, &
+            blacs_column_copy,  blacs_make_basis, &
+            blacs_init_random,  blacs_schur_product, &
+            blacs_transpose,  blacs_scale_matrix, &
+            blacs_set_local_block,  sparse_times_blacs, &
             sparse_plus_blacs_blacst
 
 ! *****************************************************************************
@@ -969,7 +945,7 @@ CONTAINS
 
     IF (present(pmatrix)) THEN
        IF (.not. present(work)) THEN
-	   call stop_program("make_basis","pmatrix needs work space !?")
+          call stop_program("make_basis","pmatrix needs work space !?")
        ENDIF
        use_pmatrix=.true.
     ELSE
@@ -978,7 +954,7 @@ CONTAINS
 
     IF (present(ortho)) THEN
        IF (.not. present(otype)) THEN
-	   call stop_program("make_basis","ortho needs type !?")
+           call stop_program("make_basis","ortho needs type !?")
        ENDIF
        found_type=.false.
        use_sv=.false.
@@ -1377,7 +1353,7 @@ CONTAINS
     CHARACTER(LEN=3)                               :: direction
     !----
     REAL(wp), DIMENSION(:,:), POINTER :: blacs_block
-    INTEGER                           :: i,j,nrow_global,ncol_global,ncol_block,ncol
+    INTEGER                           :: i,j,nrow_global,ncol_global,ncol_block
     INTEGER                           :: source,myprow,mypcol,nprow,npcol,context
     INTEGER                           :: this_col,nrow_local,ncol_local,nrow_block,handle
     INTEGER, DIMENSION(:), POINTER                 :: row_indices,col_indices
@@ -4139,7 +4115,7 @@ CONTAINS
     DO i=1,neig/2
        gapnow=evalslold(i+1)-evalslold(i)
        if (gapnow.ge.gap) then
-	  gap=gapnow
+          gap=gapnow
           igap=i
        endif
     ENDDO
@@ -4300,7 +4276,7 @@ CONTAINS
            ENDDO
            if (this_one.ne.0) exit
           ENDDO
-	  to_be_used(i)=this_one
+          to_be_used(i)=this_one
        ENDDO
        to_be_used_old=to_be_used
        evalslold=evalsl
