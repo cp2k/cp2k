@@ -22,10 +22,12 @@
 MODULE checkpoint_handler
 
   USE global_types,                    ONLY: global_environment_type
-  USE machine,                         ONLY: m_flush
+  USE machine,                         ONLY: m_cputime,&
+                                             m_flush,&
+                                             m_getpid
   USE memory_utilities,                ONLY: write_memory
   USE message_passing,                 ONLY: mp_sync
-  USE timings,                         ONLY: write_cputime
+  USE string_utilities,                ONLY: compress
 
   IMPLICIT NONE
 
@@ -69,5 +71,52 @@ CONTAINS
   END SUBROUTINE write_checkpoint_information
 
 ! *****************************************************************************
+
+  SUBROUTINE write_cputime(checkpoint,globenv)
+
+!   Purpose: Write the current CPU time of all processes in seconds.
+
+!   History: - Creation (25.09.2002,MK)
+
+!   ***************************************************************************
+
+    CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string1
+    INTEGER                                  :: group, ipe, mype, npe, &
+                                                output_unit, pid
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%print%cputime) RETURN
+
+    group = globenv%group
+    npe = globenv%num_pe
+    mype = globenv%mepos
+    output_unit = globenv%scr
+
+    CALL m_getpid(pid)
+
+    DO ipe=0,npe-1
+      IF (ipe == mype) THEN
+        WRITE (UNIT=string1,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
+        string1 = ADJUSTL(string1)
+        WRITE (UNIT=string2,FMT="(A,I8,A,F12.3,A)")&
+          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime(),&
+          " sec"
+        CALL compress(string2)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A)",ADVANCE="NO") TRIM(string2)
+      END IF
+      CALL m_flush(output_unit)
+      CALL mp_sync(group)
+    END DO
+
+  END SUBROUTINE write_cputime
+
+!!*****
+!******************************************************************************
 
 END MODULE checkpoint_handler
