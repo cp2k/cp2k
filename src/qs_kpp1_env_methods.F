@@ -33,6 +33,7 @@ MODULE qs_kpp1_env_methods
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
+                                             tddfpt_control_type,&
                                              tddfpt_singlet,&
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -248,6 +249,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
     TYPE(xc_control_type)                    :: xc_control
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -257,7 +259,8 @@ CONTAINS
     failure=.FALSE.
 
     NULLIFY(dft_control, auxbas_pw_pool, pw_pools, pw_env, v_rspace_new, &
-            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, deriv_set, rho_set, rho1_set)
+            rho1_r, rho1_g_pw, tau_pw, cell, v_xc, deriv_set, rho_set, rho1_set,&
+            tddfpt_control)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
@@ -280,11 +283,12 @@ CONTAINS
 
        nspins = dft_control%nspins
        CPPrecondition(SIZE(k_p_p1)>=nspins,cp_failure_level,routineP,error,failure)
+       tddfpt_control => dft_control%tddfpt_control
 
        lsd = (dft_control%nspins == 2)
-       xc_control = qs_env%dft_control%xc_control
+       xc_control = dft_control%xc_control
        IF (dft_control%do_tddfpt_calculation) &
-            xc_control = qs_env%dft_control%tddfpt_control%xc_control
+            xc_control = tddfpt_control%xc_control
     END IF
 
     IF (.NOT.failure) THEN
@@ -329,7 +333,7 @@ CONTAINS
        CALL print_densities(kpp1_env, rho1, rho1_tot_gspace, error=error)
 
        IF (.NOT.(dft_control%do_tddfpt_calculation .AND. &
-           dft_control%tddfpt_control%res_etype /= tddfpt_singlet )) THEN
+            tddfpt_control%res_etype /= tddfpt_singlet )) THEN
           CALL init_pw_poisson_solver(cell%green,error=error)
           CALL calculate_hartree(rho1_tot_gspace, &
                                  energy_hartree, & 
@@ -402,7 +406,6 @@ CONTAINS
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
                               dft_control, cell, auxbas_pw_pool, atoms, error)
 
-
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ispin=1, nspins
@@ -413,7 +416,7 @@ CONTAINS
           CALL pw_zero(v_xc(ispin)%pw)
        END DO
        CALL  xc_calc_2nd_deriv_new(v_xc, kpp1_env%deriv_set, kpp1_env%rho_set, &
-            rho1_set, auxbas_pw_pool, dft_control, error=error)
+                                   rho1_set, auxbas_pw_pool, dft_control, error=error)
        do ispin=1,nspins
           call coeff_init(v_rspace_new(ispin), pw=v_xc(ispin)%pw, error=error)
        end do
@@ -469,11 +472,11 @@ CONTAINS
                k_p_p1(ispin)%matrix)
        END DO
 
-       IF(gapw) THEN
+       IF (gapw) THEN
           CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
           CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
                                      .FALSE., .TRUE., p_env, error=error)
-          
+
           CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
                                  .TRUE., p_env)
           DO ispin = 1,nspins
@@ -487,7 +490,7 @@ CONTAINS
                      ispin,.FALSE.,.TRUE.,p_env,error)
              ENDDO
        END IF
-       
+
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rspace,&
