@@ -437,6 +437,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY(aux_basis_set,orb_basis_set)
     IF (.NOT.globenv%ionode) RETURN
 
     bas(1:3) = basis(1:3)
@@ -469,19 +470,28 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 kind_radius=kind_radius)
+          IF(ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   kind_radius=kind_radius)
+          END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                aux_basis_set=aux_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                                 kind_radius=kind_radius)
+          IF(ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                   kind_radius=kind_radius)
+          END IF
         ELSE
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
-        WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
-          ikind,name,kind_radius/unit_of_length
+        IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+            ikind,name,kind_radius/unit_of_length
+        ELSE
+           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
+              ikind,name,"no associated basis"
+        END IF
       END DO
     END IF
 
@@ -497,21 +507,30 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 set_radius=set_radius)
+          IF(ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   set_radius=set_radius)
+          END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                aux_basis_set=aux_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                                 nset=nset,&
-                                 set_radius=set_radius)
+          IF(ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                   nset=nset,&
+                                   set_radius=set_radius)
+          END IF
         ELSE
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
-        WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,(T16,I5,T23,F12.6))")&
-          ikind,name,(iset,set_radius(iset)/unit_of_length,iset=1,nset)
+        IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,(T16,I5,T23,F12.6))")&
+            ikind,name,(iset,set_radius(iset)/unit_of_length,iset=1,nset)
+        ELSE
+           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
+              ikind,name,"no associated basis"
+        END IF
       END DO
     END IF
 
@@ -527,26 +546,35 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 npgf=npgf,&
-                                 pgf_radius=pgf_radius)
+          IF(ASSOCIATED(orb_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   npgf=npgf,&
+                                   pgf_radius=pgf_radius)
+          END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name,&
                                aux_basis_set=aux_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
-                                 nset=nset,&
-                                 npgf=npgf,&
-                                 pgf_radius=pgf_radius)
+          IF(ASSOCIATED(aux_basis_set)) THEN
+            CALL get_gto_basis_set(gto_basis_set=aux_basis_set,&
+                                   nset=nset,&
+                                   npgf=npgf,&
+                                   pgf_radius=pgf_radius)
+          END IF
         ELSE
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
-        DO iset=1,nset
-          WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,I5,(T23,F12.6))")&
-            ikind,name,iset,&
-            (pgf_radius(ipgf,iset)/unit_of_length,ipgf=1,npgf(iset))
-        END DO
+        IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
+          DO iset=1,nset
+            WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,I5,(T23,F12.6))")&
+              ikind,name,iset,&
+              (pgf_radius(ipgf,iset)/unit_of_length,ipgf=1,npgf(iset))
+          END DO
+        ELSE
+           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
+              ikind,name,"no associated basis"
+        END IF
       END DO
     END IF
 
