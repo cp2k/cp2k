@@ -7,8 +7,8 @@ LD       = xlf90
 AR       = ar -r
 CPPFLAGS = -C -D__AIX -D__ESSL -D__FFTSG  -D__FFTESSL -P
 FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-P
-FCFLAGS  = -O2 -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-P\
-           -qarch=pwr2 -qtune=pwr2 -qcache=auto
+FCFLAGS  = -O3 -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-P\
+           -qarch=pwr2 -qtune=pwr2 -qcache=auto -qmaxmem=10000
 LDFLAGS  = $(FCFLAGS) -L/home/vondele/mass -L/home/vondele/lapack/\
            -bmaxdata:0x80000000 -bnoquiet -bmaxstack:0x80000000
 LIBS     = -lmass -llapack -lesslp2 -lhm
