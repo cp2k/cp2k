@@ -1,0 +1,76 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      3
+ FFTLIB       FFTSG
+ RUN_TYPE     MD
+&END
+
+
+&MD
+ ensemble:     nvt                     (nve,nvt,npt_i,npt_f)
+ steps:        9
+ timestep:     0.5 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      init                    start type (pos,posvel)
+ constraints:  off
+ shake:        1.0E-10
+ verlet_skin:  1 angstroms
+ nose_parameter & 
+  length:    3        &
+  Yoshida:   3        &
+  timecon:   100.0 fs &
+  mts:       2
+&END  
+
+&METADYNAMICS
+ WW 1.0e-3
+ ncolvar 1
+ nt_hills 50
+ do_hills
+&END
+
+&COLVAR COORD
+ lambda 0.1
+ scale 0.02
+ mass 10.0
+ atoms_from 1   1
+ atoms_to   2   2  3
+ r_0 2.3
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       200
+&END
+
+&SCF
+ GUESS        ATOMIC
+&END
+
+&PRINT low
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q1
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q6
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          5.0  5.0  5.0
+&END
+
+&COORD
+ O   0.000000    0.000000   -0.065587
+ H   0.000000   -0.757136    0.520545
+ H   0.000000    0.757136    0.520545
+&END

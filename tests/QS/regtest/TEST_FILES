@@ -44,3 +44,7 @@ Ar-13.inp          1
 H2-1.inp           1
 H2-2.inp           1
 H2-3.inp           1
+# Metadynamics
+H2O-meta.inp       1
+# QM/MM
+H2O-qmmm.inp       1
