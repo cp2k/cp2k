@@ -188,7 +188,8 @@ CONTAINS
      ! no crossterms in unpolarised spin calculations
      cross_term = .FALSE.
 
-     pot = 0._dbl
+     CALL dcopy(SIZE(pot,1)*SIZE(pot,2), 0.0_dbl, 0, pot, 1)
+
      IF ( .NOT. gradient_correction ) THEN
        IF ( SIZE ( pot, 2 ) < order + 1 ) &
           CALL stop_program ( "xc_lda", "Size of array POT too small" )
@@ -257,7 +258,7 @@ CONTAINS
      gradient_correction = ANY ( ftags ( 1, : ) )
      cross_term = ANY ( ftags ( 2, : ) )
 
-     CALL dscal ( size(pot), 0.0_dbl, pot, 1 ) !     pot = 0._dbl
+     CALL dcopy(SIZE(pot,1)*SIZE(pot,2), 0.0_dbl, 0, pot, 1)
 
      IF ( .NOT. gradient_correction ) THEN
         
