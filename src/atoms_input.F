@@ -213,7 +213,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   !-----------------------------------------------------------------------------
   DO iatom=1,natom
     IF (scaled_coordinates) THEN
-      topology%r(:,iatom) = scaled_to_real(topology%r(:,iatom),cell)*unit_of_length
+      topology%r(:,iatom) = scaled_to_real(topology%r(:,iatom),cell)
     ELSE
       topology%r(:,iatom) = topology%r(:,iatom)*unit_of_length
     END IF
