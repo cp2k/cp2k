@@ -284,6 +284,8 @@ OBJECTS_GENERIC =\
  qs_p_env_types.o\
  qs_p_sparse_psi.o\
  qs_parser.o\
+ qs_rho0_methods.o\
+ qs_rho0_types.o\
  qs_rho_atom_methods.o\
  qs_rho_atom_types.o\
  qs_rho_methods.o\
