@@ -56,8 +56,7 @@ MODULE qmmm_input
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dbl,&
-                                             newline
+                                             dbl
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -158,8 +157,7 @@ CONTAINS
 
   SUBROUTINE init_keywords()
     keywords(key_QM_ATOMS)=keyword_type("QM_ATOMS", &
-         "QM_ATOMS 3"//newline//" H 2 "//newline//"  1 2"&
-         //newline//" O 1"//newline//"  3",&
+         "QM_ATOMS 3 // H 2 //  1 2 // O 1 //  3",&
          "Set and specifies the number, the typo and the index of the QM Atoms",&
          "QMATOMS","","")
     keywords(key_A_QM)=keyword_type("A_QM",&
@@ -190,7 +188,7 @@ CONTAINS
          "potential on the Grid with Gaussian.",&
          "ECOUPL","","")
     keywords(key_RADIUS)=keyword_type("RADIUS",&
-         "RADIUS "//newline//" O 0.7 "//newline//" H 0.4 "//newline//" END",&
+         "RADIUS // O 0.7 // H 0.4 // END",&
          "Set the charge radius to evaluate the MM electrostatic potential in the QM/MM"//&
          "coupling.",&
          "","","")

@@ -35,7 +35,7 @@ MODULE kinds
   
   PRIVATE
   PUBLIC :: sp, dp, qp, dbl, sgl, print_kind_info, dp_size, sp_size, int_size
-  PUBLIC :: default_string_length, newline
+  PUBLIC :: default_string_length
   PUBLIC :: YES, NO
   
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
@@ -46,8 +46,6 @@ MODULE kinds
   INTEGER, PARAMETER :: dp_size = 8,&
                         int_size = BIT_SIZE(0)/8,&
                         sp_size = 4
-
-  CHARACTER (LEN=1), PARAMETER :: newline=CHAR(10)
 
   LOGICAL, PARAMETER :: YES = .TRUE., NO = .FALSE.
   LOGICAL, PARAMETER :: TRUE = .TRUE., FALSE = .FALSE.
