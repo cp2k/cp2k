@@ -120,11 +120,6 @@ CONTAINS
 !!   NAME
 !!     cp2k_init
 !!
-!!   SYNOPSIS
-!!     Subroutine cp2k_init(globenv)
-!!       Type(global_environment_type), Intent (INOUT):: globenv
-!!     End Subroutine cp2k_init
-!!
 !!   FUNCTION
 !!     Initializes a CP2K run (setting of the global environment variables)
 !!
@@ -870,6 +865,7 @@ CONTAINS
       globenv%program_name = "KG"
     CASE ("QUICKSTEP","QS")
       globenv%program_name = "QS"
+    CASE("QMMM")
     CASE ("EP")
     CASE ("TRAJANA")
     CASE ("TEST")
@@ -1001,11 +997,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp2k_finalize
-!!
-!!   SYNOPSIS
-!!     Subroutine cp2k_finalize(globenv)
-!!       Type(global_environment_type), Intent (INOUT):: globenv
-!!     End Subroutine cp2k_finalize
 !!
 !!   FUNCTION
 !!     Writes final timings and banner for CP2K

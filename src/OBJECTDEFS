@@ -236,6 +236,8 @@ OBJECTS_GENERIC =\
  pw_spline_utils.o\
  pw_types.o\
  pws.o\
+ qmmm_init.o\
+ qmmm_types.o\
  qs_charges_types.o\
  qs_collocate_density.o\
  qs_conductivity.o\
@@ -365,6 +367,7 @@ OBJECTS_GENERIC =\
  xc_tfw_new.o\
  xc_thomas_fermi.o\
  xc_thomas_fermi_new.o\
+ xc_tpss.o\
  xc_tpss_p.o\
  xc_tpss_u.o\
  xc_tpss_util.o\

@@ -41,6 +41,8 @@ MODULE force_env_methods
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_retain
+  USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
@@ -53,7 +55,8 @@ MODULE force_env_methods
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_pol_force,&
-                                             use_qs_force
+                                             use_qs_force,&
+                                             use_qmmm
   USE global_types,                    ONLY: global_environment_type
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
@@ -71,6 +74,8 @@ MODULE force_env_methods
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
   USE simulation_cell,                 ONLY: cell_type
+  USE qmmm_types, ONLY: qmmm_env_type, qmmm_env_retain
+  USE particle_types, only: particle_type
 
   IMPLICIT NONE
 
@@ -106,7 +111,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
+  RECURSIVE SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
   
 
     TYPE(force_env_type), POINTER            :: force_env
@@ -159,6 +164,10 @@ SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     CASE ( use_kg_force )
       CALL kg_force_control ( force_env%kg_env, force_env%globenv )
+   CASE (use_qmmm)
+      CALL qmmm_forces(force_env,box_change,error)
+   CASE default
+      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
   END SELECT
 
   IF (ASSOCIATED(force_env%meta_env)) THEN
@@ -192,7 +201,7 @@ END SUBROUTINE force_env_calculate_force
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
+RECURSIVE SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, OPTIONAL                        :: box_change
     TYPE(cp_error_type), INTENT(inout), &
@@ -243,6 +252,8 @@ SUBROUTINE force_env_calculate_energy(force_env, box_change, error)
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
     CASE ( use_kg_force ) 
       CALL kg_energies ( force_env%kg_env, force_env%globenv )
+   CASE (use_qmmm)
+      call qmmm_energy(force_env, box_change, error=error)
   END SELECT
   IF (ASSOCIATED(force_env%meta_env)) THEN
      CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
@@ -279,7 +290,7 @@ END SUBROUTINE force_env_calculate_energy
 !!*** **********************************************************************
 !SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
 SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
-     globenv,meta_env,error)
+     globenv,meta_env,sub_force_env,qmmm_env,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
@@ -290,14 +301,17 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
     TYPE(global_environment_type), &
       INTENT(inout), OPTIONAL, TARGET        :: globenv
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
+    TYPE(qmmm_env_type), POINTER, OPTIONAL   :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_type', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat,isubsys
     LOGICAL                                  :: failure
+    TYPE(cp_subsystem_p_type), DIMENSION(:), pointer :: subsys
 
 !  TYPE(fist_environment_type), POINTER, OPTIONAL :: fist_env
 !  TYPE(replica_environment_type), POINTER :: rep_att
@@ -314,7 +328,8 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
 !          force_env%globenv)
      NULLIFY(force_env%subsys, force_env%dyn_coeff_set, &
           force_env%kg_env, force_env%qs_env, force_env%para_env,&
-          force_env%globenv, force_env%meta_env)
+          force_env%globenv, force_env%meta_env, force_env%sub_force_env,&
+          force_env%qmmm_env)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
@@ -323,6 +338,8 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
      IF (PRESENT(globenv)) THEN
         force_env%globenv => globenv
         force_env%para_env => globenv%para_env
+     ELSE
+        CPAssert(PRESENT(para_env),cp_failure_level,routineP,error,failure)
      END IF
      IF (PRESENT(para_env)) force_env%para_env => para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
@@ -351,7 +368,18 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
            CALL qs_env_retain(qs_env,error=error)
         END IF
      END IF
+     IF (PRESENT(qmmm_env)) THEN
+        CPPrecondition(present(sub_force_env),cp_failure_level,routineP,error,failure)
+        force_env%in_use=use_qmmm
+        force_env%qmmm_env => qmmm_env
+        CALL qmmm_env_retain(qmmm_env,error=error)
+     END IF
      CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)
+
+     IF (PRESENT(sub_force_env)) THEN
+        force_env%sub_force_env => sub_force_env
+     END IF
+
      IF (PRESENT(meta_env)) THEN
         force_env%meta_env => meta_env
         CALL meta_env_retain(meta_env,error=error)
@@ -417,6 +445,18 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
              error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
              error=error)
+     CASE(use_qmmm)
+        subsys => force_env%sub_force_env(1)%force_env%subsys
+        ALLOCATE(force_env%subsys(size(subsys)), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        
+        DO isubsys=1,SIZE(subsys)
+           force_env%subsys(isubsys)%subsys => subsys(isubsys)%subsys
+           CALL cp_subsys_retain(subsys(isubsys)%subsys,&
+                error=error)
+        END DO
+     CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
      
   END IF
@@ -486,6 +526,152 @@ SUBROUTINE force_env_set_cell(force_env, cell, error)
      END SELECT
   END IF
 END SUBROUTINE force_env_set_cell
+!***************************************************************************
+
+!!****f* force_env_methods/qmmm_forces [1.0] *
+!!
+!!   NAME
+!!     qmmm_forces
+!!
+!!   FUNCTION
+!!     calculates the qm/mm forces
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
+  TYPE(force_env_type), POINTER            :: force_env
+  LOGICAL, INTENT(IN), OPTIONAL            :: box_change
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='qmmm_forces',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
+  INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
+  INTEGER :: ip, isubsys
+  TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
+
+  failure=.false.
+  NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
+
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  ! transfer position to qm part
+  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+       subsys=subsys_mm,error=error)
+  CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+       subsys=subsys_qm,error=error)
+  qm_atom_index => force_env%qmmm_env%qm_atom_index
+  qm_subsys_index => force_env%qmmm_env%qm_subsys_index
+  CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
+  particles_qm => subsys_qm(1)%subsys%particles%els
+  isubsys=-1
+  DO ip=1,SIZE(qm_atom_index)
+     IF (isubsys/=qm_subsys_index(ip)) THEN
+        isubsys=qm_subsys_index(ip)
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     END IF
+     particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
+  END DO
+  DO isubsys=1,2
+     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error)
+  END DO
+  isubsys=-1
+  DO ip=1,SIZE(qm_atom_index)
+     IF (isubsys/=qm_subsys_index(ip)) THEN
+        isubsys=qm_subsys_index(ip)
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     END IF
+     particles_mm(qm_atom_index(ip))%f=particles_qm(ip)%f
+  END DO  
+END SUBROUTINE qmmm_forces
+!***************************************************************************
+
+
+!!****f* force_env_methods/qmmm_energy [1.0] *
+!!
+!!   NAME
+!!     qmmm_energy
+!!
+!!   FUNCTION
+!!     calculates the qm/mm energy
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
+  TYPE(force_env_type), POINTER            :: force_env
+  LOGICAL, INTENT(IN), OPTIONAL            :: box_change
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='qmmm_energy',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys_qm,subsys_mm
+  INTEGER, DIMENSION(:), POINTER :: qm_atom_index, qm_subsys_index
+  TYPE(particle_type), DIMENSION(:), POINTER :: particles_qm, particles_mm
+  INTEGER :: ip,isubsys
+
+  failure=.false.
+  NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm)
+
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(force_env%qmmm_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%qmmm_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  ! transfer position to qm part
+  CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+       subsys=subsys_mm,error=error)
+  CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+       subsys=subsys_qm,error=error)
+  qm_atom_index => force_env%qmmm_env%qm_atom_index
+  qm_subsys_index => force_env%qmmm_env%qm_subsys_index
+  CPPrecondition(ASSOCIATED(qm_atom_index),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(qm_subsys_index),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(subsys_qm)==1,cp_failure_level,routineP,error,failure)
+  particles_qm => subsys_qm(1)%subsys%particles%els
+  isubsys=-1
+  DO ip=1,SIZE(qm_atom_index)
+     IF (isubsys/=qm_subsys_index(ip)) THEN
+        isubsys=qm_subsys_index(ip)
+        particles_mm => subsys_mm(isubsys)%subsys%particles%els
+     END IF
+     particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
+  END DO
+  DO isubsys=1,2
+     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+          box_change=box_change,error=error)
+  END DO
+END SUBROUTINE qmmm_energy
 !***************************************************************************
 
 END MODULE force_env_methods

@@ -29,8 +29,18 @@ MODULE particle_types
                                              get_atomic_kind,&
                                              read_atomic_kind_set,&
                                              set_atomic_kind
-  USE basis_set_types,                 ONLY: gto_basis_set_type,&
-                                             get_gto_basis_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              default_string_length,&
@@ -118,12 +128,72 @@ MODULE particle_types
             write_qs_particle_coordinates,&
             write_particle_distances, &
             write_particle_coordinates,&
-            write_structure_data
+            write_structure_data,&
+            clone_particle
 
 !!***
 ! *****************************************************************************
 
 CONTAINS
+
+!!****f* particle_types/clone_particle [1.0] *
+!!
+!!   NAME
+!!     clone_particle
+!!
+!!   FUNCTION
+!!     copies all the attributes of a particle to another
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - p_in: the particle to copy
+!!     - p_out: the place where to copy
+!!     - nullify_non_owned_pointers: if the pointers to shared structures
+!!       should be nullified. If false, copies the pointer (but does not
+!!       try to perform any memory handling).
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
+    TYPE(particle_type), INTENT(in)          :: p_in
+    TYPE(particle_type), INTENT(out)         :: p_out
+    LOGICAL, INTENT(in)                      :: nullify_non_owned_pointers
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'clone_particle', &
+      routineP = module_name//':'//routineN
+
+  NULLIFY(p_out%atomic_kind, p_out%lpi,p_out%coef_list)
+  IF (.NOT.nullify_non_owned_pointers) THEN
+     p_out%atomic_kind => p_in%atomic_kind
+     p_out%lpi => p_in%lpi
+     p_out%coef_list => p_in%coef_list
+  END IF
+  p_out%r=p_in%r
+  p_out%f=p_in%f
+  p_out%v=p_in%v
+  p_out%abase=p_in%abase
+  p_out%first_cgf=p_in%first_cgf
+  p_out%first_cgf_aux=p_in%first_cgf_aux
+  p_out%first_sgf=p_in%first_sgf
+  p_out%first_sgf_aux=p_in%first_sgf_aux
+  p_out%grid_id=p_in%grid_id
+  p_out%iatom=p_in%iatom
+  p_out%kind=p_in%kind
+  p_out%last_cgf=p_in%last_cgf
+  p_out%last_sgf=p_in%last_sgf
+END SUBROUTINE clone_particle
+!***************************************************************************
 
 ! *****************************************************************************
 
@@ -239,19 +309,22 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, DIMENSION(:), INTENT(OUT), &
-      OPTIONAL                               :: first_cgf, first_nco, first_nso,  first_sgf, &
-                                                last_cgf, last_nco, last_nso, last_sgf, &
-                                                ncgf, nsgf
-    INTEGER, INTENT(OUT), OPTIONAL           :: ncotot,nsotot
+      OPTIONAL                               :: first_cgf, first_nco, &
+                                                first_nso, first_sgf, &
+                                                last_cgf, last_nco, last_nso, &
+                                                last_sgf, ncgf
+    INTEGER, INTENT(OUT), OPTIONAL           :: ncotot, nsotot
+    INTEGER, DIMENSION(:), INTENT(OUT), &
+      OPTIONAL                               :: nsgf
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: r
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_particle_set"
 
+    INTEGER                                  :: icgf, ico, iparticle, isgf, &
+                                                iso, maxco, maxso, nc, &
+                                                nparticle, ns, nset
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
-
-    INTEGER                                  :: icgf, ico, iparticle, isgf, iso,&
-                                                maxco, maxso, nc, nparticle, ns, nset
 
 !   ---------------------------------------------------------------------------
 
@@ -1061,14 +1134,14 @@ CONTAINS
 !  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
 ! *****************************************************************************
 
-  SUBROUTINE write_particle_coordinates(particle_set,cell,iunit,format,&
+  SUBROUTINE write_particle_coordinates(particle_set,cell,iunit,FORMAT,&
                                         content,title)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     INTEGER                                  :: iunit
-    CHARACTER(LEN=*)                         :: format, content, title
+    CHARACTER(LEN=*)                         :: FORMAT, content, title
 
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: iatom, natom
@@ -1076,7 +1149,7 @@ CONTAINS
 
     natom = SIZE(particle_set)
 
-    SELECT CASE (TRIM(format))
+    SELECT CASE (TRIM(FORMAT))
     CASE ("XMOL")
       WRITE(iunit,"(I8)") natom
       WRITE(iunit,"(A)")  TRIM(title)
@@ -1207,19 +1280,20 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_structure_data",&
-                                   start_section_label = "STRUCTURE_DATA"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_structure_data", &
+      start_section_label = "STRUCTURE_DATA"
 
-    CHARACTER(LEN=default_string_length)     :: string
-    CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=3)                         :: test_result
-    INTEGER                                  :: handle,i,iatom,icode,jatom,&
-                                                katom,latom,natom,output_unit
-    LOGICAL                                  :: ionode,section_found
-    REAL(KIND=dp)                            :: dab,unit_of_length
-    REAL(KIND=dp), DIMENSION(3)              :: n_abc,n_bcd,rab,rbc,rcd
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: string
+    INTEGER                                  :: handle, i, iatom, icode, &
+                                                jatom, katom, latom, natom, &
+                                                output_unit
     INTEGER, DIMENSION(3)                    :: periodic
     INTEGER, DIMENSION(4)                    :: atomic_index
+    LOGICAL                                  :: ionode, section_found
+    REAL(KIND=dp)                            :: dab, unit_of_length
+    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
 
 !   ---------------------------------------------------------------------------
 
@@ -1376,9 +1450,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: from, iatom, icol, &
-                                                ikind, istat, jatom, &
-                                                natom, output_unit, to
+    INTEGER                                  :: from, iatom, icol, ikind, &
+                                                istat, jatom, natom, &
+                                                output_unit, to
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &

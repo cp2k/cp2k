@@ -26,7 +26,8 @@ MODULE topology_types
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
   USE pair_potential_types,            ONLY: pair_potential_type
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_release,&
+                                             cell_type
   USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
@@ -166,15 +167,15 @@ SUBROUTINE init_topology (topology)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
 
-    INTEGER     :: istat
+    INTEGER                                  :: istat
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! 1. Nullify and allocate things in topology
+!-----------------------------------------------------------------------------
 
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. Nullify and allocate things in topology
-  !-----------------------------------------------------------------------------
   ALLOCATE(topology%atom_info,STAT=istat)
   IF(istat/=0) CALL stop_memory &
     ('init_topology','atom_info')
@@ -343,12 +344,11 @@ SUBROUTINE deallocate_topology (topology)
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! 1. DEALLOCATE things in topology%atom_info
+!-----------------------------------------------------------------------------
 
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 1. DEALLOCATE things in topology%atom_info
-  !-----------------------------------------------------------------------------
   IF(ASSOCIATED(topology%atom_info%label_molname)) THEN
     DEALLOCATE(topology%atom_info%label_molname,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','label_molname')
@@ -579,10 +579,7 @@ SUBROUTINE deallocate_topology (topology)
   !-----------------------------------------------------------------------------
   ! 7. DEALLOCATE things in topology
   !-----------------------------------------------------------------------------
-  IF(ASSOCIATED(topology%cell)) THEN
-    DEALLOCATE(topology%cell,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_topology','cell_type')
-  END IF
+  CALL cell_release(topology%cell)
   IF(ASSOCIATED(topology%atom_info)) THEN
     DEALLOCATE(topology%atom_info,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','atom_info')

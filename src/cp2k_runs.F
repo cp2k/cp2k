@@ -55,6 +55,7 @@ MODULE cp2k_runs
                                              timestop
   USE metadynamics_types, ONLY: meta_env_type, meta_env_release
   USE metadynamics, only: metadyn_read
+  USE qmmm_init, only: qmmm_create_force_env
   IMPLICIT NONE
 
   PRIVATE
@@ -147,6 +148,8 @@ CONTAINS
        CALL quickstep_create_force_env(force_env, globenv, error=error)
     CASE ("TRAJANA")
        CALL trajana(globenv)
+    CASE ("QMMM")
+       CALL qmmm_create_force_env(force_env, globenv, error=error)
     CASE ("EP")
        !     CALL ep_create_force_env(force_env,  globenv, error=error)
     CASE ("TEST")
@@ -167,7 +170,8 @@ CONTAINS
     IF (globenv%run_type/="NONE") THEN 
        !FM this test should be reduced to the first one
   
-       IF (globenv%program_name=="QS".OR.globenv%program_name=="EP") THEN
+       IF (globenv%program_name=="QMMM".OR.globenv%program_name=="QS"&
+            .OR.globenv%program_name=="EP") THEN
          SELECT CASE (globenv%run_type)
          CASE ("GEOMETRY OPTIMIZATION")
             CALL qs_geo_opt(force_env,globenv,error=error)

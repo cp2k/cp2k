@@ -120,7 +120,7 @@ MODULE qs_environment
 
 ! *** Public subroutines ***
 
-  PUBLIC :: qs_init
+  PUBLIC :: qs_init, qs_init_subsys
 
 !!***
 ! *****************************************************************************
@@ -204,6 +204,8 @@ CONTAINS
     
     CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
          globenv,error)
+    CALL cell_release(cell,error=error)
+    CALL cell_release(cell_ref,error=error)
     
   END SUBROUTINE qs_init
 
@@ -434,8 +436,6 @@ CONTAINS
                     scf_control=scf_control,&
                     wf_history=wf_history)
 
-    CALL cell_release(cell,error=error)
-    CALL cell_release(cell_ref,error=error)
     CALL distribution_1d_release(local_particles,error=error)
     CALL distribution_1d_release(local_molecules,error=error)
     CALL scf_c_release(scf_control,error=error)

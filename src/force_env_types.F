@@ -62,6 +62,7 @@ MODULE force_env_types
                                              qs_env_release,&
                                              qs_environment_type
   USE simulation_cell,                 ONLY: cell_type
+  USE qmmm_types, ONLY: qmmm_env_type, qmmm_env_release
 
   IMPLICIT NONE
 
@@ -70,7 +71,7 @@ MODULE force_env_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_types'
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
-       use_kg_force=503, use_pol_force=504
+       use_kg_force=503, use_pol_force=504, use_qmmm=505
   PUBLIC :: force_env_type,force_env_p_type
   PUBLIC :: force_env_retain, force_env_release, force_env_set,&
        force_env_get, force_env_write_variables, force_env_read_variables
@@ -133,6 +134,8 @@ MODULE force_env_types
      TYPE (dyn_coeff_set_p_type), DIMENSION(:),POINTER :: dyn_coeff_set
      TYPE (global_environment_type), POINTER :: globenv
      TYPE (cp_para_env_type), POINTER :: para_env
+     TYPE (force_env_p_type), DIMENSION(:), pointer :: sub_force_env
+     TYPE (qmmm_env_type), pointer :: qmmm_env
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -229,7 +232,7 @@ END SUBROUTINE force_env_retain
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_release(force_env, error)
+RECURSIVE SUBROUTINE force_env_release(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -267,13 +270,21 @@ SUBROUTINE force_env_release(force_env, error)
            DEALLOCATE(force_env%dyn_coeff_set, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(force_env%sub_force_env)) THEN
+           DO i=1,SIZE(force_env%sub_force_env)
+              CALL force_env_release(force_env%sub_force_env(i)%force_env,&
+                   error=error)
+           END DO
+           DEALLOCATE(force_env%sub_force_env,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         CALL cp_para_env_release(force_env%para_env,error=error)
         NULLIFY(force_env%globenv)
         ! not deallocated
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
 !        CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
-
+        CALL qmmm_env_release(force_env%qmmm_env,error=error)
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -309,9 +320,9 @@ END SUBROUTINE force_env_release
 !!*** **********************************************************************
 !SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
 !     subsys, para_env, potential_energy, kinetic_energy,cell, error)
-SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
+RECURSIVE SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
      dyn_coeff_set, subsys, para_env, potential_energy, kinetic_energy,&
-     cell, error)
+     cell, sub_force_env, qmmm_env, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(qs_environment_type), OPTIONAL, &
@@ -328,6 +339,8 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
     REAL(kind=dbl), INTENT(out), OPTIONAL    :: potential_energy, &
                                                 kinetic_energy
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
+    TYPE(force_env_p_type), DIMENSION(:), POINTER, OPTIONAL :: sub_force_env
+    TYPE(qmmm_env_type), POINTER, OPTIONAL :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -337,6 +350,7 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
     LOGICAL                                  :: failure
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
+    REAL(kind=dbl) :: penergy_mm,penergy_qm
 
 !  TYPE ( fist_environment_type ), POINTER, OPTIONAL :: fist_env 
 !  TYPE(replica_environment_type), POINTER :: rep_att
@@ -387,6 +401,17 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
              error=error)
         IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
         IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
+     CASE (use_qmmm)
+        CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+             potential_energy=penergy_mm,&
+             cell=cell,error=error)
+        CALL force_env_get(force_env%sub_force_env(2)%force_env,&
+             potential_energy=penergy_qm,error=error)
+        IF (PRESENT(kinetic_energy)) THEN
+           CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+                kinetic_energy=kinetic_energy,error=error)
+        END IF
+        IF (PRESENT(potential_energy)) potential_energy = penergy_qm+penergy_mm
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
@@ -423,6 +448,8 @@ SUBROUTINE force_env_get(force_env, in_use, qs_env, kg_env, meta_env,&
         END IF
      END IF
      IF (PRESENT(meta_env)) meta_env => force_env%meta_env
+     IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
+     if (present(qmmm_env)) qmmm_env => force_env%qmmm_env
   END IF
 END SUBROUTINE force_env_get
 !***************************************************************************
@@ -493,6 +520,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
      ! method specific global output
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
+     CASE (use_qmmm)
 !     CASE (use_fist_force)
      CASE (use_kg_force)
        CALL force_env_get(force_env,dyn_coeff_set=dyn_coeff_set)
@@ -538,6 +566,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
                  WRITE (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
               END DO
            END IF
+        CASE(use_qmmm)
 !        CASE (use_fist_force)
 !           IF (should_write) THEN
 !              DO i = 1, 3
@@ -633,6 +662,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
      ! method specific global output
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
+     CASE (use_qmmm)
 !     CASE (use_fist_force)
      CASE (use_kg_force)
      CASE default
@@ -663,6 +693,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
            DO i=1,3
               READ (UNIT=unit_nr,FMT=*) cell%hmat(i,1:3)
            END DO
+           case(use_qmmm)
 !        CASE (use_fist_force)
 !           DO i = 1, 3
 !              READ (unit_nr,*) force_env%fist_env%rep_env(1)%box_ref%hmat(i,:)
