@@ -560,6 +560,11 @@ CONTAINS
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              gth_potential=gth_potential)
 
+        NULLIFY (vppnl(ikind)%alpha_ppnl)
+        NULLIFY (vppnl(ikind)%cprj)
+        NULLIFY (vppnl(ikind)%nprj_ppnl)
+        NULLIFY (vppnl(ikind)%vprj_ppnl)
+
         CALL get_potential(potential=gth_potential,&
                            alpha_ppnl=vppnl(ikind)%alpha_ppnl,&
                            cprj=vppnl(ikind)%cprj,&
