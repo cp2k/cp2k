@@ -553,7 +553,6 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
 
-
   IF(PM4) THEN
     DO iatom=1,natom
       WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
@@ -1377,7 +1376,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
       IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
           (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) ) THEN
         nphi = nphi + 1
-        IF(nphi > SIZE(conn_info%theta_a)) THEN
+        IF(nphi > SIZE(conn_info%phi_a)) THEN
           CALL reallocate(conn_info%phi_a,1,nphi+nblock)
           CALL reallocate(conn_info%phi_b,1,nphi+nblock)
           CALL reallocate(conn_info%phi_c,1,nphi+nblock)
@@ -1393,7 +1392,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
       IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
           (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) ) THEN
         nphi = nphi + 1
-        IF(nphi > SIZE(conn_info%theta_a)) THEN
+        IF(nphi > SIZE(conn_info%phi_a)) THEN
           CALL reallocate(conn_info%phi_a,1,nphi+nblock)
           CALL reallocate(conn_info%phi_b,1,nphi+nblock)
           CALL reallocate(conn_info%phi_c,1,nphi+nblock)
@@ -1409,7 +1408,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
       IF( (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) .AND. &
           (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
         nphi = nphi + 1
-        IF(nphi > SIZE(conn_info%theta_a)) THEN
+        IF(nphi > SIZE(conn_info%phi_a)) THEN
           CALL reallocate(conn_info%phi_a,1,nphi+nblock)
           CALL reallocate(conn_info%phi_b,1,nphi+nblock)
           CALL reallocate(conn_info%phi_c,1,nphi+nblock)
@@ -1425,7 +1424,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
       IF( (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) .AND. &
           (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
         nphi = nphi + 1
-        IF(nphi > SIZE(conn_info%theta_a)) THEN
+        IF(nphi > SIZE(conn_info%phi_a)) THEN
           CALL reallocate(conn_info%phi_a,1,nphi+nblock)
           CALL reallocate(conn_info%phi_b,1,nphi+nblock)
           CALL reallocate(conn_info%phi_c,1,nphi+nblock)
