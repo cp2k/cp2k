@@ -21,9 +21,9 @@
 MODULE tbmd_debug
 
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fist_force_numer, ONLY : force_nonbond_numer, force_recip_numer, &
+  USE fist_force_numer, ONLY : force_nonbond_numer, ewald_energy_numer, &
        ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
-       energy_recip_numer
+       ewald_force_numer
   USE tbmd_force, ONLY : force_control, debug_variables_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -203,7 +203,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
                ewald_grid % ngpts_cut
           WRITE ( iw, '( A, T71, F10.4 )' ) 'ALPHA= ', &
                ewald_param % alpha
-          CALL energy_recip_numer ( ewald_param, pnode, box_ref,  &
+          CALL ewald_energy_numer ( ewald_param, pnode, box_ref,  &
                   ewald_grid, energy_numer, ewald_grid % ngpts_cut )
           WRITE ( iw, '( A, T61, G20.14 )' ) 'G-SPACE ANAL ENERGY = ', &
                dbg % pot_g
@@ -224,7 +224,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
              WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
           END IF
 
-          CALL force_recip_numer ( ewald_param, pnode, box_ref, ewald_grid, &
+          CALL ewald_force_numer ( ewald_param, pnode, box_ref, ewald_grid, &
                                    delta, f_numer )
 
 ! computing the absolute value of the differences in the forces
