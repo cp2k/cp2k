@@ -2248,7 +2248,7 @@ END SUBROUTINE xc_calculate_pw_test_lsd
                             my_rho_n2=my_rho_n*my_rho_n
                             vxc(ispin)%pw%cr3d(i,j,k)=vxc(ispin)%pw%cr3d(i,j,k)*&
                                  (1.0_dp-my_rho_n2*(my_rho_n-0.5_dp*my_rho_n2))&
-                                 -deriv_data(i,j,k)*&
+                                 +deriv_data(i,j,k)*&
                                  my_rho_n2*(3.0_dp-2.0_dp*my_rho_n)&
                                  /rho_smooth_cutoff_range_2
                          END IF
