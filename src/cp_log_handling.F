@@ -47,63 +47,61 @@
 !!   SOURCE
 !******************************************************************************
 
-module cp_log_handling
-  use output_utilities, only: print_message
-  use qs_parser, only: open_file, close_file
-  use machine, only: m_flush
-  use message_passing, only: mp_comm_free, mp_bcast
-  use termination, only: stop_program
-  use cp_para_types, only: cp_para_env_type
-  use global_types, only: print_key_type, init_print_keys
-  use string_utilities, only: compress_all
-  use timesl, only: walltime
-  use kinds, only: wp=>dp
-  implicit none
-  private
+MODULE cp_log_handling
+  USE output_utilities, ONLY: print_message
+  USE qs_parser, ONLY: open_file, close_file
+  USE machine, ONLY: m_flush
+  USE message_passing, ONLY: mp_comm_free, mp_bcast
+  USE termination, ONLY: stop_program
+  USE cp_para_types, ONLY: cp_para_env_type
+  USE global_types, ONLY: print_key_type, init_print_keys
+  USE string_utilities, ONLY: compress_all
+  USE timesl, ONLY: walltime
+  USE kinds, ONLY: wp=>dp
+  IMPLICIT NONE
+  PRIVATE
 
 ! types
-  public :: cp_logger_type
+  PUBLIC :: cp_logger_type
 ! parameter vars
-  public :: cp_note_level, cp_warning_level, cp_failure_level,&
+  PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
        cp_fatal_level, cp_std_in_unit_nr, cp_std_out_unit_nr
 ! default loggers
-  public :: cp_get_default_logger, cp_init_default_logger
+  PUBLIC :: cp_get_default_logger, cp_init_default_logger
 ! logger routines
-  public :: cp_logger_create, cp_logger_retain, cp_logger_release,&
+  PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
        cp_logger_would_log,&
        cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
        cp_logger_set_log_level, cp_logger_generate_filename
-  public :: cp_to_string, cp_log
+  PUBLIC :: cp_to_string, cp_log
 ! underlying routines
-!!FM  public :: cp_int_to_string, cp_real_sp_to_string, &
-!!FM       cp_real_dp_to_string
+!!FM  public :: cp_int_to_string, cp_real_dp_to_string
 
-  character(len=*), private, parameter :: moduleN='cp_log_handling'
-  logical, private, parameter :: debug_this_module=.true.
-  integer, parameter :: cp_std_in_unit_nr=5
-  integer, parameter :: cp_std_out_unit_nr=6
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  INTEGER, PARAMETER :: cp_std_in_unit_nr=5
+  INTEGER, PARAMETER :: cp_std_out_unit_nr=6
 
 !! level of an error
-  integer, parameter  :: cp_fatal_level=3
+  INTEGER, PARAMETER  :: cp_fatal_level=3
 !! level of a failure
-  integer, parameter  :: cp_failure_level=2
+  INTEGER, PARAMETER  :: cp_failure_level=2
 !! level of a warning
-  integer, parameter  :: cp_warning_level=1
+  INTEGER, PARAMETER  :: cp_warning_level=1
 !! level of a note
-  integer, parameter  :: cp_note_level=0
+  INTEGER, PARAMETER  :: cp_note_level=0
 
 !! a generic function to trasform different types to strings
-  interface cp_to_string
-     module procedure cp_int_to_string, cp_real_dp_to_string
-!!FM          cp_real_sp_to_string
-  end interface
-  interface cp_log
-     module procedure cp_logger_log
-  end interface
+  INTERFACE cp_to_string
+     MODULE PROCEDURE cp_int_to_string, cp_real_dp_to_string
+  END INTERFACE
+  INTERFACE cp_log
+     MODULE PROCEDURE cp_logger_log
+  END INTERFACE
 
-  logical, save, private :: default_logger_initialized=.false.
-  integer, save, private :: last_logger_id_nr=0
-  real(kind=wp), save, private :: start_time
+  LOGICAL, SAVE, PRIVATE :: default_logger_initialized=.FALSE.
+  INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
+  REAL(kind=wp), SAVE, PRIVATE :: start_time
 
 !!***
 !****************************************************************************
@@ -145,24 +143,24 @@ module cp_log_handling
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_logger_type
-     integer :: id_nr, ref_count
-     integer :: print_level
-     integer :: default_local_unit_nr
-     integer :: default_global_unit_nr
-     logical :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
-     character(len=10) :: suffix
-     character(len=50) :: local_filename, global_filename
-     type(print_key_type), pointer :: print_keys
-     type(cp_para_env_type), pointer :: para_env
-  end type cp_logger_type
+  TYPE cp_logger_type
+     INTEGER :: id_nr, ref_count
+     INTEGER :: print_level
+     INTEGER :: default_local_unit_nr
+     INTEGER :: default_global_unit_nr
+     LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
+     CHARACTER(len=10) :: suffix
+     CHARACTER(len=50) :: local_filename, global_filename
+     TYPE(print_key_type), POINTER :: print_keys
+     TYPE(cp_para_env_type), POINTER :: para_env
+  END TYPE cp_logger_type
 !!***
 !****************************************************************************
 
 ! the default logger
-  type(cp_logger_type), pointer, private ::cp_default_logger ! => null()
+  TYPE(cp_logger_type), POINTER, PRIVATE ::cp_default_logger ! => null()
 
-contains
+CONTAINS
 
 !!****f* cp_log_handling/cp_init_default_logger [1.0] *
 !!
@@ -186,33 +184,33 @@ contains
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-  subroutine cp_init_default_logger(para_env,print_level,&
+  SUBROUTINE cp_init_default_logger(para_env,print_level,&
        default_global_unit_nr,default_local_unit_nr, global_filename,&
        local_filename, close_global_unit_on_dealloc,&
        close_local_unit_on_dealloc, print_keys, suffix,&
        template_logger)
-    type(cp_para_env_type), pointer, optional :: para_env
-    integer, intent(in), optional     :: print_level, default_global_unit_nr,&
+    TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
+    INTEGER, INTENT(in), OPTIONAL     :: print_level, default_global_unit_nr,&
          default_local_unit_nr
-    character(len=*), intent(in), optional :: global_filename,local_filename,&
+    CHARACTER(len=*), INTENT(in), OPTIONAL :: global_filename,local_filename,&
          suffix
-    logical, intent(in), optional :: close_global_unit_on_dealloc,&
+    LOGICAL, INTENT(in), OPTIONAL :: close_global_unit_on_dealloc,&
          close_local_unit_on_dealloc
-    type(print_key_type), target, optional  :: print_keys
-    type(cp_logger_type), target, optional :: template_logger
+    TYPE(print_key_type), TARGET, OPTIONAL  :: print_keys
+    TYPE(cp_logger_type), TARGET, OPTIONAL :: template_logger
 
-    character(len=*), parameter :: routineN='cp_init_default_logger',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_init_default_logger',&
          routineP=moduleN//':'//routineN
 
-    if (default_logger_initialized) then
-       print *,routineP," WARNING called more than once"
-       call cp_logger_release(cp_default_logger)
-    else
-       nullify(cp_default_logger)
-    end if
+    IF (default_logger_initialized) THEN
+       PRINT *,routineP," WARNING called more than once"
+       CALL cp_logger_release(cp_default_logger)
+    ELSE
+       NULLIFY(cp_default_logger)
+    END IF
     ! cases because of bug with optional pointers arg in pgf90 3.3
-    if (present(para_env)) then
-       call cp_logger_create(cp_default_logger,&
+    IF (PRESENT(para_env)) THEN
+       CALL cp_logger_create(cp_default_logger,&
             para_env=para_env,print_level=print_level,&
             default_global_unit_nr=default_global_unit_nr,&
             default_local_unit_nr=default_local_unit_nr,&
@@ -222,8 +220,8 @@ contains
             close_local_unit_on_dealloc=close_local_unit_on_dealloc,&
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
-    else
-       call cp_logger_create(cp_default_logger,&
+    ELSE
+       CALL cp_logger_create(cp_default_logger,&
             print_level=print_level,&
             default_global_unit_nr=default_global_unit_nr,&
             default_local_unit_nr=default_local_unit_nr,&
@@ -233,10 +231,10 @@ contains
             close_local_unit_on_dealloc=close_local_unit_on_dealloc,&
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
-    end if
+    END IF
     start_time=walltime()
-    default_logger_initialized=.true.
-  end subroutine cp_init_default_logger
+    default_logger_initialized=.TRUE.
+  END SUBROUTINE cp_init_default_logger
 !**************************************************************************
 
 !!****f* cp_log_handling/cp_get_default_logger [1.0] *
@@ -265,19 +263,19 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  function cp_get_default_logger() result(res)
-    type(cp_logger_type), pointer ::res
+  FUNCTION cp_get_default_logger() RESULT(res)
+    TYPE(cp_logger_type), POINTER ::res
 
-    if (.not. default_logger_initialized) then
-       call stop_program("cp_log_handling:cp_get_default_logger",&
+    IF (.NOT. default_logger_initialized) THEN
+       CALL stop_program("cp_log_handling:cp_get_default_logger",&
             "default logger not yet initialized (call cp_init_default_logger")
-    end if
-    if (.not.associated(cp_default_logger)) then
-       call stop_program("cp_log_handling:cp_get_default_logger",&
+    END IF
+    IF (.NOT.ASSOCIATED(cp_default_logger)) THEN
+       CALL stop_program("cp_log_handling:cp_get_default_logger",&
             "default logger was null (released one time too much??)")
-    end if
+    END IF
     res => cp_default_logger
-  end function cp_get_default_logger
+  END FUNCTION cp_get_default_logger
 !***************************************************************************
 
 ! ================== log ==================
@@ -344,126 +342,126 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_logger_create(logger, para_env,print_level,&
+  SUBROUTINE cp_logger_create(logger, para_env,print_level,&
        default_global_unit_nr,default_local_unit_nr, global_filename,&
        local_filename, close_global_unit_on_dealloc,&
        close_local_unit_on_dealloc, print_keys, suffix, template_logger)
-    type(cp_logger_type), pointer           :: logger
-    type(cp_para_env_type),pointer,optional :: para_env
-    integer, intent(in), optional           :: print_level,&
+    TYPE(cp_logger_type), POINTER           :: logger
+    TYPE(cp_para_env_type),POINTER,OPTIONAL :: para_env
+    INTEGER, INTENT(in), OPTIONAL           :: print_level,&
          default_global_unit_nr, default_local_unit_nr
-    character(len=*), intent(in), optional  :: global_filename,local_filename
-    logical, intent(in), optional           :: close_global_unit_on_dealloc,&
+    CHARACTER(len=*), INTENT(in), OPTIONAL  :: global_filename,local_filename
+    LOGICAL, INTENT(in), OPTIONAL           :: close_global_unit_on_dealloc,&
          close_local_unit_on_dealloc
-    type(print_key_type), target, optional  :: print_keys
-    character(len=*), intent(in),optional   :: suffix
-    type(cp_logger_type),target,optional    :: template_logger
+    TYPE(print_key_type), TARGET, OPTIONAL  :: print_keys
+    CHARACTER(len=*), INTENT(in),OPTIONAL   :: suffix
+    TYPE(cp_logger_type),TARGET,OPTIONAL    :: template_logger
 
-    character(len=*), parameter :: routineN='cp_logger_create',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_create',&
          routineP=moduleN//':'//routineN
     
-    integer :: stat
-    logical :: exists
+    INTEGER :: stat
+    LOGICAL :: exists
 
-    allocate(logger, stat=stat)
-    if (stat/=0) call stop_program(routineP,"could not allocate a logger")
+    ALLOCATE(logger, stat=stat)
+    IF (stat/=0) CALL stop_program(routineP,"could not allocate a logger")
 
-    nullify(logger%para_env,logger%print_keys)
+    NULLIFY(logger%para_env,logger%print_keys)
     logger%ref_count=1
     last_logger_id_nr=last_logger_id_nr+1
     logger%id_nr=last_logger_id_nr
 
-    if (present(template_logger)) then
-      if (template_logger%ref_count<1) &
-            call stop_program(routineP,"template_logger%ref_count<1")
+    IF (PRESENT(template_logger)) THEN
+      IF (template_logger%ref_count<1) &
+            CALL stop_program(routineP,"template_logger%ref_count<1")
       logger%print_level=template_logger%print_level
       logger%default_global_unit_nr=template_logger%default_global_unit_nr
       logger%close_local_unit_on_dealloc=template_logger%close_local_unit_on_dealloc
-      if (logger%close_local_unit_on_dealloc) then
+      IF (logger%close_local_unit_on_dealloc) THEN
          logger%default_local_unit_nr=-1
-      else
+      ELSE
          logger%default_local_unit_nr=template_logger%default_local_unit_nr
-      end if
+      END IF
       logger%close_global_unit_on_dealloc=template_logger%close_global_unit_on_dealloc
-      if (logger%close_global_unit_on_dealloc) then
+      IF (logger%close_global_unit_on_dealloc) THEN
          logger%default_global_unit_nr=-1
-      else
+      ELSE
          logger%default_global_unit_nr=template_logger%default_global_unit_nr
-      end if
+      END IF
       logger%local_filename=template_logger%local_filename
       logger%global_filename=template_logger%global_filename
       logger%print_keys => template_logger%print_keys
       logger%para_env => template_logger%para_env
       logger%suffix=template_logger%suffix
-   else
+   ELSE
     logger%default_global_unit_nr=cp_std_out_unit_nr
     logger%local_filename="localLog"
     logger%global_filename="mainLog"
     logger%print_level=cp_note_level
-    logger%close_global_unit_on_dealloc=.false.
+    logger%close_global_unit_on_dealloc=.FALSE.
 #ifdef __parallel
     logger%default_local_unit_nr=-1
-    logger%close_local_unit_on_dealloc=.true.
+    logger%close_local_unit_on_dealloc=.TRUE.
 #else
     logger%default_local_unit_nr=cp_std_out_unit_nr
-    logger%close_local_unit_on_dealloc=.false.
+    logger%close_local_unit_on_dealloc=.FALSE.
 #endif
     logger%suffix=""
-   end if
-    if (present(para_env)) logger%para_env => para_env
-    if (.not.associated(logger%para_env)) call stop_program(routineP,&
+   END IF
+    IF (PRESENT(para_env)) logger%para_env => para_env
+    IF (.NOT.ASSOCIATED(logger%para_env)) CALL stop_program(routineP,&
          "para env not associated")
-    if (logger%para_env%ref_count<1) call stop_program(routineP,&
+    IF (logger%para_env%ref_count<1) CALL stop_program(routineP,&
          "para_env%ref_count<1")
     logger%para_env%ref_count = logger%para_env%ref_count+1
 
-    if (present(print_level)) logger%print_level=print_level
+    IF (PRESENT(print_level)) logger%print_level=print_level
 
-    if (present(default_global_unit_nr)) &
+    IF (PRESENT(default_global_unit_nr)) &
          logger%default_global_unit_nr=default_global_unit_nr
-    if (present(global_filename)) then
+    IF (PRESENT(global_filename)) THEN
        logger%global_filename=global_filename
-       logger%close_global_unit_on_dealloc=.true.
+       logger%close_global_unit_on_dealloc=.TRUE.
        logger%default_global_unit_nr=-1
-    end if
-    if (present(close_global_unit_on_dealloc)) then
+    END IF
+    IF (PRESENT(close_global_unit_on_dealloc)) THEN
        logger%close_global_unit_on_dealloc=close_global_unit_on_dealloc
-       if (present(default_global_unit_nr).and.present(global_filename).and.&
-            .not.close_global_unit_on_dealloc) then
+       IF (PRESENT(default_global_unit_nr).AND.PRESENT(global_filename).AND.&
+            .NOT.close_global_unit_on_dealloc) THEN
          logger%default_global_unit_nr=default_global_unit_nr
-       end if
-    end if
+       END IF
+    END IF
     
-    if (present(default_local_unit_nr)) &
+    IF (PRESENT(default_local_unit_nr)) &
          logger%default_local_unit_nr=default_local_unit_nr
-    if (present(local_filename)) then
+    IF (PRESENT(local_filename)) THEN
        logger%local_filename=local_filename
-       logger%close_local_unit_on_dealloc=.true.
+       logger%close_local_unit_on_dealloc=.TRUE.
        logger%default_local_unit_nr=-1
-    end if
-    if (present(close_local_unit_on_dealloc)) then
+    END IF
+    IF (PRESENT(close_local_unit_on_dealloc)) THEN
        logger%close_local_unit_on_dealloc=close_local_unit_on_dealloc
-       if (present(default_local_unit_nr).and.present(local_filename).and.&
-            .not.close_local_unit_on_dealloc) then
+       IF (PRESENT(default_local_unit_nr).AND.PRESENT(local_filename).AND.&
+            .NOT.close_local_unit_on_dealloc) THEN
          logger%default_local_unit_nr=default_local_unit_nr
-       end if
-    end if
+       END IF
+    END IF
 
-    if (present(print_keys)) logger%print_keys => print_keys
-    if (associated(logger%print_keys)) then
-       if (logger%print_keys%ref_count<1) then
-          call stop_program(routineP,"print_keys%ref_count<1")
-       end if
+    IF (PRESENT(print_keys)) logger%print_keys => print_keys
+    IF (ASSOCIATED(logger%print_keys)) THEN
+       IF (logger%print_keys%ref_count<1) THEN
+          CALL stop_program(routineP,"print_keys%ref_count<1")
+       END IF
        logger%print_keys%ref_count=print_keys%ref_count+1
-    else
-       allocate(logger%print_keys,stat=stat)
-       if (stat/=0) then
-          call stop_program(routineP,"print_keys allocation stat="//&
+    ELSE
+       ALLOCATE(logger%print_keys,stat=stat)
+       IF (stat/=0) THEN
+          CALL stop_program(routineP,"print_keys allocation stat="//&
                cp_to_string(stat))
-          call init_print_keys(logger%print_keys,level=3-logger%print_level)
-       end if
-    end if
-  end subroutine cp_logger_create
+          CALL init_print_keys(logger%print_keys,level=3-logger%print_level)
+       END IF
+    END IF
+  END SUBROUTINE cp_logger_create
 !***************************************************************************
 
 !!****f* cp_log_handling/cp_logger_retain [1.0] *
@@ -495,20 +493,20 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_logger_retain(logger)
-    type(cp_logger_type), pointer :: logger
+  SUBROUTINE cp_logger_retain(logger)
+    TYPE(cp_logger_type), POINTER :: logger
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_logger_retain',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_retain',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
-    if (.not.associated(logger)) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
          "logger not associated")
-    if (logger%ref_count<1) call stop_program(routineP,&
+    IF (logger%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
     logger%ref_count=logger%ref_count+1
-  end subroutine cp_logger_retain
+  END SUBROUTINE cp_logger_retain
 !***************************************************************************
 
 !!****f* cp_logger_release *
@@ -537,47 +535,47 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_logger_release(logger)
-    type(cp_logger_type), pointer :: logger
+  SUBROUTINE cp_logger_release(logger)
+    TYPE(cp_logger_type), POINTER :: logger
 
-    character(len=*), parameter :: routineN='cp_logger_release',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_release',&
          routineP=moduleN//':'//routineN
-    integer :: stat
+    INTEGER :: stat
 
-    if (associated(logger)) then
-       if (logger%ref_count<1) call stop_program(routineP,"logger%ref_count<1")
+    IF (ASSOCIATED(logger)) THEN
+       IF (logger%ref_count<1) CALL stop_program(routineP,"logger%ref_count<1")
        logger%ref_count=logger%ref_count-1
-       if (logger%ref_count<1) then
-          if (logger%close_global_unit_on_dealloc .and. &
-               logger%default_global_unit_nr >= 0) then
-             call close_file(logger%default_global_unit_nr)
-             logger%close_global_unit_on_dealloc=.false.
+       IF (logger%ref_count<1) THEN
+          IF (logger%close_global_unit_on_dealloc .AND. &
+               logger%default_global_unit_nr >= 0) THEN
+             CALL close_file(logger%default_global_unit_nr)
+             logger%close_global_unit_on_dealloc=.FALSE.
              logger%default_global_unit_nr=-1
-          end if
-          if (logger%close_local_unit_on_dealloc .and. &
-               logger%default_local_unit_nr >= 0) then
-             call close_file(logger%default_local_unit_nr)
-             logger%close_local_unit_on_dealloc=.false.
+          END IF
+          IF (logger%close_local_unit_on_dealloc .AND. &
+               logger%default_local_unit_nr >= 0) THEN
+             CALL close_file(logger%default_local_unit_nr)
+             logger%close_local_unit_on_dealloc=.FALSE.
              logger%default_local_unit_nr=-1
-          end if
-          if (associated(logger%print_keys)) then
-             if (logger%print_keys%ref_count<1) then
-                call stop_program(routineP," logger%print_keys%ref_count<1")
-             end if
+          END IF
+          IF (ASSOCIATED(logger%print_keys)) THEN
+             IF (logger%print_keys%ref_count<1) THEN
+                CALL stop_program(routineP," logger%print_keys%ref_count<1")
+             END IF
              logger%print_keys%ref_count=logger%print_keys%ref_count-1
-             if (logger%print_keys%ref_count<1) then
-                deallocate(logger%print_keys,stat=stat)
-                if (stat/=0) print *, routineP,&
+             IF (logger%print_keys%ref_count<1) THEN
+                DEALLOCATE(logger%print_keys,stat=stat)
+                IF (stat/=0) PRINT *, routineP,&
                      " WARNING print_keys dealloc stat=",stat
-             end if
-          end if
-          call my_cp_para_env_release(logger%para_env)
-          deallocate(logger,stat=stat)
-          if (stat/=0) print *, routineP," WARNING logger dealloc stat=",stat
-       end if
-    end if
-    nullify(logger)
-  end subroutine cp_logger_release
+             END IF
+          END IF
+          CALL my_cp_para_env_release(logger%para_env)
+          DEALLOCATE(logger,stat=stat)
+          IF (stat/=0) PRINT *, routineP," WARNING logger dealloc stat=",stat
+       END IF
+    END IF
+    NULLIFY(logger)
+  END SUBROUTINE cp_logger_release
 !***************************************************************************
 
 !!****f* cp_log_handling/cp_logger_would_log [1.0] *
@@ -621,24 +619,24 @@ contains
 !!
 !!*** *********************************************************************
 ! pure
-  function cp_logger_would_log(logger, level, fromWhere, local) result(res)
-    logical :: res
-    type(cp_logger_type), pointer ::logger
-    integer , intent(in) :: level
-    character(len=*), intent(in):: fromWhere
-    logical, intent(in), optional :: local
+  FUNCTION cp_logger_would_log(logger, level, fromWhere, local) RESULT(res)
+    LOGICAL :: res
+    TYPE(cp_logger_type), POINTER ::logger
+    INTEGER , INTENT(in) :: level
+    CHARACTER(len=*), INTENT(in):: fromWhere
+    LOGICAL, INTENT(in), OPTIONAL :: local
 
-    character(len=*), parameter :: routineN='cp_logger_would_log',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_would_log',&
          routineP=moduleN//':'//routineN
-    type(cp_logger_type), pointer ::lggr
+    TYPE(cp_logger_type), POINTER ::lggr
 
     lggr => logger
-    if (.not.associated(lggr)) lggr => cp_get_default_logger()
-    if (lggr%ref_count<1) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
+    IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
 
     res = level>=lggr%print_level
-  end function cp_logger_would_log
+  END FUNCTION cp_logger_would_log
 
 !!****f* cp_log_handling/cp_logger_get_unit_nr [1.0] *
 !!
@@ -680,17 +678,17 @@ contains
 !!
 !!*** *********************************************************************
 ! pure 
-  function cp_logger_get_unit_nr(logger, level, fromWhere, local) result(res)
-    integer :: res
-    type(cp_logger_type), pointer :: logger
-    integer, intent(in) :: level
-    character(len=*), intent(in):: fromWhere
-    logical, intent(in), optional :: local
+  FUNCTION cp_logger_get_unit_nr(logger, level, fromWhere, local) RESULT(res)
+    INTEGER :: res
+    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER, INTENT(in) :: level
+    CHARACTER(len=*), INTENT(in):: fromWhere
+    LOGICAL, INTENT(in), OPTIONAL :: local
 
-    logical :: loc=.false.
+    LOGICAL :: loc=.FALSE.
 
     res=cp_logger_get_default_unit_nr(logger,local=local)
-  end function cp_logger_get_unit_nr
+  END FUNCTION cp_logger_get_unit_nr
 
 !!****f* cp_log_handling/cp_logger_log [1.0] *
 !!
@@ -730,43 +728,43 @@ contains
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-  subroutine cp_logger_log(logger, level, fromWhere , message, local)
-    type(cp_logger_type), pointer ::logger
-    integer , intent(in) :: level
-    character(len=*), intent(in):: fromWhere, message
-    logical, intent(in), optional :: local
+  SUBROUTINE cp_logger_log(logger, level, fromWhere , message, local)
+    TYPE(cp_logger_type), POINTER ::logger
+    INTEGER , INTENT(in) :: level
+    CHARACTER(len=*), INTENT(in):: fromWhere, message
+    LOGICAL, INTENT(in), OPTIONAL :: local
 
-    character(len=*), parameter :: routineN='cp_logger_log',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_log',&
          routineP=moduleN//':'//routineN
-    character(7):: label
-    integer ::oErr, unitNr
-    logical :: loc
+    CHARACTER(7):: label
+    INTEGER ::oErr, unitNr
+    LOGICAL :: loc
 
-    type(cp_logger_type), pointer ::lggr
+    TYPE(cp_logger_type), POINTER ::lggr
     lggr => logger
-    if (.not.associated(lggr)) lggr => cp_get_default_logger()
-    if (lggr%ref_count<1) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
+    IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
 
-    loc=.false.
-    if (present(local)) loc=local
-    if (cp_logger_would_log(lggr,level,fromWhere,local=loc)) then
-       select case (level)
-       case (cp_fatal_level)
+    loc=.FALSE.
+    IF (PRESENT(local)) loc=local
+    IF (cp_logger_would_log(lggr,level,fromWhere,local=loc)) THEN
+       SELECT CASE (level)
+       CASE (cp_fatal_level)
           label='ERRORL3'
-       case (cp_failure_level)
+       CASE (cp_failure_level)
           label='ERRORL2'
-       case (cp_warning_level)
+       CASE (cp_warning_level)
           label='WARNING'
-       case (cp_note_level)
+       CASE (cp_note_level)
           label='NOTE'
-       case default
-          label='L'//adjustl(cp_int_to_string(level))
-       end select
+       CASE default
+          label='L'//ADJUSTL(cp_int_to_string(level))
+       END SELECT
        unitNr=cp_logger_get_unit_nr(lggr,level,fromWhere,local=loc)
-       if (loc .or. lggr%para_env%mepos==lggr%para_env%source) then
-          call print_message(label//' in '//fromWhere//',t'//&
-               trim(adjustl(cp_to_string(walltime()-start_time)))//&
+       IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
+          CALL print_message(label//' in '//fromWhere//',t'//&
+               TRIM(ADJUSTL(cp_to_string(walltime()-start_time)))//&
                ' '//message,unitNr,&
                level, level,level/2)
 ! old (more failsafe, no trim, compress,...) code:
@@ -775,10 +773,10 @@ contains
 !if (oErr /= 0) then
 !   print *, 'ERROR  ',oErr,' while writing log, ', fromWhere, message
 !end if
-          call m_flush(unitNr)
-       end if
-    end if
-  end subroutine cp_logger_log
+          CALL m_flush(unitNr)
+       END IF
+    END IF
+  END SUBROUTINE cp_logger_log
 
 ! *************************** cp_logger_type settings ***************************
 
@@ -811,19 +809,19 @@ contains
 !!     4.2002 revised [fawzi]
 !!
 !!*** *********************************************************************
-  subroutine cp_logger_set_log_level(logger, level)
-    type(cp_logger_type), pointer :: logger
-    integer, intent(in) :: level
+  SUBROUTINE cp_logger_set_log_level(logger, level)
+    TYPE(cp_logger_type), POINTER :: logger
+    INTEGER, INTENT(in) :: level
 
-    character(len=*), parameter :: routineN='cp_logger_set_log_level',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_set_log_level',&
          routineP=moduleN//':'//routineN
 
-    if (.not.associated(logger)) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(logger)) CALL stop_program(routineP,&
          "logger not associated")
-    if (logger%ref_count<1) call stop_program(routineP,&
+    IF (logger%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
     logger%print_level=level
-  end subroutine cp_logger_set_log_level
+  END SUBROUTINE cp_logger_set_log_level
 
 !!****f* cp_log_handling/cp_logger_get_log_level [1.0] *
 !!
@@ -847,21 +845,21 @@ contains
 !!
 !!*** *********************************************************************
 !pure
-  function cp_logger_get_log_level(logger) result(res)
-    integer :: res
-    type(cp_logger_type), pointer :: logger
+  FUNCTION cp_logger_get_log_level(logger) RESULT(res)
+    INTEGER :: res
+    TYPE(cp_logger_type), POINTER :: logger
 
-    character(len=*), parameter :: routineN='cp_logger_get_log_level',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_get_log_level',&
          routineP=moduleN//':'//routineN
-    type(cp_logger_type), pointer ::lggr
+    TYPE(cp_logger_type), POINTER ::lggr
 
     lggr => logger
-    if (.not.associated(lggr)) lggr => cp_get_default_logger()
-    if (lggr%ref_count<1) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
+    IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
 
     res=lggr%print_level
-  end function cp_logger_get_log_level
+  END FUNCTION cp_logger_get_log_level
 
 !!****f* cp_log_handling/cp_logger_get_default_unit_nr [1.0] *
 !!
@@ -894,57 +892,57 @@ contains
 !!
 !!*** *********************************************************************
 !pure 
-  function cp_logger_get_default_unit_nr(logger, local) result(res)
-    integer :: res
-    type(cp_logger_type), pointer :: logger
-    logical, intent(in), optional :: local
+  FUNCTION cp_logger_get_default_unit_nr(logger, local) RESULT(res)
+    INTEGER :: res
+    TYPE(cp_logger_type), POINTER :: logger
+    LOGICAL, INTENT(in), OPTIONAL :: local
 
-    logical :: loc,exists
-    character(len=*), parameter :: routineN='cp_logger_get_default_unit_nr',&
+    LOGICAL :: loc,exists
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_get_default_unit_nr',&
          routineP=moduleN//':'//routineN
-    character(len=80) :: filename
-    type(cp_logger_type), pointer ::lggr
-    loc=.false.
+    CHARACTER(len=80) :: filename
+    TYPE(cp_logger_type), POINTER ::lggr
+    loc=.FALSE.
 
     lggr => logger
-    if (.not.associated(lggr)) lggr => cp_get_default_logger()
-    if (lggr%ref_count<1) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
+    IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
 
-    if (present(local)) loc=local
-    if (.not.local) then
-       if (lggr%default_global_unit_nr<=0) then
-          if (lggr%para_env%mepos==lggr%para_env%source) then
-             call cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
-                  ".out",local=.false.)
-             INQUIRE (FILE=trim(filename),EXIST=exists)
-             if (exists) then
-                print *," WARNING ", routineP, " overwriting file ",filename
-             end if
-             call open_file(trim(filename),file_status="unknown",&
+    IF (PRESENT(local)) loc=local
+    IF (.NOT.local) THEN
+       IF (lggr%default_global_unit_nr<=0) THEN
+          IF (lggr%para_env%mepos==lggr%para_env%source) THEN
+             CALL cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
+                  ".out",local=.FALSE.)
+             INQUIRE (FILE=TRIM(filename),EXIST=exists)
+             IF (exists) THEN
+                PRINT *," WARNING ", routineP, " overwriting file ",filename
+             END IF
+             CALL open_file(TRIM(filename),file_status="unknown",&
                   file_action="write",&
                   unit_number=lggr%default_global_unit_nr)
-          end if
+          END IF
           ! bcast? dangerous if called only in source processor
           !call mp_bcast(lggr%default_global_unit_nr,lggr%para_env%source,&
           !     lggr%para_env%group)
-       end if
+       END IF
        res=lggr%default_global_unit_nr
-    else
-       if (lggr%default_local_unit_nr<0) then
-          call cp_logger_generate_filename(lggr,filename,lggr%local_filename,&
-               ".out",local=.true.)
-          INQUIRE (FILE=trim(filename),EXIST=exists)
-          if (exists) then
-             print *," WARNING ", routineP, " overwriting file ",filename
-          end if
-          call open_file(trim(filename),file_status="unknown",&
+    ELSE
+       IF (lggr%default_local_unit_nr<0) THEN
+          CALL cp_logger_generate_filename(lggr,filename,lggr%local_filename,&
+               ".out",local=.TRUE.)
+          INQUIRE (FILE=TRIM(filename),EXIST=exists)
+          IF (exists) THEN
+             PRINT *," WARNING ", routineP, " overwriting file ",filename
+          END IF
+          CALL open_file(TRIM(filename),file_status="unknown",&
                file_action="write",&
                unit_number=lggr%default_local_unit_nr)
-       end if
+       END IF
        res=lggr%default_local_unit_nr
-    end if
-  end function cp_logger_get_default_unit_nr
+    END IF
+  END FUNCTION cp_logger_get_default_unit_nr
 
 !!****f* cp_log_handling/my_cp_para_env_release [1.0] *
 !!
@@ -969,28 +967,28 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine my_cp_para_env_release(para_env)
-    type(cp_para_env_type), pointer :: para_env
+  SUBROUTINE my_cp_para_env_release(para_env)
+    TYPE(cp_para_env_type), POINTER :: para_env
 
-    character(len=*), parameter :: routineN='my_cp_para_env_release',&
+    CHARACTER(len=*), PARAMETER :: routineN='my_cp_para_env_release',&
          routineP=moduleN//':'//routineN
-    integer :: stat
+    INTEGER :: stat
 
-    if (associated(para_env)) then
-       if (para_env%ref_count<1) then
-          call stop_program(routineP,"para_env%ref_count<1")
-       end if
+    IF (ASSOCIATED(para_env)) THEN
+       IF (para_env%ref_count<1) THEN
+          CALL stop_program(routineP,"para_env%ref_count<1")
+       END IF
        para_env%ref_count=para_env%ref_count-1
-       if (para_env%ref_count<1) then
-          if (para_env%owns_group) then
-             call mp_comm_free(para_env%group)
-          end if
-          deallocate(para_env,stat=stat)
-          if(stat/=0)print *,routineP," WARNING para_env deallocate stat=",stat
-       end if
-    end if
-    nullify(para_env)
-  end subroutine my_cp_para_env_release
+       IF (para_env%ref_count<1) THEN
+          IF (para_env%owns_group) THEN
+             CALL mp_comm_free(para_env%group)
+          END IF
+          DEALLOCATE(para_env,stat=stat)
+          IF(stat/=0)PRINT *,routineP," WARNING para_env deallocate stat=",stat
+       END IF
+    END IF
+    NULLIFY(para_env)
+  END SUBROUTINE my_cp_para_env_release
 !***************************************************************************
 
 !!****f* cp_log_handling/cp_logger_generate_filename [1.0] *
@@ -1030,33 +1028,33 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_logger_generate_filename(logger,res, root, postfix,&
+  SUBROUTINE cp_logger_generate_filename(logger,res, root, postfix,&
        local)
-    type(cp_logger_type), pointer   :: logger
-    character(len=*), intent(inout) :: res
-    character(len=*), intent(in)    :: root, postfix
-    logical, intent(in), optional   :: local
+    TYPE(cp_logger_type), POINTER   :: logger
+    CHARACTER(len=*), INTENT(inout) :: res
+    CHARACTER(len=*), INTENT(in)    :: root, postfix
+    LOGICAL, INTENT(in), OPTIONAL   :: local
 
-    logical :: failure, loc
-    character(len=*), parameter :: routineN='cp_logger_generate_filename',&
+    LOGICAL :: failure, loc
+    CHARACTER(len=*), PARAMETER :: routineN='cp_logger_generate_filename',&
          routineP=moduleN//':'//routineN
-    type(cp_logger_type), pointer :: lggr
-    failure=.false.
-    loc=.false.
+    TYPE(cp_logger_type), POINTER :: lggr
+    failure=.FALSE.
+    loc=.FALSE.
 
     lggr => logger
-    if (.not.associated(lggr)) lggr => cp_get_default_logger()
-    if (lggr%ref_count<1) call stop_program(routineP,&
+    IF (.NOT.ASSOCIATED(lggr)) lggr => cp_get_default_logger()
+    IF (lggr%ref_count<1) CALL stop_program(routineP,&
          "logger%ref_count<1")
-    if (present(local)) loc=local
-    if (loc) then
-       res=trim(root)//trim(lggr%suffix)//'_p'//&
+    IF (PRESENT(local)) loc=local
+    IF (loc) THEN
+       res=TRIM(root)//TRIM(lggr%suffix)//'_p'//&
             cp_to_string(lggr%para_env%mepos)//postfix
-    else
-       res=trim(root)//trim(lggr%suffix)//postfix
-    end if
-    call compress_all(res)
-  end subroutine cp_logger_generate_filename
+    ELSE
+       res=TRIM(root)//TRIM(lggr%suffix)//postfix
+    END IF
+    CALL compress_all(res)
+  END SUBROUTINE cp_logger_generate_filename
 !***************************************************************************
 
 ! ============= to string  ============
@@ -1091,14 +1089,14 @@ contains
 !!
 !!*** *********************************************************************
 ! pure
-  function cp_int_to_string(i) result(res)
-    character(len=6) :: res
-    integer, intent(in):: i
-    write (res,'(i6)') i
-    if (i>999999 .or. i<-99999) then
-       write (res, '(es6.1)') real(i)
-    end if
-  end function cp_int_to_string
+  FUNCTION cp_int_to_string(i) RESULT(res)
+    CHARACTER(len=6) :: res
+    INTEGER, INTENT(in):: i
+    WRITE (res,'(i6)') i
+    IF (i>999999 .OR. i<-99999) THEN
+       WRITE (res, '(es6.1)') REAL(i)
+    END IF
+  END FUNCTION cp_int_to_string
 
 !!****f* cp_log_handling/cp_real_sp_to_string [1.0] *
 !!
@@ -1166,12 +1164,12 @@ contains
 !!
 !!*** *********************************************************************
 ! pure 
-  function cp_real_dp_to_string(val) result(res)
-    character(len=11) :: res
-    real(kind=kind(1.0D0)), intent(in):: val
-    write (res,'(es11.4)') val
-  end function cp_real_dp_to_string
+  FUNCTION cp_real_dp_to_string(val) RESULT(res)
+    CHARACTER(len=11) :: res
+    REAL(kind=KIND(1.0D0)), INTENT(in):: val
+    WRITE (res,'(es11.4)') val
+  END FUNCTION cp_real_dp_to_string
 
-end module cp_log_handling
+END MODULE cp_log_handling
 
 !******************************************************************************

@@ -4,7 +4,7 @@
  'type1':'integer',
  'type1in':'integer, intent(in)',
  'type1out':'integer, intent(out)',
- 'use':'use cp_array_i_utils, only: cp_i_write',
+ 'USE':'USE cp_array_i_utils, ONLY: cp_i_write',
  'defines':
 """#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
 #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
@@ -23,10 +23,11 @@
  'type1':'integer, pointer', 
  'type1in':'integer, intent(in),target',
  'type1out':'integer, pointer',
- 'use':'use cp_array_i_utils, only: cp_i_write',
+ 'USE':'USE cp_array_i_utils, ONLY: cp_i_write',
  'defines':
 """#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
 #define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
+#define PW_WRITE_UNIMPLEMENTED(el, unit, err)
 """,
  '=':'=>',
  'type1arrayEl':'integer',
@@ -36,24 +37,24 @@
  'equalQ':'CP_SLL_I_EQUAL_Q',
  'write_el':'cp_i_write' # careful:no check for unassociated pointers!
 }
-#,
-#
-#{
-# 'nametype1':'sv_block', 
-# 'type1':'type(cp_sv_block_type)', 
-# 'type1in':'type(cp_sv_block_type), intent(in)',
-# 'type1out':'type(cp_sv_block_type), intent(inout)',
-# 'use':'use cp_sv_block, only: cp_sv_block_type, cp_sv_block_write',
-# 'defines':
-#"""#define CP_SLL_SV_LESS_Q(el1,el2) ( el1 %block_nr < el2 %block_nr )
-##define CP_SLL_SV_EQUAL_Q(el1,el2) ( el1 %block_nr == el2 %block_nr )
-#""",
-# '=':'=',
-# 'type1arrayEl':'type(cp_sv_block_type)',
-# 'array=':'=',
-# 'arrayEl':'',
-# 'lessQ':'CP_SLL_SV_LESS_Q',
-# 'equalQ':'CP_SLL_SV_EQUAL_Q',
-# 'write_el':'cp_sv_block_write'
-#}
+,
+{
+ 'nametype1':'pw', 
+ 'type1':'type(pw_type),pointer', 
+ 'type1in':'type(pw_type), target',
+ 'type1out':'type(pw_type), pointer',
+ 'USE':'USE pw_types, ONLY: pw_type, pw_p_type, pw_write',
+ 'defines':
+"""! less not much meningful...
+#define CP_SLL_PW_LESS_Q(el1,el2) ( el1 %id_nr < el2 %id_nr )
+#define CP_SLL_PW_EQUAL_Q(el1,el2) ( el1 %id_nr == el2 %id_nr )
+""",
+ '=':'=>',
+ 'type1arrayEl':'type(pw_p_type)',
+ 'array=':'=>',
+ 'arrayEl':'%pw',
+ 'lessQ':'CP_SLL_PW_LESS_Q',
+ 'equalQ':'CP_SLL_PW_EQUAL_Q',
+ 'write_el':'pw_write'
+}
 ]

@@ -33,26 +33,26 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_output_handling
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+MODULE cp_output_handling
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use kinds, only: wp=>dp
-  implicit none
-  private
+  USE kinds, ONLY: wp=>dp
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_output_handling'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_output_handling'
 
-  public :: cp_would_output, cp_unitnr_for_output,&
+  PUBLIC :: cp_would_output, cp_unitnr_for_output,&
        cp_write_output, cp_finished_output
 
   !****************************************************************************
-contains
+CONTAINS
 
 !!****f* cp_output_handling/cp_would_output [1.0] *
 !!
@@ -98,17 +98,17 @@ contains
 !!
 !!*** *********************************************************************
   ! pure 
-  function cp_would_output(logger, outputName , fromWhere, iter, local, error)
-    logical :: cp_would_output
-    type(cp_logger_type), pointer ::logger
-    character(len=*) , intent(in) :: outputName
-    character(len=*), intent(in):: fromWhere
-    integer, intent(in) :: iter
-    logical, intent(in), optional :: local
-    type(cp_error_type), intent(inout), optional :: error
+  FUNCTION cp_would_output(logger, outputName , fromWhere, iter, local, error)
+    LOGICAL :: cp_would_output
+    TYPE(cp_logger_type), POINTER ::logger
+    CHARACTER(len=*) , INTENT(in) :: outputName
+    CHARACTER(len=*), INTENT(in):: fromWhere
+    INTEGER, INTENT(in) :: iter
+    LOGICAL, INTENT(in), OPTIONAL :: local
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    cp_would_output=.true.
-  end function cp_would_output
+    cp_would_output=.TRUE.
+  END FUNCTION cp_would_output
   !****************************************************************************
 
 !!****f* cp_output_handling/cp_unitnr_for_output [1.0] *
@@ -155,17 +155,17 @@ contains
 !!
 !!*** *********************************************************************
   !pure 
-  function cp_unitnr_for_output(logger, outputName, fromWhere, iter, local,&
-       error) result(res)
-    integer :: res
-    type(cp_logger_type), pointer :: logger
-    character(len=*), intent(in):: outputName, fromWhere
-    integer, intent(in) :: iter
-    logical, intent(in), optional :: local
-    type(cp_error_type), intent(inout), optional :: error
+  FUNCTION cp_unitnr_for_output(logger, outputName, fromWhere, iter, local,&
+       error) RESULT(res)
+    INTEGER :: res
+    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), INTENT(in):: outputName, fromWhere
+    INTEGER, INTENT(in) :: iter
+    LOGICAL, INTENT(in), OPTIONAL :: local
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
     res=cp_logger_get_default_unit_nr(logger,local=local)
-  end function cp_unitnr_for_output
+  END FUNCTION cp_unitnr_for_output
   !****************************************************************************
 
 !!****f* cp_output_handling/cp_finished_output [1.0] *
@@ -202,21 +202,21 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_finished_output(logger, outputName, fromWhere, iter, &
+  SUBROUTINE cp_finished_output(logger, outputName, fromWhere, iter, &
        local,error)
-    integer :: cp_unitnr_for_output
-    type(cp_logger_type), pointer :: logger
-    character(len=*), intent(in):: outputName, fromWhere
-    integer, intent(in) :: iter
-    logical, intent(in), optional :: local
-    type(cp_error_type), optional, intent(inout) :: error
+    INTEGER :: cp_unitnr_for_output
+    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), INTENT(in):: outputName, fromWhere
+    INTEGER, INTENT(in) :: iter
+    LOGICAL, INTENT(in), OPTIONAL :: local
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_finished_output',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_finished_output',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
-  end subroutine cp_finished_output
+  END SUBROUTINE cp_finished_output
   !***************************************************************************
 
 !!****f* cp_output_handling/cp_write_output [1.0] *
@@ -266,30 +266,30 @@ contains
 !!     08.2002 updated to new logger [fawzi]
 !!
 !!*** *********************************************************************
-  subroutine cp_write_output(logger, outputName , fromWhere , iter, message,&
+  SUBROUTINE cp_write_output(logger, outputName , fromWhere , iter, message,&
        local,error)
-    type(cp_logger_type), pointer :: logger
-    character(len=*), intent(in)  :: outputName
-    character(len=*), intent(in)  :: fromWhere, message
-    integer, intent(in)           :: iter
-    logical, intent(in), optional :: local
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_logger_type), POINTER :: logger
+    CHARACTER(len=*), INTENT(in)  :: outputName
+    CHARACTER(len=*), INTENT(in)  :: fromWhere, message
+    INTEGER, INTENT(in)           :: iter
+    LOGICAL, INTENT(in), OPTIONAL :: local
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    character(len=*), parameter :: routineP='cp_output_handling:cp_write_output'
-    logical :: failure
-    integer ::unitNr,oErr
-    failure=.false.
-    if (cp_would_output(logger,outputName,fromWhere,iter,&
-         local=local,error=error)) then
+    CHARACTER(len=*), PARAMETER :: routineP='cp_output_handling:cp_write_output'
+    LOGICAL :: failure
+    INTEGER ::unitNr,oErr
+    failure=.FALSE.
+    IF (cp_would_output(logger,outputName,fromWhere,iter,&
+         local=local,error=error)) THEN
        unitNr=cp_unitnr_for_output(logger,outputName,fromWhere,iter,&
             local=local,error=error) 
-       write (unit=unitNr,fmt='(a)', iostat=oErr) message
+       WRITE (unit=unitNr,fmt='(a)', iostat=oErr) message
        CPPostcondition(oErr == 0,cp_failure_level,routineP,error,failure)
-       call cp_finished_output(logger,outputName,fromWhere,iter,&
+       CALL cp_finished_output(logger,outputName,fromWhere,iter,&
             local=local,error=error)
-    end if
-  end subroutine cp_write_output
+    END IF
+  END SUBROUTINE cp_write_output
   !****************************************************************************
 
-end module cp_output_handling
+END MODULE cp_output_handling
 

@@ -33,40 +33,40 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module cp_linked_list_int
-  use cp_log_handling, only: cp_fatal_level, cp_failure_level,&
+MODULE cp_linked_list_int
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
        cp_warning_level, cp_note_level, cp_to_string, cp_log,&
        cp_logger_get_default_unit_nr, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_error_init,&
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger
-  use cp_output_handling
-  use kinds, only: wp=>dp
-  use timings, only: timeset, timestop
-  use cp_array_i_utils, only: cp_i_write
-  implicit none
-  private
+  USE cp_output_handling
+  USE kinds, ONLY: wp=>dp
+  USE timings, ONLY: timeset, timestop
+  USE cp_array_i_utils, ONLY: cp_i_write
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_linked_list_int'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_linked_list_int'
 
 ! type
-  public :: cp_sll_int_type
+  PUBLIC :: cp_sll_int_type
 ! common methods
-  public :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
+  PUBLIC :: cp_create, cp_dealloc, cp_get, cp_set, cp_next, cp_output
 ! special get
-  public :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
+  PUBLIC :: cp_get_first_el, cp_get_rest, cp_get_empty, cp_get_length,&
        cp_get_element_at
 ! special set
-  public :: cp_set_element_at
+  PUBLIC :: cp_set_element_at
 ! structure manipulation
-  public :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
+  PUBLIC :: cp_insert, cp_remove_first_el, cp_remove_el, cp_remove_all
 ! low level
-  public :: cp_dealloc_node, cp_write
+  PUBLIC :: cp_dealloc_node, cp_write
 
   ! underlying routines
-  public :: cp_sll_int_create, cp_sll_int_dealloc,&
+  PUBLIC :: cp_sll_int_create, cp_sll_int_dealloc,&
        cp_sll_int_dealloc_node,cp_sll_int_set,&
        cp_sll_int_get,cp_sll_int_next,&
        cp_sll_int_get_first_el, cp_sll_int_get_rest,&
@@ -80,85 +80,85 @@ module cp_linked_list_int
        cp_sll_int_insert_ordered2
 
 ! creation of an object (from a pointer)
-  interface cp_create
-     module procedure cp_sll_int_create
-  end interface
+  INTERFACE cp_create
+     MODULE PROCEDURE cp_sll_int_create
+  END INTERFACE
 ! destruction of an object (from a pointer)
-  interface cp_dealloc
-     module procedure cp_sll_int_dealloc
-  end interface
+  INTERFACE cp_dealloc
+     MODULE PROCEDURE cp_sll_int_dealloc
+  END INTERFACE
 ! destruction only of the node (low level)
-  interface cp_dealloc_node
-     module procedure cp_sll_int_dealloc_node
-  end interface
+  INTERFACE cp_dealloc_node
+     MODULE PROCEDURE cp_sll_int_dealloc_node
+  END INTERFACE
 ! modifies attributes of an object
-  interface cp_set
-     module procedure cp_sll_int_set
-  end interface
+  INTERFACE cp_set
+     MODULE PROCEDURE cp_sll_int_set
+  END INTERFACE
 ! returns attributes of an object
-  interface cp_get
-     module procedure cp_sll_int_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE cp_sll_int_get
+  END INTERFACE
 ! iterates to the next element
-  interface cp_next
-     module procedure cp_sll_int_next
-  end interface
+  INTERFACE cp_next
+     MODULE PROCEDURE cp_sll_int_next
+  END INTERFACE
 ! returns the first element
-  interface cp_get_first_el
-     module procedure cp_sll_int_get_first_el
-  end interface
+  INTERFACE cp_get_first_el
+     MODULE PROCEDURE cp_sll_int_get_first_el
+  END INTERFACE
 ! returns the rest of the list
-  interface cp_get_rest
-     module procedure cp_sll_int_get_rest
-  end interface
+  INTERFACE cp_get_rest
+     MODULE PROCEDURE cp_sll_int_get_rest
+  END INTERFACE
 ! returns if the list is empty
-  interface cp_get_empty
-     module procedure cp_sll_int_get_empty
-  end interface
+  INTERFACE cp_get_empty
+     MODULE PROCEDURE cp_sll_int_get_empty
+  END INTERFACE
 ! returns the length of the list
-  interface cp_get_length
-     module procedure cp_sll_int_get_length
-  end interface
+  INTERFACE cp_get_length
+     MODULE PROCEDURE cp_sll_int_get_length
+  END INTERFACE
 ! returns the element at the given position
-  interface cp_get_element_at
-     module procedure cp_sll_int_get_el_at
-  end interface
+  INTERFACE cp_get_element_at
+     MODULE PROCEDURE cp_sll_int_get_el_at
+  END INTERFACE
 ! sets the element at the given position
-  interface cp_set_element_at
-     module procedure cp_sll_int_set_el_at
-  end interface
+  INTERFACE cp_set_element_at
+     MODULE PROCEDURE cp_sll_int_set_el_at
+  END INTERFACE
 ! inserts one element call cp_insert(list,element,...)
-  interface cp_insert
-     module procedure cp_sll_int_insert_el
-  end interface
-  interface cp_insert_ordered
-     module procedure cp_sll_int_insert_ordered,&
+  INTERFACE cp_insert
+     MODULE PROCEDURE cp_sll_int_insert_el
+  END INTERFACE
+  INTERFACE cp_insert_ordered
+     MODULE PROCEDURE cp_sll_int_insert_ordered,&
           cp_sll_int_insert_ordered2
-  end interface
-  interface cp_insert_at
-     module procedure cp_sll_int_insert_el_at
-  end interface
+  END INTERFACE
+  INTERFACE cp_insert_at
+     MODULE PROCEDURE cp_sll_int_insert_el_at
+  END INTERFACE
 ! removes an element
-  interface cp_remove_el
-     module procedure cp_sll_int_rm_first_el, &
+  INTERFACE cp_remove_el
+     MODULE PROCEDURE cp_sll_int_rm_first_el, &
           cp_sll_int_rm_el_at
-  end interface
+  END INTERFACE
 ! removes the first el
-  interface cp_remove_first_el
-     module procedure cp_sll_int_rm_first_el
-  end interface
+  INTERFACE cp_remove_first_el
+     MODULE PROCEDURE cp_sll_int_rm_first_el
+  END INTERFACE
 ! remove all the elments
-  interface cp_remove_all
-     module procedure cp_sll_int_rm_all_el
-  end interface
+  INTERFACE cp_remove_all
+     MODULE PROCEDURE cp_sll_int_rm_all_el
+  END INTERFACE
 ! outputs the list
-  interface cp_output
-     module procedure cp_sll_int_output
-  end interface
+  INTERFACE cp_output
+     MODULE PROCEDURE cp_sll_int_output
+  END INTERFACE
 ! writes the list (low-level)
-  interface cp_write
-     module procedure cp_sll_int_write
-  end interface
+  INTERFACE cp_write
+     MODULE PROCEDURE cp_sll_int_write
+  END INTERFACE
 !!***
 !****************************************************************************
 
@@ -199,15 +199,15 @@ module cp_linked_list_int
 !!
 !!   SOURCE
 !***************************************************************************
-  type cp_sll_int_type
-     logical :: initialized
+  TYPE cp_sll_int_type
+     LOGICAL :: initialized
      integer :: first_el
-     type(cp_sll_int_type), pointer :: rest
-  end type cp_sll_int_type
+     TYPE(cp_sll_int_type), POINTER :: rest
+  END TYPE cp_sll_int_type
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 
 ! =========== creation / distruction ========
 
@@ -236,33 +236,33 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_create(sll,first_el,rest,error)
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(in), optional :: first_el
-    type(cp_sll_int_type), pointer, optional :: rest
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_create(sll,first_el,rest,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    integer, intent(in), OPTIONAL :: first_el
+    TYPE(cp_sll_int_type), POINTER, OPTIONAL :: rest
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_create'
-    integer :: stat
-    type(cp_sll_int_type), pointer :: empty_list
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_create'
+    INTEGER :: stat
+    TYPE(cp_sll_int_type), POINTER :: empty_list
+    failure=.FALSE.
 
-    if (.not.present(first_el)) then
-       nullify(sll)
-       if (present(rest)) sll => rest
-    else
-       allocate(sll, stat=stat)
+    IF (.NOT.PRESENT(first_el)) THEN
+       NULLIFY(sll)
+       IF (PRESENT(rest)) sll => rest
+    ELSE
+       ALLOCATE(sll, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
+       IF (.NOT.failure) THEN
           sll%first_el = first_el
-          nullify(sll%rest)
-          if (present(rest)) sll%rest => rest
-          sll%initialized=.true.
-       end if
-    end if
-    if (failure) nullify(sll)
-  end subroutine cp_sll_int_create
+          NULLIFY(sll%rest)
+          IF (PRESENT(rest)) sll%rest => rest
+          sll%initialized=.TRUE.
+       END IF
+    END IF
+    IF (failure) NULLIFY(sll)
+  END SUBROUTINE cp_sll_int_create
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_dealloc [1.0] *
@@ -290,14 +290,14 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_dealloc(sll,error)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_dealloc(sll,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_dealloc'
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_dealloc'
 
-    call cp_sll_int_rm_all_el(sll,error)
-  end subroutine cp_sll_int_dealloc
+    CALL cp_sll_int_rm_all_el(sll,error)
+  END SUBROUTINE cp_sll_int_dealloc
 !***************************************************************************
 
 ! * low-level *
@@ -325,19 +325,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_dealloc_node(sll,error)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_dealloc_node(sll,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_dealloc_node'
-    integer:: stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_dealloc_node'
+    INTEGER:: stat
+    failure=.FALSE.
 
     CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-    deallocate(sll, stat=stat)
+    DEALLOCATE(sll, stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-  end subroutine cp_sll_int_dealloc_node
+  END SUBROUTINE cp_sll_int_dealloc_node
 !***************************************************************************
 
 ! ============= get/set ============
@@ -369,30 +369,30 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_set(sll,first_el,rest,error)
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(in), optional :: first_el
-    type(cp_sll_int_type), pointer, optional :: rest
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_set(sll,first_el,rest,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    integer, intent(in), OPTIONAL :: first_el
+    TYPE(cp_sll_int_type), POINTER, OPTIONAL :: rest
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_set_sll_int'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_set_sll_int'
+    failure=.FALSE.
 
-    if (.not.associated(sll)) then
-       if (present(first_el)) then
-          call cp_sll_int_create(sll,first_el,rest,error)
-       else
-          CPAssert(.not.present(rest),cp_failure_level,routineP,error,failure)
-       end if
-    else
+    IF (.NOT.ASSOCIATED(sll)) THEN
+       IF (PRESENT(first_el)) THEN
+          CALL cp_sll_int_create(sll,first_el,rest,error)
+       ELSE
+          CPAssert(.NOT.PRESENT(rest),cp_failure_level,routineP,error,failure)
+       END IF
+    ELSE
        CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       if (.not. failure) then
-          if (present(first_el)) sll%first_el = first_el
-          if (present(rest)) sll%rest => rest
-       end if
-    end if
-  end subroutine cp_sll_int_set
+       IF (.NOT. failure) THEN
+          IF (PRESENT(first_el)) sll%first_el = first_el
+          IF (PRESENT(rest)) sll%rest => rest
+       END IF
+    END IF
+  END SUBROUTINE cp_sll_int_set
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get [1.0] *
@@ -421,34 +421,34 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_get(sll,first_el,rest,empty,length,error)
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(out), optional :: first_el
-    type(cp_sll_int_type), optional, pointer :: rest
-    logical, optional, intent(out) :: empty
-    integer, intent(out), optional :: length
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_get(sll,first_el,rest,empty,length,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    integer, intent(out), OPTIONAL :: first_el
+    TYPE(cp_sll_int_type), OPTIONAL, POINTER :: rest
+    LOGICAL, OPTIONAL, INTENT(out) :: empty
+    INTEGER, INTENT(out), OPTIONAL :: length
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_get'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_get'
+    failure=.FALSE.
 
-    if (.not.associated(sll)) then
-       CPPrecondition(.not.present(first_el),cp_failure_level,routineP,error,failure)
-       if (present(rest)) nullify(rest)
-       if (present(empty)) empty=.true.
-       if (present(length)) length=0
-    else
+    IF (.NOT.ASSOCIATED(sll)) THEN
+       CPPrecondition(.NOT.PRESENT(first_el),cp_failure_level,routineP,error,failure)
+       IF (PRESENT(rest)) NULLIFY(rest)
+       IF (PRESENT(empty)) empty=.TRUE.
+       IF (PRESENT(length)) length=0
+    ELSE
        CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       if (.not. failure) then
-          if (present(first_el)) first_el = sll%first_el
-          if (present(rest)) rest => sll%rest
-          if (present(empty)) empty = .false.
-          if (present(length)) &
+       IF (.NOT. failure) THEN
+          IF (PRESENT(first_el)) first_el = sll%first_el
+          IF (PRESENT(rest)) rest => sll%rest
+          IF (PRESENT(empty)) empty = .FALSE.
+          IF (PRESENT(length)) &
                length = cp_sll_int_get_length(sll,error=error)
-       end if
-    end if
-  end subroutine cp_sll_int_get
+       END IF
+    END IF
+  END SUBROUTINE cp_sll_int_get
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get_first_el [1.0] *
@@ -474,25 +474,25 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_get_first_el(sll,error) result(res)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_sll_int_get_first_el(sll,error) RESULT(res)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     integer :: res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_get_first'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_get_first'
+    failure=.FALSE.
 
-    if (cp_debug) then
-       CPPrecondition(associated(sll),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
+    IF (cp_debug) THEN
+       CPPrecondition(ASSOCIATED(sll),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
           CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       end if
-    end if
-    if (.not. failure) then
+       END IF
+    END IF
+    IF (.NOT. failure) THEN
        res = sll%first_el
-    end if
-  end function cp_sll_int_get_first_el
+    END IF
+  END FUNCTION cp_sll_int_get_first_el
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get_rest [1.0] *
@@ -520,55 +520,55 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_get_rest(sll, iter, error) result(res)
-    type(cp_sll_int_type), pointer :: sll
-    integer, optional :: iter
-    type(cp_error_type), optional, intent(inout) :: error
-    type(cp_sll_int_type), pointer :: res
+  FUNCTION cp_sll_int_get_rest(sll, iter, error) RESULT(res)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    INTEGER, OPTIONAL :: iter
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(cp_sll_int_type), POINTER :: res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_get_first'
-    integer :: i
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_get_first'
+    INTEGER :: i
+    failure=.FALSE.
 
-    if (.not.associated(sll)) then
-       nullify(res)
-    else
+    IF (.NOT.ASSOCIATED(sll)) THEN
+       NULLIFY(res)
+    ELSE
        CPPrecondition(sll%initialized,cp_failure_level,routineP,error,failure)
-       if (.not. failure) then
-          if (present(iter)) then
+       IF (.NOT. failure) THEN
+          IF (PRESENT(iter)) THEN
              res => sll
-             do i=1,iter
-                if (associated(res%rest)) then
+             DO i=1,iter
+                IF (ASSOCIATED(res%rest)) THEN
                    res => res%rest
-                else
-                   call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+                ELSE
+                   CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                         routineP, "tried to go past end in "// &
                         CPSourceFileRef,&
                         error,failure)
-                end if
-             end do
-             if (iter==-1) then
+                END IF
+             END DO
+             IF (iter==-1) THEN
                 res => sll
-                do i=1,iter
-                   if (associated(res%rest)) then
+                DO i=1,iter
+                   IF (ASSOCIATED(res%rest)) THEN
                       res => res%rest
-                   else
-                      call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+                   ELSE
+                      CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                            routineP, "tried to go past end in "// &
                            CPSourceFileRef,&
                            error,failure)
-                   end if
-                end do
-             end if
-          else
+                   END IF
+                END DO
+             END IF
+          ELSE
              res => sll%rest ! make the common case fast...
-          end if
-       else
-          nullify(res)
-       end if
-    end if
-  end function cp_sll_int_get_rest
+          END IF
+       ELSE
+          NULLIFY(res)
+       END IF
+    END IF
+  END FUNCTION cp_sll_int_get_rest
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get_empty [1.0] *
@@ -594,17 +594,17 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_get_empty(sll,error) result(res)
-    logical :: res
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION cp_sll_int_get_empty(sll,error) RESULT(res)
+    LOGICAL :: res
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_get_empty'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_get_empty'
+    failure=.FALSE.
 
-    res = .not.associated(sll)
-  end function cp_sll_int_get_empty
+    res = .NOT.ASSOCIATED(sll)
+  END FUNCTION cp_sll_int_get_empty
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get_length [1.0] *
@@ -630,27 +630,27 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_get_length(sll,error) result(res)
-    type(cp_sll_int_type), intent(in), target :: sll
-    type(cp_error_type), optional, intent(inout) :: error
-    integer ::res
+  FUNCTION cp_sll_int_get_length(sll,error) RESULT(res)
+    TYPE(cp_sll_int_type), INTENT(in), TARGET :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER ::res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_get_length'
-    type(cp_sll_int_type), pointer :: iterator
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_get_length'
+    TYPE(cp_sll_int_type), POINTER :: iterator
+    failure=.FALSE.
 
     res=0
     iterator => sll
-    do
-       if (associated(iterator)) then
+    DO
+       IF (ASSOCIATED(iterator)) THEN
           res=res+1
           iterator => iterator%rest
-       else
-          exit
-       end if
-    end do
-  end function cp_sll_int_get_length
+       ELSE
+          EXIT
+       END IF
+    END DO
+  END FUNCTION cp_sll_int_get_length
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_get_el_at [1.0] *
@@ -677,30 +677,30 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_get_el_at(sll,index,error) result(res)
+  FUNCTION cp_sll_int_get_el_at(sll,index,error) RESULT(res)
     integer :: res
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(in) :: index
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_sll_int_type), POINTER :: sll
+    INTEGER, INTENT(in) :: index
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_get_el_at'
-    type(cp_sll_int_type), pointer :: pos
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_get_el_at'
+    TYPE(cp_sll_int_type), POINTER :: pos
+    failure=.FALSE.
 
-    if (cp_debug) then
-       CPPrecondition(index>0.or.index==-1,cp_failure_level,routineP,error,failure)
-    end if
-    if (index==-1) then
+    IF (cp_debug) THEN
+       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (index==-1) THEN
        pos => cp_sll_int_get_rest(sll, iter=-1,error=error)
-    else
+    ELSE
        pos => cp_sll_int_get_rest(sll, iter=index-1,error=error)
-    end if
-    CPPrecondition(associated(pos),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    END IF
+    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
        res = pos%first_el
-    end if
-  end function cp_sll_int_get_el_at
+    END IF
+  END FUNCTION cp_sll_int_get_el_at
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_set_el_at [1.0] *
@@ -729,27 +729,27 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_set_el_at(sll,index,value,error)
+  SUBROUTINE cp_sll_int_set_el_at(sll,index,value,error)
     integer, intent(in) :: value
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(in) :: index
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_sll_int_type), POINTER :: sll
+    INTEGER, INTENT(in) :: index
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_set_el_at'
-    type(cp_sll_int_type), pointer :: pos
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_set_el_at'
+    TYPE(cp_sll_int_type), POINTER :: pos
+    failure=.FALSE.
 
-    if (index==-1) then
+    IF (index==-1) THEN
        pos => cp_sll_int_get_rest(sll, iter=-1,error=error)
-    else
+    ELSE
        pos => cp_sll_int_get_rest(sll, iter=index-1,error=error)
-    end if
-    CPPrecondition(associated(pos),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    END IF
+    CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
        pos%first_el = value
-    end if
-  end subroutine cp_sll_int_set_el_at
+    END IF
+  END SUBROUTINE cp_sll_int_set_el_at
 !***************************************************************************
 
 ! * iteration *
@@ -779,27 +779,27 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function cp_sll_int_next(iterator,el_att,error) result(res)
-    type(cp_sll_int_type), pointer :: iterator
-    type(cp_error_type), optional, intent(inout) :: error
-    integer, intent(out), optional :: el_att
-    logical :: res
+  FUNCTION cp_sll_int_next(iterator,el_att,error) RESULT(res)
+    TYPE(cp_sll_int_type), POINTER :: iterator
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    integer, intent(out), OPTIONAL :: el_att
+    LOGICAL :: res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_next'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_next'
+    failure=.FALSE.
 
-    if (associated(iterator)) then
-       if (cp_debug) then
+    IF (ASSOCIATED(iterator)) THEN
+       IF (cp_debug) THEN
           CPPrecondition(iterator%initialized,cp_failure_level,routineP,error,failure)
-       end if
-       res=.not.failure
+       END IF
+       res=.NOT.failure
        el_att = iterator%first_el
        iterator => iterator%rest
-    else
-       res=.false.
-    end if
-  end function cp_sll_int_next
+    ELSE
+       res=.FALSE.
+    END IF
+  END FUNCTION cp_sll_int_next
 !***************************************************************************
 
 ! ============ structure modifications ============
@@ -829,22 +829,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_insert_el(sll,element,error)
-    type(cp_sll_int_type), pointer :: sll
+  SUBROUTINE cp_sll_int_insert_el(sll,element,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
     integer, intent(in):: element
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int:cp_sll_int_add_el'
-    type(cp_sll_int_type), pointer :: newSlot
-    integer :: stat
-    failure=.false.
-    nullify(newSlot)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int:cp_sll_int_add_el'
+    TYPE(cp_sll_int_type), POINTER :: newSlot
+    INTEGER :: stat
+    failure=.FALSE.
+    NULLIFY(newSlot)
 
-    call cp_sll_int_create(newSlot,first_el=element,&
+    CALL cp_sll_int_create(newSlot,first_el=element,&
          rest=sll,error=error)
     sll => newSlot
-  end subroutine cp_sll_int_insert_el
+  END SUBROUTINE cp_sll_int_insert_el
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_rm_first_el [1.0] *
@@ -870,26 +870,26 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_rm_first_el(sll,error)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_rm_first_el(sll,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_rm_first_el'
-    type(cp_sll_int_type), pointer :: node_to_rm
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_rm_first_el'
+    TYPE(cp_sll_int_type), POINTER :: node_to_rm
+    failure=.FALSE.
     node_to_rm => sll
 
-    if (associated(sll)) then
+    IF (ASSOCIATED(sll)) THEN
        sll => sll%rest
-       call cp_sll_int_dealloc_node(node_to_rm,error=error)
-    else
-       call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+       CALL cp_sll_int_dealloc_node(node_to_rm,error=error)
+    ELSE
+       CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
             routineP,"tried to remove first el of an empty list in "//&
             CPSourceFileRef,&
             error,failure)
-    end if
-  end subroutine cp_sll_int_rm_first_el
+    END IF
+  END SUBROUTINE cp_sll_int_rm_first_el
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_insert_el_at [1.0] *
@@ -918,31 +918,31 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_insert_el_at(sll,element,index,error)
+  SUBROUTINE cp_sll_int_insert_el_at(sll,element,index,error)
     integer, intent(in) :: element
-    integer, intent(in) :: index
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+    INTEGER, INTENT(in) :: index
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_insert_el_at'
-    type(cp_sll_int_type), pointer :: pos
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_insert_el_at'
+    TYPE(cp_sll_int_type), POINTER :: pos
+    failure=.FALSE.
 
-    if (index==1) then
-       call cp_sll_int_insert_el(sll,element,error=error)
-    else
-       if (index==-1) then
+    IF (index==1) THEN
+       CALL cp_sll_int_insert_el(sll,element,error=error)
+    ELSE
+       IF (index==-1) THEN
           pos => cp_sll_int_get_rest(sll, iter=-1,error=error)
-       else
+       ELSE
           pos => cp_sll_int_get_rest(sll, iter=index-1,error=error)
-       end if
-       CPPrecondition(associated(pos),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          call cp_sll_int_insert_el(pos%rest,element,error=error)
-       end if
-    end if
-  end subroutine cp_sll_int_insert_el_at
+       END IF
+       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          CALL cp_sll_int_insert_el(pos%rest,element,error=error)
+       END IF
+    END IF
+  END SUBROUTINE cp_sll_int_insert_el_at
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_rm_el_at [1.0] *
@@ -970,33 +970,33 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_rm_el_at(sll,index,error)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
-    integer, intent(in)::index
+  SUBROUTINE cp_sll_int_rm_el_at(sll,index,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    INTEGER, INTENT(in)::index
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_remove_el_at'
-    type(cp_sll_int_type), pointer :: pos
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_remove_el_at'
+    TYPE(cp_sll_int_type), POINTER :: pos
+    failure=.FALSE.
     
-    if (cp_debug) then
-       CPPrecondition(index>0.or.index==-1,cp_failure_level,routineP,error,failure)
-    end if
-    if (index==1) then
-       call cp_sll_int_rm_first_el(sll,error=error)
-    else
-       if (index==-1) then
+    IF (cp_debug) THEN
+       CPPrecondition(index>0.OR.index==-1,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (index==1) THEN
+       CALL cp_sll_int_rm_first_el(sll,error=error)
+    ELSE
+       IF (index==-1) THEN
           pos => cp_sll_int_get_rest(sll, iter=-1,error=error)
-       else
+       ELSE
           pos => cp_sll_int_get_rest(sll, iter=index-2,error=error)
-       end if
-       CPPrecondition(associated(pos),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          call cp_sll_int_rm_first_el(pos%rest,error=error)
-       end if
-    end if
-  end subroutine cp_sll_int_rm_el_at
+       END IF
+       CPPrecondition(ASSOCIATED(pos),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          CALL cp_sll_int_rm_first_el(pos%rest,error=error)
+       END IF
+    END IF
+  END SUBROUTINE cp_sll_int_rm_el_at
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_rm_all_el [1.0] *
@@ -1022,25 +1022,25 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_rm_all_el(sll,error)
-    type(cp_sll_int_type), pointer :: sll
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_rm_all_el(sll,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='cp_linked_list_int/cp_sll_int_rm_all_el'
-    type(cp_sll_int_type), pointer :: next_node, actual_node
-    integer:: stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='cp_linked_list_int/cp_sll_int_rm_all_el'
+    TYPE(cp_sll_int_type), POINTER :: next_node, actual_node
+    INTEGER:: stat
+    failure=.FALSE.
 
     actual_node => sll
-    do
-       if (.not.associated(actual_node)) exit
+    DO
+       IF (.NOT.ASSOCIATED(actual_node)) EXIT
        next_node => cp_get_rest(actual_node,error=error)
-       call cp_sll_int_dealloc_node(actual_node,error=error)
+       CALL cp_sll_int_dealloc_node(actual_node,error=error)
        actual_node => next_node
-    end do
-    nullify(sll)
-  end subroutine cp_sll_int_rm_all_el
+    END DO
+    NULLIFY(sll)
+  END SUBROUTINE cp_sll_int_rm_all_el
 !***************************************************************************
 
 ! ========= output =========
@@ -1078,48 +1078,48 @@ contains
 !!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_output(logger, outputName,&
+  SUBROUTINE cp_sll_int_output(logger, outputName,&
        fromWhere, iter, sll,comment,local, finish, error)
-    type(cp_logger_type),pointer ::logger
-    character(len=*) , intent(in) :: outputName
-    character(len=*), intent(in):: fromWhere
-    integer, intent(in) :: iter
-    type(cp_sll_int_type), pointer :: sll
-    character(len=*), intent(in),optional :: comment
-    logical, intent(in), optional :: local, finish
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_logger_type),POINTER ::logger
+    CHARACTER(len=*) , INTENT(in) :: outputName
+    CHARACTER(len=*), INTENT(in):: fromWhere
+    INTEGER, INTENT(in) :: iter
+    TYPE(cp_sll_int_type), POINTER :: sll
+    CHARACTER(len=*), INTENT(in),OPTIONAL :: comment
+    LOGICAL, INTENT(in), OPTIONAL :: local, finish
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure, loc, fin
-    integer :: handle, unitNr, iostat
-    character(len=*), parameter :: routineN='cp_sll_int_output',&
+    LOGICAL :: failure, loc, fin
+    INTEGER :: handle, unitNr, iostat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_output',&
          routineP=moduleN//':'//routineN
-    failure=.false.; loc=.false.; fin=.true.
+    failure=.FALSE.; loc=.FALSE.; fin=.TRUE.
   
-    call timeset(routineN//','//moduleN,'I',"",handle)
-    if (present(local)) loc=local
-    if (present(finish)) fin=finish
+    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    IF (PRESENT(local)) loc=local
+    IF (PRESENT(finish)) fin=finish
 
-    if (loc .or. logger%para_env%mepos==logger%para_env%source) then
-       if (cp_would_output(logger, outputName , fromWhere, iter,&
-            local=loc,error=error)) then
+    IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
+       IF (cp_would_output(logger, outputName , fromWhere, iter,&
+            local=loc,error=error)) THEN
 
           unitNr=cp_unitnr_for_output(logger, outputName, fromWhere, iter,&
                local=loc,error=error)
           
-          if (present(comment)) then
-             write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+          IF (PRESENT(comment)) THEN
+             WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
              CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-          end if
-          call cp_sll_int_write(sll,unit_nr=unitNr,error=error)
+          END IF
+          CALL cp_sll_int_write(sll,unit_nr=unitNr,error=error)
 
-          if (fin) then
-             call cp_finished_output(logger, outputName, fromWhere, iter,&
+          IF (fin) THEN
+             CALL cp_finished_output(logger, outputName, fromWhere, iter,&
                   local=local,error=error)
-          end if
-       end if
-    end if
-    call timestop(0.0_wp,handle)
-  end subroutine cp_sll_int_output
+          END IF
+       END IF
+    END IF
+    CALL timestop(0.0_wp,handle)
+  END SUBROUTINE cp_sll_int_output
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_write [1.0] *
@@ -1147,24 +1147,24 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sll_int_write(sll,unit_nr,error)
-    type(cp_sll_int_type), pointer :: sll
-    integer, intent(in) :: unit_nr
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_sll_int_write(sll,unit_nr,error)
+    TYPE(cp_sll_int_type), POINTER :: sll
+    INTEGER, INTENT(in) :: unit_nr
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    type(cp_sll_int_type), pointer :: iterator
-    character(len=*), parameter :: routineN='cp_sll_int_write',&
+    LOGICAL :: failure
+    TYPE(cp_sll_int_type), POINTER :: iterator
+    CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_write',&
          routineP=moduleN//':'//routineN
     integer :: el
-    failure=.false.
+    failure=.FALSE.
     iterator => sll
   
-    do
-       if (.not.cp_sll_int_next(iterator,el_att=el,error=error)) exit
-       call cp_i_write(el, unit_nr=unit_nr, error=error)
-    end do
-  end subroutine cp_sll_int_write
+    DO
+       IF (.NOT.cp_sll_int_next(iterator,el_att=el,error=error)) EXIT
+       CALL cp_i_write(el, unit_nr=unit_nr, error=error)
+    END DO
+  END SUBROUTINE cp_sll_int_write
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_to_array [1.0] *
@@ -1191,31 +1191,31 @@ contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_sll_int_to_array(sll,error) result(res)
-  type(cp_sll_int_type), pointer :: sll
-  type(cp_error_type), optional, intent(inout) :: error
-  integer, dimension(:), pointer :: res
+FUNCTION cp_sll_int_to_array(sll,error) RESULT(res)
+  TYPE(cp_sll_int_type), POINTER :: sll
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  integer, DIMENSION(:), POINTER :: res
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sll_int_to_array',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_to_array',&
         routineP=moduleN//':'//routineN
-  integer :: len,stat,i
-  type(cp_sll_int_type), pointer :: iter
-  failure=.false.
+  INTEGER :: len,stat,i
+  TYPE(cp_sll_int_type), POINTER :: iter
+  failure=.FALSE.
   
   len=cp_sll_int_get_length(sll,error)
-  allocate(res(len),stat=stat)
+  ALLOCATE(res(len),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  IF (.NOT. failure) THEN
      iter => sll
-     do i=1,len
+     DO i=1,len
         res(len) = iter%first_el
-        if (.not.(cp_sll_int_next(iter,error=error).or.i==len)) then
-           CPAssert(.false.,cp_failure_level,routineP,error,failure)
-        end if
-     end do
-  end if
-end function cp_sll_int_to_array
+        IF (.NOT.(cp_sll_int_next(iter,error=error).OR.i==len)) THEN
+           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        END IF
+     END DO
+  END IF
+END FUNCTION cp_sll_int_to_array
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_from_array [1.0] *
@@ -1241,32 +1241,32 @@ end function cp_sll_int_to_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_sll_int_from_array(array,error) result(res)
-  integer, dimension(:), intent(in) :: array
-  type(cp_error_type), optional, intent(inout) :: error
-  type(cp_sll_int_type), pointer :: res
+FUNCTION cp_sll_int_from_array(array,error) RESULT(res)
+  integer, DIMENSION(:), INTENT(in) :: array
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_sll_int_type), POINTER :: res
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sll_int_from_array',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_from_array',&
         routineP=moduleN//':'//routineN
-  integer :: i
-  type(cp_sll_int_type), pointer :: last_el
-  failure=.false.
+  INTEGER :: i
+  TYPE(cp_sll_int_type), POINTER :: last_el
+  failure=.FALSE.
   
-  nullify(res,last_el)
-  if (size(array)>0) then
-     call cp_sll_int_create(res,&
+  NULLIFY(res,last_el)
+  IF (SIZE(array)>0) THEN
+     CALL cp_sll_int_create(res,&
           first_el=array(1),&
           error=error)
      last_el => res
-  end if
-  do i=2,size(array)
-     call cp_sll_int_create(last_el%rest,&
+  END IF
+  DO i=2,SIZE(array)
+     CALL cp_sll_int_create(last_el%rest,&
           first_el=array(i),&
           error=error)
      last_el => last_el%rest
-  end do
-end function cp_sll_int_from_array
+  END DO
+END FUNCTION cp_sll_int_from_array
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_insert_ordered [1.0] *
@@ -1298,56 +1298,56 @@ end function cp_sll_int_from_array
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sll_int_insert_ordered(sll,el,insert_equals,&
+SUBROUTINE cp_sll_int_insert_ordered(sll,el,insert_equals,&
      did_insert,pos,error)
-  type(cp_sll_int_type), pointer :: sll
+  TYPE(cp_sll_int_type), POINTER :: sll
   integer, intent(in) :: el
-  logical, optional, intent(in) :: insert_equals
-  logical, optional, intent(out) :: did_insert
-  type(cp_sll_int_type), pointer, optional :: pos
-  type(cp_error_type), optional, intent(inout) :: error
+  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
+  LOGICAL, OPTIONAL, INTENT(out) :: did_insert
+  TYPE(cp_sll_int_type), POINTER, OPTIONAL :: pos
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure,i_eq
-  character(len=*), parameter :: routineN='cp_sll_int_insert_ordered',&
+  LOGICAL :: failure,i_eq
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_insert_ordered',&
         routineP=moduleN//':'//routineN
-  type(cp_sll_int_type), pointer :: iter
-  failure=.false.
-  i_eq=.false.
+  TYPE(cp_sll_int_type), POINTER :: iter
+  failure=.FALSE.
+  i_eq=.FALSE.
   
-  if (present(did_insert)) did_insert=.false.
-  if (present(pos)) nullify(pos)
-  if (present(insert_equals)) i_eq=insert_equals
-  if (.not.associated(sll)) then
-     call cp_sll_int_create(sll,first_el=el,error=error)
-     if (present(did_insert)) did_insert=.true.
-     if (present(pos)) pos=>sll
-  else if (.not.CP_SLL_I_LESS_Q(sll%first_el,el)) then
-     if (present(pos)) pos=>sll
-     if (i_eq.or..not.CP_SLL_I_EQUAL_Q(el,sll%first_el)) then
-        call cp_sll_int_insert_el(sll,el,error=error)
-        if (present(did_insert)) did_insert=.true.
-        if (present(pos)) pos=>sll
-     end if
-  else
+  IF (PRESENT(did_insert)) did_insert=.FALSE.
+  IF (PRESENT(pos)) NULLIFY(pos)
+  IF (PRESENT(insert_equals)) i_eq=insert_equals
+  IF (.NOT.ASSOCIATED(sll)) THEN
+     CALL cp_sll_int_create(sll,first_el=el,error=error)
+     IF (PRESENT(did_insert)) did_insert=.TRUE.
+     IF (PRESENT(pos)) pos=>sll
+  ELSE IF (.NOT.CP_SLL_I_LESS_Q(sll%first_el,el)) THEN
+     IF (PRESENT(pos)) pos=>sll
+     IF (i_eq.OR.CP_SLL_I_LESS_Q(el,sll%first_el)) THEN
+        CALL cp_sll_int_insert_el(sll,el,error=error)
+        IF (PRESENT(did_insert)) did_insert=.TRUE.
+        IF (PRESENT(pos)) pos=>sll
+     END IF
+  ELSE
      iter => sll
-     do
-        if (.not.associated(iter%rest)) then
-           call cp_sll_int_insert_el(iter%rest,el,error=error)
-           exit
-        else if (.not.CP_SLL_I_LESS_Q(iter%rest%first_el,el)) then
-           if (present(pos)) pos=>iter
-           if (i_eq.or. .not. CP_SLL_I_EQUAL_Q(el,sll%first_el)) then
-              call cp_sll_int_insert_el(iter%rest,el,error=error)
-              if (present(did_insert)) did_insert=.true.
-              if (present(pos)) pos=>iter%rest
-           end if
-           exit
-        end if
+     DO
+        IF (.NOT.ASSOCIATED(iter%rest)) THEN
+           CALL cp_sll_int_insert_el(iter%rest,el,error=error)
+           EXIT
+        ELSE IF (.NOT.CP_SLL_I_LESS_Q(iter%rest%first_el,el)) THEN
+           IF (PRESENT(pos)) pos=>iter
+           IF (i_eq.OR. CP_SLL_I_LESS_Q(el,sll%first_el)) THEN
+              CALL cp_sll_int_insert_el(iter%rest,el,error=error)
+              IF (PRESENT(did_insert)) did_insert=.TRUE.
+              IF (PRESENT(pos)) pos=>iter%rest
+           END IF
+           EXIT
+        END IF
         CPInvariant(cp_sll_int_next(iter),cp_failure_level,routineP,error,failure)
-     end do
-     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
-  end if
-end subroutine cp_sll_int_insert_ordered
+     END DO
+     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE cp_sll_int_insert_ordered
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_insert_ordered2 [1.0] *
@@ -1379,57 +1379,57 @@ end subroutine cp_sll_int_insert_ordered
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sll_int_insert_ordered2(sll,el,compare_function,&
+SUBROUTINE cp_sll_int_insert_ordered2(sll,el,compare_function,&
      insert_equals,error)
-  type(cp_sll_int_type), pointer :: sll
+  TYPE(cp_sll_int_type), POINTER :: sll
   integer, intent(in) :: el
-  interface
-     function compare_function(el1,el2)
-       use cp_array_i_utils, only: cp_i_write
-       integer :: compare_function
+  INTERFACE
+     FUNCTION compare_function(el1,el2)
+       USE cp_array_i_utils, ONLY: cp_i_write
+       INTEGER :: compare_function
        integer, intent(in) :: el1,el2
-     end function compare_function
-  end interface
-  logical, optional, intent(in) :: insert_equals
-  type(cp_error_type), optional, intent(inout) :: error
+     END FUNCTION compare_function
+  END INTERFACE
+  LOGICAL, OPTIONAL, INTENT(in) :: insert_equals
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure,i_eq
-  character(len=*), parameter :: routineN='cp_sll_int_insert_ordered2',&
+  LOGICAL :: failure,i_eq
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_insert_ordered2',&
         routineP=moduleN//':'//routineN
-  integer :: comp
-  type(cp_sll_int_type), pointer :: iter
-  failure=.false.
-  i_eq=.false.
+  INTEGER :: comp
+  TYPE(cp_sll_int_type), POINTER :: iter
+  failure=.FALSE.
+  i_eq=.FALSE.
   
-  if (present(insert_equals)) i_eq=insert_equals
-  if (.not.associated(sll)) then
-     call cp_sll_int_create(sll,first_el=el,error=error)
-     return
-  end if
+  IF (PRESENT(insert_equals)) i_eq=insert_equals
+  IF (.NOT.ASSOCIATED(sll)) THEN
+     CALL cp_sll_int_create(sll,first_el=el,error=error)
+     RETURN
+  END IF
   comp=compare_function(sll%first_el,el)
-  if (comp>=0) then
-     if (i_eq.or.comp/=0) then
-        call cp_sll_int_insert_el(sll,el,error=error)
-     end if
-  else
+  IF (comp>=0) THEN
+     IF (i_eq.OR.comp/=0) THEN
+        CALL cp_sll_int_insert_el(sll,el,error=error)
+     END IF
+  ELSE
      iter => sll
-     do
-        if (.not.associated(iter%rest)) then
-           call cp_sll_int_insert_el(iter%rest,el,error=error)
-           exit
-        end if
+     DO
+        IF (.NOT.ASSOCIATED(iter%rest)) THEN
+           CALL cp_sll_int_insert_el(iter%rest,el,error=error)
+           EXIT
+        END IF
         comp=compare_function(iter%rest%first_el,el)
-        if (comp>=0) then
-           if (i_eq.or. comp/=0) then
-              call cp_sll_int_insert_el(iter%rest,el,error=error)
-           end if
-           exit
-        end if
+        IF (comp>=0) THEN
+           IF (i_eq.OR. comp/=0) THEN
+              CALL cp_sll_int_insert_el(iter%rest,el,error=error)
+           END IF
+           EXIT
+        END IF
         CPInvariant(cp_sll_int_next(iter),cp_failure_level,routineP,error,failure)
-     end do
-     CPAssert(associated(iter),cp_failure_level,routineP,error,failure)
-  end if
-end subroutine cp_sll_int_insert_ordered2
+     END DO
+     CPAssert(ASSOCIATED(iter),cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE cp_sll_int_insert_ordered2
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_contains [1.0] *
@@ -1458,40 +1458,41 @@ end subroutine cp_sll_int_insert_ordered2
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_sll_int_contains(sll,el,ordered,error) result(res)
-  logical ::res
-  type(cp_sll_int_type), pointer :: sll
+FUNCTION cp_sll_int_contains(sll,el,ordered,error) RESULT(res)
+  LOGICAL ::res
+  TYPE(cp_sll_int_type), POINTER :: sll
   integer, intent(in) :: el
-  logical, intent(in), optional :: ordered
-  type(cp_error_type), optional, intent(inout) :: error
+  LOGICAL, INTENT(in), OPTIONAL :: ordered
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_sll_int_contains',&
+  LOGICAL :: failure,ord
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_contains',&
         routineP=moduleN//':'//routineN
-  type(cp_sll_int_type), pointer :: iter
+  TYPE(cp_sll_int_type), POINTER :: iter
   integer :: el_att
-  failure=.false.
-  res=.false.
+  failure=.FALSE.; ord=.FALSE.
+  res=.FALSE.
   
   iter => sll
-  if (ordered) then
-     do
-        if (.not.cp_sll_int_next(iter,el_att=el_att,error=error)) exit
-        if (.not.CP_SLL_I_LESS_Q(el_att,el)) then
-           res=CP_SLL_I_EQUAL_Q(el_att,el)
-           return
-        end if
-     end do
-  else
-     do
-        if (.not.cp_sll_int_next(iter,el_att=el_att,error=error)) exit
-        if (CP_SLL_I_EQUAL_Q(el_att,el)) then
-           res=.true.
-           return
-        end if
-     end do
-  end if
-end function cp_sll_int_contains
+  IF (PRESENT(ordered)) ord=ordered
+  IF (ord) THEN
+     DO
+        IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.CP_SLL_I_LESS_Q(el_att,el)) THEN
+           res=.NOT.CP_SLL_I_LESS_Q(el,el_att)
+           RETURN
+        END IF
+     END DO
+  ELSE
+     DO
+        IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
+        IF (.NOT.CP_SLL_I_EQUAL_Q(el_att,el)) THEN
+           res=.TRUE.
+           RETURN
+        END IF
+     END DO
+  END IF
+END FUNCTION cp_sll_int_contains
 !***************************************************************************
 
 !!****f* cp_linked_list_int/cp_sll_int_contains [1.0] *
@@ -1523,55 +1524,55 @@ end function cp_sll_int_contains
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_sll_int_contains2(sll,el,compare_function,ordered,error)&
-     result(res)
-  logical ::res
-  type(cp_sll_int_type), pointer :: sll
+FUNCTION cp_sll_int_contains2(sll,el,compare_function,ordered,error)&
+     RESULT(res)
+  LOGICAL ::res
+  TYPE(cp_sll_int_type), POINTER :: sll
   integer, intent(in) :: el
-  interface
-     function compare_function(el1,el2)
-       use cp_array_i_utils, only: cp_i_write
-       integer :: compare_function
+  INTERFACE
+     FUNCTION compare_function(el1,el2)
+       USE cp_array_i_utils, ONLY: cp_i_write
+       INTEGER :: compare_function
        integer, intent(in) :: el1,el2
-     end function compare_function
-  end interface
-  logical, intent(in), optional :: ordered
-  type(cp_error_type), optional, intent(inout) :: error
+     END FUNCTION compare_function
+  END INTERFACE
+  LOGICAL, INTENT(in), OPTIONAL :: ordered
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: comp
-  character(len=*), parameter :: routineN='cp_sll_int_contains2',&
+  LOGICAL :: failure
+  INTEGER :: comp
+  CHARACTER(len=*), PARAMETER :: routineN='cp_sll_int_contains2',&
         routineP=moduleN//':'//routineN
-  type(cp_sll_int_type), pointer :: iter
+  TYPE(cp_sll_int_type), POINTER :: iter
   integer :: el_att
-  failure=.false.
-  res=.false.
+  failure=.FALSE.
+  res=.FALSE.
   
   iter => sll
-  if (ordered) then
-     do
-        if (.not.cp_sll_int_next(iter,el_att=el_att,error=error)) exit
+  IF (ordered) THEN
+     DO
+        IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
         comp=compare_function(el_att,el)
-        if (comp>=0) then
+        IF (comp>=0) THEN
            res= comp==0
-           return
-        end if
-     end do
-  else
-     do
-        if (.not.cp_sll_int_next(iter,el_att=el_att,error=error)) exit
-        if (compare_function(el_att,el)==0) then
-           res=.true.
-           return
-        end if
-     end do
-  end if
-end function cp_sll_int_contains2
+           RETURN
+        END IF
+     END DO
+  ELSE
+     DO
+        IF (.NOT.cp_sll_int_next(iter,el_att=el_att,error=error)) EXIT
+        IF (compare_function(el_att,el)==0) THEN
+           res=.TRUE.
+           RETURN
+        END IF
+     END DO
+  END IF
+END FUNCTION cp_sll_int_contains2
 !***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
-! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,use,write_el,lessQ,equalQ)]
+! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ)]
 ! ARGS:
 !  type1arrayEl = "integer"
 !  lessQ = "CP_SLL_I_LESS_Q"
@@ -1588,8 +1589,8 @@ end function cp_sll_int_contains2
 !  write_el = "cp_i_write"
 !  array= = "="
 !  arrayEl = ""
-!  use = "use cp_array_i_utils, only: cp_i_write"
+!  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
 
 
-end module cp_linked_list_int
+END MODULE cp_linked_list_int
 
