@@ -86,6 +86,7 @@ CONTAINS
   TYPE ( coeff_type ) :: rhos1, rhos2
   TYPE ( coeff_type ) :: rhob_r, rhob_g
   TYPE ( coeff_type ) :: coeff_dummy, rho_tot
+  TYPE ( coeff_type ) :: rho_3d, rho_tot_rs
   LOGICAL :: match, first_time
 
 ! allocating the structure factor vector to the number of grid_types
@@ -198,12 +199,18 @@ CONTAINS
    "thk", ncoef )
   
   IF ( PRESENT ( f_coef ) ) THEN
+   
 ! DO FFT 
-    CALL coeff_transform_space ( rho_tot )
-    f_coef = CMPLX ( REAL ( rho_tot % pw % cc, dbl ), &
-                     AIMAG ( rho_tot % pw % cc ), dbl )
+    CALL coeff_allocate ( rho_3d, rho_tot, use_basis = PW_COMPLEXDATA3D )
+    rho_3d % pw % in_space = PW_RECIPROCALSPACE
+    CALL coeff_transform_space ( rho_3d )
+    CALL coeff_allocate ( rho_tot_rs, rho_3d, use_basis = PW_COMPLEXDATA1D )
+    f_coef = CMPLX ( REAL ( rho_tot_rs  % pw % cc, dbl ), &
+                     AIMAG ( rho_tot_rs % pw % cc ), dbl )
   ENDIF
   CALL coeff_deallocate ( rho_tot )
+  CALL coeff_deallocate ( rho_tot_rs )
+  CALL coeff_deallocate ( rho_3d )
  END SUBROUTINE force_thk
 
 !******************************************************************************
