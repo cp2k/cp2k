@@ -92,26 +92,37 @@ MODULE environment
 
 #if defined(__COMPILE_ARCH)
   CHARACTER(LEN=*), PARAMETER :: compile_arch = __COMPILE_ARCH
+#else
+  CHARACTER(LEN=*), PARAMETER :: compile_arch = "unknown: -D__COMPILE_ARCH=?"
 #endif
+
 #if defined(__COMPILE_DATE)
   CHARACTER(LEN=*), PARAMETER :: compile_date = __COMPILE_DATE
+#else
+  CHARACTER(LEN=*), PARAMETER :: compile_date = "unknown: -D__COMPILE_DATE=?"
 #endif
+
 #if defined(__COMPILE_HOST)
   CHARACTER(LEN=*), PARAMETER :: compile_host = __COMPILE_HOST
+#else
+  CHARACTER(LEN=*), PARAMETER :: compile_host = "unknown: -D__COMPILE_HOST=?"
 #endif
+
 #if defined(__COMPILE_LASTCVS)
   CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = __COMPILE_LASTCVS
 #else
   CHARACTER(LEN=*), PARAMETER :: compile_lastcvs = "/No CVS/Entry in src dir//"
 #endif
-  CHARACTER(LEN=*), PARAMETER :: module_name = "environment"
 
+  CHARACTER(LEN=*), PARAMETER :: module_name = "environment"
   INTEGER :: handle = 0
 
 ! *** Public subroutines ***
 
   PUBLIC :: cp2k_finalize,&
             cp2k_init, cp2k_read
+
+  PUBLIC :: compile_arch,compile_date,compile_host,compile_lastcvs
 
 !******************************************************************************
 
@@ -274,21 +285,15 @@ CONTAINS
           "  **** **  *******  **  PROGRAM STARTED IN "
         WRITE (UNIT=output_unit,FMT="(T21,A60,/)") ADJUSTR(cwd)
       END IF
-#if defined(__COMPILE_DATE)
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled at",&
         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-#endif
-#if defined(__COMPILE_HOST)
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled on",&
         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-#endif
-#if defined(__COMPILE_ARCH)
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled for",&
         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-#endif
       strend=MAX(1,LEN(compile_lastcvs)-2)
       strstart=MAX(2,strend-50)
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&

@@ -10,7 +10,8 @@ MODULE cp2k_runs
   USE atom_module,                     ONLY: atomic_code
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
-                                             cp2k_read
+                                             cp2k_read,&
+                                             compile_date,compile_lastcvs
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
   USE fist_main,                       ONLY: fist_create_force_env
   USE global_types,                    ONLY: global_environment_type,&
@@ -502,7 +503,14 @@ CONTAINS
             file_action="WRITE", file_status="REPLACE")
        write(unit_nr,*) "<HTML><BODY><HEAD><TITLE>The cp2k input structure</TITLE>"
        write(unit_nr,*) "<H1>CP2K input reference</H1>"
-       write(unit_nr,*) "This represents the full structure of the cp2k input file, click on a section for more information"
+       write(unit_nr,*) "<H2>Version information</H2>"
+       write(unit_nr,*) "This html manual can be generated automatically from a given cp2k executable "// &
+                        "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
+                        "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
+                        "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
+       write(unit_nr,*) "<H2>Input structure</H2>"
+       write(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
+       write(unit_nr,*) "A description of each section, and a list of keywords can be obtained clicking on the links. "
        write(unit_nr,*) "<BR><UL>"
 
        CALL section_describe_index_html(root_section,unit_nr,error=error)
