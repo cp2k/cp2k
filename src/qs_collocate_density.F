@@ -78,7 +78,7 @@ MODULE qs_collocate_density
                                              return_cube
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp, mp,&
                                              dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
@@ -1240,7 +1240,8 @@ CONTAINS
                             rho%pw%pw_grid%bounds(1,2), &
                             rho%pw%pw_grid%bounds(1,3))
     ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      total_rho = -rho%pw%pw_grid%dvol*SUM(rho%pw%cr3d)
+      ! do reduction using maximum accuracy
+      total_rho = -rho%pw%pw_grid%dvol*SUM(REAL(rho%pw%cr3d,KIND=mp))
     ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
       IF ( rho%pw%pw_grid%have_g0 ) THEN
         total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
@@ -1389,7 +1390,6 @@ CONTAINS
     IF (radius .EQ. 0.0_dp ) THEN
       RETURN
     END IF
-
 
     ! it's a choice to compute lX_min/max, pab here, 
     ! this way we get the same radius as we use for the corresponding density

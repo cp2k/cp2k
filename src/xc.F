@@ -68,7 +68,7 @@ MODULE xc
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, mp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
@@ -1993,7 +1993,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
              rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
              error=error)
 
-        exc = SUM ( deriv_data )*pw_grid%dvol
+        exc = SUM ( REAL( deriv_data, KIND=mp ) )*pw_grid%dvol
         IF ( pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
            CALL mp_sum ( exc, pw_grid%para%group )
         END IF
@@ -2141,7 +2141,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
           rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
           error=error)
      
-     exc = SUM ( e_0 )*rho_r(1)%pw%pw_grid%dvol
+     exc = SUM ( REAL( e_0, KIND=mp ) )*rho_r(1)%pw%pw_grid%dvol
      IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
         CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
      END IF
