@@ -1221,7 +1221,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
   INTEGER, DIMENSION(:), OPTIONAL, POINTER :: i_vals
   REAL(KIND=DP), OPTIONAL, INTENT(out) :: r_val
   REAL(KIND=DP), DIMENSION(:), OPTIONAL, POINTER :: r_vals
-  CHARACTER(LEN=DEFAULT_STRING_LENGTH), OPTIONAL, INTENT(out) :: c_val
+  CHARACTER(LEN=*), OPTIONAL, INTENT(out) :: c_val
   CHARACTER(LEN=DEFAULT_STRING_LENGTH), DIMENSION(:), OPTIONAL, POINTER :: c_vals
   type(cp_error_type), optional, intent(inout) :: error
   

@@ -159,9 +159,9 @@ SUBROUTINE val_create(val,l_val,l_vals,l_vals_ptr,i_val,i_vals,i_vals_ptr,&
       INTENT(in), OPTIONAL                   :: r_vals
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals_ptr
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=*), &
       INTENT(in), OPTIONAL                   :: c_val
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=*), &
       DIMENSION(:), INTENT(in), OPTIONAL     :: c_vals
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals_ptr
@@ -421,7 +421,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_c,l_val,l_vals,i_val,&
     REAL(KIND=DP), INTENT(out), OPTIONAL     :: r_val
     REAL(KIND=DP), DIMENSION(:), OPTIONAL, &
       POINTER                                :: r_vals
-    CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
+    CHARACTER(LEN=*), &
       INTENT(out), OPTIONAL                  :: c_val
     CHARACTER(LEN=DEFAULT_STRING_LENGTH), &
       DIMENSION(:), OPTIONAL, POINTER        :: c_vals
