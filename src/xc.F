@@ -2389,14 +2389,14 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
     TYPE(pw_p_type), DIMENSION(3)            :: pw_to_deriv, pw_to_deriv_rho
-    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, vxc_g
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, tmp_r2,vxc_g
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     TYPE(xc_derivative_type), POINTER        :: deriv_att
     TYPE(xc_rho_set_type), POINTER           :: rho_set
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
-  NULLIFY(tmp_g, tmp_r, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
+  NULLIFY(tmp_g, tmp_r, tmp_r2, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
        drhob, pos,deriv_set,rho_set)
   logger => cp_error_get_logger(error)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
@@ -2885,14 +2885,13 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                          pw_out=tmp_r,coeffs=nn50_deriv_coeffs,&
                          idir=idir, error=error )
                  CASE (xc_deriv_fd)
-                    CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-                    CALL pw_pool_create_pw(pw_pool, tmp_r,&
+                    CALL pw_pool_create_pw(pw_pool, tmp_r2,&
                          use_data=REALDATA3D, in_space=REALSPACE,&
                          error=error)
                     CALL pw_derive_fd(pw_to_deriv(idir)%pw,&
-                         tmp_r,nd(:,idir))
-                    CALL pw_sumup(tmp_r,vxc(ispin)%pw)
-                    CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
+                         tmp_r2,nd(:,idir))
+                    CALL pw_sumup(tmp_r2,vxc(ispin)%pw)
+                    CALL pw_pool_give_back_pw(pw_pool,tmp_r2,error=error)
                  CASE default
                     CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
                  END SELECT
