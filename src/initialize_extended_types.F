@@ -289,8 +289,8 @@ END SUBROUTINE initialize_nhc_part
 !******************************************************************************
 SUBROUTINE initialize_nhc_forces ( nhc_part, nhc_baro )
   IMPLICIT NONE
-  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc_baro
-  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc_part
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_baro
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc_part
 ! locals
   INTEGER :: i, j
   

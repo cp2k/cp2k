@@ -158,9 +158,9 @@ MODULE kg_pol_coefs
 
     IMPLICIT NONE
     TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-    TYPE ( coeff_type ), INTENT(OUT) :: c_pos  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_vel  
-    TYPE ( coeff_type ), INTENT(OUT) :: c_force  
+    TYPE ( coeff_type ), INTENT(INOUT) :: c_pos  
+    TYPE ( coeff_type ), INTENT(INOUT) :: c_vel  
+    TYPE ( coeff_type ), INTENT(INOUT) :: c_force  
     TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
 
 !   locals 

@@ -251,7 +251,7 @@ CONTAINS
   SUBROUTINE set_kg_env( kg_env, atomic_kind_set,  cell,  &
                          dft_control,energy,force, &
                          local_particles,local_molecules,&
-                         molecule_kind_set,molecule_set,id_nr,para_env,&
+                         molecule_kind_set,molecule_set,para_env,&
                          particle_set,rho,&
                          sac_ppl,sac_ppl_aux,subsys,error)
 
@@ -261,14 +261,13 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_environment_type), intent (out), TARGET         :: kg_env
+    TYPE(kg_environment_type), intent (inout), TARGET      :: kg_env
     TYPE(atomic_kind_type),DIMENSION(:), OPTIONAL, POINTER :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER                     :: cell
     TYPE(dft_control_type), OPTIONAL, POINTER              :: dft_control
     TYPE(kg_energy_type), OPTIONAL, POINTER                :: energy
     TYPE(kg_force_type), DIMENSION(:),OPTIONAL,POINTER     :: force
     TYPE(kg_rho_type), OPTIONAL, POINTER                   :: rho
-    INTEGER, INTENT(out), OPTIONAL                         :: id_nr
     TYPE(distribution_1d_type),OPTIONAL, POINTER           :: local_particles,&
                                                               local_molecules
     TYPE(molecule_kind_type),DIMENSION(:),OPTIONAL,POINTER :: molecule_kind_set

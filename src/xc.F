@@ -268,7 +268,7 @@ CONTAINS
        cell,pw_pool,error)
     TYPE(coeff_type),DIMENSION(:), INTENT(in)    :: rho_r
     TYPE(coeff_type),DIMENSION(:), POINTER       :: rho_g
-    TYPE(coeff_type),DIMENSION(:), INTENT(out)   :: vxc
+    TYPE(coeff_type),DIMENSION(:), INTENT(INout)   :: vxc
     REAL(KIND = dp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(cell_type), POINTER                     :: cell
@@ -370,7 +370,7 @@ CONTAINS
        cell,pw_pool,error)
     TYPE(pw_p_type),DIMENSION(:), INTENT(inout), TARGET :: rho_r
     TYPE(pw_p_type),DIMENSION(:), POINTER        :: rho_g
-    TYPE(pw_p_type),DIMENSION(:), INTENT(out)    :: vxc
+    TYPE(pw_p_type),DIMENSION(:), INTENT(inout)    :: vxc
     REAL(KIND = dp), INTENT(out)                   :: exc
     TYPE(dft_control_type), POINTER              :: dft_control
     TYPE(cell_type), POINTER                     :: cell

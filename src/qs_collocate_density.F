@@ -166,7 +166,7 @@ CONTAINS
 
   SUBROUTINE calculate_rho_core(rho_core,cube_info,l_info,total_rho,qs_env,error)
 
-    TYPE(coeff_type), INTENT(OUT)                :: rho_core
+    TYPE(coeff_type), INTENT(INOUT)                :: rho_core
     TYPE(cube_info_type), INTENT(IN)             :: cube_info
     TYPE(l_info_type), INTENT(IN)                :: l_info
     TYPE(qs_environment_type), INTENT(IN)        :: qs_env

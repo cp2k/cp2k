@@ -42,7 +42,7 @@ module cp_sll_[name_el_type]_tests
   private
 
   logical, private, parameter :: debug_this_module=.true.
-  character, private, parameter :: moduleN='cp_sll_[name_el_type]_tests'
+  character(len=*), private, parameter :: moduleN='cp_sll_[name_el_type]_tests'
 
   public :: cp_test_[name_el_type]_sll
 
