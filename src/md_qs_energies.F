@@ -50,8 +50,6 @@ MODULE md_qs_energies
                                              mp_comm_dup,&
                                              mp_sum
   USE output_utilities,                ONLY: print_warning
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates
@@ -172,7 +170,6 @@ END SUBROUTINE set_qs_energies
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(particle_list_type), POINTER         :: particles
-    TYPE(qs_environment_type), POINTER        :: qs_env
     TYPE(simulation_parameters_type), POINTER :: simpar
     TYPE(force_env_type), POINTER             :: force_env
     REAL (wp), POINTER                        :: constant
@@ -196,11 +193,9 @@ END SUBROUTINE set_qs_energies
                     force_env=force_env)
 
     CALL force_env_get(force_env=force_env,&
+                       cell=cell,&
                        subsys=subsys,&
-                       qs_env=qs_env,&
                        error=error)
-
-    CALL get_qs_env(qs_env=qs_env,cell=cell)
 
     replace_file = .FALSE.
 
