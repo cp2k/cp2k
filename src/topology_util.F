@@ -3052,7 +3052,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
   DEALLOCATE(ntorsion_mol,STAT=istat)
   IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
-
+  DEALLOCATE(first_mol,STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','first_mol')
+  DEALLOCATE(last_mol,STAT=istat)
+  IF(istat/=0) CALL stop_memory('topology_coordinate_pack','last_mol')
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -3259,6 +3262,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','nbend_mol')
     DEALLOCATE(ntorsion_mol,STAT=istat)
     IF (istat /= 0) CALL stop_memory('topology_coordinate_pack','ntorsion_mol')
+    DEALLOCATE(first_mol,STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','first_mol')
+    DEALLOCATE(last_mol,STAT=istat)
+    IF(istat/=0) CALL stop_memory('topology_coordinate_pack','last_mol')    
   END IF
 
 
