@@ -58,8 +58,8 @@ MODULE cp_control_types
 
   TYPE gapw_control_type
     REAL(KIND = dp)                 :: eps_fit,eps_iso
-    INTEGER                         :: lmax_sphere,&
-                                       quadrature
+    INTEGER                         :: ladd_rho0,lmax_rho0,&
+                                       lmax_sphere, quadrature
   END TYPE gapw_control_type
 
 ! *** Control parameters for a KIM-GORDON calculation ***

@@ -90,6 +90,7 @@ MODULE qs_environment
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_p_type
+  USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
   USE qs_wf_history_methods,           ONLY: wfi_create
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
@@ -559,7 +560,9 @@ CONTAINS
 
     IF(dft_control%qs_control%method == "GAPW") THEN
 !     *** Allocate and initialize the set of atomic densities ***
-      CALL init_rho_atom(qs_env,globenv)
+      CALL init_rho_atom(qs_env,gapw_control,globenv)
+!     *** Allocate and initialize the compensation density rho0 ***
+      CALL init_rho0(qs_env,gapw_control,globenv)
     ENDIF
 
     IF (ionode) CALL m_flush(output_unit)

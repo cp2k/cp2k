@@ -23,7 +23,7 @@ MODULE qs_util
 
   USE kinds,                           ONLY: dp,dbl
 
-  USE mathconstants,                   ONLY: dfac,pi
+  USE mathconstants,                   ONLY: dfac,fac,pi,root2
   USE orbital_pointers,                ONLY: nco, nso,&
                                              ncoset,nsoset,&
                                              indco
@@ -113,6 +113,7 @@ MODULE qs_util
   PUBLIC :: cart2sph_mat,&
             exp_radius,& 
             gauss_exponent,&
+            gaussint_sph,&
             symmetric_add,&
             trace_r_AxB, &
             transform_c2s,&
@@ -282,12 +283,42 @@ CONTAINS
   END FUNCTION exp_radius
 
 ! *****************************************************************************
+  FUNCTION gaussint_sph(alpha,l)
 
-  SUBROUTINE symmetric_add(A,lda,B,ldb,m)
+!  calculates the radial integral over a spherical Gaussian
+!  of the form
+!     r**(2+l) * exp(-alpha * r**2)
+!
+! ***************************************************************************
+
+  IMPLICIT NONE
+!in:
+  INTEGER,  INTENT(IN)     :: l
+  REAL(dp), INTENT(IN)     :: alpha
+!out:
+  REAL(dp)                 :: gaussint_sph
+
+!------------------------------------------------------------------------------!
+
+  IF ((l/2)*2==l) THEN
+  !even l:
+    gaussint_sph=ROOTPI * 0.5_dp**(l/2+2) * dfac(l+1    )&
+                 /sqrt(alpha)**(l+3)
+  ELSE
+  !odd l:
+    gaussint_sph=0.5_dp * fac((l+1    )/2) /sqrt(alpha)**(l+3)
+  ENDIF
+
+  END FUNCTION gaussint_sph
+
 
 ! *****************************************************************************
-                                     !            A=A+B+transpose(B)
-                                     !-----------------------------------------!
+  SUBROUTINE symmetric_add(A,lda,B,ldb,m)
+!
+!            A=A+B+transpose(B)
+!
+! *****************************************************************************
+
   !in:
     integer          :: lda,ldb,m
     real(dp)        :: B(ldb,*)
@@ -297,9 +328,9 @@ CONTAINS
     real(dp)        :: t1,t2,t3,t4
     integer          :: i1,i2,imod,i2minus1
   !----------------------------------------------------------------------------!
-    do i2=1,m
+    DO i2=1,m
       i2minus1=i2-1
-      do i1=1,i2minus1-3,4
+      DO i1=1,i2minus1-3,4
         t1=B(i1,i2)+B(i2,i1)
         t2=B(i1+1,i2)+B(i2,i1+1)
         t3=B(i1+2,i2)+B(i2,i1+2)
@@ -312,15 +343,15 @@ CONTAINS
         A(i2,i1+1)=A(i2,i1+1)+t2
         A(i2,i1+2)=A(i2,i1+2)+t3
         A(i2,i1+3)=A(i2,i1+3)+t4
-      enddo
-      do imod=modulo(i2minus1,4),1,-1
+      ENDDO
+      DO imod=modulo(i2minus1,4),1,-1
         i1=i2-imod
         t1=B(i1,i2)+B(i2,i1)
         A(i1,i2)=A(i1,i2)+t1
         A(i2,i1)=A(i2,i1)+t1
-      enddo
+      ENDDO
       A(i2,i2)=A(i2,i2)+2._dp*B(i2,i2)
-    enddo
+    ENDDO
 
   END SUBROUTINE symmetric_add
 
@@ -504,7 +535,6 @@ t4=0._dp
   END SUBROUTINE transform_c2s
 
 !****************************************************************************
-! *****************************************************************************
 
   SUBROUTINE transform_c2s_new(CPC_co,CPC_so,maxl)
 

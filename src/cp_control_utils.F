@@ -435,7 +435,7 @@ CONTAINS
     CHARACTER(LEN=3)                         :: test_result
     CHARACTER(LEN=60)                        :: keyword, string, string2
     INTEGER                                  :: igrid_level, istat, &
-                                                ngrid_level
+                                                ivalue, ngrid_level
     LOGICAL                                  :: cutoff_set, multgrid_set, &
                                                 ngrid_set, progression_set, &
                                                 section_found
@@ -474,8 +474,10 @@ CONTAINS
 
     qs_control%gapw_control%eps_fit =  1.0E-4_dp
     qs_control%gapw_control%eps_iso =  1.0E-12_dp
-    qs_control%gapw_control%quadrature = 1
+    qs_control%gapw_control%ladd_rho0 = 99
+    qs_control%gapw_control%lmax_rho0 = 2
     qs_control%gapw_control%lmax_sphere = 8 
+    qs_control%gapw_control%quadrature = 1
 
 !
     cutoff_set = .FALSE.
@@ -623,6 +625,12 @@ CONTAINS
           CASE ("EPSISO")
             CALL read_object(value)
             qs_control%gapw_control%eps_iso = value
+          CASE ("LMAXN0")
+            CALL read_object(ivalue)
+            qs_control%gapw_control%lmax_rho0 = ivalue
+          CASE ("LADDN0")
+            CALL read_object(ivalue)
+            qs_control%gapw_control%ladd_rho0 = ivalue
           CASE ("PAO")
             qs_control%pao = .TRUE.
           CASE ("PW_GRID")
@@ -1122,7 +1130,9 @@ CONTAINS
            "QS| GAPW|   atom-r-grid: quadrature:",&
            qs_control%gapw_control%quadrature,&
            "QS| GAPW|      atom-s-grid:  max l :",&
-           qs_control%gapw_control%lmax_sphere  
+           qs_control%gapw_control%lmax_sphere ,& 
+           "QS| GAPW|      max_l_rho0 :",&
+            qs_control%gapw_control%lmax_rho0
       END IF
     END IF
 
