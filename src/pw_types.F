@@ -29,6 +29,9 @@
 
 MODULE pw_types
 
+! dbg
+  USE machine_aix, ONLY : print_memory
+! dbg
   USE kinds, ONLY : dbl
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE fft_tools, ONLY : fft3d, FWFFT, BWFFT
@@ -1484,11 +1487,11 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_out => pw2 % cc3d
       CASE ( "FW_C3DC1D" )
         c_in => pw1 % cc3d
-        ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
       CASE ( "FW_R3DC1D" )
-        ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
         c_out = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
@@ -1497,7 +1500,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_out => pw2 % cc3d
       CASE ( "BW_C3DR3D" )
         c_in => pw1 % cc3d
-        ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
       CASE ( "BW_C1DC3D" )
@@ -1505,7 +1508,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         IF ( test ) write ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
         CALL pw_scatter ( pw1, c_out )
       CASE ( "BW_C1DR3D" )
-        ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
         IF ( test ) write ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
