@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_integrate_potential [1.0] *
 !!
@@ -23,11 +23,16 @@
 !!     Joost VandeVondele (05.2002)
 !!           1) prelim. introduction of the real space grid type
 !!     JGH [30.08.02] multigrid arrays independent from potential
+!!     - integrate_v_core_potential parallelized and cleaned (09.07.2003,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE qs_integrate_potential
+
+  USE kinds, ONLY: int_size,&
+                   wp => dp,&
+                   wp_size => dp_size
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -48,6 +53,7 @@ MODULE qs_integrate_potential
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_local_lists_types,            ONLY: cp_local_lists_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -61,9 +67,6 @@ MODULE qs_integrate_potential
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
-                                             wp => dp,&
-                                             wp_size => dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
   USE machine,                         ONLY: m_walltime
@@ -134,15 +137,22 @@ MODULE qs_integrate_potential
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_integrate_potential"
+
 ! *** Public subroutines ***
 
-  INTERFACE integrate_v_rspace
-      MODULE PROCEDURE integrate_v_rspace_light, integrate_v_rspace_full
-  END INTERFACE
-
-  PUBLIC :: integrate_v_rspace,&
+  PUBLIC :: integrate_pgf_product_rspace,&
             integrate_v_core_rspace,&
-            integrate_pgf_product_rspace
+            integrate_v_rspace
+
+! *****************************************************************************
+
+  INTERFACE integrate_v_rspace
+    MODULE PROCEDURE integrate_v_rspace_light,&
+                     integrate_v_rspace_full
+  END INTERFACE
 
 !!***
 ! *****************************************************************************
@@ -160,39 +170,53 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_v_core_rspace"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(cell_type), POINTER        :: cell
-    TYPE(dft_control_type), POINTER :: dft_control
-
+    TYPE(atomic_kind_type), POINTER    :: atomic_kind
+    TYPE(cell_type), POINTER           :: cell
+    TYPE(cp_local_lists_type), POINTER :: local_particles
+    TYPE(cp_rs_pool_type), POINTER     :: auxbas_rs_pool
+    TYPE(dft_control_type), POINTER    :: dft_control
+    TYPE(pw_env_type), POINTER         :: pw_env
     TYPE(realspace_grid_type), POINTER :: rs_v
-    REAL(wp)                  :: alpha_core_charge,ccore_charge,eps_rho_rspace
-    INTEGER                   :: atom_a,handle,i,iatom,ikind,istat,&
-                                 natom_of_kind
+
+    REAL(wp) :: alpha_core_charge,ccore_charge,eps_rho_rspace
+    INTEGER  :: atom_a,handle,iatom,iatom_local,ikind,istat,natom,natom_local,&
+                nkind
+
+    REAL(wp), DIMENSION(3) :: force_a,force_b,ra
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
-    INTEGER, DIMENSION(:), POINTER                :: atom_list
 
-    REAL(wp), DIMENSION(3)     :: force_a,force_b,ra
-    INTEGER, DIMENSION(3)      :: nsmax
-    REAL(wp), DIMENSION(:,:), POINTER   :: hab,pab
-    TYPE(pw_env_type), POINTER                    :: pw_env
-    TYPE(cp_rs_pool_type), POINTER               :: auxbas_rs_pool
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind
+
+    REAL(wp), DIMENSION(:,:), POINTER :: hab,pab
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("integrate_v_core_rspace","I","",handle)
-    NULLIFY(pw_env,auxbas_rs_pool)
-    ALLOCATE(hab(1,1),pab(1,1))
+    CALL timeset(routine_name,"I","",handle)
 
-    CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-    CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
+    NULLIFY (auxbas_rs_pool)
+    NULLIFY (pw_env)
+
+    ALLOCATE (hab(1,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab(1,1)",wp_size)
+
+    ALLOCATE (pab(1,1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab(1,1)",wp_size)
+
+    CALL get_qs_env(qs_env=qs_env,&
+                    pw_env=pw_env)
+
+    CALL pw_env_get(pw_env=pw_env,&
+                    auxbas_rs_pool=auxbas_rs_pool)
+
     CALL rs_pool_create_rs(auxbas_rs_pool,rs_v)
 
     CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
@@ -201,43 +225,42 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     dft_control=dft_control,&
+                    local_particles=local_particles,&
                     particle_set=particle_set,&
                     force=force)
 
+    nkind = SIZE(atomic_kind_set)
+    natom = SIZE(particle_set)
+
+    ALLOCATE (atom_of_kind(natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                             atom_of_kind=atom_of_kind)
+
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
-    DO ikind=1,SIZE(atomic_kind_set)
-      atomic_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom_of_kind)
-      ! IF (.NOT.ASSOCIATED(force(ikind)%rho_core)) THEN
-      !   ALLOCATE (force(ikind)%rho_core(3,natom_of_kind),STAT=istat)
-      !   IF (istat /= 0) THEN
-      !     CALL stop_memory(routine,"force(ikind)%rho_core",&
-      !                      3*natom_of_kind*wp_size)
-      !   END IF
-      ! END IF
-      ! force(ikind)%rho_core(:,:) = 0.0_wp
-    END DO
-
-    DO ikind=1,SIZE(atomic_kind_set)
+    DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                           natom=natom_of_kind,&
-                           atom_list=atom_list,&
                            alpha_core_charge=alpha_core_charge,&
                            ccore_charge=ccore_charge)
 
       pab(1,1) = -ccore_charge
 
-      DO iatom=1,natom_of_kind
+      natom_local = local_particles%n_el(ikind)
 
-        atom_a = atom_list(iatom)
+      DO iatom_local=1,natom_local
+
+        atom_a = local_particles%list(ikind)%array(iatom_local)
+        iatom = atom_of_kind(atom_a)
+
         ra(:)  = pbc(particle_set(atom_a)%r,cell)
 
         hab(1,1) = 0.0_wp
+
         force_a(:) = 0.0_wp
         force_b(:) = 0.0_wp
 
@@ -245,11 +268,13 @@ CONTAINS
                                           0,0.0_wp,0,&
                                           ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,&
                                           rs_v,cube_info,l_info,&
-                                          ! hab(1,1),pab=pab(1,1),&
-                                          hab,pab=pab,o1=0,o2=0,&
+                                          hab,pab=pab,&
+                                          o1=0,&
+                                          o2=0,&
                                           vratio=1.0_wp,&
                                           eps_gvg_rspace=eps_rho_rspace,&
-                                          calculate_forces=.TRUE.,force_a=force_a,&
+                                          calculate_forces=.TRUE.,&
+                                          force_a=force_a,&
                                           force_b=force_b)
 
         force(ikind)%rho_core(:,iatom) =&
@@ -261,7 +286,14 @@ CONTAINS
 
     CALL rs_pool_give_back_rs(auxbas_rs_pool,rs_v)
 
-    DEALLOCATE(hab,pab)
+    DEALLOCATE (hab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"hab(1,1)")
+
+    DEALLOCATE (pab,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pab(1,1)")
+
+    DEALLOCATE (atom_of_kind,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
 
     CALL timestop(0.0_wp,handle)
 

@@ -204,6 +204,7 @@ CONTAINS
       CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
       CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
       CALL mp_sum(force(ikind)%core_overlap,globenv%group)
+      CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
