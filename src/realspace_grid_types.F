@@ -971,7 +971,7 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title )
      ! this format seems to work for e.g. molekel and gOpenmol
      WRITE(iunit,'(a11)') "-Quickstep-"
      IF (PRESENT(title)) THEN
-        WRITE(iunit,*) title
+        WRITE(iunit,*) TRIM(title)
      ELSE
         WRITE(iunit,*) "No Title"
      ENDIF
