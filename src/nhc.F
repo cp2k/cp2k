@@ -225,6 +225,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
      nhc % nc = 0
      nhc % nhc_len = 0
      nhc % num_nhc = 0
+     nhc % dis_type = ''
     CASE ( 'NVT', 'NPT' )
      nhc%nyosh = simpar%nyosh
      nhc%nc = simpar%nc
