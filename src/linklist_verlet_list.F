@@ -20,28 +20,60 @@
 
 MODULE linklist_verlet_list
 
-  USE kinds, ONLY : dbl
-
-  USE global_types, ONLY : global_environment_type
-  USE linklist_cell_types, ONLY : cell_neighborlist_type, &
-       neighbor_cells_type, cell_atoms_linklist_type
-  USE linklist_utilities, ONLY : get_match, update_verlet_list,  &
-       number_of_image_cells, startlist_images_type
-  USE molecule_types, ONLY : particle_node_type, linklist_neighbor, &
-       linklist_exclusion
+  USE atomic_kind_types,        ONLY: atomic_kind_type,&
+                                      get_atomic_kind,&
+                                      get_atomic_kind_set
+  USE checkpoint_handler,       ONLY: write_checkpoint_information
+  USE global_types, ONLY : global_environment_type, LOW
+  USE kinds, ONLY : dbl, int_size, wp_size=>dp_size
+  USE linklist_types, ONLY : linklist_internal_data_type, subcell_data_type
+  USE linklist_utilities, ONLY : get_match
+  USE molecule_types, ONLY : particle_node_type, linklist_exclusion
   USE message_passing, ONLY : mp_max, mp_min, mp_sum
   USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
+  USE qs_neighbor_list_types,   ONLY: add_neighbor_list,&
+                                      add_neighbor_node,&
+                                      allocate_neighbor_list_set,&
+                                      deallocate_neighbor_list_set,&
+                                      first_list,&
+                                      first_node,&
+                                      get_neighbor_list,&
+                                      get_neighbor_node,&
+                                      init_neighbor_list,&
+                                      neighbor_list_set_p_type,&
+                                      neighbor_list_set_type,&
+                                      neighbor_list_type,&
+                                      neighbor_node_type,&
+                                      next
+  USE simulation_cell,          ONLY: cell_type,&
+                                      get_cell,&
+                                      pbc,&
+                                      real_to_scaled,&
+                                      scaled_to_real
   USE termination, ONLY : stop_memory
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : include_list, sort
 
   IMPLICIT NONE
 
-  PRIVATE
-  PUBLIC :: verlet_list
+  INTEGER :: output_unit
+  LOGICAL :: print_cell_parameters
+  CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list"
 
-!!*****
+
+! *** Global types of the module ***
+
+  TYPE atoms_type
+    INTEGER, DIMENSION(:), POINTER :: list
+  END TYPE atoms_type
+
+  TYPE pbc_coord_type
+    REAL(dbl), DIMENSION(:,:), POINTER :: s
+  END TYPE pbc_coord_type
+
+  PRIVATE
+  PUBLIC :: build_verlet_lists, rebuild_verlet_lists
+
 !******************************************************************************
 
 CONTAINS
@@ -50,54 +82,1113 @@ CONTAINS
 
 ! to get the Verlet neighbor list for nonbonded interactions
 
-SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
-     verlet_skin,rlist_cut,rlist_cutsq,neighbor, &
-     cell_ll,start_list_nl,start_list_im, globenv,list_type)
+  SUBROUTINE build_verlet_lists ( atomic_kind_set, part, cell, ll_data, pnode )
 
-  IMPLICIT NONE
+!   Purpose: Build all the required neighbor lists FIST
 
+!   History: - Creation (28.08.2000,MK)
+
+!   ***************************************************************************
+
+    TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER   :: atomic_kind_set
+    TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN )  :: part
+    TYPE ( linklist_internal_data_type ), INTENT ( IN ) :: ll_data 
+    TYPE ( cell_type ), POINTER :: cell
+    TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
+
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_verlet_lists"
+    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+    CHARACTER ( LEN = 8 ) :: unit_of_length_name
+    LOGICAL :: ionode
+    INTEGER :: group, mype, npe, ikind, inode, &
+               nkind, nnodes, istat, handle, output_unit, &
+               subcells, atom_a, natoms, periodic ( 3 )
+    INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
+    REAL ( dbl ) :: ra ( 3 ), lat_vec ( 3 ), sa ( 3 ), unit_of_length
+    TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
+    TYPE ( global_environment_type ) :: globenv
+    TYPE ( pbc_coord_type ) :: pbc_coord
+
+!   ---------------------------------------------------------------------------
+
+    globenv = ll_data % globenv
+
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
+  
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    IF ((ionode.AND.globenv%print%cell_parameters).AND.&
+        (globenv%print%level > LOW)) THEN
+      print_cell_parameters = .TRUE.
+    ELSE
+      print_cell_parameters = .FALSE.
+    END IF
+
+    CALL get_cell(cell=cell,&
+                  periodic=periodic,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+!   *** Allocate work storage ***
+
+    nkind = SIZE ( atomic_kind_set )
+
+    ALLOCATE ( natom ( nkind ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( routine, "natom", nkind * int_size )
+
+    ALLOCATE ( atoms ( nkind ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( routine, "atoms", nkind * int_size )
+
+!   *** fill atomic kind info ***
+
+    DO ikind = 1, nkind
+
+      atomic_kind => atomic_kind_set ( ikind )
+
+      NULLIFY ( atoms ( ikind ) % list )
+
+      CALL get_atomic_kind ( atomic_kind = atomic_kind, &
+                             natom = natom ( ikind ), &
+                             atom_list = atoms ( ikind ) % list )
+    END DO
+
+!   *** Calculate PBC coordinates ***
+    natoms = SIZE ( part )
+    ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
+                                     3*natoms*wp_size)
+    nnodes = SIZE ( pnode )
+    DO inode=1,nnodes
+       
+      ALLOCATE ( pnode ( inode ) % nl, STAT = istat )
+      IF ( istat /= 0 ) CALL stop_memory ( routine, "node", 1 )
+      atom_a = pnode ( inode ) % p % iatom
+      ra = pnode ( inode ) % p % r
+      sa  = real_to_scaled ( ra ( : ), cell )
+      lat_vec ( 1 ) = periodic(1)*INT(sa(1)+SIGN(0.5_dbl,sa(1)))
+      lat_vec ( 2 ) = periodic(2)*INT(sa(2)+SIGN(0.5_dbl,sa(2)))
+      lat_vec ( 3 ) = periodic(3)*INT(sa(3)+SIGN(0.5_dbl,sa(3)))
+      pbc_coord % s ( :, atom_a ) = sa ( : ) - lat_vec ( : )
+
+    END DO
+
+!   *** Build the verlet neighbor lists ***
+
+    CALL build_verlet_neighbor_lists( ll_data % subcells, ll_data % rlist_cut,  &
+                                      ll_data % rlist_cutsq, pbc_coord, atoms, &
+                                      natom, ll_data % sab_ppnl, cell,         &
+                                      ll_data % ll_cell, part, pnode )
+
+    IF (ionode.AND.globenv%print%sab_orb_neighbor_lists) THEN
+      CALL write_neighbor_lists(part, cell, ll_data % sab_ppnl,unit_of_length_name, &
+                                unit_of_length,"VERLET NEIGHBOR LISTS")
+    END IF
+
+!   *** Release work storage ***
+
+    DEALLOCATE (natom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom")
+
+    DO ikind=1,nkind
+      NULLIFY (atoms(ikind)%list)
+    ENDDO
+
+    DEALLOCATE (pbc_coord%s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s")
+
+    DEALLOCATE (atoms,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atoms")
+
+    CALL timestop(0.0_dbl,handle)
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
+  END SUBROUTINE build_verlet_lists
+
+! *****************************************************************************
+
+  SUBROUTINE build_verlet_neighbor_lists( subcells, rlist_cut, rlist_cutsq,  &
+                                          pbc_coord, atoms, natom, sab_orb,  &
+                                          cell, ll_cell, part, pnode )
+
+!   Purpose: Build the neighbor lists for calculation of the orbital-orbital
+!            overlap matrix.
+
+!   History: - Creation (20.03.2002,MK)
+
+!   ***************************************************************************
+    INTEGER, INTENT ( IN ) :: subcells
+    REAL ( dbl ), INTENT ( IN ) :: rlist_cutsq ( :, : )
+    REAL ( dbl ), INTENT ( IN ) :: rlist_cut ( :, : )
+    INTEGER, INTENT ( IN ) :: natom ( : )
+    TYPE ( cell_type ), POINTER :: cell
+    TYPE ( pbc_coord_type ), INTENT ( IN )  :: pbc_coord
+    TYPE ( atoms_type ), INTENT ( IN ) :: atoms ( : )
+    TYPE ( particle_type ), INTENT ( IN ) :: part ( : )
+    TYPE ( particle_node_type ), INTENT ( INOUT ) :: pnode ( : )
+    TYPE ( subcell_data_type ), POINTER :: ll_cell ( :, : )
+    TYPE ( neighbor_list_set_p_type ), POINTER :: sab_orb ( : )
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "build_verlet_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    INTEGER :: ab,handle,natom_a,istat,atom_a,atom_b
+    INTEGER :: igrid, jgrid, kgrid, nnode, inode, ikind, jkind
+    INTEGER :: nexcl, iexclude, iatom, jatom, nkinds
+    INTEGER :: periodic ( 3 ), cell_a ( 3 ), cell_b ( 3 )
+    INTEGER :: iijk, id
+    INTEGER, POINTER, DIMENSION ( : ) :: ncell, ngrid 
+    REAL ( dbl ) :: a_min, a_max, b_min, b_max, c_min, c_max
+    REAL ( dbl ), POINTER :: grid_min ( :, :, :, : )
+    REAL ( dbl ), POINTER :: grid_max ( :, :, :, : )
+    INTEGER, POINTER :: nijk ( :, :, : )
+    INTEGER, POINTER :: ijk( :, :, :, : )
+    INTEGER, DIMENSION ( : ), POINTER :: elist, ind
+    INTEGER, PARAMETER :: els = 50
+    REAL ( dbl ) :: r ( 3 ), rab_max, rab2_max, abc ( 3 ), quotient ( 3 )
+    REAL ( dbl ), POINTER :: sab_max ( : )
+    REAL ( dbl ) :: ra ( 3 ), rb ( 3 ), unit_of_length
+    REAL ( dbl ) :: sb_pbc ( 3 ), sa_pbc ( 3 )
+    REAL ( dbl ) :: sa ( 3 ), sa_min ( 3 ), sa_max ( 3 )
+    REAL ( dbl ) :: sa_min_pbc ( 3 ), sa_max_pbc ( 3 )
+    TYPE ( linklist_exclusion ), POINTER :: ll_exclude
+    CHARACTER ( LEN = 8 ) :: unit_of_length_name
+    LOGICAL :: wrap_x,wrap_y,wrap_z
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+
+    CALL get_cell(cell=cell,&
+                  periodic=periodic,&
+                  abc=abc, &
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+    nkinds = SIZE ( rlist_cut, 1 )
+
+! Check for ncells and ngrids
+    ALLOCATE ( ll_cell ( nkinds, nkinds ), STAT = istat )
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine,"ll_cell",nkinds*nkinds*wp_size)
+    END IF
+    DO ikind = 1, nkinds
+      DO jkind = 1, nkinds
+        NULLIFY ( ll_cell ( ikind, jkind ) % grid_min )
+        NULLIFY ( ll_cell ( ikind, jkind ) % grid_max )
+        NULLIFY ( ll_cell ( ikind, jkind ) % nijk )
+        NULLIFY ( ll_cell ( ikind, jkind ) % ijk )
+        rab2_max = rlist_cutsq ( ikind, jkind )
+        rab_max = rlist_cut ( ikind, jkind )
+        r(:) = rab_max
+! dbg
+!        ll_cell ( ikind, jkind ) % sab_max ( : ) = r ( : ) / abc ( : )
+        ll_cell ( ikind, jkind ) % sab_max(:) = real_to_scaled ( r ( : ), cell )
+        sab_max => ll_cell ( ikind, jkind ) % sab_max
+! dbg
+
+
+! dbg
+!        quotient ( : ) =  r ( : ) / abc ( : )
+!        DO id = 1, 3
+!           IF ( quotient ( id ) <= 0.5_dbl ) THEN
+!             ll_cell ( ikind, jkind ) % ncell ( id ) = 0
+!           ELSE
+!             ll_cell ( ikind, jkind ) % ncell ( id ) =  &
+!             periodic ( id ) * CEILING ( r ( id ) / abc ( id ) )
+!           ENDIF
+!        ENDDO
+        DO id = 1, 3
+          IF ( sab_max ( id ) <=0.5_dbl ) THEN
+            ll_cell ( ikind, jkind ) % ncell ( id ) = 0
+          ELSE
+            ll_cell ( ikind, jkind ) % ncell ( id ) = periodic ( id ) *  &
+                                           CEILING ( sab_max ( id ) )
+          END IF
+        END DO
+! dbg
+        ll_cell(ikind,jkind)%ngrid(:) = MAX(1,NINT(0.5_dbl*subcells/sab_max(:)))
+
+        ncell => ll_cell ( ikind, jkind ) % ncell
+        ngrid => ll_cell ( ikind, jkind ) % ngrid
+        IF ( ikind <= jkind ) THEN
+          WRITE ( output_unit, '(A,T50,2(I2),T60,3(I3))' )  &
+                 ' BUILD_VERLET_LISTS| NCELL for interaction', ikind, jkind, ncell ( : )
+          WRITE ( output_unit, '(A,T50,2(I2),T60,3(I3))' )  &
+                 ' BUILD_VERLET_LISTS| NGRID for interaction', ikind, jkind, ngrid ( : )
+        END IF
+        IF ( SUM ( ngrid ) /= 3 ) THEN
+          ALLOCATE(ll_cell(ikind,jkind)%grid_min(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"grid_min",3*PRODUCT(ngrid)*wp_size)
+          END IF
+          grid_min => ll_cell ( ikind, jkind ) % grid_min
+
+          ALLOCATE(ll_cell(ikind,jkind)%grid_max(3,ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"grid_max",3*PRODUCT(ngrid)*wp_size)
+          END IF
+          grid_max => ll_cell ( ikind, jkind ) % grid_max
+
+          ALLOCATE(ll_cell(ikind,jkind)%nijk(ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"nijk",PRODUCT(ngrid)*int_size)
+          END IF
+          nijk => ll_cell ( ikind, jkind ) % nijk
+          nijk(:,:,:) = 0
+
+          ALLOCATE(ll_cell(ikind,jkind)%ijk(natom(jkind),ngrid(1),ngrid(2),ngrid(3)),STAT=istat)
+          IF (istat /= 0) THEN
+            CALL stop_memory(routine,"ijk",&
+                           natom(jkind)*PRODUCT(ngrid)*int_size)
+          END IF 
+          ijk => ll_cell ( ikind, jkind ) % ijk
+
+          DO igrid=1,ngrid(1)
+            a_min = REAL(igrid-1,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
+            a_max = REAL(igrid,dbl)/REAL(ngrid(1),dbl) - 0.5_dbl
+            DO jgrid=1,ngrid(2)
+              b_min = REAL(jgrid-1,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
+              b_max = REAL(jgrid,dbl)/REAL(ngrid(2),dbl) - 0.5_dbl
+              DO kgrid=1,ngrid(3)
+                c_min = REAL(kgrid-1,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
+                c_max = REAL(kgrid,dbl)/REAL(ngrid(3),dbl) - 0.5_dbl
+                grid_min(:,igrid,jgrid,kgrid) = (/a_min,b_min,c_min/)
+                grid_max(:,igrid,jgrid,kgrid) = (/a_max,b_max,c_max/)
+              END DO
+            END DO
+          END DO
+
+          DO jatom=1,natom(jkind)
+            atom_b = atoms(jkind)%list(jatom)
+            sb_pbc(:) = pbc_coord % s ( :, atom_b )
+            igrid = MAX(1,CEILING((sb_pbc(1) + 0.5_dbl)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sb_pbc(2) + 0.5_dbl)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sb_pbc(3) + 0.5_dbl)*ngrid(3)))
+            nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
+            ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = atom_b
+          END DO
+        END IF
+      END DO
+    END DO
+
+    ALLOCATE ( elist ( els ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist', els )
+
+    ALLOCATE ( ind ( els ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind', els )
+
+    IF (ASSOCIATED(sab_orb)) THEN
+      DO ab=1,SIZE(sab_orb)
+        CALL deallocate_neighbor_list_set(sab_orb(ab)%neighbor_list_set)
+      END DO
+      DEALLOCATE (sab_orb,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"sab_orb")
+    END IF
+
+    nnode = SIZE ( pnode )
+
+    ALLOCATE ( sab_orb ( nnode ), STAT = istat )
+    IF (istat /= 0) CALL stop_memory ( routine, "sab_orb", nnode )
+
+    DO ab = 1, SIZE ( sab_orb )
+      NULLIFY ( sab_orb ( ab ) % neighbor_list_set )
+    END DO
+
+!   *** Print headline ***
+
+    IF (print_cell_parameters) THEN
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
+        "SUBCELL GRID FOR THE VERLET NEIGHBOR LISTS",&
+        "Atomic kind pair","Grid size",&
+        "Subcell size in "//unit_of_length_name
+    END IF
+
+!   *** Loop over all nodes ***
+    DO inode = 1, nnode
+      CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
+                             kind_number = ikind )
+      atom_a = pnode ( inode ) % p % iatom
+      ra = part ( atom_a ) % r
+      pnode ( inode ) % nneighbor = 0
+      nexcl = pnode ( inode ) % nexcl
+      IF ( nexcl > SIZE ( elist ) ) STOP 'elist'
+      ll_exclude => pnode ( inode ) % ex
+! list number of exclusion
+      DO iexclude = 1, nexcl
+         elist ( iexclude ) = ll_exclude % p % iatom
+         ll_exclude => ll_exclude % next
+      END DO
+! sort elist
+      CALL sort ( elist, nexcl, ind )
+! allocate neighbor list
+      cell_a = (/0,0,0/)
+      CALL allocate_neighbor_list_set ( neighbor_list_set = &
+                                        sab_orb ( inode ) % neighbor_list_set, &
+                                        r_max = 0._dbl )
+                                        
+      CALL add_neighbor_list( neighbor_list_set =  &
+                              sab_orb ( inode ) % neighbor_list_set, &
+                              atom = atom_a,&
+                              cell = cell_a,&
+                              neighbor_list = pnode ( inode ) % nl )
+! loop over kinds
+      DO jkind = 1, nkinds
+        rab2_max = rlist_cutsq ( ikind, jkind )
+        sab_max => ll_cell ( ikind, jkind ) % sab_max
+        ncell => ll_cell ( ikind, jkind ) % ncell
+        ngrid => ll_cell ( ikind, jkind ) % ngrid
+        IF (print_cell_parameters) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
+            ikind,jkind,ngrid,&
+            scaled_to_real(1.0_dbl/REAL(ngrid(:),dbl),cell)/unit_of_length
+        END IF
+
+!   *** Check, if we have to consider a subcell grid ***
+        IF (SUM(ngrid) == 3) THEN
+          DO jatom=1,natom(jkind)
+            atom_b = atoms(jkind)%list(jatom)
+            rb = part ( atom_b ) % r
+            IF ( .NOT. include_list ( atom_a, atom_b ) ) CYCLE
+! look for a match in the exclusion list 
+            SELECT CASE ( nexcl )
+            CASE DEFAULT
+              IF ( .NOT. get_match ( atom_b, elist, nexcl ) ) THEN
+                  CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                              rab2_max, pnode ( inode ) % nneighbor, &
+                                              pnode ( inode ) % nl )
+              END IF
+            CASE ( 0 )
+              CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                          rab2_max, pnode ( inode ) % nneighbor, &
+                                          pnode ( inode ) % nl )
+            CASE ( 1 )
+              IF ( atom_b /= elist ( 1 ) ) THEN
+                CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                            rab2_max, pnode ( inode ) % nneighbor, &
+                                            pnode ( inode ) % nl )
+              END IF
+            END SELECT
+          ENDDO
+
+        ELSE
+
+          sa_pbc(:) = pbc_coord % s ( :, atom_a )
+          sa_min(:) = sa_pbc(:) - sab_max(:)
+          sa_max(:) = sa_pbc(:) + sab_max(:)
+
+          grid_min => ll_cell ( ikind, jkind ) % grid_min
+          grid_max => ll_cell ( ikind, jkind ) % grid_max
+          nijk => ll_cell ( ikind, jkind ) % nijk
+          ijk => ll_cell ( ikind, jkind ) % ijk
+
+          DO igrid = 1, ngrid ( 1 )
+            DO jgrid = 1, ngrid ( 2 )
+              DO kgrid = 1, ngrid ( 3 )
+
+                wrap_x = .FALSE.
+                wrap_y = .FALSE.
+                wrap_z = .FALSE.
+
+                IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+
+                IF (sa_max(1) > 0.5_dbl) THEN
+                  sa_max_pbc(1)=sa_max(1)-periodic(1)*INT(sa_max(1)+SIGN(0.5_dbl,sa_max(1)))
+                  IF (sa_max_pbc(1) > grid_min(1, igrid, jgrid, kgrid )) &
+                  wrap_x = .TRUE.
+                ELSEIF (sa_min(1) < -0.5_dbl) THEN
+                  sa_min_pbc(1)=sa_min(1)-periodic(1)*INT(sa_min(1)+SIGN(0.5_dbl,sa_min(1)))
+                  IF (sa_min_pbc(1) <= grid_max(1, igrid, jgrid, kgrid )) & 
+                  wrap_x=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_x) THEN
+                  IF (sa_max(1) < grid_min(1, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(1) >= grid_max(1, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+                IF (sa_max(2) > 0.5_dbl) THEN
+                  sa_max_pbc(2)=sa_max(2)-periodic(2)*INT(sa_max(2)+SIGN(0.5_dbl,sa_max(2)))
+                  IF (sa_max_pbc(2) > grid_min(2, igrid, jgrid, kgrid )) &
+                  wrap_y=.TRUE.
+                ELSEIF (sa_min(2) < -0.5_dbl) THEN
+                  sa_min_pbc(2)=sa_min(2)-periodic(2)*INT(sa_min(2)+SIGN(0.5_dbl,sa_min(2)))
+                  IF (sa_min_pbc(2) <= grid_max(2, igrid, jgrid, kgrid )) &
+                  wrap_y=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_y) THEN
+                  IF (sa_max(2) < grid_min(2, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(2) >= grid_max(2, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+                IF (sa_max(3) > 0.5_dbl) THEN
+                  sa_max_pbc(3)=sa_max(3)-periodic(3)*INT(sa_max(3)+SIGN(0.5_dbl,sa_max(3)))
+                  IF (sa_max_pbc(3) > grid_min(3, igrid, jgrid, kgrid )) &
+                  wrap_z=.TRUE.
+                ELSEIF (sa_min(3) < -0.5_dbl) THEN
+                  sa_min_pbc(3)=sa_min(3)-periodic(3)*INT(sa_min(3)+SIGN(0.5_dbl,sa_min(3)))
+                  IF (sa_min_pbc(3) <= grid_max(3, igrid, jgrid, kgrid )) &
+                  wrap_z=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_z) THEN
+                  IF (sa_max(3) < grid_min(3, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(3) >= grid_max(3, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+
+                DO iijk = 1, nijk ( igrid, jgrid, kgrid )
+                  atom_b = ijk ( iijk, igrid, jgrid, kgrid )
+                  rb = part ( atom_b ) % r
+                  IF ( .NOT. include_list ( atom_a, atom_b ) ) CYCLE
+! look for a match in the exclusion list 
+                  SELECT CASE ( nexcl )
+                  CASE DEFAULT
+                    IF ( .NOT. get_match ( atom_b, elist, nexcl ) ) THEN
+                      CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                  rab2_max, pnode ( inode ) % nneighbor, &
+                                                  pnode ( inode ) % nl )
+                    END IF
+                  CASE ( 0 )
+                    CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                rab2_max, pnode ( inode ) % nneighbor, &
+                                                pnode ( inode ) % nl )
+                  CASE ( 1 )
+                    IF ( atom_b /= elist ( 1 ) ) THEN
+                      CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                  rab2_max, pnode ( inode ) % nneighbor, &
+                                                  pnode ( inode ) % nl )
+                    END IF
+                  END SELECT
+                END DO
+
+              END DO
+            END DO
+          END DO
+
+        END IF
+
+      END DO
+    END DO
+
+    DEALLOCATE ( elist, STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist' )
+
+    DEALLOCATE (ind,STAT=istat)
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind' )
+
+    CALL timestop(0.0_dbl,handle)
+
+  END SUBROUTINE build_verlet_neighbor_lists
+
+!******************************************************************************
+
+! to get the Verlet neighbor list for nonbonded interactions
+
+  SUBROUTINE rebuild_verlet_lists ( atomic_kind_set, part, cell, ll_data, pnode )
+
+!   Purpose: Build all the required neighbor lists FIST
+
+!   History: - Creation (28.08.2000,MK)
+
+!   ***************************************************************************
+
+    TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER   :: atomic_kind_set
+    TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN )  :: part
+    TYPE ( linklist_internal_data_type ), INTENT ( IN ) :: ll_data 
+    TYPE ( cell_type ), POINTER :: cell
+    TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
+
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "rebuild_verlet_lists"
+    CHARACTER(LEN=*), PARAMETER :: module_name = "linklist_verlet_list"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+    LOGICAL :: ionode
+    INTEGER :: group, mype, npe, ikind, inode, &
+               nkind, nnodes, istat, handle, output_unit, &
+               subcells, atom_a, natoms, periodic ( 3 )
+    INTEGER, DIMENSION ( : ), ALLOCATABLE :: natom
+    REAL ( dbl ) :: ra ( 3 ), sa ( 3 ),  lat_vec ( 3 )
+    TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+    TYPE ( atoms_type ), DIMENSION ( : ), ALLOCATABLE :: atoms
+    TYPE ( global_environment_type ) :: globenv
+    TYPE ( pbc_coord_type ) :: pbc_coord
+
+!   ---------------------------------------------------------------------------
+
+    globenv = ll_data % globenv
+
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
+  
+
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    IF ((ionode.AND.globenv%print%cell_parameters).AND.&
+        (globenv%print%level > LOW)) THEN
+      print_cell_parameters = .TRUE.
+    ELSE
+      print_cell_parameters = .FALSE.
+    END IF
+
+    CALL get_cell(cell=cell, &
+                  periodic=periodic)
+
+!   *** Allocate work storage ***
+
+    nkind = SIZE ( atomic_kind_set )
+
+    ALLOCATE ( natom ( nkind ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( routine, "natom", nkind * int_size )
+
+    ALLOCATE ( atoms ( nkind ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( routine, "atoms", nkind * int_size )
+
+!   *** fill atomic kind info ***
+
+    DO ikind = 1, nkind
+
+      atomic_kind => atomic_kind_set ( ikind )
+
+      NULLIFY ( atoms ( ikind ) % list )
+
+      CALL get_atomic_kind ( atomic_kind = atomic_kind, &
+                             natom = natom ( ikind ), &
+                             atom_list = atoms ( ikind ) % list )
+    END DO
+
+!   *** Calculate PBC coordinates ***
+    natoms = SIZE ( part )
+    ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
+                                     3*natoms*wp_size)
+    nnodes = SIZE ( pnode )
+    DO inode=1,nnodes
+      atom_a = pnode ( inode ) % p % iatom
+      ra = pnode ( inode ) % p % r
+      sa  = real_to_scaled ( ra ( : ), cell )
+      lat_vec ( 1 ) = periodic(1)*INT(sa(1)+SIGN(0.5_dbl,sa(1)))
+      lat_vec ( 2 ) = periodic(2)*INT(sa(2)+SIGN(0.5_dbl,sa(2)))
+      lat_vec ( 3 ) = periodic(3)*INT(sa(3)+SIGN(0.5_dbl,sa(3)))
+      pbc_coord % s ( :, atom_a ) = sa ( : ) - lat_vec ( : )
+    END DO
+
+!   *** Rebuild the verlet neighbor lists ***
+
+    CALL rebuild_verlet_neighbor_lists( ll_data % rlist_cutsq, pbc_coord, atoms, &
+                                        natom, ll_data % sab_ppnl, cell,         &
+                                        ll_data % ll_cell, part, pnode )
+
+!   *** Release work storage ***
+
+    DEALLOCATE (natom,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"natom")
+
+    DO ikind=1,nkind
+      NULLIFY (atoms(ikind)%list)
+    ENDDO
+
+    DEALLOCATE (pbc_coord%s,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s")
+
+    DEALLOCATE (atoms,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"atoms")
+
+    CALL timestop(0.0_dbl,handle)
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
+  END SUBROUTINE rebuild_verlet_lists
+
+! *****************************************************************************
+
+  SUBROUTINE rebuild_verlet_neighbor_lists( rlist_cutsq, pbc_coord, atoms,  &
+                                            natom, sab_orb, cell, ll_cell, part, pnode )
+
+!   Purpose: Build the neighbor lists for calculation of the orbital-orbital
+!            overlap matrix.
+
+!   History: - Creation (20.03.2002,MK)
+
+!   ***************************************************************************
+    REAL ( dbl ), INTENT ( IN ) :: rlist_cutsq ( :, : )
+    INTEGER, INTENT ( IN ) :: natom ( : )
+    TYPE ( cell_type ), POINTER :: cell
+    TYPE ( pbc_coord_type ), INTENT ( IN )  :: pbc_coord
+    TYPE ( atoms_type ), INTENT ( IN ) :: atoms ( : )
+    TYPE ( particle_type ), INTENT ( IN ) :: part ( : )
+    TYPE ( particle_node_type ), INTENT ( INOUT ) :: pnode ( : )
+    TYPE ( subcell_data_type ), POINTER :: ll_cell ( :, : )
+    TYPE ( neighbor_list_set_p_type ), POINTER :: sab_orb ( : )
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "rebuild_verlet_neighbor_lists"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    INTEGER :: ab,handle,natom_a,istat,atom_a,atom_b
+    INTEGER :: igrid, jgrid, kgrid, nnode, inode, ikind, jkind
+    INTEGER :: nexcl, iexclude, iatom, jatom, nkinds
+    INTEGER :: periodic ( 3 ), cell_a ( 3 ), cell_b ( 3 )
+    INTEGER :: iijk
+    INTEGER, POINTER, DIMENSION ( : ) :: ncell, ngrid 
+    REAL ( dbl ) :: a_min, a_max, b_min, b_max, c_min, c_max
+    REAL ( dbl ), POINTER :: grid_min ( :, :, :, : )
+    REAL ( dbl ), POINTER :: grid_max ( :, :, :, : )
+    INTEGER, POINTER :: nijk ( :, :, : )
+    INTEGER, POINTER :: ijk( :, :, :, : )
+    INTEGER, DIMENSION ( : ), POINTER :: elist, ind
+    INTEGER, PARAMETER :: els = 50
+    REAL ( dbl ) :: r ( 3 ), rab2_max
+    REAL ( dbl ), POINTER :: sab_max ( : )
+    REAL ( dbl ) :: sa_pbc ( 3 ), sb_pbc ( 3 ), ra ( 3 ), rb ( 3 )
+    REAL ( dbl ) :: sa_min ( 3 ), sa_max ( 3 )
+    REAL ( dbl ) :: sa_min_pbc ( 3 ), sa_max_pbc ( 3 )
+    TYPE ( linklist_exclusion ), POINTER :: ll_exclude
+    LOGICAL :: wrap_x,wrap_y,wrap_z
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+
+    CALL get_cell(cell=cell, periodic=periodic )
+    nkinds = SIZE ( ll_cell, 1 )
+! Check for ncells and ngrids
+    DO ikind = 1, nkinds
+      DO jkind = 1, nkinds
+        ngrid => ll_cell ( ikind, jkind ) % ngrid
+        IF ( SUM ( ngrid ) /= 3 ) THEN
+          nijk => ll_cell ( ikind, jkind ) % nijk
+          nijk = 0
+          ijk => ll_cell ( ikind, jkind ) % ijk
+          ijk = 0
+          DO jatom=1,natom(jkind)
+            atom_b = atoms(jkind)%list(jatom)
+            sb_pbc(:) = pbc_coord % s ( :, atom_b ) 
+            igrid = MAX(1,CEILING((sb_pbc(1) + 0.5_dbl)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sb_pbc(2) + 0.5_dbl)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sb_pbc(3) + 0.5_dbl)*ngrid(3)))
+            nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
+            ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = atom_b
+          END DO
+        END IF 
+      END DO
+    END DO
+
+    ALLOCATE ( elist ( els ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist', els )
+
+    ALLOCATE ( ind ( els ), STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind', els )
+
+    nnode = SIZE ( pnode )
+
+!   *** Loop over all nodes ***
+    DO inode = 1, nnode
+      CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
+                             kind_number = ikind )
+      atom_a = pnode ( inode ) % p % iatom
+      ra = part ( atom_a ) % r
+      pnode ( inode ) % nneighbor = 0
+      nexcl = pnode ( inode ) % nexcl
+      IF ( nexcl > SIZE ( elist ) ) STOP 'elist'
+      ll_exclude => pnode ( inode ) % ex
+! list number of exclusion
+      DO iexclude = 1, nexcl
+         elist ( iexclude ) = ll_exclude % p % iatom
+         ll_exclude => ll_exclude % next
+      END DO
+! sort elist
+      CALL sort ( elist, nexcl, ind )
+! allocate neighbor list
+      cell_a = (/0,0,0/)
+      CALL get_neighbor_list(neighbor_list=pnode(inode)%nl,&
+                             atom=atom_a, &
+                             cell=cell_a )
+      CALL init_neighbor_list(pnode(inode)%nl)
+                                        
+! loop over kinds
+      DO jkind = 1, nkinds
+        rab2_max = rlist_cutsq ( ikind, jkind )
+        sab_max => ll_cell ( ikind, jkind ) % sab_max
+        ncell => ll_cell ( ikind, jkind ) % ncell
+        ngrid => ll_cell ( ikind, jkind ) % ngrid
+
+!   *** Check, if we have to consider a subcell grid ***
+        IF (SUM(ngrid) == 3) THEN
+          DO jatom=1,natom(jkind)
+            atom_b = atoms(jkind)%list(jatom)
+            rb = part ( atom_b ) % r
+            IF ( .NOT. include_list ( atom_a, atom_b ) ) CYCLE
+! look for a match in the exclusion list 
+            SELECT CASE ( nexcl )
+            CASE DEFAULT
+              IF ( .NOT. get_match ( atom_b, elist, nexcl ) ) THEN
+                CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                            rab2_max, pnode ( inode ) % nneighbor, &
+                                            pnode ( inode ) % nl )
+              END IF
+            CASE ( 0 )
+                CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                            rab2_max, pnode ( inode ) % nneighbor, &
+                                            pnode ( inode ) % nl )
+            CASE ( 1 )
+              IF ( atom_b /= elist ( 1 ) ) THEN
+              END IF
+                CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                            rab2_max, pnode ( inode ) % nneighbor, &
+                                            pnode ( inode ) % nl )
+            END SELECT
+          ENDDO
+
+        ELSE
+
+          sa_pbc(:) = pbc_coord % s ( :, atom_a ) 
+          sa_min(:) = sa_pbc(:) - sab_max(:)
+          sa_max(:) = sa_pbc(:) + sab_max(:)
+
+          grid_min => ll_cell ( ikind, jkind ) % grid_min
+          grid_max => ll_cell ( ikind, jkind ) % grid_max
+          nijk => ll_cell ( ikind, jkind ) % nijk
+          ijk => ll_cell ( ikind, jkind ) % ijk
+
+          DO igrid = 1, ngrid ( 1 )
+            DO jgrid = 1, ngrid ( 2 )
+              DO kgrid = 1, ngrid ( 3 )
+
+                wrap_x = .FALSE.
+                wrap_y = .FALSE.
+                wrap_z = .FALSE.
+
+                IF (nijk(igrid,jgrid,kgrid) == 0) CYCLE
+
+                IF (sa_max(1) > 0.5_dbl) THEN
+                  sa_max_pbc(1)=sa_max(1)-periodic(1)*INT(sa_max(1)+SIGN(0.5_dbl,sa_max(1)))
+                  IF (sa_max_pbc(1) > grid_min(1, igrid, jgrid, kgrid )) &
+                  wrap_x = .TRUE.
+                ELSEIF (sa_min(1) < -0.5_dbl) THEN
+                  sa_min_pbc(1)=sa_min(1)-periodic(1)*INT(sa_min(1)+SIGN(0.5_dbl,sa_min(1)))
+                  IF (sa_min_pbc(1) <= grid_max(1, igrid, jgrid, kgrid )) & 
+                  wrap_x=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_x) THEN
+                  IF (sa_max(1) < grid_min(1, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(1) >= grid_max(1, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+                IF (sa_max(2) > 0.5_dbl) THEN
+                  sa_max_pbc(2)=sa_max(2)-periodic(2)*INT(sa_max(2)+SIGN(0.5_dbl,sa_max(2)))
+                  IF (sa_max_pbc(2) > grid_min(2, igrid, jgrid, kgrid )) &
+                  wrap_y=.TRUE.
+                ELSEIF (sa_min(2) < -0.5_dbl) THEN
+                  sa_min_pbc(2)=sa_min(2)-periodic(2)*INT(sa_min(2)+SIGN(0.5_dbl,sa_min(2)))
+                  IF (sa_min_pbc(2) <= grid_max(2, igrid, jgrid, kgrid )) &
+                  wrap_y=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_y) THEN
+                  IF (sa_max(2) < grid_min(2, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(2) >= grid_max(2, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+                IF (sa_max(3) > 0.5_dbl) THEN
+                  sa_max_pbc(3)=sa_max(3)-periodic(3)*INT(sa_max(3)+SIGN(0.5_dbl,sa_max(3)))
+                  IF (sa_max_pbc(3) > grid_min(3, igrid, jgrid, kgrid )) &
+                  wrap_z=.TRUE.
+                ELSEIF (sa_min(3) < -0.5_dbl) THEN
+                  sa_min_pbc(3)=sa_min(3)-periodic(3)*INT(sa_min(3)+SIGN(0.5_dbl,sa_min(3)))
+                  IF (sa_min_pbc(3) <= grid_max(3, igrid, jgrid, kgrid )) &
+                  wrap_z=.TRUE.
+                ENDIF
+
+                IF (.NOT.wrap_z) THEN
+                  IF (sa_max(3) < grid_min(3, igrid, jgrid, kgrid )) CYCLE
+                  IF (sa_min(3) >= grid_max(3, igrid, jgrid, kgrid )) CYCLE
+                ENDIF
+
+
+                DO iijk = 1, nijk ( igrid, jgrid, kgrid )
+                  atom_b = ijk ( iijk, igrid, jgrid, kgrid )
+                  rb = part ( atom_b ) % r
+                  IF ( .NOT. include_list ( atom_a, atom_b ) ) CYCLE
+! look for a match in the exclusion list 
+                  SELECT CASE ( nexcl )
+                  CASE DEFAULT
+                    IF ( .NOT. get_match ( atom_b, elist, nexcl ) ) THEN
+                      CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                  rab2_max, pnode ( inode ) % nneighbor, &
+                                                  pnode ( inode ) % nl )
+                    END IF
+                  CASE ( 0 )
+                      CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                  rab2_max, pnode ( inode ) % nneighbor, &
+                                                  pnode ( inode ) % nl )
+                  CASE ( 1 )
+                    IF ( atom_b /= elist ( 1 ) ) THEN
+                      CALL update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                                  rab2_max, pnode ( inode ) % nneighbor, &
+                                                  pnode ( inode ) % nl )
+                    END IF
+                  END SELECT
+                END DO
+
+              END DO
+            END DO
+          END DO
+
+        END IF
+
+      END DO
+    END DO
+
+    DEALLOCATE ( elist, STAT = istat )
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist' )
+
+    DEALLOCATE (ind,STAT=istat)
+    IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind' )
+
+    CALL timestop(0.0_dbl,handle)
+
+  END SUBROUTINE rebuild_verlet_neighbor_lists
+
+! *****************************************************************************
+  SUBROUTINE update_neighbor_node ( cell, ra, rb, atom_b, ncell, periodic, &
+                                    rab2_max, nneighbor, neighbor_list )
+    IMPLICIT NONE
+! arguments
+    TYPE ( cell_type ), POINTER :: cell
+    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: ra, rb
+    INTEGER, INTENT ( IN ) ::  atom_b
+    INTEGER, DIMENSION ( : ), INTENT ( IN ) :: ncell
+    INTEGER, DIMENSION ( : ), INTENT ( IN ) :: periodic
+    REAL ( dbl ), INTENT ( IN ) :: rab2_max
+    INTEGER, INTENT ( INOUT ) :: nneighbor
+    TYPE ( neighbor_list_type ), POINTER :: neighbor_list
+! locals
+    INTEGER :: icell, jcell, kcell
+    REAL ( dbl ) :: rab ( 3 ), sab ( 3 ), sab_pbc ( 3 )
+    REAL ( dbl ) :: rab2
+    INTEGER :: cell_b ( 3 ), ncell_loc ( 3 ), lat_vec ( 3 ) 
+    INTEGER :: imin, imax, jmin, jmax, kmin, kmax
+
+
+! compute distance vector
+    rab ( : ) = rb( : ) - ra ( : )
+    sab ( : ) = real_to_scaled(rab(:),cell)
+! compute lattice translation vector
+    lat_vec ( 1 ) = periodic(1)*INT(sab(1)+SIGN(0.5_dbl,sab(1)))
+    lat_vec ( 2 ) = periodic(2)*INT(sab(2)+SIGN(0.5_dbl,sab(2)))
+    lat_vec ( 3 ) = periodic(3)*INT(sab(3)+SIGN(0.5_dbl,sab(3)))
+
+! now do lattice translations of  minimum image
+    imax = ncell ( 1 ) - lat_vec ( 1 )
+    imin = -ncell ( 1 ) - lat_vec ( 1 )
+    jmax = ncell ( 2 ) - lat_vec ( 2 )
+    jmin = -ncell ( 2 ) - lat_vec ( 2 )
+    kmax = ncell ( 3 ) - lat_vec ( 3 )
+    kmin = -ncell ( 3 ) - lat_vec ( 3 )
+
+    DO icell=imin, imax
+      cell_b(1) = icell
+      DO jcell=jmin, jmax
+        cell_b(2) = jcell
+        DO kcell=kmin, kmax
+          cell_b(3) = kcell
+
+          sab_pbc(:) = sab(:) + REAL(cell_b(:),dbl)
+          rab(:) = scaled_to_real(sab_pbc(:),cell)
+          rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+
+          IF (rab2 < rab2_max .AND. rab2 > 1.e-6_dbl ) THEN
+            nneighbor = nneighbor + 1
+            CALL add_neighbor_node(&
+              neighbor_list=neighbor_list,&
+              neighbor = atom_b,&
+              cell = cell_b,&
+              r = rab ( : ) )
+          END IF
+
+        END DO
+      END DO
+    END DO
+  END SUBROUTINE update_neighbor_node
+! *****************************************************************************
+
+  SUBROUTINE write_neighbor_lists(part,cell,neighbor_lists,unit_of_length_name, &
+                                  unit_of_length,name)
+
+!   Purpose: Write a set of neighbor lists to the output unit.
+
+!   History: - Creation (04.03.2002, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(particle_type), DIMENSION(:), INTENT ( IN )  ::  part
+    TYPE( cell_type ), POINTER :: cell
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: neighbor_lists
+    CHARACTER(LEN=*), INTENT(IN)                          :: unit_of_length_name
+    REAL ( dbl ), INTENT(IN)                              :: unit_of_length
+    CHARACTER(LEN=*), INTENT(IN)                          :: name
+
+!   *** Local variables ***
+
+    INTEGER :: ab,atom_a,atom_b,i,nneighbor
+
+    REAL(dbl), DIMENSION(3) :: ra,rab,rb
+    INTEGER, DIMENSION(3)  :: cell_a,cell_b
+    TYPE ( neighbor_node_type ), POINTER :: neighbor_node
+    TYPE ( neighbor_list_type ), POINTER :: neighbor_list
+    TYPE ( neighbor_list_set_type ), POINTER :: neighbor_list_set
+
+!   ---------------------------------------------------------------------------
+
+!   *** Write headline ***
+
+    WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,7X,A,2(11X,A),10X,A)")&
+      TRIM(name)//" IN "//TRIM(unit_of_length_name),&
+      "Atom  Neighbor  Cell(i,j,k)","X","Y","Z","Distance"
+
+    DO ab=1,SIZE(neighbor_lists)
+
+      neighbor_list_set => neighbor_lists(ab)%neighbor_list_set
+
+      IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+
+!     *** Loop over all atoms and their corresponding neighbor lists ***
+
+      neighbor_list => first_list(neighbor_list_set)
+
+      DO WHILE (ASSOCIATED(neighbor_list))
+
+        CALL get_neighbor_list(neighbor_list=neighbor_list,&
+                               atom=atom_a,&
+                               cell=cell_a,&
+                               nnode=nneighbor)
+
+        ra(:) = pbc(part(atom_a)%r,cell,cell_a)
+
+        WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,I6,2X,3I4,3F12.6)")&
+          atom_a,nneighbor,cell_a(:),ra(:)/unit_of_length
+
+!       *** Direct the work pointer to the  ***
+!       *** start point of the current list ***
+
+        neighbor_node => first_node(neighbor_list)
+
+!       *** Traverse the neighbor list of the current ***
+!       *** atom and print the stored information     ***
+
+        DO WHILE (ASSOCIATED(neighbor_node))
+
+          CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                 neighbor=atom_b,&
+                                 cell=cell_b,&
+                                 r=rab)
+
+          rb(:) = ra(:) + rab(:)
+
+          WRITE (UNIT=output_unit,FMT="(T10,I6,2X,3I4,3F12.6,2X,F12.6)")&
+            atom_b,cell_b,rb(:)/unit_of_length,&
+            SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))/unit_of_length
+
+          neighbor_node => next(neighbor_node)
+
+        END DO
+
+        neighbor_list => next(neighbor_list)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE write_neighbor_lists
+
+! *****************************************************************************
+!dbg
+!SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
+!     verlet_skin,rlist_cut,rlist_cutsq,neighbor, &
+!     cell_ll,start_list_nl,start_list_im, globenv,list_type)
+!
+!  IMPLICIT NONE
+!
 !
 ! neighbor_list lists all the neighbors of all atoms
 !
-
+!
 ! Arguments
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
-       pnode
-  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: part
-  TYPE ( cell_type ), INTENT ( IN ) :: box
-  TYPE ( linklist_neighbor), POINTER :: start_list_nl
-  TYPE ( startlist_images_type ), POINTER :: start_list_im ( : )
-  TYPE ( cell_neighborlist_type ), DIMENSION ( :, :, : ), POINTER :: cell_ll
-  TYPE ( neighbor_cells_type ), DIMENSION ( :, : ), POINTER :: neighbor
-  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: rlist_cut, rlist_cutsq
-  REAL ( dbl ), INTENT ( IN ) :: verlet_skin
-  INTEGER, DIMENSION ( :, :, : ), POINTER :: n_images
-  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_cell
-  INTEGER, INTENT ( IN ) :: natom_types
-  INTEGER, INTENT (IN) :: list_type
+!  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ), TARGET :: &
+!       pnode
+!  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: part
+!  TYPE ( cell_type ), INTENT ( IN ) :: box
+!  TYPE ( linklist_neighbor), POINTER :: start_list_nl
+!  TYPE ( startlist_images_type ), POINTER :: start_list_im ( : )
+!  TYPE ( cell_neighborlist_type ), DIMENSION ( :, :, : ), POINTER :: cell_ll
+!  TYPE ( neighbor_cells_type ), DIMENSION ( :, : ), POINTER :: neighbor
+!  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+!  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: rlist_cut, rlist_cutsq
+!  REAL ( dbl ), INTENT ( IN ) :: verlet_skin
+!  INTEGER, DIMENSION ( :, :, : ), POINTER :: n_images
+!  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: n_cell
+!  INTEGER, INTENT ( IN ) :: natom_types
+!  INTEGER, INTENT (IN) :: list_type
 
 ! Locals
-  TYPE (cell_atoms_linklist_type ), POINTER :: ll
-  INTEGER :: i, ii, j, natoms, nnodes, handle, ipair
-  INTEGER :: iatom, jatom, iexclude, isos
-  INTEGER :: nloc, nsum, nmax, nmin, nexcl, ncells
-  INTEGER :: k, ipart, jpart, itype, jtype, npairs
-  INTEGER, DIMENSION (3) :: index
-  INTEGER, PARAMETER :: els = 50
-  INTEGER, DIMENSION ( : ), POINTER :: elist, ind
-  REAL ( dbl ) :: rijsq, fis
-  REAL ( dbl ), DIMENSION (3) :: perd
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
-  LOGICAL :: first_time
-
+!  TYPE (cell_atoms_linklist_type ), POINTER :: ll
+!  INTEGER :: i, ii, j, natoms, nnodes, handle, ipair
+!  INTEGER :: iatom, jatom, iexclude, istat
+!  INTEGER :: nloc, nsum, nmax, nmin, nexcl, ncells
+!  INTEGER :: k, ipart, jpart, itype, jtype, npairs
+!  INTEGER, DIMENSION (3) :: index
+!  INTEGER, PARAMETER :: els = 50
+!  INTEGER, DIMENSION ( : ), POINTER :: elist, ind
+!  REAL ( dbl ) :: rijsq, fis
+!  REAL ( dbl ), DIMENSION (3) :: perd
+!  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
+!  LOGICAL :: first_time
+!
 !
 ! the following lines are used for the link_list of
 ! neighbors
 !
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-  TYPE (linklist_exclusion), POINTER :: ll_exclude
-
+!  TYPE (linklist_neighbor), POINTER :: current_neighbor
+!  TYPE (linklist_exclusion), POINTER :: ll_exclude
+!
 !------------------------------------------------------------------------------
 
 !
@@ -107,217 +1198,217 @@ SUBROUTINE verlet_list(natom_types,n_images,n_cell,pnode,part,box, &
 ! so this if statement will not be run or needed
 ! after the first call to the subroutine
 !
-  CALL timeset ( 'VERLET_LIST', 'I', 'KIs', handle )
-  fis = 0.0_dbl
+!  CALL timeset ( 'VERLET_LIST', 'I', 'KIs', handle )
+!  fis = 0.0_dbl
 
-  ALLOCATE (elist(els),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'elist', els )
+!  ALLOCATE (elist(els),STAT=istat)
+!  IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist', els )
 
-  ALLOCATE (ind(els),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'ind', els )
+!  ALLOCATE (ind(els),STAT=istat)
+!  IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind', els )
 
 ! local copies of box parameters
-  hmat = box%hmat
-  h_inv = box%h_inv
-  perd = box%perd
-  nnodes = size(pnode)
-  natoms = size(part)
+!  hmat = box%hmat
+!  h_inv = box%h_inv
+!  perd = box%perd
+!  nnodes = size(pnode)
+!  natoms = size(part)
 
-  first_time = .NOT. ASSOCIATED ( n_images )
+!  first_time = .NOT. ASSOCIATED ( n_images )
 
-  IF ( first_time ) THEN
-
-! compute the number of images for a given cut-off
-     ALLOCATE ( n_images ( natom_types, natom_types, 3 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'verlet list', &
-          'n_images', 3 * natom_types ** 2 )
-
-     CALL number_of_image_cells ( box, n_images, verlet_skin, rlist_cut )
-
-! allocate the start of the lists
-     ALLOCATE (start_list_nl,STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list', 0 )
-     NULLIFY (start_list_nl%next)
-
-     IF (MAXVAL(n_images) /= 0 ) THEN
-        npairs=natoms*(natoms+1)/2
-        ALLOCATE(start_list_im(npairs),STAT=isos)
-        IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list_im', 0 )
-        DO ipair=1,npairs
-           ALLOCATE(start_list_im(ipair)%image, STAT=isos)
-           IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', &
-                'start_list_im%image', 0 )
-           NULLIFY (start_list_im(ipair)%image%next)
-        END DO
-     END IF
-
-  END IF
-
-  IF (first_time .AND. globenv % print_level > 4 &
-       .OR. globenv % print_level > 9 ) THEN
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
-          ' verlet_list| # of atoms : ', natoms
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
-          ' verlet_list| # of atom nodes : ', nnodes
-  END IF
-
+!  IF ( first_time ) THEN
 !
-! let the current_neighbor point to the start of the list
+!! compute the number of images for a given cut-off
+!     ALLOCATE ( n_images ( natom_types, natom_types, 3 ), STAT = istat )
+!     IF ( istat /= 0 ) CALL stop_memory ( 'verlet list', &
+!          'n_images', 3 * natom_types ** 2 )
 !
-  current_neighbor => start_list_nl
-
+!     CALL number_of_image_cells ( box, n_images, verlet_skin, rlist_cut )
 !
-! loop over all distinct i,j pairs of atoms
+!! allocate the start of the lists
+!     ALLOCATE (start_list_nl,STAT=istat)
+!     IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list', 0 )
+!     NULLIFY (start_list_nl%next)
 !
-  ipair=0
-  DO i = 1, nnodes
-     ii = pnode(i) %p%iatom
-     itype = pnode(i) %p%prop%ptype
-     pnode(i) %nneighbor = 0
-     nexcl = pnode(i) %nexcl
-     IF (nexcl>size(elist)) STOP 'els'
-     ll_exclude => pnode(i) %ex
-
-! list number of exclusion
-     DO iexclude = 1, nexcl
-        elist(iexclude) = ll_exclude%p%iatom
-        ll_exclude => ll_exclude%next
-     END DO
-
-! sort elist
-     CALL sort(elist,nexcl,ind)
-
+!     IF (MAXVAL(n_images) /= 0 ) THEN
+!        npairs=natoms*(natoms+1)/2
+!        ALLOCATE(start_list_im(npairs),STAT=istat)
+!        IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'start_list_im', 0 )
+!        DO ipair=1,npairs
+!           ALLOCATE(start_list_im(ipair)%image, STAT=istat)
+!           IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', &
+!                'start_list_im%image', 0 )
+!           NULLIFY (start_list_im(ipair)%image%next)
+!        END DO
+!     END IF
 !
-! pnode(i)%nl is the start of the neighbor link_list for
-! atom i. Let it point to the current position in
-! the link_list
+!  END IF
 !
-     pnode(i) %nl => current_neighbor
-
-! first: loop over all particles in the same cell
-     DO jtype = 1, natom_types
-        ll => part(ii) % cell % pTYPE ( jtype ) % ll
-        DO jpart = 1, part(ii) % cell % natoms(jtype )
-           j = ll%atom
-! use black/white scheme to avoid double counting
-           IF (include_list(ii,j)) THEN
-              ipair=ipair+1
-              IF (MAXVAL(n_images(itype,jtype,:)) /= 0 )  &
-                   current_neighbor%image=>start_list_im(ipair)%image
-! look for a match in the exclusion list (j in excl of pnode(i))
-              SELECT CASE (nexcl)
-              CASE DEFAULT
-                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
-                    CALL update_verlet_list(n_images ( itype, jtype, : ), &
-                         part(j), j, &
-                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                         current_neighbor,list_type)
-                 END IF
-              CASE (0)
-                 CALL update_verlet_list(n_images(itype,jtype,:),part(j),j, &
-                      pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                      current_neighbor,list_type)
-              CASE (1)
-                 IF ( j/=elist(1)) THEN
-                    CALL update_verlet_list(n_images(itype,jtype,:), &
-                         part(j),j, &
-                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                         current_neighbor,list_type)
-                 END IF
-              END SELECT
-           END IF
-           ll => ll%next
-        END DO
-     END DO
-
-! second: loop over all neighbor cells
-     DO jtype = 1, natom_types
-        IF (ALL(n_cell==1)) EXIT
-        ncells=SIZE (neighbor(itype,jtype ) % index, 2)
-        DO k = 1, ncells
-           index(1) = part(ii) % cell % neighbor(itype,jtype ) %index(1,k)
-           index(2) = part(ii) % cell % neighbor(itype,jtype ) %index(2,k)
-           index(3) = part(ii) % cell % neighbor(itype,jtype ) %index(3,k)
-           ll => cell_ll(index(1),index(2),index(3)) % pTYPE ( jtype ) %ll
-           DO jpart = 1, cell_ll(index(1),index(2),index(3)) %natoms( &
-                jtype )
-              ipair=ipair+1
-              j = ll%atom
-              SELECT CASE (nexcl)
-              CASE DEFAULT
-                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
-                    CALL update_verlet_list(n_images(itype,jtype,:), &
-                         part(j),j, &
-                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                         current_neighbor,list_type)
-                 END IF
-              CASE (0)
-                 CALL update_verlet_list(n_images(itype,jtype,:),part(j),j, &
-                      pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                      current_neighbor,list_type)
-              CASE (1)
-                 IF ( j/=elist(1)) THEN
-                    CALL update_verlet_list(n_images(itype,jtype,:), &
-                         part(j),j, &
-                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
-                         current_neighbor,list_type)
-                 END IF
-              END SELECT
-              ll => ll%next
-           END DO
-        END DO
-     END DO
-
-     IF ( first_time .AND. globenv % print_level>4 &
-          .OR. globenv % print_level>9) THEN
-        IF (globenv % ionode) WRITE (globenv % scr,'(A,i10,T54,A,T71,I10 )' ) &
-             ' verlet_list| Atom :', i, ' # of neighbors:', &
-             pnode(i) %nneighbor
-     END IF
-
-  END DO
-
+!  IF (first_time .AND. globenv % print_level > 4 &
+!       .OR. globenv % print_level > 9 ) THEN
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
+!          ' verlet_list| # of atoms : ', natoms
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T71,i10 )' ) &
+!          ' verlet_list| # of atom nodes : ', nnodes
+!  END IF
 !
-! write some info on the neighbor lists to output
+!!
+!! let the current_neighbor point to the start of the list
+!!
+!  current_neighbor => start_list_nl
 !
-  nloc = sum(pnode ( : )%nneighbor)
-  IF ( first_time .AND. globenv % print_level > 4 &
-       .OR. globenv % print_level > 9 ) THEN
-
-#if defined(__parallel)
-     nsum = nloc
-     CALL mp_sum(nsum,globenv%group)
-     nmax = nloc
-     CALL mp_max(nmax,globenv%group)
-     nmin = nloc
-     CALL mp_min(nmin,globenv%group)
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
-          ' verlet_list| Total number of interactions ', nsum
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
-          ' verlet_list| Minimum number of interactions per node', nmin
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
-          ' verlet_list| Maximum number of interactions per node', nmax
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,F10.2,A )' ) &
-          ' verlet_list| Load balancing error', 100.0_dbl &
-          * REAL ( nmax - nmin, dbl) &
-          / REAL ( nsum, dbl ) * globenv % num_pe, ' %'
-#else
-     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
-          ' verlet_list| Total number of interactions ', nloc
-#endif
-  END IF
-  fis = nloc * 1.0E-3_dbl
-
-  CALL timestop(fis,handle)
-
-  DEALLOCATE (elist,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'elist' )
-
-  DEALLOCATE (ind,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'verlet_list', 'ind' )
-
-END SUBROUTINE verlet_list
-
+!!
+!! loop over all distinct i,j pairs of atoms
+!!
+!  ipair=0
+!  DO i = 1, nnodes
+!     ii = pnode(i) %p%iatom
+!     itype = pnode(i) %p%prop%ptype
+!     pnode(i) %nneighbor = 0
+!     nexcl = pnode(i) %nexcl
+!     IF (nexcl>size(elist)) STOP 'els'
+!     ll_exclude => pnode(i) %ex
+!
+!! list number of exclusion
+!     DO iexclude = 1, nexcl
+!        elist(iexclude) = ll_exclude%p%iatom
+!        ll_exclude => ll_exclude%next
+!     END DO
+!
+!! sort elist
+!     CALL sort(elist,nexcl,ind)
+!
+!!
+!! pnode(i)%nl is the start of the neighbor link_list for
+!! atom i. Let it point to the current position in
+!! the link_list
+!!
+!     pnode(i) %nl => current_neighbor
+!
+!! first: loop over all particles in the same cell
+!     DO jtype = 1, natom_types
+!        ll => part(ii) % cell % pTYPE ( jtype ) % ll
+!        DO jpart = 1, part(ii) % cell % natoms(jtype )
+!           j = ll%atom
+!! use black/white scheme to avoid double counting
+!           IF (include_list(ii,j)) THEN
+!              ipair=ipair+1
+!              IF (MAXVAL(n_images(itype,jtype,:)) /= 0 )  &
+!                   current_neighbor%image=>start_list_im(ipair)%image
+!! look for a match in the exclusion list (j in excl of pnode(i))
+!              SELECT CASE (nexcl)
+!              CASE DEFAULT
+!                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
+!                    CALL update_verlet_list(n_images ( itype, jtype, : ), &
+!                         part(j), j, &
+!                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                         current_neighbor,list_type)
+!                 END IF
+!              CASE (0)
+!                 CALL update_verlet_list(n_images(itype,jtype,:),part(j),j, &
+!                      pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                      current_neighbor,list_type)
+!              CASE (1)
+!                 IF ( j/=elist(1)) THEN
+!                    CALL update_verlet_list(n_images(itype,jtype,:), &
+!                         part(j),j, &
+!                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                         current_neighbor,list_type)
+!                 END IF
+!              END SELECT
+!           END IF
+!           ll => ll%next
+!        END DO
+!     END DO
+!
+!! second: loop over all neighbor cells
+!     DO jtype = 1, natom_types
+!        IF (ALL(n_cell==1)) EXIT
+!        ncells=SIZE (neighbor(itype,jtype ) % index, 2)
+!        DO k = 1, ncells
+!           index(1) = part(ii) % cell % neighbor(itype,jtype ) %index(1,k)
+!           index(2) = part(ii) % cell % neighbor(itype,jtype ) %index(2,k)
+!           index(3) = part(ii) % cell % neighbor(itype,jtype ) %index(3,k)
+!           ll => cell_ll(index(1),index(2),index(3)) % pTYPE ( jtype ) %ll
+!           DO jpart = 1, cell_ll(index(1),index(2),index(3)) %natoms( &
+!                jtype )
+!              ipair=ipair+1
+!              j = ll%atom
+!              SELECT CASE (nexcl)
+!              CASE DEFAULT
+!                 IF ( .NOT. get_match(j,elist,nexcl)) THEN
+!                    CALL update_verlet_list(n_images(itype,jtype,:), &
+!                         part(j),j, &
+!                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                         current_neighbor,list_type)
+!                 END IF
+!              CASE (0)
+!                 CALL update_verlet_list(n_images(itype,jtype,:),part(j),j, &
+!                      pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                      current_neighbor,list_type)
+!              CASE (1)
+!                 IF ( j/=elist(1)) THEN
+!                    CALL update_verlet_list(n_images(itype,jtype,:), &
+!                         part(j),j, &
+!                         pnode(i),hmat,h_inv,perd,rlist_cutsq(itype,jtype ), &
+!                         current_neighbor,list_type)
+!                 END IF
+!              END SELECT
+!              ll => ll%next
+!           END DO
+!        END DO
+!     END DO
+!
+!     IF ( first_time .AND. globenv % print_level>4 &
+!          .OR. globenv % print_level>9) THEN
+!        IF (globenv % ionode) WRITE (globenv % scr,'(A,i10,T54,A,T71,I10 )' ) &
+!             ' verlet_list| Atom :', i, ' # of neighbors:', &
+!             pnode(i) %nneighbor
+!     END IF
+!
+!  END DO
+!
+!!
+!! write some info on the neighbor lists to output
+!!
+!  nloc = sum(pnode ( : )%nneighbor)
+!  IF ( first_time .AND. globenv % print_level > 4 &
+!       .OR. globenv % print_level > 9 ) THEN
+!
+!#if defined(__parallel)
+!     nsum = nloc
+!     CALL mp_sum(nsum,globenv%group)
+!     nmax = nloc
+!     CALL mp_max(nmax,globenv%group)
+!     nmin = nloc
+!     CALL mp_min(nmin,globenv%group)
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
+!          ' verlet_list| Total number of interactions ', nsum
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
+!          ' verlet_list| Minimum number of interactions per node', nmin
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
+!          ' verlet_list| Maximum number of interactions per node', nmax
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,F10.2,A )' ) &
+!          ' verlet_list| Load balancing error', 100.0_dbl &
+!          * REAL ( nmax - nmin, dbl) &
+!          / REAL ( nsum, dbl ) * globenv % num_pe, ' %'
+!#else
+!     IF (globenv % ionode) WRITE (globenv % scr,'(A,T69,I12 )' ) &
+!          ' verlet_list| Total number of interactions ', nloc
+!#endif
+!  END IF
+!  fis = nloc * 1.0E-3_dbl
+!
+!  CALL timestop(fis,handle)
+!
+!  DEALLOCATE (elist,STAT=istat)
+!  IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'elist' )
+!
+!  DEALLOCATE (ind,STAT=istat)
+!  IF ( istat /= 0 ) CALL stop_memory ( 'verlet_list', 'ind' )
+!
+!END SUBROUTINE verlet_list
+! dbg
 !******************************************************************************
 
 END MODULE linklist_verlet_list

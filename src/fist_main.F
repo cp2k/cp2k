@@ -46,7 +46,9 @@ MODULE fist_main
   USE input_types, ONLY : setup_parameters_type
   USE integrator, ONLY : set_integrator
   USE kinds, ONLY : dbl
-  USE linklist_control, ONLY : set_ll_parm
+  USE linklist_types, ONLY : set_linklist_internal_data, &
+                             initialize_linklist_internal_data, &
+                             linklist_internal_data_type
   USE mathconstants, ONLY : zero, twopi
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, mdio_parameters_type, virial_type
@@ -128,6 +130,7 @@ SUBROUTINE fist ( globenv )
   TYPE ( ewald_parameters_type ), POINTER :: ewald_param
   TYPE ( fist_environment_type ) :: fist_env
   TYPE ( intra_parameters_type ) :: intra_param
+  TYPE ( linklist_internal_data_type ), POINTER :: ll_data
   TYPE ( md_environment_type ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
@@ -205,23 +208,8 @@ SUBROUTINE fist ( globenv )
     IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box_ref', 1 )
     ALLOCATE ( rep_env ( ibead ) % ll_data ( 1 ), STAT = isos )
     IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'll_data', 1 )
-    rep_env ( ibead ) % ll_data ( 1 ) % natom_types = 0
-    rep_env ( ibead ) % ll_data ( 1 ) % list_type = 0
-    rep_env ( ibead ) % ll_data ( 1 ) % counter = 0
-    rep_env ( ibead ) % ll_data ( 1 ) % last_update = 0
-    rep_env ( ibead ) % ll_data ( 1 ) % num_update = 0
-    rep_env ( ibead ) % ll_data ( 1 ) % print_level = 1
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % r_last_update )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % rlist_cut )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % rlist_cutsq )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_images )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_ncell )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_startlist_im )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_startlist_nl )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_neighbor )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_startlist_cell )
-    NULLIFY ( rep_env ( ibead ) % ll_data ( 1 ) % pp_cell_ll )
-    NULLIFY ( rep_env ( ibead ) % atomic_kind_set )
+    ll_data => rep_env ( ibead ) % ll_data ( 1 ) 
+    CALL initialize_linklist_internal_data ( ll_data )
   END DO
 
   IF ( globenv % ionode ) THEN
@@ -261,7 +249,7 @@ SUBROUTINE fist ( globenv )
 
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
   simpar % pimd_params % wp = 1.0e-15_dbl * SQRT ( 1.0_dbl * beads ) * twopi * &
-        simpar % temp_ext * boltzmann / h_planck
+                              simpar % temp_ext * boltzmann / h_planck
   simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
 
   CALL convert ( units = units, simpar = simpar, &
@@ -293,7 +281,13 @@ SUBROUTINE fist ( globenv )
       CALL init_cell ( rep_env ( ibead ) % box, setup % simulation_cell % hmat, &
                        setup % simulation_cell % perd )
     END IF
+
+! dbg TEMPORARY FIX
     rep_env ( ibead ) % box_ref % hmat = setup % reference_cell % hmat
+    rep_env ( ibead ) % box % unit_of_length_name = "ANGSTROM"
+    rep_env ( ibead ) % box % unit_of_length = 1.0_dbl
+    rep_env ( ibead ) % box % scaled_coordinates = .FALSE.
+! dbg TEMPORARY FIX
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options
@@ -376,12 +370,13 @@ SUBROUTINE fist ( globenv )
   rcut ( :, : ) = potparm ( :, : ) % rcutsq
 
   DO ibead = 1, beads 
-    CALL set_ll_parm ( rep_env ( ibead ) % ll_data ( 1 ), globenv,  &
-                       simpar % verlet_skin, setup % natom_type, rcut,  &
-                       simpar % n_cell )
+    CALL set_linklist_internal_data ( rep_env ( ibead ) % ll_data ( 1 ), globenv,      &
+                                      simpar % verlet_skin, setup % natom_type, rcut,  &
+                                      simpar % subcells )
 
-    CALL set_ll_parm ( rep_env ( ibead ) % ll_data ( 1 ), globenv,  &
-               printlevel = globenv % print_level, ltype = 'NONBOND' )
+    CALL set_linklist_internal_data ( rep_env ( ibead ) % ll_data ( 1 ), globenv,  &
+                                      printlevel = globenv % print_level )
+               
   END DO
 
   DEALLOCATE ( rcut, STAT = isos )
@@ -501,12 +496,11 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
 ! set up structure_type
   DO ibead = 1, beads
     CALL init_structure_type ( struc ( ibead ) )
-    CALL set_structure_type ( struc = struc ( ibead ), &
-         rep_env = fist_env % rep_env ( ibead ) )
+    CALL set_structure_type ( struc ( ibead ), rep_env = fist_env % rep_env ( ibead ) )
   ENDDO
 
 ! set the force environment
-  CALL set_force_env ( fist_env_type = fist_env )
+  CALL set_force_env ( fist_env )
 
 ! set the integrator environment
   CALL init_md_env ( md_env )
@@ -694,9 +688,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 
   IF ( globenv % num_pe == 1 ) THEN
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ,2 )
+        natoms = SIZE ( ainp % c ( 1, : ) )
      ELSE
-        natoms = SIZE ( rep_env % part  )
+        natoms = SIZE ( rep_env % part ( : ) )
      END IF
 
      ALLOCATE ( rep_env % pnode ( natoms ), STAT = ios )
@@ -722,9 +716,9 @@ SUBROUTINE allocmem ( ainp, mol_setup, rep_env, globenv )
 
 !..replicated data
      IF ( ainp % n > 0 ) THEN
-        natoms = SIZE ( ainp % c ,2 )
+        natoms = SIZE ( ainp % c ( 1, : ) )
      ELSE
-        natoms = SIZE ( rep_env % part  )
+        natoms = SIZE ( rep_env % part ( : ) )
      END IF
      nmoltype = SIZE ( mol_setup )
      nmol = 0

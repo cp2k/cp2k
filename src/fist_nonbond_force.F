@@ -22,13 +22,21 @@
 
 MODULE fist_nonbond_force
 
+  USE atomic_kind_types, ONLY : get_atomic_kind
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl
+  USE kinds, ONLY : dbl, wp_size => dp_size
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_atoms, linklist_neighbor, linklist_exclusion, linklist_images
+                             linklist_atoms, linklist_exclusion
   USE pair_potential, ONLY : potential_s, potentialparm_type
-  USE simulation_cell, ONLY : cell_type, pbc, get_cell_param
+  USE particle_types, ONLY : particle_type
+  USE qs_neighbor_list_types,   ONLY: first_node,&
+                                      get_neighbor_node,&
+                                      neighbor_list_type,&
+                                      neighbor_node_type,&
+                                      next
+  USE simulation_cell, ONLY : cell_type, pbc, get_cell_param, &
+                              real_to_scaled, scaled_to_real
   USE termination, ONLY : stop_memory
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : include_list
@@ -36,17 +44,16 @@ MODULE fist_nonbond_force
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: force_nonbond, bonded_correct_gaussian, find_image
+  PUBLIC :: force_nonbond, bonded_correct_gaussian
 
-!!*****
 !******************************************************************************
 
 CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
-     f_nonbond, ptens_nonbond )
+SUBROUTINE force_nonbond ( ewald_param, part, pnode, box, potparm, &
+                           pot_nonbond, f_nonbond, ptens_nonbond )
 
 ! Calculates the force and the potential of the minimum image, and
 ! the pressure tensor
@@ -56,135 +63,88 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 ! Arguments
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (particle_type ), INTENT ( IN ), DIMENSION ( : ) :: part
   TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE (cell_type ), INTENT ( IN ) :: box
+  TYPE ( cell_type ), INTENT ( IN ), TARGET :: box
   REAL ( dbl ), INTENT ( OUT ) :: pot_nonbond
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_nonbond
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: ptens_nonbond
 
 ! Locals
-  INTEGER :: i, j, ii, jj, iatomtype, jatomtype, imol, nmol, iat
-  INTEGER :: id,itype,jtype,isos,natom_types
-  INTEGER :: jatom, handle, ios, im
-  REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, vec
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
-  REAL ( dbl ) :: energy, fscalar, rijsq, flops
-  TYPE (linklist_neighbor), POINTER :: current_neighbor
-  TYPE (linklist_images), POINTER :: current_image
+  CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond"
+  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_nonbond_force"
+  CHARACTER(LEN=*), PARAMETER :: routine =&
+    "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+  INTEGER :: ikind, jkind, nkinds, inode, natoms, nnodes
+  INTEGER :: handle, istat, nneighbor, ineighbor, atom_a, atom_b, cell_b ( 3 )
+  REAL ( dbl ), DIMENSION (3) :: sab_pbc, rab, rb, sab, ra
+  REAL ( dbl ) :: energy, fscalar, rab2, flops
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: rtest
+  TYPE ( neighbor_list_type ), POINTER :: neighbor_list
+  TYPE ( neighbor_node_type ), POINTER :: neighbor_node
+  TYPE ( cell_type ), POINTER :: cell
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'NONBOND', 'E', 'Mflops', handle )
+  CALL timeset ( routine_name, 'E', 'Mflops', handle )
   flops = 0._dbl
-
+! create local pointer to box
+  cell => box
 ! initializing the potential energy, pressure tensor and force
   pot_nonbond = 0._dbl
   f_nonbond = 0._dbl
   ptens_nonbond = 0._dbl
 
-! local copies of the box parameters
-  hmat = box % hmat
-  h_inv = box % h_inv
-  perd = box % perd
-
 ! local copy of cutoffs
-  natom_types = SIZE ( potparm, 1 )
-  ALLOCATE ( rtest ( natom_types, natom_types ), STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', &
-          'rtest', natom_types ** 2 )
+  nkinds = SIZE ( potparm, 1 )
+  ALLOCATE ( rtest ( nkinds, nkinds ), STAT = istat )
+  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest", nkinds ** 2 )
 
-  DO i = 1, natom_types
-     DO j = 1, natom_types
-        rtest ( i, j ) = potparm ( i, j ) % rcutsq
+  DO ikind = 1, nkinds
+     DO jkind = 1, nkinds
+        rtest ( ikind, jkind ) = potparm ( ikind, jkind ) % rcutsq
      END DO
   END DO
 
 !
 ! starting the force loop
 !
-  DO iat = 1, SIZE ( pnode )
-     iatomtype = pnode ( iat ) % p % prop % ptype
-     i = pnode ( iat ) % p % iatom
-     ri = pnode ( iat ) % p % r
+  nnodes = SIZE ( pnode )
+  DO inode = 1, nnodes
+     atom_a = pnode ( inode ) % p % iatom
+     neighbor_list => pnode ( inode ) % nl
+     nneighbor = pnode ( inode ) % nneighbor
+     ra ( : ) = part ( atom_a ) % r ( : )
+     CALL get_atomic_kind ( part ( atom_a ) % atomic_kind,  &
+                            kind_number = ikind )
 ! now do neighbors
-     current_neighbor => pnode ( iat ) % nl
-     DO j = 1, pnode ( iat ) % nneighbor
-        jatom = current_neighbor % index
-        jatomtype = current_neighbor % p % prop % ptype
-        rij = current_neighbor % p % r - ri
-!
-! apply periodic boundary conditions; the following code is the inline version
-! of the general function pbc
-!
-        s ( 1 ) = h_inv ( 1, 1 ) * rij ( 1 ) + h_inv ( 1, 2 ) * rij ( 2 ) &
-                + h_inv ( 1, 3 ) * rij ( 3 )
-        s ( 2 ) = h_inv ( 2, 1 ) * rij ( 1 ) + h_inv ( 2, 2 ) * rij ( 2 ) &
-                + h_inv ( 2, 3 ) * rij ( 3 )
-        s ( 3 ) = h_inv ( 3, 1 ) * rij ( 1 ) + h_inv ( 3, 2 ) * rij ( 2 ) & 
-                + h_inv ( 3, 3 ) * rij ( 3 )
-        IF ( current_neighbor % nimages == 0 ) THEN
-!
-! if there are no images in the image-list, then check the minimum image
-!
-          IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
-             s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
-          END IF
-          IF ( ABS ( s ( 2 ) ) > 0.5_dbl ) THEN
-             s(2) = s(2) - perd(2) * INT(s(2)+SIGN(0.5_dbl,s(2)))
-          END IF
-          IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
-             s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
-          END IF
-          rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-          rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-          rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
-          rijsq = rij(1) * rij(1) + rij(2) * rij(2) + rij(3) * rij(3)
-          flops = flops + 41.0_dbl
+     neighbor_node => first_node ( neighbor_list )
+     DO ineighbor = 1, nneighbor
+        CALL get_neighbor_node ( neighbor_node = neighbor_node, &
+                                 neighbor = atom_b, &
+                                 cell = cell_b )
+        rb ( : ) = part ( atom_b ) % r ( : )
+        CALL get_atomic_kind ( part ( atom_b ) % atomic_kind, &
+                               kind_number = jkind )
+        rab ( : ) = rb ( : ) - ra ( : )
+        sab ( : ) = real_to_scaled(rab(:),cell)
+        sab_pbc ( : ) = sab ( : ) + REAL ( cell_b ( : ), dbl )
+        rab ( : ) = scaled_to_real(sab_pbc(:),cell)
+        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
-          IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
-             CALL potential_s ( rijsq, iatomtype, jatomtype, &
-                                energy, fscalar )
+        IF ( rab2 <= rtest ( ikind, jkind ) ) THEN
+           CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
 !
 ! summing up the potential energy,the force and pressure tensor
 !
-             CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
-                  fscalar, f_nonbond, rij, ptens_nonbond )
-             flops = flops + 64.0_dbl
-          END IF
-        ELSE
-!
-! there are images in the image list
-!
-          flops = flops + 19.0_dbl
-!
-! now sum over lattice translations of neighbors
-!
-          current_image => current_neighbor % image
-          DO im = 1, current_neighbor % nimages
+           CALL sum_ener_forces ( atom_a, atom_b, pot_nonbond, energy, &
+                fscalar, f_nonbond, rab, ptens_nonbond )
+           flops = flops + 64.0_dbl
+        END IF
 
-             CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
-             flops = flops + 41.0_dbl
-             IF ( rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
-                CALL potential_s ( rijsq, iatomtype, jatomtype, &
-                                   energy, fscalar )
-!
-! summing up the potential energy,the force and pressure tensor
-!
+       neighbor_node => next ( neighbor_node )
 
-                CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
-                     fscalar, f_nonbond, rij, ptens_nonbond )
-                flops = flops + 64.0_dbl
-             END IF
-
-             current_image => current_image % next
-          END DO
-
-        ENDIF
-
-        current_neighbor => current_neighbor % next
      END DO
-
   END DO
 
 ! computing long range corrections to the potential
@@ -194,42 +154,14 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 !
 !       pot_nonbond=pot_nonbond+lrc*(1./box % deth)
 !
-  DEALLOCATE ( rtest, STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', 'rtest' )
+
+  DEALLOCATE ( rtest, STAT = istat )
+  IF ( istat /= 0 ) CALL stop_memory ( routine, "rtest" )
 !
   flops = flops * 1.E-6_dbl
   CALL timestop ( flops, handle )
 
 END SUBROUTINE force_nonbond
-
-!******************************************************************************
-
-SUBROUTINE find_image ( s, perd, vec, hmat, rijsq, rij )
-
-  IMPLICIT NONE
-
-! Arguments
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: s,perd
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: vec
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( IN ) :: hmat
-  REAL ( dbl ), INTENT ( OUT ) :: rijsq
-  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: rij
-
-! Locals
-  REAL ( dbl ) :: strans(3)
-
-!------------------------------------------------------------------------------
-
-  strans ( 1 ) = s ( 1 ) + perd ( 1 ) * vec ( 1 )
-  strans ( 2 ) = s ( 2 ) + perd ( 2 ) * vec ( 2 )
-  strans ( 3 ) = s ( 3 ) + perd ( 3 ) * vec ( 3 )
-  rij(1) = hmat(1,1)*strans(1) + hmat(1,2)*strans(2) + hmat(1,3)*strans(3)
-  rij(2) = hmat(2,1)*strans(1) + hmat(2,2)*strans(2) + hmat(2,3)*strans(3)
-  rij(3) = hmat(3,1)*strans(1) + hmat(3,2)*strans(2) + hmat(3,3)*strans(3)
-
-  rijsq = rij ( 1 ) * rij ( 1 ) + rij ( 2 ) * rij ( 2 ) + rij ( 3 ) * rij ( 3 )
-
-END SUBROUTINE find_image
 
 !******************************************************************************
 

@@ -26,8 +26,8 @@ MODULE md_fist_energies
   USE global_types, ONLY: global_environment_type
   USE integrator, ONLY : pressure
   USE kinds, ONLY : dbl
-  USE linklist_control, ONLY : get_ll_parm
-  USE linklist_types, ONLY : linklist_internal_data_type
+  USE linklist_types, ONLY : linklist_internal_data_type,  &
+                             get_linklist_internal_data
   USE mathconstants, ONLY : zero
   USE md, ONLY : simulation_parameters_type, mdio_parameters_type
   USE message_passing, ONLY : mp_sum, mp_comm_dup
@@ -390,7 +390,7 @@ SUBROUTINE md_energy_fist ( itimes, constant, box, ll_data, nhc_part, nhc_baro, 
           adjustl(temp_label), '= ', temp, averages%avetemp
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar, averages%avepress
-     CALL get_ll_parm ( ll_data, lup, aup )
+     CALL get_linklist_internal_data ( ll_data, lup, aup )
      IF (simpar%ensemble(1:3)=='NPT') THEN
         WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
              adjustl(vol_label), '= ', box%deth, averages%avevol
@@ -681,7 +681,7 @@ SUBROUTINE md_energy_fist_pimd ( itimes, constant, box, ll_data, nhc_part, nhc_b
           adjustl(temp_label), '= ', temp, averages%avetemp
      WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
           adjustl(pres_label), '= ', pv_scalar, averages%avepress
-     CALL get_ll_parm ( ll_data, lup, aup )
+     CALL get_linklist_internal_data ( ll_data, lup, aup )
      IF (simpar%ensemble(1:3)=='NPT') THEN
         WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
              adjustl(vol_label), '= ', box%deth, averages%avevol

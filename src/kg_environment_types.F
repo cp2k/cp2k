@@ -23,7 +23,6 @@ MODULE kg_environment_types
   USE coefficient_types, ONLY : coeff_type
   USE dft_types, ONLY : dft_control_type
   USE kinds, ONLY : dbl
-  USE linklist_types, ONLY : linklist_internal_data_type
   USE md, ONLY : virial_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
@@ -47,7 +46,6 @@ MODULE kg_environment_types
     TYPE ( coeff_type ), POINTER  :: coef_vel ( : )
     TYPE ( coeff_type ), POINTER  :: coef_force ( : )
     TYPE (dft_control_type), POINTER :: dft_control
-    TYPE ( linklist_internal_data_type), POINTER :: ll_data ( : )
     TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
     TYPE ( particle_type ), POINTER :: part ( : )
     TYPE ( particle_node_type ), POINTER :: pnode ( : )
@@ -72,7 +70,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_kg_env( kg_env, atomic_kind_set, box, box_ref, coef_pos, &
-                         coef_vel, coef_force, dft_control, ll_data, &
+                         coef_vel, coef_force, dft_control, &
                          molecule, part, pnode, thermo )
     IMPLICIT NONE
 
@@ -88,7 +86,6 @@ CONTAINS
     TYPE ( coeff_type ), OPTIONAL, POINTER  :: coef_vel ( : )
     TYPE ( coeff_type ), OPTIONAL, POINTER  :: coef_force ( : )
     TYPE ( dft_control_type ), OPTIONAL, POINTER     :: dft_control
-    TYPE ( linklist_internal_data_type), OPTIONAL, POINTER :: ll_data ( : )
     TYPE ( molecule_structure_type ), OPTIONAL, POINTER :: molecule ( : )
     TYPE ( particle_type ), OPTIONAL, POINTER :: part ( : )
     TYPE ( particle_node_type ), OPTIONAL, POINTER :: pnode ( : )
@@ -103,7 +100,6 @@ CONTAINS
     IF ( PRESENT ( coef_vel ) ) coef_vel  => kg_env % coef_vel
     IF ( PRESENT ( coef_force ) ) coef_force  => kg_env % coef_force
     IF ( PRESENT ( dft_control ) ) dft_control => kg_env % dft_control
-    IF ( PRESENT ( ll_data ) ) ll_data => kg_env % ll_data
     IF ( PRESENT ( molecule ) ) molecule => kg_env % molecule
     IF ( PRESENT ( part ) ) part => kg_env % part
     IF ( PRESENT ( pnode ) ) pnode => kg_env % pnode
@@ -129,7 +125,6 @@ CONTAINS
     NULLIFY (kg_env%coef_vel)
     NULLIFY (kg_env%coef_force)
     NULLIFY (kg_env%dft_control)
-    NULLIFY (kg_env%ll_data)
     NULLIFY (kg_env%molecule)
     NULLIFY (kg_env%part)
     NULLIFY (kg_env%pnode)
@@ -140,7 +135,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_kg_env( kg_env, atomic_kind_set, box, box_ref, coef_pos, &
-                         coef_vel, coef_force, dft_control, ll_data, &
+                         coef_vel, coef_force, dft_control, &
                          molecule, part, pnode, thermo )
     IMPLICIT NONE
 
@@ -156,7 +151,6 @@ CONTAINS
     TYPE ( coeff_type ), OPTIONAL, TARGET  :: coef_vel ( : )
     TYPE ( coeff_type ), OPTIONAL, TARGET  :: coef_force ( : )
     TYPE (dft_control_type), OPTIONAL, TARGET     :: dft_control
-    TYPE ( linklist_internal_data_type), OPTIONAL, TARGET :: ll_data ( : )
     TYPE ( molecule_structure_type ), OPTIONAL, TARGET :: molecule ( : )
     TYPE ( particle_type ), OPTIONAL, TARGET :: part ( : )
     TYPE ( particle_node_type ), OPTIONAL, TARGET :: pnode ( : )
@@ -171,7 +165,6 @@ CONTAINS
     IF ( PRESENT ( coef_vel ) ) kg_env % coef_vel  =>  coef_vel
     IF ( PRESENT ( coef_force ) ) kg_env % coef_force  =>  coef_force
     IF ( PRESENT ( dft_control ) ) kg_env % dft_control => dft_control
-    IF ( PRESENT ( ll_data ) ) kg_env % ll_data => ll_data
     IF ( PRESENT ( molecule ) ) kg_env % molecule => molecule
     IF ( PRESENT ( part ) ) kg_env % part => part
     IF ( PRESENT ( pnode ) ) kg_env % pnode => pnode

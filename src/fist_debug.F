@@ -122,7 +122,7 @@ SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
        '***************************************************'
 
 ! allocating all arrays involved with debug
-  natoms = SIZE ( pnode )
+  natoms = SIZE ( part )
   IF ( .NOT. ALLOCATED ( diff ) ) ALLOCATE ( diff ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "diff", 3 * natoms )
   IF ( .NOT. ALLOCATED ( rel ) ) ALLOCATE ( rel ( 3, natoms ), STAT = isos )
@@ -162,8 +162,8 @@ SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
      ELSE
         WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
      END IF
-     CALL force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
-          delta, f_numer, energy_numer )
+     CALL force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
+                                delta, f_numer, energy_numer )
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' E ANA NON-BONDED = ', dbg % pot_nonbond
      WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -237,7 +237,7 @@ SUBROUTINE  debug_control ( globenv, rep_env, ewald_param, potparm, thermo )
      ELSE
         WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
      END IF
-     CALL ptens_numer ( ewald_param, pnode, box, potparm, pv_test, delta )
+     CALL ptens_numer ( box, ewald_param, part, pnode, potparm, pv_test, delta )
 
 ! write out the virials
      WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'

@@ -27,7 +27,7 @@ MODULE initialize_molecule_types
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_type, intra_parameters_type, &
        particle_node_type, molecule_structure_type
-  USE particle_types, ONLY : particle_type, particle_prop_type
+  USE particle_types, ONLY : particle_type
   USE util, ONLY : get_limit
 
   IMPLICIT NONE
@@ -58,7 +58,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
-     pnode, part, molecule, globenv )
+                                      pnode, part, molecule, globenv )
 
   IMPLICIT NONE
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup

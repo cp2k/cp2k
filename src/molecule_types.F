@@ -22,6 +22,7 @@ MODULE molecule_types
 
   USE kinds, ONLY : dbl
   USE particle_types, ONLY : particle_type, particle_prop_type
+  USE qs_neighbor_list_types, ONLY: neighbor_list_type
 
   IMPLICIT NONE
 
@@ -29,21 +30,16 @@ MODULE molecule_types
   PUBLIC :: molecule_structure_type, linklist_atoms, bond_parameters_type, &
        linklist_bonds, bend_parameters_type, linklist_bends,  &
        torsion_parameters_type, linklist_torsions, linklist_dist_constraints, &
-       linklist_g3x3_constraints, linklist_neighbor, linklist_exclusion, &
-       particle_node_type, localization_list, linklist_images
+       linklist_g3x3_constraints, linklist_exclusion, &
+       particle_node_type, localization_list
   PUBLIC :: particle_type, particle_prop_type
   PUBLIC :: molecule_type, molecule_parameter_type
   PUBLIC :: intra_parameters_type
   PUBLIC :: topology_type
 
-  TYPE linklist_images
-     REAL ( dbl ), DIMENSION(3) :: vec
-     TYPE (linklist_images), POINTER :: next
-  END TYPE linklist_images
-
   TYPE linklist_exclusion
-     TYPE (particle_type ), POINTER :: p
-     TYPE (linklist_exclusion), POINTER :: next
+     TYPE ( particle_type ), POINTER :: p
+     TYPE ( linklist_exclusion ), POINTER :: next
   END TYPE linklist_exclusion
 
   TYPE localization_list
@@ -52,26 +48,18 @@ MODULE molecule_types
      INTEGER, DIMENSION ( : ), POINTER :: atomlist
   END TYPE localization_list
 
-  TYPE linklist_neighbor
-     TYPE (particle_type ), POINTER :: p
-     TYPE (linklist_images), POINTER :: image
-     INTEGER :: index, nimages
-     TYPE (linklist_neighbor), POINTER :: next
-  END TYPE linklist_neighbor
-
   TYPE particle_node_type
-     TYPE (particle_type ), POINTER :: p
+     TYPE ( particle_type ), POINTER :: p
      INTEGER :: in_mol, iat_in_mol
-     INTEGER :: nneighbor, nexcl, nsneighbor
-     TYPE (linklist_neighbor), POINTER :: nl
-     TYPE (linklist_neighbor), POINTER :: sl
-     TYPE (linklist_exclusion), POINTER :: ex
-     TYPE (localization_list), POINTER :: llist
+     INTEGER :: nneighbor, nexcl
+     TYPE ( neighbor_list_type ), POINTER :: nl
+     TYPE ( linklist_exclusion ), POINTER :: ex
+     TYPE ( localization_list ), POINTER :: llist
   END TYPE particle_node_type
 
   TYPE linklist_atoms
-     TYPE (particle_node_type ), POINTER :: part
-     TYPE (linklist_atoms), POINTER :: next
+     TYPE ( particle_node_type ), POINTER :: part
+     TYPE ( linklist_atoms ), POINTER :: next
   END TYPE linklist_atoms
 
   TYPE bond_parameters_type
@@ -80,10 +68,10 @@ MODULE molecule_types
   END TYPE bond_parameters_type
 
   TYPE linklist_bonds
-     TYPE (particle_type ), POINTER :: p1, p2
-     TYPE (bond_parameters_type ), POINTER :: bond_param
-     TYPE (linklist_bonds), POINTER :: next
-     INTEGER, DIMENSION (2) :: index
+     TYPE ( particle_type ), POINTER :: p1, p2
+     TYPE ( bond_parameters_type ), POINTER :: bond_param
+     TYPE ( linklist_bonds), POINTER :: next
+     INTEGER, DIMENSION ( 2 ) :: index
   END TYPE linklist_bonds
 
   TYPE bend_parameters_type
@@ -92,10 +80,10 @@ MODULE molecule_types
   END TYPE bend_parameters_type
 
   TYPE linklist_bends
-     TYPE (particle_type ), POINTER :: p1, p2, p3
-     TYPE (bend_parameters_type ), POINTER :: bend_param
-     TYPE (linklist_bends), POINTER :: next
-     INTEGER, DIMENSION (3) :: index
+     TYPE ( particle_type ), POINTER :: p1, p2, p3
+     TYPE ( bend_parameters_type ), POINTER :: bend_param
+     TYPE ( linklist_bends ), POINTER :: next
+     INTEGER, DIMENSION ( 3 ) :: index
   END TYPE linklist_bends
 
   TYPE torsion_parameters_type
@@ -104,37 +92,37 @@ MODULE molecule_types
   END TYPE torsion_parameters_type
 
   TYPE linklist_torsions
-     TYPE (particle_type ), POINTER :: p1, p2, p3, p4
-     TYPE (torsion_parameters_type ), POINTER :: torsion_param
-     TYPE (linklist_torsions), POINTER :: next
-     INTEGER, DIMENSION (4) :: index
+     TYPE ( particle_type ), POINTER :: p1, p2, p3, p4
+     TYPE ( torsion_parameters_type ), POINTER :: torsion_param
+     TYPE ( linklist_torsions ), POINTER :: next
+     INTEGER, DIMENSION ( 4 ) :: index
   END TYPE linklist_torsions
 
   TYPE linklist_dist_constraints
-     TYPE (particle_type ), POINTER :: p1, p2
+     TYPE ( particle_type ), POINTER :: p1, p2
      REAL ( dbl ), POINTER :: distance
      REAL ( dbl ) :: del_lam, lambda, sigma
      REAL ( dbl ), DIMENSION (3) :: rold1, rold2, fc
      REAL ( dbl ) :: scale, scale_old
-     TYPE (linklist_dist_constraints), POINTER :: next
+     TYPE ( linklist_dist_constraints ), POINTER :: next
   END TYPE linklist_dist_constraints
 
   TYPE linklist_g3x3_constraints
-     TYPE (particle_type ), POINTER :: p1, p2, p3
+     TYPE ( particle_type ), POINTER :: p1, p2, p3
      REAL ( dbl ), POINTER :: d12, d13, d23
-     REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
-     REAL ( dbl ), DIMENSION(3) :: lambda, del_lam
-     REAL ( dbl ), DIMENSION(3) :: rold1, rold2, rold3
-     REAL ( dbl ), DIMENSION(3) :: vold1, vold2, vold3
-     REAL ( dbl ), DIMENSION(3) :: v1, v2, v3
+     REAL ( dbl ), DIMENSION( 3 ) :: fc1, fc2, fc3
+     REAL ( dbl ), DIMENSION( 3 ) :: lambda, del_lam
+     REAL ( dbl ), DIMENSION( 3 ) :: rold1, rold2, rold3
+     REAL ( dbl ), DIMENSION( 3 ) :: vold1, vold2, vold3
+     REAL ( dbl ), DIMENSION( 3 ) :: v1, v2, v3
      REAL ( dbl ) :: scale, scale_old
-     TYPE (linklist_g3x3_constraints), POINTER :: next
+     TYPE ( linklist_g3x3_constraints ), POINTER :: next
   END TYPE linklist_g3x3_constraints
 
   TYPE intra_parameters_type
-     TYPE (bond_parameters_type ), POINTER :: bond_param ( : )
-     TYPE (bend_parameters_type ), POINTER :: bend_param ( : )
-     TYPE (torsion_parameters_type ), POINTER :: torsion_param ( : )
+     TYPE ( bond_parameters_type ), POINTER :: bond_param ( : )
+     TYPE ( bend_parameters_type ), POINTER :: bend_param ( : )
+     TYPE ( torsion_parameters_type ), POINTER :: torsion_param ( : )
      REAL ( dbl ), POINTER :: constraint_distance ( : )
   END TYPE intra_parameters_type
 

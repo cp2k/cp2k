@@ -35,9 +35,7 @@ MODULE fist_force
   USE kinds, ONLY : dbl
   USE linklist_control, ONLY : list_control
   USE mathconstants, ONLY : pi, zero
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_neighbor, linklist_exclusion, linklist_bonds, &
-       linklist_bends, linklist_torsions
+  USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE message_passing, ONLY : mp_sum
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
@@ -48,7 +46,6 @@ MODULE fist_force
   USE spme, ONLY : spme_evaluate, spme_coeff_calculate
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
-  USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
   PUBLIC :: force_control, debug_variables_type, get_ewald_grids
@@ -110,7 +107,6 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
 ! Locals
   TYPE ( cell_type ), POINTER :: box
   TYPE ( cell_type ), POINTER :: box_ref
-  TYPE ( linklist_internal_data_type), POINTER :: ll_data
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE ( particle_type ), POINTER :: part ( : )
   TYPE ( particle_node_type ), POINTER :: pnode ( : )
@@ -124,7 +120,6 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
   LOGICAL :: first_time
 
 ! associcating local pointers
-  ll_data =>  rep_env % ll_data ( 1 )
   molecule => rep_env % molecule
   part => rep_env % part
   pnode => rep_env % pnode
@@ -145,7 +140,7 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
-  ELSE IF ( SIZE ( f_nonbond ,2 ) < natoms ) THEN
+  ELSE IF ( SIZE ( f_nonbond ( 1, : ) ) < natoms ) THEN
     DEALLOCATE ( f_nonbond, STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
@@ -204,7 +199,7 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
 !
 ! first check with list_control to update neighbor lists
 !
-  CALL list_control ( ll_data, pnode, part, box )
+  CALL list_control ( rep_env )
 !
 ! initial force, energy and pressure tensor arrays
 !
@@ -222,8 +217,8 @@ SUBROUTINE force_control ( rep_env, ewald_param, potparm, thermo, &
 ! get real-space non-bonded forces:
 !
   f_nonbond = zero
-  CALL force_nonbond ( ewald_param, pnode, box, potparm, &
-       pot_nonbond, f_nonbond, pv_nonbond )
+  CALL force_nonbond ( ewald_param, part, pnode, box, potparm, &
+                       pot_nonbond, f_nonbond, pv_nonbond )
 !
 ! get g-space non-bonded forces:
 !

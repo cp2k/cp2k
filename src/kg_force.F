@@ -52,14 +52,12 @@ MODULE kg_force
                              deallocate_kg_forces, init_kg_forces
   USE kg_kxc, ONLY : calculate_kxc_potential
   USE kinds, ONLY : dbl
-  USE linklist_control, ONLY : list_control
-  USE linklist_types, ONLY : linklist_internal_data_type
   USE mathconstants, ONLY : pi, zero
   USE message_passing, ONLY : mp_sum, mp_max, mp_sync,&
                   mp_range, mp_allgather
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_neighbor, linklist_exclusion, linklist_bonds, &
-       linklist_bends, linklist_torsions
+                             linklist_exclusion, linklist_bonds, &
+                             linklist_bends, linklist_torsions
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_construct, &   
@@ -156,7 +154,6 @@ SUBROUTINE force_control ( kg_env, globenv, debug )
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_vel
   TYPE ( coeff_type ), DIMENSION (:), POINTER :: coef_force
   TYPE ( dft_control_type ), POINTER :: dft_control
-  TYPE ( linklist_internal_data_type), POINTER :: ll_data
   TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   TYPE ( particle_type ), POINTER :: part ( : )
   TYPE ( particle_node_type ), POINTER :: pnode ( : )
@@ -179,7 +176,6 @@ SUBROUTINE force_control ( kg_env, globenv, debug )
   CHARACTER(LEN=8) :: force_type
 
 ! associcating local pointers
-  ll_data =>  kg_env % ll_data ( 1 )
   molecule => kg_env % molecule
   part => kg_env % part
   pnode => kg_env % pnode

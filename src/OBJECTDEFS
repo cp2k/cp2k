@@ -119,10 +119,7 @@ OBJECTS_GENERIC =\
  lebedev.o\
  library_tests.o\
  linear_systems.o\
- linklist_cell_list.o\
- linklist_cell_types.o\
  linklist_control.o\
- linklist_overlap_list.o\
  linklist_types.o\
  linklist_utilities.o\
  linklist_verlet_list.o\

@@ -46,7 +46,6 @@ MODULE kg_main
                                    kg_thermodynamic_type, &
                                    set_kg_env, init_kg_env
   USE kg_force, ONLY : kg_force_release
-  USE linklist_types, ONLY : linklist_internal_data_type
   USE mathconstants, ONLY : zero, twopi
   USE md, ONLY : read_md_section, simulation_parameters_type, &
        initialize_velocities, mdio_parameters_type, virial_type
@@ -134,7 +133,6 @@ SUBROUTINE kg ( globenv )
   TYPE ( dft_control_type ), POINTER :: dft_control
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( intra_parameters_type ) :: intra_param
-  TYPE ( linklist_internal_data_type), POINTER :: ll_data ( : )
   TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
@@ -172,25 +170,7 @@ SUBROUTINE kg ( globenv )
   IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box', 1 )
   ALLOCATE ( box_ref, STAT = isos )
   IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'box_ref', 1 )
-! lists
-  ALLOCATE ( ll_data ( 1 ), STAT = isos )
-  IF ( isos /=0 ) CALL stop_memory ( 'allocstruc', 'll_data', 1 )
-  ll_data ( 1 ) % natom_types = 0
-  ll_data ( 1 ) % list_type = 0
-  ll_data ( 1 ) % counter = 0
-  ll_data ( 1 ) % last_update = 0
-  ll_data ( 1 ) % num_update = 0
-  ll_data ( 1 ) % print_level = 1
-  NULLIFY ( ll_data ( 1 ) % r_last_update )
-  NULLIFY ( ll_data ( 1 ) % rlist_cut )
-  NULLIFY ( ll_data ( 1 ) % rlist_cutsq )
-  NULLIFY ( ll_data ( 1 ) % pp_images )
-  NULLIFY ( ll_data ( 1 ) % pp_ncell )
-  NULLIFY ( ll_data ( 1 ) % pp_startlist_im )
-  NULLIFY ( ll_data ( 1 ) % pp_startlist_nl )
-  NULLIFY ( ll_data ( 1 ) % pp_neighbor )
-  NULLIFY ( ll_data ( 1 ) % pp_startlist_cell )
-  NULLIFY ( ll_data ( 1 ) % pp_cell_ll )
+! potparm
   NULLIFY ( potparm )
 ! simpar
   ALLOCATE ( simpar, STAT = isos )
@@ -404,12 +384,12 @@ SUBROUTINE kg ( globenv )
     CALL set_kg_env ( kg_env=kg_env, atomic_kind_set=atomic_kind_set, box=box, &
                         box_ref=box_ref, coef_pos=coef_pos, coef_vel=coef_vel, &
                         coef_force=coef_force, dft_control=dft_control, &
-                        ll_data=ll_data, molecule=molecule, part=particle_set, &
+                        molecule=molecule, part=particle_set, &
                         pnode=pnode, thermo=thermo )  
   ELSE
     CALL set_kg_env ( kg_env=kg_env, atomic_kind_set=atomic_kind_set, box=box, &
                         box_ref=box_ref, dft_control=dft_control, &
-                        ll_data=ll_data, molecule=molecule, part=particle_set, &
+                        molecule=molecule, part=particle_set, &
                         pnode=pnode, thermo=thermo )  
   END IF
     

@@ -20,23 +20,31 @@
 !******************************************************************************
 
 MODULE fist_force_numer
-
+  USE atomic_kind_types, ONLY : get_atomic_kind
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fist_nonbond_force, ONLY : find_image
-  USE kinds, ONLY : dbl
+  USE kinds, ONLY : dbl, wp_size=>dp_size
   USE mathconstants, ONLY : pi
   USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
        linklist_bends, linklist_torsions, linklist_exclusion, particle_node_type
   USE mol_force, ONLY : force_bonds, force_bends, force_torsions
   USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potential_f, potentialparm_type
+  USE pair_potential, ONLY : potential_f, potentialparm_type, potential_s
   USE pme, ONLY : pme_evaluate
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, &
-       pw_grid_construct, pw_grid_destruct
-  USE simulation_cell, ONLY : cell_type, pbc, get_hinv, get_cell_param
+                       pw_grid_construct, pw_grid_destruct
+  USE simulation_cell,          ONLY: cell_type,&
+                                      get_cell,&
+                                      pbc,&
+                                      real_to_scaled,&
+                                      scaled_to_real,&
+                                      get_hinv
   USE termination, ONLY : stop_memory
+
+  TYPE pbc_coord_type
+    REAL(dbl), DIMENSION(:,:), POINTER :: r,s
+  END TYPE pbc_coord_type
 
   PRIVATE
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
@@ -464,269 +472,159 @@ END SUBROUTINE force_torsion_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
-     numerical_shift, f_numer, energy_numer )
+SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
+                                 numerical_shift, f_numer, energy_numer )
 
-  IMPLICIT NONE
+ IMPLICIT NONE
 
 ! Arguments
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  TYPE ( cell_type ), INTENT ( INOUT ) :: box
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
-  REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
-  REAL ( dbl ), INTENT ( OUT ) :: energy_numer
-  REAL ( dbl ), INTENT ( IN ) :: numerical_shift
+ TYPE ( cell_type ), POINTER :: box
+ TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+ TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
+ TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
+ TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+ REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
+ REAL ( dbl ), INTENT ( OUT ) :: energy_numer
+ REAL ( dbl ), INTENT ( IN ) :: numerical_shift
 
 ! Locals
-  INTEGER :: i, j, ii, jj, iatomtype, jatomtype
-  INTEGER :: icell,jcell,kcell,itype,jtype,id
-  INTEGER :: iexclude, natoms, n, isos
-  INTEGER :: xx, yy, zz
-  REAL ( dbl ), DIMENSION (3) ::vec, ri, rij, cell, dist, lat_vec, perd
-  REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
-  REAL ( dbl ) :: energy, fscalar, rijsq, rcut
-  REAL ( dbl ) :: rij_minus_delta_sq, rij_plus_delta_sq
-  REAL ( dbl ), DIMENSION (3) :: delta, s, quotient
-  REAL ( dbl ) :: energy_plus, energy_minus, qi, qj
-  INTEGER, DIMENSION ( :, :, : ), ALLOCATABLE :: n_images
-  TYPE ( linklist_exclusion ), POINTER :: ll_exclude
-  LOGICAL :: match
+ CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_numer"
+ CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer"
+ CHARACTER(LEN=*), PARAMETER :: routine =&
+   "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+ INTEGER :: ikind, jkind, id, inode, jnode, nnode, atom_a, atom_b
+ INTEGER :: icell,jcell,kcell,ncell ( 3 ), periodic ( 3 ), cell_b ( 3 )
+ INTEGER :: iexclude, istat, nexcl, natoms
+ REAL ( dbl ) :: energy, fscalar, rab2, rab_max, rab2_max
+ REAL ( dbl ), DIMENSION ( 3 ) :: sab_max, ra_pbc, sb, sb_pbc, rb, r, rab  
+ REAL ( dbl ) :: rij_minus_delta_sq, rij_plus_delta_sq
+ REAL ( dbl ), DIMENSION (3) :: delta
+ REAL ( dbl ) :: energy_plus, energy_minus, qa, qb
+ TYPE ( linklist_exclusion ), POINTER :: ll_exclude
+ TYPE ( pbc_coord_type ) ::  pbc_coord
+ LOGICAL :: match
 
 !------------------------------------------------------------------------------
 
-  n = SIZE ( potparm ,1 )
-  IF ( .NOT. ALLOCATED ( n_images ) ) &
-       ALLOCATE ( n_images ( n, n, 3 ), STAT = isos )
-  IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_nonbond_numer', 'n_images', n * n * 3 )
+ energy_numer = 0.0_dbl
+ f_numer = 0.0_dbl
+ delta = 0.0_dbl
 
-  CALL get_cell_param ( box, cell )
+ CALL get_cell ( cell = box, periodic = periodic )
 
-  DO itype=1, n
-     DO jtype=1, n
-        rcut = SQRT ( potparm ( itype, jtype ) % rcutsq )
-        quotient ( : ) = rcut / cell ( : )
-        DO id=1,3
-           IF ( quotient ( id ) <= 0.5_dbl ) THEN
-              n_images ( itype, jtype, id )=0
-           ELSE
-              n_images ( itype, jtype, id ) = CEILING ( rcut / cell ( id ) )
-           END IF
-        END DO
-     END DO
-  END DO
+ natoms = SIZE ( part )
+ ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
+                                  3*natoms*wp_size)
+ ALLOCATE ( pbc_coord % r ( 3, natoms ), STAT = istat )
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r" )
 
-  energy_numer = 0.0_dbl
-  f_numer = 0.0_dbl
+ nnode = SIZE ( pnode )
 
-  delta = 0.0_dbl
+ DO inode=1,nnode
+   atom_a = pnode ( inode ) % p % iatom
+   ra_pbc ( : ) = pbc ( pnode ( inode ) % p % r ( : ), box )
+   pbc_coord % r ( :, atom_a ) = ra_pbc ( : )
+   pbc_coord % s ( :, atom_a ) = real_to_scaled ( ra_pbc ( : ), box )
+ END DO
+
 !
 ! starting the force loop
 !
-  CALL get_hinv ( box )
-  hmat = box % hmat
-  h_inv = box % h_inv
-  perd = box % perd
-  natoms = size(pnode)
-  ILOOP:  DO i = 1, natoms
-     iatomtype = pnode(i) % p % prop % ptype
-     qi = pnode(i) % p % prop % charge
-     ri = pnode(i) % p % r
-     JLOOP: DO j = 1, natoms
-        IF (j>i) THEN
-           jatomtype = pnode(j) % p % prop % ptype
-           qj = pnode(j) % p % prop % charge
-           rij = pnode(j) % p % r - ri
+ ILOOP:   DO inode = 1, nnode
+            CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
+                             kind_number=ikind )
+            atom_a = pnode ( inode ) % p % iatom
+            qa = pnode ( inode ) % p % prop % charge
+            nexcl = pnode ( inode ) % nexcl
+            ll_exclude => pnode ( inode ) % ex
+ JLOOP:     DO jnode = 1, nnode
+              atom_b = pnode ( jnode ) % p % iatom
+              IF ( atom_b < atom_a ) CYCLE
+              sb_pbc(:) = pbc_coord % s ( :, atom_b )
+              CALL get_atomic_kind ( pnode ( jnode ) % p % atomic_kind, &
+                                kind_number=jkind )
+              rab2_max = potparm ( ikind, jkind ) % rcutsq 
+              rab_max = SQRT ( potparm ( ikind, jkind ) % rcutsq )
+              r(:) = rab_max
+              sab_max ( : ) = real_to_scaled ( r ( : ), box )
+              ncell ( : ) = ( INT ( sab_max ( : ) ) + 1 ) * periodic ( : )
+              qb = pnode ( jnode ) % p % prop % charge
 
-!
-! imaging,transform back to unscaled distances and get potential and force
-!
-           s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
-           s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
-           s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-           lat_vec ( 1 ) = perd(1)*INT(s(1)+SIGN(0.5_dbl,s(1)))
-           lat_vec ( 2 ) = perd(2)*INT(s(2)+SIGN(0.5_dbl,s(2)))
-           lat_vec ( 3 ) = perd(3)*INT(s(3)+SIGN(0.5_dbl,s(3)))
-           IF ( MAXVAL ( n_images ) == 0 ) THEN
-             IF(ABS(s(1)) > 0.5_dbl) THEN
-               s(1) = s(1) - lat_vec ( 1 )
-             END IF
-             IF(ABS(s(2)) > 0.5_dbl) THEN
-               s(2) = s(2) - lat_vec ( 2 )
-             END IF
-             IF(abs(s(3)) > 0.5_dbl) THEN
-               s(3) = s(3) - lat_vec ( 3 )
-             END IF
-           ENDIF
-           rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-           rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-           rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
-           rijsq = dot_product(rij,rij)
+              DO icell=-ncell(1),ncell(1)
+                cell_b(1) = icell
+               DO jcell=-ncell(2),ncell(2)
+                 cell_b(2) = jcell
+                 DO kcell=-ncell(3),ncell(3)
+                   cell_b(3) = kcell
 
-           IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq &
-                .AND. MAXVAL ( n_images ) == 0 ) THEN
-! pointing to the start of the exclusion list of particle i
-              ll_exclude => pnode(i) % ex
-              match = .FALSE.
-              EXCL: DO iexclude = 1, pnode(i) % nexcl
-                 IF (ll_exclude % p % iatom==j) THEN
-                    match = .TRUE.
-                    EXIT EXCL
-                 END IF
-                 ll_exclude => ll_exclude % next
-              END DO EXCL
-              NOTMATCH: IF ( .NOT. match) THEN
-                 delta = 0.0_dbl
-                 DIM_LOOP: DO id = 1, 3
-                    delta(id) = numerical_shift
-                    rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
-                    rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-                    IF (qi==0.AND.qj==0) THEN
-                      CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                         iatomtype, jatomtype, energy_minus )
-                      CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                         iatomtype, jatomtype, energy_plus )
-                    ELSE
-                      CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                         iatomtype, jatomtype, energy_minus, ewald_param )
-                      CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                         iatomtype, jatomtype, energy_plus, ewald_param )
-                    ENDIF
-                    f_numer(id,i) = f_numer(id,i) + (energy_plus-energy_minus)
-                    f_numer(id,j) = f_numer(id,j) - (energy_plus-energy_minus)
-                    delta = 0.0_dbl
-                 END DO DIM_LOOP
-                 IF (qi==0.AND.qj==0) THEN
-                   CALL potential_f ( rijsq, potparm, qi, qj, &
-                      iatomtype, jatomtype, energy )
-                 ELSE
-                   CALL potential_f ( rijsq, potparm, qi, qj, &
-                      iatomtype, jatomtype, energy, ewald_param )
-                 ENDIF
+                   sb(:) = sb_pbc(:) + REAL(cell_b(:),dbl)
+                   rb(:) = scaled_to_real(sb(:),box)
 
-                 energy_numer = energy_numer + energy
-              END IF NOTMATCH
-           END IF
+                   rab ( : ) = rb( : ) - pbc_coord % r ( :, atom_a )
+                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
-           zz = n_images ( iatomtype, jatomtype, 3 )
-           yy = n_images ( iatomtype, jatomtype, 2 )
-           xx = n_images ( iatomtype, jatomtype, 1 )
-           s(1) = box % h_inv(1,1)*rij(1) &
-                + box % h_inv(1,2)*rij(2) &
-                + box % h_inv(1,3)*rij(3)
-           s(2) = box % h_inv(2,1)*rij(1) &
-                + box % h_inv(2,2)*rij(2) &
-                + box % h_inv(2,3)*rij(3)
-           s(3) = box % h_inv(3,1)*rij(1) &
-                + box % h_inv(3,2)*rij(2) &
-                + box % h_inv(3,3)*rij(3)
-          
-           IF ( MAXVAL ( n_images ) == 0 ) lat_vec = 0
-
-           DO kcell = -zz - NINT(lat_vec ( 3 )), zz - NINT(lat_vec ( 3 ))
-              DO jcell = -yy - NINT(lat_vec ( 2 )), yy - NINT(lat_vec ( 2 ))
-                 DO icell = -xx - NINT(lat_vec ( 1 )), xx - NINT(lat_vec ( 1 ))
-
-                    vec ( : ) = (/ icell, jcell, kcell /)
-                    IF ( MAXVAL ( n_images ) == 0 ) CYCLE
-                    CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
-                    IF ( rijsq <= potparm(iatomtype,jatomtype ) % rcutsq ) THEN
+                   IF ( rab2 < rab2_max .AND. rab2 > 1.e-6_dbl ) THEN
+                     ll_exclude => pnode ( inode ) % ex
+                     match = .FALSE.
+                     EXCL: DO iexclude = 1, nexcl
+                       IF ( ll_exclude % p % iatom == atom_b ) THEN
+                         match = .TRUE.
+                         EXIT EXCL
+                       END IF
+                       ll_exclude => ll_exclude % next
+                     END DO EXCL
+                     NOTMATCH: IF ( .NOT. match ) THEN
                        delta = 0.0_dbl
-                       DIM_LOOP2: DO id = 1, 3
-                          delta(id) = numerical_shift
-                          rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
-                          rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-                          IF (qi==0.AND.qj==0) THEN
-                            CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                               iatomtype, jatomtype, energy_minus )
-                            CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                               iatomtype, jatomtype, energy_plus )
-                          ELSE
-                            CALL potential_f(rij_minus_delta_sq,potparm,qi,qj, &
-                               iatomtype, jatomtype, energy_minus, ewald_param )
-                            CALL potential_f(rij_plus_delta_sq,potparm,qi,qj, &
-                               iatomtype, jatomtype, energy_plus, ewald_param )
-                          ENDIF
-                          f_numer(id,i) = f_numer(id,i) &
-                               + (energy_plus-energy_minus)
-                          f_numer(id,j) = f_numer(id,j) &
-                               - (energy_plus-energy_minus)
-                          delta = 0.0_dbl
-                       END DO DIM_LOOP2
-
-                       IF (qi==0.AND.qj==0) THEN
-                         CALL potential_f ( rijsq, potparm, qi, qj, &
-                            iatomtype, jatomtype, energy )
+                       DIM_LOOP: DO id = 1, 3
+                         delta(id) = numerical_shift
+                         rij_minus_delta_sq = DOT_PRODUCT(rab-delta,rab-delta)
+                         rij_plus_delta_sq = DOT_PRODUCT(rab+delta,rab+delta)
+                         IF (qa==0.AND.qb==0) THEN
+                           CALL potential_f(rij_minus_delta_sq,potparm,qa,qb, &
+                                ikind, jkind, energy_minus )
+                           CALL potential_f(rij_plus_delta_sq,potparm,qa,qb, &
+                              ikind, jkind, energy_plus )
+                         ELSE
+                           CALL potential_f(rij_minus_delta_sq,potparm,qa,qb, &
+                              ikind, jkind, energy_minus, ewald_param )
+                           CALL potential_f(rij_plus_delta_sq,potparm,qa,qb, &
+                              ikind, jkind, energy_plus, ewald_param )
+                         ENDIF
+                           f_numer(id,atom_a) = f_numer(id,atom_a) + (energy_plus-energy_minus)
+                           f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
+                           delta = 0.0_dbl
+                       END DO DIM_LOOP
+                       IF ( qa == 0 .AND. qb == 0 ) THEN
+                !        CALL potential_f ( rab2, potparm, qa, qb, &
+                !           ikind, jkind, energy )
+                          CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
                        ELSE
-                         CALL potential_f ( rijsq, potparm, qi, qj, &
-                            iatomtype, jatomtype, energy, ewald_param )
+                !         CALL potential_f ( rab2, potparm, qa, qb, &
+                !           ikind, jkind, energy, ewald_param )
+                          CALL potential_s ( rab2, ikind, jkind, energy, fscalar )
                        ENDIF
                        energy_numer = energy_numer + energy
-                    END IF
+                     END IF NOTMATCH
+                   ENDIF
+                   END DO
                  END DO
-              END DO
-           END DO
-
-        ELSE IF (i==j) THEN
-! search images if needed
-           zz=n_images(iatomtype,iatomtype,3)
-           yy=n_images(iatomtype,iatomtype,2)
-           xx=n_images(iatomtype,iatomtype,1)
-           s = 0.0_dbl
-           DO kcell=-zz, zz 
-              DO jcell=-yy, yy
-                 DO icell=-xx, xx
-                    IF ( icell == 0 .AND. jcell == 0 .AND. kcell == 0 ) CYCLE
-                    vec ( : )=(/icell,jcell,kcell/)
-                    CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
-                    IF ( rijsq <= potparm ( iatomtype, iatomtype ) % rcutsq ) THEN
-                       delta = 0.0_dbl
-                       DIM_LOOP3: DO id = 1, 3
-                          delta(id) = numerical_shift
-                          rij_minus_delta_sq = dot_product(rij-delta,rij-delta)
-                          rij_plus_delta_sq = dot_product(rij+delta,rij+delta)
-                          IF ( qi==0 ) THEN
-                            CALL potential_f(rij_minus_delta_sq,potparm,qi,qi, &
-                               iatomtype, iatomtype, energy_minus )
-                            CALL potential_f(rij_plus_delta_sq,potparm,qi,qi, &
-                               iatomtype, iatomtype, energy_plus )
-                          ELSE
-                            CALL potential_f(rij_minus_delta_sq,potparm,qi,qi, &
-                               iatomtype, iatomtype, energy_minus, ewald_param )
-                            CALL potential_f(rij_plus_delta_sq,potparm,qi,qi, &
-                               iatomtype, iatomtype, energy_plus, ewald_param )
-                          ENDIF
-                          f_numer(id,i) = f_numer(id,i) &
-                               + (energy_plus-energy_minus)
-                          f_numer(id,i) = f_numer(id,i) &
-                               - (energy_plus-energy_minus)
-                          delta = 0.0_dbl
-                       END DO DIM_LOOP3
-
-                       IF ( qi==0 ) THEN
-                         CALL potential_f ( rijsq, potparm, qi, qi, &
-                            iatomtype, iatomtype, energy )
-                       ELSE
-                         CALL potential_f ( rijsq, potparm, qi, qi, &
-                            iatomtype, iatomtype, energy, ewald_param )
-                       ENDIF
-                       energy_numer = energy_numer + energy
-                    END IF
-                 END DO
-              END DO
-           END DO
-        END IF
-
-     END DO JLOOP
-  END DO ILOOP
+               END DO
+            END DO JLOOP
+          END DO ILOOP
 
 ! computing long range corrections to the potential
-!when we get the system for handling multiple potentials
-!we will add the long range correction
-!        energy_numer=energy_numer+lrc*(1./box % deth)
+! when we get the system for handling multiple potentials
+! we will add the long range correction
+! energy_numer=energy_numer+lrc*(1./box % deth)
 
-  f_numer = f_numer/(2.0_dbl*numerical_shift)
+ f_numer = f_numer/(2.0_dbl*numerical_shift)
+
+ DEALLOCATE (pbc_coord%r,STAT=istat)
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r")
+ DEALLOCATE (pbc_coord%s,STAT=istat)
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s")
 
 END SUBROUTINE force_nonbond_numer
 
@@ -1146,39 +1044,54 @@ END SUBROUTINE pv_torsion_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
+SUBROUTINE ptens_numer(box,ewald_param,part,pnode,potparm,pv_test,delta)
 
   IMPLICIT NONE
 
 ! Arguments
+  TYPE ( cell_type ), POINTER :: box
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
+  TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
-  TYPE ( cell_type ), INTENT ( IN ) :: box
   REAL ( dbl ), INTENT ( IN ) :: delta
-  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+  REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ) :: pv_test
 
 ! Locals
-  TYPE ( cell_type ) :: box_local
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: x, s
+  CHARACTER(LEN=*), PARAMETER :: routine_name = "ptens_numer"
+  CHARACTER(LEN=*), PARAMETER :: module_name = "fist_force_numer"
+  CHARACTER(LEN=*), PARAMETER :: routine =&
+    "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+  REAL ( dbl ), DIMENSION ( 3 ) :: sa, ra_pbc
   REAL ( dbl ), DIMENSION (3,3) :: dvdh
   REAL ( dbl ) :: idelta, vm, vp, vnb
-  INTEGER :: i, j, k, ii, jj, natoms, isos
+  INTEGER :: i, j, k, ii, jj, istat, atom_a, nnode, inode
+  TYPE ( pbc_coord_type ) ::  pbc_coord
+  INTEGER :: natoms
+  INTEGER, DIMENSION ( 3 ) :: periodic
 
 !------------------------------------------------------------------------------
 
-! assigning the local variables
-  natoms = size(pnode)
-  ALLOCATE (x(3,natoms),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'ptens_numer', 'x', 3 * natoms )
-  ALLOCATE (s(3,natoms),STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory ( 'ptens_numer', 's', 3 * natoms )
+ CALL get_cell ( cell = box, periodic = periodic )
+ box%orthorhombic = .FALSE.
 
-  DO i = 1, natoms
-     x(:,i) = pnode(i) % p % r ( : )
-     s(:,i) = matmul(box % h_inv,pnode(i) % p % r)
-  END DO
-  box_local = box
+ natoms = SIZE ( part )
+
+ ALLOCATE ( pbc_coord % s ( 3, natoms ), STAT = istat )
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s",&
+                                  3*natoms*wp_size)
+ ALLOCATE ( pbc_coord % r ( 3, natoms ), STAT = istat )
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r",&
+                                  3*natoms*wp_size)
+
+ nnode = SIZE ( pnode )
+
+ DO inode=1,nnode
+   atom_a = pnode ( inode ) % p % iatom
+   ra_pbc ( : ) = pbc ( pnode ( inode ) % p % r ( : ), box )
+   pbc_coord % r ( :, atom_a ) = ra_pbc ( : )
+   pbc_coord % s ( :, atom_a ) = real_to_scaled ( ra_pbc ( : ), box )
+ END DO
 
 ! Initializing pv_test
   pv_test = 0.0_dbl
@@ -1187,35 +1100,40 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
   idelta = 1.0_dbl / (2.0_dbl * delta )
   LOOP1: DO ii = 1, 3
      LOOP2: DO jj = 1, 3
-        box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
+        box % hmat(ii,jj) = box % hmat(ii,jj) + delta
 
 ! get inverse
-        CALL get_hinv(box_local)
-
+        CALL get_hinv ( box )
 ! get coords from perturbed hmat
-        DO i = 1, natoms
-           x(:,i) = matmul(box_local % hmat,s(:,i))
+        DO inode = 1, nnode
+           atom_a = pnode ( inode ) % p % iatom
+           sa ( : ) = pbc_coord % s ( :, atom_a )
+           pbc_coord % r ( :, atom_a ) = scaled_to_real( sa ( : ), box )
         END DO
-        CALL getv_ptens(ewald_param,pnode,x,vnb,box_local,potparm)
+        CALL getv_ptens(ewald_param,pnode,pbc_coord,box,periodic,potparm,vnb)
         vp = vnb
 
 ! tweak again
-        box_local % hmat(ii,jj) = box_local % hmat(ii,jj) - 2.0_dbl*delta
-        CALL get_hinv(box_local)
-        DO i = 1, natoms
-           x(:,i) = matmul(box_local % hmat,s(:,i))
+        box % hmat(ii,jj) = box % hmat(ii,jj) - 2.0_dbl*delta
+        CALL get_hinv(box)
+        DO inode = 1, nnode
+           atom_a = pnode ( inode ) % p % iatom
+           sa ( : ) = pbc_coord % s ( :, atom_a )
+           pbc_coord % r ( :, atom_a ) = scaled_to_real( sa ( : ), box )
         END DO
-        CALL getv_ptens(ewald_param,pnode,x,vnb,box_local,potparm)
+        CALL getv_ptens(ewald_param,pnode,pbc_coord,box,periodic,potparm,vnb)
         vm = vnb
 
 ! calculate the derivative
         dvdh(ii,jj) = (vm-vp)*idelta
 
 ! resetting the hmat
-        box_local % hmat(ii,jj) = box_local % hmat(ii,jj) + delta
-        CALL get_hinv(box_local)
-        DO i = 1, natoms
-           x(:,i) = matmul(box_local % hmat,s(:,i))
+        box % hmat(ii,jj) = box % hmat(ii,jj) + delta
+        CALL get_hinv(box)
+        DO inode = 1, nnode
+           atom_a = pnode ( inode ) % p % iatom
+           sa ( : ) = pbc_coord % s ( :, atom_a )
+           pbc_coord % r ( :, atom_a ) = scaled_to_real ( sa ( : ), box )
         END DO
      END DO LOOP2
   END DO LOOP1
@@ -1224,15 +1142,15 @@ SUBROUTINE ptens_numer(ewald_param,pnode,box,potparm,pv_test,delta)
   DO i = 1, 3
      DO j = 1, 3
         DO k = 1, 3
-           pv_test(i,j) = pv_test(i,j) + dvdh(i,k)*box_local % hmat(j,k)
+           pv_test(i,j) = pv_test(i,j) + dvdh(i,k)*box % hmat(j,k)
         END DO
      END DO
   END DO
 
-  DEALLOCATE (x,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory( 'ptens_numer', 'x' )
-  DEALLOCATE (s,STAT=isos)
-  IF ( isos /= 0 ) CALL stop_memory( 'ptens_numer', 's' )
+ DEALLOCATE (pbc_coord%r,STAT=istat)
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%r")
+ DEALLOCATE (pbc_coord%s,STAT=istat)
+ IF (istat /= 0) CALL stop_memory(routine,"pbc_coord%s")
 
 END SUBROUTINE ptens_numer
 
@@ -1831,195 +1749,99 @@ END SUBROUTINE potential_torsion
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE getv_ptens ( ewald_param, pnode, x, vnb, box, potparm )
+SUBROUTINE getv_ptens ( ewald_param, pnode, pbc_coord, box, periodic, potparm, vnb )
 
   IMPLICIT NONE
 
 ! Arguments
-  REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) :: x
-  REAL ( dbl ), INTENT ( INOUT ) :: vnb
-  TYPE (cell_type), INTENT ( INOUT ) :: box
-  TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
-  TYPE (potentialparm_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
   TYPE (ewald_parameters_type), INTENT (IN) :: ewald_param
+  TYPE (particle_node_type ), INTENT ( IN ), DIMENSION ( : ) :: pnode
+  TYPE ( pbc_coord_type ), INTENT ( IN ) :: pbc_coord
+  TYPE ( cell_type ), POINTER :: box 
+  TYPE (potentialparm_type), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  INTEGER, INTENT ( IN ), DIMENSION ( : ) :: periodic
+  REAL ( dbl ), INTENT ( OUT ) :: vnb
 
 ! Locals
-  INTEGER :: i, j, ii, jj, iatomtype, jatomtype, iexclude, natoms, id
-  INTEGER :: zz,yy,xx,lat_vec(3)
-  REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_inv, hmat
-  INTEGER :: icell, jcell, kcell, n, itype, jtype, isos
-  REAL ( dbl ), DIMENSION (3) :: vec,ri,rij,cell,s,perd,quotient
-  REAL ( dbl ) :: energy, fscalar, rijsq, qi, qj, rcut
-  TYPE (linklist_exclusion), POINTER :: ll_exclude
-  LOGICAL :: match
-  INTEGER, DIMENSION ( :, :, : ), ALLOCATABLE :: ncell
+ INTEGER :: ikind, jkind, inode, jnode, nnode, atom_a, atom_b
+ INTEGER :: icell,jcell,kcell,ncell ( 3 ), cell_b ( 3 )
+ INTEGER :: iexclude, natoms, nexcl
+ REAL ( dbl ) :: energy, rab2, rab_max, rab2_max
+ REAL ( dbl ), DIMENSION ( 3 ) :: sab_max, ra_pbc, sb, sb_pbc, rb, r, rab  
+ REAL ( dbl ), DIMENSION ( 3 ) :: delta
+ REAL ( dbl ) :: qa, qb
+ TYPE ( linklist_exclusion ), POINTER :: ll_exclude
+ LOGICAL :: match
 
 !------------------------------------------------------------------------------
-
-  n = SIZE ( potparm ,1 )
-
-  isos = 0
-  IF ( .NOT. ALLOCATED ( ncell ) ) ALLOCATE ( ncell ( n, n, 3 ), STAT = isos )
-  IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_nonbond_numer', 'ncell', n * n * 3 )
-
-  CALL get_cell_param ( box, cell )
-  DO itype = 1, n
-     DO jtype = 1, n
-        rcut = SQRT ( potparm ( itype, jtype ) % rcutsq )
-        quotient ( : ) = rcut / cell ( : )
-        DO id = 1, 3
-           IF ( quotient ( id ) <= 0.5_dbl ) THEN
-              ncell ( itype, jtype, id ) = 0
-           ELSE
-              ncell ( itype, jtype, id ) = CEILING ( rcut/ cell ( id ) )
-           END IF
-        END DO
-     END DO
-  END DO
 
 !
 ! initializing the potential energy
 !
   vnb = 0.0_dbl
-
 !
 ! starting the loop
 !
-  CALL get_hinv ( box )
-  hmat = box % hmat
-  h_inv = box % h_inv
-  perd = box % perd
-  natoms = size(pnode)
-  ILOOP: DO i = 1, natoms
-     iatomtype = pnode(i) % p % prop % ptype
-     qi = pnode(i) % p % prop % charge
-     ri = x(:,i)
-     JLOOP: DO j = 1, natoms
-        IF (j>i) THEN
-           jatomtype = pnode(j) % p % prop % ptype
-           qj = pnode(j) % p % prop % charge
-           rij = x(:,j) - ri
+ nnode = SIZE ( pnode )
+ ILOOP:   DO inode = 1, nnode
+            CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
+                              kind_number = ikind )
+            atom_a = pnode ( inode ) % p % iatom
+            qa = pnode ( inode ) % p % prop % charge
+            nexcl = pnode ( inode ) % nexcl
+            ll_exclude => pnode ( inode ) % ex
+ JLOOP:     DO jnode = 1, nnode
+              atom_b = pnode ( jnode ) % p % iatom
+              IF ( atom_b < atom_a ) CYCLE
+              sb_pbc(:) = pbc_coord % s ( :, atom_b )
+              CALL get_atomic_kind ( pnode ( jnode ) % p % atomic_kind, &
+                                  kind_number = jkind )
+              rab2_max = potparm ( ikind, jkind ) % rcutsq 
+              rab_max = SQRT ( potparm ( ikind, jkind ) % rcutsq )
+              r(:) = rab_max
+              sab_max ( : ) = real_to_scaled ( r ( : ), box )
+              ncell ( : ) = ( INT ( sab_max ( : ) ) + 1 ) * periodic ( : )
+              qb = pnode ( jnode ) % p % prop % charge
 
-!
-! imaging,transform back to unscaled distances and get potential
-           s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
-           s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
-           s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
-           lat_vec ( 1 ) = perd(1)*INT(s(1)+SIGN(0.5_dbl,s(1)))
-           lat_vec ( 2 ) = perd(2)*INT(s(2)+SIGN(0.5_dbl,s(2)))
-           lat_vec ( 3 ) = perd(3)*INT(s(3)+SIGN(0.5_dbl,s(3)))
-           IF ( MAXVAL ( ncell ) ==0 ) THEN
-             IF(ABS(s(1)) > 0.5_dbl) THEN
-               s(1) = s(1) - lat_vec ( 1 )
-             END IF
-             IF(ABS(s(2)) > 0.5_dbl) THEN
-               s(2) = s(2) - lat_vec ( 2 )
-             END IF
-             IF(abs(s(3)) > 0.5_dbl) THEN
-               s(3) = s(3) - lat_vec ( 3 )
-             END IF
-           ENDIF
-           rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-           rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-           rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
-           rijsq = DOT_PRODUCT ( rij, rij )
+              DO icell=-ncell(1),ncell(1)
+                cell_b(1) = icell
+               DO jcell=-ncell(2),ncell(2)
+                 cell_b(2) = jcell
+                 DO kcell=-ncell(3),ncell(3)
+                   cell_b(3) = kcell
 
-           IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq &
-                .AND. MAXVAL ( ncell ) == 0 ) THEN
+                   sb(:) = sb_pbc(:) + REAL(cell_b(:),dbl)
+                   rb(:) = scaled_to_real(sb(:),box)
 
-! pointing to the start of the exclusion list of particle i
-              ll_exclude => pnode(i) % ex
-              match = .FALSE.
+                   rab ( : ) = rb( : ) - pbc_coord % r ( :, atom_a )
+                   rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
-              EXCL: DO iexclude = 1, pnode(i) % nexcl
-                 IF (ll_exclude % p % iatom==j) THEN
-                    match = .TRUE.
-                    EXIT EXCL
-                 END IF
-                 ll_exclude => ll_exclude % next
-              END DO EXCL
-
-              NOTMATCH: IF ( .NOT. match) THEN
-                 IF (qi==0.AND.qj==0) THEN
-                   CALL potential_f ( rijsq, potparm, qi, qj, &
-                      iatomtype, jatomtype, energy )
-                 ELSE
-                   CALL potential_f ( rijsq, potparm, qi, qj, &
-                      iatomtype, jatomtype, energy, ewald_param )
-                 ENDIF
-!
-! summing up the potential energy
-!
-                 vnb = vnb + energy
-              END IF NOTMATCH
-           END IF
-
-! searching images if needed
-           zz = ncell(iatomtype,jatomtype,3)
-           yy = ncell(iatomtype,jatomtype,2)
-           xx = ncell(iatomtype,jatomtype,1)
-           s(1) = box % h_inv(1,1)*rij(1) &
-                + box % h_inv(1,2)*rij(2) &
-                + box % h_inv(1,3)*rij(3)
-           s(2) = box % h_inv(2,1)*rij(1) &
-                + box % h_inv(2,2)*rij(2) &
-                + box % h_inv(2,3)*rij(3)
-           s(3) = box % h_inv(3,1)*rij(1) &
-                + box % h_inv(3,2)*rij(2) &
-                + box % h_inv(3,3)*rij(3)
-           IF ( MAXVAL ( ncell ) == 0 )  lat_vec = 0
-           DO kcell = -zz - lat_vec ( 3 ), zz - lat_vec ( 3 )
-              DO jcell = -yy - lat_vec ( 2 ), yy - lat_vec ( 2 )
-                 DO icell = -xx - lat_vec ( 1 ), xx - lat_vec ( 1 )
-                    vec ( : ) = (/icell,jcell,kcell/)
-                    IF ( MAXVAL ( ncell ) == 0 )  CYCLE
-                    CALL find_image(s,perd,vec,box % hmat,rijsq,rij)
-                    IF ( rijsq <= potparm ( iatomtype, jatomtype ) % rcutsq ) &
-                         THEN
-                      IF (qi==0.AND.qj==0) THEN
-                        CALL potential_f ( rijsq, potparm, qi, qj, &
-                           iatomtype, jatomtype, energy )
-                      ELSE
-                        CALL potential_f ( rijsq, potparm, qi, qj, &
-                           iatomtype, jatomtype, energy, ewald_param )
-                      ENDIF
-                      vnb = vnb + energy
-                    END IF
+                   IF ( rab2 < rab2_max .AND. rab2 > 1.e-6_dbl ) THEN
+                     ll_exclude => pnode ( inode ) % ex
+                     match = .FALSE.
+                     EXCL: DO iexclude = 1, nexcl
+                       IF ( ll_exclude % p % iatom == atom_b ) THEN
+                         match = .TRUE.
+                         EXIT EXCL
+                       END IF
+                       ll_exclude => ll_exclude % next
+                     END DO EXCL
+                     NOTMATCH: IF ( .NOT. match ) THEN
+                         IF ( qa == 0 .AND. qb == 0 ) THEN
+                          CALL potential_f ( rab2, potparm, qa, qb, &
+                             ikind, jkind, energy )
+                         ELSE
+                           CALL potential_f ( rab2, potparm, qa, qb, &
+                             ikind, jkind, energy, ewald_param )
+                         ENDIF
+                         vnb = vnb + energy
+                     END IF NOTMATCH
+                   ENDIF
                  END DO
-              END DO
-           END DO
-
-        ELSE IF ( i == j ) THEN
-! search images if needed
-           zz = ncell(iatomtype,iatomtype,3)
-           yy = ncell(iatomtype,iatomtype,2)
-           xx = ncell(iatomtype,iatomtype,1)
-           s = 0.0_dbl
-           DO kcell = -zz,zz
-              DO jcell = -yy,yy
-                 DO icell = -xx,xx
-                    IF ( icell == 0 .AND. jcell == 0 .AND. kcell == 0 ) CYCLE
-                    vec ( : ) = (/ icell, jcell, kcell /)
-                    CALL find_image ( s, perd, vec, box % hmat, rijsq, rij )
-                    IF ( rijsq <= potparm ( iatomtype, iatomtype ) % rcutsq ) THEN
-                      IF (qi==0.AND.qj==0) THEN
-                        CALL potential_f ( rijsq, potparm, qi, qj, &
-                           iatomtype, jatomtype, energy )
-                      ELSE
-                        CALL potential_f ( rijsq, potparm, qi, qj, &
-                           iatomtype, jatomtype, energy, ewald_param )
-                      ENDIF
-                      vnb = vnb + energy
-                    END IF
-
-                 END DO
-              END DO
-           END DO
-        END IF
-
-     END DO JLOOP
-  END DO ILOOP
+               END DO
+             END DO
+          END DO JLOOP
+        END DO ILOOP
 
 END SUBROUTINE getv_ptens
 

@@ -31,7 +31,6 @@ MODULE particle_types
   USE basis_set_types,     ONLY: get_gto_basis_set,&
                                  gto_basis_set_type
   USE global_types,        ONLY: global_environment_type
-  USE linklist_cell_types, ONLY: cell_neighborlist_type
   USE memory_utilities,    ONLY: reallocate
   USE periodic_table,      ONLY: ptable
   USE qs_parser,           ONLY: finish_parser,&
@@ -64,7 +63,6 @@ MODULE particle_types
   END TYPE particle_prop_type
 
   TYPE particle_type
-     TYPE(cell_neighborlist_type), POINTER :: cell,cell_ol
      TYPE(atomic_kind_type), POINTER       :: atomic_kind
      TYPE(particle_prop_type), POINTER     :: prop
      INTEGER                               :: abase,first_cgf,first_cgf_aux,&
@@ -122,8 +120,6 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"particle_set(natom)",0)
 
     DO iatom=1,natom
-      NULLIFY (particle_set(iatom)%cell)
-      NULLIFY (particle_set(iatom)%cell_ol)
       NULLIFY (particle_set(iatom)%atomic_kind)
       NULLIFY (particle_set(iatom)%prop)
       NULLIFY (particle_set(iatom)%coef_list)

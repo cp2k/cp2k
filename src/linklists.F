@@ -26,7 +26,7 @@ MODULE linklists
        bond_parameters_type, linklist_bonds, bend_parameters_type, &
        linklist_bends, torsion_parameters_type, linklist_torsions, &
        linklist_dist_constraints, linklist_g3x3_constraints,  &
-       linklist_neighbor, linklist_exclusion, particle_node_type, &
+       linklist_exclusion, particle_node_type, &
        molecule_type
   USE termination, ONLY : stop_memory, stop_program
 
