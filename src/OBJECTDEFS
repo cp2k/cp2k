@@ -101,8 +101,15 @@ OBJECTS_GENERIC =\
  input_types.o\
  integrator.o\
  k290.o\
+ kg_core.o\
+ kg_debug.o\
+ kg_density.o\
+ kg_force.o\
+ kg_force_numer.o\
+ kg_force_types.o\
  kg_main.o\
  kg_environment_types.o\
+ kg_kxc.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
