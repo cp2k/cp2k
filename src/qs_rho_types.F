@@ -86,9 +86,9 @@ MODULE qs_rho_types
 !!     most attributes are array with either lda or lsd_alpha,lsd_beta.
 !!     - rho_ao: the filterd rho in the localized atom basis (to have rho(r)
 !!       the filtred matrix is enough, but rho(r,r') is lost).
-!!     - rho_elec_r: grids with rho in the real space
+!!     - rho_r: grids with rho in the real space
 !!     - rho_g: grids with rho in the g space
-!!     - rho_ao_valid, rho_g_valid, rho_elec_r_valid: if the corresponding
+!!     - rho_ao_valid, rho_g_valid, rho_r_valid: if the corresponding
 !!       component is valid
 !!     - ref_count: the reference count, when it becomes 0 the type
 !!       is deallocated.
@@ -103,10 +103,10 @@ MODULE qs_rho_types
 !***************************************************************************
   TYPE qs_rho_type
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
-     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_elec_r
+     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
      LOGICAL :: rho_ao_valid, &
           rho_g_valid, &
-          rho_elec_r_valid
+          rho_r_valid
      INTEGER :: ref_count, &
           id_nr, &
           updates_since_rebuild, &
@@ -143,14 +143,14 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_create(rho_struct,rho_ao_ptr,rho_elec_r_ptr, rho_g_ptr,&
-       rho_ao_valid,rho_elec_r_valid,rho_g_valid, rebuild_each,error)
+  SUBROUTINE qs_rho_create(rho_struct,rho_ao_ptr,rho_r_ptr, rho_g_ptr,&
+       rho_ao_valid,rho_r_valid,rho_g_valid, rebuild_each,error)
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao_ptr
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g_ptr,&
-         rho_elec_r_ptr
+         rho_r_ptr
     LOGICAL, INTENT(in),OPTIONAL :: rho_ao_valid, rho_g_valid,&
-         rho_elec_r_valid  
+         rho_r_valid  
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER, INTENT(in), OPTIONAL :: rebuild_each
 
@@ -161,7 +161,7 @@ CONTAINS
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(rho_ao_ptr),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(rho_elec_r_ptr),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho_r_ptr),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho_g_ptr),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(rho_struct,stat=stat)
@@ -173,16 +173,16 @@ CONTAINS
        rho_struct%ref_count=1
        rho_struct%rebuild_each=5
        rho_struct%rho_ao => rho_ao_ptr
-       rho_struct%rho_elec_r => rho_elec_r_ptr
+       rho_struct%rho_r => rho_r_ptr
        rho_struct%rho_g => rho_g_ptr
        rho_struct%rho_ao_valid = .TRUE.
-       rho_struct%rho_elec_r_valid = .FALSE.
+       rho_struct%rho_r_valid = .FALSE.
        rho_struct%rho_g_valid = .FALSE.
        IF (PRESENT(rebuild_each)) rho_struct%rebuild_each=rebuild_each
        IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
-       IF (PRESENT(rho_elec_r_valid)) rho_struct%rho_elec_r_valid=rho_elec_r_valid
+       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
-       CALL cp_assert(rho_struct%rho_ao_valid.OR.rho_struct%rho_elec_r_valid.OR.&
+       CALL cp_assert(rho_struct%rho_ao_valid.OR.rho_struct%rho_r_valid.OR.&
             rho_struct%rho_g_valid,&
             cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
             message="at least one representation must be valid "//&
@@ -273,11 +273,11 @@ CONTAINS
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
 !call cp_sp_array_dealloc(rho_struct%rho_ao,error=error) ! to do
-          IF (ASSOCIATED(rho_struct%rho_elec_r)) THEN
-             DO i=1,SIZE(rho_struct%rho_elec_r)
-                CALL coeff_deallocate(rho_struct%rho_elec_r(i))
+          IF (ASSOCIATED(rho_struct%rho_r)) THEN
+             DO i=1,SIZE(rho_struct%rho_r)
+                CALL coeff_deallocate(rho_struct%rho_r(i))
              END DO
-             DEALLOCATE(rho_struct%rho_elec_r,stat=stat)
+             DEALLOCATE(rho_struct%rho_r,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           IF (ASSOCIATED(rho_struct%rho_g)) THEN
@@ -309,7 +309,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - rho_struct: the density structure that changed
-!!     - rho_ao_valid,rho_elec_r_valid, rho_g_valid: actual valid
+!!     - rho_ao_valid,rho_r_valid, rho_g_valid: actual valid
 !!       representations
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -321,10 +321,10 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_elec_r_valid, &
+  SUBROUTINE qs_rho_did_change(rho_struct,rho_ao_valid,rho_r_valid, &
        rho_g_valid, error)
     TYPE(qs_rho_type), POINTER :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_elec_r_valid, rho_g_valid
+    LOGICAL, INTENT(in), OPTIONAL :: rho_ao_valid, rho_r_valid, rho_g_valid
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -336,10 +336,10 @@ CONTAINS
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
-       IF (PRESENT(rho_elec_r_valid)) rho_struct%rho_elec_r_valid=rho_elec_r_valid
+       IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
        CALL cp_assert(rho_struct%rho_ao_valid.OR.&
-            rho_struct%rho_elec_r_valid.OR.rho_struct%rho_g_valid,&
+            rho_struct%rho_r_valid.OR.rho_struct%rho_g_valid,&
             cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
             message="at least one representation must be valid "//&
             CPSourceFileRef,&
@@ -372,12 +372,12 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_elec_r, rho_g, rho_ao_valid,&
-       rho_elec_r_valid, rho_g_valid, rebuild_each, error)
+  SUBROUTINE qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
+       rho_r_valid, rho_g_valid, rebuild_each, error)
     TYPE(qs_rho_type), POINTER :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER,OPTIONAL :: rho_ao
-    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_elec_r
-    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_elec_r_valid
+    TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
+    LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
     INTEGER, INTENT(out), OPTIONAL :: rebuild_each
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -397,12 +397,12 @@ CONTAINS
              rho_ao => rho_struct%rho_ao
           END IF
        END IF
-       IF (PRESENT(rho_elec_r)) THEN
-          IF (.NOT.rho_struct%rho_elec_r_valid) THEN
+       IF (PRESENT(rho_r)) THEN
+          IF (.NOT.rho_struct%rho_r_valid) THEN
              CALL cp_unimplemented_error(routineP,"to do",error=error)
-             NULLIFY(rho_elec_r)
+             NULLIFY(rho_r)
           ELSE
-             rho_elec_r => rho_struct%rho_elec_r
+             rho_r => rho_struct%rho_r
           END IF
        END IF
        IF (PRESENT(rho_g)) THEN
@@ -414,7 +414,7 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(rho_ao_valid)) rho_ao_valid=rho_struct%rho_ao_valid
-       IF (PRESENT(rho_elec_r_valid)) rho_elec_r_valid=rho_struct%rho_elec_r_valid
+       IF (PRESENT(rho_r_valid)) rho_r_valid=rho_struct%rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
        IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
     END IF

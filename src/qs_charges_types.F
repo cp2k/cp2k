@@ -66,7 +66,7 @@ MODULE qs_charges_types
   !!
   !!   ATTRIBUTES
   !!     total_rho_core_rspace: total charge on the rho_core grid
-  !!     total_rho_elec_rspace: total charge in rho_elec_r
+  !!     total_rho_elec_rspace: total charge in rho_r
   !!     total_rho_rspace: total charge in the real space
   !!     total_rho_gspace: total charge in the g space
   !!

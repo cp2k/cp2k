@@ -176,7 +176,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      ! decides if to rebuild or just update
      rebuild_local=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
      IF (PRESENT(rebuild)) rebuild_local=rebuild
-     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_elec_r_valid)) THEN
+     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid)) THEN
         rebuild_local=.TRUE.
      END IF
      IF (rebuild_local) THEN
@@ -205,7 +205,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
         CALL calculate_rho_elec(p=rho_ao_new(ispin)%matrix,&
              p_old=rho_struct%rho_ao(ispin)%matrix,&
              rebuild=rebuild_local,&
-             rho=rho_struct%rho_elec_r(ispin),&
+             rho=rho_struct%rho_r(ispin),&
              rho_gspace=tmp_gspace,&
              rho_gspace_old=rho_struct%rho_g(ispin),&
              mgrid_rspace=mgrid_rspace,&
@@ -224,7 +224,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      DEALLOCATE(mgrid_gspace, mgrid_rspace,stat=stat)
      
      rho_struct%rho_ao_valid=.FALSE.
-     rho_struct%rho_elec_r_valid=.TRUE.
+     rho_struct%rho_r_valid=.TRUE.
      rho_struct%rho_g_valid=.TRUE.
      IF (update_rho_ao_local) THEN
         DO ispin=1,nspins

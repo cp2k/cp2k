@@ -463,9 +463,9 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
   TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
   TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
   TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s, rho_ao
-  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_elec_r
+  TYPE(coeff_type), DIMENSION(:), POINTER :: rho_g, rho_r
   INTEGER :: rebuild_each, stat
-  NULLIFY(h,rho_ao,rho_elec_r,rho_g)
+  NULLIFY(h,rho_ao,rho_r,rho_g)
   rebuild_each=5
   failure=.FALSE.
   
@@ -487,7 +487,7 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
   ! creates the new rho
   ! - rho_ao
   CALL allocate_matrix_set(rho_ao,1)
-  ALLOCATE(rho_g(1),rho_elec_r(1),stat=stat)
+  ALLOCATE(rho_g(1),rho_r(1),stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   NULLIFY (rho_ao(1)%matrix)
   IF (hstruct) THEN
@@ -497,14 +497,14 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho, rho_ao_with_h_mstruct, error)
      CALL replicate_matrix_structure(s(1)%matrix,rho_ao(1)%matrix,&
           "RHO%RHO_AO DENSITY MATRIX")
   END IF
-  ! rho_elec_r/rho_g
+  ! rho_r/rho_g
   CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_elec_r(1),REALDATA3D)
+  CALL pw_pool_init_coeff(auxbas_pw_pool,rho_r(1),REALDATA3D)
   CALL pw_pool_init_coeff(auxbas_pw_pool,rho_g(1),COMPLEXDATA1D)
-  rho_elec_r(1)%pw%in_space = REALSPACE
+  rho_r(1)%pw%in_space = REALSPACE
   rho_g(1)%pw%in_space = RECIPROCALSPACE
   ! rho
-  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_elec_r_ptr=rho_elec_r,&
+  CALL qs_rho_create(new_rho,rho_ao_ptr=rho_ao,rho_r_ptr=rho_r,&
        rho_g_ptr=rho_g,rebuild_each=rebuild_each,error=error)
   
   ! sets result to the newly created rho

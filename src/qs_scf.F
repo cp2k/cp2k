@@ -710,7 +710,7 @@ CONTAINS
     IF (globenv%print%e_density_cube) THEN
       ! write the electron density
       IF (globenv%ionode) OPEN(UNIT=21,FILE="E_DENSITY.cube")
-      CALL rs_pw_to_cube(rho%rho_elec_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+      CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
       IF (globenv%ionode) CLOSE(21)
     ENDIF
 
