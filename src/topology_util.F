@@ -544,6 +544,8 @@ SUBROUTINE find_boundary2(num_array1,num_array2,ntot,first,last,search1,search2)
 
   CALL find_boundary(num_array1,ntot,tfirst,tlast,search1)
 
+  last=tlast
+
   DO i=tfirst,tlast
     IF(num_array2(i)==search2) THEN
       IF(.NOT.found) THEN
@@ -597,6 +599,8 @@ SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
   last=ntot
 
   CALL find_boundary2(num_array1,num_array2,ntot,tfirst,tlast,search1,search2)
+
+  last=tlast
 
   DO i=tfirst,tlast
     IF(num_array3(i)==search3) THEN
