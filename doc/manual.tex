@@ -358,6 +358,12 @@ This section is always needed to define the simulation cell.
 \subsubsection{Optional keywords}
 %
 \bd
+ \item[SUBCELLS] \kw{\{\la{\rm real}\ra\}}
+  \ko{SUBCELLS}\\
+  The simulation cell is divided into subcells for the generation of the
+  neighbor lists. The specified value defines the size of the subcells.
+  Values between \kw{1.0} and \kw{2.0} show a good performance.\\
+  default: \kw{1.5}
  \item[UNIT] \kw{\{ANGSTROM,BOHR,SCALED\_ANGSTROM,SCALED\_BOHR\}}
   \ko{UNIT}\karg{ANGSTROM}\karg{BOHR}\karg{SCALED\_ANGSTROM}
            \karg{SCALED\_BOHR}\\
