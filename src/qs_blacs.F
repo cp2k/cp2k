@@ -1383,7 +1383,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(blacs_matrix_type), INTENT(OUT)      :: blacs_matrix
+    TYPE(blacs_matrix_type), INTENT(INOUT)      :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
     INTEGER, INTENT(IN)                       :: context
