@@ -1,5 +1,4 @@
 &SETUP
-  moltype  1
   molecule            
     name     argon    
     nummol   108
