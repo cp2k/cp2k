@@ -81,6 +81,8 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
   INTEGER                                     :: na, nc, m
   LOGICAL                                     :: failure
 
+  TYPE(cp_error_type)                         :: error
+
 !---------------------------------------------------------------------------
 
   failure=.FALSE.
@@ -127,7 +129,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 4.070988982e-1_dbl; coef ( 4 ) = 3.705627997e-1_dbl
              alpha( 5 ) = 1.580884151e-1_dbl; coef ( 5 ) = 4.164915298e-1_dbl
              alpha( 6 ) = 6.510953954e-2_dbl; coef ( 6 ) = 1.303340841e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  2 ) ! 2s
@@ -159,7 +161,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 2.040335729e-1_dbl; coef ( 4 ) = 3.346271174e-1_dbl
              alpha( 5 ) = 9.260298399e-2_dbl; coef ( 5 ) = 5.621061301e-1_dbl
              alpha( 6 ) = 4.416183978e-2_dbl; coef ( 6 ) = 1.712994697e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  3 ) ! 2p
@@ -191,7 +193,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 2.288932733e-1_dbl; coef ( 4 ) = 4.049863191e-1_dbl
              alpha( 5 ) = 1.046655969e-1_dbl; coef ( 5 ) = 4.012362861e-1_dbl
              alpha( 6 ) = 4.948220127e-2_dbl; coef ( 6 ) = 1.051855189e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  4 ) ! 3s
@@ -223,7 +225,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 8.636686991e-2_dbl; coef ( 4 ) = 5.534527651e-1_dbl
              alpha( 5 ) = 4.797373812e-2_dbl; coef ( 5 ) = 5.015351020e-1_dbl
              alpha( 6 ) = 2.724741144e-2_dbl; coef ( 6 ) = 7.223633674e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  5 ) ! 3p
@@ -255,7 +257,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 1.131741848e-1_dbl; coef ( 4 ) = 4.485358256e-1_dbl
              alpha( 5 ) = 6.076408893e-2_dbl; coef ( 5 ) = 3.908813050e-1_dbl
              alpha( 6 ) = 3.315424265e-2_dbl; coef ( 6 ) = 7.411456232e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  6 ) ! 3d
@@ -287,7 +289,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 1.559114463e-1_dbl; coef ( 4 ) = 4.266269092e-1_dbl
              alpha( 5 ) = 7.877734732e-2_dbl; coef ( 5 ) = 3.8431000204-1_dbl
              alpha( 6 ) = 4.058484363e-2_dbl; coef ( 6 ) = 8.902827546e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  7 ) ! 4s
@@ -319,7 +321,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 5.277666487e-2_dbl; coef ( 4 ) = 7.812787397e-1_dbl
              alpha( 5 ) = 3.163400284e-2_dbl; coef ( 5 ) = 4.389247988e-1_dbl
              alpha( 6 ) = 1.874093091e-2_dbl; coef ( 6 ) = 2.487178756e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  8 ) ! 4p
@@ -351,7 +353,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 8.847434525e-2_dbl; coef ( 4 ) = 4.053115554e-1_dbl
              alpha( 5 ) = 4.958248334e-2_dbl; coef ( 5 ) = 5.433958189e-1_dbl
              alpha( 6 ) = 2.816929784e-2_dbl; coef ( 6 ) = 1.204970491e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE (  9 ) ! 4d
@@ -383,7 +385,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 1.101467943e-1_dbl; coef ( 4 ) = 4.159646930e-1_dbl
              alpha( 5 ) = 5.904190370e-2_dbl; coef ( 5 ) = 4.621672517e-1_dbl
              alpha( 6 ) = 3.232628887e-2_dbl; coef ( 6 ) = 1.081250196e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 10 ) ! 4f
@@ -415,7 +417,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 1.173146814e-1_dbl; coef ( 4 ) = 4.411388883e-1_dbl
              alpha( 5 ) = 6.350097171e-2_dbl; coef ( 5 ) = 3.688112625e-1_dbl
              alpha( 6 ) = 3.474556673e-2_dbl; coef ( 6 ) = 7.787514504e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 11 ) ! 5s
@@ -447,7 +449,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 1.061070594e-1_dbl; coef ( 4 ) =-5.200673560e-1_dbl
              alpha( 5 ) = 3.669584901e-2_dbl; coef ( 5 ) = 1.087619490e+0_dbl
              alpha( 6 ) = 2.213558430e-2_dbl; coef ( 6 ) = 3.103964343e-1_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 12 ) ! 5p
@@ -479,7 +481,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 5.404070736e-2_dbl; coef ( 4 ) = 5.706134877e-1_dbl
              alpha( 5 ) = 3.328911801e-2_dbl; coef ( 5 ) = 4.768808140e-1_dbl
              alpha( 6 ) = 2.063815019e-2_dbl; coef ( 6 ) = 6.021665516e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 13 ) ! 5d
@@ -511,7 +513,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 5.472831774e-2_dbl; coef ( 4 ) = 5.097437054e-1_dbl
              alpha( 5 ) = 3.391202830e-2_dbl; coef ( 5 ) = 2.654483467e-1_dbl
              alpha( 6 ) = 2.108227374e-2_dbl; coef ( 6 ) = 2.623132212e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 14 ) ! 5f
@@ -543,7 +545,7 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 7.290318381e-2_dbl; coef ( 4 ) = 4.589112231e-1_dbl
              alpha( 5 ) = 4.351355997e-2_dbl; coef ( 5 ) = 3.205010548e-1_dbl
              alpha( 6 ) = 2.598071843e-2_dbl; coef ( 6 ) = 5.077063693e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
       CASE ( 15 ) ! 5g
@@ -575,10 +577,10 @@ SUBROUTINE get_sto_ng ( zeta, n, nq, lq, alpha, coef )
              alpha( 4 ) = 9.373643151e-2_dbl; coef ( 4 ) = 4.512983737e-1_dbl
              alpha( 5 ) = 5.340032759e-2_dbl; coef ( 5 ) = 3.552053926e-1_dbl
              alpha( 6 ) = 3.057364464e-2_dbl; coef ( 6 ) = 6.974153145e-2_dbl
-           DEFAULT
+           CASE DEFAULT
              CPErrorMessage(-100,routineP,"Illegal expansion",error)
          END SELECT
-      DEFAULT
+      CASE DEFAULT
         CPErrorMessage(-101,routineP,"Illegal STO",error)
     END SELECT
     ! scaling: a = zeta^2 * a

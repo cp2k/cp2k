@@ -42,6 +42,7 @@ MODULE basis_set_types
                                              read_object,&
                                              search_object,&
                                              start_parser
+  USE sto_ng,                          ONLY: get_sto_ng
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -50,14 +51,12 @@ MODULE basis_set_types
 
   PRIVATE
 
-! *** Global parameters (only in this module) ***
-
+  ! *** Global parameters (only in this module) ***
   CHARACTER(LEN=*), PARAMETER :: module_name = "basis_set_types)"
 
-! *** Define the Gaussian-type orbital basis set type ***
-
+  ! *** Define the Gaussian-type orbital basis set type ***
   TYPE gto_basis_set_type
-!MK PRIVATE
+    !MK PRIVATE
     CHARACTER(LEN=default_string_length)       :: name
     REAL(KIND = dp)                            :: kind_radius
     INTEGER                                    :: norm_type
@@ -73,6 +72,17 @@ MODULE basis_set_types
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: gcc
   END TYPE gto_basis_set_type
 
+  ! *** Define the Slater-type orbital basis set type ***
+  TYPE sto_basis_set_type
+    !MK PRIVATE
+    CHARACTER(LEN=default_string_length)       :: name
+    INTEGER                                    :: nshell
+    CHARACTER(LEN=6), DIMENSION(:), POINTER    :: symbol
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: shell_radius
+    INTEGER, DIMENSION(:), POINTER             :: nq,lq
+    REAL(KIND = dp), DIMENSION(:), POINTER     :: zet
+  END TYPE sto_basis_set_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: allocate_gto_basis_set,&
@@ -87,9 +97,16 @@ MODULE basis_set_types
             write_gto_basis_set,&
             write_orb_basis_set
 
+  PUBLIC :: allocate_sto_basis_set,&
+            deallocate_sto_basis_set,&
+            get_sto_basis_set,&
+            set_sto_basis_set,&
+            write_sto_basis_set
+
 ! *** Public data types ***
 
-  PUBLIC :: gto_basis_set_type
+  PUBLIC :: gto_basis_set_type,&
+            sto_basis_set_type
 
 ! *****************************************************************************
 
@@ -1308,6 +1325,313 @@ CONTAINS
     END IF
 
   END SUBROUTINE write_orb_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE allocate_sto_basis_set(sto_basis_set)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "allocate_sto_basis_set"
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(sto_basis_set)) CALL deallocate_sto_basis_set(sto_basis_set)
+
+    ALLOCATE (sto_basis_set,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set",0)
+
+    NULLIFY (sto_basis_set%symbol)
+    NULLIFY (sto_basis_set%shell_radius)
+    NULLIFY (sto_basis_set%nq)
+    NULLIFY (sto_basis_set%lq)
+    NULLIFY (sto_basis_set%zet)
+
+  END SUBROUTINE allocate_sto_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE deallocate_sto_basis_set(sto_basis_set)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_sto_basis_set"
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    DEALLOCATE (sto_basis_set%symbol,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set%symbol")
+
+    DEALLOCATE (sto_basis_set%shell_radius,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set%shell_radius")
+
+    DEALLOCATE (sto_basis_set%nq,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set%nq")
+
+    DEALLOCATE (sto_basis_set%lq,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set%lq")
+
+    DEALLOCATE (sto_basis_set%zet,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "sto_basis_set%zet")
+
+  END SUBROUTINE deallocate_sto_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE get_sto_basis_set(sto_basis_set,name,nshell,&
+                    symbol,nq,lq,zet,maxlq,numsto)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+    CHARACTER(LEN=default_string_length), &
+      INTENT(OUT), OPTIONAL                  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: nshell
+    CHARACTER(LEN=6), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: symbol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq 
+    REAL(KIND=dp), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: zet
+    INTEGER, INTENT(OUT), OPTIONAL           :: maxlq, numsto
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_sto_basis_set"
+
+    INTEGER                                  :: iset
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(sto_basis_set)) THEN
+      IF (PRESENT(name)) name = sto_basis_set%name
+      IF (PRESENT(nshell)) nshell = sto_basis_set%nshell
+      IF (PRESENT(symbol)) symbol => sto_basis_set%symbol
+      IF (PRESENT(nq)) nq => sto_basis_set%nq
+      IF (PRESENT(lq)) lq => sto_basis_set%lq
+      IF (PRESENT(zet)) zet => sto_basis_set%zet
+      IF (PRESENT(maxlq)) THEN
+        maxlq = MAXVAL ( sto_basis_set%lq (1:sto_basis_set%nshell) )
+      END IF
+      IF (PRESENT(numsto)) THEN
+        numsto = 0
+        DO iset=1,sto_basis_set%nshell
+          numsto = numsto + 2*sto_basis_set%lq(iset)+1
+        END DO
+      END IF
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer sto_basis_set is not associated")
+    END IF
+
+  END SUBROUTINE get_sto_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE set_sto_basis_set(sto_basis_set,name,nshell,symbol,nq,lq,zet)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN), OPTIONAL                   :: name
+    INTEGER, INTENT(IN), OPTIONAL            :: nshell
+    CHARACTER(LEN=6), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: symbol
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: nq, lq 
+    REAL(KIND=dp), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: zet
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_sto_basis_set"
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(sto_basis_set)) THEN
+      IF (PRESENT(name)) sto_basis_set%name = name
+      IF (PRESENT(nshell)) sto_basis_set%nshell = nshell
+      IF (PRESENT(symbol)) sto_basis_set%symbol(:) = symbol(:)
+      IF (PRESENT(nq)) sto_basis_set%nq(:) = nq(:)
+      IF (PRESENT(lq)) sto_basis_set%lq(:) = lq(:)
+      IF (PRESENT(zet)) sto_basis_set%zet(:) = zet(:)
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer sto_basis_set is not associated")
+    END IF
+
+  END SUBROUTINE set_sto_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE write_sto_basis_set(sto_basis_set,globenv)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    INTEGER                                  :: ipgf, iset, ishell, &
+                                                output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (ASSOCIATED(sto_basis_set).AND.globenv%print%basis_set) THEN
+
+      output_unit = globenv%scr
+
+      WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A50)")&
+        "- STO basis set information",&
+        ADJUSTR("STO basis set name: "//TRIM(sto_basis_set%name))
+      WRITE (UNIT=output_unit,FMT="(T51,A)") "   Shell     n   l    Exponent"
+
+      DO ishell=1,sto_basis_set%nshell
+        WRITE (UNIT=output_unit,&
+               FMT="(T51,I7,I7,I4,F12.6)")&
+            ishell,&
+            sto_basis_set%nq(ishell),&
+            sto_basis_set%lq(ishell),&
+            sto_basis_set%zet(ishell)
+      END DO
+
+    END IF
+
+  END SUBROUTINE write_sto_basis_set
+
+! *****************************************************************************
+
+  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngaus)
+
+    TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
+    TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
+    INTEGER, OPTIONAL                        :: ngaus
+
+    INTEGER                                  :: ng = 6
+    INTEGER, PARAMETER                       :: maxng = 6
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: nshell, nset, maxl, iset, &
+                                                ipgf, maxco, ncgf, nsgf, &
+                                                lshell, ico, m, istat, np
+    INTEGER, DIMENSION(:), POINTER           :: nq, lq
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: zet
+    REAL(KIND=dp), DIMENSION(maxng)          :: zetg, gcc
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "create_gto_from_sto_basis"
+
+!   ---------------------------------------------------------------------------
+
+    IF ( PRESENT(ngaus) ) ng=ngaus
+    IF ( ng > maxng ) CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Too many Gaussian primitives requested")
+ 
+    CALL allocate_gto_basis_set(gto_basis_set)
+
+    CALL get_sto_basis_set(sto_basis_set,name=name,nshell=nshell,nq=nq,&
+                           lq=lq,zet=zet)
+
+    maxl = MAXVAL ( lq )
+    CALL init_orbital_pointers(maxl)
+
+    nset = nshell
+    gto_basis_set%nset = nset
+    CALL reallocate(gto_basis_set%lmax,1,nset)
+    CALL reallocate(gto_basis_set%lmin,1,nset)
+    CALL reallocate(gto_basis_set%npgf,1,nset)
+    CALL reallocate(gto_basis_set%nshell,1,nset)
+    CALL reallocate(gto_basis_set%n,1,1,1,nset)
+    CALL reallocate(gto_basis_set%l,1,1,1,nset)
+    CALL reallocate(gto_basis_set%zet,1,ng,1,nset)
+    CALL reallocate(gto_basis_set%gcc,1,ng,1,1,1,nset)
+
+    DO iset=1,nset
+      call get_sto_ng ( zet(iset), ng, nq(iset), lq(iset), zetg, gcc )
+      gto_basis_set%lmax(iset) = lq(iset)
+      gto_basis_set%lmin(iset) = lq(iset)
+      gto_basis_set%npgf(iset) = ng
+      gto_basis_set%nshell(iset) = 1
+      gto_basis_set%n(1,iset) = lq(iset)+1
+      gto_basis_set%l(1,iset) = lq(iset)
+      DO ipgf=1,ng
+        gto_basis_set%gcc(ipgf,1,iset) = gcc(ipgf)
+        gto_basis_set%zet(ipgf,iset) = zetg(ipgf)
+      END DO
+    END DO
+
+    CALL reallocate(gto_basis_set%set_radius,1,nset)
+    CALL reallocate(gto_basis_set%pgf_radius,1,ng,1,nset)
+    CALL reallocate(gto_basis_set%first_cgf,1,1,1,nset)
+    CALL reallocate(gto_basis_set%first_sgf,1,1,1,nset)
+    CALL reallocate(gto_basis_set%last_cgf,1,1,1,nset)
+    CALL reallocate(gto_basis_set%last_sgf,1,1,1,nset)
+    CALL reallocate(gto_basis_set%ncgf_set,1,nset)
+    CALL reallocate(gto_basis_set%nsgf_set,1,nset)
+
+    maxco = 0
+    ncgf = 0
+    nsgf = 0
+
+    DO iset=1,nset
+      gto_basis_set%ncgf_set(iset) = 0
+      gto_basis_set%nsgf_set(iset) = 0
+      lshell = gto_basis_set%l(1,iset)
+      gto_basis_set%first_cgf(1,iset) = ncgf + 1
+      ncgf = ncgf + nco(lshell)
+      gto_basis_set%last_cgf(1,iset) = ncgf
+      gto_basis_set%ncgf_set(iset) =&
+        gto_basis_set%ncgf_set(iset) + nco(lshell)
+      gto_basis_set%first_sgf(1,iset) = nsgf + 1
+      nsgf = nsgf + nso(lshell)
+      gto_basis_set%last_sgf(1,iset) = nsgf
+      gto_basis_set%nsgf_set(iset) =&
+        gto_basis_set%nsgf_set(iset) + nso(lshell)
+      maxco = MAX(maxco,ng*ncoset(lshell))
+    END DO
+
+    gto_basis_set%ncgf = ncgf
+    gto_basis_set%nsgf = nsgf
+
+    CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
+    CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+    CALL reallocate(gto_basis_set%lx,1,ncgf)
+    CALL reallocate(gto_basis_set%ly,1,ncgf)
+    CALL reallocate(gto_basis_set%lz,1,ncgf)
+    CALL reallocate(gto_basis_set%m,1,nsgf)
+    CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
+    ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "gto_basis_set%cgf_symbol",12*ncgf)
+    END IF
+    ALLOCATE (gto_basis_set%sgf_symbol(nsgf),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "gto_basis_set%sgf_symbol",6*nsgf)
+    END IF
+
+    ncgf = 0
+    nsgf = 0
+
+    DO iset=1,nset
+      lshell = gto_basis_set%l(1,iset)
+      np = lshell + 1
+      DO ico=ncoset(lshell-1)+1,ncoset(lshell)
+        ncgf = ncgf + 1
+        gto_basis_set%lx(ncgf) = indco(1,ico)
+        gto_basis_set%ly(ncgf) = indco(2,ico)
+        gto_basis_set%lz(ncgf) = indco(3,ico)
+        gto_basis_set%cgf_symbol(ncgf) =&
+          cgf_symbol(np,(/gto_basis_set%lx(ncgf),&
+                          gto_basis_set%ly(ncgf),&
+                          gto_basis_set%lz(ncgf)/))
+      END DO
+      DO m=-lshell,lshell
+        nsgf = nsgf + 1
+        gto_basis_set%m(nsgf) = m
+        gto_basis_set%sgf_symbol(nsgf) = sgf_symbol(np,lshell,m)
+      END DO
+    END DO
+
+  END SUBROUTINE create_gto_from_sto_basis
 
 ! *****************************************************************************
 
