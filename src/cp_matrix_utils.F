@@ -182,8 +182,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   !pure
   function cp_p_norm_matrix(matrix, p) result(res)
     real(kind=wp) :: res
@@ -207,7 +206,6 @@ contains
        end do
     end if
   end function cp_p_norm_matrix
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sup_norm_matrix [1.0] *
@@ -240,8 +238,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   !pure 
   function cp_sup_norm_matrix(matrix) result(res)
     real(kind=wp) :: res
@@ -258,7 +255,6 @@ contains
        res=-1.0_wp
     end if
   end function cp_sup_norm_matrix
-!!***
 !***************************************************************************
 
 ! ================== cp_matrix_block_iterator ================
@@ -299,8 +295,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   subroutine cp_matrix_b_i_init(block_iterator, matrix, block_row,&
        block_node, error)
     type(cp_matrix_block_iterator), intent(out) :: block_iterator
@@ -323,7 +318,6 @@ contains
     if (present(block_row)) &
          block_iterator%block_row = block_row
   end subroutine cp_matrix_b_i_init
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_matrix_b_i_dealloc_ref [1.0] *
@@ -355,8 +349,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   subroutine cp_matrix_b_i_dealloc_ref(block_iterator, error)
     type(cp_matrix_block_iterator), intent(inout) :: block_iterator
     type(cp_error_type), optional, intent(inout) :: error
@@ -371,7 +364,6 @@ contains
        block_iterator%block_row=0
     end if
   end subroutine cp_matrix_b_i_dealloc_ref
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_matrix_b_i_get [1.0] *
@@ -416,8 +408,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   subroutine cp_matrix_b_i_get(block_iterator, block_row, block_col,&
        block_val, finished, matrix, block_node, error)
     type(cp_matrix_block_iterator), intent(in) :: block_iterator
@@ -464,7 +455,6 @@ contains
             block_node => block_iterator%block_node
     end if
   end subroutine cp_matrix_b_i_get
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_matrix_b_i_valid [1.0] *
@@ -498,8 +488,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   function cp_matrix_b_i_valid(block_iterator,error) result(res)
     logical ::res
     type(cp_matrix_block_iterator), intent(in) :: block_iterator
@@ -518,7 +507,6 @@ contains
     end if
     res=.not.failure
   end function cp_matrix_b_i_valid
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_matrix_b_i_next_block [1.0] *
@@ -552,8 +540,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   function cp_matrix_b_i_next_block(block_iterator, error) result(res)
     logical :: res
     type(cp_matrix_block_iterator), intent(inout) :: block_iterator
@@ -604,7 +591,6 @@ contains
     end if
     res=.false.
   end function cp_matrix_b_i_next_block
-!!***
 !***************************************************************************
 
 ! ============ real block (sparse) matrix utils ===========
@@ -644,8 +630,7 @@ contains
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
 function cp_sm_diag_trace(diagonal, matrix, global_env, error) result(res)
   real(kind=wp) :: res
   real(kind=wp), dimension(:), intent(in) :: diagonal
@@ -683,7 +668,6 @@ function cp_sm_diag_trace(diagonal, matrix, global_env, error) result(res)
   call mp_sum(res,global_env%group)
   call timestop(0.0_wp,handle)
 end function cp_sm_diag_trace
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_set_to [1.0] *
@@ -722,8 +706,7 @@ end function cp_sm_diag_trace
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   subroutine cp_sm_set_to(matrix, value, error)
     type(real_matrix_type), intent(inout), target :: matrix
     real(kind=wp), optional, intent(in) :: value
@@ -741,14 +724,18 @@ end function cp_sm_diag_trace
 
     if (.not. failure) then
        call cp_init(iterator,matrix,error=iError)
-       call cp_propagate_error(iError,routineP,CPSourceFileRef(),error,failure)
+       call cp_propagate_error(iError,routineP,&
+            CPSourceFileRef(),&
+            error,failure)
     end if
     if (.not.failure) then
        if (present(value)) val=value
        do
           if (cp_next(iterator,error=iError)) then
              call cp_get(iterator,block_val=block_val,error=iError)
-             call cp_propagate_error(iError,routineP,CPSourceFileRef(),error,failure)
+             call cp_propagate_error(iError,routineP,&
+                  CPSourceFileRef(),&
+                  error,failure)
              CPPrecondition(associated(block_val),cp_failure_level,routineP,error,failure)
              if (.not.failure) then
                 block_val=val
@@ -756,7 +743,8 @@ end function cp_sm_diag_trace
                 exit
              end if
           else
-             call cp_propagate_error(iError,routineP,CPSourceFileRef(),&
+             call cp_propagate_error(iError,routineP,&
+                  CPSourceFileRef(),&
                   error,failure)
              exit
           end if
@@ -765,7 +753,6 @@ end function cp_sm_diag_trace
     end if
     call cp_dealloc_ref(iError,error=error)
   end subroutine cp_sm_set_to
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_build_d_struct [1.0] *
@@ -798,8 +785,7 @@ end function cp_sm_diag_trace
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
 subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
   integer, dimension(:), pointer :: d_struct
   type(global_environment_type), intent(in), target :: global_env
@@ -863,7 +849,6 @@ subroutine cp_d_struct_create(d_struct, matrix, n_blocks, global_env, error)
   end if
   !call timestop(0.0_wp,handle)
 end subroutine cp_d_struct_create
-!!***
 !***************************************************************************
 
 
@@ -906,8 +891,7 @@ end subroutine cp_d_struct_create
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
   subroutine cp_sm_init_diagonal_blocks(matrix, global_env, d_struct, &
        default_value, diagonal_value, error)
     type(real_matrix_type), intent(inout), target :: matrix
@@ -969,12 +953,12 @@ end subroutine cp_d_struct_create
           call cp_assert(cp_is_block_diagonal(matrix,global_env),&
                cp_failure_level,&
                cp_assertion_failed,routineP, "matrix is not diagonal in "//&
-               CPSourceFileRef(),error,failure)
+               CPSourceFileRef(),&
+               error,failure)
        end if
     end if
   call timestop(0.0_wp,handle)
 end subroutine cp_sm_init_diagonal_blocks
-!!***
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_is_block_diagonal [1.0] *
@@ -1009,8 +993,7 @@ end subroutine cp_sm_init_diagonal_blocks
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!   SOURCE
-!***************************************************************************
+!!*** **********************************************************************
 function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
   logical :: res
   type(real_matrix_type), intent(inout), target :: matrix
@@ -1064,7 +1047,6 @@ function cp_sm_is_block_diagonal(matrix, global_env, error) result(res)
   res=.not.failure
   !call timestop(0.0_wp,handle)
 end function cp_sm_is_block_diagonal
-!!***
 !***************************************************************************
 
 end module cp_matrix_utils
