@@ -86,11 +86,18 @@ MODULE qs_collocate_density
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_p_type,&
+                                             pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              COMPLEXDATA3D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE,&
+                                             pw_copy,&
+                                             pw_p_type,&
+                                             pw_type
   USE qs_blacs,                        ONLY: blacs_get_element,&
                                              cp_fm_get_info,&
                                              cp_full_matrix_type
@@ -288,7 +295,7 @@ CONTAINS
                 ineighbor,ipgf,iset,ishell,istat,j,jatom,jco,jkind,jpgf,jset,&
                 jshell,katom,maxco,maxsgf_set,na1,na2,nb1,nb2,ncoa,ncob,&
                 nkind,nneighbor,nseta,nsetb,sgfa,sgfb
-    LOGICAL  :: skip_block
+    LOGICAL  :: skip_block, mrebuild
 
     REAL(wp), DIMENSION(3) :: ra,rab,rb
 
@@ -305,7 +312,7 @@ CONTAINS
          handle2
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), POINTER :: rs_pools
-
+mrebuild=.true.
 !   ---------------------------------------------------------------------------
     CALL timeset("calculate_rho_elec","I","",handle)
 
@@ -358,7 +365,7 @@ CONTAINS
 !$OMP PRIVATE(ithread,nthread) &
 !$OMP SHARED(gridlevel_info,ncoset,p_old,eps_rho_rspace,cube_info,l_info) &
 !$OMP SHARED(maxsgf_set,nkind,maxco,p,particle_set,cell) &
-!$OMP SHARED(atomic_kind_set,sab_orb,rebuild,rs_rho,natom)
+!$OMP SHARED(atomic_kind_set,sab_orb,mrebuild,rs_rho,natom)
       ithread=0
       nthread=1
 !$    nthread=omp_get_num_threads()
@@ -369,7 +376,7 @@ CONTAINS
     ALLOCATE (work(maxco,maxsgf_set),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",maxco*maxsgf_set*wp_size)
 
-    IF (.NOT.rebuild) THEN
+    IF (.NOT.mrebuild) THEN
       ALLOCATE (pab_old(maxco,maxco),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pab_old",maxco*maxco*wp_size)
     END IF
@@ -460,7 +467,7 @@ CONTAINS
    
                skip_block = .TRUE.
    
-               IF (rebuild) THEN
+               IF (mrebuild) THEN
                  loop1: DO j=1,SIZE(p_block,2)
                    DO i=1,SIZE(p_block,1)
                      IF (100.0_wp*ABS(p_block(i,j)) > eps_rho_rspace) THEN
@@ -534,7 +541,7 @@ CONTAINS
                                 1.0_wp,work(1,1),SIZE(work,1),&
                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                     IF (.NOT.rebuild) THEN
+                     IF (.NOT.mrebuild) THEN
                        CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
                                   1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                   p_old_block(sgfa,sgfb),SIZE(p_old_block,1),&
@@ -558,7 +565,7 @@ CONTAINS
                                 1.0_wp,work(1,1),SIZE(work,1),&
                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                     IF (.NOT.rebuild) THEN
+                     IF (.NOT.mrebuild) THEN
                        CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
                                   1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                                   p_old_block(sgfb,sgfa),SIZE(p_old_block,1),&
@@ -649,40 +656,46 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
-    IF (.NOT.rebuild) THEN
+    IF (.NOT.mrebuild) THEN
       DEALLOCATE (pab_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pab_old")
     END IF
 !$OMP END PARALLEL
     CALL timestop(0.0_wp,handle2)
 
+    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical) THEN
+       CALL rs_pw_transfer(rs_rho(1)%rs_grid,&
+            rho%pw,"FORWARD")
+!FM copy also in mgrid_rspace?
+       CALL coeff_transform_space(rho,rho_gspace)
+    ELSE
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+          CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
+               mgrid_rspace(igrid_level)%pw,"FORWARD")
+       ENDDO
 
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
-            mgrid_rspace(igrid_level)%pw,"FORWARD")
-    ENDDO
-    
-    CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
+       CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
-!   *** Get the density on the auxillary basis cutoff grid ***
+       !   *** Get the density on the auxillary basis cutoff grid ***
 
-    CALL coeff_zero(rho_gspace)
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
-      CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
-    END DO
+       CALL coeff_zero(rho_gspace)
+       DO igrid_level=1,gridlevel_info%ngrid_levels
+          CALL coeff_transform_space(mgrid_rspace(igrid_level),mgrid_gspace(igrid_level))
+          CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+       END DO
 
-!   *** Save real-space density ***
-    IF (.NOT. rebuild) THEN
-      CALL coeff_sumup(rho_gspace_old,rho_gspace)
+       !   *** Save real-space density ***
+       IF (.NOT. mrebuild) THEN
+          CALL coeff_sumup(rho_gspace_old,rho_gspace)
+       END IF
+
+       CALL coeff_transform_space(rho_gspace,rho)
+
     END IF
+    
     CALL coeff_copy(rho_gspace,rho_gspace_old)
-
-    CALL coeff_transform_space(rho_gspace,rho)
-
     total_rho = calculate_total_rho(rho)
     CALL timestop(0.0_wp,handle)
-
 
   END SUBROUTINE calculate_rho_elec
 

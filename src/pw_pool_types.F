@@ -453,6 +453,7 @@ CONTAINS
 !!     - pw: will contain the new pw
 !!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
 !!       REALDATA3D, COMPLEXDATA3D
+!!     - in_space: in which space it is: REALSPACE, RECIPROCALSPACE
 !!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
 !!       defaults to false
 !!     - error: variable to control error logging, stopping,... 

@@ -65,8 +65,10 @@ MODULE cp_array_i_utils
   
   ! the underlying procedures
   PUBLIC :: cp_1d_i_output, cp_2d_i_output,&
+       cp_3d_i_output,&
        cp_1d_i_guarantee_size, cp_i_write,&
        cp_1d_i_write, cp_2d_i_write,&
+       cp_3d_i_write,&
        cp_2d_i_guarantee_size
 
   INTERFACE cp_output
@@ -557,6 +559,182 @@ SUBROUTINE cp_2d_i_write(array, unit_nr, el_format, error)
      END IF
   END DO
 END SUBROUTINE cp_2d_i_write
+!***************************************************************************
+
+!!****f* cp_array_i_utils/cp_3d_i_output *
+!!
+!!   NAME
+!!     cp_3d_i_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_3d_i_output(logger, outputname, fromwhere, iter, array,&
+!!         comment, local, el_format, error)
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: iter
+!!       Integer, Intent (IN), Dimension(:,:,:):: array
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
+!!       Logical, Intent (IN), Optional:: local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_3d_i_output
+!!
+!!   FUNCTION
+!!     writes a 3d array to an aptly named file
+!!
+!!   NOTES
+!!     The filename is written as note to the log.
+!!     At the moment outputs the comment precede by a # and then the sizes
+!!     of the dimesnion and finally the whole
+!!     with spaces between the entries (with the default format), and newlines
+!!     after each row.
+!!
+!!   INPUTS
+!!     logger: the logger that decides where the logging should go
+!!     outputName: the name of the output, for example 'hamiltonian'
+!!     fromWhere: string of the form module:function or file:lineNr
+!!                that says where the error happend
+!!     iter: the iteration number, or some other number that permit to 
+!!           differentiate between different instances of the same object
+!!     array: the array to output
+!!     local: if the output is local to each task
+!!     el_format: the (optional) format of a single number
+!!     local: if the output is local to this task (defaults to false)
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     @author Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_3d_i_output(logger, outputName, &
+     fromWhere, iter, array,&
+     comment, local, el_format, error)
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  INTEGER, INTENT(in), DIMENSION(:,:,:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_3d_i_output',&
+       routineP=moduleN//':'//routineN
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, lenFormat, iostat
+  failure=.FALSE.; loc=.FALSE.
+
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  IF (PRESENT(local)) loc=local
+  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
+     IF (cp_would_output(logger, outputName , fromWhere, iter,&
+          local=loc,error=error)) THEN
+
+        CALL cp_logger_generate_filename(logger,filename,&
+             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
+             '.dat',local=loc)
+        CALL cp_log(logger, cp_note_level, fromWhere, &
+             "writing output to file'"//TRIM(filename)//"'") 
+        INQUIRE (FILE=TRIM(filename),EXIST=exists)
+        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
+             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
+             error=error)
+        CALL open_file(TRIM(filename),file_status="unknown",&
+             file_action="write",&
+             unit_number=unitNr)
+
+        IF (PRESENT(comment)) THEN
+           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.NOT.failure) THEN
+           CALL cp_3d_i_write(array,unit_nr=unitNr,&
+                el_format=el_format,error=error)
+        END IF
+
+        CALL close_file(unitNr)
+     END IF
+  END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_3d_i_output
+!***************************************************************************
+
+!!****f* cp_array_i_utils/cp_3d_i_write *
+!!
+!!   NAME
+!!     cp_3d_i_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_3d_i_write(array, unit_nr, el_format, error)
+!!       Integer, Dimension(:,:,:), Intent (IN):: array
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_3d_i_write
+!!
+!!   FUNCTION
+!!     writes an array to the given unit
+!!
+!!   NOTES
+!!     maybe I will move to a comma separated parentized list
+!!     the order of the elements is different from 2d
+!!
+!!   INPUTS
+!!     array: the array to write
+!!     unit_nr: the unit to write to (defaults to the standard out)
+!!     el_format: the format of a single element
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_3d_i_write(array, unit_nr, el_format, error)
+  INTEGER, DIMENSION(:,:,:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  INTEGER :: iostat, j, k
+  CHARACTER(len=*), PARAMETER :: routineN='cp_3d_i_write',&
+        routineP=moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(i6)"
+  CHARACTER(len=10) :: nRiga
+  failure=.FALSE.
+  
+  WRITE(unit=unit_nr,fmt='(i10," ",i10," ",i10,/)',iostat=iostat) &
+       SIZE(array,1),SIZE(array,2), SIZE(array,3)
+  CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+
+  nRiga=cp_to_string(SIZE(array,1))
+  DO k=1,SIZE(array,3)
+     DO j=1,SIZE(array,2)
+        IF (PRESENT(el_format)) THEN
+           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',&
+                iostat=iostat) array(:,j,k)
+        ELSE
+           WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',&
+                iostat=iostat) array(:,j,k)
+        END IF
+        CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+        IF (failure) THEN
+           EXIT
+        END IF
+     END DO
+     WRITE(unit=unit_nr,fmt='()',iostat=iostat)
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  END DO
+END SUBROUTINE cp_3d_i_write
 !***************************************************************************
 
 !!****f* cp_array_i_utils/cp_1d_i_guarantee_size [1.0] *
