@@ -176,7 +176,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
     INTEGER                                  :: handle, ipart, istat, &
                                                 nunits_tot, unit,mc_nunits,&
                                                 mc_nunits_tot,mc_nchain,&
-                                                nstart
+                                                nstart,i
     REAL(KIND=dp)                            :: box_length, temp,mc_temp
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
