@@ -802,7 +802,7 @@ CONTAINS
           CPPrecondition(my_can_return_null.OR.ASSOCIATED(rhob),cp_failure_level,routineP,error,failure)
        END IF
        IF (PRESENT(drhoa)) THEN
-          drhoa => rho_set%drho
+          drhoa => rho_set%drhoa
           IF (.NOT.my_can_return_null) THEN
              DO i=1,3
                 CPAssert(ASSOCIATED(rho_set%drhoa(i)%array),cp_failure_level,routineP,error,failure)
@@ -810,7 +810,7 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(drhob)) THEN
-          drho => rho_set%drhob
+          drhob => rho_set%drhob
           IF (.NOT.my_can_return_null) THEN
              DO i=1,3
                 CPPrecondition(ASSOCIATED(rho_set%drhob(i)%array),cp_failure_level,routineP,error,failure)
@@ -1027,6 +1027,7 @@ CONTAINS
     END IF
 
     CALL xc_rho_cflags_setall(rho_set%has,.FALSE.,error=error)
+    CALL xc_rho_cflags_setall(rho_set%owns,.FALSE.,error=error)
 
     gradient_f=(needs%drho_spin.OR.needs%norm_drho_spin.OR.&
          needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
@@ -1052,6 +1053,8 @@ CONTAINS
 
           CALL pw_copy(rho_g(ispin)%pw,my_rho_g)
           SELECT CASE(dft_control%xc_rho_smooth_id)
+          CASE (xc_rho_no_smooth)
+             !
           CASE (xc_rho_spline2_smooth)
              CALL pw_spline2_evaluate_values_g(my_rho_g,error=error)
           CASE (xc_rho_spline3_smooth)
@@ -1138,8 +1141,6 @@ CONTAINS
 
 ! my_rho_g might be either rho_g or the weights of the spline
 ! my_rho_r contains the function that has been derived
-! drgrid contains the function that should have been derived:
-!        the (maybe smoothed) rho
 
           IF (my_rho_g_local) THEN
              my_rho_g_local=.FALSE.
@@ -1209,8 +1210,8 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rho(i,j,k)=rho_r(1)%pw%cr3d(i,j,k)+&
-                        rho_r(2)%pw%cr3d(i,j,k)
+                   rho_set%rho(i,j,k)=my_rho_r(1)%pw%cr3d(i,j,k)+&
+                        my_rho_r(2)%pw%cr3d(i,j,k)
                 END DO
              END DO
           END DO
@@ -1224,8 +1225,8 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rho_1_3(i,j,k)=MAX(rho_r(1)%pw%cr3d(i,j,k)+&
-                        rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
+                   rho_set%rho_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k)+&
+                        my_rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO
@@ -1239,7 +1240,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhoa_1_3(i,j,k)=MAX(rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
+                   rho_set%rhoa_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO
@@ -1249,7 +1250,7 @@ CONTAINS
           DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
                 DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
-                   rho_set%rhob_1_3(i,j,k)=MAX(rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
+                   rho_set%rhob_1_3(i,j,k)=MAX(my_rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
           END DO

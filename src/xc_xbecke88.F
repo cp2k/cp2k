@@ -205,17 +205,14 @@ SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='xb88_lda_eval',&
         routineP=moduleN//':'//routineN
-  INTEGER :: i,j,k,npoints
+  INTEGER :: npoints
   integer, DIMENSION(:,:), pointer :: bo
   REAL(kind=dp),DIMENSION(:,:,:), POINTER :: dummy,rho, rho_1_3, norm_drho,&
        e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
        e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        e_ndrho_ndrho_ndrho
   TYPE(xc_derivative_type), POINTER :: deriv
-  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho, x, t1,t2,t7,&
-       t3,t4,t5,t6,t8,t9,t10,t11,t12,t16,t17,t20,t30,t32,t36,&
-       t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
-       t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181
+  REAL(kind=dp) :: epsilon_rho, epsilon_norm_drho
   INTEGER :: stat
 
   failure=.false.
@@ -371,80 +368,193 @@ SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
        t_2_9=2.0_dp/9.0_dp, t_4_27=4.0_dp/27.0_dp
 
   failure=.false.
-  c= 1.5*(0.75/Pi)**(1.0_dp/3.0_dp)
+  c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
   t1 = 2 ** (0.1e1_dp / 0.3e1_dp)
   t2 = t1 ** 2
   t5 = beta * t2
   t7 = beta * t1
   epsilon_rho43=epsilon_rho**(4./3.)
-!FM$omp parallel do default(none)&
-     !FM$omp   shared(rho, rho_1_3, norm_drho,&
-!FM$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
-     !FM$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
-!FM$omp     e_ndrho_ndrho_ndrho,t1,t2,t3,t7)&
-     !FM$omp   private(ii,t4,t5,t6,t7,t8,t9,t10,t11,t12,t16,t17,t20,t30,t32,t36,&
-!FM$omp     t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
-     !FM$omp     t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181)
-  DO ii=1,npoints
 
-     my_rho = MAX(rho(ii),epsilon_rho)
-     my_rho_1_3 = rho_1_3(ii)
-     t3 = my_rho_1_3 * my_rho
-     x = norm_drho(ii)/MAX(t3,epsilon_rho43)
-     t6 = x ** 2
-     t10 = t2 * t6 + 0.1e1_dp
-     t11 = sqrt(t10)
-     t12 = t1 * x + t11
-     t13 = log(t12)
-     t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
-     t18 = 0.1e1_dp / t17
-     t21 = -c - t5 * t6 * t18
+  SELECT CASE(grad_deriv)
+  CASE (0)
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21)
+     DO ii=1,npoints
 
-     IF (grad_deriv>=0 .and. my_rho > epsilon_rho) THEN
-        e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
-     END IF
+        my_rho = MAX(rho(ii),epsilon_rho)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
 
-     t23 = t2 * my_rho_1_3
-     t29 = 0.1e1_dp / t11
-     t31 = t1 + t2 * x * t29
-     t33 = 0.1e1_dp / t12
-     t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
-     t39 = t17 ** 2
-     t40 = 0.1e1_dp / t39
-     t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
-     t44 = t43 * x
+        IF (my_rho > epsilon_rho) THEN
+           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+        END IF
+        
+     END DO
+  CASE (1)
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+     !$omp       t31, t33, t37, t39, t40, t43, t44)
+     DO ii=1,npoints
+
+        my_rho = MAX(rho(ii),0.0_dp)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
+
+        IF (my_rho > epsilon_rho) THEN
+           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+        END IF
+
+        t23 = t2 * my_rho_1_3
+        t29 = 0.1e1_dp / t11
+        t31 = t1 + t2 * x * t29
+        t33 = 0.1e1_dp / t12
+        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+        t39 = t17 ** 2
+        t40 = 0.1e1_dp / t39
+        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+        t44 = t43 * x
 
 
-     IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
         e_rho(ii) = e_rho(ii)&
              -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
              t23 * t21
         e_ndrho(ii) = e_ndrho(ii)&
              +t2 * t43 / 0.2e1_dp
-     END IF
+     END DO
+  CASE (-1)
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+     !$omp       t31, t33, t37, t39, t40, t43, t44)
+     DO ii=1,npoints
 
-     t49 = my_rho_1_3 ** 2
-     t51 = t2 / t49
-     t54 = x * t40
-     t64 = 0.1e1_dp / t11 / t10
-     t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
-     t72 = t31 ** 2
-     t74 = t12 ** 2
-     t75 = 0.1e1_dp / t74
-     t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
-          - 0.6e1_dp * t7 * x * t72 * t75
-     t83 = t37 ** 2
-     t86 = 0.1e1_dp / t39 / t17
-     t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
-          t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
-     t91 = t90 * t6
-     t98 = 0.1e1_dp / my_rho
-     t99 = t2 * t98
-     t100 = t90 * x
-     t104 = 0.1e1_dp / t3
+        my_rho = MAX(rho(ii),epsilon_rho)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
+
+        t23 = t2 * my_rho_1_3
+        t29 = 0.1e1_dp / t11
+        t31 = t1 + t2 * x * t29
+        t33 = 0.1e1_dp / t12
+        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+        t39 = t17 ** 2
+        t40 = 0.1e1_dp / t39
+        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+        t44 = t43 * x
 
 
-     IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
+        e_rho(ii) = e_rho(ii)&
+             -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+             t23 * t21
+        e_ndrho(ii) = e_ndrho(ii)&
+             +t2 * t43 / 0.2e1_dp
+     END DO
+  CASE (2)
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+     DO ii=1,npoints
+
+        my_rho = MAX(rho(ii),epsilon_rho)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
+
+        IF (my_rho > epsilon_rho) THEN
+           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+        END IF
+        
+        t23 = t2 * my_rho_1_3
+        t29 = 0.1e1_dp / t11
+        t31 = t1 + t2 * x * t29
+        t33 = 0.1e1_dp / t12
+        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+        t39 = t17 ** 2
+        t40 = 0.1e1_dp / t39
+        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+        t44 = t43 * x
+
+        e_rho(ii) = e_rho(ii)&
+             -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+             t23 * t21
+        e_ndrho(ii) = e_ndrho(ii)&
+             +t2 * t43 / 0.2e1_dp
+
+        t49 = my_rho_1_3 ** 2
+        t51 = t2 / t49
+        t54 = x * t40
+        t64 = 0.1e1_dp / t11 / t10
+        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+        t72 = t31 ** 2
+        t74 = t12 ** 2
+        t75 = 0.1e1_dp / t74
+        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+             - 0.6e1_dp * t7 * x * t72 * t75
+        t83 = t37 ** 2
+        t86 = 0.1e1_dp / t39 / t17
+        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+        t91 = t90 * t6
+        t98 = 0.1e1_dp / my_rho
+        t99 = t2 * t98
+        t100 = t90 * x
+        t104 = 0.1e1_dp / t3
+
         e_rho_rho(ii) = e_rho_rho(ii)&
              +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
              t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
@@ -452,37 +562,180 @@ SUBROUTINE xb88_lda_calc(rho, rho_1_3, norm_drho,&
              -0.2e1_dp / 0.3e1_dp * t99 * t100
         e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
              +t2 * t90 * t104 / 0.2e1_dp
-     END IF
+     END DO
+  CASE (-2)
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+     DO ii=1,npoints
 
-     t126 = t10 ** 2
-     t159 = t39 ** 2
-     t164 = 0.6e1_dp * t5 * t40 * t37 - 0.12e2_dp * t5 * x * t86 * t83 &
-          + 0.6e1_dp * t5 * t54 * t79 + t5 * t6 * (0.18e2_dp * t7 * t67 &
-          * t33 - 0.18e2_dp * t7 * t72 * t75 + 0.6e1_dp * t7 * x * &
-          (-0.6e1_dp * t1 * t64 * x + 0.12e2_dp * t6 * x / t11 / t126)&
-          * t33 - 0.18e2_dp * t7 * x * t67 * t75 * t31 + 0.12e2_dp * t7 &
-          * x * t72 * t31 / t74 / t12) * t40 - 0.6e1_dp * t5 * t6 * t79 &
-          * t86 * t37 + 0.6e1_dp * t5 * t6 * t83 * t37 / t159
-     t170 = 0.8e1_dp / 0.9e1_dp * t51 * t164 * t6 + 0.14e2_dp / 0.9e1_dp&
-          * t51 * t100
-     t176 = t2 / t49 / my_rho
-     t189 = my_rho ** 2
+        my_rho = MAX(rho(ii),epsilon_rho)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
 
-     IF (grad_deriv==-3.or.grad_deriv>=3) THEN
-        e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
-             -0.4e1_dp / 0.3e1_dp * t170 * x * t98 - 0.16e2_dp / 0.27e2_dp &
-             * t176 * t91 + 0.4e1_dp / 0.27e2_dp * t176 * t44 - &
-             0.4e1_dp / 0.27e2_dp * t176 * t21
-        e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
-             +t170 * t104
-        e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
-             +(-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
-             0.2e1_dp / 0.3e1_dp * t99 * t90) * t104
-        e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
-             +t2 * t164 / t49 / t189 / 0.2e1_dp
-     END IF
+        t23 = t2 * my_rho_1_3
+        t29 = 0.1e1_dp / t11
+        t31 = t1 + t2 * x * t29
+        t33 = 0.1e1_dp / t12
+        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+        t39 = t17 ** 2
+        t40 = 0.1e1_dp / t39
+        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+        t44 = t43 * x
 
-  END DO
+        t49 = my_rho_1_3 ** 2
+        t51 = t2 / t49
+        t54 = x * t40
+        t64 = 0.1e1_dp / t11 / t10
+        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+        t72 = t31 ** 2
+        t74 = t12 ** 2
+        t75 = 0.1e1_dp / t74
+        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+             - 0.6e1_dp * t7 * x * t72 * t75
+        t83 = t37 ** 2
+        t86 = 0.1e1_dp / t39 / t17
+        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+        t91 = t90 * t6
+        t98 = 0.1e1_dp / my_rho
+        t99 = t2 * t98
+        t100 = t90 * x
+        t104 = 0.1e1_dp / t3
+
+        e_rho_rho(ii) = e_rho_rho(ii)&
+             +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+             t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+        e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+             -0.2e1_dp / 0.3e1_dp * t99 * t100
+        e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+             +t2 * t90 * t104 / 0.2e1_dp
+     END DO
+  CASE default
+     !$omp parallel do default(none)&
+     !$omp   shared(rho, rho_1_3, norm_drho, epsilon_rho43, epsilon_rho,&
+     !$omp     e_0,e_rho,e_ndrho,e_rho_rho,e_ndrho_rho,&
+     !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
+     !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7,grad_deriv)&
+     !$omp   private(x, my_rho,my_rho_1_3,&
+     !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
+     !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
+     !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
+     !$omp       t170, t176, t189)
+     DO ii=1,npoints
+
+        my_rho = MAX(rho(ii),epsilon_rho)
+        my_rho_1_3 = rho_1_3(ii)
+        t3 = my_rho_1_3 * my_rho
+        x = norm_drho(ii)/MAX(t3,epsilon_rho43)
+        t6 = x ** 2
+        t10 = t2 * t6 + 0.1e1_dp
+        t11 = sqrt(t10)
+        t12 = t1 * x + t11
+        t13 = log(t12)
+        t17 = 0.1e1_dp + 0.6e1_dp * t7 * x * t13
+        t18 = 0.1e1_dp / t17
+        t21 = -c - t5 * t6 * t18
+
+        IF (grad_deriv>=0 .and. my_rho > epsilon_rho) THEN
+           e_0(ii) = e_0(ii)+t2 * t3 * t21 / 0.2e1_dp
+        END IF
+
+        t23 = t2 * my_rho_1_3
+        t29 = 0.1e1_dp / t11
+        t31 = t1 + t2 * x * t29
+        t33 = 0.1e1_dp / t12
+        t37 = 0.6e1_dp * t7 * t13 + 0.6e1_dp * t7 * x * t31 * t33
+        t39 = t17 ** 2
+        t40 = 0.1e1_dp / t39
+        t43 = -0.2e1_dp * t5 * x * t18 + t5 * t6 * t37 * t40
+        t44 = t43 * x
+
+
+        IF (grad_deriv>=1.OR.grad_deriv==-1) THEN
+           e_rho(ii) = e_rho(ii)&
+                -0.2e1_dp / 0.3e1_dp * t23 * t44 + 0.2e1_dp / 0.3e1_dp *&
+                t23 * t21
+           e_ndrho(ii) = e_ndrho(ii)&
+                +t2 * t43 / 0.2e1_dp
+        END IF
+
+        t49 = my_rho_1_3 ** 2
+        t51 = t2 / t49
+        t54 = x * t40
+        t64 = 0.1e1_dp / t11 / t10
+        t67 = t2 * t29 - 0.2e1_dp * t1 * t6 * t64
+        t72 = t31 ** 2
+        t74 = t12 ** 2
+        t75 = 0.1e1_dp / t74
+        t79 = 0.12e2_dp * t7 * t31 * t33 + 0.6e1_dp * t7 * x * t67 * t33 &
+             - 0.6e1_dp * t7 * x * t72 * t75
+        t83 = t37 ** 2
+        t86 = 0.1e1_dp / t39 / t17
+        t90 = -0.2e1_dp * t5 * t18 + 0.4e1_dp * t5 * t54 * t37 + t5 * t6 *&
+             t79 * t40 - 0.2e1_dp * t5 * t6 * t83 * t86
+        t91 = t90 * t6
+        t98 = 0.1e1_dp / my_rho
+        t99 = t2 * t98
+        t100 = t90 * x
+        t104 = 0.1e1_dp / t3
+
+
+        IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
+           e_rho_rho(ii) = e_rho_rho(ii)&
+                +0.8e1_dp / 0.9e1_dp * t51 * t91 - 0.2e1_dp / 0.9e1_dp * &
+                t51 * t44 + 0.2e1_dp / 0.9e1_dp * t51 * t21
+           e_ndrho_rho(ii) = e_ndrho_rho(ii)&
+                -0.2e1_dp / 0.3e1_dp * t99 * t100
+           e_ndrho_ndrho(ii) = e_ndrho_ndrho(ii)&
+                +t2 * t90 * t104 / 0.2e1_dp
+        END IF
+
+        t126 = t10 ** 2
+        t159 = t39 ** 2
+        t164 = 0.6e1_dp * t5 * t40 * t37 - 0.12e2_dp * t5 * x * t86 * t83 &
+             + 0.6e1_dp * t5 * t54 * t79 + t5 * t6 * (0.18e2_dp * t7 * t67 &
+             * t33 - 0.18e2_dp * t7 * t72 * t75 + 0.6e1_dp * t7 * x * &
+             (-0.6e1_dp * t1 * t64 * x + 0.12e2_dp * t6 * x / t11 / t126)&
+             * t33 - 0.18e2_dp * t7 * x * t67 * t75 * t31 + 0.12e2_dp * t7 &
+             * x * t72 * t31 / t74 / t12) * t40 - 0.6e1_dp * t5 * t6 * t79 &
+             * t86 * t37 + 0.6e1_dp * t5 * t6 * t83 * t37 / t159
+        t170 = 0.8e1_dp / 0.9e1_dp * t51 * t164 * t6 + 0.14e2_dp / 0.9e1_dp&
+             * t51 * t100
+        t176 = t2 / t49 / my_rho
+        t189 = my_rho ** 2
+
+        IF (grad_deriv==-3.or.grad_deriv>=3) THEN
+           e_rho_rho_rho(ii) = e_rho_rho_rho(ii) &
+                -0.4e1_dp / 0.3e1_dp * t170 * x * t98 - 0.16e2_dp / 0.27e2_dp &
+                * t176 * t91 + 0.4e1_dp / 0.27e2_dp * t176 * t44 - &
+                0.4e1_dp / 0.27e2_dp * t176 * t21
+           e_ndrho_rho_rho(ii) = e_ndrho_rho_rho(ii)&
+                +t170 * t104
+           e_ndrho_ndrho_rho(ii) = e_ndrho_ndrho_rho(ii)&
+                +(-0.2e1_dp / 0.3e1_dp * t99 * t164 * x - &
+                0.2e1_dp / 0.3e1_dp * t99 * t90) * t104
+           e_ndrho_ndrho_ndrho(ii) = e_ndrho_ndrho_ndrho(ii)&
+                +t2 * t164 / t49 / t189 / 0.2e1_dp
+        END IF
+
+     END DO
+  END SELECT
   
 END SUBROUTINE xb88_lda_calc
 !***************************************************************************
@@ -544,7 +797,7 @@ SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
           rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
           norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
           drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
-     npoints=(bo(2,1)-bo(1,1))*(bo(2,2)-bo(1,2))*(bo(2,3)-bo(1,3))
+     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
      ! meaningful default for the arrays we don't need: let us make compiler
      ! and debugger happy...
@@ -585,7 +838,7 @@ SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
         CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
         deriv => xc_dset_get_derivative(deriv_set,"(norm_drhob)",&
              allocate_deriv=.TRUE.,error=error)
-        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(1)%array,error=error)
+        CALL xc_derivative_get(deriv,deriv_data=e_ndrho(2)%array,error=error)
      END IF
      IF (grad_deriv>=2.OR.grad_deriv==-2) THEN
         deriv => xc_dset_get_derivative(deriv_set,"(rhoa)(rhoa)",&
@@ -710,38 +963,33 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
 
   CHARACTER(len=*), PARAMETER :: routineN = 'xb88_lsd_calc_123', &
        routineP = moduleN//':'//routineN
-  REAL(kind=dp), PARAMETER :: t_1_9 = 1.0_dp/9.0_dp, t_2_3 = 2.0_dp/3.0_dp, &
-       t_4_27 = 4.0_dp/27.0_dp, t_4_3 = 4.0_dp/3.0_dp, t_4_9 = 4.0_dp/9.0_dp, &
-       t_8_27 = 8.0_dp/27.0_dp
-
   INTEGER                                  :: ii
   LOGICAL                                  :: failure
-  REAL(kind=dp) :: c, x,epsilon_rho43,my_rho,&
+  REAL(kind=dp) :: c, x,my_epsilon_rho,epsilon_rho43,my_rho,&
        t1, t2, t3, t4, t5, t6, t7, t8, t11, t12, t14, t17, t18, t20, t22, &
        t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
        t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
        t138, t151
 
   failure=.false.
-  c=3.0_dp/2.0_dp*(3.0_dp/4.0_dp*Pi)**(1.0_dp/3.0_dp)
-  epsilon_rho43=epsilon_rho**(4./3.)
+  c= 1.5_dp*(0.75_dp/Pi)**(1.0_dp/3.0_dp)
+  my_epsilon_rho=0.5_dp*epsilon_rho
+  epsilon_rho43=my_epsilon_rho**(4._dp/3._dp)
 
   IF (.NOT. failure) THEN
 
-     c=2.0_dp/3.0_dp*(3.0_dp/4.0_dp*pi)**(1.0_dp/3.0_dp)
-
-!FM$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
-     !FM$omp norm_drho_spin,e_0,&
-!FM$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
-     !FM$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
-!FM$omp e_ndrho_ndrho_rho_spin,&
-     !FM$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
-!FM$omp private(ii,x,t1,t2,t3,t4,t5,t6,t7,t8,t9,t12,t13,&
-     !FM$omp t15,t16,t19,t20,t24,t25,t29,t30,t32,t33,t41,t42,t43,t50,t54,t55,&
-!FM$omp t56,t60,t61,t63,t64,t66,t67,t70,t72,t73,t74,t77,t86,t102,t121,&
-     !FM$omp t124,t127,t129,t136,t142,t148)
+     SELECT CASE(grad_deriv)
+     CASE(0)
+     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+     !$omp e_ndrho_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+     !$omp     t12, t14)
      DO ii=1,npoints
-        my_rho=MAX(rho_spin(ii),epsilon_rho)
+        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
         t1 = rho_1_3_spin(ii) * my_rho
         x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
         t2 = x ** 2
@@ -755,7 +1003,84 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
         t12 = 0.1e1_dp / t11
         t14 = -c - t3 * t12
 
-        IF (grad_deriv>=0 .and. my_rho>epsilon_rho) THEN
+        IF (my_rho>my_epsilon_rho) THEN
+           e_0(ii) = e_0(ii)&
+                +t1 * t14
+        END IF
+     END DO
+     CASE (1)
+     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+     !$omp e_ndrho_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+     !$omp     t12, t14, t17, t18, t20, t22, &
+     !$omp     t23, t27, t28, t30)
+     DO ii=1,npoints
+        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
+        t1 = rho_1_3_spin(ii) * my_rho
+        x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
+        t2 = x ** 2
+        t3 = beta * t2
+        t4 = beta * x
+        t5 = t2 + 0.1e1_dp
+        t6 = sqrt(t5)
+        t7 = x + t6
+        t8 = log(t7)
+        t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
+        t12 = 0.1e1_dp / t11
+        t14 = -c - t3 * t12
+
+        IF (my_rho>my_epsilon_rho) THEN
+           e_0(ii) = e_0(ii)&
+                +t1 * t14
+        END IF
+
+        t17 = t11 ** 2
+        t18 = 0.1e1_dp / t17
+        t20 = 0.1e1_dp / t6
+        t22 = 0.1e1_dp + t20 * x
+        t23 = 0.1e1_dp / t7
+        t27 = 0.6e1_dp * beta * t8 + 0.6e1_dp * t4 * t22 * t23
+        t28 = t18 * t27
+        t30 = -0.2e1_dp * t4 * t12 + t3 * t28
+
+        e_rho_spin(ii) = e_rho_spin(ii)&
+             -0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t30 * x + &
+             0.4e1_dp / 0.3e1_dp * rho_1_3_spin(ii) * t14
+        e_ndrho_spin(ii) = e_ndrho_spin(ii)&
+             +t30
+     END DO
+  CASE default
+     !$omp parallel do default(none),shared(c,rho_spin, rho_1_3_spin,&
+     !$omp norm_drho_spin,epsilon_rho43,e_0,my_epsilon_rho,&
+     !$omp e_rho_spin,e_ndrho_spin,e_rho_rho_spin,e_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_spin, e_rho_rho_rho_spin, e_ndrho_rho_rho_spin,&
+     !$omp e_ndrho_ndrho_rho_spin,&
+     !$omp e_ndrho_ndrho_ndrho_spin, grad_deriv),&
+     !$omp private(ii,x,my_rho,t1, t2, t3, t4, t5, t6, t7, t8, t11,&
+     !$omp     t12, t14, t17, t18, t20, t22, &
+     !$omp     t23, t27, t28, t30, t35, t36, t42, t43, t44, t51, t53, t57, t58, &
+     !$omp     t59, t63, t64, t66, t67, t75, t76, t79, t87, t103, t127, t133, &
+     !$omp     t138, t151)
+     DO ii=1,npoints
+        my_rho=MAX(rho_spin(ii),my_epsilon_rho)
+        t1 = rho_1_3_spin(ii) * my_rho
+        x = norm_drho_spin(ii)/MAX(t1,epsilon_rho43)
+        t2 = x ** 2
+        t3 = beta * t2
+        t4 = beta * x
+        t5 = t2 + 0.1e1_dp
+        t6 = sqrt(t5)
+        t7 = x + t6
+        t8 = log(t7)
+        t11 = 0.1e1_dp + 0.6e1_dp * t4 * t8
+        t12 = 0.1e1_dp / t11
+        t14 = -c - t3 * t12
+
+        IF (grad_deriv>=0 .and. my_rho>my_epsilon_rho) THEN
            e_0(ii) = e_0(ii)&
                 +t1 * t14
         END IF
@@ -832,7 +1157,7 @@ SUBROUTINE xb88_lsd_calc(rho_spin, rho_1_3_spin, norm_drho_spin,e_0,&
                 + t127 / t35 / t151
         END IF
      END DO
-
+  END SELECT
   END IF
 
 END SUBROUTINE xb88_lsd_calc

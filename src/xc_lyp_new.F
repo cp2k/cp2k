@@ -829,7 +829,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
           norm_drhob=norm_drhob, norm_drho=norm_drho, &
           rho_cutoff=epsilon_rho,&
           drho_cutoff=epsilon_drho, local_bounds=bo, error=error)
-     npoints=(bo(2,1)-bo(1,1))*(bo(2,2)-bo(1,2))*(bo(2,3)-bo(1,3))
+     npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
 
      ! meaningful default for the arrays we don't need: let us make compiler
      ! and debugger happy...
