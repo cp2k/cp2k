@@ -329,10 +329,13 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
 
 ! Local
   INTEGER :: sign, handle
+  REAL ( dbl ) :: flops
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft1dm","I","",handle)
+  IF ( m == 0 ) RETURN
+
+! CALL timeset("fft1dm","I","Mflops",handle)
 
   sign = fsign
 
@@ -349,7 +352,8 @@ SUBROUTINE fft1dm ( fsign, tin, tout, n, m, zin, zout, scale )
     CALL stop_program ("fft1dm","Unknown FFT library")
   END SELECT
 
-  CALL timestop(0._dbl,handle)
+! flops = REAL ( m*n, dbl ) * 5.e-6_dbl * LOG ( REAL ( n, dbl ) )
+! CALL timestop(flops,handle)
 
 END SUBROUTINE fft1dm
 
@@ -386,10 +390,13 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
 
 ! Local
   INTEGER :: sign, handle
+  REAL ( dbl ) :: flops
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft2dm","I","",handle)
+  IF ( m == 0 ) RETURN
+
+! CALL timeset("fft2dm","I","Mflops",handle)
 
   sign = fsign
 
@@ -406,7 +413,8 @@ SUBROUTINE fft2dm ( fsign, tin, tout, na, nb, m, zin, zout, scale )
     CALL stop_program ("fft2dm","Unknown FFT library")
   END SELECT
 
-  CALL timestop(0._dbl,handle)
+! flops = 5.e-6_dbl * REAL ( m*na*nb, dbl ) * ( LOG ( REAL ( na*nb, dbl ) ) )
+! CALL timestop(flops,handle)
 
 END SUBROUTINE fft2dm
 
@@ -443,12 +451,12 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
   LOGICAL, INTENT ( IN ), OPTIONAL :: debug
 
   LOGICAL :: test
-  REAL ( dbl ) :: norm, in_sum, out_sum
+  REAL ( dbl ) :: norm, in_sum, out_sum, flops, nx
   INTEGER :: sign, ld(3), lo(3), handle
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_s","I","",handle)
+  CALL timeset("fft3d_s","I","Mflops",handle)
 
   IF ( PRESENT ( scale ) ) THEN
     norm = scale
@@ -514,7 +522,9 @@ SUBROUTINE fft3d_s ( fsign, n, zin, zout, scale, status, debug )
     END IF
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  nx = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) ) 
+  CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_s
 
@@ -548,12 +558,12 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: qbuf
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rbuf
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: p2p
-  REAL ( dbl ) :: norm, sum_data
+  REAL ( dbl ) :: norm, sum_data, flops, nf
   LOGICAL :: test
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_ps","I","",handle)
+  CALL timeset("fft3d_ps","I","Mflops",handle)
 
   IF ( PRESENT ( debug ) ) THEN
     test = debug
@@ -829,7 +839,11 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     ! direction x
     !
 
-    lmax = MAX ( lg, (nx*ny*nz)/mg + 1 )
+    IF ( mg == 0 ) THEN
+      lmax = lg
+    ELSE
+      lmax = MAX ( lg, (nx*ny*nz)/mg + 1 )
+    END IF
     ALLOCATE ( sbuf ( mg, lmax ), STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "sbuf", mg*lmax )
 
@@ -937,7 +951,7 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     ENDIF
 
     DEALLOCATE ( tbuf, STAT = ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "tbuf" )
+    IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "tbuf" ) 
     DEALLOCATE ( sbuf, STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "fft3d", "sbuf" )
   
@@ -954,7 +968,10 @@ SUBROUTINE fft3d_ps ( fsign, n, cin, gin, gs_group, rs_group, yzp, nyzray, &
     END IF
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+
+  nf = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
+  flops = nf * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) )
+  CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_ps
 
@@ -978,7 +995,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! Local
   INTEGER :: np, sign, ierr, mx, my, mz, my_pos, lg(2), lz(3), handle
   INTEGER, DIMENSION ( 2 ) :: pos, dim
-  REAL ( dbl ) :: norm, sum_data
+  REAL ( dbl ) :: norm, sum_data, flops, nx
   COMPLEX ( dbl ) , DIMENSION ( :, : ), ALLOCATABLE :: abuf, bbuf
   LOGICAL :: test
 
@@ -1002,7 +1019,7 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
 ! distribution is not covered.
 !------------------------------------------------------------------------------
 
-  CALL timeset("fft3d_pb","I","",handle)
+  CALL timeset("fft3d_pb","I","Mflops",handle)
 
   CALL mp_environ ( np, dim, pos, group )
   CALL mp_cart_rank ( group, pos, my_pos )
@@ -1472,7 +1489,9 @@ SUBROUTINE fft3d_pb ( fsign, n, zin, gin, group, bo, scale, status, debug )
     END IF
   END IF
 
-  CALL timestop(0.0_dbl,handle)
+  nx = 5.e-6_dbl * REAL ( n(1)*n(2)*n(3), dbl )
+  flops = nx * LOG ( REAL ( n(1)*n(2)*n(3), dbl ) ) 
+  CALL timestop(flops,handle)
 
 END SUBROUTINE fft3d_pb
 
@@ -1513,10 +1532,11 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rr
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr, handle
+  REAL ( dbl ) :: flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("x_to_yz","I","",handle)
+  CALL timeset("x_to_yz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
   ALLOCATE ( scount ( 0 : np - 1 ), sdispl ( 0 : np - 1 ), &
@@ -1544,6 +1564,7 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
     rcount ( ip ) = nr * nx
     rdispl ( ip ) = nm * nx * ip 
   END DO
+  flop = REAL ( nm * nx * np, dbl )
 
   CALL mp_transpose ( sb, scount, sdispl, rr, rcount, rdispl, group )
 
@@ -1567,7 +1588,8 @@ SUBROUTINE x_to_yz ( sb, group, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "x_to_yz", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  flop = flop * 1.e-6_dbl
+  CALL timestop(flop,handle)
 
 END SUBROUTINE x_to_yz
 
@@ -1608,10 +1630,11 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rr
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   INTEGER :: nr, np, nx, nm, ierr, ip, ir, ix, iy, iz, ixx, mpr, handle
+  REAL ( dbl ) :: flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("yz_to_x","I","",handle)
+  CALL timeset("yz_to_x","I","Mcopy",handle)
 
   np = SIZE ( p2p )
   mpr = p2p ( my_pos )
@@ -1652,6 +1675,7 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
     scount ( ip ) = nr * nx
     sdispl ( ip ) = nm * nx * ip
   END DO
+  flop = REAL ( nm * nx * np, dbl )
 
   CALL mp_transpose ( rr, scount, sdispl, sb, rcount, rdispl, group )
 
@@ -1660,7 +1684,8 @@ SUBROUTINE yz_to_x ( tb, group, my_pos, p2p, yzp, nray, bo, sb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_x", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  flop = flop * 1.e-6
+  CALL timestop(flop,handle)
 
 END SUBROUTINE yz_to_x
 
@@ -1706,10 +1731,11 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   INTEGER :: ir, ix, iz, cpos ( 2 ), nx, nz, nmax, jx, jy, jz, npx, npz
   INTEGER :: myx, myz, jj, ixx, np, ierr, ip, rs_pos, ipr, handle
+  REAL ( dbl ) :: flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("yz_to_xz","I","",handle)
+  CALL timeset("yz_to_xz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
   nx = MAXVAL ( bo ( 2, 1, : ) - bo ( 1, 1, : ) + 1 )
@@ -1768,6 +1794,7 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
+  flop = REAL ( nmax * np, dbl )
 
   CALL mp_transpose ( scount, rcount, 1, group )
   CALL mp_transpose ( rs, scount, sdispl, rq, rcount, rdispl, group )
@@ -1806,7 +1833,8 @@ SUBROUTINE yz_to_xz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  flop = flop * 1.e-6
+  CALL timestop(flop,handle)
 
 END SUBROUTINE yz_to_xz
 
@@ -1852,10 +1880,11 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: scount, sdispl, rcount, rdispl
   INTEGER :: ir, np, nx, ny, nz, ixz, iy, ip, ierr, ipl, mp, handle
   INTEGER :: ix, iz, jx, jy, jz, npz, npx, nmax, cpos ( 2 ), ixx, jj, myx, myz
+  REAL ( dbl ) :: flop
 
 !------------------------------------------------------------------------------
 
-  CALL timeset("xz_to_yz","I","",handle)
+  CALL timeset("xz_to_yz","I","Mcopy",handle)
 
   np = SIZE ( p2p )
   ny = MAXVAL ( bo ( 2, 2, : ) - bo ( 1, 2, : ) + 1 )
@@ -1937,6 +1966,7 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
     sdispl ( ip ) = nmax * ip
     rdispl ( ip ) = nmax * ip
   END DO
+  flop = REAL ( nmax * np, dbl )
 
   CALL mp_transpose ( rq, scount, sdispl, rs, rcount, rdispl, group )
 
@@ -1965,7 +1995,8 @@ SUBROUTINE xz_to_yz ( sb, group, dims, my_pos, p2p, yzp, nray, bo, tb )
   DEALLOCATE ( scount, sdispl, rcount, rdispl, STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "yz_to_xz", "scount" )
 
-  CALL timestop(0.0_dbl,handle)
+  flop = flop * 1.e-6
+  CALL timestop(flop,handle)
 
 END SUBROUTINE xz_to_yz
 
