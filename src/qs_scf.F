@@ -1717,7 +1717,11 @@ CONTAINS
 
         END DO
 
-        scale = (REAL(nelectron,dp) - trps1)/trps2
+        IF (trps2 == 0.0_dp) THEN
+          scale = 1.0_dp
+        ELSE
+          scale = (REAL(nelectron,dp) - trps1)/trps2
+        END IF
 
         DO isgf=1,nao
           IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
