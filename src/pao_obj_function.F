@@ -96,7 +96,7 @@ MODULE pao_obj_function
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_sparse_matrix,&
-                                             copy_sparse_to_blacs_matrix,&
+                                             copy_real_matrix_to_full_matrix,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
@@ -634,12 +634,12 @@ CONTAINS
 
        ! calculates the new density matrix with diagonalization
        ! do not do it every time?
-       CALL copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
-            blacs_matrix=gf_env%min_blacs_1)
+       CALL copy_real_matrix_to_full_matrix(real_matrix=cp_get_matrix(s_matrix),&
+            full_matrix=gf_env%min_blacs_1)
        CALL calculate_ortho_matrix(ortho=gf_env%min_blacs_1,&
             work=gf_env%min_blacs_2,ndep=size_null_space, globenv=g_env)
-       CALL copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-            blacs_matrix=gf_env%min_blacs_2)
+       CALL copy_real_matrix_to_full_matrix(real_matrix=cp_get_matrix(h_matrix),&
+            full_matrix=gf_env%min_blacs_2)
        CALL orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
             work=gf_env%min_blacs_3,&
@@ -687,12 +687,12 @@ CONTAINS
           ! ** gf_env%diag_matrix = df/du_{i,j}
                     
           ! 2 H B P i^*
-          CALL copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
+          CALL copy_real_matrix_to_full_matrix(full_h_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_real_matrix_to_full_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
           CALL cp_fm_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
                alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
@@ -714,10 +714,10 @@ CONTAINS
                para_env=g_env%para_env,error=error)
           END IF
           ! 2 S B P minH P i^*
-          CALL copy_sparse_to_blacs_matrix(h_matrix%sm,&
+          CALL copy_real_matrix_to_full_matrix(h_matrix%sm,&
                gf_env%min_blacs_1)
           CALL symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
-          CALL copy_sparse_to_blacs_matrix(min_density_m,&
+          CALL copy_real_matrix_to_full_matrix(min_density_m,&
                gf_env%min_blacs_2)
           CALL cp_fm_symm('R','U',min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
@@ -731,9 +731,9 @@ CONTAINS
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
-          CALL copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
+          CALL copy_real_matrix_to_full_matrix(cp_get_matrix(gf_env%full_work_m),&
                gf_env%scf_work2)
-          CALL copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
+          CALL copy_real_matrix_to_full_matrix(full_s_rmpv(1)%matrix,&
                gf_env%scf_work1)
           CALL cp_fm_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&

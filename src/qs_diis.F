@@ -34,7 +34,7 @@ MODULE qs_diis
                                   cp_fm_symm,&
                                   cp_fm_trace,&
                                   copy_blacs_to_blacs_matrix,&
-                                  copy_sparse_to_blacs_matrix,&
+                                  copy_real_matrix_to_full_matrix,&
                                   cp_fm_get_info,&
                                   replicate_blacs_matrix
   USE qs_environment_types, ONLY: get_qs_env,&
@@ -224,7 +224,7 @@ CONTAINS
 
        new_errors => scf_diis_buffer%error(ib,ispin)%matrix
        ! I guess that this copy can be avoided for LSD
-       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors)
+       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,new_errors)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
 
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc(ispin)%matrix, 0.0_wp,new_errors)

@@ -153,7 +153,7 @@ MODULE qs_scf
                                              blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_sparse_matrix,&
-                                             copy_sparse_to_blacs_matrix,&
+                                             copy_real_matrix_to_full_matrix,&
                                              cp_fm_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
@@ -473,7 +473,7 @@ CONTAINS
 
         IF (dft_control%nspins.ne.1) CALL stop_program(routine,"NYI")
 
-        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1(1)%matrix)
+        CALL copy_real_matrix_to_full_matrix(ks%matrix,scf_work1(1)%matrix)
         IF (iscf > 1) THEN
           CALL scf_diis(c,scf_work1,scf_work2,delta,diis_error,diis_step,&
                         qs_env,globenv)
@@ -565,7 +565,7 @@ CONTAINS
       CASE(1) ! diagonalisation (default)
 
         DO ispin=1,dft_control%nspins 
-           CALL copy_sparse_to_blacs_matrix(ks_rmpv(ispin)%matrix,scf_work1(ispin)%matrix)
+           CALL copy_real_matrix_to_full_matrix(ks_rmpv(ispin)%matrix,scf_work1(ispin)%matrix)
         ENDDO
 
         IF (iscf > 1) THEN
@@ -1081,7 +1081,7 @@ CONTAINS
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
 
-    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1(1)%matrix)
+    CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1(1)%matrix)
 
     IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h(1)%matrix)
@@ -1114,7 +1114,7 @@ CONTAINS
     IF (.NOT. scf_control%use_ot) THEN
      IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
        ndep=0
-       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
+       CALL copy_real_matrix_to_full_matrix(s(1)%matrix,ortho)
        CALL cp_fm_cholesky_decompose(ortho)
      ELSE
        CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
@@ -1183,7 +1183,7 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL copy_sparse_to_blacs_matrix(s,ortho)
+    CALL copy_real_matrix_to_full_matrix(s,ortho)
     CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
     CALL symmetrise_blacs_matrix(ortho,work)
 
@@ -1499,7 +1499,7 @@ CONTAINS
       ALLOCATE (econf(0:maxl),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
 
-      CALL copy_sparse_to_blacs_matrix(s_sparse%matrix,work2)
+      CALL copy_real_matrix_to_full_matrix(s_sparse%matrix,work2)
 
       DO ikind=1,SIZE(atomic_kind_set)
 

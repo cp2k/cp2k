@@ -34,7 +34,6 @@ MODULE qs_ot
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_sparse_matrix,&
-                                             copy_sparse_to_blacs_matrix,&
                                              cp_fm_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&

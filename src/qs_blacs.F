@@ -1,4 +1,4 @@
-!-----------------------------------------------------------------------------!
+
 !   CP2K: A general program to perform molecular dynamics simulations
 !   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
@@ -137,7 +137,7 @@ MODULE qs_blacs
        cp_fm_release,cp_fm_vect_dealloc,&
        cp_fm_init_random,&
        copy_blacs_to_blacs_matrix, copy_blacs_to_full_matrix,&
-       copy_blacs_to_sparse_matrix, copy_sparse_to_blacs_matrix,&
+       copy_blacs_to_sparse_matrix, copy_real_matrix_to_full_matrix,&
        blacs_replicated_copy,&
        blacs_column_copy,&
        cp_fm_get_info,&
@@ -1587,23 +1587,21 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_sparse_to_blacs_matrix(sparse_matrix,blacs_matrix)
+  SUBROUTINE copy_real_matrix_to_full_matrix(real_matrix,full_matrix)
 
-!   Purpose: Copy a sparse matrix to a BLACS matrix. The BLACS matrix blocks
+!   Purpose: Copy a real_matrix to a full_matrix. The full_matrix blocks
 !            are allocated during the copy procedure.
-
-!   History: - Creation (05.06.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
-    TYPE(real_matrix_type), POINTER           :: sparse_matrix
+    TYPE(real_matrix_type), POINTER    :: real_matrix ! the matrix to copy FROM
+    TYPE(cp_full_matrix_type), POINTER :: full_matrix ! the matrix to copy TO
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE copy_sparse_to_blacs_matrix (MODULE qs_blacs)",&
-      routineN="copy_sparse_to_blacs_matrix"
+      "SUBROUTINE copy_real_matrix_to_full_matrix (MODULE qs_blacs)",&
+      routineN="copy_real_matrix_to_full_matrix"
 
 !   *** Local variables ***
 
@@ -1624,10 +1622,10 @@ CONTAINS
 #endif
 !   ---------------------------------------------------------------------------
     
-    CALL timeset("copy_sparse_to_blacs_matrix","I","",handle)
+    CALL timeset("copy_real_matrix_to_full_matrix","I","",handle)
 
-    group = blacs_matrix%matrix_struct%para_env%group
-    context => blacs_matrix%matrix_struct%context
+    group = full_matrix%matrix_struct%para_env%group
+    context => full_matrix%matrix_struct%context
 
     mype=context%my_pid
     npe=context%n_pid
@@ -1635,10 +1633,10 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    nrow_block = blacs_matrix%matrix_struct%nrow_block
-    ncol_block = blacs_matrix%matrix_struct%ncol_block
+    nrow_block = full_matrix%matrix_struct%nrow_block
+    ncol_block = full_matrix%matrix_struct%ncol_block
 
-    CALL get_matrix_info(matrix=sparse_matrix,&
+    CALL get_matrix_info(matrix=real_matrix,&
                          nblock_row=nblock_row,&
                          first_row=first_row,&
                          first_col=first_col,&
@@ -1652,23 +1650,23 @@ CONTAINS
         ipe = blacs_pnum(context%group,iprow,ipcol)
 
         IF (ipe /= mype) THEN
-          nrow_local = blacs_matrix%matrix_struct%nrow_local(iprow)
-          ncol_local = blacs_matrix%matrix_struct%ncol_local(ipcol)
+          nrow_local = full_matrix%matrix_struct%nrow_local(iprow)
+          ncol_local = full_matrix%matrix_struct%ncol_local(ipcol)
           ALLOCATE (blacs_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"alloc blacs_block",&
+            CALL stop_memory(routine,"alloc full_matrix block",&
                              nrow_local*ncol_local*wp_size)
           END IF
         ELSE
-           blacs_block => blacs_matrix%local_data
+           blacs_block => full_matrix%local_data
         END IF
 
         blacs_block(:,:) = 0.0_wp
 
         DO iblock_row=1,nblock_row
 
-          block_node => first_block_node(matrix=sparse_matrix,&
+          block_node => first_block_node(matrix=real_matrix,&
                                          block_row=iblock_row)
 
           DO WHILE (ASSOCIATED(block_node))
@@ -1682,24 +1680,24 @@ CONTAINS
             DO icol_global=first_col(iblock_col),last_col(iblock_col)
 
                jpcol = indxg2p(icol_global,ncol_block,mypcol,&
-                    blacs_matrix%matrix_struct%first_p_pos(2),npcol)
+                    full_matrix%matrix_struct%first_p_pos(2),npcol)
 
               IF (jpcol == ipcol) THEN
 
                 icol_local = indxg2l(icol_global,ncol_block,mypcol,&
-                     blacs_matrix%matrix_struct%first_p_pos(2),npcol)
+                     full_matrix%matrix_struct%first_p_pos(2),npcol)
 
                 irow = 1
 
                 DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
                   jprow = indxg2p(irow_global,nrow_block,myprow,&
-                       blacs_matrix%matrix_struct%first_p_pos(1),nprow)
+                       full_matrix%matrix_struct%first_p_pos(1),nprow)
 
                   IF (jprow == iprow) THEN
 
                     irow_local = indxg2l(irow_global,nrow_block,myprow,&
-                         blacs_matrix%matrix_struct%first_p_pos(1),nprow)
+                         full_matrix%matrix_struct%first_p_pos(1),nprow)
 
                     blacs_block(irow_local,icol_local) = sparse_block(irow,&
                                                                       icol)
@@ -1727,7 +1725,7 @@ CONTAINS
         IF (ipe /= mype) THEN
           DEALLOCATE (blacs_block,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"dealloc blacs_block")
+            CALL stop_memory(routine,"dealloc full_matrix block")
           END IF
         END IF
 
@@ -1736,24 +1734,24 @@ CONTAINS
 
 #else
 
-    IF (.NOT.ASSOCIATED(blacs_matrix%local_data)) THEN
-      nrow_local = blacs_matrix%matrix_struct%nrow_local(myprow)
-      ncol_local = blacs_matrix%matrix_struct%ncol_local(mypcol)
-      ALLOCATE (blacs_matrix%local_data(nrow_local,ncol_local),&
+    IF (.NOT.ASSOCIATED(full_matrix%local_data)) THEN
+      nrow_local = full_matrix%matrix_struct%nrow_local(myprow)
+      ncol_local = full_matrix%matrix_struct%ncol_local(mypcol)
+      ALLOCATE (full_matrix%local_data(nrow_local,ncol_local),&
                 STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"blacs_matrix%local_data",&
+        CALL stop_memory(routine,"full_matrix%local_data",&
                          nrow_local*ncol_local*wp_size)
       END IF
     END IF
 
-    blacs_block => blacs_matrix%local_data
+    blacs_block => full_matrix%local_data
 
     blacs_block(:,:) = 0.0_wp
 
     DO iblock_row=1,nblock_row
 
-      block_node => first_block_node(matrix=sparse_matrix,&
+      block_node => first_block_node(matrix=real_matrix,&
                                      block_row=iblock_row)
 
       DO WHILE (ASSOCIATED(block_node))
@@ -1789,7 +1787,7 @@ CONTAINS
 #endif
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE copy_sparse_to_blacs_matrix
+  END SUBROUTINE copy_real_matrix_to_full_matrix
 
 ! *****************************************************************************
 

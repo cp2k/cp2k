@@ -41,7 +41,7 @@ MODULE preconditioner
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_sparse_matrix,&
-                                             copy_sparse_to_blacs_matrix,&
+                                             copy_real_matrix_to_full_matrix,&
                                              cp_fm_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert,&
@@ -688,8 +688,8 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
 
-  CALL copy_sparse_to_blacs_matrix(matrix_h,fm_h)
-  CALL copy_sparse_to_blacs_matrix(matrix_s,fm_s)
+  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_h)
+  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
   CALL blacs_syevd(fm_h,preconditioner_env%full_matrix,evals)
@@ -753,7 +753,7 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                              para_env=preconditioner_env%para_env)
 
 
-  CALL copy_sparse_to_blacs_matrix(matrix_s,preconditioner_env%full_matrix)
+  CALL copy_real_matrix_to_full_matrix(matrix_s,preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
@@ -788,7 +788,7 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   shift=MAX(-energy_homo,energy_gap)
   CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
 
-  CALL copy_sparse_to_blacs_matrix(matrix_t,preconditioner_env%full_matrix)
+  CALL copy_real_matrix_to_full_matrix(matrix_t,preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
   CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
@@ -882,7 +882,7 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
 
-  CALL copy_sparse_to_blacs_matrix(matrix_s,fm_y)
+  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_y)
   CALL copy_blacs_to_blacs_matrix(fm_y,fm_z)
   CALL cp_fm_cholesky_decompose(fm_z)
   CALL cp_fm_cholesky_invert(fm_z)
@@ -914,8 +914,8 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
                              para_env=preconditioner_env%para_env)
   CALL copy_blacs_to_blacs_matrix(fm_z,preconditioner_env%full_matrix)
 
-  CALL copy_sparse_to_blacs_matrix(matrix_h,fm_y)
-  CALL copy_sparse_to_blacs_matrix(matrix_s,fm_zi)
+  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_y)
+  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_zi)
   CALL cp_fm_add(1.0_wp,fm_y,-energy_homo,fm_zi) ! fm_y = H-eS
   CALL blacs_scale_and_d(fm_zi,0.0_wp,1.0_wp) ! ugly way to get the full matrix
   CALL cp_fm_symm('L','U',n,n,1.0_wp,fm_y, &
@@ -1119,8 +1119,8 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
 
-  CALL copy_sparse_to_blacs_matrix(matrix_h,fm_h)
-  CALL copy_sparse_to_blacs_matrix(matrix_s,fm_s)
+  CALL copy_real_matrix_to_full_matrix(matrix_h,fm_h)
+  CALL copy_real_matrix_to_full_matrix(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
   ! let's find a space of orbitals orthogonal to Uc0

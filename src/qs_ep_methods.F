@@ -772,7 +772,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 !FM!   *** Redistribute the core Hamiltonian matrix in ***
 !FM!   *** order to eliminate redundant atomic blocks ***
 !FM
-!FM    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
+!FM    CALL copy_real_matrix_to_full_matrix(h(1)%matrix,scf_work1)
 !FM    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
 !FM      CALL deallocate_matrix(h(1)%matrix)
 !FM      CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
