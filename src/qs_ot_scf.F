@@ -325,6 +325,7 @@ END SUBROUTINE
 ! performs the actual minimisation, needs only limited info
 ! updated for restricted calculations
 ! matrix_dedc is the derivative of the energy with respect to the orbitals
+! a null pointer for matrix_s implies that matrix_s is the unit matrix
 !
 !
 SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
@@ -372,8 +373,12 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
-       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
+       IF (ASSOCIATED(matrix_s)) THEN
+         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
                                        qs_ot_env(ispin)%matrix_sx, k)
+       ELSE
+         CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx)
+       ENDIF
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
@@ -415,8 +420,12 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
    
        ! set c0,sc0
        CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)
-       CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
-                              qs_ot_env(ispin)%matrix_sc0,k)
+       IF (ASSOCIATED(matrix_s)) THEN
+          CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
+                                 qs_ot_env(ispin)%matrix_sc0,k)
+       ELSE
+          CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_c0,qs_ot_env(ispin)%matrix_sc0)
+       ENDIF
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin))

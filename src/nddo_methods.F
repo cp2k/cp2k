@@ -36,6 +36,11 @@ MODULE nddo_methods
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_type,&
+                                             cp_fm_p_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -77,6 +82,9 @@ MODULE nddo_methods
   USE qs_force_types,                  ONLY: qs_force_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_mo_types,                     ONLY: mo_set_type, &
+                                             mo_set_p_type, &
+                                             get_mo_set
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
@@ -195,6 +203,13 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(mo_set_p_type), DIMENSION(:), &
+         POINTER                                :: mo_array
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor, &
+                                                occupation_numbers
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    INTEGER                                  :: ncol_global
 
 !   ----------------------------------------------------------------------------
 
@@ -488,6 +503,22 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
        END IF
+
+       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
+       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+          DO ispin=1,SIZE(mo_derivs)
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
+                             occupation_numbers=occupation_numbers )
+             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global)
+             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
+                                          mo_derivs(ispin)%matrix, ncol_global)
+             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
+             scaling_factor=2.0_dp*occupation_numbers
+             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
+             DEALLOCATE(scaling_factor)
+          ENDDO
+       ENDIF
 
     END IF
 

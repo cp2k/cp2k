@@ -111,15 +111,13 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: pmatrix, work
 
-    INTEGER                                  :: handle, i, info, mypcol, &
-                                                myprow, n, ncol_block, npcol, &
-                                                nprow, nrow_block
+    INTEGER                                  :: handle, i, info, n
     INTEGER, DIMENSION(9)                    :: desca, desco, descp, descvv, &
                                                 descw
-    LOGICAL                                  :: found_type, use_cholesky, &
+    LOGICAL                                  :: use_cholesky, &
                                                 use_pmatrix, use_simple, &
                                                 use_sv
-    REAL(KIND=dp)                            :: rone, rzero
+    REAL(KIND=dp), PARAMETER                 :: rone=1.0_dp, rzero=0.0_dp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, o, p, vv, w
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -133,46 +131,36 @@ CONTAINS
 
 ! check input ...
 
+    use_pmatrix=.FALSE.
+    use_sv=.FALSE.
+    use_cholesky=.FALSE.
+    use_simple=.FALSE.
+
     IF (PRESENT(pmatrix)) THEN
        IF (.NOT. PRESENT(work)) THEN
           CALL stop_program("make_basis","pmatrix needs work space !?")
        ENDIF
        use_pmatrix=.TRUE.
     ELSE
-       use_pmatrix=.FALSE.
-    ENDIF
-
-    IF (PRESENT(ortho)) THEN
-       IF (.NOT. PRESENT(otype)) THEN
-           CALL stop_program("make_basis","ortho needs type !?")
-       ENDIF
-       found_type=.FALSE.
-       use_sv=.FALSE.
-       use_cholesky=.FALSE.
-       IF (otype .EQ. "CHOLESKY") THEN
-          found_type=.TRUE.
-          use_cholesky=.TRUE.
-       ENDIF
-       IF (otype .EQ. "SV") THEN
-          found_type=.TRUE.
-          use_sv=.TRUE.
-       ENDIF
-       IF (.NOT. found_type) CALL stop_program("make_basis","sorry wrong type")
-    ELSE
-       use_simple=.TRUE.
+      IF (PRESENT(ortho)) THEN ! ortho can be two different things here (see comment above)
+        IF (.NOT. PRESENT(otype)) THEN
+            CALL stop_program("make_basis","ortho needs type !?")
+        ENDIF
+        SELECT CASE(otype)
+        CASE ("CHOLESKY")
+           use_cholesky=.TRUE.
+        CASE ("SV")
+           use_sv=.TRUE.
+        CASE DEFAULT
+           CALL stop_program("make_basis","sorry wrong type")
+        END SELECT 
+      ELSE
+        use_simple=.TRUE.
+      ENDIF
     ENDIF
 
     context => vmatrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    nprow=context%num_pe(1)
-    npcol=context%num_pe(2)
-    rone=1.0_dp
-    rzero=0.0_dp
-    n   = vmatrix%matrix_struct%nrow_global
-    CALL cp_fm_get_info(matrix=vmatrix,&
-                               nrow_block=nrow_block,&
-                               ncol_block=ncol_block)
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n)
     IF (ncol.lt.0 .OR. ncol.gt.vmatrix%matrix_struct%ncol_global) THEN
         CALL stop_program("make_basis","wrong ncol value")
     ENDIF
@@ -222,22 +210,32 @@ CONTAINS
        ENDIF
     ENDIF
 
-    IF (use_sv) THEN
-      CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
-                                          overlap_vv)
+    IF (use_sv .OR. use_simple) THEN
+      IF (use_simple) THEN
+          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, &
+                                              overlap_vv)
+      ELSE
+          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
+                                              overlap_vv)
+      ENDIF
       CALL cp_fm_cholesky_decompose(overlap_vv)
       a => vmatrix%local_data
       vv => overlap_vv%local_data
-      o => ortho%local_data
 #if defined(__SCALAPACK)
       desca(:) = vmatrix%matrix_struct%descriptor(:)
       descvv(:) = overlap_vv%matrix_struct%descriptor(:)
-      desco(:) = ortho%matrix_struct%descriptor(:)
       CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,a(1,1),1,1,desca)
-      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,o(1,1),1,1,desco)
+      IF (.NOT. use_simple) THEN
+          o => ortho%local_data
+          desco(:) = ortho%matrix_struct%descriptor(:)
+          CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,o(1,1),1,1,desco)
+      ENDIF
 #else
       CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,a(1,1),n)
-      CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,o(1,1),n)
+      IF (.NOT. use_simple) THEN
+          o => ortho%local_data
+          CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,o(1,1),n)
+      ENDIF
 #endif
     ELSE
       ! ortho (U*V) inner product should be one
@@ -404,8 +402,8 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(IN)            :: scr
     LOGICAL, OPTIONAL, INTENT(IN)            :: do_rotation
 
-    INTEGER                                  :: handle, i, j, ncol_block, &
-                                                ncol_global, nrow_block, &
+    INTEGER                                  :: handle, i, j, &
+                                                ncol_global,  &
                                                 nrow_global
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
@@ -423,9 +421,7 @@ CONTAINS
     NULLIFY(weighted_vectors,h_block,e_vectors,fm_struct_tmp)
     CALL cp_fm_get_info(matrix=orbitals, &
                                  ncol_global=ncol_global, &
-                                 nrow_global=nrow_global, &
-                                 nrow_block=nrow_block, &
-                                 ncol_block=ncol_block)
+                                 nrow_global=nrow_global)
 
     IF (ncol_global.GT.0) THEN
 

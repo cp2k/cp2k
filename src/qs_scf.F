@@ -444,6 +444,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL                                  :: has_unit_metric
+    TYPE(real_matrix_type), POINTER          :: orthogonality_metric
 
 !   ---------------------------------------------------------------------------
 
@@ -506,6 +508,14 @@ CONTAINS
          pw_env=pw_env,&
          qs_charges=qs_charges,&
          ks_env=ks_env)
+
+     has_unit_metric=.FALSE.
+     IF (dft_control%qs_control%semi_empirical) THEN
+         IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
+             has_unit_metric=.TRUE.
+         ENDIF
+     END IF
+
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
@@ -702,10 +712,15 @@ CONTAINS
 
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 ! in the case of a restricted calculation, it will make sure the spin orbitals are equal
+            IF (has_unit_metric) THEN
+               NULLIFY(orthogonality_metric)
+            ELSE
+               orthogonality_metric=>matrix_s(1)%matrix
+            ENDIF
 
-          CALL ot_scf_mini(mos,qs_env%mo_derivs,matrix_s(1)%matrix, &
-                           energy%total, energy_only,scf_env%iter_delta, &
-                           scf_env%qs_ot_env)
+            CALL ot_scf_mini(mos,qs_env%mo_derivs,orthogonality_metric, &
+                             energy%total, energy_only,scf_env%iter_delta, &
+                             scf_env%qs_ot_env)
 
             DO ispin=1,dft_control%nspins
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
@@ -1036,6 +1051,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
+    LOGICAL                                  :: has_unit_metric
+    TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+
 
 !dbg 
     INTEGER :: i
@@ -1064,6 +1082,13 @@ CONTAINS
          matrix_h=matrix_h,matrix_s=matrix_s, error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
+
+    has_unit_metric=.FALSE.
+    IF (dft_control%qs_control%semi_empirical) THEN
+        IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
+            has_unit_metric=.TRUE.
+        ENDIF
+    END IF
 
     ionode = logger%para_env%source == logger%para_env%mepos
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
@@ -1176,7 +1201,12 @@ CONTAINS
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
 
-          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
+          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN 
+             !
+             ! preconditioning still needs to be done correctly with has_unit_metric
+             ! notice that a big part of the preconditioning (S^-1) is fine anyhow
+             !
+             CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure) 
              ! constuct the preconditioner based on the first spin set. 
              ! this might or might not be reasonable. Presumably it is.
              CALL get_mo_set(mo_set=mos(1)%mo_set,&
@@ -1188,7 +1218,13 @@ CONTAINS
                   mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
           ENDIF
 
-          CALL ot_scf_init(mos,matrix_s(1)%matrix,scf_env%qs_ot_env)
+          IF (has_unit_metric) THEN
+             NULLIFY(orthogonality_metric)
+          ELSE
+             orthogonality_metric=>matrix_s(1)%matrix
+          ENDIF
+
+          CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
           
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              DO ispin=1,SIZE(scf_env%qs_ot_env)
@@ -2059,14 +2095,23 @@ CONTAINS
           CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
 
           ! multiply times PS
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+          IF (ortho_basis) THEN
+             CALL cp_fm_to_fm(mo_coeff,sv)
+          ELSE
+             CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+          ENDIF
           ! here we could easily multiply with the diag that we actually have replicated already 
           CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
 
           ! and ortho the result
-          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-          CALL make_basis(mo_coeff,nmo, ortho=sv,otype="SV")
+          IF (ortho_basis) THEN
+             CALL make_basis(mo_coeff,nmo)
+          ELSE
+             CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+             CALL make_basis(mo_coeff,nmo, ortho=sv,otype="SV")
+          ENDIF
           CALL cp_fm_release(sv)
+
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
         ENDIF
