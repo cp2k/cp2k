@@ -65,7 +65,7 @@ MODULE message_passing
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
 
   ! currently not used
-  PUBLIC :: mp_group
+  ! PUBLIC :: mp_group
 
   ! default communicators
   PUBLIC :: MPI_COMM_SELF, MPI_COMM_WORLD

@@ -93,8 +93,6 @@ MODULE integrator
 
   INTEGER :: int_group
 
-  TYPE ( global_environment_type ) :: glob_env
-
   PUBLIC :: set_integrator, nve, nvt, isokin, npt_i, npt_f, nph_uniaxial
   PUBLIC :: nph_uniaxial_damped
 
@@ -140,10 +138,11 @@ SUBROUTINE set_integrator ( globenv )
 
 !------------------------------------------------------------------------------
 
-  glob_env = globenv
-  CALL mp_comm_dup ( globenv % group, glob_env % group )
+  ! XXXXX
+  ! is this one ever freed ???
+  ! we should anyway use md_env % para_env % group in these routines
 
-  int_group = glob_env % group
+  CALL mp_comm_dup ( globenv % group, int_group )
 
 END SUBROUTINE set_integrator
 
