@@ -98,7 +98,7 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
 
 ! Locals
   INTEGER :: ierror, ilen, iw,  ia, ie, i
-  INTEGER, PARAMETER :: max_name_length = 10
+  INTEGER, PARAMETER :: max_name_length = 60
   INTEGER, PARAMETER :: nblock_atom = 1000,&
                         nblock_kind = 10
 
@@ -132,13 +132,21 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Change to REALLOCATE later
-  ALLOCATE(num1(100000))
-  ALLOCATE(num2(100000))
-  ALLOCATE(label1(100000))
-  ALLOCATE(label2(100000))
-  ALLOCATE(pos1(100000))
-  ALLOCATE(pos2(100000))
-  ALLOCATE(pos3(100000))
+  NULLIFY (num1,num2,label1,label2,pos1,pos2,pos3)
+  ALLOCATE(num1(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','num1')
+  ALLOCATE(num2(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','num2')
+  ALLOCATE(label1(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label1')
+  ALLOCATE(label2(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label2')
+  ALLOCATE(pos1(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','pos1')
+  ALLOCATE(pos2(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','pos2')
+  ALLOCATE(pos3(100000),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','pos3')
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Parse the file right now and put all info into temporary storage
@@ -184,20 +192,23 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
   END IF
   CALL parser_end
 
-  WRITE(iw,*) "NATOM = ",natom
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Put all the info from temporary storage info compatible FIST storage
 
-  !Determine the number of kinds (nkind)
-  nkind = 0
-  CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
-  CALL reallocate(kind_of,1,natom)
-  CALL reallocate(natom_of_kind,1,natom)
-  CALL reallocate(r,1,3,1,natom)
+  ALLOCATE(kind_label(max_name_length,natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','kind_label')
+  ALLOCATE(kind_of(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','kind_of')
+  ALLOCATE(natom_of_kind(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','natom_of_kind')
+  ALLOCATE(r(3,natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','r')
   CALL azero(kind_of,natom)
   CALL azero(natom_of_kind,natom)
+
+  !Determine the number of kinds (nkind)
+  nkind = 0
   DO iatom=1,natom
     new_kind = .TRUE.
     DO ikind=1,nkind
@@ -222,17 +233,15 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
   !WRITE(iw,*) "NKIND = ",nkind
   CALL reallocate(kind_label,1,max_name_length,1,nkind)
   CALL reallocate(natom_of_kind,1,nkind)
-  CALL reallocate(charge,1,nkind)
-  CALL reallocate(mass,1,nkind)
-
-  !DO ikind=1,nkind
-  !  WRITE(iw,*) "iatom = ",iatom," nkind = ",kind_of(iatom)
-  !  WRITE(iw,*) "ikind = ",ikind," number = ",natom_of_kind(ikind)
-  !END DO
+  ALLOCATE(charge(nkind),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','charge')
+  ALLOCATE(mass(nkind),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','charge')
 
   !Stuff the atom_list(1:nkind,1:natom_of_kind(ikind))
-  !WRITE(iw,*) "MAXVAL(natom_of_kind)",MAXVAL(natom_of_kind)
-  CALL reallocate(atom_list,1,nkind,1,MAXVAL(natom_of_kind))
+  NULLIFY (atom_list)
+  ALLOCATE(atom_list(nkind,MAXVAL(natom_of_kind)),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','atom_list')
   DO ikind=1,nkind
     iat = 0
     DO iatom = 1,natom
@@ -285,6 +294,7 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
 !   *** and store the charge and mass read in the &MOLECULE section
 
   ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','natom_of_kind_check')
   natom_of_kind_check = 0
   nmol_type = SIZE (mol_setup) 
   natom_types = SIZE(atom_names)
@@ -337,6 +347,10 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
 !   *** Release work storage ***
   DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,&
               natom_of_kind_check,r,STAT=istat)
+  IF (istat /= 0) THEN
+    CALL stop_memory('read_coordinate_pdb',&
+              'release work storage')
+  END IF
   DEALLOCATE (charge,mass,STAT=istat)
   IF (istat /= 0) THEN
     CALL stop_memory('read_coordinate_pdb',&
@@ -345,17 +359,10 @@ SUBROUTINE read_coordinate_pdb ( particle_set, atomic_kind_set, &
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  DEALLOCATE(num1)
-  DEALLOCATE(num2)
-  DEALLOCATE(label1)
-  DEALLOCATE(label2)
-  DEALLOCATE(pos1)
-  DEALLOCATE(pos2)
-  DEALLOCATE(pos3)
+  DEALLOCATE(num1,num2,label1,label2,pos1,pos2,pos3,STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','num1')
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-
-  !CALL stop_program ('read_coordinate_pdb','checkpoint')
 
 END SUBROUTINE read_coordinate_pdb
 
