@@ -38,7 +38,6 @@ MODULE kg_energy
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff,&
@@ -358,8 +357,6 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
                                                 my_rho_r, my_rho_g,&
                                                 my_tau
-    TYPE(cp_subsystem_p_type), &
-         DIMENSION(:), POINTER               :: my_atoms
     TYPE(cell_type), POINTER                 :: cell
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -436,8 +433,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
   ALLOCATE(my_rho_r(1))
   my_rho_r(1)%pw => rho_r%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
-       energy%exc,dft_control,cell,auxbas_pw_pool,my_atoms,&
-       calculate_forces=.FALSE.)
+       energy%exc,dft_control,cell,auxbas_pw_pool)
   allocate(vxc_r)
   CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw)

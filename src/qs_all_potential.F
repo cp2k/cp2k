@@ -350,7 +350,7 @@ MODULE qs_all_potential
               core_charge_radius=rpgfc)
  
     zc = REAL(zeta_c,dp)
-!    write(*,*) zetc,zeta_c,cerf,rpgfc
+
     orb_rad => all_potential%orb_radius_3c
     set_rad => all_potential%set_radius_3c
 

@@ -80,7 +80,6 @@ MODULE qs_ks_methods
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE hartree,                         ONLY: calculate_hartree
@@ -479,9 +478,11 @@ CONTAINS
        ! *** associates v_rspace_new if the xc potential needs to be computed.
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
-            calculate_forces=calculate_forces, &
             just_energy=just_energy, error=error)
-       IF (gapw) CALL calculate_vxc_atom(qs_env,error)
+
+       IF (gapw) THEN
+          CALL calculate_vxc_atom(qs_env,error)
+       END IF
 
 
        ! ***  Single atom contributions ***
@@ -567,32 +568,32 @@ CONTAINS
               DEALLOCATE(v_tau_rspace, stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ENDIF
+       END IF  ! .NOT. just energy
 
-          IF(gapw) THEN
-!         ***  Integrals of the Hartree potential with g0_soft ***
-             CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
-                                        calculate_forces, error=error)
+       IF(gapw) THEN
+!      ***  Integrals of the Hartree potential with g0_soft ***
+          CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
+                                     calculate_forces, error=error)
 
-!         ***  Energy, Integrals and Forces coming from the 2-centers terms
-!         ***  Inizialize the energy
-             energy%hartree_2c = 0.0_dp
-             CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces)
-!         ***  Energy, Integrals and Forces coming from the 3-centers terms
-!         *** Initialize energy
-             energy%hartree_3c = 0.0_dp
-             DO ispin = 1,nspins
-                CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
-                    ispin,energy%hartree_3c,.FALSE.,calculate_forces,error=error)
-             END DO
+!      ***  Energy, Integrals and Forces coming from the 2-centers terms
+!      ***  Inizialize the energy
+          energy%hartree_2c = 0.0_dp
+          CALL integrate_vhg0_g0(qs_env,energy%hartree_2c,.FALSE.,calculate_forces)
+!      ***  Energy, Integrals and Forces coming from the 3-centers terms
+!      *** Initialize energy
+          energy%hartree_3c = 0.0_dp
+          DO ispin = 1,nspins
+             CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
+                 ispin,energy%hartree_3c,.FALSE.,calculate_forces,error=error)
+          END DO
 
-!         ***  Single atom contributions in the KS matrix ***
-             DO ispin = 1,nspins
-                CALL update_ks_atom(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
-                     ispin,calculate_forces,error=error)
-             ENDDO
-          ENDIF
+!      ***  Single atom contributions in the KS matrix ***
+          DO ispin = 1,nspins
+             CALL update_ks_atom(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
+                  ispin,calculate_forces,error=error)
+          ENDDO
+       ENDIF
 
-       END IF
 
 !      
        energy%mulliken = 0.0_dp
@@ -1040,11 +1041,11 @@ END SUBROUTINE qs_ks_did_change
 !!
 !!*** *********************************************************************
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
-     calculate_forces, just_energy, error)
+      just_energy, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp)                            :: exc
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
+    LOGICAL, INTENT(in), OPTIONAL            :: just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1054,7 +1055,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
     INTEGER                                  :: handle, ispin, stat
     LOGICAL                                  :: failure, my_just_energy
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), DIMENSION(1)  :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_rho, my_vxc_tau, &
@@ -1077,7 +1077,7 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
   CPPrecondition(.NOT.ASSOCIATED(vxc_rho),cp_failure_level,routineP,error,failure)
   CPPrecondition(.NOT.ASSOCIATED(vxc_tau),cp_failure_level,routineP,error,failure)
   NULLIFY(dft_control,rho_struct,pw_env,auxbas_pw_pool,&
-       cell, subsys(1)%subsys,my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
+       cell, my_vxc_rho, my_vxc_tau, rho_g, rho_r, tau, rho_m_rspace,rho_m_gspace)
   my_just_energy=.FALSE.
   IF (PRESENT(just_energy)) my_just_energy=just_energy
 
@@ -1086,7 +1086,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
        dft_control=dft_control,&
        rho=rho_struct,&
        pw_env=pw_env,&
-       subsys=subsys(1)%subsys,&
        cell=cell)
 
 
@@ -1161,14 +1160,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
      IF (my_just_energy) THEN
         exc=xc_exc_calc(rho_r=rho_r,tau=tau,&
              rho_g=rho_g, dft_control=dft_control,&
-             cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+             cell=cell, pw_pool=auxbas_pw_pool,&
              error=error)
      ELSE
         CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
              rho_g=rho_g,tau=tau,exc=exc,&
              dft_control=dft_control,&
-             cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
-             calculate_forces=calculate_forces,error=error)
+             cell=cell, pw_pool=auxbas_pw_pool,&
+             error=error)
      END IF
 
      IF (my_scaling .NE. 1.0_dp) THEN
@@ -1236,14 +1235,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, dft_control=dft_control,&
-                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
                 dft_control=dft_control,&
-                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
-                calculate_forces=calculate_forces,error=error)
+                cell=cell, pw_pool=auxbas_pw_pool,&
+                error=error)
         END IF
  
         exc = exc - dft_control % sic_scaling_b * exc_m
@@ -1309,14 +1308,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            IF (my_just_energy) THEN
               exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                    rho_g=rho_g, dft_control=dft_control,&
-                   cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                   cell=cell, pw_pool=auxbas_pw_pool,&
                    error=error)
            ELSE
               CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                    rho_g=rho_g,tau=tau,exc=exc_m,&
                    dft_control=dft_control,&
-                   cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
-                   calculate_forces=calculate_forces,error=error)
+                   cell=cell, pw_pool=auxbas_pw_pool,&
+                   error=error)
            END IF
 
            exc = exc - dft_control % sic_scaling_b * nelec_spin(ispin) * exc_m
@@ -1354,14 +1353,14 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
         IF (my_just_energy) THEN
            exc_m=xc_exc_calc(rho_r=rho_r,tau=tau,&
                 rho_g=rho_g, dft_control=dft_control,&
-                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
+                cell=cell, pw_pool=auxbas_pw_pool,&
                 error=error)
         ELSE
            CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                 rho_g=rho_g,tau=tau,exc=exc_m,&
                 dft_control=dft_control,&
-                cell=cell, pw_pool=auxbas_pw_pool,atoms=subsys,&
-                calculate_forces=calculate_forces,error=error)
+                cell=cell, pw_pool=auxbas_pw_pool,&
+                error=error)
         END IF
  
         exc = exc + dft_control % sic_scaling_b * exc_m

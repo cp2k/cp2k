@@ -41,7 +41,6 @@ MODULE kg_force
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE global_types,                    ONLY: global_environment_type
@@ -200,7 +199,6 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
                                                 my_rho_r, my_rho_g,&
                                                 my_tau
-    TYPE(cp_subsystem_p_type), DIMENSION(1)  :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
@@ -224,12 +222,11 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
           vxc_r,v1xc_r,v2xc_r)
-  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,subsys(1)%subsys)
+  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    dyn_coeff_set=dyn_coeff_set,subsys=subsys(1)%subsys,&
-                    force=force,particle_set=part,rho=rho,rspw=rspw)
+                    dyn_coeff_set=dyn_coeff_set, force=force,particle_set=part,rho=rho,rspw=rspw)
 
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
   CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
@@ -340,8 +337,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
   ALLOCATE(my_rho_g(1))
   my_rho_g(1)%pw => rho_g%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
-       energy%exc,dft_control,cell,auxbas_pw_pool,subsys,&
-       calculate_forces=.FALSE.)
+       energy%exc,dft_control,cell,auxbas_pw_pool)
 ! ALLOCATE(vxc_r)
   CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
   NULLIFY(my_rho_r(1)%pw,my_rho_g(1)%pw, my_vxc_r(1)%pw)
@@ -522,7 +518,6 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_vxc_r, my_vxc_tau, &
                                                 my_rho_r, my_rho_g,&
                                                 my_tau
-    TYPE(cp_subsystem_p_type), DIMENSION(1)  :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
@@ -544,10 +539,9 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)
-  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,subsys(1)%subsys)
+  NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
-                    subsys=subsys(1)%subsys,&
                     force=force,particle_set=part,rho=rho,rspw=rspw)
   CPPrecondition(ASSOCIATED(rho),cp_failure_level,routine,error,failure)
   CPPrecondition(ASSOCIATED(rspw),cp_failure_level,routine,error,failure)
@@ -633,8 +627,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   ALLOCATE(my_rho_g(1))
   my_rho_g(1)%pw => rho_g%pw
   CALL xc_vxc_pw_create1(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau,&
-       energy%exc,dft_control,cell,auxbas_pw_pool,subsys,&
-       calculate_forces=.FALSE.)
+       energy%exc,dft_control,cell,auxbas_pw_pool)
 ! ALLOCATE(vxc_r)
   CALL coeff_init(vxc_r,pw=my_vxc_r(1)%pw)
   NULLIFY(my_rho_r(1)%pw, my_vxc_r(1)%pw,my_rho_g(1)%pw)

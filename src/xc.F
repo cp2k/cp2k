@@ -127,9 +127,7 @@ MODULE xc
                                              xc_rho_set_get,&
                                              xc_rho_set_release,&
                                              xc_rho_set_type,&
-                                             xc_rho_set_update,&
-                                             zero_core,&
-                                             zero_core_force
+                                             xc_rho_set_update
 
   IMPLICIT NONE
   PRIVATE
@@ -175,9 +173,6 @@ CONTAINS
 !!     - exc: the xc energy
 !!     - dft_control: varius parameter (number of spin...)
 !!     - pw_pool: the pool for the grids
-!!     - atoms: a subsys with the atoms whose xc you are calculating
-!!     - calculate_force: if the forces arsing from a special treatement
-!!       of the core of the atoms should be added to the atoms
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -186,7 +181,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_vxc_pw_create1(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,dft_control,&
-       cell,pw_pool,atoms,calculate_forces,error)
+       cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
@@ -195,8 +190,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
-    LOGICAL, OPTIONAL                        :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -217,18 +210,18 @@ CONTAINS
        CASE(xc_new_f_routine)
           CALL xc_vxc_pw_create(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, dft_control=dft_control,&
-               cell=cell, pw_pool=pw_pool, atoms=atoms,&
-               calculate_forces=calculate_forces,error=error)
+               cell=cell, pw_pool=pw_pool, &
+               error=error)
        CASE(xc_debug_new_routine)
           CALL xc_vxc_pw_create_debug(vxc_rho=vxc_rho, vxc_tau=vxc_tau,tau=tau,&
                rho_r=rho_r, rho_g=rho_g, exc=exc, dft_control=dft_control,&
-               cell=cell, pw_pool=pw_pool, atoms=atoms,&
-               calculate_forces=calculate_forces,error=error)
+               cell=cell, pw_pool=pw_pool, &
+               error=error)
        CASE(xc_test_lsd_f_routine)
           CALL xc_vxc_pw_create_test_lsd(vxc_rho=vxc_rho, vxc_tau=vxc_tau,&
                tau=tau, rho_r=rho_r, rho_g=rho_g, exc=exc, &
                dft_control=dft_control, cell=cell, pw_pool=pw_pool,&
-               atoms=atoms, calculate_forces=calculate_forces,error=error)
+               error=error)
        CASE default
        END SELECT
     END IF
@@ -271,7 +264,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
-     exc,dft_control, cell,pw_pool, atoms, calculate_forces, error)
+     exc,dft_control, cell,pw_pool,  error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
@@ -280,8 +273,6 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -352,23 +343,23 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
        CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
             tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
             cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
-            deriv_set=dSet1, deriv_order=1,atoms=atoms,&
+            deriv_set=dSet1, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho_r, rho_g=rho_g,tau=tau,&
             vxc_rho=vxc_rho,vxc_tau=vxc_tau, exc=exc, dft_control=dft_control,&
-            cell=cell, pw_pool=pw_pool, atoms=atoms,&
-            calculate_forces=calculate_forces, error=error)
+            cell=cell, pw_pool=pw_pool, &
+            error=error)
        PRINT *, "did calculate xc (lda)"
        dft_control%nspins=2
        PRINT *, "about to calculate xc (lsd)"
        CALL xc_rho_set_and_dset_create(rho_set=rho_set2,deriv_set=dSet2,&
             rho_r=rho2_r, rho_g=rho2_g,tau=tau2, dft_control=dft_control,&
             xc_control=dft_control%xc_control,&
-            cell=cell, pw_pool=pw_pool, deriv_order=1,atoms=atoms,&
+            cell=cell, pw_pool=pw_pool, deriv_order=1,&
             needs_basic_components=.FALSE.,error=error)
        CALL xc_vxc_pw_create(rho_r=rho2_r, rho_g=rho2_g,tau=tau2,&
             vxc_rho=vxc_rho2,vxc_tau=vxc_tau2,exc=exc2, dft_control=dft_control,&
-            cell=cell, pw_pool=pw_pool, atoms=atoms, error=error)
+            cell=cell, pw_pool=pw_pool,  error=error)
        PRINT *, "did calculate xc (new)"
        dft_control%nspins=1
        PRINT *, "at (0,0,0) rho_r=",rho_r(1)%pw%cr3d(0,0,0),&
@@ -653,7 +644,7 @@ END SUBROUTINE xc_vxc_pw_create_test_lsd
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
-     dft_control, cell,pw_pool,atoms,calculate_forces, error)
+     dft_control, cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
@@ -662,8 +653,6 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -695,7 +684,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      CALL xc_rho_set_and_dset_create(rho_r=rho_r, rho_g=rho_g,&
           tau=tau,dft_control=dft_control,xc_control=dft_control%xc_control,&
           cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
-          deriv_set=dSet1, deriv_order=1,atoms=atoms,&
+          deriv_set=dSet1, deriv_order=1,&
           needs_basic_components=.FALSE.,error=error)
 
      ! outputs 0,:,: plane
@@ -782,8 +771,8 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
      CALL xc_vxc_pw_create(vxc_rho=vxc_rho,vxc_tau=vxc_tau,&
           rho_r=rho_r, rho_g=rho_g,tau=tau,&
           exc=exc, dft_control=dft_control,&
-          cell=cell, pw_pool=pw_pool,atoms=atoms,&
-          calculate_forces=calculate_forces,error=error)
+          cell=cell, pw_pool=pw_pool,&
+          error=error)
 
      ! outputs 0,:,: plane
      IF (bo(1,1)<=0.AND.0<=bo(2,1)) THEN
@@ -964,7 +953,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!     - pw_pool: the pool for the grids
 !!     - gradient_f: returns true if any of the functionals is gradient 
 !!       corrected
-!!     - atoms: positions of the atoms to treat the code in a special way
 !!     - needs_basic_components: if the basic components of the arguments 
 !!       should be kept in rho set (a basic component is for example drho
 !!       when with lda a functional needs norm_drho)
@@ -976,7 +964,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_and_dset_create(rho_set,deriv_set,deriv_order,&
-       rho_r,rho_g,tau,dft_control,xc_control,cell,pw_pool,gradient_f,atoms,&
+       rho_r,rho_g,tau,dft_control,xc_control,cell,pw_pool,gradient_f,&
        needs_basic_components,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
@@ -989,7 +977,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     LOGICAL, INTENT(out), OPTIONAL           :: gradient_f
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
     LOGICAL, INTENT(in)                      :: needs_basic_components
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1063,7 +1050,7 @@ END SUBROUTINE xc_vxc_pw_create_debug
 
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs,&
-            dft_control,cell,pw_pool, atoms=atoms,error=error)
+            dft_control,cell,pw_pool, error=error)
 
        ! evaluate the functionals
        DO i=1,SIZE(xc_control%functionals)
@@ -1301,10 +1288,6 @@ END SUBROUTINE smooth_cutoff
 !!     - exc: the xc energy
 !!     - dft_control: varius parameter (number of spin...)
 !!     - pw_pool: the pool for the grids
-!!     - atoms: a subsys with the atoms, to be able of treating the core
-!!       region of the atoms in a special way
-!!     - calculate_forces: if we are calculating the forces (and when using
-!!       tricks for the core, we should add those forces to the atoms)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1321,7 +1304,7 @@ END SUBROUTINE smooth_cutoff
 !!
 !!*** **********************************************************************
 SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
-     cell,pw_pool,atoms,calculate_forces,error)
+     cell,pw_pool,error)
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_rho, vxc_tau
     REAL(KIND=dp), INTENT(out)               :: exc
     TYPE(pw_p_type), DIMENSION(:), &
@@ -1330,8 +1313,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
-    LOGICAL, OPTIONAL                        :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1347,11 +1328,10 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                                                 order, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
-    LOGICAL :: dealloc_pw_to_deriv, failure, gradient_f, has_tau, ldaCore, &
-      lsd, my_calculate_forces, zero_result
+    LOGICAL :: dealloc_pw_to_deriv, failure, gradient_f, has_tau,  &
+      lsd, zero_result
     REAL(KIND=dp)                            :: drho_cutoff, my_rho, ndr, &
                                                 rho_cutoff
-    REAL(kind=dp), DIMENSION(4)              :: max_ldaCoreRadius
     REAL(kind=dp), DIMENSION(:, :, :), &
       POINTER                                :: deriv_data, norm_drho, &
                                                 norm_drho_spin, rho, rhoa, &
@@ -1378,15 +1358,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
   DO i=1,2
      NULLIFY(vxc_to_deriv(i)%pw)
   END DO
-  my_calculate_forces=.FALSE.
-  IF (PRESENT(calculate_forces)) my_calculate_forces=calculate_forces
-  ldaCore=.FALSE.
-  DO i=1,SIZE(atoms)
-     CALL get_atomic_kind_set(atoms(i)%subsys%atomic_kinds%els,&
-          max_ldaCoreRadius=max_ldaCoreRadius)
-     ldaCore=ldaCore.OR.(max_ldaCoreRadius(2)>0.0_dp).OR.&
-          (max_ldaCoreRadius(4)>0.0_dp)
-  END DO
+
   pw_grid => rho_r(1)%pw%pw_grid
 
   CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
@@ -1416,7 +1388,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
           deriv_order=1, rho_r=rho_r, rho_g=rho_g, tau=tau,&
           dft_control=dft_control, xc_control=dft_control%xc_control,&
           cell=cell, pw_pool=pw_pool,&
-          gradient_f=gradient_f, atoms=atoms, needs_basic_components=.TRUE.,&
+          gradient_f=gradient_f,  needs_basic_components=.TRUE.,&
           error=error)
 
   END IF
@@ -1554,41 +1526,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
              drho=drho,drhoa=drhoa,drhob=drhob,rho_cutoff=rho_cutoff,&
              drho_cutoff=drho_cutoff,&
              can_return_null=.TRUE., error=error)
-        IF (my_calculate_forces.AND.ldaCore.AND..FALSE.) THEN
-           ! forces of zero core, implemented only for lda
-           CALL pw_pool_create_pw(pw_pool, tmp_r,&
-                use_data=REALDATA3D, in_space=REALSPACE,&
-                error=error)
-           IF (ASSOCIATED(norm_drho)) THEN
-              !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,&
-              !$omp                 drho_cutoff, tmp_r)&
-              !$omp             private(k,j,i)
-              DO k = bo(1,3), bo(2,3)
-                 DO j = bo(1,2), bo(2,2)
-                    DO i = bo(1,1), bo(2,1)
-                       tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*&
-                            norm_drho(i,j,k)
-                    END DO
-                 END DO
-              END DO
-           ELSE IF (ASSOCIATED(drho)) THEN
-              !$omp parallel do default(none) shared(bo,deriv_data,drho,&
-              !$omp                  drho_cutoff,tmp_r)&
-              !$omp             private(k,j,i,ndr)
-              DO k = bo(1,3), bo(2,3)
-                 DO j = bo(1,2), bo(2,2)
-                    DO i = bo(1,1), bo(2,1)
-                       ndr=SQRT(drho(1)%array(i,j,k)**2+&
-                            drho(2)%array(i,j,k)**2+&
-                            drho(3)%array(i,j,k)**2)
-                       tmp_r%cr3d(i,j,k)=deriv_data(i,j,k)*ndr
-                    END DO
-                 END DO
-              END DO
-           END IF
-           CALL zero_core_force(tmp_r,atoms,set_shift=2,error=error)
-           CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
-        END IF
            
         IF (ASSOCIATED(norm_drho)) THEN
            !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,drho_cutoff)&
@@ -1866,14 +1803,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
               CALL pw_pool_give_back_pw(pw_pool, tmp_r, error=error)
               CALL pw_pool_give_back_pw(pw_pool,vxc_g,error=error)
            ELSE
-              IF (ldaCore) THEN
-                 CALL pw_pool_create_pw(pw_pool, tmp_r,&
-                      use_data=REALDATA3D, in_space=REALSPACE,&
-                      error=error)
-                 CALL pw_zero(tmp_r)
-              ELSE
-                 tmp_r => vxc_rho(ispin)%pw
-              END IF
+              tmp_r => vxc_rho(ispin)%pw
               DO idir=1,3
                  SELECT CASE(dft_control%xc_deriv_method_id)
                  CASE (xc_deriv_spline2_smooth)
@@ -1907,17 +1837,9 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                     CALL pw_pool_give_back_pw(pw_pool,pw_to_deriv(idir)%pw,error=error)
                  END IF
               END DO
-              IF (ldaCore) THEN
-                 CALL zero_core(tmp_r,atoms,set_shift=2,error=error)
-                 CALL pw_sumup(tmp_r,vxc_rho(ispin)%pw)
-                 CALL pw_pool_give_back_pw(pw_pool,tmp_r,error=error)
-              ELSE
-                 NULLIFY(tmp_r)
-              END IF
+              NULLIFY(tmp_r)
            END IF
         END IF
-
-        CALL zero_core(vxc_rho(ispin)%pw,atoms,set_shift=0,error=error)
 
         IF (pw_grid%spherical) THEN
            ! filter vxc
@@ -1980,10 +1902,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
         CALL pw_create(tmp_r,pw_grid,&
              use_data=REALDATA3D,in_space=REALSPACE,&
              cr3d_ptr=deriv_data, error=error)
-!FM        IF (my_calculate_forces) THEN
-!FM           CALL zero_core_force(tmp_r,atoms,error)
-!FM        END IF
-!FM        CALL zero_core(tmp_r,atoms,error=error)
         NULLIFY(tmp_r%cr3d)
         CALL pw_release(tmp_r)
 
@@ -2095,7 +2013,7 @@ END SUBROUTINE xc_vxc_pw_create
 !!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
+FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,&
      error) RESULT(exc)
     TYPE(pw_p_type), DIMENSION(:), &
       INTENT(inout), TARGET                  :: rho_r
@@ -2103,7 +2021,6 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(cp_subsystem_p_type), DIMENSION(:)  :: atoms
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     REAL(kind=dp)                            :: exc
@@ -2128,7 +2045,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,dft_control, cell,pw_pool,atoms,&
        deriv_set=deriv_set,deriv_order=0,&
        rho_r=rho_r,rho_g=rho_g,tau=tau,dft_control=dft_control,&
        xc_control=dft_control%xc_control,&
-       cell=cell,pw_pool=pw_pool,atoms=atoms,&
+       cell=cell,pw_pool=pw_pool,&
        needs_basic_components=.FALSE.,error=error)
   deriv => xc_dset_get_derivative(deriv_set,"",error=error)
   IF (ASSOCIATED(deriv)) THEN
@@ -3207,13 +3124,14 @@ END FUNCTION xc_exc_calc
                                                 k, nspins, order, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r_pw, tau
+    TYPE(pw_type), POINTER                   :: tmp_g, tmp_r
     TYPE(xc_control_type)                    :: xc_control
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
+    NULLIFY(tmp_g, tmp_r)
 
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
@@ -3253,7 +3171,7 @@ END FUNCTION xc_exc_calc
 
     NULLIFY(rho_g, tau)
     CALL xc_rho_set_and_dset_create(rho_set,deriv_set,2,&
-       rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,atoms=atoms,&
+       rho_r_pw,rho_g,tau,dft_control,xc_control,cell,pw_pool,&
        needs_basic_components=.TRUE.,error=error)
 
     IF (nspins == 1 .AND. (dft_control%tddfpt_control%lsd_singlets .OR. &

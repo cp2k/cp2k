@@ -161,7 +161,6 @@ CONTAINS
    TYPE(xc_rho_set_type), pointer           :: rho_set
    TYPE(pw_p_type), DIMENSION(:), POINTER   :: my_rho_g,my_tau
    TYPE(pw_p_type), DIMENSION(1), target    :: my_rho_r
-   TYPE(cp_subsystem_p_type),dimension(0)   :: atoms
    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     CHARACTER&
       (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
@@ -188,7 +187,7 @@ CONTAINS
         deriv_order=order,&
         rho_r=my_rho_r,rho_g=my_rho_g,tau=my_tau,dft_control=dft_control,&
         xc_control=dft_control%xc_control,cell=cell,pw_pool=pw_pool,&
-        gradient_f=gradient_f,atoms=atoms,&
+        gradient_f=gradient_f,&
         needs_basic_components=.FALSE.)
 
    ! check for unsupported derivatives

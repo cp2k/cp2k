@@ -47,7 +47,6 @@ MODULE qs_kpp1_env_methods
                                              cp_to_string,&
                                              cp_warning_level,&
                                              cp_logger_get_default_unit_nr
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
@@ -241,8 +240,6 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho1_r, &
                                                 v_rspace_new
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: atoms
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho1_g_pw, rho1_r_pw, tau_pw, &
@@ -372,8 +369,6 @@ CONTAINS
        END IF
 
        NULLIFY(tau_pw)
-       ALLOCATE(atoms(1))
-       atoms(1)%subsys => qs_env%subsys
 
        !------!
        ! rho1 !
@@ -407,7 +402,7 @@ CONTAINS
        END IF
        ! calculate the agruments needed by the functionals
        CALL xc_rho_set_update(rho1_set, rho1_r_pw, rho1_g_pw, tau_pw, needs,& 
-                              dft_control, cell, auxbas_pw_pool, atoms, error)
+                              dft_control, cell, auxbas_pw_pool,  error)
 
        ALLOCATE(v_xc(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -437,7 +432,7 @@ CONTAINS
              CALL pw_release(rho1_r_pw(ispin)%pw)
           END DO
        END IF
-       DEALLOCATE(rho1_r_pw, atoms,stat=stat)
+       DEALLOCATE(rho1_r_pw, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        !-------------------------------!

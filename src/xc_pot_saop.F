@@ -43,7 +43,6 @@ MODULE xc_pot_saop
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
-  USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -144,7 +143,6 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
          POINTER                             :: single_mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_subsystem_p_type), DIMENSION(1)  :: subsys
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -179,7 +177,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho_struct,&
                     pw_env=pw_env,&
-                    subsys=subsys(1)%subsys,&
                     cell=cell,&
                     dft_control=dft_control,&
                     mos=molecular_orbitals)
@@ -214,8 +211,8 @@ CONTAINS
        IF (xc_control%functionals(i) == "") xc_control%functionals(i) = "NONE"
     END DO
     CALL xc_vxc_pw_create(vxc_tmp, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          dft_control, cell, auxbas_pw_pool, subsys, &
-                          .FALSE., error)
+                          dft_control, cell, auxbas_pw_pool,  &
+                          error)
     xc_control%functionals = ""
     CALL xc_get_functional ( 2, "PZ", xc_control%functionals, &
                                        xc_control%gradient_functionals, &
@@ -224,8 +221,8 @@ CONTAINS
        IF (xc_control%functionals(i) == "") xc_control%functionals(i) = "NONE"
     END DO
     CALL xc_vxc_pw_create(vxc_LB, vxc_tau, xc_energy, rho_r, rho_g, tau,&
-                          dft_control, cell, auxbas_pw_pool, subsys, &
-                          .FALSE., error)
+                          dft_control, cell, auxbas_pw_pool, &
+                          error)
     DO ispin=1, nspins
        vxc_LB(ispin)%pw%cr3d = vxc_LB(ispin)%pw%cr3d + alpha*vxc_tmp(ispin)%pw%cr3d
     END DO
@@ -246,7 +243,7 @@ CONTAINS
        CALL xb88_lda_info(needs=needs)
     END IF
     CALL xc_rho_set_update(rho_set, rho_r, rho_g, tau, needs, &
-                           dft_control, cell, auxbas_pw_pool, subsys, error)
+                           dft_control, cell, auxbas_pw_pool, error)
     CALL add_lb_pot(vxc_LB, rho_set, lsd, xc_control%density_cut, xc_control%gradient_cut, error)
 
 
