@@ -163,9 +163,11 @@ CONTAINS
 ! This is only activated for NVE runs to print so one can use the
 ! ALL restart option with NVE
  
- IF ( ( nhc_len == 0 ).AND. ( tot_nhcneed == 0 ) ) THEN
-   WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed
- END IF
+ IF (para_env%mepos==para_env%source) THEN
+     IF ( ( nhc_len == 0 ).AND. ( tot_nhcneed == 0 ) ) THEN
+        WRITE (UNIT=dump_unit,FMT=*) nhc_len, tot_nhcneed
+     END IF
+ ENDIF
 
   NULLIFY(work,index)
   
