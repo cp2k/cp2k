@@ -187,6 +187,14 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                                      "paw_proj_set%lz")
 
+    DEALLOCATE (paw_proj_set%ll,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                                     "paw_proj_set%ll")
+
+    DEALLOCATE (paw_proj_set%m,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
+                                     "paw_proj_set%m")
+
     DEALLOCATE (paw_proj_set%first_prj,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,module_name,__LINE__,&
                                      "paw_proj_set%first_prj")
