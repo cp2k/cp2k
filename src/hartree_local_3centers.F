@@ -378,14 +378,14 @@ MODULE  hartree_local_3centers
                                   block_col=jatom,&
                                   BLOCK=p_block)
 
-! test
+
 !              IF(ncotota .gt. ncotota_old .OR. ncototb .GT. ncototb_old) then
                 CALL reallocate(CPC_ab,1,ncotota,1,ncototb)
 !                ncotota_old = ncotota
 !                ncototb_old = ncototb
 !              END IF
               CPC_ab = 0.0_dp
-!! test
+
               IF(maxcoa .GT. SIZE(hab,1) .OR. maxcob .GT. SIZE(hab,2)) THEN
                 CALL reallocate(hab,1,maxcoa,1,maxcob)
               ELSE
@@ -629,6 +629,7 @@ MODULE  hartree_local_3centers
 !
                       trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                           Int_ab_sum,SIZE(Int_ab_sum,1),0,0,nco1,nco2)
+
                       energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
@@ -639,6 +640,7 @@ MODULE  hartree_local_3centers
                         DO idir = 1,3 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),0,0,nco1,nco2)
+
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -646,6 +648,7 @@ MODULE  hartree_local_3centers
 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),0,0,nco1,nco2)
+
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -708,6 +711,7 @@ MODULE  hartree_local_3centers
 
                       trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                           Int_ab_sum,SIZE(Int_ab_sum,1),0,0,nco1,nco2)
+
                       energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
@@ -718,6 +722,7 @@ MODULE  hartree_local_3centers
                         DO idir = 1,3 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_dab_sum(:,:,idir),SIZE(Int_dab_sum,1),0,0,nco1,nco2)
+
                           force(ikind)%hartree_3c(idir,i_atom) = &
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -725,6 +730,7 @@ MODULE  hartree_local_3centers
 
                           trace = trace_r_AxB_new(CPC_ab,SIZE(CPC_ab,1),m1,m2,&
                                   Int_adb_sum(:,:,idir),SIZE(Int_adb_sum,1),0,0,nco1,nco2)
+
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
@@ -767,7 +773,9 @@ MODULE  hartree_local_3centers
 
 !   IF PARALLEL sum up the contributions to sum_ab_car coming from
 !   ab pairs handled by different processors
-    CALL mp_sum(energy_hartree_3c,para_env%group)
+    IF(ispin == qs_env%dft_control%nspins) THEN
+      CALL mp_sum(energy_hartree_3c,para_env%group)
+    END IF
     CALL mp_sum(sum_ab_car,para_env%group)
 
     IF(just_energy) GOTO 100
@@ -844,13 +852,17 @@ MODULE  hartree_local_3centers
  
 
 !      The Calculation of ga_Vlocal_gp is complete at this point
+       IF(ispin == qs_env%dft_control%nspins) THEN
          DO kat = 1,nat
             katom  = atom_list(kat)
-            CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                         para_env%group)
-            CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                         para_env%group)
+            DO ispin_bis = 1,qs_env%dft_control%nspins
+              CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_h(ispin_bis)%r_coef,&
+                           para_env%group)
+              CALL  mp_sum(rho_atom_set(katom)%ga_Vlocal_gb_s(ispin_bis)%r_coef,&
+                           para_env%group)
+            END DO
          END DO
+       END IF
     END DO  ! kkind
 
 100 CONTINUE
