@@ -1,0 +1,35 @@
+# This script is used to change the name of some routines in ARPACK
+# as they conflict with the routines in SCALAPACK
+
+# this should be run (before compiling arpack)  in the ARPACK home directory
+# that is, not in the cp2k directory 
+
+# files should become all arpack fortran files down the tree if not ... change it
+
+files=`du -a | grep "\.f" | awk '{print $2}'`
+
+for f in ${files}
+do
+   echo "${f}"
+# this conflicts with scalapack
+   sed 's/PSLAMCH/PSLAMARP/g' ${f} > jtmp0
+   sed 's/pslamch/pslamarp/g' jtmp0 > jtmp
+   sed 's/PDLAMCH/PDLAMARP/g' jtmp  > jtmp0
+   sed 's/pdlamch/pdlamarp/g' jtmp0 > jtmp
+#
+#  ********************** uncomment the copy if you're sure the list of files is fine
+#
+   # cp tmp ${f}
+   echo "dry run, uncomment the copy"
+# this conflicts with lapack / second is a function
+   sed 's/second/secarp/g' ${f} > jtmp0
+   sed 's/SECOND/SECARP/g' jtmp0 > jtmp
+#
+#  ********************** uncomment the copy if you're sure the list of files is fine
+#
+   # cp tmp ${f}
+   echo "dry run, uncomment the copy"
+   rm jtmp jtmp0
+done
+
+
