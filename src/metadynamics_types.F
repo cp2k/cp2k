@@ -219,18 +219,32 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
     LOGICAL                                  :: failure
 
   failure=.FALSE.
-  
   SELECT CASE(colvar%type_id)
   CASE (dist_colvar_id)
+     DEALLOCATE(colvar%dsdr, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+     DEALLOCATE(colvar%i_atom, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
      colvar%dist_param%i_at=-HUGE(0)
      colvar%dist_param%j_at=-HUGE(0)
   CASE (coord_colvar_id)
+     DEALLOCATE(colvar%dsdr, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+     DEALLOCATE(colvar%i_atom, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
      colvar%coord_param%n_atoms_from=-HUGE(0)
      colvar%coord_param%n_atoms_to=-HUGE(0)
      DEALLOCATE(colvar%coord_param%i_at_from,&
           colvar%coord_param%i_at_to,stat=stat)
      CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   CASE (torsion_colvar_id)
+     DEALLOCATE(colvar%dsdr, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+     DEALLOCATE(colvar%i_atom, stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
+
      colvar%torsion_param%i_at_tors(1)=-HUGE(0)
      colvar%torsion_param%i_at_tors(2)=-HUGE(0)
      colvar%torsion_param%i_at_tors(3)=-HUGE(0)

@@ -267,7 +267,7 @@ CONTAINS
          ENDDO
       CASE(torsion_colvar_id)
          colvar%n_atom_s=4
-                  ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
+         ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
          ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
