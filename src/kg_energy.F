@@ -195,8 +195,6 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
                   scf_control=scf_control)           
 
   CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
-  ALLOCATE(vxc_r,stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
    
   CALL build_kg_neighbor_lists(kg_env,globenv)
 
