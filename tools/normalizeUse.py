@@ -108,13 +108,20 @@ def writeUseLong(modules,outFile):
 def rewriteUse(inFile,outFile):
     """rewrites the use statements of in file to outFile.
     It sorts them and removes the repetitions."""
-    moduleRe=re.compile(r" *module [a-zA-Z_][a-zA-Z_0-9]* *(?:!.*)?$",
+    import os.path
+    moduleRe=re.compile(r" *module (?P<moduleName>[a-zA-Z_][a-zA-Z_0-9]*) *(?:!.*)?$",
                         flags=re.IGNORECASE)
     while 1:
         line=inFile.readline()
         if not line: break
         outFile.write(line)
-        if moduleRe.match(line): break
+        m=moduleRe.match(line)
+        if m:
+            if (m.group('moduleName')!=os.path.basename(inFile.name)[0:-2]) :
+                raise SyntaxError("Module name is different from filename ("+
+                                  m.group('moduleName')+
+                                  "!="+os.path.basename(inFile.name)[0:-2]+")")
+            break
     (modules,comments,line)=parseUse(inFile)
     outFile.write(comments)
     normalizeModules(modules)
