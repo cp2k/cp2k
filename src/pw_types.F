@@ -119,6 +119,7 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data )
 
 !------------------------------------------------------------------------------
 
+  NULLIFY ( pw % pw_grid )
   pw % in_use = use_data
   pw % pw_grid => pw_grid
   pw % in_space = NOSPACE
