@@ -75,6 +75,7 @@ MODULE qs_scf_post
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp
+  USE level_shift,                     ONLY: level_shift_testing
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE mathconstants,                   ONLY: fourpi,&
@@ -227,6 +228,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
     TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
     TYPE(coeff_type) :: wf_r, wf_g
+    TYPE(coeff_type), POINTER :: rho_core
     REAL(kind=wp) :: total_abs_spin_dens
     TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
     TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
@@ -247,7 +249,7 @@ CONTAINS
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     TYPE(real_matrix_type), POINTER :: pfull
-    INTEGER :: ispin,n, output_unit, stat, nmo
+    INTEGER :: ispin,n, output_unit, stat, nmo,handle
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo
@@ -255,6 +257,8 @@ CONTAINS
     CHARACTER(LEN=80) :: title
     REAL(wp)           :: volume
     REAL(kind=wp), POINTER, DIMENSION(:,:) :: center
+ 
+    CALL timeset(routineN,"I","",handle)
 
 ! writes the data that is already available in qs_env 
     CALL write_available_results(qs_env,globenv,error)
@@ -263,7 +267,7 @@ CONTAINS
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
             mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
             ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
-            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule,center)
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule,center,rho_core)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
@@ -274,7 +278,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule=molecule, &
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
+            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,rho_core=rho_core,error=error)
+       CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
        IF (globenv%print%mulliken_analysis)  &
@@ -283,7 +288,6 @@ CONTAINS
 !    *** setup the grids needed to compute a wavefunction given a vector
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
                    .AND. globenv%print%cubes ) THEN
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
@@ -364,13 +368,13 @@ CONTAINS
              ENDIF
              NULLIFY(mo_localized)
              CALL cp_fm_create(mo_localized,mo_eigenvectors%matrix_struct)
+             ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6)) 
              CALL cp_fm_to_fm(mo_eigenvectors,mo_localized)
              ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
              IF (globenv%ionode) WRITE(globenv%scr,*) "Computing localization properties"
              IF (globenv%ionode) OPEN(UNIT=21,FILE=filename)
-             ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6)) 
              CALL qs_loc_compute_properties(qs_loc_env,molecule,mo_localized,center,globenv%ionode,21)
              IF (globenv%ionode) CLOSE(21)
              IF (globenv%ionode) WRITE(globenv%scr,*) "Results in ",filename
@@ -395,7 +399,6 @@ CONTAINS
                    IF (globenv%ionode) CLOSE(21)
                 ENDDO
              END IF
-             DEALLOCATE(center)
              ! compute the molecular states
              IF ( globenv % print % molecular_states ) THEN
                   CALL construct_molecular_states ( molecule, mo_localized, &
@@ -407,6 +410,12 @@ CONTAINS
                                                     mgrid_gspace )
              ENDIF
              CALL cp_fm_release(mo_localized)
+
+             IF (.FALSE.) &
+             CALL level_shift_testing(atomic_kind_set, particle_set, cell, center, &
+                                      pw_env, rho, rho_core)
+
+             DEALLOCATE(center)
           ENDDO
        ENDIF
 
@@ -555,6 +564,7 @@ CONTAINS
        ENDIF
 
     END IF
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE scf_post_calculation
 
   SUBROUTINE write_available_results(qs_env,globenv,error)

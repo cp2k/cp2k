@@ -142,6 +142,7 @@ OBJECTS_GENERIC =\
  l_utils.o\
  lapack.o\
  lebedev.o\
+ level_shift.o\
  library_tests.o\
  linear_systems.o\
  linklist_control.o\
