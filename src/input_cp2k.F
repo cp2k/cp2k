@@ -2072,9 +2072,248 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
+       CALL create_mc_section(subsection, error)
+       call section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
     END IF
 
   END SUBROUTINE create_motion_section
+
+!!****f* input_cp2k/create_mc_section *
+!!
+!!   NAME
+!!     create_mc_section
+!!
+!!   FUNCTION
+!!     creates the metadynamics section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_mc_section(section,error)
+    TYPE(section_type), POINTER :: section
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='create_mc_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword    
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="mc",&
+            description="This section sets parameters to set up a MonteCarlo calculation.",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="NSTEP",&
+            description="Specifies the number of MC steps.",&
+            usage="NSTEP <integer>",&
+            default_i_val=100,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NMOVES",&
+            description="Specifies the number of moves between energy evaluations. ",&
+            usage="NMOVES <integer>",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="NVOLMOVES",&
+            description="Matt will provide docs.",&
+            usage="NVOLMOVES <integer>",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="NSWAPMOVES",&
+            description="Matt will provide docs.",&
+            usage="NSWAPMOVES <integer>",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="LSTOP",&
+            description="Matt will provide docs.",&
+            usage="LSTOP <logical>",&
+            default_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="LCLASSICAL",&
+            description="Matt will provide docs.",&
+            usage="LCLASSICAL <logical>",&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="RESTART",&
+            description="Matt will provide docs.",&
+            usage="RESTART <logical>",&
+            default_l_val=.FALSE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="IUPVOLUME",&
+            description="Every iupvolume steps update maximum volume displacement.",&
+            usage="IUPVOLUME <integer>",&
+            default_i_val=1,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+
+       CALL keyword_create(keyword, name="PROGRAM",&
+            description="Specify the type of simulation",&
+            usage="PROGRAM (TRADITIONAL|GEMC)",&
+            enum_c_vals=s2a( "TRADITIONAL","GEMC"),&
+            enum_i_vals=(/do_mc_traditional,do_mc_gemc/),&
+            default_i_val=do_mc_traditional,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+       CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
+            description="Name of the restart file for MC information.",&
+            usage="RESTART_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="COORDINATE_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="COORDINATE_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ENERGY_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="ENERGY_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DATA_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="DATA_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CELL_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="CELL_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_DISP_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="MAX_DISP_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BOX2_FILE_NAME",&
+            description="Matt will provide docs.",&
+            usage="BOX2_FILE_NAME <filename>",&
+            default_c_val="XXXXXXXX",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PRESSURE",&
+            description="Matt will provide docs.",&
+            usage="PRESSURE <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TEMP",&
+            description="Matt will provide docs.",&
+            usage="TEMP <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMSWAP",&
+            description="Matt will provide docs.",&
+            usage="PMSWAP <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMVOLUME",&
+            description="Matt will provide docs.",&
+            usage="PMVOLUME <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMTRAION",&
+            description="Matt will provide docs.",&
+            usage="PMTRAION <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PMTRANS",&
+            description="Matt will provide docs.",&
+            usage="PMTRANS <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMVOLUME",&
+            description="Matt will provide docs.",&
+            usage="RMVOLUME <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMBOND",&
+            description="Matt will provide docs.",&
+            usage="RMBOND <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMANGLE",&
+            description="Matt will provide docs.",&
+            usage="RMANGLE <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMROT",&
+            description="Matt will provide docs.",&
+            usage="RMROT <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="RMTRANS",&
+            description="Matt will provide docs.",&
+            usage="RMTRANS <real>",&
+            type_of_var=real_t, required=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_mc_section
 
 !!****f* input_cp2k/create_geoopt_section *
 !!

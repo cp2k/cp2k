@@ -118,6 +118,9 @@ MODULE input_constants
                                 do_coord_chm=1,&
                                 do_coord_off=2
 
+  INTEGER, PARAMETER, PUBLIC :: do_mc_traditional=0,&
+                                do_mc_gemc=1
+
   INTEGER, PARAMETER, PUBLIC :: do_ewald=0,&
                                 do_pme=1,&
                                 do_spme=2
