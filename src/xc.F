@@ -140,7 +140,7 @@ MODULE xc
   PUBLIC :: xc_vxc_pw_create1, xc_vxc_pw_create, xc_calculate_pw1, &
        xc_prep_2nd_deriv, xc_calc_2nd_deriv, xc_prep_2nd_deriv1, &
        xc_calc_2nd_deriv1, xc_rho_set_and_dset_create, xc_exc_calc,&
-       xc_calc_2nd_deriv_new, xc_prep_2nd_deriv_new
+       xc_calc_2nd_deriv_new, xc_prep_2nd_deriv_new, divide_by_norm_drho
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='xc'
@@ -5288,22 +5288,16 @@ END FUNCTION xc_exc_calc
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_prep_2nd_deriv_new', &
-      routineP = moduleN//':'//routineN
+                                   routineP = moduleN//':'//routineN
 
-    CHARACTER&
-      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
-    CHARACTER(len=MAX_LABEL_LENGTH), &
-      DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: handle, i, idesc, ispin, j, &
                                                 k, nspins, order
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(cp_subsystem_p_type), DIMENSION(0)  :: atoms
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_g_pw, rho_r_pw, tau
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r
     TYPE(xc_control_type)                    :: xc_control
-    TYPE(xc_derivative_type), POINTER        :: deriv_att
 
     CALL timeset(routineN,"I","",handle)
 
@@ -5347,13 +5341,46 @@ END FUNCTION xc_exc_calc
        needs_basic_components=.TRUE.,error=error)
 
     bo = rho_r(1)%pw%pw_grid%bounds_local
+    
+    CALL divide_by_norm_drho(deriv_set, rho_set, bo, lsd, error)
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE xc_prep_2nd_deriv_new
+
+  !***************************************************************************
+
+  SUBROUTINE divide_by_norm_drho(deriv_set, rho_set, bo, lsd, error)
+
+    ! ARGUMENTS
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
+    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo
+    LOGICAL, INTENT(IN)                      :: lsd
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    ! LOCALS
+    CHARACTER&
+      (len=MAX_DERIVATIVE_DESC_LENGTH)       :: desc
+    CHARACTER(len=MAX_LABEL_LENGTH), &
+      DIMENSION(:), POINTER                  :: split_desc
+    INTEGER                                  :: order, idesc, i, j, k
+    LOGICAL                                  :: failure
+    TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
+    TYPE(xc_derivative_type), POINTER        :: deriv_att
+
+    ! PARAMETERS
+    CHARACTER(len=*), PARAMETER :: routineN = 'divide_by_norm_drho', &
+                                   routineP = moduleN//':'//routineN
 
     ! check for unknown derivatives and divide by norm_drho where necessary
+
+    failure = .FALSE.
     pos => deriv_set%derivs
     DO WHILE (cp_sll_xc_deriv_next(pos,el_att=deriv_att,error=error))
        CALL xc_derivative_get(deriv_att,order=order,&
-            desc=desc, split_desc=split_desc,&
-            error=error)
+                              desc=desc, split_desc=split_desc,&
+                              error=error)
        IF (order==1 .OR.order==2) THEN
           DO idesc=1,SIZE(split_desc)
              SELECT CASE(split_desc(idesc))
@@ -5406,8 +5433,8 @@ END FUNCTION xc_exc_calc
        END IF
     END DO
 
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE xc_prep_2nd_deriv_new
+  END SUBROUTINE divide_by_norm_drho
+
   !***************************************************************************
 
   SUBROUTINE pw_smooth(pw_in,pw_out)

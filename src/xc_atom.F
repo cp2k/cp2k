@@ -374,9 +374,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-  SUBROUTINE xc_2nd_deriv_of_r(xc_control, rho_set, deriv_set, deriv_order, &
-                               needs, rho, drho, oodrho, w, &
-                               lsd, nspins, na, ir_pnt, exc, vxc, vxg, vxg_cross, error)
+  SUBROUTINE xc_2nd_deriv_of_r(xc_control, rho_set, rho1_set, deriv_set, needs, &
+                               rho, drho, oodrho, rho1, drho1, oodrho1, &
+                               w, lsd, nspins, na, ir_pnt, exc, vxc, vxg, vxg_cross, error)
 
 ! As input of this routine one gets rho and drho on a one dimensional grid. 
 ! The grid is the angular grid corresponding to a given point ir_pnt on the radial grid.
@@ -388,12 +388,12 @@ CONTAINS
     ! ARGUMENTS
     TYPE(xc_control_type), POINTER                :: xc_control
     TYPE(xc_rho_set_type), POINTER                :: rho_set
+    TYPE(xc_rho_set_type), POINTER                :: rho1_set
     TYPE(xc_derivative_set_type), POINTER         :: deriv_set
-    INTEGER, INTENT(in)                           :: deriv_order
     TYPE(xc_rho_cflags_type), INTENT(in)          :: needs
-    REAL(dp), DIMENSION(:,:),  POINTER            :: rho 
-    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho 
-    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho 
+    REAL(dp), DIMENSION(:,:),  POINTER            :: rho, rho1 
+    REAL(dp), DIMENSION(:,:,:,:),  POINTER        :: drho, drho1 
+    REAL(dp), DIMENSION(:,:),  POINTER            :: oodrho, oodrho1 
     REAL(dp), DIMENSION(:),  POINTER              :: w 
     LOGICAL, INTENT(IN)                           :: lsd
     INTEGER, INTENT(IN)                           :: nspins
@@ -429,15 +429,16 @@ CONTAINS
                 needs%drhoa_drhob.OR.needs%drho.OR.needs%norm_drho)
 
     CALL fill_rho_set(rho_set,lsd,nspins,needs,rho,drho,oodrho,w,na,ir_pnt,error)
+    CALL fill_rho_set(rho1_set,lsd,nspins,needs,rho1,drho1,oodrho1,w,na,ir_pnt,error)
 
     !  Calculate the derivatives
     DO i=1,SIZE(xc_control%functionals)
        CALL xc_functional_eval(xc_control%functionals(i), &
-            lsd=lsd,&
-            rho_set=rho_set, &
-            deriv_set=deriv_set,&
-            deriv_order=deriv_order, &
-            error=error)
+                               lsd=lsd,&
+                               rho_set=rho_set, &
+                               deriv_set=deriv_set,&
+                               deriv_order=2, &
+                               error=error)
     END DO
 
     CALL timestop(0.0_dp,handle)
