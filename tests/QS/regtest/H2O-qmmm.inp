@@ -20,7 +20,6 @@
  restart:      init                    start type (pos,posvel)
  constraints:  off
  shake:        1.0E-10
- verlet_skin:  1 angstroms
  nose_parameter & 
   length:    3        &
   Yoshida:   3        &
