@@ -77,10 +77,10 @@ END SUBROUTINE m_datum
 !   ***************************************************************************
 
     INTEGER, INTENT(IN) :: lunit
-
+    INTEGER :: istat
 !   ---------------------------------------------------------------------------
 
-    CALL flush(lunit)
+    CALL flush(lunit,istat)
 
   END SUBROUTINE m_flush
 
