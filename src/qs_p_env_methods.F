@@ -52,6 +52,7 @@ MODULE qs_p_env_methods
                                              cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_retain,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
@@ -298,8 +299,6 @@ CONTAINS
           CALL allocate_rho_atom_internals(qs_env, p_env%local_rho_set%rho_atom_set)
           CALL init_rho0(qs_env, qs_env%dft_control%qs_control%gapw_control, &
                          qs_env%cell, .TRUE., p_env%local_rho_set, error)
-          ALLOCATE(p_env%hartree_local, stat=stat)
-          IF (stat/=0) CALL stop_memory(routineP, "p_env%hartree_local", 1)
           CALL hartree_local_create(p_env%hartree_local)
           CALL init_coulomb_local(qs_env,qs_env%dft_control%qs_control%gapw_control, &
                                   .TRUE., p_env)
@@ -560,6 +559,7 @@ END SUBROUTINE p_env_did_change
                 NULLIFY(my_psi0(spin)%matrix)
                 CALL get_mo_set(mos(spin)%mo_set,&
                      mo_coeff=my_psi0(spin)%matrix)
+                CALL cp_fm_retain(my_psi0(spin)%matrix)
              END DO
           END IF
        END IF

@@ -149,12 +149,14 @@ CONTAINS
     ! create the p_env !
     !------------------!
     CALL kpp1_create(kpp1_env, qs_env=qs_env)
-    ALLOCATE(psi0d(n_spins), stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
-    DO spin=1, n_spins
-       CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=psi0d(spin)%matrix)
-    END DO
-    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
+!    ALLOCATE(psi0d(n_spins), stat=stat)
+!    IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
+!    DO spin=1, n_spins
+!       CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=psi0d(spin)%matrix)
+!    END DO
+!    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
+!                      orthogonal_orbitals=.TRUE.)
+    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, &
                       orthogonal_orbitals=.TRUE.)
     CALL p_env_psi0_changed(p_env, qs_env) ! update the m_epsilon matrix
 
@@ -165,11 +167,11 @@ CONTAINS
     CALL tddfpt_env_allocate(t_env, p_env, qs_env, glob_env)
     CALL tddfpt_env_init(t_env, p_env, qs_env, glob_env)
 
-    !----------!
-    ! clean up !
-    !----------!
-    DEALLOCATE(psi0d, stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
+!    !----------!
+!    ! clean up !
+!    !----------!
+!    DEALLOCATE(psi0d, stat=stat)
+!    IF (stat /= 0) CALL stop_memory(routineP, "psi0d")
 
   END SUBROUTINE tddfpt_init
 
