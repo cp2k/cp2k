@@ -355,7 +355,7 @@ CONTAINS
                                          n,natom,ndigits,nmolecule,&
                                          nmolecule_kind,nparticle,&
                                          nparticle_kind,string_length
-    LOGICAL                           :: found,new_kind,newline,&
+    LOGICAL                           :: found,new_kind,newline,pdb,&
                                          scaled_coordinates,section_found
 
     TYPE(atom_type), DIMENSION(:), POINTER :: atom_list
@@ -394,14 +394,7 @@ CONTAINS
     CALL reallocate(particle_kind_of,1,nblock1)
     CALL reallocate(r,1,3,1,nblock1)
 
-    CALL start_parser(file_name=globenv%coord_file_name,&
-                      globenv=globenv,&
-                      start_section_label="COORD",&
-                      section_found=section_found)
-
-    IF (.NOT.section_found) THEN
-      CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
-    END IF
+    pdb = .FALSE.
 
 !   *** Define the standard input formats using the following descriptors:
 
@@ -420,21 +413,47 @@ CONTAINS
 
     default_format = xyz_format
 
-    test_result = test_object()
+    string_length = LEN_TRIM(globenv%coord_file_name)
 
-    IF (test_result == "STR") THEN
-      CALL read_object(input_format,lower_to_upper=.TRUE.)
-      CALL compress(input_format,full=.TRUE.)
-      SELECT CASE (TRIM(input_format))
-      CASE ("GROMOS87","GRO")
-        input_format = gro_format
-      CASE ("PDB")
-        input_format = pdb_format
-      CASE ("XYZ")
-        input_format = xyz_format
-      END SELECT
+    IF (globenv%coord_file_name(MAX(1,string_length-3):string_length) == ".pdb") pdb = .TRUE.
+
+    IF (pdb) THEN
+
+      input_format = pdb_format
+
+      CALL start_parser(file_name=globenv%coord_file_name,&
+                        section_char=" ",&
+                        globenv=globenv)
+
     ELSE
-      input_format = default_format
+
+      CALL start_parser(file_name=globenv%coord_file_name,&
+                        globenv=globenv,&
+                        start_section_label="COORD",&
+                        section_found=section_found)
+
+      IF (.NOT.section_found) THEN
+        CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
+      END IF
+
+      test_result = test_object()
+
+      IF (test_result == "STR") THEN
+        CALL read_object(input_format,lower_to_upper=.TRUE.)
+        CALL compress(input_format,full=.TRUE.)
+        SELECT CASE (TRIM(input_format))
+        CASE ("GROMOS87","GRO")
+          input_format = gro_format
+        CASE ("PDB")
+          input_format = pdb_format
+          pdb = .TRUE.
+        CASE ("XYZ")
+          input_format = xyz_format
+        END SELECT
+      ELSE
+        input_format = default_format
+      END IF
+
     END IF
 
     input_format_length = LEN_TRIM(input_format)
@@ -470,7 +489,7 @@ CONTAINS
     nparticle = 0
     nparticle_kind = 0
 
-    DO
+    line_loop: DO
 
       test_result = test_object(newline=.TRUE.)
 
@@ -500,7 +519,7 @@ CONTAINS
 
         i = 1
 
-        DO
+        format_loop: DO
 
           IF (i > input_format_length) EXIT
 
@@ -548,6 +567,13 @@ CONTAINS
             CALL read_object(object=string,&
                              newline=newline,&
                              string_length=string_length)
+            IF (pdb.AND.(i == 1)) THEN
+              CALL uppercase(string)
+              IF ((string /= "ATOM").OR.(string == "HETATM")) THEN
+                nparticle = nparticle - 1
+                CYCLE line_loop
+              END IF
+            END IF
 !MKprint*,"S="""//TRIM(string)//"""",string_length
           CASE ("X")
             CALL read_object(object=r(1,nparticle),&
@@ -570,7 +596,7 @@ CONTAINS
 
           newline = .FALSE.
 
-        END DO
+        END DO format_loop
 
 !       *** Check, if we found a new particle kind ***
 
@@ -644,7 +670,7 @@ CONTAINS
 
       END IF
 
-    END DO
+    END DO line_loop
 
 !   *** Reallocate the work arrays with the final sizes ***
 

@@ -1152,23 +1152,22 @@ CONTAINS
     section_character = ""
     end_section = ""
 
-!   *** Load the default values ***
+!   *** Load the default values and overwrite them, if requested ***
 
     separators = default_separators
-    comment_character = default_comment_character
-    continuation_character = default_continuation_character
-    section_character = default_section_character
-    end_section = section_character//default_end_section_label
-
-!   *** Overwrite the default values, if requested ***
-
     IF (PRESENT(separator_chars)) separators = separator_chars
+    comment_character = default_comment_character
     IF (PRESENT(comment_char)) comment_character = comment_char
+    continuation_character = default_continuation_character
     IF (PRESENT(continuation_char)) continuation_character = continuation_char
+    section_character = default_section_character
     IF (PRESENT(section_char)) section_character = section_char
+    end_section = section_character//default_end_section_label
     IF (PRESENT(end_section_label)) THEN
       end_section = section_character//TRIM(end_section_label)
     END IF
+
+    CALL compress(end_section)
 
 !   *** Get the logical output unit number for error messages ***
 
@@ -1215,7 +1214,11 @@ CONTAINS
       ELSE
         CALL search_object(TRIM(start_section),.TRUE.,found)
       END IF
+    ELSE
+      start_section = section_character//"not specified"
     END IF
+
+    CALL compress(start_section)
 
     IF (PRESENT(section_found)) section_found = found
 
