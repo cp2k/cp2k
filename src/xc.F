@@ -2555,7 +2555,8 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                    use_data=REALDATA3D, in_space=REALSPACE,&
                    error=error)
               IF (ASSOCIATED(norm_drho)) THEN
-                 !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,drho_cutoff)&
+                 !$omp parallel do default(none) shared(bo,deriv_data,norm_drho,&
+                 !$omp                 drho_cutoff, tmp_r)&
                  !$omp             private(k,j,i)
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
@@ -2566,7 +2567,8 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                     END DO
                  END DO
               ELSE IF (ASSOCIATED(drho)) THEN
-                 !$omp parallel do default(none) shared(bo,deriv_data,drho,drho_cutoff)&
+                 !$omp parallel do default(none) shared(bo,deriv_data,drho,&
+                 !$omp                  drho_cutoff,tmp_r)&
                  !$omp             private(k,j,i,ndr)
                  DO k = bo(1,3), bo(2,3)
                     DO j = bo(1,2), bo(2,2)
