@@ -31,7 +31,10 @@ MODULE environment
                                              MEDIUM,&
                                              SILENT,&
                                              global_environment_type,&
-                                             init_print_keys
+                                             init_print_keys, &
+                                             BLACS_GRID_SQUARE, &
+                                             BLACS_GRID_ROW, &
+                                             BLACS_GRID_COL
   USE kinds,                           ONLY: print_kind_info,&
                                              wp => dp
   USE machine,                         ONLY: m_datum,&
@@ -129,6 +132,7 @@ CONTAINS
     INTEGER, EXTERNAL :: iargc
 
 !   ---------------------------------------------------------------------------
+
 
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
@@ -643,7 +647,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=60) :: keyword
+    CHARACTER(LEN=60) :: keyword,keyvalue
     CHARACTER(LEN=3)  :: test_result
     INTEGER           :: output_unit,stat
     LOGICAL           :: section_found
@@ -657,6 +661,7 @@ CONTAINS
 
 !   *** Load the default settings ***
 
+    globenv%blacs_grid_layout = BLACS_GRID_SQUARE
     globenv%default_fft_library = "FFTSG"
     globenv%print_level = 0
     globenv%program_name = " "
@@ -683,6 +688,18 @@ CONTAINS
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
+          CASE ("BLACS_GRID")
+            CALL read_object(keyvalue,lower_to_upper=.TRUE.)
+            SELECT CASE(TRIM(keyvalue))
+            CASE ("SQUARE")
+                 globenv%blacs_grid_layout = BLACS_GRID_SQUARE
+            CASE ("ROW")
+                 globenv%blacs_grid_layout = BLACS_GRID_ROW
+            CASE ("COL","COLUMN")
+                 globenv%blacs_grid_layout = BLACS_GRID_COL
+            CASE DEFAULT
+                 CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            END SELECT
           CASE ("FFT_LIBRARY","FFT_LIB","FFTLIB")
             CALL read_object(globenv%default_fft_library,lower_to_upper=.TRUE.)
           CASE ("IOLEVEL","PRINT_LEVEL")

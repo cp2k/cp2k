@@ -44,7 +44,10 @@ MODULE cp_blacs_env
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type, &
+                                             BLACS_GRID_SQUARE, & 
+                                             BLACS_GRID_ROW,&
+                                             BLACS_GRID_COL
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
                                              wp_size => dp_size
@@ -428,15 +431,24 @@ END FUNCTION cp_blacs_env_from_globenv
     CALL blacs_pinfo(mype,npe)
     CALL blacs_get(-1,0,context)
 
-    IF (nprow*npcol /= npe) THEN
-      DO ipe=CEILING(SQRT(REAL(npe,wp))),npe
-        IF (MODULO(npe,ipe) == 0) THEN
-          nprow = ipe
-          npcol = npe/nprow
-          EXIT
-        END IF
-      END DO
-    END IF
+    SELECT CASE (globenv%blacs_grid_layout)
+    CASE (BLACS_GRID_SQUARE) 
+      IF (nprow*npcol /= npe) THEN
+        DO ipe=CEILING(SQRT(REAL(npe,wp))),npe
+          IF (MODULO(npe,ipe) == 0) THEN
+            nprow = ipe
+            npcol = npe/nprow
+            EXIT
+          END IF
+        END DO
+      END IF
+    CASE (BLACS_GRID_ROW)
+       nprow = 1
+       npcol = npe
+    CASE (BLACS_GRID_COL)
+       nprow = npe
+       npcol = 1
+    END SELECT
 
     CALL blacs_gridinit(context,"Row-major",nprow,npcol)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)

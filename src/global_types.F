@@ -36,6 +36,10 @@ MODULE global_types
                         HIGH = 3,&
                         DEBUG = 4
 
+  INTEGER, PARAMETER :: BLACS_GRID_SQUARE=1, &
+                        BLACS_GRID_ROW=2, &
+                        BLACS_GRID_COL=3
+
   TYPE print_key_type
     INTEGER :: level,PRECISION, ref_count
     LOGICAL :: angles,&
@@ -124,11 +128,13 @@ MODULE global_types
      INTEGER :: scr          !! output unit
      INTEGER :: source       !! processor id for global output node
      LOGICAL :: ionode       !! this processor performs global output
+     INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
   END TYPE global_environment_type
 
 ! *** Public parameters ***
 
   PUBLIC :: DEBUG,HIGH,LOW,MEDIUM,SILENT
+  PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
 
 ! *** Public data types
 
