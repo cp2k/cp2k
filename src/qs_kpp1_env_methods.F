@@ -55,7 +55,6 @@ MODULE qs_kpp1_env_methods
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
-  USE greens_fn,                       ONLY: pw_green_fn_init
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type

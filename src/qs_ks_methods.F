@@ -63,7 +63,6 @@ MODULE qs_ks_methods
   USE cube_utils,                      ONLY: cube_info_type
   USE dft_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
-  USE greens_fn,                       ONLY: pw_green_fn_init
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type
