@@ -39,3 +39,7 @@ water_IPBV.inp            2
 silicon_cluster.inp       0
 silicon_cluster_2.inp     2
 al2o3.inp                 2
+nh3_4x6.inp               2
+nh3_4x6_npt.inp           2
+nh3_dist.inp              2
+nh3_dist_npt.inp          2
