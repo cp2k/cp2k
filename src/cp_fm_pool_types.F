@@ -35,9 +35,9 @@ MODULE cp_fm_pool_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
                                              cp_full_matrix_p_type,&
@@ -102,7 +102,7 @@ MODULE cp_fm_pool_types
   TYPE cp_fm_pool_type
      PRIVATE
      INTEGER :: ref_count, id_nr
-     TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      TYPE(cp_sll_fm_type), POINTER :: cache
   END TYPE cp_fm_pool_type
 !!***
@@ -147,7 +147,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine fm_pool_create(pool, matrix_struct, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
-!!       Type(cp_f_matrix_struct_type), Pointer:: matrix_struct
+!!       Type(cp_fm_struct_type), Pointer:: matrix_struct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine fm_pool_create
 !!
@@ -173,7 +173,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE fm_pool_create(pool, matrix_struct, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -186,7 +186,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        pool%matrix_struct=> matrix_struct
-       CALL cp_fmstruct_retain(pool%matrix_struct,error=error)
+       CALL cp_fm_struct_retain(pool%matrix_struct,error=error)
        last_fm_pool_id_nr=last_fm_pool_id_nr+1
        pool%id_nr=last_fm_pool_id_nr
        pool%ref_count=1
@@ -323,7 +323,7 @@ CONTAINS
        pool%ref_count=pool%ref_count-1
        IF (pool%ref_count<1) THEN
           CALL fm_pool_flush_cache(pool,error=error)
-          CALL cp_fmstruct_release(pool%matrix_struct,error=error)
+          CALL cp_fm_struct_release(pool%matrix_struct,error=error)
 
           DEALLOCATE(pool,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
@@ -600,7 +600,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Function fm_pool_get_mstruct(pool, error) Result(res)
-!!       Type(cp_f_matrix_struct_type), Pointer:: res
+!!       Type(cp_fm_struct_type), Pointer:: res
 !!       Type(cp_fm_pool_type), Pointer:: pool
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Function fm_pool_get_mstruct
@@ -624,7 +624,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION fm_pool_get_mstruct(pool,error) RESULT(res)
-  TYPE(cp_f_matrix_struct_type), POINTER       :: res
+  TYPE(cp_fm_struct_type), POINTER       :: res
   TYPE(cp_fm_pool_type), POINTER               :: pool
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   

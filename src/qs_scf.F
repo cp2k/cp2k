@@ -73,8 +73,8 @@ MODULE qs_scf
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_mstruct
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_get
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_get
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -924,7 +924,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_fm_pool_p_type),DIMENSION(:), POINTER :: ao_mo_fm_pools
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
-    TYPE(cp_f_matrix_struct_type), POINTER :: ao_mo_mstruct
+    TYPE(cp_fm_struct_type), POINTER :: ao_mo_mstruct
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
 
 !   ---------------------------------------------------------------------------

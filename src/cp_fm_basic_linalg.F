@@ -39,11 +39,11 @@ MODULE cp_fm_basic_linalg
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_equivalent,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_equivalent,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_fm_get_info,&
@@ -144,7 +144,7 @@ CONTAINS
          CPSourceFileRef,&
          error=error,failure=failure)
 
-    IF (cp_fmstruct_equivalent(matrix_a%matrix_struct,matrix_b%matrix_struct,&
+    IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,matrix_b%matrix_struct,&
          error=error)) THEN
 ! to do: use dscal,dcopy,daxp
        myprow=matrix_a%matrix_struct%context%mepos(1)

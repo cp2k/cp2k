@@ -51,11 +51,11 @@ MODULE qs_blacs
                                              cp_fm_cholesky_invert,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_equivalent,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_equivalent,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -1224,7 +1224,7 @@ CONTAINS
     npcol = source%matrix_struct%context%num_pe(2)
 
     IF(.NOT. cp2k_is_parallel .OR.&
-         cp_fmstruct_equivalent(source%matrix_struct,&
+         cp_fm_struct_equivalent(source%matrix_struct,&
          target%matrix_struct,error=error)) THEN
       CALL cp_assert(SIZE(source%local_data,1)==SIZE(target%local_data,1).AND.&
          SIZE(source%local_data,2)==SIZE(target%local_data,2),cp_failure_level,&

@@ -55,8 +55,8 @@ MODULE qs_p_types
                                              fm_pool_give_back_matrix,&
                                              fm_pools_create_matrix_vect,&
                                              fm_pools_give_back_matrix_vect
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_get
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_get
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_create2,&
                                              cp_fm_vect_dealloc

@@ -57,10 +57,10 @@ MODULE qs_p_utils
                                              fm_pool_give_back_matrix,&
                                              fm_pools_create_matrix_vect,&
                                              fm_pools_give_back_matrix_vect
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_get,&
-                                             cp_fmstruct_release
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_get,&
+                                             cp_fm_struct_release
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_full_matrix_p_type,&
@@ -366,7 +366,7 @@ CONTAINS
     INTEGER                            :: n_spins, spin, nao,maxnmo, max_cols
     TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: ao_maxmo_fm_pool
-    TYPE(cp_f_matrix_struct_type), POINTER :: ao_maxmo_fmstruct,&
+    TYPE(cp_fm_struct_type), POINTER :: ao_maxmo_fmstruct,&
          tmp_fmstruct
     TYPE(dft_control_type), POINTER    :: dft_control
 
@@ -382,7 +382,7 @@ CONTAINS
        CALL get_qs_env(p_env%qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
-       CALL cp_fmstruct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
+       CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
 
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
@@ -399,12 +399,12 @@ CONTAINS
           ! but v_cols * n_mo would suffice
           CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp_matrix,error=error)
        ELSE
-          CALL cp_fmstruct_create(tmp_fmstruct,nrow_global=v_cols,&
+          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=v_cols,&
                ncol_global=maxnmo,template_fmstruct=ao_maxmo_fmstruct,&
                error=error)
           CALL cp_fm_create(tmp_matrix,matrix_struct=tmp_fmstruct,&
                error=error)
-          CALL cp_fmstruct_release(tmp_fmstruct,error=error)
+          CALL cp_fm_struct_release(tmp_fmstruct,error=error)
        END IF
 
        DO spin=1, n_spins
@@ -490,7 +490,7 @@ CONTAINS
     INTEGER                            :: n_spins, spin, nao,maxnmo, max_cols
     TYPE(cp_full_matrix_type), POINTER :: tmp_matrix
     TYPE(cp_fm_pool_type), POINTER     :: ao_maxmo_fm_pool
-    TYPE(cp_f_matrix_struct_type), POINTER :: ao_maxmo_fmstruct,&
+    TYPE(cp_fm_struct_type), POINTER :: ao_maxmo_fmstruct,&
          tmp_fmstruct
     TYPE(dft_control_type), POINTER    :: dft_control
 
@@ -506,7 +506,7 @@ CONTAINS
        CALL get_qs_env(p_env%qs_env, dft_control=dft_control,&
             ao_maxmo_fm_pool=ao_maxmo_fm_pool,error=error)
        ao_maxmo_fmstruct => fm_pool_get_mstruct(ao_maxmo_fm_pool,error=error)
-       CALL cp_fmstruct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
+       CALL cp_fm_struct_get(ao_maxmo_fmstruct, nrow_global=nao,ncol_global=maxnmo)
 
        ! alloc tmp storage
        IF (PRESENT(n_cols)) THEN
@@ -523,12 +523,12 @@ CONTAINS
           ! but v_cols * n_mo would suffice
           CALL fm_pool_create_matrix(ao_maxmo_fm_pool,tmp_matrix,error=error)
        ELSE
-          CALL cp_fmstruct_create(tmp_fmstruct,nrow_global=v_cols,&
+          CALL cp_fm_struct_create(tmp_fmstruct,nrow_global=v_cols,&
                ncol_global=maxnmo,template_fmstruct=ao_maxmo_fmstruct,&
                error=error)
           CALL cp_fm_create(tmp_matrix,matrix_struct=tmp_fmstruct,&
                error=error)
-          CALL cp_fmstruct_release(tmp_fmstruct,error=error)
+          CALL cp_fm_struct_release(tmp_fmstruct,error=error)
        END IF
 
        DO spin=1, n_spins

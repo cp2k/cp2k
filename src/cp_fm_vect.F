@@ -39,11 +39,11 @@ MODULE cp_fm_vect
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_equivalent,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_equivalent,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -132,7 +132,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_create2',&
          routineP=moduleN//':'//routineN
     INTEGER :: i, stat, row_bl, col_bl
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
     failure=.FALSE.
@@ -146,7 +146,7 @@ CONTAINS
     ALLOCATE(matrixes(n_matrixes),stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
+       CALL cp_fm_struct_create(matrix_struct,nrow_global=nrow_global,&
             ncol_global=ncol_global,nrow_block=row_bl,&
             ncol_block=col_bl, context=blacs_env,&
             para_env=para_env)
@@ -155,7 +155,7 @@ CONTAINS
                matrix_struct=matrix_struct, name=name//cp_to_string(i),&
                error=error)
        END DO
-       CALL cp_fmstruct_release(matrix_struct)
+       CALL cp_fm_struct_release(matrix_struct)
     END IF
   END SUBROUTINE cp_fm_vect_create2
 !***************************************************************************

@@ -70,17 +70,17 @@ MODULE cp_fm_struct
   INTEGER, PARAMETER :: optimal_blacs_col_block_size=32
   INTEGER, PARAMETER :: optimal_blacs_row_block_size=32
 
-  PUBLIC :: cp_f_matrix_struct_type
+  PUBLIC :: cp_fm_struct_type
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
-  PUBLIC :: cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent, cp_fmstruct_write, cp_fmstruct_get
+  PUBLIC :: cp_fm_struct_create,cp_fm_struct_retain, cp_fm_struct_release,&
+       cp_fm_struct_equivalent, cp_fm_struct_write, cp_fm_struct_get
 !***
 !****************************************************************************
 
-!!****s* qs_blacs/cp_f_matrix_struct_type [1.0] *
+!!****s* qs_blacs/cp_fm_struct_type [1.0] *
 !!
 !!   NAME
-!!     cp_f_matrix_struct_type
+!!     cp_fm_struct_type
 !!
 !!   FUNCTION
 !!     keeps the information about the structure of a full matrix
@@ -113,7 +113,7 @@ MODULE cp_fm_struct
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE cp_f_matrix_struct_type
+  TYPE cp_fm_struct_type
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_blacs_env_type), POINTER :: context
      INTEGER, DIMENSION(9) :: descriptor
@@ -127,32 +127,32 @@ MODULE cp_fm_struct
      INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices,&
           nrow_local, ncol_local
      INTEGER :: id_nr, ref_count
-  END TYPE cp_f_matrix_struct_type
+  END TYPE cp_fm_struct_type
 !!***
 !****************************************************************************
 
 CONTAINS
 
-!!****f* qs_blacs/cp_fmstruct_create [1.0] *
+!!****f* qs_blacs/cp_fm_struct_create [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_create
+!!     cp_fm_struct_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_create(fmstruct, para_env, context,&
+!!     Subroutine cp_fm_struct_create(fmstruct, para_env, context,&
 !!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
 !!         first_p_pos, template_fmstruct, error)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Integer, Intent (IN), Optional:: nrow_global, ncol_global
 !!       Integer, Intent (IN), Optional:: nrow_block, ncol_block
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
-!!       Type(cp_f_matrix_struct_type), Pointer, Optional::&
+!!       Type(cp_fm_struct_type), Pointer, Optional::&
 !!         template_fmstruct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fmstruct_create
+!!     End Subroutine cp_fm_struct_create
 !!
 !!   FUNCTION
 !!     allocates and initializes a full matrix structure
@@ -181,17 +181,17 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
+SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      ncol_global, nrow_block, ncol_block, descriptor, first_p_pos, &
      template_fmstruct, error)
-  TYPE(cp_f_matrix_struct_type), POINTER       :: fmstruct
+  TYPE(cp_fm_struct_type), POINTER       :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL    :: para_env
   INTEGER, INTENT(in), OPTIONAL                :: nrow_global,ncol_global
   INTEGER, INTENT(in), OPTIONAL                :: nrow_block,ncol_block
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL   :: context
   INTEGER, DIMENSION(9), INTENT(in), OPTIONAL  :: descriptor
   INTEGER,OPTIONAL, DIMENSION(2)               :: first_p_pos
-  TYPE(cp_f_matrix_struct_type), POINTER, OPTIONAL :: template_fmstruct
+  TYPE(cp_fm_struct_type), POINTER, OPTIONAL :: template_fmstruct
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
 #if defined(__SCALAPACK)
@@ -199,7 +199,7 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
 #endif
 
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_create',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
   failure=.FALSE.
@@ -317,19 +317,19 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
 #endif
      END IF
   END IF
-END SUBROUTINE cp_fmstruct_create
+END SUBROUTINE cp_fm_struct_create
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fmstruct_retain [1.0] *
+!!****f* qs_blacs/cp_fm_struct_retain [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_retain
+!!     cp_fm_struct_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_retain(fmstruct, error)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!     Subroutine cp_fm_struct_retain(fmstruct, error)
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fmstruct_retain
+!!     End Subroutine cp_fm_struct_retain
 !!
 !!   FUNCTION
 !!     retains a full matrix structure
@@ -349,12 +349,12 @@ END SUBROUTINE cp_fmstruct_create
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_retain(fmstruct,error)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+SUBROUTINE cp_fm_struct_retain(fmstruct,error)
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_retain',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_retain',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
@@ -363,19 +363,19 @@ SUBROUTINE cp_fmstruct_retain(fmstruct,error)
      CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
      fmstruct%ref_count=fmstruct%ref_count+1
   END IF
-END SUBROUTINE cp_fmstruct_retain
+END SUBROUTINE cp_fm_struct_retain
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fmstruct_release [1.0] *
+!!****f* qs_blacs/cp_fm_struct_release [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_release
+!!     cp_fm_struct_release
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_release(fmstruct, error)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!     Subroutine cp_fm_struct_release(fmstruct, error)
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fmstruct_release
+!!     End Subroutine cp_fm_struct_release
 !!
 !!   FUNCTION
 !!     releases a full matrix structure
@@ -395,12 +395,12 @@ END SUBROUTINE cp_fmstruct_retain
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_release(fmstruct,error)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+SUBROUTINE cp_fm_struct_release(fmstruct,error)
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_release',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_release',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
   failure=.FALSE.
@@ -424,21 +424,21 @@ SUBROUTINE cp_fmstruct_release(fmstruct,error)
      END IF
   END IF
   NULLIFY(fmstruct)
-END SUBROUTINE cp_fmstruct_release
+END SUBROUTINE cp_fm_struct_release
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fmstruct_equivalent [1.0] *
+!!****f* qs_blacs/cp_fm_struct_equivalent [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_equivalent
+!!     cp_fm_struct_equivalent
 !!
 !!   SYNOPSIS
-!!     Function cp_fmstruct_equivalent(fmstruct1, fmstruct2, error)&
+!!     Function cp_fm_struct_equivalent(fmstruct1, fmstruct2, error)&
 !!         Result(res)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct1, fmstruct2
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct1, fmstruct2
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Logical:: res
-!!     End Function cp_fmstruct_equivalent
+!!     End Function cp_fm_struct_equivalent
 !!
 !!   FUNCTION
 !!     returns true if the two matrix structures are equivalent, false
@@ -460,13 +460,13 @@ END SUBROUTINE cp_fmstruct_release
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-FUNCTION cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct1, fmstruct2
+FUNCTION cp_fm_struct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct1, fmstruct2
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   LOGICAL :: res
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_equivalent',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_equivalent',&
         routineP=moduleN//':'//routineN
   INTEGER :: i
   failure=.FALSE.
@@ -487,22 +487,22 @@ FUNCTION cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
         END DO
      END IF
   END IF
-END FUNCTION cp_fmstruct_equivalent
+END FUNCTION cp_fm_struct_equivalent
 !***************************************************************************
 
-!!****f* cp_fm_struct/cp_fmstruct_write [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_write [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_write
+!!     cp_fm_struct_write
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,&
+!!     Subroutine cp_fm_struct_write(fmstruct, unit_nr, long_description,&
 !!         error)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Integer, Intent (IN):: unit_nr
 !!       Logical, Intent (IN), Optional:: long_description
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_fmstruct_write
+!!     End Subroutine cp_fm_struct_write
 !!
 !!   FUNCTION
 !!     writes a description of the matrix structure to the given unit
@@ -523,8 +523,8 @@ END FUNCTION cp_fmstruct_equivalent
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+SUBROUTINE cp_fm_struct_write(fmstruct, unit_nr, long_description,error)
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct
   INTEGER, INTENT(in) :: unit_nr
   LOGICAL, INTENT(in), OPTIONAL :: long_description
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
@@ -532,7 +532,7 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
   LOGICAL :: failure,l_desc
   INTEGER :: iostat
   CHARACTER (len=80) :: fmtstring
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_write',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_write',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.; l_desc=.FALSE.
   
@@ -615,20 +615,20 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
   ELSE
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_fm_struct>:*null*"
   END IF
-END SUBROUTINE cp_fmstruct_write
+END SUBROUTINE cp_fm_struct_write
 !***************************************************************************
 
-!!****f* cp_fm_struct/cp_fmstruct_get [1.0] *
+!!****f* cp_fm_struct/cp_fm_struct_get [1.0] *
 !!
 !!   NAME
-!!     cp_fmstruct_get
+!!     cp_fm_struct_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_get(fmstruct, para_env, context, descriptor,&
+!!     Subroutine cp_fm_struct_get(fmstruct, para_env, context, descriptor,&
 !!         ncol_block, nrow_block, nrow_global, ncol_global, id_nr,&
 !!         ref_count, first_p_pos, row_indices, col_indices, nrow_local,&
 !!         ncol_local, error)
-!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_fm_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(cp_blacs_env_type), Pointer, Optional:: context
 !!       Integer, Dimension(9), Intent (OUT), Optional:: descriptor
@@ -638,7 +638,7 @@ END SUBROUTINE cp_fmstruct_write
 !!       Integer, Dimension(:), Pointer, Optional:: row_indices,&
 !!         col_indices, nrow_local, ncol_local
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_fmstruct_get
+!!     End Subroutine cp_fm_struct_get
 !!
 !!   FUNCTION
 !!     returns the values of various attributes of the matrix structure
@@ -659,11 +659,11 @@ END SUBROUTINE cp_fmstruct_write
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_fmstruct_get(fmstruct, para_env, context,&
+SUBROUTINE cp_fm_struct_get(fmstruct, para_env, context,&
      descriptor, ncol_block, nrow_block, nrow_global,&
      ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
      col_indices, nrow_local, ncol_local, error)
-  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  TYPE(cp_fm_struct_type), POINTER :: fmstruct
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
   INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
@@ -675,7 +675,7 @@ SUBROUTINE cp_fmstruct_get(fmstruct, para_env, context,&
   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_get',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_struct_get',&
        routineP=moduleN//':'//routineN
   failure=.FALSE.
 
@@ -697,7 +697,7 @@ SUBROUTINE cp_fmstruct_get(fmstruct, para_env, context,&
      IF (PRESENT(nrow_local)) nrow_local => nrow_local
      IF (PRESENT(ncol_local)) ncol_local => ncol_local
   END IF
-END SUBROUTINE cp_fmstruct_get
+END SUBROUTINE cp_fm_struct_get
 !***************************************************************************
 
 END MODULE cp_fm_struct

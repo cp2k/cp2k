@@ -45,12 +45,12 @@ MODULE cp_fm_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_equivalent,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain,&
-                                             cp_fmstruct_write
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_equivalent,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain,&
+                                             cp_fm_struct_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -103,7 +103,7 @@ MODULE cp_fm_types
 !    PRIVATE
      CHARACTER(LEN=60) :: name ! remove?
      INTEGER :: id_nr, ref_count
-     TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+     TYPE(cp_fm_struct_type), POINTER :: matrix_struct
      REAL(kind=wp), DIMENSION(:,:), POINTER :: local_data
   END TYPE cp_full_matrix_type
 
@@ -141,7 +141,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=40) :: message
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     TYPE(cp_blacs_env_type), POINTER       :: ctxt
     TYPE(cp_para_env_type), POINTER        :: para_e
     LOGICAL :: failure
@@ -156,12 +156,12 @@ CONTAINS
     IF (PRESENT(para_env)) para_e => para_env
     CPPrecondition(ASSOCIATED(ctxt),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(para_e),cp_failure_level,routineP,error,failure)
-    CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
+    CALL cp_fm_struct_create(matrix_struct,nrow_global=nrow_global,&
          ncol_global=ncol_global,nrow_block=nrow_block,&
          ncol_block=ncol_block, context=ctxt,&
          para_env=para_e)
     CALL cp_fm_create(new_matrix,matrix_struct=matrix_struct)
-    CALL cp_fmstruct_release(matrix_struct)
+    CALL cp_fm_struct_release(matrix_struct)
   END SUBROUTINE cp_fm_create2
 
 !!****f* qs_blacs/cp_fm_create [1.0] *
@@ -172,7 +172,7 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine cp_fm_create(matrix, matrix_struct, name, error)
 !!       Type(cp_full_matrix_type), Pointer:: matrix
-!!       Type(cp_f_matrix_struct_type), Pointer:: matrix_struct
+!!       Type(cp_fm_struct_type), Pointer:: matrix_struct
 !!       Character(Len=*), Intent (IN), Optional:: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_create
@@ -198,7 +198,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cp_fm_create(matrix,matrix_struct,name,error)
     TYPE(cp_full_matrix_type), POINTER :: matrix
-    TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+    TYPE(cp_fm_struct_type), POINTER :: matrix_struct
     CHARACTER(len=*), INTENT(in), OPTIONAL :: name
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
@@ -224,7 +224,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        context => matrix_struct%context
        matrix%matrix_struct => matrix_struct
-       CALL cp_fmstruct_retain(matrix%matrix_struct,error=error)
+       CALL cp_fm_struct_retain(matrix%matrix_struct,error=error)
        last_fm_id_nr=last_fm_id_nr+1
        matrix%id_nr=last_fm_id_nr
        matrix%ref_count=1
@@ -345,7 +345,7 @@ CONTAINS
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
           matrix%name=""
-          CALL cp_fmstruct_release(matrix%matrix_struct,error=error)
+          CALL cp_fm_struct_release(matrix%matrix_struct,error=error)
           DEALLOCATE(matrix,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
@@ -876,7 +876,7 @@ CONTAINS
     INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices
 !type(cp_para_env_type), pointer, optional :: para_env ! to do:bring it back as output
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
-    TYPE(cp_f_matrix_struct_type),POINTER,OPTIONAL :: matrix_struct
+    TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
     REAL(wp), DIMENSION(:,:), POINTER, OPTIONAL :: local_data
 
@@ -1056,7 +1056,7 @@ CONTAINS
                fmt="(' name=',a,',')",&
                iostat=iostat) matrix%name
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " matrix_structure="
-          CALL cp_fmstruct_write(matrix%matrix_struct,unit_nr=unit_nr,&
+          CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=unit_nr,&
                long_description=long_description,error=error)
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ,"
           IF (long_description) THEN

@@ -29,8 +29,8 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_fm_struct,   ONLY : cp_f_matrix_struct_type, &
-                                   cp_fmstruct_create, cp_fmstruct_release, &
+  USE cp_fm_struct,   ONLY : cp_fm_struct_type, &
+                                   cp_fm_struct_create, cp_fm_struct_release, &
                                    optimal_blacs_col_block_size, optimal_blacs_row_block_size
   USE cp_fm_types,       ONLY : cp_full_matrix_type, cp_full_matrix_p_type, &
                                    cp_fm_create, cp_fm_release
@@ -190,7 +190,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)          :: glob_env
 
     ! locals
-    TYPE(cp_f_matrix_struct_type), POINTER :: v_struct
+    TYPE(cp_fm_struct_type), POINTER :: v_struct
     INTEGER                                :: v_rows, v_cols
     INTEGER                                :: spin, n_spins, stat
     CHARACTER(LEN=*), PARAMETER            :: routineN='create_v_matrix', &
@@ -207,7 +207,7 @@ CONTAINS
     DO spin=1, n_spins
        v_rows = p_env%n_mo(spin) * p_env%n_ao(spin)
        v_cols = n_ev
-       CALL cp_fmstruct_create(v_struct, glob_env%para_env, glob_env%blacs_env, &
+       CALL cp_fm_struct_create(v_struct, glob_env%para_env, glob_env%blacs_env, &
             v_rows, v_cols, &
             optimal_blacs_row_block_size, optimal_blacs_col_block_size)
        CALL cp_fm_create(v(spin)%matrix, v_struct, 'tddfpt temporary v matrix')

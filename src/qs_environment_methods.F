@@ -56,10 +56,10 @@ MODULE qs_environment_methods
                                              fm_pool_retain,&
                                              fm_pools_copy,&
                                              fm_pools_dealloc
-  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type,&
+                                             cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_retain
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -187,7 +187,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
   TYPE(scf_control_type), POINTER               :: scf_control
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
   TYPE(qs_charges_type), POINTER                :: qs_charges
-  TYPE(cp_f_matrix_struct_type), POINTER        :: fmstruct
+  TYPE(cp_fm_struct_type), POINTER        :: fmstruct
   INTEGER :: n_mo, n_ao
   failure=.FALSE.
   
@@ -349,7 +349,7 @@ SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
   TYPE(cp_para_env_type), POINTER                :: para_env
   TYPE(cp_blacs_env_type), POINTER               :: blacs_env
   TYPE(mo_set_p_type), DIMENSION(:), POINTER     :: mos
-  TYPE(cp_f_matrix_struct_type), POINTER         :: fmstruct
+  TYPE(cp_fm_struct_type), POINTER         :: fmstruct
   TYPE(scf_control_type), POINTER                :: scf_control
   failure=.FALSE.
   NULLIFY(aomo_pools,para_env,blacs_env,mos, fmstruct)
@@ -386,13 +386,13 @@ SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
   END IF
   IF (.NOT.failure) THEN
      IF (max_nmo==min_nmo) THEN
-        CALL cp_fmstruct_create(fmstruct, nrow_global=nao,&
+        CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
              ncol_global=max_nmo, para_env=para_env,&
              context=blacs_env,&
              nrow_block=scf_control%nrow_block,&
              ncol_block=scf_control%ncol_block)
         CALL fm_pool_create(aomo_pools(1)%pool,fmstruct,error=error)
-        CALL cp_fmstruct_release(fmstruct,error=error)
+        CALL cp_fm_struct_release(fmstruct,error=error)
         DO i=2,SIZE(mos)
            aomo_pools(i)%pool => aomo_pools(1)%pool
            CALL fm_pool_retain(aomo_pools(1)%pool,error=error)
@@ -401,13 +401,13 @@ SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
         DO i=1,SIZE(mos)
            NULLIFY(aomo_pools(i)%pool)
            CALL get_mo_set(mos(i)%mo_set,nmo=nmo,nao=nao) 
-           CALL cp_fmstruct_create(fmstruct, nrow_global=nao,&
+           CALL cp_fm_struct_create(fmstruct, nrow_global=nao,&
                 ncol_global=nmo, para_env=para_env,&
                 context=blacs_env,&
                 nrow_block=scf_control%nrow_block,&
                 ncol_block=scf_control%ncol_block)
            CALL fm_pool_create(aomo_pools(i)%pool,fmstruct,error=error)
-           CALL cp_fmstruct_release(fmstruct,error=error)
+           CALL cp_fm_struct_release(fmstruct,error=error)
         END DO
      END IF
      
