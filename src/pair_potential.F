@@ -83,9 +83,9 @@ END FUNCTION ener_pot
 FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
 
 
-    TYPE(pair_potential_type), INTENT(IN)    :: pot
-    REAL(dbl), INTENT(IN)                    :: qi, qj, r
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(pair_potential_type), INTENT(IN)          :: pot
+    REAL(dbl), INTENT(IN)                          :: qi, qj, r
+    TYPE(ewald_environment_type), POINTER, OPTIONAL    :: ewald_env
     REAL(dbl)                                :: ener_coul
 
     REAL(dbl), PARAMETER :: eps = 1.0E-6_dbl, &
@@ -95,15 +95,19 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
 
 !------------------------------------------------------------------------------
 
-  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
+  IF ( PRESENT ( ewald_env ) ) THEN
+    CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
                        ewald_type = ewald_type ) 
-  SELECT CASE(  ewald_type )
-  CASE( 'EWALD', 'PME', 'SPME' )
-     ener_coul = ifourpi / eps0 * qi * qj &
-          * erfc ( alpha * r ) / r - pot % e_cutoff_coul
-  CASE( 'NONE')
-     ener_coul= 0._dbl
-  END SELECT
+    SELECT CASE(  ewald_type )
+    CASE( 'EWALD', 'PME', 'SPME' )
+       ener_coul = ifourpi / eps0 * qi * qj &
+            * erfc ( alpha * r ) / r - pot % e_cutoff_coul
+    CASE( 'NONE')
+       ener_coul= 0._dbl
+    END SELECT
+  ELSE
+    ener_coul= 0._dbl
+  ENDIF
 
 END FUNCTION ener_coul
 
@@ -114,10 +118,10 @@ END FUNCTION ener_coul
 SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
 
-    TYPE ( spline_environment_type ), INTENT ( INOUT ) :: spline_env 
+    TYPE ( spline_environment_type ), INTENT ( INOUT )  :: spline_env 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                 :: atomic_kind_set
-    TYPE(ewald_environment_type), POINTER     :: ewald_env
+      POINTER                                           :: atomic_kind_set
+    TYPE(ewald_environment_type), POINTER, OPTIONAL     :: ewald_env
 
     INTEGER                                  :: i, isos, j, jx, n, ntab, ntype
     INTEGER                                  :: npoints
@@ -202,7 +206,8 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
         potparm(i,j) %e_cutoff_coul = 0.0_dbl
         potparm(i,j) %e_cutoff_coul &
-             = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+              = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
         potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
 

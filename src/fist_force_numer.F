@@ -655,7 +655,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
         ! get the energy
-        CALL force_imp_torsions(is32,ism,isn,dist1,dist2,tm,tn,t32, &
+        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn,t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
@@ -673,7 +673,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_m = SQRT ( dot_product(tm_m,tm_m) )
            ism_m = 1._dbl/sm_m
            dist1m = dot_product(t12_m,t32)
-           CALL force_imp_torsions(is32,ism_m,isn,dist1m,dist2,tm_m,tn,t32, &
+           CALL force_imp_torsions(s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -685,7 +685,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_p = SQRT ( dot_product(tm_p,tm_p) )
            ism_p = 1._dbl/sm_p
            dist1p = dot_product(t12_p,t32)
-           CALL force_imp_torsions(is32,ism_p,isn,dist1p,dist2,tm_p,tn,t32, &
+           CALL force_imp_torsions(s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -716,7 +716,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_m = 1._dbl/sm_m
            dist1m = dot_product(t12,t32_m)
            dist2m = dot_product(t34,t32_m)
-           CALL force_imp_torsions(is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m,t32_m, &
+           CALL force_imp_torsions(s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m,t32_m, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -737,7 +737,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_p = 1._dbl/sm_p
            dist1p = dot_product(t12,t32_p)
            dist2p = dot_product(t34,t32_p)
-           CALL force_imp_torsions(is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p,t32_p, &
+           CALL force_imp_torsions(s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p,t32_p, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -758,7 +758,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_m = SQRT ( dot_product(tn_m,tn_m) )
            isn_m= 1._dbl/sn_m
            dist2m = dot_product(t34_m,t32)
-           CALL force_imp_torsions(is32,ism,isn_m,dist1,dist2m,tm,tn_m,t32, &
+           CALL force_imp_torsions(s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -770,7 +770,7 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_p = SQRT ( dot_product(tn_p,tn_p) )
            isn_p= 1._dbl/sn_p
            dist2p = dot_product(t34_p,t32)
-           CALL force_imp_torsions(is32,ism,isn_p,dist1,dist2p,tm,tn_p,t32, &
+           CALL force_imp_torsions(s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -2138,7 +2138,7 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         is32 = 1._dbl/s32
         dist1 = dot_product(t12,t32)
         dist2 = dot_product(t34,t32)
-        CALL force_imp_torsions(is32,ism,isn,dist1,dist2,tm,tn,t32, &
+        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn,t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)

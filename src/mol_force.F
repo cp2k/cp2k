@@ -229,11 +229,11 @@ END SUBROUTINE force_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_imp_torsions ( is32, ism, isn,  dist1, dist2, tm, tn, t32, &
+SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t32, &
                                 k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
 
-
-    REAL(dbl), INTENT(IN)                    :: is32, dist1, dist2, ism, isn
+    IMPLICIT NONE
+    REAL(dbl), INTENT(IN)                    :: is32, s32, dist1, dist2, ism, isn
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: tm, tn,  t32
     REAL(dbl), INTENT(IN)                    :: k, phi0
     REAL(dbl), DIMENSION(:), INTENT(OUT)     :: gt1, gt2, gt3, gt4
