@@ -349,36 +349,44 @@ CONTAINS
             ncob = npgfb*ncoset(lb_max)
 
 !  Calculate the overlap integrals  and the forces on the central image
+            IF ( current_neighbor % nimages == 0 ) THEN
 
-            CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
+               CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
                         rij,rijsq,ncoa,ncob,ncgfa,ncgfb,sab,sabdx,sabdy, &
                         sabdz,work,s_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb), &
                         kind_info(ikind)%orb_basis_set%cphi(1:ncoa,first_cgfa:last_cgfa), &
                         kind_info(jkind)%orb_basis_set%cphi(1:ncob,first_cgfb:last_cgfb), &
                         atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim),deriv)
 
+            ELSE
 ! summing over lattice translations of neighbors
+               rij = current_neighbor % p % r - ri
+               s(1) = h_inv(1,1)*rij(1) + h_inv(1,2)*rij(2) + h_inv(1,3)*rij(3)
+               s(2) = h_inv(2,1)*rij(1) + h_inv(2,2)*rij(2) + h_inv(2,3)*rij(3)
+               s(3) = h_inv(3,1)*rij(1) + h_inv(3,2)*rij(2) + h_inv(3,3)*rij(3)
 
-            current_image => current_neighbor % image
+               current_image => current_neighbor % image
 
 
-            DO im = 1, current_neighbor % nimages
+               DO im = 1, current_neighbor % nimages
 
-               CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
+                  CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
 
-                IF ( rijsq <= r2max ) THEN
+                  IF ( rijsq <= r2max ) THEN
  
-                   CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
+                      CALL get_overlap (la_max,zeta,rpgfa,la_min,lb_max,zetb,rpgfb,lb_min, &
                            rij,rijsq,ncoa,ncob,ncgfa,ncgfb,sab,sabdx,sabdy, &
                            sabdz,work,s_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb), &
                            kind_info(ikind)%orb_basis_set%cphi(1:ncoa,first_cgfa:last_cgfa), &
                            kind_info(jkind)%orb_basis_set%cphi(1:ncob,first_cgfb:last_cgfb), &
                            atom_block(first_cgfa:last_cgfa,first_cgfb:last_cgfb,1:maxdim),deriv)
-                END IF 
+                  END IF 
 
-               current_image => current_image % next
+                  current_image => current_image % next
 
-            END DO
+               END DO
+
+            END IF
 
           END IF 
 
