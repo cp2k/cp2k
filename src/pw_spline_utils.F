@@ -1347,6 +1347,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
   INTEGER, DIMENSION(3)                    :: s
   LOGICAL                                  :: failure, has_boundary, &
        yderiv, zderiv
+!$  LOGICAL                                :: my_pbc
   REAL(kind=dp)                            :: in_val_f, in_val_l
   REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
 

@@ -262,7 +262,8 @@ MODULE qs_rho0_ggrid
 !$OMP default(none) &
 !$OMP private(j,iat,iatom,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_grid,r_V0) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik,l0_ikind)  
+!$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,rho0,Qlm_c,nch_ik) &
+!$OMP shared(l0_ikind,igrid,rpgf0_s)
       DO j=1,npme
 
         iat =  tasks(1,j)
@@ -456,7 +457,7 @@ MODULE qs_rho0_ggrid
                igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, iso2, ispin,&
                istat, ithread, j, lmax0, l0_ikind, lshell, lx, ly, lz, m1, m2, &
                maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, &
-               nthread, omp_get_thread_num
+               nthread, omp_get_thread_num, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list,&
                                                 lmax,npgf
     INTEGER, DIMENSION(:,:), POINTER         :: tasks
@@ -494,7 +495,9 @@ MODULE qs_rho0_ggrid
                     rho0_mpole=rho0_mpole,&
                     rho_atom_set=rho_atom_set,&
                     particle_set=particle_set)
-    
+
+    nspins = qs_env%dft_control%nspins
+
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole
        rho_atom_set   => p_env%local_rho_set%rho_atom_set
@@ -670,7 +673,7 @@ MODULE qs_rho0_ggrid
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,c4pi,rho_atom_set)&
 !$OMP shared(nset,npgf,lmax,maxso,harmonics,force,nso,nsoset,nco,ncoset,indco,orbtramat,dfac,Qlm_gg)&
-!$OMP shared(rho0_mpole,r_V0)
+!$OMP shared(rho0_mpole,r_V0,nspins,rpgf0_s,igrid)
       DO j=1,npme
 
 !$      ithread=omp_get_thread_num()
@@ -782,7 +785,7 @@ MODULE qs_rho0_ggrid
 
                       ! sum up the contribution
 
-                      DO ispin = 1,qs_env%dft_control%nspins
+                      DO ispin = 1,nspins
 
                         int_local_h(ispin)%r_coef(ig1,ig2) = &
                                   int_local_h(ispin)%r_coef(ig1,ig2) + &
@@ -827,7 +830,7 @@ MODULE qs_rho0_ggrid
                       ig2 = iso2 + n2*(ipgf2-1) + m2
                       ! sum up the contribution
 
-                      DO ispin = 1,qs_env%dft_control%nspins
+                      DO ispin = 1,nspins
 
                         int_local_h(ispin)%r_coef(ig1,ig2) = &
                                   int_local_h(ispin)%r_coef(ig1,ig2) + &
