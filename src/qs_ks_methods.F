@@ -880,6 +880,10 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
         DEALLOCATE(rho_g,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
+     IF (ASSOCIATED(tau)) THEN
+        DEALLOCATE(tau,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
 
      ! pw -> coeff
      IF (ASSOCIATED(my_vxc_rho)) THEN
