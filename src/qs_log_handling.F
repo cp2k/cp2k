@@ -193,7 +193,8 @@ contains
     character(7):: label
     integer ::oErr, unitNr
     if (.not. associated(qs_default_logger)) then
-       print *, 'ERROR: qs_default_logger is not associated, did you call qs_init_default_loggers at startup??'
+       print *, 'ERROR: qs_default_logger is not associated'
+       print *, 'ERROR: did you call qs_init_default_loggers at startup??'
     end if
     if (qs_would_log(logger,level,fromWhere)) then
        select case (level)
