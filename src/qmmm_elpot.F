@@ -42,7 +42,8 @@ MODULE qmmm_elpot
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_type,&
-                                             qmmm_Pot_Type
+                                             qmmm_Pot_Type,&
+                                             qmmm_pot_p_type
   USE simulation_cell,                 ONLY: cell_type  
   USE memory_utilities,                ONLY: reallocate
   USE global_types,                    ONLY: global_environment_type
@@ -84,11 +85,15 @@ CONTAINS
 !!     09.2004 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE qmmm_potential_init(qmmm_env, qm_cell_small, mm_cell,&
-                                 globenv, pw_env, error)
+  SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
+    pgfs, qm_cell_small, mm_cell, globenv, pw_env, error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_qm_type), POINTER                     :: qmmm_env
+    TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: potentials
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                       :: pgfs    
+    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
+    INTEGER, INTENT(IN)                              :: qmmm_coupl_type      
     TYPE(cell_type), POINTER                         :: mm_cell, qm_cell_small   
      TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -106,29 +111,27 @@ CONTAINS
     REAL(KIND=dp), PARAMETER :: dx = 0.05_dp, d2x=dx*dx
     REAL(KIND=dp), DIMENSION(:,:),POINTER :: pot0_2
     REAL(KIND=dp), DIMENSION(:), POINTER :: radius
-    INTEGER :: qmmm_coupl_type
 
     Rmin = 0.0_dp
     Rmax = SQRT(mm_cell%hmat(1,1)**2+&
                 mm_cell%hmat(2,2)**2+&
                 mm_cell%hmat(3,3)**2 ) 
     np   = CEILING(rmax/dx)+1
-    qmmm_coupl_type  = qmmm_env%qmmm_coupl_type
     !
     ! Preprocessing
     !
-    IF (SIZE(qmmm_env%mm_el_pot_radius) /= 0) THEN
+    IF (SIZE(mm_el_pot_radius) /= 0) THEN
        ALLOCATE(radius(1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-       radius(1) = qmmm_env%mm_el_pot_radius(1)
+       radius(1) = mm_el_pot_radius(1)
     ELSE
        ALLOCATE(radius(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
     END IF
-    Loop_on_all_values: DO I = 2, SIZE(qmmm_env%mm_el_pot_radius)
+    Loop_on_all_values: DO I = 2, SIZE(mm_el_pot_radius)
        Found=.FALSE.
        Loop_on_found_values: DO J = 1, SIZE(radius)
-          IF (qmmm_env%mm_el_pot_radius(i).EQ.radius(j)) THEN
+          IF (mm_el_pot_radius(i).EQ.radius(j)) THEN
              Found=.TRUE.
              EXIT Loop_on_found_values
           END IF
@@ -137,18 +140,18 @@ CONTAINS
           Ndim = SIZE(radius)
           Ndim = Ndim + 1
           CALL REALLOCATE(radius,1,Ndim)
-          radius(Ndim) = qmmm_env%mm_el_pot_radius(i)          
+          radius(Ndim) = mm_el_pot_radius(i)          
        END IF
     END DO Loop_on_all_values
     !
-    CPPrecondition(.NOT.ASSOCIATED(qmmm_env%potentials),cp_failure_level,routineP,error,failure)
-    ALLOCATE(qmmm_env%potentials(SIZE(radius)),stat=stat)
+    CPPrecondition(.NOT.ASSOCIATED(potentials),cp_failure_level,routineP,error,failure)
+    ALLOCATE(potentials(SIZE(radius)),stat=stat)
     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
     Potential_Type: DO K = 1, SIZE(radius)
        
        rc = radius(K)
-       ALLOCATE(qmmm_env%Potentials(K)%Pot, stat=stat)
+       ALLOCATE(potentials(K)%Pot, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        SELECT CASE(qmmm_coupl_type)
        CASE(do_qmmm_grid)
@@ -181,7 +184,7 @@ CONTAINS
              t=2._dp/(rootpi*x*rc)*EXP(-(x/rc)**2)
              pot0_2(2,i)=(t-pot0_2(1,i)/x)*dx
           END DO
-          pgf => qmmm_env%pgfs(K)%pgf
+          pgf => pgfs(K)%pgf
           CPPostcondition(pgf%Elp_Radius==rc,cp_failure_level,routineP,error,failure)
           DO Ig = 1, pgf%number_of_gaussians
              A = pgf%Ak(Ig) 
@@ -198,9 +201,9 @@ CONTAINS
              END DO
           END DO
        CASE DEFAULT
-          DEALLOCATE(qmmm_env%Potentials(K)%Pot)
+          DEALLOCATE(potentials(K)%Pot)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-          NULLIFY(qmmm_env%Potentials(K)%Pot)
+          NULLIFY(potentials(K)%Pot)
           WRITE(*,'(A)')" QMMM Potential - Spline Interpolation - not Initialized!"
           CYCLE Potential_Type
        END SELECT
@@ -209,8 +212,8 @@ CONTAINS
        ALLOCATE(mm_atom_index(1),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
        ! Build mm_atom_index List
-       DO J= 1, SIZE(qmmm_env%mm_el_pot_radius)
-          IF (rc.EQ.qmmm_env%mm_el_pot_radius(J)) THEN
+       DO J= 1, SIZE(mm_el_pot_radius)
+          IF (rc.EQ.mm_el_pot_radius(J)) THEN
              Ndim = SIZE(mm_atom_index) 
              mm_atom_index(Ndim) = J
              CALL reallocate(mm_atom_index,1, Ndim+1)
@@ -218,8 +221,8 @@ CONTAINS
        END DO
        CALL reallocate(mm_atom_index, 1, Ndim)
       
-       NULLIFY(qmmm_env%Potentials(K)%Pot%pot0_2)
-       CALL qmmm_pot_type_create(qmmm_env%Potentials(K)%Pot, pot0_2=pot0_2,&
+       NULLIFY(potentials(K)%Pot%pot0_2)
+       CALL qmmm_pot_type_create(potentials(K)%Pot, pot0_2=pot0_2,&
                                  Rmax=Rmax, Rmin=Rmin, dx=dx, Rc=rc, npts=np,&
                                  mm_atom_index=mm_atom_index)
 

@@ -1865,7 +1865,7 @@ END SUBROUTINE create_ewald_section
     logical :: failure
     character(len=*), parameter :: routineN='create_qmmm_section',&
          routineP=moduleN//':'//routineN
-    type(section_type), pointer :: subsection 
+    TYPE(section_type), POINTER :: subsection, subsubsection 
     TYPE(keyword_type), pointer :: keyword
 
     failure=.false.
@@ -1877,7 +1877,7 @@ END SUBROUTINE create_ewald_section
             n_keywords=6, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword, subsection, subsubsection)
 
        CALL keyword_create(keyword, name="A_QM",&
             description="Set the A vector of the QM Cell to the Reals value. The other values will be"//&
@@ -1986,7 +1986,7 @@ END SUBROUTINE create_ewald_section
 
        CALL section_create(subsection,name="LINK",&
             description="Specify information on the QM/MM link treatment",&
-            n_keywords=4, n_subsections=0, repeats=.true., required=.false.,&
+            n_keywords=6, n_subsections=2, repeats=.true., required=.false.,&
             error=error)    
        
        CALL keyword_create(keyword, name="QM_INDEX",&
@@ -2040,6 +2040,85 @@ END SUBROUTINE create_ewald_section
             default_i_val=1,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+
+       CALL section_create(subsubsection,name="MOVE_MM_CHARGE",&
+            description="Specify information to move a classical charge before the"//&
+            " QM/MM energies and forces evaluation",&
+            n_keywords=4, n_subsections=0, repeats=.false., required=.false.,&
+            error=error)      
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
+            variants=(/ "MM" /),&
+            description="Specifies the index of the MM atom involved in the QM/MM link to be moved",&
+            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
+            variants=(/ "AI" /),&
+            description="Specifies the index of the second atom defining the direction along which "//&
+            " the atom will be moved",&
+            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Specifies the scaling factor that defines the movement along the defined direction",&
+            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies the radius used for the QM/MM electrostatic coupling after movement",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
+
+
+       CALL section_create(subsubsection,name="ADD_MM_CHARGE",&
+            description="Specify information to add a classical charge before the"//&
+            " QM/MM energies and forces evaluation",&
+            n_keywords=4, n_subsections=0, repeats=.true., required=.false.,&
+            error=error)      
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_1",&
+            variants=(/ "MM" /),&
+            description="Specifies the index of the first atom defining the direction along which"//&
+            " the atom will be added",&
+            usage="ATOM_INDEX_1 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ATOM_INDEX_2",&
+            variants=(/ "AI" /),&
+            description="Specifies the index of the second atom defining the direction along which "//&
+            " the atom will be added",&
+            usage="ATOM_INDEX_2 integer",n_var=1,type_of_var=integer_t,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ALPHA",&
+            description="Specifies the scaling factor that defines the movement along the defined direction",&
+            usage="ALPHA real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
+       CALL keyword_create(keyword, name="RADIUS",&
+            description="Specifies the radius used for the QM/MM electrostatic coupling for the added source",&
+            usage="RADIUS real",n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(subsection,subsubsection,error=error)
+       CALL section_release(subsubsection,error=error)
 
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)

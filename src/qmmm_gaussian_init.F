@@ -83,26 +83,26 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*** **********************************************************************  
-  SUBROUTINE qmmm_gaussian_initialize(qmmm_env,globenv,pw_env,&
-                                      qm_cell_small,mm_cell,error)
+  SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, globenv, pw_env,       &
+       qm_cell_small, mm_cell, mm_el_pot_radius, qmmm_coupl_type, eps_mm_rspace,&
+       maxradius, error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qmmm_env_qm_type), pointer :: qmmm_env
+    TYPE(qmmm_gaussian_p_type), &
+         DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
+    REAL(KIND=dp), DIMENSION(:), POINTER             :: mm_el_pot_radius 
+    INTEGER, INTENT(IN)                              :: qmmm_coupl_type  
+    REAL(KIND=dp), INTENT(IN)                        :: eps_mm_rspace
+    REAL(KIND=dp), DIMENSION(:), POINTER :: maxradius
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(pw_env_type), pointer :: pw_env
+    TYPE(pw_env_type), POINTER :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_gaussian_initialize', &
       routineP = moduleN//':'//routineN
-    TYPE(qmmm_gaussian_p_type), &
-         DIMENSION(:), POINTER                       :: qmmm_gaussian_fns    
-    REAL(KIND=dp), DIMENSION(:), POINTER            :: mm_el_pot_radius 
-    INTEGER :: qmmm_coupl_type  
-    REAL(KIND=dp)                 :: eps_mm_rspace
-
-    REAL(KIND=dp), DIMENSION(:), POINTER :: radius, maxradius
+    REAL(KIND=dp), DIMENSION(:), POINTER :: radius
     INTEGER :: stat, i, j, Ndim ,ilevel
     LOGICAL :: Failure, Found
     TYPE(qmmm_gaussian_type), POINTER :: mypgf
@@ -110,10 +110,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), pointer :: pools
     TYPE(gridlevel_info_type), POINTER :: gridlevel_info
     ! Statements
-    NULLIFY(radius,mypgf, maxradius, gridlevel_info, radius, qmmm_gaussian_fns)
-    mm_el_pot_radius => qmmm_env%mm_el_pot_radius 
-    qmmm_coupl_type  = qmmm_env%qmmm_coupl_type  
-    eps_mm_rspace = qmmm_env%eps_mm_rspace
+    NULLIFY(mypgf, gridlevel_info, radius)
     failure = .FALSE.
     SELECT CASE(qmmm_coupl_type)
     CASE(do_qmmm_gauss)
@@ -198,9 +195,6 @@ CONTAINS
     CASE DEFAULT
        WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
     END SELECT
-
-    qmmm_env%pgfs => qmmm_gaussian_fns
-    qmmm_env%maxradius => maxradius
 
   END SUBROUTINE qmmm_gaussian_initialize
 

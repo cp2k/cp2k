@@ -43,6 +43,8 @@ MODULE qmmm_types
   USE pw_types,                        ONLY: pw_type,&
                                              pw_p_type,&
                                              pw_release
+  USE particle_types,                  ONLY: particle_type,&
+                                             deallocate_particle_set
   USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
   USE input_cp2k, ONLY: do_qmmm_grid, do_qmmm_gauss, do_qmmm_none
   IMPLICIT NONE
@@ -56,6 +58,7 @@ MODULE qmmm_types
   PUBLIC :: qmmm_env_qm_retain, qmmm_env_qm_release, qmmm_env_qm_create
   PUBLIC :: qmmm_env_mm_type, qmmm_env_mm_create, qmmm_env_mm_retain, qmmm_env_mm_release
   PUBLIC :: qmmm_imomm_link_type, qmmm_imomm_link_p_type, qmmm_links_type 
+  PUBLIC :: add_env_type, add_set_type, add_set_release
 
 !***
 !****************************************************************************
@@ -113,10 +116,27 @@ MODULE qmmm_types
      TYPE(qmmm_imomm_link_p_type), DIMENSION(:), POINTER :: imomm
   END TYPE qmmm_links_type
 
+  TYPE add_env_type
+     INTEGER       :: Index1, Index2
+     REAL(KIND=dp) :: alpha
+  END TYPE add_env_type
+
+  TYPE add_set_type
+     TYPE(add_env_type),  DIMENSION(:), POINTER              :: add_env
+     TYPE(particle_type), DIMENSION(:), POINTER              :: added_particles
+     INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_atom_chrg
+     REAL(KIND=dp), DIMENSION(:), POINTER                    :: mm_el_pot_radius
+     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER            :: Potentials
+     TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs     
+  END TYPE add_set_type
+
   TYPE qmmm_env_qm_type
      INTEGER :: ref_count, id_nr
      LOGICAL                                                 :: center_qm_subsys
      LOGICAL                                                 :: qmmm_link
+     LOGICAL                                                 :: move_mm_charges
+     LOGICAL                                                 :: add_mm_charges
      INTEGER                                                 :: qmmm_coupl_type
      INTEGER                                                 :: num_qm_atoms
      INTEGER                                                 :: num_mm_atoms
@@ -132,6 +152,7 @@ MODULE qmmm_types
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
      TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
      TYPE(qmmm_links_type), POINTER                          :: qmmm_links
+     TYPE(add_set_type), POINTER                             :: added_charges
   END TYPE qmmm_env_qm_type
 
   TYPE qmmm_env_mm_type
@@ -334,9 +355,11 @@ SUBROUTINE qmmm_env_qm_create(qmmm_env, error)
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
              qmmm_env%pgfs, qmmm_env%maxradius,&
              qmmm_env%aug_pools, qmmm_env%potentials,&
-             qmmm_env%qmmm_links)
+             qmmm_env%qmmm_links, qmmm_env%added_charges)
      qmmm_env%center_qm_subsys = .TRUE.
      qmmm_env%qmmm_link        = .FALSE.
+     qmmm_env%add_mm_charges   = .FALSE.
+     qmmm_env%move_mm_charges  = .FALSE.
      qmmm_env%qmmm_coupl_type=do_qmmm_none
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
@@ -449,24 +472,7 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qmmm_env%pgfs)) THEN
-           DO I=1,SIZE(qmmm_env%pgfs)
-              IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf)) THEN
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%Ak)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%Ak,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%Gk)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%Gk,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF
-                 IF (ASSOCIATED(qmmm_env%pgfs(I)%pgf%grid_level)) THEN
-                    DEALLOCATE(qmmm_env%pgfs(I)%pgf%grid_level,stat=stat)
-                    CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-                 END IF                   
-                 DEALLOCATE(qmmm_env%pgfs(I)%pgf,stat=stat)
-                 CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
-              END IF
-           END DO
+           CALL pgfs_release(qmmm_env%pgfs, error)
            DEALLOCATE(qmmm_env%pgfs,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
@@ -481,12 +487,71 @@ SUBROUTINE qmmm_env_qm_release(qmmm_env,error)
         IF (ASSOCIATED(qmmm_env%qmmm_links)) THEN
            CALL qmmm_links_dealloc(qmmm_env%qmmm_links, error=error)
         END IF
+        IF (ASSOCIATED(qmmm_env%added_charges)) THEN
+           CALL add_set_release(qmmm_env%added_charges, error=error)
+        END IF
         DEALLOCATE(qmmm_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(qmmm_env)
 END SUBROUTINE qmmm_env_qm_release
+
+
+!!****f* qmmm_types/pgfs_release [1.0] *
+!!
+!!   NAME
+!!     pgfs_release
+!!
+!!   FUNCTION
+!!     deallocates the pgfs type
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE pgfs_release(pgfs, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER :: pgfs
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'pgfs_release', &
+       routineP = moduleN//':'//routineN
+  INTEGER :: I, stat  
+  LOGICAL :: failure 
+
+  failure = .FALSE.
+  IF (.NOT.failure) THEN
+     DO I=1,SIZE(pgfs)
+        IF (ASSOCIATED(pgfs(I)%pgf)) THEN
+           IF (ASSOCIATED(pgfs(I)%pgf%Ak)) THEN
+              DEALLOCATE(pgfs(I)%pgf%Ak,stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+           END IF
+           IF (ASSOCIATED(pgfs(I)%pgf%Gk)) THEN
+              DEALLOCATE(pgfs(I)%pgf%Gk,stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+           END IF
+           IF (ASSOCIATED(pgfs(I)%pgf%grid_level)) THEN
+              DEALLOCATE(pgfs(I)%pgf%grid_level,stat=stat)
+              CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+           END IF
+           DEALLOCATE(pgfs(I)%pgf,stat=stat)
+           CPPostcondition(stat==0,cp_failure_level,routineP,error,Failure)
+        END IF
+     END DO
+  END IF
+END SUBROUTINE pgfs_release
+
 
 !!****f* qmmm_types/qmmm_links_dealloc [1.0] *
 !!
@@ -575,10 +640,77 @@ SUBROUTINE qmmm_pot_type_dealloc(Potentials, error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)              
         END IF
         DEALLOCATE(Potentials(I)%Pot,stat=stat)
-         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END DO
 
 END SUBROUTINE qmmm_pot_type_dealloc
+
+!!****f* qmmm_types/add_set_release [1.0] *
+!!
+!!   NAME
+!!     add_set_release
+!!
+!!   FUNCTION
+!!     deallocates the add_set_release
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!*** **********************************************************************
+SUBROUTINE add_set_release(added_charges, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(add_set_type), POINTER              :: added_charges
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  CHARACTER(len=*), PARAMETER :: routineN = 'add_set_release',&
+       routineP = moduleN//':'//routineN
+  INTEGER :: stat
+  
+
+  IF (ASSOCIATED(added_charges)) THEN
+     IF (ASSOCIATED(added_charges%add_env)) THEN
+        DEALLOCATE(added_charges%add_env, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(added_charges%added_particles)) THEN
+        CALL deallocate_particle_set(added_charges%added_particles)        
+     END IF
+     IF (ASSOCIATED(added_charges%mm_atom_index)) THEN
+        DEALLOCATE(added_charges%mm_atom_index, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(added_charges%mm_atom_chrg)) THEN
+        DEALLOCATE(added_charges%mm_atom_chrg, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(added_charges%mm_el_pot_radius)) THEN
+        DEALLOCATE(added_charges%mm_el_pot_radius, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(added_charges%Potentials)) THEN
+        CALL qmmm_pot_type_dealloc(added_charges%Potentials, error)
+        DEALLOCATE(added_charges%Potentials,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(added_charges%pgfs)) THEN
+        CALL pgfs_release(added_charges%pgfs, error)
+        DEALLOCATE(added_charges%pgfs,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  DEALLOCATE(added_charges, stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+END SUBROUTINE add_set_release
+
 
 END MODULE qmmm_types
