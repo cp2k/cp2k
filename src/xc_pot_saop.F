@@ -17,9 +17,7 @@
 
 MODULE xc_pot_saop
   
-  USE coefficient_types,               ONLY: coeff_deallocate,&
-                                             coeff_init,&
-                                             coeff_type
+  USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              xc_control_type
   USE cp_control_utils,                ONLY: xc_get_functional
@@ -32,10 +30,10 @@ MODULE xc_pot_saop
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
-                                             cp_fm_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_set_submatrix
+                                             cp_fm_set_submatrix,&
+                                             cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -44,17 +42,14 @@ MODULE xc_pot_saop
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE physcon,                         ONLY: evolt
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
                                              pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -63,38 +58,36 @@ MODULE xc_pot_saop
                                              pw_p_type,&
                                              pw_release,&
                                              pw_zero
-  USE qs_collocate_density,            ONLY: calculate_wavefunction,&
-                                             calculate_rho_elec
+  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
+                                             calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
                                              replicate_matrix,&
                                              set_matrix
-  USE xc,                              ONLY: xc_vxc_pw_create,&
-                                             xc_rho_set_and_dset_create
-  USE xc_derivatives,                  ONLY: xc_functional_eval
+  USE xc,                              ONLY: xc_vxc_pw_create
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_get_derivative,&
                                              xc_dset_release
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
-  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
-                                             xc_rho_cflags_setall,&
-                                             xc_rho_set_type,&
+  USE xc_derivatives,                  ONLY: xc_functional_eval
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_setall,&
+                                             xc_rho_cflags_type,&
                                              xc_rho_set_create,&
                                              xc_rho_set_release,&
+                                             xc_rho_set_type,&
                                              xc_rho_set_update
   USE xc_xbecke88,                     ONLY: xb88_lda_info,&
                                              xb88_lsd_info
+
   IMPLICIT NONE
 
   PUBLIC :: add_saop_pot
@@ -113,55 +106,50 @@ CONTAINS
 
   SUBROUTINE add_saop_pot(ks_matrix, qs_env, error)
 
-    ! ARGUMENTS
-    TYPE(real_matrix_p_type), &
-         DIMENSION(:), POINTER               :: ks_matrix
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL             :: error
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    ! PARAMETERS
-    CHARACTER(LEN=*), PARAMETER              :: routineN="add_saop_pot", &
-                                                routineP=moduleN//"/"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "add_saop_pot", &
+      routineP = moduleN//"/"//routineN
 
-    ! LOCALS
-    INTEGER                                  :: ispin, nspins, n_gridpoints
-    INTEGER                                  :: output_unit, stat, orb, homo
-    INTEGER                                  :: i,j,k
-    INTEGER, DIMENSION(2, 3)                 :: bo
+    INTEGER                                  :: homo, i, ispin, j, k, nspins, &
+                                                orb, output_unit, stat
     INTEGER, DIMENSION(2)                    :: ncol, nrow
-
+    INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, ionode, lsd
-
-    REAL(KIND=dp)                            :: xc_energy, efac, we_LB, we_GLLB, tot_rho_psi
+    REAL(KIND=dp)                            :: efac, tot_rho_psi, we_GLLB, &
+                                                we_LB, xc_energy
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: coeff_col
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: coeff_col
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: e_uniform
-
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: e_uniform
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_SAOP
     TYPE(coeff_type)                         :: orbital, orbital_g
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_SAOP
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                             :: single_mo_coeff
+      POINTER                                :: single_mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: molecular_orbitals
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: vxc_GLLB, vxc_LB, vxc_tmp, vxc_tau
-    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau
+    TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g, rho_r, tau, vxc_GLLB, &
+                                                vxc_LB, vxc_tau, vxc_tmp
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(real_matrix_p_type), DIMENSION(:), &
-         POINTER                             :: orb_dens
-    TYPE(xc_rho_set_type), POINTER           :: rho_set
-    TYPE(xc_derivative_type), POINTER        :: deriv
-    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
-    TYPE(xc_rho_cflags_type)                 :: needs
-
-    TYPE(xc_control_type), POINTER           :: xc_control
+      POINTER                                :: orb_dens
     TYPE(xc_control_type)                    :: my_xc_control
-    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(xc_control_type), POINTER           :: xc_control
+    TYPE(xc_derivative_set_type), POINTER    :: deriv_set
+    TYPE(xc_derivative_type), POINTER        :: deriv
+    TYPE(xc_rho_cflags_type)                 :: needs
+    TYPE(xc_rho_set_type), POINTER           :: rho_set
 
     failure = .FALSE.
 
@@ -426,9 +414,8 @@ CONTAINS
                                   orbital, orbital_g, &
                                   tot_rho_psi, qs_env, error=error)
 
-!TC          CALL pw_zero(orbital%pw)
-!TC          CALL pw_zero(orbital_g%pw)
-!TC          CALL calculate_wavefunction(mo_coeff,orb,orbital,orbital_g,qs_env,error)
+!TC          CALL calculate_wavefunction(mo_coeff,orb,orbital2,orbital2_g,qs_env,error)
+!TC          write (*,*) orb, maxval(abs(orbital2%pw%cr3d-orbital%pw%cr3d))
           
           vxc_SAOP(ispin)%pw%cr3d = vxc_SAOP(ispin)%pw%cr3d + &
                orbital%pw%cr3d * vxc_tmp(ispin)%pw%cr3d
@@ -452,14 +439,6 @@ CONTAINS
              END DO
           END DO
        END DO
-
-!!TC       DO k=bo(1,3), bo(2,3)
-!!TC          DO j=bo(1,2), bo(2,2)
-!!TC             DO i=bo(1,1), bo(2,1)
-!!TC                WRITE (*,*) i,j,k,vxc_SAOP(ispin)%pw%cr3d(i,j,k)
-!!TC             END DO
-!!TC          END DO
-!!TC       END DO
 
     END DO
        
@@ -508,16 +487,15 @@ CONTAINS
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: pot
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     LOGICAL, INTENT(IN)                      :: lsd
-    REAL(KIND=dp), INTENT(IN)                :: rho_cut
-    REAL(KIND=dp), INTENT(IN)                :: grad_cut
-    TYPE(cp_error_type), &
-         INTENT(INOUT), OPTIONAL             :: error
+    REAL(KIND=dp), INTENT(IN)                :: rho_cut, grad_cut
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: i,j,k
-    INTEGER, DIMENSION(2,3)                  :: bo
-    
-    REAL(KIND=dp)                            :: n, n_13, x, x2
     REAL(KIND=dp), PARAMETER                 :: ob3 = 1.0_dp/3.0_dp
+
+    INTEGER                                  :: i, j, k
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    REAL(KIND=dp)                            :: n, n_13, x, x2
 
     IF (.NOT.lsd) THEN
        bo(1,:) = LBOUND(rho_set%rho)
@@ -561,11 +539,14 @@ CONTAINS
 
   FUNCTION calc_ecpbe_u(ra, rb, ngr, ec_unif, rc, ngrc) RESULT(res)
 
-    REAL(kind=dp), INTENT(in) :: ra, rb, ngr, ec_unif, rc, ngrc
-    REAL(kind=dp)             :: res
-    REAL(kind=dp)             :: A, At2, kf, kl, ks, phi, phi3, t2, zeta, r, H
+    REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, ec_unif, rc, ngrc
+    REAL(kind=dp)                            :: res
 
-    REAL(kind=dp), parameter  :: ob3 = 1.0_dp/3.0_dp, tb3 = 2.0_dp/3.0_dp
+    REAL(kind=dp), parameter                 :: ob3 = 1.0_dp/3.0_dp, &
+                                                tb3 = 2.0_dp/3.0_dp
+
+    REAL(kind=dp)                            :: A, At2, H, kf, kl, ks, phi, &
+                                                phi3, r, t2, zeta
 
     r = ra + rb
     H = 0.0_dp
@@ -589,11 +570,13 @@ CONTAINS
 
   FUNCTION calc_ecpbe_r(r, ngr, ec_unif, rc, ngrc) RESULT(res)
 
-    REAL(kind=dp), INTENT(in) :: r, ngr, ec_unif, rc, ngrc
-    REAL(kind=dp)             :: res
-    REAL(kind=dp)             :: A, At2, kf, kl, ks, t2, H
+    REAL(kind=dp), INTENT(in)                :: r, ngr, ec_unif, rc, ngrc
+    REAL(kind=dp)                            :: res
 
-    REAL(kind=dp), parameter  :: ob3 = 1.0_dp/3.0_dp
+    REAL(kind=dp), parameter                 :: ob3 = 1.0_dp/3.0_dp
+
+    REAL(kind=dp)                            :: A, At2, H, kf, kl, ks, t2
+
     H = 0.0_dp
     IF (r > rc .AND. ngr > ngrc) THEN
        kf   = (3.0_dp*r*pi*pi)**(1.0_dp/3.0_dp)
@@ -612,10 +595,10 @@ CONTAINS
 
   FUNCTION calc_expbe_u(ra, rb, ngr, rc, ngrc) RESULT(res)
 
-    REAL(kind=dp), INTENT(in) :: ra, rb, ngr, rc, ngrc
-    REAL(kind=dp)             :: res
+    REAL(kind=dp), INTENT(in)                :: ra, rb, ngr, rc, ngrc
+    REAL(kind=dp)                            :: res
 
-    REAL(kind=dp)             :: r
+    REAL(kind=dp)                            :: r
 
     r = ra + rb
     res = calc_expbe_r(r, ngr, rc, ngrc)
@@ -626,10 +609,10 @@ CONTAINS
 
   FUNCTION calc_expbe_r(r, ngr, rc, ngrc) RESULT(res)
 
-    REAL(kind=dp), INTENT(in) :: r, ngr, rc, ngrc
-    REAL(kind=dp)             :: res
+    REAL(kind=dp), INTENT(in)                :: r, ngr, rc, ngrc
+    REAL(kind=dp)                            :: res
 
-    REAL(kind=dp)             :: kf, s, ex_unif, fx
+    REAL(kind=dp)                            :: ex_unif, fx, kf, s
 
     IF (r > rc) THEN
        kf      = (3.0_dp*r*pi*pi)**(1.0_dp/3.0_dp)
