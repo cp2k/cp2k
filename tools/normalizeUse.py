@@ -127,11 +127,21 @@ def rewriteUse(inFile,outFile):
                                   m.group('moduleName')+
                                   "!="+os.path.basename(inFile.name)[0:-2]+")")
             break
-    (modules,comments,line)=parseUse(inFile)
-    outFile.write(comments)
-    normalizeModules(modules)
-    writeUseLong(modules,outFile)
-    outFile.write(line)
+    try:
+        (modules,comments,line)=parseUse(inFile)
+        outFile.write(comments)
+        normalizeModules(modules)
+        writeUseLong(modules,outFile)
+        outFile.write(line)
+    except:
+        import sys, traceback
+        logFile=sys.stdout
+        logFile.write('-'*60+"\n")
+        traceback.print_exc(file=logFile)
+        logFile.write('-'*60+"\n")
+
+        logFile.write("Processing file '"+inFile.name+"'\n")
+    
     while 1:
         line=inFile.readline()
         if not line: break
