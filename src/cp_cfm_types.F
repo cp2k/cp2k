@@ -515,10 +515,10 @@ CONTAINS
 
     IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
       alpha = a(irow_local,icol_local)
+      CALL ZGEBS2D(context%group, 'All', ' ', 1, 1, alpha , 1 )
     ELSE
-      alpha = CMPLX(0.0_wp,0.0_wp)
+      CALL ZGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
     END IF
-    CALL mp_sum(alpha,matrix%matrix_struct%para_env%group)
 
 #else
     alpha = matrix%local_data(irow_global,icol_global)

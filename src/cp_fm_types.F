@@ -556,13 +556,12 @@ CONTAINS
 
     IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
       alpha = a(irow_local,icol_local)
+      CALL DGEBS2D(context%group, 'All', ' ', 1, 1, alpha , 1 )
       IF (PRESENT(local)) local=.TRUE.
     ELSE
-      alpha = 0.0_wp
+      CALL DGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
       IF (PRESENT(local)) local=.FALSE.
     END IF
-    ! should be replaced with a bcast, need a trick iprow,ipcol -> mepos for this
-    CALL mp_sum(alpha,matrix%matrix_struct%para_env%group) 
 
 #else 
     IF (PRESENT(local)) local=.TRUE.
