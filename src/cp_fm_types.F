@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001,2002,2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -20,9 +20,6 @@
 !!     Matthias Krack (22.05.2001)
 !!
 !!   MODIFICATION HISTORY
-!!     1) Changed the size work array for syevx (Joost VandeVondele 28.02.02)
-!!     1) Introduced some cholesky guys         (Joost VandeVondele    05.02)
-!!     2) Introduced a symmetric matrix x distributed vector multiply ( JVdV)
 !!     3) separated structure object, removed globenv, renamed to full matrix
 !!        many changes (fawzi 08.2002)
 !!

@@ -65,9 +65,9 @@ MODULE qs_mo_types
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE qs_blacs,                        ONLY: blacs_replicated_copy,&
                                              blacs_scale_matrix,&
-                                             blacs_syevd,&
                                              copy_blacs_to_blacs_matrix,&
                                              copy_blacs_to_ionode_matrix,&
                                              read_blacs_matrix,&
@@ -584,7 +584,7 @@ CONTAINS
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
                     orbitals,weighted_vectors,0.0_wp,h_block)
 
-    CALL blacs_syevd(h_block,e_vectors,evals)
+    CALL cp_fm_syevd(h_block,e_vectors,evals)
 
     ! rotate the orbitals
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &

@@ -99,14 +99,14 @@ MODULE qs_scf
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
+  USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
+                                             cp_fm_syevd, &
+                                             cp_fm_power, &
+                                             cp_fm_block_jacobi_classic
   USE qs_blacs,                        ONLY: blacs_add_to_element,&
-                                             blacs_block_jacobi_classic,&
                                              blacs_get_element,&
                                              blacs_make_basis,&
-                                             blacs_syevd,&
-                                             blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             power_blacs_matrix,&
                                              replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&
                                              w_blacs_matrix => write_blacs_matrix
@@ -1282,7 +1282,7 @@ CONTAINS
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
     CALL copy_sm_to_fm(s,ortho)
-    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
     CALL symmetrise_blacs_matrix(ortho,work)
 
     CALL timestop(0.0_wp,handle)
@@ -1346,15 +1346,15 @@ CONTAINS
        CALL cp_fm_cholesky_reduce(ks,ortho)
 
        IF (use_jacobi) THEN
-          CALL blacs_syevd(ks,work,mo_eigenvalues)
+          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
           CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
        ELSE IF (smear /= 0.0_wp) THEN
-          CALL blacs_syevd(ks,work,mo_eigenvalues)
+          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        ELSE
-          CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
+          CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
           CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
        END IF
 
@@ -1390,7 +1390,7 @@ CONTAINS
 !     *** Klassisches Jacobi-Block-Verfrahren ***
 !     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
 
-       CALL blacs_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
+       CALL cp_fm_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
             jacobi_threshold,homo+1)
 
     ELSE
@@ -1404,7 +1404,7 @@ CONTAINS
           END DO
        END IF
 
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+       CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
             mo_eigenvectors)

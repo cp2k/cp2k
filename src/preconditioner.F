@@ -43,6 +43,7 @@ MODULE preconditioner
                                              cp_fm_set_all,&
                                              cp_fm_p_type,&
                                              cp_fm_type
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -57,8 +58,6 @@ MODULE preconditioner
                                              blacs_scale_and_d,&
                                              blacs_scale_matrix,&
                                              blacs_set_local_block,&
-                                             blacs_syevd,&
-                                             blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
                                              replicate_blacs_matrix,&
@@ -631,7 +630,7 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
   CALL copy_sm_to_fm(matrix_s,fm_s)
   CALL cp_fm_cholesky_decompose(fm_s)
   CALL cp_fm_cholesky_reduce(fm_h,fm_s)
-  CALL blacs_syevd(fm_h,preconditioner_env%fm,evals)
+  CALL cp_fm_syevd(fm_h,preconditioner_env%fm,evals)
   CALL cp_fm_cholesky_restore(preconditioner_env%fm,n,fm_s,fm_h,"SOLVE") 
   DO i=1,n
         evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)

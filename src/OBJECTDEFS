@@ -41,6 +41,7 @@ OBJECTS_GENERIC =\
  cp_fm_basic_linalg.o\
  cp_cfm_basic_linalg.o\
  cp_fm_cholesky.o\
+ cp_fm_diag.o\
  cp_fm_pool_types.o\
  cp_fm_struct.o\
  cp_fm_types.o\

@@ -52,11 +52,11 @@ MODULE qs_ot
   USE qs_blacs,                        ONLY: blacs_make_basis,&
                                              blacs_scale_matrix,&
                                              blacs_set_local_block,&
-                                             blacs_syevd,&
-                                             blacs_syevx,&
                                              blacs_transpose,&
                                              copy_blacs_to_blacs_matrix,&
                                              replicate_blacs_matrix
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
+                                             cp_fm_syevx
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&
                                              deallocate_matrix,&
@@ -579,8 +579,8 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
 
   k=qs_ot_env%settings%k 
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
-  CALL blacs_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
-  ! CALL blacs_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_wp)
+  CALL cp_fm_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
+  ! CALL cp_fm_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals,k,1.0_wp)
   DO i=1,k
         qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
   ENDDO

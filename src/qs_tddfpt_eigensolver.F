@@ -46,8 +46,8 @@ MODULE qs_tddfpt_eigensolver
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_arpack_utils,                 ONLY: arpack_confirm
-  USE qs_blacs,                        ONLY: blacs_syevd,&
-                                             copy_blacs_to_blacs_matrix
+  USE cp_fm_diag,                      ONLY: cp_fm_syevd
+  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
@@ -339,7 +339,7 @@ CONTAINS
        !---------------------------!
        ! calc the eigenvalues of T !
        !---------------------------!
-       CALL blacs_syevd(T%matrix, Tev%matrix, tddfpt_eigenvalues(:,iteration))
+       CALL cp_fm_syevd(T%matrix, Tev%matrix, tddfpt_eigenvalues(:,iteration))
 
        if (glob_env%ionode) then
           do i=1, n_ev

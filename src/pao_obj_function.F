@@ -106,10 +106,10 @@ MODULE pao_obj_function
                                              cp_fm_trace,&
                                              cp_fm_syrk
   USE qs_blacs,                        ONLY: add_blacs_to_block_diag_sm,&
-                                             blacs_syevx,&
                                              copy_blacs_to_blacs_matrix,&
-                                             power_blacs_matrix,&
                                              symmetrise_blacs_matrix
+  USE cp_fm_diag,                      ONLY: cp_fm_syevx, &
+                                             cp_fm_power
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
@@ -808,7 +808,7 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL cp_fm_power(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
     CALL symmetrise_blacs_matrix(ortho,work)
 
     CALL timestop(0.0_wp,handle)
@@ -879,7 +879,7 @@ CONTAINS
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp)
+    CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp)
 
     CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
                     mo_eigenvectors)
