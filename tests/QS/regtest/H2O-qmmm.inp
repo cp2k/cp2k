@@ -20,14 +20,25 @@
         &QMMM
          ECOUPL GRID
          ABC_QM  5.0 5.0 5.0
+         #
+         # QM_KINDS
+         #
          &QM_KIND H
           mm_index 2 3
-          radius 0.44
          &END QM_KIND
          &QM_KIND O
           mm_index 1
-          radius 0.78
          &END QM_KIND
+         #
+         # MM_KINDS
+         #
+         &MM_KIND H
+          radius 0.44
+         &END MM_KIND
+         &MM_KIND O
+          radius 0.78
+         &END MM_KIND
+         #
         &END QMMM
 &END FORCE_EVAL
 
