@@ -181,9 +181,14 @@ CONTAINS
 !   *** Init the default logger 
 
     globenv%print%ref_count=1 ! ugly
+    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
+       output_unit=globenv%scr
+    ELSE
+       output_unit=-1
+    END IF
     CALL cp_init_default_logger(para_env=globenv%para_env,&
          print_keys=globenv%print, &
-         default_global_unit_nr=globenv%scr, &
+         default_global_unit_nr=output_unit, &
          close_global_unit_on_dealloc=.FALSE.)
 
     ionode = globenv%ionode
