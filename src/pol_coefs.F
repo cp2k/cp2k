@@ -178,8 +178,8 @@ MODULE pol_coefs
 !   locals 
     INTEGER :: ncoef, icoef
     LOGICAL :: kind_flag
-    REAL ( dbl ) :: dum1_real dum2_real
-    COMPLEX ( dbl ) :: dum1_cplx dum2_cplx
+    REAL ( dbl ) :: dum1_real, dum2_real
+    COMPLEX ( dbl ) :: dum1_cplx, dum2_cplx
 
 
 
