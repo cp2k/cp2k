@@ -92,6 +92,7 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: ub                        ! upper bounds
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
      REAL ( dbl ), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
+     INTEGER(KIND=8)        :: lock                      ! and openmp lock variable ... under construction
      INTEGER :: border                                   ! border points
      INTEGER :: ngpts_local                              ! local dimensions
      INTEGER, DIMENSION (3) :: npts_local
@@ -174,6 +175,9 @@ SUBROUTINE rs_grid_allocate_1 ( rs )
    ALLOCATE ( rs % pz ( rs % npts ( 3 ) ), STAT = ierr )
    IF ( ierr /= 0 ) CALL stop_memory ( "rs_grid_deallocate","rs % pz", &
                                        rs % npts ( 3 ) )
+
+!$ CALL omp_init_lock(rs%lock)
+
    CALL timestop(0.0_dbl,handle)
 END SUBROUTINE rs_grid_allocate_1
 
@@ -241,6 +245,9 @@ SUBROUTINE rs_grid_deallocate_1 ( rs )
      ! release the group communicator
      CALL mp_comm_free ( rs % group )
    END IF
+
+!$ CALL omp_destroy_lock(rs%lock)
+
    CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE rs_grid_deallocate_1

@@ -950,15 +950,11 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
        flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
     ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
          pw3 % in_use == REALDATA3D ) THEN
-!$omp parallel workshare
        pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
-!$omp end parallel workshare
        flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
     ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
          pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
-!$omp parallel workshare
        pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
-!$omp end parallel workshare
        flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
     ELSE
        CALL stop_program ( "pw_add", "no suitable data field" )
@@ -1860,7 +1856,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
   COMPLEX ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: grays
   REAL ( dbl ) :: norm
   INTEGER, DIMENSION ( : ), POINTER :: n
-  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i, j, k
+  INTEGER :: dir, out_space, ierr, nrays, my_pos, nloc ( 3 ), handle, i, j, k,nsize,l1,l2,l3
   CHARACTER ( LEN = 9 ) :: mode
   LOGICAL :: test
   
@@ -1934,6 +1930,8 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
       CASE ( "FW_R3DC3D" )
+        ! nsize=size(pw1 % cr3d,1)*size(pw1 % cr3d,2)*size(pw1 % cr3d,3)
+        ! CALL copy_rc(nsize,pw1%cr3d(1,1,1),pw2%cc3d(1,1,1))
         pw2 % cc3d = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
         c_out => pw2 % cc3d
       CASE ( "FW_C3DC1D" )
@@ -1945,7 +1943,12 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
-        c_out = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
+        nsize=size(pw1 % cr3d,1)*size(pw1 % cr3d,2)*size(pw1 % cr3d,3)
+        l1 = LBOUND(pw1%cr3d,1)
+        l2 = LBOUND(pw1%cr3d,2)
+        l3 = LBOUND(pw1%cr3d,3)
+        CALL copy_rc(nsize,pw1%cr3d(l1,l2,l3),c_out(1,1,1))
+        ! c_out = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
       CASE ( "BW_C3DC3D" )
         c_in => pw1 % cc3d
         c_out => pw2 % cc3d
@@ -2007,7 +2010,13 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
       CASE ( "BW_C1DR3D" )
         !     use real part only
         IF ( test ) WRITE ( *,'(A)') "  REAL part "
-        pw2 % cr3d = REAL ( c_out, dbl )
+        ! pw2 % cr3d = REAL ( c_out, dbl )
+        nsize=size(pw2 % cr3d,1)*size(pw2 % cr3d,2)*size(pw2 % cr3d,3)
+        l1 = LBOUND(pw2%cr3d,1)
+        l2 = LBOUND(pw2%cr3d,2)
+        l3 = LBOUND(pw2%cr3d,3)
+        CALL copy_cr(nsize,c_out(1,1,1),pw2%cr3d(l1,l2,l3))
+        
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
     END SELECT

@@ -449,7 +449,7 @@ SUBROUTINE qs_env_rebuild_aomo_pools(qs_env, error)
   failure=.FALSE.
   NULLIFY(aomo_pools,para_env,blacs_env,mos, fmstruct)
   
-  CALL timeset(routineN//', '//moduleN,"I","",handle)
+  CALL timeset(routineN,"I","",handle)
   
   ! frees the memory before allocating the new pools
   CALL set_qs_env(qs_env, ao_mo_fm_pools=aomo_pools,error=error)

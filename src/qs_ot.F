@@ -717,6 +717,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
         qs_ot_env%evals(i)=MAX(0.0_wp,qs_ot_env%evals(i))
   ENDDO
 
+!$OMP PARALLEL DO
   DO i=1,k
      qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
   ENDDO
@@ -725,6 +726,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_cosp)
 
+!$OMP PARALLEL DO
   DO i=1,k
      qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
   ENDDO
@@ -732,7 +734,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
   CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_sinp)
-
+!$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
        a=(SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) & 
@@ -744,6 +746,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
   ENDDO
   CALL blacs_set_local_block(qs_ot_env%matrix_cosp_b,qs_ot_env%local_block)
 
+!$OMP PARALLEL DO PRIVATE(i,j,a,b)
   DO j=1,qs_ot_env%ncol_local
     DO i=1,qs_ot_env%nrow_local
        a=SQRT(qs_ot_env%evals(qs_ot_env%row_indices(i))) 

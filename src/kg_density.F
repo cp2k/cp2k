@@ -125,7 +125,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(3) :: ra,rab,rb
 
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: pab,work
+    REAL(dbl), DIMENSION(:,:), POINTER :: pab,work
 
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
@@ -233,7 +233,7 @@ CONTAINS
             CALL collocate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dbl,0,&
-                        ra,rab,rab2,scale,pab(na1:na2,1:1),&
+                        ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level),cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
          END DO
@@ -339,7 +339,7 @@ CONTAINS
     INTEGER  :: atom_a,handle,iatom,ikind,natom
 
     REAL(dbl), DIMENSION(3)   :: ra
-    REAL(dbl), DIMENSION(1,1) :: pab
+    REAL(dbl), DIMENSION(:,:), POINTER :: pab
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: part
@@ -351,6 +351,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_epc_density","I","",handle)
+
+    ALLOCATE(pab(1,1))
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -386,7 +388,7 @@ CONTAINS
         IF(rs_rho%group_head) &
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dbl,0,ra,&
                                           (/0.0_dbl,0.0_dbl,0.0_dbl/),&
-                                          0.0_dbl,scale,pab,rs_rho,&
+                                          0.0_dbl,scale,pab,0,0,rs_rho,&
                                           cube_info,l_info,eps_rho_rspace)
 
       END DO
@@ -404,6 +406,8 @@ CONTAINS
     CALL coeff_transform_space(rhoc_r,rho_core)
 
     CALL coeff_deallocate(rhoc_r)
+
+    DEALLOCATE(pab)
 
     CALL timestop(0.0_dbl,handle)
 
@@ -449,7 +453,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(3) :: ra,rab,rb
 
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: pab,work
+    REAL(dbl), DIMENSION(:,:), POINTER :: pab,work
 
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
@@ -559,7 +563,7 @@ CONTAINS
             CALL collocate_pgf_product_rspace(&
                         la_max(iset),zeta(ipgf,iset),la_min(iset),&
                         0,0.0_dbl,0,&
-                        ra,rab,rab2,scale,pab(na1:na2,1:1),&
+                        ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level),cube_info(igrid_level),&
                         l_info,eps_rho_rspace)
          END DO
@@ -602,7 +606,7 @@ CONTAINS
 
   SUBROUTINE collocate_pgf_product_rspace(la_max,zeta,la_min,&
                                           lb_max,zetb,lb_min,&
-                                          ra,rab,rab2,scale,pab,&
+                                          ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,eps_rho_rspace)
 
     TYPE(realspace_grid_type), INTENT(INOUT), TARGET :: rsgrid
@@ -612,7 +616,8 @@ CONTAINS
     INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
     REAL(dbl), DIMENSION(3), INTENT(IN)   :: ra,rab
 
-    REAL(dbl), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
+    REAL(dbl), DIMENSION(:,:), POINTER :: pab
+    INTEGER                            :: o1,o2
 
 !   *** Local variables ***
 
@@ -653,8 +658,8 @@ CONTAINS
     rb(:)     = ra(:)+rab(:)
     cutoff    = 0.0_dbl
 
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
-                                    zetp,eps_rho_rspace,prefactor,cutoff)
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra=ra,rb=rb,rp=rp,&
+                                    zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
 
     IF (radius .eq. 0.0_dbl ) THEN
       RETURN
@@ -677,8 +682,8 @@ CONTAINS
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-!   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,lx_max, &
+!   *** get the l_info logic and arrays *** ! new ithread var
+    CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,0,lx_max, &
                        lxy_max,lxyz_max,ly_max,lz_max, &
                        map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
@@ -711,7 +716,7 @@ CONTAINS
              lxyz=lxyz+1
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
-             pzyx(lxyz)=prefactor*pab(ico,jco)
+             pzyx(lxyz)=prefactor*pab(o1+ico,o2+jco)
           ENDDO
           ENDDO
        ENDDO
@@ -856,11 +861,13 @@ CONTAINS
 
     REAL(dbl), DIMENSION(3)     :: force_a,force_b,ra
     INTEGER, DIMENSION(3)      :: nsmax
-    REAL(dbl), DIMENSION(1,1)   :: hab,pab
+    REAL(dbl), POINTER, DIMENSION(:,:)   :: hab,pab
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_epc_rspace_forces","I","",handle)
+
+    ALLOCATE(hab(1,1),pab(1,1))
 
     nsmax(:) = 100
     CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
@@ -900,7 +907,7 @@ CONTAINS
                                           0,0.0_dbl,0,&
                                           ra,(/0.0_dbl,0.0_dbl,0.0_dbl/),0.0_dbl,&
                                           rs_v,cube_info,l_info,&
-                                          hab(1,1),pab(1,1),1.0_dbl,&
+                                          hab,pab,0,0,1.0_dbl,&
                                           eps_rho_rspace,&
                                           .TRUE.,force_a,force_b)
 
@@ -912,6 +919,8 @@ CONTAINS
     END DO
 
     CALL rs_grid_deallocate(rs_v)
+
+    DEALLOCATE(pab,hab)
 
     CALL timestop(0.0_dbl,handle)
 
@@ -963,7 +972,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
+    REAL(dbl), DIMENSION(:,:), POINTER :: hab,pab,work
 
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
@@ -1107,7 +1116,7 @@ CONTAINS
                         0, 0.0_dbl,0,&
                         ra,rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
-                        hab(na1:na2,1:1),pab(na1:na2,1:1),&
+                        hab,pab,na1-1,0,&
                         vratio,eps_gvg_rspace,calculate_forces,&
                         force_a,force_b)
 
@@ -1200,7 +1209,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(3) :: force_a,force_b,ra,rab,rb
 
-    REAL(dbl), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
+    REAL(dbl), DIMENSION(:,:), POINTER :: hab,pab,work
 
     INTEGER, DIMENSION(:), POINTER                :: atom_list
 
@@ -1347,7 +1356,7 @@ CONTAINS
                         0, 0.0_dbl,0,&
                         ra,rab,rab2,rs_v(igrid_level),&
                         cube_info(igrid_level),l_info,&
-                        hab(na1:na2,1:1),pab(na1:na2,1:1),&
+                        hab,pab,na1-1,0,&
                         vratio,eps_gvg_rspace,calculate_forces,&
                         force_a,force_b)
 
@@ -1406,7 +1415,7 @@ CONTAINS
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
-                                            cube_info,l_info,hab,pab,&
+                                            cube_info,l_info,hab,pab,o1,o2,&
                                             vratio,eps_gvg_rspace,&
                                             calculate_forces,force_a,force_b)
 
@@ -1417,8 +1426,9 @@ CONTAINS
     TYPE(cube_info_type),INTENT(IN)       :: cube_info
     TYPE(l_info_type),INTENT(IN)          :: l_info
     REAL(dbl), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
-    REAL(dbl), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    REAL(dbl), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
+    REAL(dbl), DIMENSION(:,:), POINTER :: hab
+    REAL(dbl), DIMENSION(:,:), POINTER :: pab
+    INTEGER  :: o1,o2
     LOGICAL, INTENT(IN)                   :: calculate_forces
 
 !   *** Local variables ***
@@ -1476,12 +1486,13 @@ CONTAINS
 ! in this case the minimization goes fine up to the point where the energy is
 ! noisy
     cutoff=1.0_dbl
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,0,0,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
 
     IF (radius == 0.0_dbl) RETURN
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,lx_max,lxy_max, &
+    ! new ithread var
+    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,0,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&
                          map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
@@ -1636,7 +1647,7 @@ CONTAINS
               DO by=0,lb-bx
                 bz = lb - bx - by
                 jco=coset(bx,by,bz)
-                hab(ico,jco) = hab(ico,jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
                 IF (calculate_forces) THEN
                   dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                             REAL(ax,dbl)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
@@ -1644,7 +1655,7 @@ CONTAINS
                             REAL(ay,dbl)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
                   dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
                             REAL(az,dbl)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-                  force_a(:) = force_a(:) + pab(ico,jco)*dhab(:)
+                  force_a(:) = force_a(:) + pab(o1+ico,o2+jco)*dhab(:)
                   dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                                   rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
                             REAL(bx,dbl)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
@@ -1654,7 +1665,7 @@ CONTAINS
                   dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
                                   rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
                             REAL(bz,dbl)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
-                  force_b(:) = force_b(:) + pab(ico,jco)*dhab(:)
+                  force_b(:) = force_b(:) + pab(o1+ico,o2+jco)*dhab(:)
                 END IF
               END DO
             END DO

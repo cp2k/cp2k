@@ -806,13 +806,14 @@ CONTAINS
 ! components given the product of the two gaussians, and their original
 ! centers
 !******
-  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+  FUNCTION exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                           zetp,eps,prefactor,cutoff) result(radius)
 
     integer ,INTENT(IN)     :: la_min,la_max,lb_min,lb_max
     real(wp) ,INTENT(IN)    :: ra(3),rb(3),rp(3),zetp,eps,prefactor
     real(wp) ,INTENT(IN)    :: cutoff
-    real(wp) ,INTENT(IN),OPTIONAL   :: pab(ncoset(la_max),ncoset(lb_max))
+    real(wp) , DIMENSION(:,:), POINTER, optional   :: pab
+    integer,optional        :: o1,o2
     real(wp)    :: radius
     integer     :: lxa,lxb,lya,lyb,lza,lzb,la(3),lb(3),ico,jco,handle
     real(wp)    :: prefactor_local
@@ -832,7 +833,7 @@ CONTAINS
              ico=coset(lxa,lya,lza)
              jco=coset(lxb,lyb,lzb)
              IF (PRESENT(pab)) THEN
-               prefactor_local=prefactor*MAX(ABS(pab(ico,jco)),cutoff)
+               prefactor_local=prefactor*MAX(ABS(pab(o1+ico,o2+jco)),cutoff)
              ELSE
                prefactor_local=prefactor*MAX(1.0_wp,cutoff)
              ENDIF

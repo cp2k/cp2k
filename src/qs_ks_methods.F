@@ -299,9 +299,9 @@ CONTAINS
     !   *** Local variables ***
 
     REAL(wp)          :: total_rho_elec_rspace
-    CHARACTER(len=*), PARAMETER :: routineN='qs_ks_build_kohn_sham_matrix',&
+    CHARACTER(len=*), PARAMETER :: routineN='build_kohn_sham',&  ! shorter for output
          routineP=moduleN//':'//routineN
-    INTEGER :: handle,output_unit, nspins, ispin, stat, n_electrons
+    INTEGER :: handle,output_unit, nspins, ispin, stat, n_electrons,handle2
     LOGICAL :: ionode, failure,r_build
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: h,s
     TYPE(dft_control_type), POINTER :: dft_control
@@ -327,6 +327,7 @@ CONTAINS
     !   -----------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN//"_energy","I","",handle2)
 
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -465,15 +466,16 @@ CONTAINS
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
        END IF
+       CALL timestop(0.0_wp,handle2)
 
        IF (.NOT. just_energy) THEN
+          CALL timeset(routineN//"_pot","I","",handle2)
 
           CALL coeff_transform_space(v_hartree_gspace,&
                ks_env%v_hartree_rspace)
-
-          ks_env%v_hartree_rspace%pw%cr3d(:,:,:) =&
+          ks_env%v_hartree_rspace%pw%cr3d =&
                ks_env%v_hartree_rspace%pw%pw_grid%dvol*&
-               ks_env%v_hartree_rspace%pw%cr3d(:,:,:)
+               ks_env%v_hartree_rspace%pw%cr3d
 
           IF (calculate_forces) THEN
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace,&
@@ -482,10 +484,10 @@ CONTAINS
           END IF
 
           DO ispin=1,nspins
-             v_rspace_new(ispin)%pw%cr3d(:,:,:) =&
+             v_rspace_new(ispin)%pw%cr3d =&
                   v_rspace_new(ispin)%pw%pw_grid%dvol*&
-                  v_rspace_new(ispin)%pw%cr3d(:,:,:) +&
-                  ks_env%v_hartree_rspace%pw%cr3d(:,:,:)
+                  v_rspace_new(ispin)%pw%cr3d +&
+                  ks_env%v_hartree_rspace%pw%cr3d
              
              IF (r_build) CALL set_matrix(ks_env%v(ispin)%matrix,0.0_wp)
              CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
@@ -502,6 +504,7 @@ CONTAINS
              CALL add_matrices(ks(ispin)%matrix,1.0_wp,h(1)%matrix,1.0_wp,&
                   ks_env%v(ispin)%matrix)
           END DO
+          CALL timestop(0.0_wp,handle2)
        END IF
 
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&

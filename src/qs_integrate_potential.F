@@ -66,6 +66,7 @@ MODULE qs_integrate_potential
                                              wp_size => dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
+  USE machine,                         ONLY: m_walltime
   USE mathconstants,                   ONLY: pi,&
                                              twopi
   USE message_passing,                 ONLY: mp_max,&
@@ -172,13 +173,15 @@ CONTAINS
 
     REAL(wp), DIMENSION(3)     :: force_a,force_b,ra
     INTEGER, DIMENSION(3)      :: nsmax
-    REAL(wp), DIMENSION(1,1)   :: hab,pab
+    REAL(wp), DIMENSION(:,:), POINTER   :: hab,pab
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_core_rspace","I","",handle)
 
-    nsmax(:) = 100
+    ALLOCATE(hab(1,1),pab(1,1))
+
+    nsmax(:) = 1000
     CALL rs_grid_setup(rs_v,v_rspace%pw%pw_grid,nsmax)
     CALL rs_grid_allocate(rs_v)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,"BACKWARD")
@@ -231,7 +234,9 @@ CONTAINS
                                           0,0.0_wp,0,&
                                           ra,(/0.0_wp,0.0_wp,0.0_wp/),0.0_wp,&
                                           rs_v,cube_info,l_info,&
-                                          hab(1,1),pab=pab(1,1),vratio=1.0_wp,&
+                                          ! hab(1,1),pab=pab(1,1),&
+                                          hab,pab=pab,o1=0,o2=0,&
+                                          vratio=1.0_wp,&
                                           eps_gvg_rspace=eps_rho_rspace,&
                                           calculate_forces=.TRUE.,force_a=force_a,&
                                           force_b=force_b)
@@ -244,6 +249,8 @@ CONTAINS
     END DO
 
     CALL rs_grid_deallocate(rs_v)
+
+    DEALLOCATE(hab,pab)
 
     CALL timestop(0.0_wp,handle)
 
@@ -358,7 +365,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind
 
-    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: hab,pab,work
+    REAL(wp), DIMENSION(:,:), POINTER :: hab,pab,work
 
     REAL(wp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,&
@@ -369,6 +376,9 @@ CONTAINS
     INTEGER, DIMENSION(3)             :: nsmax
 
     TYPE(REALSPACE_GRID_TYPE), DIMENSION(:), POINTER :: rs_v
+    INTEGER :: ithread,nthread,omp_get_thread_num,omp_get_num_threads,handle2
+    REAL(wp) :: time_a_1,time_a_2,time_b_1,time_b_2,time_c_1,time_c_2,time_a,time_b,time_c
+    REAL(wp) :: mytimings(10)
 
 !   ---------------------------------------------------------------------------
 
@@ -461,11 +471,40 @@ CONTAINS
 
     eps_gvg_rspace = dft_control%qs_control%eps_gvg_rspace
 
-!   *** Allocate work storage ***
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxco=maxco,&
                              maxsgf_set=maxsgf_set)
+    time_a = 0.0
+    time_b = 0.0
+    time_c = 0.0
+    mytimings = 0.0
+    !time_a_1=m_walltime()
+    CALL timeset("integrate_v_rspace_omp","I","",handle2)
+! we divide the OMP work using iatom,jatom (that is, blocks of h_matrix)
+!$OMP PARALLEL &
+!$OMP DEFAULT(none) &
+!$OMP PRIVATE(hab,pab,work,istat) &
+!$OMP PRIVATE(ikind,jkind) &
+!$OMP PRIVATE(atomic_kind,orb_basis_set) &
+!$OMP PRIVATE(first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,sphi_a,zeta) &
+!$OMP PRIVATE(first_sgfb,lb_max,lb_min,npgfb,nsetb,nsgfb,rpgfb,set_radius_b,sphi_b,zetb,kind_radius_b) &
+!$OMP PRIVATE(ab,sab_orb_neighbor_list,iatom,atom_a,ra) &
+!$OMP PRIVATE(sab_orb_neighbor_node,jatom,rab) &
+!$OMP PRIVATE(atom_b,force_a,force_b,h_block,p_block) &
+!$OMP PRIVATE(rb,rab2,dab,iset,jset,ncoa,sgfa,ncob,sgfb,jco,ico) &
+!$OMP PRIVATE(na1,na2,ipgf,jpgf,nb1,nb2,zetp,igrid_level) &
+!$OMP PRIVATE(ithread,nthread) &
+!$OMP SHARED(gridlevel_info,rs_v,ncoset,natom,h,eps_gvg_rspace,force,vratio,cube_info,l_info) &
+!$OMP SHARED(maxsgf_set,nkind,calculate_forces,maxco,p,particle_set,cell,atom_of_kind) &
+!$OMP SHARED(atomic_kind_set,sab_orb,time_b_1,time_b_2,time_c_1,time_c_2,time_b,time_c,mytimings)
+      ithread=0
+      nthread=1
+!$    nthread=omp_get_num_threads()
+!$    ithread=omp_get_thread_num()
+
+
+!   *** Allocate work storage ***
 
     ALLOCATE (hab(maxco,maxco),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"hab",maxco*maxco*wp_size)
@@ -544,207 +583,222 @@ CONTAINS
                                    neighbor=jatom,&
                                    r=rab(:))
 
-            IF (calculate_forces) THEN
-              atom_b = atom_of_kind(jatom)
-              force_a(:) = 0.0_wp
-              force_b(:) = 0.0_wp
-            END IF
 
-            IF (iatom <= jatom) THEN
-              CALL get_block_node(matrix=h%matrix,&
-                                  block_row=iatom,&
-                                  block_col=jatom,&
-                                  BLOCK=h_block)
-            ELSE
-              CALL get_block_node(matrix=h%matrix,&
-                                  block_row=jatom,&
-                                  block_col=iatom,&
-                                  BLOCK=h_block)
-            END IF
+            IF (MOD((iatom-1)*natom+jatom,nthread).eq.ithread) THEN
+               !if (ithread.eq.0) time_b_1=m_walltime()
+
+               IF (calculate_forces) THEN
+                 atom_b = atom_of_kind(jatom)
+                 force_a(:) = 0.0_wp
+                 force_b(:) = 0.0_wp
+               END IF
+
+               IF (iatom <= jatom) THEN
+                 CALL get_block_node(matrix=h%matrix,&
+                                     block_row=iatom,&
+                                     block_col=jatom,&
+                                     BLOCK=h_block)
+               ELSE
+                 CALL get_block_node(matrix=h%matrix,&
+                                     block_row=jatom,&
+                                     block_col=iatom,&
+                                     BLOCK=h_block)
+               END IF
 
 !           *** Check, if the atomic block has to be ***
 !           *** calculated by the current processor  ***
 
-            IF (.NOT.ASSOCIATED(h_block)) THEN
-              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-              CYCLE
-            END IF
+               IF (.NOT.ASSOCIATED(h_block)) THEN
+                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                 CYCLE
+               END IF
 
-            IF (PRESENT(P)) THEN
-              IF (iatom <= jatom) THEN
-                 CALL get_block_node(matrix=p%matrix,&
-                                     block_row=iatom,&
-                                     block_col=jatom,&
-                                     BLOCK=p_block)
-              ELSE
-                 CALL get_block_node(matrix=p%matrix,&
-                                     block_row=jatom,&
-                                     block_col=iatom,&
-                                     BLOCK=p_block)
-                 END IF
-            ENDIF
-
-            rb(:) = ra(:) + rab(:)
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-            dab = SQRT(rab2)
-
-            DO iset=1,nseta
-
-              IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
-
-              ncoa = npgfa(iset)*ncoset(la_max(iset))
-              sgfa = first_sgfa(1,iset)
-
-              DO jset=1,nsetb
-
-                IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                ncob = npgfb(jset)*ncoset(lb_max(jset))
-                sgfb = first_sgfb(1,jset)
-
-!               *** Decontract the density matrix set block ***
-
-                IF (PRESENT(P)) THEN
-                    IF (iatom <= jatom) THEN
-                      CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
-                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 p_block(sgfa,sgfb),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
-                      CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
-                                 1.0_wp,work(1,1),SIZE(work,1),&
-                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                    ELSE
-                      CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
-                                 1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                                 p_block(sgfb,sgfa),SIZE(p_block,1),&
-                                 0.0_wp,work(1,1),SIZE(work,1))
-                      CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
-                                 1.0_wp,work(1,1),SIZE(work,1),&
-                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                                 0.0_wp,pab(1,1),SIZE(pab,1))
-                    END IF
+               IF (PRESENT(P)) THEN
+                 IF (iatom <= jatom) THEN
+                    CALL get_block_node(matrix=p%matrix,&
+                                        block_row=iatom,&
+                                        block_col=jatom,&
+                                        BLOCK=p_block)
+                  ELSE
+                     CALL get_block_node(matrix=p%matrix,&
+                                         block_row=jatom,&
+                                         block_col=iatom,&
+                                         BLOCK=p_block)
+                     END IF
                 ENDIF
-
-                IF (iatom <= jatom) THEN
-                  DO jco=1,ncob
-                    DO ico=1,ncoa
-                      hab(ico,jco) = 0.0_wp
-                    END DO
-                  END DO
-                ELSE
-                  DO jco=1,ncoa
-                    DO ico=1,ncob
-                      hab(ico,jco) = 0.0_wp
-                    END DO
-                  END DO
-                END IF
-
-                DO ipgf=1,npgfa(iset)
-
-                  IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
-
-                  na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-                  na2 = ipgf*ncoset(la_max(iset))
-
-                  DO jpgf=1,npgfb(jset)
-
-                    IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
-
-                    nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
-                    nb2 = jpgf*ncoset(lb_max(jset))
-
-                    zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-
-                    igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                    ! ugly way to do this ..
+    
+                rb(:) = ra(:) + rab(:)
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                dab = SQRT(rab2)
+    
+                DO iset=1,nseta
+    
+                  IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
+    
+                  ncoa = npgfa(iset)*ncoset(la_max(iset))
+                  sgfa = first_sgfa(1,iset)
+    
+                  DO jset=1,nsetb
+    
+                    IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+    
+                    ncob = npgfb(jset)*ncoset(lb_max(jset))
+                    sgfb = first_sgfb(1,jset)
+    
+!                   *** Decontract the density matrix set block ***
+    
                     IF (PRESENT(P)) THEN
                         IF (iatom <= jatom) THEN
-                          CALL integrate_pgf_product_rspace(&
-                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                            ra,rab,rab2,rs_v(igrid_level),&
-                            cube_info(igrid_level),l_info,&
-                            hab(na1:na2,nb1:nb2),pab=pab(na1:na2,nb1:nb2),&
-                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                            calculate_forces=calculate_forces,&
-                            force_a=force_a,force_b=force_b)
+                          CALL dgemm("N","N",ncoa,nsgfb(jset),nsgfa(iset),&
+                                     1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                     p_block(sgfa,sgfb),SIZE(p_block,1),&
+                                     0.0_wp,work(1,1),SIZE(work,1))
+                          CALL dgemm("N","T",ncoa,ncob,nsgfb(jset),&
+                                     1.0_wp,work(1,1),SIZE(work,1),&
+                                     sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                     0.0_wp,pab(1,1),SIZE(pab,1))
                         ELSE
-                          CALL integrate_pgf_product_rspace(&
-                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                            rb,-rab,rab2,rs_v(igrid_level),&
-                            cube_info(igrid_level),l_info,&
-                            hab(nb1:nb2,na1:na2),pab=pab(nb1:nb2,na1:na2),&
-                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                            calculate_forces=calculate_forces,&
-                            force_a=force_b,force_b=force_a) ! funny 
-                        END IF
-                    ELSE
-                        IF (iatom <= jatom) THEN
-                          CALL integrate_pgf_product_rspace(&
-                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                            ra,rab,rab2,rs_v(igrid_level),&
-                            cube_info(igrid_level),l_info,&
-                            hab(na1:na2,nb1:nb2),&
-                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                            calculate_forces=calculate_forces,&
-                            force_a=force_a,force_b=force_b)
-                        ELSE
-                          CALL integrate_pgf_product_rspace(&
-                            lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                            la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                            rb,-rab,rab2,rs_v(igrid_level),&
-                            cube_info(igrid_level),l_info,&
-                            hab(nb1:nb2,na1:na2),&
-                            vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
-                            calculate_forces=calculate_forces,&
-                            force_a=force_b,force_b=force_a)
+                          CALL dgemm("N","N",ncob,nsgfa(iset),nsgfb(jset),&
+                                     1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                     p_block(sgfb,sgfa),SIZE(p_block,1),&
+                                     0.0_wp,work(1,1),SIZE(work,1))
+                          CALL dgemm("N","T",ncob,ncoa,nsgfa(iset),&
+                                     1.0_wp,work(1,1),SIZE(work,1),&
+                                     sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                     0.0_wp,pab(1,1),SIZE(pab,1))
                         END IF
                     ENDIF
+    
+                    IF (iatom <= jatom) THEN
+                      DO jco=1,ncob
+                        DO ico=1,ncoa
+                          hab(ico,jco) = 0.0_wp
+                        END DO
+                      END DO
+                    ELSE
+                      DO jco=1,ncoa
+                        DO ico=1,ncob
+                          hab(ico,jco) = 0.0_wp
+                        END DO
+                      END DO
+                    END IF
+    
+                    DO ipgf=1,npgfa(iset)
+    
+                      IF (rpgfa(ipgf,iset) + set_radius_b(jset) < dab) CYCLE
+    
+                      na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
+                      na2 = ipgf*ncoset(la_max(iset))
+    
+                      DO jpgf=1,npgfb(jset)
+    
+                        IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
+    
+                        nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
+                        nb2 = jpgf*ncoset(lb_max(jset))
+    
+                        zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+                        igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+                        !if (ithread.eq.0) time_c_1=m_walltime()
+                        IF (PRESENT(P)) THEN
+                            IF (iatom <= jatom) THEN
+                              CALL integrate_pgf_product_rspace(&
+                                la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                ra,rab,rab2,rs_v(igrid_level),&
+                                cube_info(igrid_level),l_info,&
+                                ! hab(na1:na2,nb1:nb2),pab=pab(na1:na2,nb1:nb2),&
+                                hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                                vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                                calculate_forces=calculate_forces,&
+                                force_a=force_a,force_b=force_b,ithread=ithread,mytimings=mytimings)
+                            ELSE
+                              CALL integrate_pgf_product_rspace(&
+                                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                rb,-rab,rab2,rs_v(igrid_level),&
+                                cube_info(igrid_level),l_info,&
+                                !hab(nb1:nb2,na1:na2),pab=pab(nb1:nb2,na1:na2),&
+                                hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                                vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                                calculate_forces=calculate_forces,&
+                                force_a=force_b,force_b=force_a,ithread=ithread,mytimings=mytimings) ! funny 
+                            END IF
+                        ELSE
+                            IF (iatom <= jatom) THEN
+                              CALL integrate_pgf_product_rspace(&
+                                la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                ra,rab,rab2,rs_v(igrid_level),&
+                                cube_info(igrid_level),l_info,&
+                                !hab(na1:na2,nb1:nb2),&   
+                                hab,o1=na1-1,o2=nb1-1,&
+                                vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                                calculate_forces=calculate_forces,&
+                                force_a=force_a,force_b=force_b,ithread=ithread,mytimings=mytimings)
+                            ELSE
+                              CALL integrate_pgf_product_rspace(&
+                                lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                                la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                                rb,-rab,rab2,rs_v(igrid_level),&
+                                cube_info(igrid_level),l_info,&
+                                ! hab(nb1:nb2,na1:na2),&
+                                hab,o1=nb1-1,o2=na1-1,&
+                                vratio=vratio,eps_gvg_rspace=eps_gvg_rspace,&
+                                calculate_forces=calculate_forces,&
+                                force_a=force_b,force_b=force_a,ithread=ithread,mytimings=mytimings)
+                            END IF
+                        ENDIF
+                        !if (ithread.eq.0) time_c_2=m_walltime()
+                        !if (ithread.eq.0) time_c=time_c+(time_c_2-time_c_1)
+    
+                      END DO
+    
+                    END DO
+    
+!                   *** Contract the operator matrix set block ***
+
+                    IF (iatom <= jatom) THEN
+                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                                 1.0_wp,hab(1,1),SIZE(hab,1),&
+                                 sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                 0.0_wp,work(1,1),SIZE(work,1))
+                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                                 1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 work(1,1),SIZE(work,1),&
+                                 1.0_wp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                    ELSE
+                      CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+                                 1.0_wp,hab(1,1),SIZE(hab,1),&
+                                 sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                                 0.0_wp,work(1,1),SIZE(work,1))
+                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+                                 1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                                 work(1,1),SIZE(work,1),&
+                                 1.0_wp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                    END IF
 
                   END DO
-
+    
                 END DO
 
-!               *** Contract the operator matrix set block ***
-
-                IF (iatom <= jatom) THEN
-                  CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
-                             1.0_wp,hab(1,1),SIZE(hab,1),&
-                             sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
-                  CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                             1.0_wp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             work(1,1),SIZE(work,1),&
-                             1.0_wp,h_block(sgfa,sgfb),SIZE(h_block,1))
-                ELSE
-                  CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                             1.0_wp,hab(1,1),SIZE(hab,1),&
-                             sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                             0.0_wp,work(1,1),SIZE(work,1))
-                  CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                             1.0_wp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
-                             work(1,1),SIZE(work,1),&
-                             1.0_wp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                ! write(6,*) "XXX",ithread,"X",iatom,jatom,h_block(:,:)
+    
+!               *** Update forces ***
+    
+                IF (calculate_forces) THEN
+                  force(ikind)%rho_elec(:,atom_a) =&
+                    force(ikind)%rho_elec(:,atom_a) + 2.0_wp*force_a(:)
+                  IF (iatom /= jatom) THEN
+                    force(jkind)%rho_elec(:,atom_b) =&
+                      force(jkind)%rho_elec(:,atom_b) + 2.0_wp*force_b(:)
+                  END IF
                 END IF
 
-              END DO
-
-            END DO
-
-!           *** Update forces ***
-
-            IF (calculate_forces) THEN
-              force(ikind)%rho_elec(:,atom_a) =&
-                force(ikind)%rho_elec(:,atom_a) + 2.0_wp*force_a(:)
-              IF (iatom /= jatom) THEN
-                force(jkind)%rho_elec(:,atom_b) =&
-                  force(jkind)%rho_elec(:,atom_b) + 2.0_wp*force_b(:)
-              END IF
-            END IF
-
+               !if (ithread.eq.0) time_b_2=m_walltime()
+               !if (ithread.eq.0) time_b=time_b+(time_b_2-time_b_1)
+            END IF  ! OMP IF
+    
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
 
           END DO
@@ -756,10 +810,6 @@ CONTAINS
       END DO
 
     END DO
-
-    DO igrid_level=1,gridlevel_info%ngrid_levels
-       CALL rs_grid_deallocate(rs_v(igrid_level))
-    ENDDO
 
 !   *** Release work storage ***
 
@@ -774,6 +824,21 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
+!$OMP END PARALLEL
+    CALL timestop(0.0_wp,handle2)
+    !time_a_2=m_walltime()
+    !write(6,*) "time_a",time_a_2-time_a_1
+    !write(6,*) "time_b",time_b
+    !write(6,*) "time_c",time_c
+    !write(6,*) "mytiming 1",mytimings(1)
+    !write(6,*) "mytiming 2",mytimings(2)
+    !write(6,*) "mytiming 3",mytimings(3)
+
+    DO igrid_level=1,gridlevel_info%ngrid_levels
+       CALL rs_grid_deallocate(rs_v(igrid_level))
+    ENDDO
+
+
     IF (calculate_forces) THEN
       DEALLOCATE (atom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
@@ -785,7 +850,9 @@ CONTAINS
       v_rspace%pw%cr3d = v_rspace%pw%cr3d + v_rspace_old%pw%cr3d
     END IF
 
-    IF (PRESENT(v_rspace_old)) v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
+    IF (PRESENT(v_rspace_old)) THEN
+       v_rspace_old%pw%cr3d = v_rspace%pw%cr3d
+    ENDIF
 
     CALL timestop(0.0_wp,handle)
 
@@ -796,20 +863,27 @@ CONTAINS
     SUBROUTINE integrate_pgf_product_rspace(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,rsgrid,&
-                                            cube_info,l_info,hab,pab,&
+                                            cube_info,l_info,hab,pab,o1,o2,&
                                             vratio,eps_gvg_rspace,&
-                                            calculate_forces,force_a,force_b)
+                                            calculate_forces,force_a,force_b,ithread,mytimings)
 
     TYPE(realspace_grid_type), TARGET, INTENT(IN) :: rsgrid
+    ! TYPE(realspace_grid_type), INTENT(IN) :: rsgrid
     REAL(wp), INTENT(IN)                  :: eps_gvg_rspace,rab2,zeta,zetb,vratio
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min
     REAL(wp), DIMENSION(3), INTENT(IN)    :: ra,rab
     TYPE(cube_info_type),INTENT(IN)       :: cube_info
     TYPE(l_info_type),INTENT(IN)          :: l_info
     REAL(wp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
-    REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
+    ! REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(INOUT) :: hab
+    ! REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN), OPTIONAL :: pab
+    REAL(wp), DIMENSION(:,:), POINTER :: hab
+    REAL(wp), DIMENSION(:,:), POINTER, OPTIONAL :: pab
+    INTEGER                                     :: o1,o2
+
     LOGICAL, INTENT(IN)                   :: calculate_forces
+    INTEGER, OPTIONAL                     :: ithread
+    REAL(wp), DIMENSION(10), OPTIONAL     :: mytimings
 
 !   *** Local variables ***
 
@@ -838,8 +912,17 @@ CONTAINS
     REAL(wp), POINTER :: dpx(:,:)
     INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
     INTEGER :: cmax
+    INTEGER :: ithread_l
+    REAL(wp) :: t_a_1,t_a_2,t_b_1,t_b_2,t_c_1,t_c_2
+    REAL(wp) :: exp_x2, exp_x1, exp_x0
 
 !   ---------------------------------------------------------------------------
+    IF (PRESENT(ithread)) THEN
+       ithread_l=ithread
+    ELSE
+       ithread_l=0
+    ENDIF
+    !IF (ithread_l.eq.0) t_a_1=m_walltime()
 
     IF (calculate_forces) THEN
       la_max_l=la_max+1  ! needed for the derivative of the gaussian, unimportant which one
@@ -867,23 +950,29 @@ CONTAINS
 ! noisy
     cutoff=1.0_wp
     IF (PRESENT(pab)) THEN
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,o1,o2,ra,rb,rp,&
                                     zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
     ELSE
-    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,pab,ra,rb,rp,&
-                                    zetp,eps_gvg_rspace,prefactor*vratio,cutoff)
+    radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
+                                    zetp=zetp,eps=eps_gvg_rspace,prefactor=prefactor*vratio,cutoff=cutoff)
     ENDIF
 
-    IF (radius == 0.0_wp) RETURN
+    IF (radius == 0.0_wp) THEN
+       !IF (ithread_l.EQ.0) t_a_2=m_walltime()
+       !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)
+       RETURN
+    ENDIF
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,lx_max,lxy_max, &
+    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max,ithread_l,lx_max,lxy_max, &
                          lxyz_max,ly_max,lz_max,&
                          map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
 
 !   *** properties of the grid ***
+    !IF (ithread_l.eq.0) t_c_1=m_walltime()
 
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)
+
     grid => rsgrid%r(:,:,:)
     gridbounds(1,1)=LBOUND(GRID,1)
     gridbounds(2,1)=UBOUND(GRID,1)
@@ -891,6 +980,12 @@ CONTAINS
     gridbounds(2,2)=UBOUND(GRID,2)
     gridbounds(1,3)=LBOUND(GRID,3)
     gridbounds(2,3)=UBOUND(GRID,3)
+    !gridbounds(1,1)=LBOUND(rsgrid%r,1)
+    !gridbounds(2,1)=UBOUND(rsgrid%r,1)
+    !gridbounds(1,2)=LBOUND(rsgrid%r,2)
+    !gridbounds(2,2)=UBOUND(rsgrid%r,2)
+    !gridbounds(1,3)=LBOUND(rsgrid%r,3)
+    !gridbounds(2,3)=UBOUND(rsgrid%r,3)
 
     cubecenter(:) = FLOOR(rp(:)/dr(:))
     roffset(:) = rp(:) - REAL(cubecenter(:),wp)*dr(:)
@@ -912,10 +1007,23 @@ CONTAINS
     ENDDO
 
 !   *** initialise the pol x,y,z terms
+!  new trick to avoid to many exps (reuse the result from the previous gridpoint): 
+!  exp( -a*(x+d)**2)=exp(-a*x**2)*(-2*a*x*d)*exp(-a*d**2)
+!  exp(-2*a*(x+d)*d)=exp(-2*a*x*d)*exp(-2*a*d**2)
+
+    rpg=REAL(lb_cube(3)-1,wp)*dr(3)-roffset(3)
+    exp_x2=exp(-zetp*rpg**2)
+    exp_x1=exp(-2*zetp*rpg*dr(3))
+    exp_x0=exp(-zetp*dr(3)**2)
+
     DO ig=lb_cube(3),ub_cube(3)
       lxyz=0
-      rpg = REAL(ig,wp)*dr(3) - roffset(3)
-      zap = EXP(-zetp*rpg**2)
+      rpg = rpg + dr(3)
+      ! zap = EXP(-zetp*rpg**2)
+      exp_x1 = exp_x1 * exp_x0
+      exp_x2 = exp_x2 * exp_x1
+      exp_x1 = exp_x1 * exp_x0
+      zap = exp_x2
       za  = rpg + rap(3)
       zb  = za  - rab(3)
       DO lza=0,la_max_l
@@ -942,9 +1050,17 @@ CONTAINS
       ENDDO
     ENDDO
 
+    rpg=REAL(lb_cube(2)-1,wp)*dr(2)-roffset(2)
+    exp_x2=exp(-zetp*rpg**2)
+    exp_x1=exp(-2*zetp*rpg*dr(2))
+    exp_x0=exp(-zetp*dr(2)**2)
     DO ig=lb_cube(2),ub_cube(2)
-      rpg = REAL(ig,wp)*dr(2) - roffset(2)
-      yap = EXP(-zetp*rpg**2)
+      rpg = rpg + dr(2)
+      ! yap = EXP(-zetp*rpg**2)
+      exp_x1 = exp_x1 * exp_x0
+      exp_x2 = exp_x2 * exp_x1
+      exp_x1 = exp_x1 * exp_x0
+      yap = exp_x2
       ya  = rpg + rap(2)
       yb  = ya  - rab(2)
       DO lya=0,la_max_l
@@ -995,9 +1111,17 @@ CONTAINS
     ENDDO
 
 
+    rpg=REAL(lb_cube(1)-1,wp)*dr(1)-roffset(1)
+    exp_x2=exp(-zetp*rpg**2)
+    exp_x1=exp(-2*zetp*rpg*dr(1))
+    exp_x0=exp(-zetp*dr(1)**2)
     DO ig=lb_cube(1),ub_cube(1)
-      rpg = REAL(ig,wp)*dr(1) - roffset(1)
-      pg  = EXP(-zetp*rpg**2)
+      rpg = rpg + dr(1)
+      ! pg  = EXP(-zetp*rpg**2)
+      exp_x1 = exp_x1 * exp_x0
+      exp_x2 = exp_x2 * exp_x1
+      exp_x1 = exp_x1 * exp_x0
+      pg = exp_x2
       DO icoef=1,coef_max
          polx(icoef,ig)=pg
          pg=pg*(rpg)
@@ -1006,10 +1130,12 @@ CONTAINS
 
 !   *** do the loop over the grid
 
+    !IF (ithread_l.EQ.0)t_b_1=m_walltime()
     CALL integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
                         lx_max,lxy_max,lxyz_max,coef_max,cmax, &
                         ly_max(1),lz_max(1),gridbounds(1,1),map(-cmax,1),pzyx(1), &
                         la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds(1))
+    !IF (ithread_l.EQ.0)t_b_2=m_walltime()
 
     DO i=1,lxyz_max
        pzyx(i)=pzyx(i)*prefactor
@@ -1031,7 +1157,7 @@ CONTAINS
               DO by=0,lb-bx
                 bz = lb - bx - by
                 jco=coset(bx,by,bz)
-                hab(ico,jco) = hab(ico,jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
                 IF (calculate_forces) THEN
                   dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                             REAL(ax,wp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
@@ -1039,7 +1165,7 @@ CONTAINS
                             REAL(ay,wp)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
                   dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
                             REAL(az,wp)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-                  force_a(:) = force_a(:) + pab(ico,jco)*dhab(:)
+                  force_a(:) = force_a(:) + pab(o1+ico,o2+jco)*dhab(:)
                   dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
                                   rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
                             REAL(bx,wp)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
@@ -1049,7 +1175,7 @@ CONTAINS
                   dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
                                   rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
                             REAL(bz,wp)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
-                  force_b(:) = force_b(:) + pab(ico,jco)*dhab(:)
+                  force_b(:) = force_b(:) + pab(o1+ico,o2+jco)*dhab(:)
                 END IF
               END DO
             END DO
@@ -1057,6 +1183,11 @@ CONTAINS
         END DO
       END DO
     END DO
+    !IF (ithread_l.eq.0) t_c_2=m_walltime()
+    !IF (ithread_l.EQ.0) t_a_2=m_walltime()
+    !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)
+    !IF (ithread_l.EQ.0) mytimings(2)=mytimings(2)+(t_b_2-t_b_1)
+    !IF (ithread_l.EQ.0) mytimings(3)=mytimings(3)+(t_c_2-t_c_1)
 
   END SUBROUTINE integrate_pgf_product_rspace
 

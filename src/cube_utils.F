@@ -122,6 +122,7 @@ CONTAINS
     ENDDO
 
 !   init sphere_bounds array
+    ! notice : as many points in lb_cube..0 as 1..ub_cube
     do i=1,imr 
       k=1
       radius=i*drmin

@@ -209,7 +209,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
-  CALL timeset(routineN//', '//moduleN,"I","",handle)
+  CALL timeset(routineN,"I","",handle)
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
