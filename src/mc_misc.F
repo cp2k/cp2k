@@ -555,6 +555,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
       itype,ntypes
     LOGICAL                                  :: use_ref_cell
     REAL(KIND=dp),DIMENSION(1:3)             :: abc
+    CHARACTER(LEN=5)                         :: cfile
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: name
 !------------------------------------------------------------------------------
@@ -645,7 +646,9 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms,box_length,filename,force_env,&
 ! topology information
       WRITE(unit,10000) "&TOPOLOGY"
       WRITE(unit,10000) ' CONNECTIVITY PSF'
-      WRITE(unit,10000) ' CONN_FILE topology_dump.psf'
+      WRITE(cfile,'(I4)') natoms/3
+      WRITE(unit,10000) ' CONN_FILE topology_' &
+          // TRIM(ADJUSTL(cfile)) // '.psf'
       WRITE(unit,10000) "&END"
       WRITE(unit,*) 
 
