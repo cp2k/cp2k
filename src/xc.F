@@ -406,10 +406,12 @@ END SUBROUTINE xc_calculate_pw_lda
     LOGICAL, DIMENSION(:,:), POINTER :: grad_pot
     LOGICAL, DIMENSION(:), POINTER :: ndiag_term
     REAL ( kind=wp ) , DIMENSION (:,:), ALLOCATABLE :: pot
+    TYPE(cp_logger_type), POINTER :: logger
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
+    logger => cp_error_get_logger(error)
     NULLIFY(tmp_g, tmp_r, v_deriv_g,&
          spin_pot,grad_pot,ndiag_term)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
@@ -454,6 +456,7 @@ END SUBROUTINE xc_calculate_pw_lda
     IF (.NOT.failure) THEN
 
 ! set rgrid
+       ii=0
        DO spin=1,nspins
           DO k = bo(1,3), bo(2,3)
              DO j = bo(1,2), bo(2,2)
@@ -632,7 +635,7 @@ END SUBROUTINE xc_calculate_pw_lda
           IF (grad_pot(1,ipot).AND.grad_pot(2,ipot)) THEN
              CPPrecondition(gradient_f,cp_failure_level,routineP,error,failure)
              IF (ndiag_term(ipot)) THEN
-                DO ii=0,ntot
+                DO ii=1,ntot
                    pot(ii,ipot)=pot(ii,ipot)/(drgrid(ii,spin_pot(1,ipot))*&
                         drgrid(ii,spin_pot(2,ipot)))
                 END DO
@@ -684,7 +687,7 @@ END SUBROUTINE xc_calculate_pw_lda
              END IF
           ELSE IF (grad_pot(1,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
-             DO ii=0,ntot
+             DO ii=1,ntot
                 pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(1,ipot))
              END DO
 
@@ -716,7 +719,7 @@ END SUBROUTINE xc_calculate_pw_lda
           ELSE IF (grad_pot(2,ipot)) THEN
              CPPrecondition(ndiag_term(ipot),cp_failure_level,routineP,error,failure)
 
-             DO ii=0,ntot
+             DO ii=1,ntot
                 pot(ii,ipot)=pot(ii,ipot)/drgrid(ii,spin_pot(2,ipot))
              END DO
 

@@ -110,6 +110,7 @@ MODULE qs_ep_types
      TYPE(qs_environment_type), POINTER :: main_qs_env
      TYPE(qs_p_env_type), POINTER :: main_p_env
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: pi_Hrho_psi0d
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: psi1
   END TYPE qs_ep_env_type
 !!***
   !****************************************************************************
@@ -250,6 +251,7 @@ SUBROUTINE ep_env_release(ep_env, error)
         CALL qs_env_release(ep_env%main_qs_env, error=error)
         CALL p_env_release(ep_env%main_p_env,error=error)
         CALL cp_fm_vect_dealloc(ep_env%pi_Hrho_psi0d,error=error)
+        CALL cp_fm_vect_dealloc(ep_env%psi1,error=error)
         DEALLOCATE(ep_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

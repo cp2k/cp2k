@@ -551,7 +551,8 @@ END SUBROUTINE p_env_retain
        CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&
             long_description=my_long_description, local=my_local,&
             error=error)
-       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , kpp1="
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')&
+            " , kpp1="
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
        IF (ASSOCIATED(p_env%kpp1)) THEN
           IF (my_long_description) THEN
@@ -583,10 +584,10 @@ END SUBROUTINE p_env_retain
        IF (should_w) THEN
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat, advance='no')" kpp1_env="
           CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          IF (ASSOCIATED(p_env%kpp1)) THEN
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*,"
+          IF (ASSOCIATED(p_env%kpp1_env)) THEN
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *associated*"
           ELSE
-             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*,"
+             WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" *null*"
           END IF
 !FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
 !FM            long_description=my_long_description, local=my_local,&

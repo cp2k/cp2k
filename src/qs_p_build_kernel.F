@@ -47,6 +47,7 @@ MODULE qs_p_build_kernel
   USE cp_fm_types,                     ONLY: cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&

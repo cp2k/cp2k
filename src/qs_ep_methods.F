@@ -46,10 +46,13 @@ MODULE qs_ep_methods
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_add,&
+                                             cp_fm_trace
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              cp_fm_pool_type,&
                                              fm_pool_get_mstruct,&
-                                             fm_pools_create_matrix_vect
+                                             fm_pools_create_matrix_vect,&
+                                             fm_pools_give_back_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
@@ -273,21 +276,13 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   IF (cp_debug .AND. debug_this_module) THEN
      IF (.not.failure) THEN
-       CALL cp_sm_output(logger=logger, &
-            outputName="ep_s", &
-            fromWhere=routineP, iter=0, &
-            matrix=ep_env%main_qs_env%s(1)%matrix,&
-            para_env=logger%para_env,error=error)
-
-       DO ispin=1,nspins
-          CALL cp_sm_output(logger=logger, &
-               outputName="ep_ks-"//cp_to_string(ispin), &
-            fromWhere=routineP, iter=0, &
-            matrix=ep_env%main_qs_env%k(ispin)%matrix,&
-            para_env=ep_env%main_qs_env%para_env,error=error)
-       END DO
-    END IF
- END IF
+        CALL cp_sm_output(logger=logger, &
+             outputName="ep_s", &
+             fromWhere=routineP, iter=0, &
+             matrix=ep_env%main_qs_env%s(1)%matrix,&
+             para_env=logger%para_env,error=error)
+     END IF
+  END IF
 
 
   ! energy in subsystem with diag
@@ -311,6 +306,18 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
             long_description=debug_this_module, local=.FALSE.,&
             error=error)
 
+  IF (cp_debug .AND. debug_this_module) THEN
+     IF (.not.failure) THEN
+        DO ispin=1,nspins
+           CALL cp_sm_output(logger=logger, &
+                outputName="ep_ks-"//cp_to_string(ispin), &
+                fromWhere=routineP, iter=0, &
+                matrix=ep_env%main_qs_env%k(ispin)%matrix,&
+                para_env=ep_env%main_qs_env%para_env,error=error)
+        END DO
+     END IF
+  END IF
+
   CALL p_postortho(p_env=ep_env%main_p_env,qs_env=ep_env%main_qs_env,&
           v=ep_env%pi_Hrho_psi0d, &
           n_cols=ep_env%main_p_env%n_mo,&
@@ -327,6 +334,8 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
        v=psi1, res=L_psi1,&
        alpha=1.0_wp,beta=1.0_wp,error=error)
+
+  CALL stupid_solve(ep_env,eps_r=1.0e-6_wp,error=error)
 
   CALL timestop(0.0_wp, handle)
 END SUBROUTINE qs_ep_calculation
@@ -409,6 +418,8 @@ END SUBROUTINE qs_ep_calculation
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
+       NULLIFY(ep_env%sub_qs_env, ep_env%sub_proj, ep_env%main_qs_env,&
+            ep_env%main_p_env, ep_env%pi_Hrho_psi0d, ep_env%psi1)
        nsub=SIZE(projections)
        CALL get_qs_env(main_qs_env, dft_control=dft_control, &
             particle_set=particle_set,&
@@ -579,6 +590,11 @@ END SUBROUTINE qs_ep_calculation
        CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
             error=error)
        CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%pi_Hrho_psi0d,&
+            name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//&
+            "%pi_Hrho_psi0d",error=error)
+       ! alloc psi1
+       CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,ep_env%psi1,&
+            name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//"%psi1",&
             error=error)
     END IF
 
@@ -806,6 +822,168 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
      END DO
   END IF
 END SUBROUTINE ep_env_transfer_psi0
+!***************************************************************************
+
+!!****f* qs_ep_methods/stupid_solve [1.0] *
+!!
+!!   NAME
+!!     stupid_solve
+!!
+!!   FUNCTION
+!!     solves a linear system with conjugated gradient
+!!
+!!   NOTES
+!!     The linear solver should go in nother module, this is a quick and 
+!!     dirty implementation.
+!!     A: p_op_l1+p_op_l2
+!!     x: ep_env%psi1
+!!
+!!   ARGUMENTS
+!!     - ep_env: the sytem to solve
+!!     - eps_r: wanted residual error
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE stupid_solve(ep_env,eps_r,error)
+  TYPE(qs_ep_env_type), POINTER :: ep_env
+  REAL(kind=wp), INTENT(in) :: eps_r
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='stupid_solve',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: p, Ap,r
+  TYPE(cp_fm_pool_p_type), DIMENSION(:), POINTER :: ao_mo_fm_pools
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_logger_type), POINTER :: logger
+  REAL(kind=wp) :: r_norm2, r_norm2_s, r_norm2_new, alpha, beta,&
+       Ap_p, Ap_p_s
+  INTEGER :: i,j, ispin, nspins
+
+  failure=.FALSE.
+  logger => cp_error_get_logger(error)
+  NULLIFY(p,Ap,r,ao_mo_fm_pools)
+
+  CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL get_qs_env(ep_env%main_qs_env, ao_mo_fm_pools=ao_mo_fm_pools,&
+          dft_control=dft_control,error=error)
+     nspins=dft_control%nspins
+
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,p,name="ep_CG_p",&
+          error=error)
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,Ap,name="ep_CG_Ap",&
+          error=error)
+     CALL fm_pools_create_matrix_vect(ao_mo_fm_pools,r,name="ep_CG_r",&
+          error=error)
+     CALL cp_error_check(error,failure)
+  END IF
+  IF (.not.failure) THEN
+     DO i=1,20
+        ! r=b-A x
+        CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+             v=ep_env%psi1, res=r,error=error)
+        CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+             v=ep_env%psi1, res=r,&
+             alpha=1.0_wp,beta=1.0_wp,error=error)
+        DO ispin=1,nspins
+           CALL cp_fm_add(alpha=-1.0_wp,matrix_a=r(ispin)%matrix,&
+                beta=1.0_wp,matrix_b=ep_env%pi_Hrho_psi0d(ispin)%matrix,&
+                error=error)
+        END DO
+        
+        ! check convergence (with ||r||)
+        r_norm2=0.0_wp
+        DO ispin=1,nspins
+           CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
+                matrix_b=r(ispin)%matrix,trace=r_norm2_s,error=error)
+           r_norm2=r_norm2+r_norm2_s
+        END DO
+        IF (r_norm2<eps_r**2) EXIT
+        
+        ! p=r
+        DO ispin=1,nspins
+           CALL cp_fm_add(alpha=0.0_wp,matrix_a=p(ispin)%matrix,beta=1.0_wp,&
+                matrix_b=r(ispin)%matrix,error=error)
+        END DO
+
+        DO j=1,20
+           CALL cp_log(logger,cp_note_level,routineP,"i="//cp_to_string(i)//&
+                "j="//cp_to_string(j)//"r_norm2="//cp_to_string(r_norm2))
+           
+           ! Ap=A p
+           CALL p_op_l1(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+                v=p, res=Ap,error=error)
+           CALL p_op_l2(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
+                v=p, res=Ap,&
+                alpha=1.0_wp,beta=1.0_wp,error=error)
+           
+           Ap_p=0.0_wp
+           DO ispin=1,nspins
+              CALL cp_fm_trace(matrix_a=Ap(ispin)%matrix,&
+                   matrix_b=p(ispin)%matrix,trace=Ap_p_s,error=error)
+              Ap_p=Ap_p+Ap_p_s
+           END DO
+           
+           ! check if A is almost indefinite (in this case Conjugate 
+           ! Residual would be better)
+           CPPreconditionNoFail(Ap_p>r_norm2*MIN(eps_r,1.0e-6_wp),cp_warning_level,routineP,error)
+           
+           alpha=r_norm2/Ap_p
+
+           ! x=x+alpha p
+           DO ispin=1,nspins
+              CALL cp_fm_add(alpha=1.0_wp,matrix_a=ep_env%psi1(ispin)%matrix,&
+                   beta=alpha,matrix_b=p(ispin)%matrix,&
+                   error=error)
+           END DO
+           
+           ! r=r- alpha Ap
+           DO ispin=1,nspins
+              CALL cp_fm_add(alpha=1.0_wp,matrix_a=r(ispin)%matrix,&
+                   beta=-alpha,matrix_b=Ap(ispin)%matrix,&
+                   error=error)
+           END DO
+           
+           r_norm2_new=0.0_wp
+           DO ispin=1,nspins
+              CALL cp_fm_trace(matrix_a=r(ispin)%matrix,&
+                   matrix_b=r(ispin)%matrix,trace=r_norm2_s,error=error)
+              r_norm2_new=r_norm2_new+r_norm2_s
+           END DO
+           IF (r_norm2_new<eps_r**2) EXIT
+
+           beta= r_norm2_new/r_norm2
+           r_norm2=r_norm2_new
+           
+           ! p=beta p+r
+           DO ispin=1,nspins
+              CALL cp_fm_add(alpha=beta,matrix_a=p(ispin)%matrix,&
+                   beta=1.0_wp,matrix_b=r(ispin)%matrix,&
+                   error=error)
+           END DO
+
+        END DO
+     END DO
+     
+     CALL cp_log(logger,cp_note_level,routineP,&
+          "solve finished, r_norm2="//cp_to_string(r_norm2))
+     CPPostcondition(r_norm2<eps_r**2,cp_warning_level,routineP,error,failure)
+     
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,p,error=error)
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,Ap,error=error)
+     CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,r,error=error)
+  END IF
+           
+END SUBROUTINE stupid_solve
 !***************************************************************************
 
 END MODULE qs_ep_methods

@@ -20,7 +20,6 @@
 !******************************************************************************
 
 MODULE qs_md
-
   USE atoms_input,                     ONLY: set_particle_properties
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
@@ -115,7 +114,6 @@ CONTAINS
     TYPE(setup_parameters_type) :: setup
     TYPE(topology_type)         :: topo
     TYPE(unit_convert_type)     :: units
-    TYPE(virial_type)           :: virial
 
     TYPE(cell_type), POINTER                  :: cell
     TYPE(simulation_parameters_type), POINTER :: simpar
@@ -234,7 +232,7 @@ CONTAINS
     CALL qs_forces(qs_env,globenv)
 
     DO itimes=1,md_env%simpar%nsteps
-      print*,"Step: :",itimes," of ",md_env%simpar%nsteps
+      PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
     END DO
 
