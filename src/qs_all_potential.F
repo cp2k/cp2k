@@ -116,7 +116,6 @@ MODULE qs_all_potential
                 rpgfc, zc, zetc, rab2, rac(3), &
                 rac2, rbc(3), rbc2, zax2, zbx2
     REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: Int_ab_sum, Int_ab_plus
-    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: Int_dab_sum, Int_adb_sum
 
 !   ---------------------------------------------------------------------------
 
@@ -131,12 +130,7 @@ MODULE qs_all_potential
     Int_ab_sum = 0.0_dp
 
     IF (nder > 0) THEN
-      ALLOCATE(Int_dab_sum(ncoa,ncob,3),STAT=istat)
-      ALLOCATE(Int_adb_sum(ncoa,ncob,3),STAT=istat)
-      IF (istat /= 0) THEN
-         CALL stop_memory(routine_name,module_name,__LINE__,"Int_dab_plus,Int_adb_plus",&
-                  2*3*ncoa*ncob*dp_size)
-      END IF
+
       na_plus = npgfa*ncoset(la_max+nder)
       nb_plus = npgfb*ncoset(lb_max)
       ALLOCATE(Int_ab_plus(na_plus,nb_plus),STAT=istat)
@@ -270,7 +264,7 @@ MODULE qs_all_potential
 
                     END IF
 
-                    force_a = force_a + pab(icoa,icob)*der_intab_a
+                    force_a = force_a - pab(icoa,icob)*der_intab_a
 
                     IF(lbm(i)<0) THEN
                       der_intab_b = -zbx2*(Int_ab_plus(icoap_plus,icob)-&
@@ -281,15 +275,15 @@ MODULE qs_all_potential
                               REAL(lb(i),dp)*Int_ab_plus(icoa_plus,icobm)
                     END IF
 
-                    force_b = force_b + pab(icoa,icob)*der_intab_b
+                    force_b = force_b - pab(icoa,icob)*der_intab_b
 
                   END DO  ! ic_b
                 END DO  ! ipgfb
               END DO  ! ic_a
             END DO  ! ipgfa
 
-            f_a(i) = f_b(i) + force_a
-            f_b(i) = f_a(i) + force_b
+            f_a(i) = f_a(i) + force_a
+            f_b(i) = f_b(i) + force_b
             vall(kkind)%force_c(i,knode) = vall(kkind)%force_c(i,knode) -&
                                         (force_a+force_b)
           END DO  ! i
@@ -316,13 +310,6 @@ MODULE qs_all_potential
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
                        "Int_ab_sum,Int_ab_plus")
-    END IF
-    IF(nder > 0) THEN
-      DEALLOCATE(Int_dab_sum,Int_adb_sum,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "Int_dab_sum,Int_adb_sum")
-      END IF
     END IF
 
   END SUBROUTINE all_integrals
