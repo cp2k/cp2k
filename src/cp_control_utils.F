@@ -48,6 +48,9 @@ MODULE cp_control_utils
                                              cp_error_message,&
                                              cp_error_reset,&
                                              cp_error_type
+  USE cp_keywords,                     ONLY: keyword_type, &
+                                             list_keywords, &
+                                             find_keyword
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -93,10 +96,163 @@ MODULE cp_control_utils
             write_qs_control,&
             write_wave_control
 
+! *** set up the &QS &END keyword section
+
+PRIVATE :: init_qs_keywords
+INTEGER, PARAMETER, PRIVATE :: qs_key_CUTOFF=1
+INTEGER, PARAMETER, PRIVATE :: qs_key_REALSPACE_MGRIDS=2
+INTEGER, PARAMETER, PRIVATE :: qs_key_COMMENSURATE=3
+INTEGER, PARAMETER, PRIVATE :: qs_key_MAP_PAA=4
+INTEGER, PARAMETER, PRIVATE :: qs_key_MAP_CONSISTENT=5
+INTEGER, PARAMETER, PRIVATE :: qs_key_MULTIGRID=6
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_DEFAULT=7
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_CORE_CHARGE=8
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_GVG_RSPACE=9
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_PGF_AUX=10
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_PGF_ORB=11
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_PPL=12
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_PPNL=13
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_RHO=14
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_RHO_GSPACE=15
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPS_RHO_RSPACE=16
+INTEGER, PARAMETER, PRIVATE :: qs_key_PROGRESSION_FACTOR=17
+INTEGER, PARAMETER, PRIVATE :: qs_key_REL_CUTOFF=18
+INTEGER, PARAMETER, PRIVATE :: qs_key_NGRID=19
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPSFIT=20
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPSISO=21
+INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=22
+INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=23
+INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=24
+INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=25
+INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=26
+INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=27
+INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=28
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 28
+TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
+
+
 !!***
 ! *****************************************************************************
 
 CONTAINS
+
+  ! init the qs_keywords
+  SUBROUTINE init_qs_keywords()
+     qs_keywords(qs_key_CUTOFF)=keyword_type("DENSITY_CUTOFF", &
+                                       "DENSITY_CUTOFF real",&
+                                       "Sets the density cutoff in Ry",&
+                                       "CUTOFF","ECUT","E_CUTOFF")
+     qs_keywords(qs_key_REALSPACE_MGRIDS)=keyword_type("REALSPACE_MGRIDS", &
+                                       "REALSPACE_MGRIDS",&
+                                       "Use realspace techniques for multigrids",&
+                                       "REALSPACE_MGRID","","")
+     qs_keywords(qs_key_COMMENSURATE)=keyword_type("COMMENSURATE", &
+                                       "COMMENSURATE",&
+                                       "Have realspace multigrids grids that are commensurate in real space",&
+                                       "","","")
+     qs_keywords(qs_key_MAP_PAA)=keyword_type("MAP_PAA", &
+                                       "MAP_PAA",&
+                                       "Put diagonal density matrix elements on the highest cutoff multigrid",&
+                                       "","","")
+     qs_keywords(qs_key_MAP_CONSISTENT)=keyword_type("MAP_CONSISTENT", &
+                                       "MAP_CONSISTENT",&
+                                       "Guarantee an exact derivative (Hks) of the energy",&
+                                       "","","")
+     qs_keywords(qs_key_MULTIGRID)=keyword_type("MULTIGRID", &
+                                       "MULTIGRID integer real ... real",&
+                                       "Set the cutoffs of the multigrids",&
+                                       "MULTI_GRID","MGRID","")
+     qs_keywords(qs_key_EPS_DEFAULT)=keyword_type("EPS_DEFAULT", &
+                                       "EPS_DEFAULT real",&
+                                       "Try setting all EPS_xxx to values leading to an energy correct up to EPS_DEFAULT",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_CORE_CHARGE)=keyword_type("EPS_CORE_CHARGE", &
+                                       "EPS_CORE_CHARGE real",&
+                                       "Precision for mapping the core charges",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_GVG_RSPACE)=keyword_type("EPS_GVG_RSPACE", &
+                                       "EPS_GVG_RSPACE real",&
+                                       "Sets precision of the realspace KS matrix element integration",&
+                                       "EPS_GVG","","")
+     qs_keywords(qs_key_EPS_PGF_AUX)=keyword_type("EPS_PGF_AUX", &
+                                       "EPS_PGF_AUX real",&
+                                       "XXXXXXXXXXX set precision of the ...",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_PGF_ORB)=keyword_type("EPS_PGF_ORB", &
+                                       "EPS_PGF_ORB real",&
+                                       "Sets precision of the overlap matrix elements",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_PPL)=keyword_type("EPS_PPL", &
+                                       "EPS_PPL real",&
+                                       "Sets precision of the local part of the pseudo potential",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_PPNL)=keyword_type("EPS_PPNL", &
+                                       "EPS_PPNL real",&
+                                       "Sets precision of the non-local part of the pseudo potential",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_RHO)=keyword_type("EPS_RHO", &
+                                       "EPS_RHO real",&
+                                       "Sets precision of the density mapping on the grids",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_RHO_GSPACE)=keyword_type("EPS_RHO_GSPACE", &
+                                       "EPS_RHO_GSPACE real",&
+                                       "Sets precision of the density mapping in gspace. Unused ?",&
+                                       "","","")
+     qs_keywords(qs_key_EPS_RHO_RSPACE)=keyword_type("EPS_RHO_RSPACE", &
+                                       "EPS_RHO_RSPACE real",&
+                                       "Sets precision of the density mapping in rspace",&
+                                       "","","")
+     qs_keywords(qs_key_PROGRESSION_FACTOR)=keyword_type("PROGRESSION_FACTOR", &
+                                       "PROGRESSION_FACTOR real",&
+                                       "Subsequent multigrids have a cutoff that is profac smaller then the next bigger grid",&
+                                       "RROFAC","","")
+     qs_keywords(qs_key_REL_CUTOFF)=keyword_type("REL_CUTOFF", &
+                                       "REL_CUTOFF real",&
+                                       "Determines the grid at which a Gaussian is mapped,"// &
+                                                " giving the cutoff used for a gaussian with alpha=1",&
+                                       "RELATIVE_CUTOFF","","")
+     qs_keywords(qs_key_NGRID)=keyword_type("NGRID", &
+                                       "NGRID integer",&
+                                       "The number of multigrids that should be used",&
+                                       "NGRID_LEVEL","","")
+     qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
+                                       "EPSFIT real",&
+                                       "GAPW : XXXXXXXXXX",&
+                                       "","","")
+     qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
+                                       "EPSISO real",&
+                                       "GAPW : XXXXXXXXXX",&
+                                       "","","")
+     qs_keywords(qs_key_LMAXN0)=keyword_type("LMAXN0", &
+                                       "LMAXN0 integer",&
+                                       "GAPW : XXXXXXXXX",&
+                                       "","","")
+     qs_keywords(qs_key_LADDN0)=keyword_type("LADDN0", &
+                                       "LADDN0 integer",&
+                                       "GAPW : XXXXXXXXXX",&
+                                       "","","")
+     qs_keywords(qs_key_PAO)=keyword_type("PAO", &
+                                       "PAO",&
+                                       "Use the PAO method",&
+                                       "","","")
+     qs_keywords(qs_key_PW_GRID)=keyword_type("PW_GRID", &
+                                       "PW_GRID {SPHERICAL|NON-SPHERICAL|FULLSPACE|HALFSPACE}",&
+                                       "What kind of PW_GRID should be employed",&
+                                       "","","")
+     qs_keywords(qs_key_RS_GRID)=keyword_type("RS_GRID", &
+                                       "RS_GRID {DISTRIGBUTED|REPLICATED}",&
+                                       "Parallellisation strategy of the realspace grids",&
+                                       "","","")
+     qs_keywords(qs_key_EXTRAPOLATION)=keyword_type("EXTRAPOLATION", &
+                                       "EXTRAPOLATION {PS N|USE_GUESS|USE_PREV_P|USE_PREV_WF|"//&
+                                                 "USE_PREV_RHO_R|LINEAR_WF|LINEAR_P|LINEAR_PS}",&
+                                       "Extrapolation strategy for e.g. MD",&
+                                       "INTERPOLATION","WF_INTERPOLATION","")
+     qs_keywords(qs_key_METHOD)=keyword_type("METHOD", &
+                                       "METHOD {GAPW|GPW|KG_POL|KG_NOPOL|KG_GPW}",&
+                                       "What method should be employed",&
+                                       "","","")
+  END SUBROUTINE
 
 ! *****************************************************************************
 
@@ -489,7 +645,7 @@ CONTAINS
     progression_set = .FALSE.
 
 !   *** Read the input section ***
-
+    CALL init_qs_keywords()
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
                       start_section_label="QS",&
@@ -520,21 +676,21 @@ CONTAINS
           CALL stop_parser(routine=routine,message="EOF")
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
-          SELECT CASE (TRIM(keyword))
-          CASE ("DENSITY_CUTOFF","E_CUTOFF","ECUTOFF","CUTOFF","ECUT")
+          SELECT CASE (find_keyword(qs_keywords,keyword))
+          CASE (qs_key_CUTOFF)
             CALL read_object(value)
             qs_control%cutoff = MAX(0.01_dp,0.5_dp*value) 
                                         ! ok input is in Ry, value is in a.u.
             cutoff_set = .TRUE.
-          CASE ("REALSPACE_MGRIDS","REALSPACE_MGRID")
+          CASE (qs_key_REALSPACE_MGRIDS)
             qs_control%realspace_mgrids = .TRUE.
-          CASE ("COMMENSURATE")
+          CASE (qs_key_COMMENSURATE)
             qs_control%commensurate_mgrids = .TRUE.
-          CASE ("MAP_PAA")
+          CASE (qs_key_MAP_PAA)
             qs_control%map_paa = .TRUE.
-          CASE ("MAP_CONSISTENT")
+          CASE (qs_key_MAP_CONSISTENT)
             qs_control%map_consistent = .TRUE.
-          CASE ("MULTI_GRID","MULTGRID","MGRID")
+          CASE (qs_key_MULTIGRID)
             CALL read_object(igrid_level)
             IF ( ngrid_set ) THEN
               IF (igrid_level /= ngrid_level) THEN
@@ -553,7 +709,7 @@ CONTAINS
                                                 ! ok input is in Ry, value is in a.u.
             END DO
             multgrid_set = .TRUE.
-          CASE ("EPS_DEFAULT")
+          CASE (qs_key_EPS_DEFAULT)
             CALL read_object(value)
             ! now tries to give parameters that such that energies 
             ! are approx accurate with EPS_DEFAULT 
@@ -569,38 +725,38 @@ CONTAINS
             qs_control%eps_rho_gspace = value
             qs_control%eps_rho_rspace = value
             qs_control%eps_gvg_rspace = SQRT(value)
-          CASE ("EPS_CORE_CHARGE")
+          CASE (qs_key_EPS_CORE_CHARGE)
             CALL read_object(qs_control%eps_core_charge)
-          CASE ("EPS_GVG_RSPACE","EPS_GVG")
+          CASE (qs_key_EPS_GVG_RSPACE)
             CALL read_object(qs_control%eps_gvg_rspace)
-          CASE ("EPS_PGF_AUX")
+          CASE (qs_key_EPS_PGF_AUX)
             CALL read_object(qs_control%eps_pgf_aux)
-          CASE ("EPS_PGF_ORB")
+          CASE (qs_key_EPS_PGF_ORB)
             CALL read_object(qs_control%eps_pgf_orb)
-          CASE ("EPS_PPL")
+          CASE (qs_key_EPS_PPL)
             CALL read_object(qs_control%eps_ppl)
-          CASE ("EPS_PPNL")
+          CASE (qs_key_EPS_PPNL)
             CALL read_object(qs_control%eps_ppnl)
-          CASE ("EPS_RHO")
+          CASE (qs_key_EPS_RHO)
             CALL read_object(value)
             qs_control%eps_rho_gspace = value
             qs_control%eps_rho_rspace = value
-          CASE ("EPS_RHO_GSPACE")
+          CASE (qs_key_EPS_RHO_GSPACE)
             CALL read_object(qs_control%eps_rho_gspace)
-          CASE ("EPS_RHO_RSPACE")
+          CASE (qs_key_EPS_RHO_RSPACE)
             CALL read_object(qs_control%eps_rho_rspace)
-          CASE ("PROGRESSION_FACTOR","PROFAC")
+          CASE (qs_key_PROGRESSION_FACTOR)
             CALL read_object(value)
             progression_set=.TRUE.
             qs_control%progression_factor = MAX(0.01_dp,value)
-          CASE ("RELATIVE_CUTOFF","REL_CUTOFF")
+          CASE (qs_key_REL_CUTOFF)
             CALL read_object(value)
             qs_control%relative_cutoff = MAX(5.0_dp,0.5*value) 
                                         ! now input is in Ry, value is in a.u.
-          CASE ("NGRID_LEVEL","NGRID")
+          CASE (qs_key_NGRID)
             CALL read_object(ngrid_level)
             ngrid_set = .TRUE.
-          CASE ("METHOD")
+          CASE (qs_key_METHOD)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
             CASE ("GAPW")
@@ -622,21 +778,21 @@ CONTAINS
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for METHOD")
             END SELECT
-          CASE ('EPSFIT')
+          CASE (qs_key_EPSFIT)
             CALL read_object(value)
             qs_control%gapw_control%eps_fit = value
-          CASE ("EPSISO")
+          CASE (qs_key_EPSISO)
             CALL read_object(value)
             qs_control%gapw_control%eps_iso = value
-          CASE ("LMAXN0")
+          CASE (qs_key_LMAXN0)
             CALL read_object(ivalue)
             qs_control%gapw_control%lmax_rho0 = ivalue
-          CASE ("LADDN0")
+          CASE (qs_key_LADDN0)
             CALL read_object(ivalue)
             qs_control%gapw_control%ladd_rho0 = ivalue
-          CASE ("PAO")
+          CASE (qs_key_PAO)
             qs_control%pao = .TRUE.
-          CASE ("PW_GRID")
+          CASE (qs_key_PW_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
             CASE ("SPHERICAL")
@@ -658,7 +814,7 @@ CONTAINS
               CALL stop_parser(routine,"Invalid method <"//TRIM(keyword)//&
                                        "> specified for PW_GRID")
             END SELECT
-          CASE ("RS_GRID")
+          CASE (qs_key_RS_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)
             CASE ("DISTRIBUTED")
@@ -669,7 +825,7 @@ CONTAINS
                 CALL stop_parser(routine,"Invalid method <"//TRIM(string)//&
                                          "> specified for RS_GRID")
             END SELECT
-         CASE ( 'WF_INTERPOLATION','INTERPOLATION','EXTRAPOLATION' )
+         CASE (qs_key_EXTRAPOLATION)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE ( string )
             CASE DEFAULT
@@ -702,6 +858,7 @@ CONTAINS
                CALL read_object(qs_control % wf_extrapolation_order)
             END SELECT
           CASE DEFAULT
+            CALL list_keywords(qs_keywords,globenv%scr)
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD "&
                  //keyword)
           END SELECT
