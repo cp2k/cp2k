@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/ai_overlap [1.0] *
 !!
@@ -35,7 +35,6 @@ MODULE ai_overlap_new
 ! l{a,b}_max: Maximum angular momentum quantum number of shell a or b.
 ! l{a,b}_min: Minimum angular momentum quantum number of shell a or b.
 ! rab       : Distance vector between the atomic centers a and b.
-! rab2      : Square of the distance between the atomic centers a and b.
 ! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
 ! sab       : Shell set of overlap integrals.
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
@@ -43,16 +42,16 @@ MODULE ai_overlap_new
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp,&
-                   dp_size
-
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
-  USE termination,      ONLY: stop_memory
+  USE kinds,                           ONLY: dp,dp_size
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,ncoset
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "ai_overlap_new"
 
 ! *** Public subroutines ***
 
@@ -67,7 +66,7 @@ CONTAINS
 
   SUBROUTINE overlap(la_max_set,zeta,rpgfa,la_min_set,&
                      lb_max_set,zetb,rpgfb,lb_min_set,&
-                     rab,rab2,dab,sab,da_max_set,return_derivatives,&
+                     rab,dab,sab,da_max_set,return_derivatives,&
                      sdab,pab,force_a)
 
 !   Purpose: Calculation of the two-center overlap integrals [a|b] over
@@ -77,34 +76,35 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                              :: dab,rab2
+    REAL(KIND = dp), INTENT(IN)                       :: dab
     INTEGER, INTENT(IN)                               :: da_max_set,&
                                                          la_max_set,&
                                                          la_min_set,&
                                                          lb_max_set,&
                                                          lb_min_set
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)                :: rab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)                :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT)             :: sab
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)         :: rab
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)         :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)    :: sab
     LOGICAL, INTENT(IN)                               :: return_derivatives
 
-    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(OUT) :: sdab
-    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)    :: pab
-    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)     :: force_a
+    REAL(KIND = dp), DIMENSION(:,:,:), OPTIONAL, INTENT(INOUT) :: sdab
+    REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN)      :: pab
+    REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)       :: force_a
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE overlap (MODULE ai_overlap)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "overlap"
 
 !   *** Local variables ***
 
     REAL(KIND = dp) :: f0,f1,f2,f3,fax,fay,faz,ftz,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,cda,cdax,cday,cdaz,coa,coamx,coamy,coamz,&
-                coapx,coapy,coapz,cob,cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,&
-                da,da_max,dax,day,daz,i,ipgf,istat,j,jk,jpgf,jstart,k,la,&
-                la_max,la_min,la_start,lb,lb_max,lb_min,lda,na,nb,nda
-    LOGICAL  :: calculate_force_a
+    INTEGER         :: ax,ay,az,bx,by,bz,cda,cdax,cday,cdaz,coa,&
+                       coamx,coamy,coamz,coapx,coapy,coapz,cob,&
+                       cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,&
+                       da,da_max,dax,day,daz,i,ipgf,istat,&
+                       j,jk,jpgf,jstart,k,la,la_max,la_min,la_start,&
+                       lb,lb_max,lb_min,na,nb,nda
+    LOGICAL         :: calculate_force_a
 
     REAL(KIND = dp), DIMENSION(3) :: rap,rbp
 
@@ -139,9 +139,10 @@ CONTAINS
     lb_min = lb_min_set
 
     ALLOCATE (s(ncoset(la_max),ncoset(lb_max),ncoset(da_max)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"s",ncoset(la_max)*&
-                                                 ncoset(lb_max)*&
-                                                 ncoset(da_max)*dp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "s",ncoset(la_max)*&
+                                         ncoset(lb_max)*&
+                                         ncoset(da_max)*dp_size)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -179,7 +180,7 @@ CONTAINS
 
 !       *** Calculate the basic two-center overlap integral [s|s] ***
 
-        s(1,1,1) = f0*EXP(-zeta(ipgf)*f1*rab2)
+        s(1,1,1) = f0*EXP(-zeta(ipgf)*f1*dab*dab)
 
 !       *** Recurrence steps: [s|s] -> [a|b] ***
 
@@ -579,7 +580,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"s")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"s")
 
   END SUBROUTINE overlap
 

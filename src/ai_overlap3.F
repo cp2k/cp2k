@@ -1,11 +1,29 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2003  CP2K developers group
+!-----------------------------------------------------------------------------!
+!!****** cp2k/ai_overlap3 [1.0] *
+!!
+!!   NAME
+!!     ai_overlap
+!!
+!!   FUNCTION
+!!     Calculation of three-center overlap integrals over Cartesian
+!!     Gaussian-type functions.
+!!
+!!   AUTHOR
+!!     Matthias Krack (26.06.2001)
+!!
+!!   LITERATURE
+!!     S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
+!!
+!!   MODIFICATION HISTORY
+!!     - Derivatives added (02.05.2002,MK)
+!!
+!!   SOURCE
+!******************************************************************************
+
 MODULE ai_overlap3
-
-! Purpose: Calculation of three-center overlap integrals over Cartesian
-!          Gaussian-type functions.
-
-! Literature: - S. Obara and A. Saika, J. Chem. Phys. 84, 3963 (1986)
-
-! History: - Creation (26.06.2001, Matthias Krack)
 
 ! *****************************************************************************
 
@@ -19,11 +37,8 @@ MODULE ai_overlap3
 ! l{a,b}_max : Maximum angular momentum quantum number of shell a, b or c.
 ! ncoset     : Number of Cartesian orbitals up to l.
 ! rab        : Distance vector between the atomic centers a and b.
-! rab2       : Square of the distance between the atomic centers a and b.
 ! rac        : Distance vector between the atomic centers a and c.
-! rac2       : Square of the distance between the atomic centers a and c.
 ! rbc        : Distance vector between the atomic centers b and c.
-! rbc2       : Square of the distance between the atomic centers b and c.
 ! rpgf{a,b,c}: Radius of the primitive Gaussian-type function a or b.
 ! zet{a,b,c} : Exponents of the Gaussian-type functions a or b.
 ! zetg       : Reciprocal of the sum of the exponents of orbital a, b and c.
@@ -31,10 +46,9 @@ MODULE ai_overlap3
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp
-
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
+  USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,ncoset
 
   IMPLICIT NONE
 
@@ -44,6 +58,7 @@ MODULE ai_overlap3
 
   PUBLIC :: overlap3
 
+!!***
 ! *****************************************************************************
 
 CONTAINS
@@ -53,7 +68,7 @@ CONTAINS
   SUBROUTINE overlap3(la_max,zeta,rpgfa,la_min,&
                       lb_max,zetb,rpgfb,lb_min,&
                       lc_max,zetc,rpgfc,lc_min,&
-                      rab,rab2,rac,rac2,rbc,rbc2,sabc)
+                      rab,dab,rac,dac,rbc,dbc,sabc)
 
 !   Purpose: Calculation of three-center overlap integrals <a|c|b> over
 !            Cartesian Gaussian functions. The Gaussian-type functions a and b
@@ -63,31 +78,27 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                      :: rab2,rac2,rbc2,rpgfc,zetc
-    INTEGER, INTENT(IN)                       :: la_max,la_min,lb_max,lb_min,&
-                                                 lc_max,lc_min
+    REAL(KIND = dp), INTENT(IN)                      :: dab,dac,dbc,rpgfc,zetc
+    INTEGER, INTENT(IN)                              :: la_max,la_min,&
+                                                        lb_max,lb_min,&
+                                                        lc_max,lc_min
     REAL(KIND = dp), DIMENSION(3), INTENT(IN)        :: rab,rac,rbc
     REAL(KIND = dp), DIMENSION(:), INTENT(IN)        :: rpgfa,rpgfb,zeta,zetb
     REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT) :: sabc
 
 !   *** Local variables ***
 
-    REAL(KIND = dp) :: dab,dac,dbc,f0,f1,f2,f3,fc,fcx,fcy,fcz,fx,fy,fz,rcg2,rcp2,&
-                zetg,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,coa,coax,coay,coaz,coc,cocx,cocy,cocz,cx,cy,&
-                cz,i,ipgf,j,jpgf,k,la,la_start,lb,lc,na,nb
+    REAL(KIND = dp) :: f0,f1,f2,f3,fcx,fcy,fcz,fx,fy,fz,rcp2,zetg,zetp
+    INTEGER         :: ax,ay,az,bx,by,bz,coa,coax,coay,coaz,coc,cocx,cocy,&
+                       cocz,cx,cy,cz,i,ipgf,j,jpgf,k,la,la_start,lb,lc,na,nb
 
     REAL(KIND = dp), DIMENSION(3) :: rag,rbg,rcg,rcp
 
-    REAL(KIND = dp), DIMENSION(ncoset(la_max),ncoset(lb_max),ncoset(lc_max)) :: s
+    REAL(KIND = dp), DIMENSION(ncoset(la_max),&
+                               ncoset(lb_max),&
+                               ncoset(lc_max)) :: s
 
 !   ---------------------------------------------------------------------------
-
-!   *** Calculate the distances of the centers a, b and c ***
-
-    dab = SQRT(rab2)
-    dac = SQRT(rac2)
-    dbc = SQRT(rbc2)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -129,7 +140,7 @@ CONTAINS
 
 !       *** Calculate the basic three-center overlap integral [s|s|s] ***
 
-        s(1,1,1) = f0*EXP(-(zeta(ipgf)*f1*rab2 + zetc*zetg*rcp2/zetp))
+        s(1,1,1) = f0*EXP(-(zeta(ipgf)*f1*dab*dab + zetc*zetg*rcp2/zetp))
 
 !       *** Recurrence steps: [s|s|s] -> [a|s|s] ***
 

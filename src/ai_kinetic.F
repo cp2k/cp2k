@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/ai_kinetic [1.0] *
 !!
@@ -46,16 +46,15 @@ MODULE ai_kinetic
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp,&
-                   dp_size
-
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
-  USE termination,      ONLY: stop_memory
+  USE kinds,                           ONLY: dp,dp_size
+  USE orbital_pointers,                ONLY: coset,ncoset
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "ai_kinetic"
 
 ! *** Public subroutines ***
 
@@ -80,23 +79,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                           :: dab,rab2
-    INTEGER, INTENT(IN)                            :: da_max,&
-                                                      la_max_set,la_min_set,&
-                                                      lb_max_set,lb_min_set
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)             :: rab
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)             :: rpgfa,rpgfb,zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(OUT )         :: tab
-    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(IN)         :: sdab
-    LOGICAL, INTENT(IN)                            :: return_derivatives
+    REAL(KIND = dp), INTENT(IN)                      :: dab,rab2
+    INTEGER, INTENT(IN)                              :: da_max,&
+                                                        la_max_set,la_min_set,&
+                                                        lb_max_set,lb_min_set
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)        :: rab
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)        :: rpgfa,rpgfb,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)   :: tab
+    REAL(KIND = dp), DIMENSION(:,:,:), INTENT(INOUT) :: sdab
+    LOGICAL, INTENT(IN)                              :: return_derivatives
 
     REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
     REAL(KIND = dp), DIMENSION(3), OPTIONAL, INTENT(OUT)  :: force_a
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE kinetic (MODULE ai_kinetic)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "kinetic"
 
 !   *** Local variables ***
 
@@ -127,9 +125,10 @@ CONTAINS
     lb_min = lb_min_set
 
     ALLOCATE (t(ncoset(la_max),ncoset(lb_max),ncoset(da_max)),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"t",ncoset(la_max)*&
-                                                 ncoset(lb_max)*&
-                                                 ncoset(da_max)*dp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "t",ncoset(la_max)*&
+                                         ncoset(lb_max)*&
+                                         ncoset(da_max)*dp_size)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
@@ -628,7 +627,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (t,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"t")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"t")
 
   END SUBROUTINE kinetic
 

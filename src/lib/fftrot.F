@@ -15,11 +15,11 @@ SUBROUTINE fftrot ( mm, nfft, m, nn, n, zin, zout, &
   INTEGER, INTENT ( IN ) :: mm, nfft, m, nn, n, now, after, before, isign
   REAL ( dbl ), DIMENSION ( 2, 1024 ), INTENT ( IN ) :: trig
   REAL ( dbl ), DIMENSION ( 2, mm, m ), INTENT ( IN ) :: zin
-  REAL ( dbl ), DIMENSION ( 2, n, nn ), INTENT ( OUT ) :: zout
+  REAL ( dbl ), DIMENSION ( 2, n, nn ), INTENT ( INOUT ) :: zout
 
   INTEGER :: atn, atb, ia, ib, nin1, nin2, nin3, nin4, nin5, nin6, nin7, nin8
   INTEGER :: nout1, nout2, nout3, nout4, nout5, nout6, nout7, nout8, &
-             i, j, ias, itt, itrig
+             j, ias, itt, itrig
   REAL ( dbl ) :: s, s1, s2, s3, s4, s5, s6, s7, s8, &
                   r, r1, r2, r3, r4, r5, r6, r7, r8, cr2, cr3, cr4, cr5, &
                   ci2, ci3, ci4, ci5, ur1, ur2, ur3, ui1, ui2, ui3, &

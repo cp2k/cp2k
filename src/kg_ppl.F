@@ -459,9 +459,7 @@ CONTAINS
                     cexp_ppl(kkind)%c(ialpha,1:ncexp),&
                     alpha_ppl(kkind)%alpha(ialpha),&
                     ppl_radius(kkind),&
-                    rab,rab2,dab,&
-                    rac,rac2,dac,&
-                    rbc,rbc2,dbc,&
+                    rab,dab,rac,dac,rbc,dbc,&
                     hab,nder,0,.FALSE.,&
                     pab,force_a)
 
@@ -486,9 +484,7 @@ CONTAINS
                     cexp_ppl(kkind)%c(ialpha,1:ncexp),&
                     alpha_ppl(kkind)%alpha(ialpha),&
                     ppl_radius(kkind),&
-                    rab,rab2,dab,&
-                    rac,rac2,dac,&
-                    rbc,rbc2,dbc,&
+                    rab,dab,rac,dac,rbc,dbc,&
                     hab,0,0,.FALSE.)
 
                 END IF
@@ -918,9 +914,7 @@ CONTAINS
                     rpgfb,0,&
                     cexp_ppl(kkind)%c,alpha_ppl(kkind),&
                     ppl_radius(kkind),&
-                    rab,rab2,dab,&
-                    rac,rac2,dac,&
-                    rbc,rbc2,dbc,&
+                    rab,dab,rac,dac,rbc,dbc,&
                     hab,nder,0,.FALSE.,&
                     pab,force_a)
 
@@ -943,9 +937,7 @@ CONTAINS
                     0,zetb,rpgfb,0,&
                     cexp_ppl(kkind)%c,alpha_ppl(kkind),&
                     ppl_radius(kkind),&
-                    rab,rab2,dab,&
-                    rac,rac2,dac,&
-                    rbc,rbc2,dbc,&
+                    rab,dab,rac,dac,rbc,dbc,&
                     hab,0,0,.FALSE.)
 
                 END IF

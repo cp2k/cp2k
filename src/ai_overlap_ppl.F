@@ -46,11 +46,8 @@ MODULE ai_overlap_ppl
 ! l{a,b}_max : Maximum angular momentum quantum number of shell a, b or c.
 ! ncoset     : Number of Cartesian orbitals up to l.
 ! rab        : Distance vector between the atomic centers a and b.
-! rab2       : Square of the distance between the atomic centers a and b.
 ! rac        : Distance vector between the atomic centers a and c.
-! rac2       : Square of the distance between the atomic centers a and c.
 ! rbc        : Distance vector between the atomic centers b and c.
-! rbc2       : Square of the distance between the atomic centers b and c.
 ! rpgf{a,b,c}: Radius of the primitive Gaussian-type function a or b.
 ! zet{a,b,c} : Exponents of the Gaussian-type functions a or b.
 ! zetg       : Reciprocal of the sum of the exponents of orbital a, b and c.
@@ -58,16 +55,16 @@ MODULE ai_overlap_ppl
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: dp,&
-                   dp_size
-
-  USE mathconstants,    ONLY: pi
-  USE orbital_pointers, ONLY: coset,ncoset
-  USE termination,      ONLY: stop_memory
+  USE kinds,                           ONLY: dp,dp_size
+  USE mathconstants,                   ONLY: pi
+  USE orbital_pointers,                ONLY: coset,ncoset
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "ai_overlap_ppl"
 
 ! *** Public subroutines ***
 
@@ -83,9 +80,7 @@ CONTAINS
   SUBROUTINE overlap_ppl(la_max_set,zeta,rpgfa,la_min_set,&
                          lb_max_set,zetb,rpgfb,lb_min_set,&
                          cexp_ppl,zetc,rpgfc,&
-                         rab,rab2,dab,&
-                         rac,rac2,dac,&
-                         rbc,rbc2,dbc,&
+                         rab,dab,rac,dac,rbc,dbc,&
                          vab,da_max,db_max,return_derivatives,&
                          pab,force_a,force_b)
 
@@ -101,15 +96,14 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), INTENT(IN)                           :: dab,dac,dbc,rab2,rac2,&
-                                                      rbc2,rpgfc,zetc
+    REAL(KIND = dp), INTENT(IN)                    :: dab,dac,dbc,rpgfc,zetc
     INTEGER, INTENT(IN)                            :: da_max,db_max,&
                                                       la_max_set,la_min_set,&
                                                       lb_max_set,lb_min_set
-    REAL(KIND = dp), DIMENSION(3), INTENT(IN)             :: rab,rac,rbc
-    REAL(KIND = dp), DIMENSION(:), INTENT(IN)             :: cexp_ppl,rpgfa,rpgfb,&
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)      :: rab,rac,rbc
+    REAL(KIND = dp), DIMENSION(:), INTENT(IN)      :: cexp_ppl,rpgfa,rpgfb,&
                                                       zeta,zetb
-    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT)        :: vab
+    REAL(KIND = dp), DIMENSION(:,:), INTENT(INOUT) :: vab
     LOGICAL, INTENT(IN)                            :: return_derivatives
 
     REAL(KIND = dp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: pab
@@ -117,19 +111,20 @@ CONTAINS
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE overlap_ppl (MODULE ai_overlap_ppl)"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "overlap_ppl"
 
 !   *** Local variables ***
 
-    REAL(KIND = dp) :: f0,f1,f2,f3,fax,fay,faz,fbx,fby,fbz,fc,ftz,rcg2,rcp2,zetg,zetp
-    INTEGER  :: ax,ay,az,bx,by,bz,c,cda,cdax,cday,cdaz,cdb,cdbx,cdby,cdbz,coa,&
-                coam2x,coam2y,coam2z,coamx,coamy,coamz,coapx,coapy,coapz,cob,&
-                cobm2x,cobm2y,cobm2z,cobmx,cobmy,cobmz,cobpx,cobpy,cobpz,da,&
-                dax,day,daz,db,dbx,dby,dbz,i,ipgf,istat,j,jk,jpgf,jstart,k,la,&
-                la_max,la_min,la_start,lb,lb_max,lb_min,lc,na,nb,maxder,&
-                nexp_ppl,npgfa,npgfb
-    LOGICAL  :: calculate_force_a,calculate_force_b
+    REAL(KIND = dp) :: f0,f1,f2,f3,fax,fay,faz,fbx,fby,fbz,fc,ftz,rcg2,rcp2,&
+                       zetg,zetp
+    INTEGER         :: ax,ay,az,bx,by,bz,c,cda,cdax,cday,cdaz,&
+                       cdb,cdbx,cdby,cdbz,coa,coamx,coamy,coamz,&
+                       coapx,coapy,coapz,cob,cobmx,cobmy,cobmz,&
+                       cobpx,cobpy,cobpz,da,dax,day,daz,db,dbx,dby,dbz,&
+                       i,ipgf,istat,j,jk,jpgf,jstart,k,&
+                       la,la_max,la_min,la_start,lb,lb_max,lb_min,lc,&
+                       na,nb,maxder,nexp_ppl,npgfa,npgfb
+    LOGICAL         :: calculate_force_a,calculate_force_b
 
     REAL(KIND = dp), DIMENSION(3) :: rag,rbg,rcg,rcp
 
@@ -165,9 +160,10 @@ CONTAINS
     maxder = ncoset(MAX(da_max,db_max))
 
     ALLOCATE (s(ncoset(la_max),ncoset(lb_max),nexp_ppl,maxder),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"s",ncoset(la_max)*&
-                                                 ncoset(lb_max)*&
-                                                 nexp_ppl*maxder*dp_size)
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "s",ncoset(la_max)*&
+                                         ncoset(lb_max)*&
+                                         nexp_ppl*maxder*dp_size)
 
     npgfa = SIZE(zeta)
     npgfb = SIZE(zetb)
@@ -212,7 +208,7 @@ CONTAINS
 
 !       *** Calculate the basic three-center overlap integral [s|s|s] ***
 
-        s(1,1,1,1) = f0*EXP(-(zeta(ipgf)*f1*rab2 + zetc*zetg*rcp2/zetp))
+        s(1,1,1,1) = f0*EXP(-(zeta(ipgf)*f1*dab*dab + zetc*zetg*rcp2/zetp))
 
 !       *** Recurrence steps: [s|s|s] -> [a|s|s] ***
 
@@ -1156,7 +1152,7 @@ CONTAINS
     END DO
 
     DEALLOCATE (s,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"s")
+    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"s")
 
   END SUBROUTINE overlap_ppl
 

@@ -105,7 +105,6 @@ MODULE qs_core_hamiltonian
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_matrix_pools,                 ONLY: qs_matrix_pools_type
   USE qs_neighbor_list_types,          ONLY: find_neighbor_list,&
                                              first_list,&
                                              first_node,&
@@ -113,7 +112,6 @@ MODULE qs_core_hamiltonian
                                              get_neighbor_list_set,&
                                              get_neighbor_node,&
                                              neighbor_list_set_p_type,&
-                                             neighbor_list_set_type,&
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
@@ -128,19 +126,11 @@ MODULE qs_core_hamiltonian
                                              allocate_matrix,&
                                              allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
-                                             deallocate_matrix_row,&
                                              deallocate_matrix_set,&
                                              first_block_node,&
                                              get_block_node,&
-                                             get_matrix_info,&
-                                             next_block_node,&
-                                             real_block_node_type,&
                                              real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix,&
                                              replicate_matrix_structure,&
-                                             set_matrix,&
                                              write_blocks_maxabsval
   USE string_utilities,                ONLY: compress,&
                                              uppercase
@@ -212,32 +202,32 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(atomic_kind_type), POINTER   :: atomic_kind
-    TYPE(gth_potential_type), POINTER :: gth_potential
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-    TYPE(neighbor_list_type), POINTER :: sab_orb_neighbor_list,&
-                                         sab_orb_neighbor_list_local,&
-                                         sac_ppl_neighbor_list,&
-                                         sac_ppnl_neighbor_list,&
-                                         sbc_ppnl_neighbor_list
-    TYPE(neighbor_node_type), POINTER :: sab_orb_neighbor_node,&
-                                         sac_ppl_neighbor_node,&
-                                         sac_ppnl_neighbor_node,&
-                                         sbc_ppnl_neighbor_node
-    TYPE(qs_rho_type), POINTER        :: rho
-    TYPE(scf_control_type), POINTER   :: scf_control
+    TYPE(atomic_kind_type), POINTER     :: atomic_kind
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
+    TYPE(gth_potential_type), POINTER   :: gth_potential
+    TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
+    TYPE(neighbor_list_type), POINTER   :: sab_orb_neighbor_list,&
+                                           sab_orb_neighbor_list_local,&
+                                           sac_ppl_neighbor_list,&
+                                           sac_ppnl_neighbor_list,&
+                                           sbc_ppnl_neighbor_list
+    TYPE(neighbor_node_type), POINTER   :: sab_orb_neighbor_node,&
+                                           sac_ppl_neighbor_node,&
+                                           sac_ppnl_neighbor_node,&
+                                           sbc_ppnl_neighbor_node
+    TYPE(qs_rho_type), POINTER          :: rho
+    TYPE(scf_control_type), POINTER     :: scf_control
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=12)  :: cgfsym
     CHARACTER(LEN=80)  :: name
     CHARACTER(LEN=200) :: file_name
     REAL(KIND = dp)    :: dab,dac,dbc,f,f0,rab2,rac2,rbc2
-    INTEGER            :: atom_a,atom_b,atom_c,first_col,first_prjc,handle,i,&
-                          iab,iac,ibc,iatom,ico,icol,ikind,ilist,inode,ipgf,&
-                          irow,iset,ishell,ispin,istat,j,jatom,jco,&
-                          jkind,jpgf,jset,&
-                          jshell,katom,kkind,kneighbor,knode,l,last_jatom,&
-                          lc_max,lc_min,ldsab,ldwork,maxblock,maxco,maxdco,&
+    INTEGER            :: atom_a,atom_b,atom_c,first_col,handle,&
+                          i,iab,iac,ibc,iatom,ico,icol,ikind,ilist,inode,ipgf,&
+                          irow,iset,istat,j,jatom,jco,jkind,jset,&
+                          katom,kkind,kneighbor,knode,l,last_jatom,&
+                          lc_max,lc_min,ldsab,maxblock,maxco,maxdco,&
                           maxder,maxl,maxlgto,maxlppl,maxlppnl,maxppnl,maxsgf,&
                           natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nprjc,nrow,&
@@ -248,8 +238,7 @@ CONTAINS
 
     REAL(KIND = dp), DIMENSION(1) :: rprjc,zetc
     REAL(KIND = dp), DIMENSION(3) :: force_a,force_b,rab,rac,rbc
-    INTEGER, DIMENSION(1)  :: first_row,last_row
-    INTEGER, DIMENSION(3)  :: cell_c
+    INTEGER, DIMENSION(3)         :: cell_c
 
     TYPE(block_p_type), DIMENSION(:), POINTER    :: sint,tint
     TYPE(block_p_type), DIMENSION(:,:), POINTER  :: sintt,tintt
@@ -263,12 +252,10 @@ CONTAINS
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: habt,pabt,sabt,workt
     REAL(KIND = dp), DIMENSION(:,:,:,:), POINTER :: sdabt
 
-    INTEGER, DIMENSION(:), ALLOCATABLE      :: atom_of_kind,&
-                                               first_prj,&
-                                               first_sgf,&
-                                               last_prj,&
-                                               last_sgf,&
-                                               kind_of
+    INTEGER, DIMENSION(:), ALLOCATABLE :: atom_of_kind,&
+                                          first_sgf,&
+                                          last_prj,&
+                                          last_sgf
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
@@ -278,12 +265,12 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,p,s,t,v,w
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,sphi_a,&
-                                         sphi_b,w_block,zeta,zetb
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
+                                                sphi_a,sphi_b,w_block,zeta,zetb
+
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    TYPE(distribution_2d_type), POINTER :: distribution_2d
 
     INTEGER :: ithread, nthread
     INTEGER :: omp_get_thread_num, omp_get_max_threads
@@ -856,7 +843,7 @@ CONTAINS
                     CALL overlap(la_max(iset),zeta(1:npgfa(iset),iset),&
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lc_max,zetc,rprjc,lc_min,&
-                                 rac,rac2,dac,sab,nder,.TRUE.)
+                                 rac,dac,sab,nder,.TRUE.)
 
 !                   *** Contraction step (projector functions) ***
 
@@ -1021,7 +1008,7 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sab,nder,return_s_derivatives,&
+                                 rab,dab,sab,nder,return_s_derivatives,&
                                  sdab,pab,force_a)
 
 !$OMP critical (qs_core_force_overlap)
@@ -1039,7 +1026,7 @@ CONTAINS
                                  rpgfa(1:npgfa(iset),iset),la_min(iset),&
                                  lb_max(jset),zetb(1:npgfb(jset),jset),&
                                  rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                                 rab,rab2,dab,sab,nder,return_s_derivatives,&
+                                 rab,dab,sab,nder,return_s_derivatives,&
                                  sdab)
 
                   END IF
@@ -1187,9 +1174,7 @@ CONTAINS
                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
                             vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
                             vppl(kkind)%ppl_radius,&
-                            rab,rab2,dab,&
-                            rac,rac2,dac,&
-                            rbc,rbc2,dbc,&
+                            rab,dab,rac,dac,rbc,dbc,&
                             hab,nder,nder,.FALSE.,&
                             pab,force_a,force_b)
 
@@ -1220,9 +1205,7 @@ CONTAINS
                             rpgfb(1:npgfb(jset),jset),lb_min(jset),&
                             vppl(kkind)%cexp_ppl,vppl(kkind)%alpha_ppl,&
                             vppl(kkind)%ppl_radius,&
-                            rab,rab2,dab,&
-                            rac,rac2,dac,&
-                            rbc,rbc2,dbc,&
+                            rab,dab,rac,dac,rbc,dbc,&
                             hab,0,0,.FALSE.)
 
                         END IF
@@ -1332,7 +1315,7 @@ CONTAINS
                             CALL overlap(lb_max(jset),zetb(1:npgfb(jset),jset),&
                                          rpgfb(1:npgfb(jset),jset),lb_min(jset),&
                                          lc_max,zetc,rprjc,lc_min,&
-                                         rbc,rbc2,dbc,sab,nder,.TRUE.)
+                                         rbc,dbc,sab,nder,.TRUE.)
 
 !                           *** Contraction step (projector functions) ***
 

@@ -48,8 +48,7 @@ MODULE qs_overlap
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
                                              get_neighbor_list,&
@@ -64,13 +63,10 @@ MODULE qs_overlap
                                              allocate_matrix,&
                                              allocate_matrix_set,&
                                              copy_local_sm_to_replicated_fm,&
-                                             deallocate_matrix,&
-                                             get_block_node,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             set_matrix
+                                             replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE termination,                     ONLY: stop_memory,&
@@ -131,11 +127,11 @@ CONTAINS
 
     CHARACTER(LEN=12) :: cgfsym
     CHARACTER(LEN=80) :: name
-    REAL(KIND = dp)          :: dab,f,rab2
-    INTEGER           :: handle,i,iab,iatom,iblock,icol,ikind,ilist,ineighbor,&
-                         inode,ipgf,irow,iset,ishell,istat,jatom,jkind,jpgf,&
-                         jset,jshell,katom,last_jatom,maxco,maxder,maxlgto,&
-                         maxsgf,natom,ncoa,ncob,nder,nkind,nlist,nneighbor,&
+    REAL(KIND = dp)   :: dab,f,rab2
+    INTEGER           :: handle,i,iab,iatom,iblock,icol,ikind,ilist,&
+                         inode,irow,iset,istat,jatom,jkind,&
+                         jset,last_jatom,maxco,maxder,maxlgto,&
+                         maxsgf,natom,ncoa,ncob,nder,nkind,nlist,&
                          nnode,nseta,nsetb,nsgf,sgfa,sgfb
     LOGICAL           :: new_atom_b,return_s_derivatives
 
@@ -150,10 +146,11 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
-    INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
-                                         npgfb,nsgfa,nsgfb
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb
-    INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
+    INTEGER, DIMENSION(:), POINTER           :: la_max,la_min,lb_max,lb_min,&
+                                                npgfa,npgfb,nsgfa,nsgfb
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,&
+                                                zeta,zetb
+    INTEGER, DIMENSION(:,:), POINTER         :: first_sgfa,first_sgfb
 
     TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
 
@@ -373,7 +370,7 @@ CONTAINS
                              rpgfa(1:npgfa(iset),iset),la_min(iset),&
                              lb_max(jset),zetb(1:npgfb(jset),jset),&
                              rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                             rab,rab2,dab,sab,nder,return_s_derivatives)
+                             rab,dab,sab,nder,return_s_derivatives)
 
 !               *** Contraction step (overlap matrix and its derivatives) ***
 
@@ -488,18 +485,17 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_fm_with_basis_info"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     CHARACTER(LEN=60) :: matrix_name
-    INTEGER           :: col1,col2,group,istat,nsgf,output_unit,row1,row2
+    INTEGER           :: col1,col2,group,istat,nrow_global,ncol_global,&
+                         nsgf,output_unit,row1,row2
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: matrix
-    INTEGER :: nrow_global,ncol_global
+
 
 !   ---------------------------------------------------------------------------
 
@@ -565,7 +561,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND = dp), DIMENSION(:,:), POINTER         :: matrix
+    REAL(KIND = dp), DIMENSION(:,:), POINTER  :: matrix
     CHARACTER(LEN=*), INTENT(IN)              :: matrix_name
     INTEGER, INTENT(IN)                       :: after,before,first_col,&
                                                  first_row,last_col,last_row
@@ -575,8 +571,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -585,9 +579,9 @@ CONTAINS
     CHARACTER(LEN=25) :: fmtstr1
     CHARACTER(LEN=35) :: fmtstr2
     CHARACTER(LEN=2)  :: element_symbol
-    INTEGER           :: from,group,iatom,icol,irow,iset,isgf,iso,ishell,istat,&
-                         jcol,l,left,natom,ncol,ndigits,nset,nsgf,output_unit,&
-                         right,to,width
+    INTEGER           :: from,group,iatom,icol,irow,iset,isgf,iso,ishell,&
+                         jcol,l,left,natom,ncol,ndigits,nset,nsgf,&
+                         output_unit,right,to,width
     LOGICAL           :: ionode
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -704,13 +698,11 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix_distribution"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     CHARACTER(LEN=80) :: matrix_name,matrix_symmetry
-    REAL(KIND = dp)          :: occupation
+    REAL(KIND = dp)   :: occupation
     INTEGER           :: group,ipe,istat,mype,natom,nblock_sum,nblock_tot,&
                          nelement_sum,npe,nrow,output_unit
     LOGICAL           :: ionode
@@ -811,8 +803,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
