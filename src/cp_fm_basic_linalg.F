@@ -109,13 +109,30 @@ MODULE cp_fm_basic_linalg
 !****************************************************************************
 CONTAINS
 
+!!****f* cp2k/cp_fm_basic_linalg/cp_fm_scale_and_add *
+!!
+!!   NAME
+!!     cp_fm_scale_and_add
+!!
+!!   FUNCTION
+!!     calc A <- alpha*A + beta*B
+!!     optimized for alpha == 1.0 (just add beta*B) and beta == 0.0 (just
+!!     scale A)
+!!
+!!   SYNOPSIS
+!!     cp_fm_scale_and_add(alpha, matrix_a, beta, matrix_b, error)
+!!
+!!   ARGUMENTS
+!!      TYPE(cp_full_matrix_type), POINTER           :: matrix_a
+!!      REAL(wp), INTENT(IN)                         :: alpha
+!!      REAL(wp), INTENT(in), OPTIONAL               :: beta
+!!      TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_b
+!!      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+!!
+!!****
   SUBROUTINE cp_fm_scale_and_add(alpha,matrix_a,beta,matrix_b,error)
 
-    !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
-
-    !   History: - Creation (11.06.2001, Matthias Krack)
-
-    !   ***************************************************************************
+    IMPLICIT NONE
 
     TYPE(cp_full_matrix_type), POINTER           :: matrix_a
     REAL(wp), INTENT(IN)                         :: alpha
@@ -125,7 +142,7 @@ CONTAINS
 
     !   *** Local variables ***
 
-    INTEGER :: handle,mypcol,myprow,npcol,nprow,source
+    INTEGER :: handle, mypcol, myprow, npcol, nprow, source, size_a
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_scale_and_add',&
@@ -144,23 +161,16 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(matrix_a),cp_failure_level,routineP,error,failure)
     CPPrecondition(matrix_a%ref_count>0,cp_failure_level,routineP,error,failure)
-    ! to do: use dscal,dcopy,daxp
-    myprow=matrix_a%matrix_struct%context%mepos(1)
-    mypcol=matrix_a%matrix_struct%context%mepos(2)
+
+!!TC    myprow=matrix_a%matrix_struct%context%mepos(1)
+!!TC    mypcol=matrix_a%matrix_struct%context%mepos(2)
 
     a => matrix_a%local_data
+    size_a = size(a,1)*size(a,2)
 
-    IF (my_beta==0.0_wp) THEN
+    IF (alpha /= 1.0_wp) CALL dscal ( size_a, alpha, a, 1)
 
-       IF (alpha==0.0_wp) THEN
-          a(:,:)=0.0_wp
-       ELSE IF (alpha == 1.0_wp) THEN
-          RETURN
-       ELSE
-          a(:,:) = alpha*a(:,:)
-       END IF
-
-    ELSE
+    IF (my_beta /= 0.0_wp) THEN
        CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
        CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
        CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -176,21 +186,8 @@ CONTAINS
 
           b => matrix_b%local_data
 
-          IF (alpha == 0.0_wp) THEN
-             IF (my_beta == 1.0_wp) THEN
-                a(:,:) = b(:,:)
-             ELSE
-                a(:,:) = my_beta*b(:,:)
-             END IF
-          ELSE IF (alpha == 1.0_wp) THEN
-             IF (my_beta == 1.0_wp) THEN
-                a(:,:) = a(:,:) + b(:,:)
-             ELSE
-                a(:,:) = a(:,:) + my_beta*b(:,:)
-             END IF
-          ELSE
-             a(:,:) = alpha*a(:,:) + my_beta*b(:,:)
-          END IF
+          CALL daxpy ( size_a, my_beta, b, 1, a, 1 )
+
        ELSE
 #ifdef __SCALAPACK
           CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -199,8 +196,64 @@ CONTAINS
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
        END IF
+
     END IF
+
     CALL timestop(0.0_wp,handle)
+
+
+!! OLD VERSION
+
+!!TC    IF (my_beta==0.0_wp) THEN
+!!TC
+!!TC       IF (alpha==0.0_wp) THEN
+!!TC          a(:,:)=0.0_wp
+!!TC       ELSE IF (alpha == 1.0_wp) THEN
+!!TC          RETURN
+!!TC       ELSE
+!!TC          a(:,:) = alpha*a(:,:)
+!!TC       END IF
+!!TC
+!!TC    ELSE
+!!TC       CPPrecondition(PRESENT(matrix_b),cp_failure_level,routineP,error,failure)
+!!TC       CPPrecondition(ASSOCIATED(matrix_b),cp_failure_level,routineP,error,failure)
+!!TC       CPPrecondition(matrix_b%ref_count>0,cp_failure_level,routineP,error,failure)
+!!TC       CALL cp_assert(matrix_a%matrix_struct%context%group==&
+!!TC            matrix_b%matrix_struct%context%group,cp_failure_level,&
+!!TC            cp_assertion_failed,fromWhere=routineP,&
+!!TC            message="matrixes must be in the same blacs context"//&
+!!TC            CPSourceFileRef,&
+!!TC            error=error,failure=failure)
+!!TC
+!!TC       IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&
+!!TC            matrix_b%matrix_struct,error=error)) THEN
+!!TC
+!!TC          b => matrix_b%local_data
+!!TC
+!!TC          IF (alpha == 0.0_wp) THEN
+!!TC             IF (my_beta == 1.0_wp) THEN
+!!TC                a(:,:) = b(:,:)
+!!TC             ELSE
+!!TC                a(:,:) = my_beta*b(:,:)
+!!TC             END IF
+!!TC          ELSE IF (alpha == 1.0_wp) THEN
+!!TC             IF (my_beta == 1.0_wp) THEN
+!!TC                a(:,:) = a(:,:) + b(:,:)
+!!TC             ELSE
+!!TC                a(:,:) = a(:,:) + my_beta*b(:,:)
+!!TC             END IF
+!!TC          ELSE
+!!TC             a(:,:) = alpha*a(:,:) + my_beta*b(:,:)
+!!TC          END IF
+!!TC       ELSE
+!!TC#ifdef __SCALAPACK
+!!TC          CALL cp_unimplemented_error(fromWhere=routineP, &
+!!TC               message="to do (pdscal,pdcopy,pdaxpy)", error=error)
+!!TC#else
+!!TC          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+!!TC#endif
+!!TC       END IF
+!!TC    END IF
 
   END SUBROUTINE cp_fm_scale_and_add
 
@@ -232,7 +285,6 @@ CONTAINS
 
     CALL  cp_sm_fm_multiply_new(sparse_matrix,v_in,v_out,ncol,para_env,alpha,beta,error)
     RETURN
-
 
     CALL timeset("cp_sm_fm_multiply","I","",handle)
 
@@ -456,27 +508,34 @@ CONTAINS
 ! computes sparse=sparse+alpha*v*g^T 
 ! only v*v^T tested
 ! *****************************************************************************
-  SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix,matrix_v,matrix_g,ncol,&
-       first_col,alpha,error)
-    TYPE(real_matrix_type), POINTER   :: sparse_matrix
-    TYPE(cp_full_matrix_type) , POINTER :: matrix_v
-    TYPE(cp_full_matrix_type) , POINTER, OPTIONAL :: matrix_g
-    INTEGER, INTENT(IN)               :: ncol
-    REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
-    INTEGER, OPTIONAL, INTENT(IN)     :: first_col
+  SUBROUTINE cp_sm_plus_fm_fm_t(sparse_matrix, &
+                                matrix_v, matrix_g, &
+                                ncol,&
+                                first_col, &
+                                alpha, &
+                                error)
+    
+    IMPLICIT NONE
+
+    TYPE(real_matrix_type), POINTER              :: sparse_matrix
+    TYPE(cp_full_matrix_type), POINTER           :: matrix_v
+    TYPE(cp_full_matrix_type), POINTER, OPTIONAL :: matrix_g
+    INTEGER, INTENT(IN)                          :: ncol
+    REAL(wp), OPTIONAL, INTENT(IN)               :: alpha
+    INTEGER, OPTIONAL, INTENT(IN)                :: first_col
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
 !   *** Local parameters ***
     INTEGER, PARAMETER          :: max_blocksize = 100
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-         "SUBROUTINE cp_sm_plus_fm_fm_t (MODULE qs_blacs)"
+    CHARACTER(LEN=*), PARAMETER :: routine = "cp_sm_plus_fm_fm_t"
 
 !   *** Local variables ***
-    REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
+    REAL(wp), DIMENSION(:,:), POINTER :: rep_v, rep_g
     REAL(wp) :: prefactor
     INTEGER col1,i,nrow,ncol_block,handle,blocksize
     LOGICAL g_present
 !   ---------------------------------------------------------------------------
+
     IF (PRESENT(matrix_g)) THEN
       CALL cp_sm_plus_fm_fm_t_new(sparse_matrix=sparse_matrix,&
                                   matrix_v=matrix_v,&
@@ -494,6 +553,7 @@ CONTAINS
                                   error=error)
     END IF
     RETURN
+
     CALL timeset("cp_sm_plus_fm_fm_t","I","",handle)
 
     IF (PRESENT(first_col)) THEN
@@ -503,16 +563,14 @@ CONTAINS
     END IF
 
     blocksize=MIN(max_blocksize,ncol-col1+1)
-    g_present=.FALSE.
-    IF (PRESENT(matrix_g)) g_present=.TRUE.
 
     nrow=matrix_v%matrix_struct%nrow_global
-    IF (g_present) THEN
-       ALLOCATE(rep_v(blocksize,nrow))
+
+    ALLOCATE(rep_v(blocksize,nrow))
+    IF (PRESENT(matrix_g)) THEN
        ALLOCATE(rep_g(blocksize,nrow))
     ELSE
-       ALLOCATE(rep_v(blocksize,nrow))
-       rep_g=>rep_v
+       rep_g => rep_v
     ENDIF
 
     IF (PRESENT(alpha)) THEN
@@ -521,20 +579,19 @@ CONTAINS
        prefactor = 1.0_wp
     END IF
 
-    DO i=col1,ncol,blocksize
+    DO i=col1, ncol, blocksize
        ncol_block=MIN(ncol-i+1,blocksize)
-       CALL cp_fm_get_submatrix(matrix_v,rep_v,start_col=i,n_cols=ncol_block,&
-            transpose_target_m=.TRUE., error=error)
-       IF (g_present) THEN
-          CALL cp_fm_get_submatrix(matrix_g,rep_g,start_col=i,&
-               n_cols=ncol_block,&
-               transpose_target_m=.TRUE., error=error)
+       CALL cp_fm_get_submatrix(matrix_v, rep_v, start_col=i, n_cols=ncol_block,&
+                                transpose_target_m = .TRUE., error=error)
+       IF (PRESENT(matrix_g)) THEN
+          CALL cp_fm_get_submatrix(matrix_g, rep_g, start_col=i, n_cols=ncol_block, &
+                                   transpose_target_m=.TRUE., error=error)
        ENDIF
-       CALL sparse_plus_loc_loct(sparse_matrix,rep_v,rep_g,ncol_block, &
-            blocksize,alpha=prefactor)
+       CALL sparse_plus_loc_loct(sparse_matrix, rep_v, rep_g, ncol_block, &
+                                 blocksize, alpha=prefactor)
     ENDDO
 
-    IF (g_present) THEN
+    IF (PRESENT(matrix_g)) THEN
        DEALLOCATE(rep_v,rep_g)
     ELSE
        DEALLOCATE(rep_v)
@@ -987,8 +1044,8 @@ CONTAINS
     b => matrix_b%local_data
     c => matrix_c%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix_a%matrix_struct%ncol_locals(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
+    ncol_local = matrix_a%matrix_struct%ncol_local(mypcol)
 
     DO icol_local=1,ncol_local
        DO irow_local=1,nrow_local
@@ -1063,8 +1120,8 @@ CONTAINS
     a => matrix_a%local_data
     b => matrix_b%local_data
 
-    nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
-    ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
+    nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
+    ncol_local = matrix_b%matrix_struct%ncol_local(mypcol)
 
     trace = 0.0_wp
 
