@@ -155,9 +155,6 @@ CONTAINS
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
 
-    WRITE (UNIT=globenv%scr,FMT="(T2,A,T71,I10)")&
-      TRIM(user_name)//"@"//TRIM(host_name)//" has created process number",pid
-
     ! set up the necessary varialbes in globenv
     CALL mp_environ ( globenv % num_pe, globenv % mepos, globenv % group )
     globenv % source = 0
@@ -165,6 +162,12 @@ CONTAINS
     nullify(globenv%para_env)
     call cp_para_env_create (globenv%para_env, group=globenv%group,&
         owns_group=.false.,source=globenv%source)
+
+    ! only on ionode, otherwise we need a local logger for just a single line
+    ! if this info is needed on the screen, send it to ionode for output
+    IF (globenv % ionode) &
+        WRITE (UNIT=globenv%scr,FMT="(T2,A,T71,I10)")&
+          TRIM(user_name)//"@"//TRIM(host_name)//" has created process number",pid
 
     ! create a timer_env
     CALL init_timer_env()

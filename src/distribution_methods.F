@@ -136,7 +136,12 @@ CONTAINS
     mype = logger%para_env%mepos + 1
     npe = logger%para_env%num_pe
     ionode= (logger%para_env%mepos == logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+
+    IF (logger%print_keys%level > LOW) THEN
+       output_unit = cp_logger_get_default_unit_nr(logger,LOCAL=.TRUE.)
+    ELSE
+       IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
+    ENDIF
 
     ALLOCATE (workload(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -315,9 +320,9 @@ CONTAINS
           (ipe-1,work(ipe),ipe=1,npe)
         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
           "Sum",SUM(work)
+         CALL m_flush(output_unit)
       END IF
 
-      CALL m_flush(output_unit)
       CALL mp_sync(group)
 
       IF (logger%print_keys%level > LOW) THEN
@@ -361,9 +366,9 @@ CONTAINS
           (ipe-1,work(ipe),ipe=1,npe)
         WRITE (UNIT=output_unit,FMT="(/,T7,A3,T24,I8)")&
           "Sum",SUM(work)
+        CALL m_flush(output_unit)
       END IF
 
-      CALL m_flush(output_unit)
       CALL mp_sync(group)
 
       IF (logger%print_keys%level > LOW) THEN
@@ -509,7 +514,9 @@ CONTAINS
 
     group = blacs_env%para_env%group
     ionode= (logger%para_env%mepos == logger%para_env%source)
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    IF (ionode) THEN
+        output_unit = cp_logger_get_default_unit_nr(logger)
+    ENDIF
 
     myprow = blacs_env%mepos(1) + 1
     mypcol = blacs_env%mepos(2) + 1
@@ -840,8 +847,8 @@ CONTAINS
           (iprow-1,work(iprow),workload_row(iprow),iprow=1,nprow)
         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
           "Sum",SUM(work),SUM(workload_row)
+        CALL m_flush(output_unit)
       END IF
-      CALL m_flush(output_unit)
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN
@@ -869,9 +876,9 @@ CONTAINS
           (ipcol-1,work(ipcol),workload_col(ipcol),ipcol=1,npcol)
         WRITE (UNIT=output_unit,FMT="(/,T11,A3,T26,I10,T53,I10)")&
           "Sum",SUM(work),SUM(workload_col)
+        CALL m_flush(output_unit)
       END IF
 
-      CALL m_flush(output_unit)
 
       DEALLOCATE (work,STAT=istat)
       IF (istat /= 0) THEN

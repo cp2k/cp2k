@@ -292,11 +292,22 @@ CONTAINS
 
           ! generate a fresh call to cp2k_run
           IF (ierr==0) THEN
-              write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
-              CALL open_file(file_name=TRIM(output_file),&
-                    file_action="WRITE",&
-                    file_status="UNKNOWN",&
-                    unit_number=output_unit)
+              CALL mp_environ(new_size,new_rank,new_group)
+              IF (new_rank == 0) THEN 
+                  write(output_file,'(A12,I5.5)') "FARMING_OUT_",i
+                  CALL open_file(file_name=TRIM(output_file),&
+                        file_action="WRITE",&
+                        file_status="UNKNOWN",&
+                        unit_number=output_unit)
+              ELSE
+                  write(output_file,'(A12,I5.5,A2,I5.5)') "FARMING_OUT_",i,"_P",new_rank
+                  CALL open_file(file_name=TRIM(output_file),&
+                        file_action="WRITE",&
+                        file_status="UNKNOWN",&
+                        unit_number=output_unit)
+                  write(output_unit,*) "--- this file should remain empty ---"
+              ENDIF
+          
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)

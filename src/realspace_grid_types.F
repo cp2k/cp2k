@@ -391,7 +391,7 @@ CONTAINS
           ! the new cartesian group
           CALL mp_cart_create ( pw_grid % para % group, 2, &
                rs % group_dim, pos, rs % group )
-          rs % group_head = ALL ( pos == 0 )
+          rs % group_head = ALL ( pos == 0 ) ! for output would be needed to have this pw_grid % para % group_head
           rs % group_coor = pos
           ! local dimensions of the grid
           rs % npts_local = pw_grid % npts
@@ -1118,8 +1118,8 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iounit, my_nsmax, stat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: iounit, my_nsmax, stat,output_unit
+    LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
@@ -1133,9 +1133,11 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
+     ionode=(logger%para_env%mepos==logger%para_env%source)
+     output_unit=6
+     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
      IF (logger%print_keys%pw_grid_information) THEN
-        CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, &
-             iounit=cp_logger_get_default_unit_nr(logger,local=.FALSE.))
+        CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax, iounit=output_unit)
      ELSE
         CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax)
      END IF

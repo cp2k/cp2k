@@ -287,7 +287,7 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&

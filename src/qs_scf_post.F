@@ -209,7 +209,7 @@ CONTAINS
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -526,7 +526,7 @@ CONTAINS
             molecule_set)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN

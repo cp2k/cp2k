@@ -218,6 +218,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     INTEGER                                  :: ncommensurate
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: ionode
 
 ! should be be avoided (see later)
 
@@ -227,6 +229,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
        pw_pools,rs_pools, para_env)
   logger => cp_error_get_logger(error)
+  ionode=(logger%para_env%mepos==logger%para_env%source)
+  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
   pw_grid_information=logger%print_keys%pw_grid_information
  
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
@@ -307,8 +311,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
-                   info= cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
+                   info=output_unit , blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group, blocked=.FALSE.,ncommensurate=ncommensurate,icommensurate=igrid_level)
@@ -318,8 +321,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            IF (pw_grid_information) THEN
               CALL pw_grid_setup(cell,pw_grid,cutilev,&
                    pe_group=para_env%group,&
-                   info=cp_logger_get_default_unit_nr(logger,&
-                   local=.FALSE.), blocked=.FALSE., &
+                   info=output_unit, blocked=.FALSE., &
                    ref_grid=old_pw_grid,ncommensurate=ncommensurate,icommensurate=igrid_level)
            ELSE
               CALL pw_grid_setup(cell,pw_grid,cutilev,&

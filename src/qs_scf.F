@@ -468,7 +468,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
 
     ionode = logger%para_env%source==logger%para_env%mepos
-    output_unit = cp_logger_get_default_unit_nr(logger)
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
 
     IF (ionode.AND.logger%print_keys%scf) THEN
@@ -913,7 +913,7 @@ CONTAINS
          gth_potential_present=gth_potential_present)
 
     ionode = logger%para_env%source == logger%para_env%mepos
-    output_unit = cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
