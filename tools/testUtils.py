@@ -8,8 +8,12 @@ import prettify
 import instantiateTemplates
 import diffEpsilon
 
+defaultCp2kRoot=os.path.expanduser("~/cp2k")
+defaultTestsRoot=os.path.expanduser("~/cp2k/test-"+time.strftime("%y%m%d-%H:%M"))
+
 class simpleRunTest(unittest.TestCase):
-    def __init__(self,cp2kRoot,testName,testsRoot,command="cp2k.sopt"):
+    def __init__(self,testName,cp2kRoot=defaultCp2kRoot,
+                 testsRoot=defaultTestsRoot,command="cp2k.sopt"):
         unittest.TestCase.__init__(self)
         self.cp2kRoot=cp2kRoot
         self.testName=testName
@@ -18,7 +22,7 @@ class simpleRunTest(unittest.TestCase):
         self.command=join(cp2kRoot,"exe",self.archName,command)
         self.testRoot=join(cp2kRoot,testsRoot,testName+"-"+basename(command))
         self.inputFile=testName+".inp"
-        self.outputFile=testName+".out"
+        self.outputFile=testName+"-"+os.path.basename(command)+".out"
     def setUp(self):
         if not os.access(os.path.normpath(join(self.testRoot,"..")),os.W_OK):
             os.mkdir(os.path.normpath(join(self.testRoot,"..")))
@@ -59,25 +63,23 @@ class simpleRunTest(unittest.TestCase):
         return "interactive run of the test %s with %s" % (self.testName,
                                                            basename(self.command))
 
-def simpleTests(cp2kRoot,testsRoot=None,command="cp2k.sopt"):
-    if not testsRoot: testsRoot="test-"+time.strftime("%y%m%d-%H:%M")
+def simpleTests(cp2kRoot=defaultCp2kRoot,testsRoot=defaultTestsRoot,
+                command="cp2k.sopt"):
     suite=unittest.TestSuite()
     suite.addTest(simpleRunTest(cp2kRoot=cp2kRoot,testName="H2O",
                                 testsRoot=testsRoot,command=command))
     suite.addTest(simpleRunTest(cp2kRoot=cp2kRoot,testName="H2O-force",
                                 testsRoot=testsRoot,command=command))
+    suite.addTest(simpleRunTest(cp2kRoot=cp2kRoot,testName="H2O-32",
+                                testsRoot=testsRoot,command=command))
     return suite
 
 if __name__=="__main__":
 
-    cp2kRoot=os.path.normpath(join(os.getcwd(),
-                                   os.path.dirname(sys.argv[0]),".."))
-    testsRoot="test-"+time.strftime("%y%m%d-%H:%M")
-    os.mkdir(join(cp2kRoot,testsRoot))
+    defaultCp2kRoot=os.path.normpath(join(os.getcwd(),
+                                          os.path.dirname(sys.argv[0]),".."))
+    defaultTestsRoot="test-"+time.strftime("%y%m%d-%H:%M")
+    print "testsRoot:",join(defaultCp2kRoot,defaultTestsRoot)
+    os.mkdir(join(defaultCp2kRoot,defaultTestsRoot))
 
-    runner=unittest.TextTestRunner(stream=open(join(cp2kRoot,testsRoot,
-                                                    "main.log"),"w"))
-    suite=simpleTests(cp2kRoot,testsRoot=testsRoot)
-    print "testsRoot:",join(cp2kRoot,testsRoot)
-    print "mainLog:",join(cp2kRoot,testsRoot,"main.log")
-    runner.run(suite)
+    unittest.TestProgram(defaultTest="simpleTests")

@@ -1,12 +1,13 @@
 #! /usr/bin/env python
 # prepares cp2k for checkin
 
-import sys, re, os, os.path, commands, time, shutil
+import sys, re, os, os.path, commands, time, shutil, unittest
 from sys import argv
 from os.path import join
 import instantiateTemplates
 import diffEpsilon
 import buildUtils
+import testUtils
 
 # read directives
 directives={"normalize-use":1,"upcase-keywords":1,"clean":1,
@@ -79,31 +80,14 @@ if directives["popt"]:
 
 # do tests
 if directives["tests"]:
-    mainLog.write("====== H2O test ======\n")
-    mainLog.flush()
-    exePath= join(cp2kRoot,"exe",
-                  commands.getoutput(join(cp2kRoot,"tools","get_arch_code")),
-                  "cp2k.sopt")
-    log1Path=join(logDirPath,"H2O.out")
-    os.chdir(join(cp2kRoot,"tests","QS"))
-    commands.getoutput("{ { "+exePath+" "+
-                       join(cp2kRoot,"tests","QS","H2O.inp")+
-                       " ; } 2>&1 ; } > "+log1Path)
-    logFile=open(os.path.join(logDirPath,"H2O.diffs"),'w')
-    file1=open(join(cp2kRoot,"tests","QS","H2O.out"),'r')
-    file2=open(log1Path)
-    diffVal=diffEpsilon.compareCp2kOutput(file1,file2,
-                                          0.0001,logFile)
-    file1.close(); file2.close()
-    logFile.write("totalDiff="+`diffVal`+"\n")
-    if diffVal>0.0001:
-        mainLog.write("+++ ERROR, H2O test failed +++\n diff="+`diffVal`+
-                      " more info in H2O.diffs\n")
-    else:
-        mainLog.write("+++ H2O test SUCESSFULL (diff="+`diffVal`+")! +++\n")
-    logFile.close()
+    mainLog.write("====== tests ======\n")
+    suite=testUtils.simpleTests(cp2kRoot=cp2kRoot,
+                                testsRoot=logDirPath)
+    testRunner=unittest.TextTestRunner(stream=mainLog,verbosity=2)
+    testRunner.run(suite)
 
-mainLog.write(" ******* prepare check-in FINISHED *******\n")
+mainLog.write(" ******* "+time.strftime("%y%m%d-%H:%M")+
+              " prepare check-in FINISHED *******\n")
 mainLog.close()
 
 
