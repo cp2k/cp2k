@@ -40,8 +40,6 @@ MODULE qs_tddfpt_eigensolver
                                              cp_fm_set_element,&
                                              cp_fm_p_type,&
                                              cp_fm_type
-  USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
-                                             copy_rep_vec_to_fm
   USE cp_log_handling,                 ONLY: cp_to_string
   USE dft_types,                       ONLY: tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
