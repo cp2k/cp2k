@@ -19,47 +19,45 @@
 !******************************************************************************
 
 MODULE qs_forces
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE atomic_kind_types,    ONLY: atomic_kind_type,&
-                                  get_atomic_kind_set
-  USE checkpoint_handler,   ONLY: write_checkpoint_information
-  USE dft_types,            ONLY: dft_control_type
-  USE global_types,         ONLY: global_environment_type
-  USE message_passing,      ONLY: mp_sum
-  USE qs_blacs,             ONLY: cp_fm_create2,&
-                                  cp_full_matrix_type,&
-                                  copy_blacs_to_sparse_matrix,&
-                                  cp_fm_release,&
-                                  cp_fm_get_info
-  USE qs_build_ks_matrix,   ONLY: qs_ks_update_qs_env,&
-                                  qs_ks_env_type,&
-                                  qs_ks_did_change
-  USE qs_core_energies,     ONLY: calculate_ecore_overlap
-  USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_types, ONLY: get_qs_env,&
-                                  qs_environment_type
-  USE qs_force_types,       ONLY: init_qs_force,&
-                                  qs_force_type
-  USE qs_mo_types,          ONLY: allocate_mo_set,&
-                                  calculate_w_matrix,&
-                                  get_mo_set,&
-                                  mo_set_p_type,&
-                                  mo_set_type
-  USE qs_overlap,           ONLY: write_sparse_matrix
-  USE sparse_matrix_types,  ONLY: deallocate_matrix,&
-                                  real_matrix_p_type,&
-                                  real_matrix_type,&
-                                  replicate_matrix_structure,&
-                                  symmetrise_diagonal_blocks
-  USE termination,          ONLY: stop_memory,&
-                                  stop_program
-  USE timings,              ONLY: timeset,&
-                                  timestop
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE dft_types,                       ONLY: dft_control_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_sum
+  USE qs_blacs,                        ONLY: copy_blacs_to_sparse_matrix,&
+                                             cp_fm_create2,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_full_matrix_type
+  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             qs_ks_update_qs_env
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_force_types,                  ONLY: init_qs_force,&
+                                             qs_force_type
+  USE qs_mo_types,                     ONLY: allocate_mo_set,&
+                                             calculate_w_matrix,&
+                                             get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type
+  USE qs_overlap,                      ONLY: write_sparse_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             symmetrise_diagonal_blocks
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -109,6 +107,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
+    type(qs_rho_type), pointer                      :: rho
 
 !   ---------------------------------------------------------------------------
 
@@ -122,8 +121,9 @@ CONTAINS
                     s=s,&
                     c=c,&
                     k=k,&
-                    p_old=p,&
+                    rho=rho,&
                     force=force)
+    p => rho%rho_ao
 
     IF (.NOT.dft_control%forces) RETURN
 
