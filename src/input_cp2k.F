@@ -131,6 +131,14 @@ MODULE input_cp2k
                                 do_pme=1,&
                                 do_spme=2
 
+  INTEGER, PARAMETER :: ot_mini_sd=1,ot_mini_cg=2,ot_mini_diis=3
+  INTEGER, PARAMETER :: ot_ls_none=1,ot_ls_2pnt=2,ot_ls_3pnt=3,ot_ls_gold=4
+  INTEGER, PARAMETER :: ot_precond_none=0, &
+                        ot_precond_full_single=1, &
+                        ot_precond_full_kinetic=2, &
+                        ot_precond_s_inverse=3, &
+                        ot_precond_sparse_diag=4
+
 
   PUBLIC :: create_cp2k_root_section, check_cp2k_input, parsed_cp2k_input
 !!***
@@ -237,7 +245,7 @@ contains
        CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT. failure) THEN
-! do the checks!!!
+! do the checks!!! (Yes, I agree, but, aren't they done elsewhere already ?)
     END IF
   END SUBROUTINE check_cp2k_input
 !***************************************************************************
@@ -1237,6 +1245,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     character(len=*), parameter :: routineN='create_scf_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), pointer :: subsection
 
     failure=.false.
 
@@ -1244,8 +1253,13 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,"scf",&
             description="parameters needed perform an scf run",&
-            n_keywords=25, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=24, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
+
+       nullify(subsection)
+       CALL create_ot_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        nullify(keyword)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
@@ -1350,13 +1364,6 @@ SUBROUTINE create_tddfpt_section(section,error)
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
             enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE"),&
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess/),&
-            error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="OT",&
-            description="Use the orbital transformation method",&
-            usage="OT", default_l_val=.FALSE.,lone_keyword_l_val=.true.,&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2299,5 +2306,147 @@ SUBROUTINE create_sic_section(section,error)
 
   END IF
 END SUBROUTINE create_sic_section
+
+!!****f* input_cp2k/create_ot_section *
+!!
+!!   NAME
+!!     create_ot_section
+!!   FUNCTION
+!!     makes the orbital transformation section
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     11.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE create_ot_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_ot_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), POINTER :: subsection,print_key
+  TYPE(keyword_type), pointer :: keyword
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"ot",&
+         description="Sets the various options for the orbital transformation (OT) method. "//&
+                     "Default settings already provide an efficient, yet robust method. "//&
+                     "Well-behaved systems might benefit from using a DIIS minimizer.",&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.false.,&
+         error=error)
+
+     nullify(keyword)
+
+     CALL keyword_create(keyword, name="MINIMIZER",&
+          description="Minimizer to be used with the OT method",&
+          usage="MINIMIZER DIIS",&
+          default_i_val=ot_mini_cg,&
+          enum_c_vals=s2a( "SD", "CG", "DIIS"),&
+          enum_desc=s2a("Steepest descent","Conjugate Gradients", &
+                        "Direct inversion in the iterative subspace"),&
+          enum_i_vals=(/ot_mini_sd,ot_mini_cg,ot_mini_diis/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="SAFE_DIIS",&
+            variants=(/"SAFER_DIIS"/),&
+            description="Reject DIIS steps if they point away from the"//&
+            "direction of minus, do SD in that case ",&
+            usage="SAFE_DIIS ON", default_l_val=.true.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="N_DIIS",&
+          variants=(/"NDIIS"/),&
+          description="Number of history vectors to be used with DIIS",&
+          usage="N_DIIS 4",&
+          default_i_val=7,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="LINESEARCH",&
+          variants=(/"LINE_SEARCH"/),&
+          description="1D line search algorithm to be used with the OT minimizer,"//&
+                      " in increasing order of robustness and cost. MINIMIZER CG combined with"//&
+                      " LINESEARCH GOLD should always find an electronic minimum.",&
+          usage="LINESEARCH GOLD",&
+          default_i_val=ot_ls_2pnt,&
+          enum_c_vals=s2a( "NONE", "2PNT", "3PNT","GOLD"),&
+          enum_desc=s2a("take fixed lenght steps","extrapolate based on 2 points", &
+                        "... or on 3 points","perform 1D golden section search of the minimum"),&
+          enum_i_vals=(/ot_ls_none,ot_ls_2pnt,ot_ls_3pnt,ot_ls_gold/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="STEPSIZE",&
+          description="Initial stepsize used for the line search",&
+          usage="STEPSIZE 0.4",&
+          default_r_val=0.15_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="GOLD_TARGET",&
+          description="Target relative uncertainty in the minimum position of the minimum",&
+          usage="GOLD_TARGET 0.1",&
+          default_r_val=0.01_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="PRECONDITIONER",&
+          description="Type of preconditioner to be used with all minimization schemes."//&
+                      "They differ in effectiveness, cost of construction, cost of application.",&
+          usage="PRECONDITIONER FULL_SINGLE",&
+          default_i_val=ot_precond_full_kinetic,&
+          enum_c_vals=s2a("FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","SPARSE_DIAG","NONE"),&
+          enum_desc=s2a("Based on diagonalisation","Cholesky inversion of S and T", &
+                        "Cholesky inversion of S","Only based on atomic blocks", &
+                        "skip preconditioning"),&
+          enum_i_vals=(/ot_precond_full_single,ot_precond_full_kinetic,ot_precond_s_inverse,&
+                        ot_precond_sparse_diag,ot_precond_none/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ENERGY_GAP",&
+          description="Energy gap estimate [a.u.] for preconditioning",&
+          usage="EPS_TAYLOR 0.1",&
+          default_r_val=0.2_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="EPS_TAYLOR",&
+          variants=(/"EPSTAYLOR"/),&
+          description="Target accuracy of the taylor expansion for the matrix functions",&
+          usage="EPS_TAYLOR 1.0E-15",&
+          default_r_val=1.0E-16_dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="MAX_TAYLOR",&
+          description="Maximum order of the Taylor expansion before diagonalisation is prefered",&
+          usage="MAX_TAYLOR 5",&
+          default_i_val=4,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ROTATION",&
+          description="Introduce additional variables so that rotations of the occupied"//&
+                      " subspace are allowed as well",&
+          usage="ROTATION",lone_keyword_l_val=.TRUE.,&
+          default_l_val=.false.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+  END IF
+END SUBROUTINE create_ot_section
 
 END MODULE input_cp2k
