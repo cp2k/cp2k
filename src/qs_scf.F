@@ -414,7 +414,7 @@ CONTAINS
 
       SELECT CASE (type_switch)
 
-      CASE (0)
+      CASE (0) ! pao
 
          if (cp_debug .and. debug_this_module) then
             call cp_sm_output(logger=cp_error_get_logger(error), &
@@ -427,17 +427,30 @@ CONTAINS
                  global_env=globenv,error=error)
          end if
          call pao_qs_env_did_change(qs_env,global_env=globenv,h_changed=.true.)
-         if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,last_f=pao_last_f,&
-              projected_gradient=pao_actual_grad, error=error)) then
-            call cp_assert(.false.,cp_warning_level,&
-                 error_nr=cp_internal_error,fromWhere=routine,&
-                 message="pao optimizer reached convergence",&
-                 error=error)
-         end if
+         do
+            if (.not.cp_opt_gerd_f_next(pao_optimizer,f=pao_f,&
+                 last_f=pao_last_f,&
+                 projected_gradient=pao_actual_grad, error=error)) then
+               call cp_assert(.false.,cp_warning_level,&
+                    error_nr=cp_internal_error,fromWhere=routine,&
+                    message="pao optimizer reached convergence",&
+                    error=error)
+               exit
+            end if
+            if (pao_actual_grad < pao_env%wanted_subspace_pos_precision) then
+               exit
+            end if
+         end do
          call pao_env_get(pao_env, min_density_m=min_density_m,error=error)
          call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%matrix,&
               target_m=ks%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
+         if (cp_debug .and. debug_this_module) then
+            call cp_sm_output(logger=cp_error_get_logger(error), &
+                 outputName="scf_new_p", &
+                 fromWhere=routine, iter=iscf, matrix=ks%matrix,&
+                 global_env=globenv,error=error)
+         end if
 
          t2 = cputime()
 
@@ -457,7 +470,7 @@ CONTAINS
            END IF
          END IF
 
-      CASE(1)
+      CASE(1) ! diagonalisation (default)
 
         IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
           CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
@@ -506,7 +519,7 @@ CONTAINS
            END IF
         END IF
 
-      CASE(2)
+      CASE(2) ! orbital transforms
 
         CALL sparse_times_blacs(ks%matrix,qs_ot_env%matrix_c, &
                                           qs_ot_env%matrix_hc,globenv)
@@ -1365,9 +1378,6 @@ subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
      CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
      if (.not.failure) then
         allocate(pao_optimizer, pao_obj_f)
-        call pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
-             scf_work1=scf_work1, scf_work2=scf_work2, scf_work3=ortho,&
-             error=error)
         call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
              global_env=global_env, angles=angles,error=error)
         if (.not.associated(angles)) then
@@ -1376,13 +1386,14 @@ subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
            call pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
                 global_env=global_env, angles=angles,error=error)
         end if
-        call cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
-             obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&
-             wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)
-
         call pao_qs_env_did_change(qs_env,s_changed=.true.,h_changed=.true.,&
              full_reset=.false., global_env=global_env)
-        
+        call pao_gerd_f_init(pao_obj_f,qs_env=qs_env, global_env=global_env,&
+             scf_work1=scf_work1, scf_work2=scf_work2, scf_work3=ortho,&
+             error=error)
+        call cp_opt_gerd_f_init(pao_optimizer, global_env=global_env,&
+             obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&
+             wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)        
         ! map first_density to min_bas (should be calculated in the min_bas)
         call sm_matrix_transf_to_m(source_m=p(1)%matrix, &
              target_m=pao_env%min_density_m(1)%matrix%matrix,&
