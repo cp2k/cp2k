@@ -1,5 +1,5 @@
 &CP2K
- trace
+# trace
  PROGRAM      Quickstep
  IOLEVEL      10
  FFTLIB       FFTSG
