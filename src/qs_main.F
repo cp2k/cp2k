@@ -114,9 +114,9 @@ CONTAINS
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
     IF(PRESENT(new_h_matrix)) THEN
-        CALL qs_init( qs_env, globenv,new_h_matrix=new_h_matrix )
+        CALL qs_init( qs_env, globenv, new_h_matrix=new_h_matrix, error=error )
      ELSE
-        CALL qs_init( qs_env, globenv )
+        CALL qs_init( qs_env, globenv, error=error )
     ENDIF
 
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
