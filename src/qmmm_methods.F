@@ -617,7 +617,7 @@ CONTAINS
 !$OMP parallel do &
 !$OMP default(none) &
 !$OMP private(Imm,j,IndMM,ra) &
-!$OMP shared(bo,tasks,dir,rho)
+!$OMP shared(bo,tasks,dir,rho,mm_particles,mm_atom_index)
 
     DO Imm = bo(1), bo(2)
        j = Imm - bo(1) + 1

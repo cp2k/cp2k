@@ -717,10 +717,11 @@ CONTAINS
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
+!$OMP private(neighbor_att) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,w,globenv,p,h,t,iab) &
-!$OMP shared(oce,sac_oce,sac_3c,VH_3c_list)&
+!$OMP shared(oce,sac_oce,sac_3c,VH_3c_list,oce_present)&
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &

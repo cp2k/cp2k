@@ -204,6 +204,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
 
+    SAVE pab                ! Temporary addition for Intel 8.0 OpenMP to work
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_core","I","",handle)
@@ -407,6 +409,7 @@ CONTAINS
          tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt,mgrid_rspace,&
          mgrid_gspace,pw_pools)
     NULLIFY(mgrid_temp_rspace)
+    NULLIFY(lgrid%r)
 
     debug_count=debug_count+1
 

@@ -626,7 +626,7 @@ MODULE qs_rho0_ggrid
 !$OMP private(lx,ly,lz,ic,ico,rho_atom,cpc_h,cpc_s)&
 !$OMP private(iset1,iset2,ipgf1,ipgf2,n1,n2,m1,m2,ig1,ig2,iso1,iso2)&
 !$OMP private(force_tmp,aVhsb_0s)&
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v) &
+!$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_v,ikind) &
 !$OMP shared(habt,hdabt,hadbt,hab_spht,hdab_spht)&
 !$OMP shared(cube_info,l_info,eps_rho_rspace,zet0_s,l0_ikind) &
 !$OMP shared(norm_l,calculate_forces,fourpi,rho_atom_set,ecoul_1c)&
