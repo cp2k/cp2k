@@ -120,7 +120,7 @@ CONTAINS
           Found_Radius = .FALSE.
           radius = radius * qm_cell_small%unit_of_length
           Radius_Loop: DO J=1,SIZE(qmmm_gaussian_fns)
-             IF (radius.EQ.qmmm_gaussian_fns(J)%pgf%Elp_Radius) THEN
+             IF (ABS(radius-qmmm_gaussian_fns(J)%pgf%Elp_Radius).LT.EPSILON(0.0_dbl)) THEN
                 Found_Radius = .TRUE.
                 EXIT Radius_Loop
              END IF
