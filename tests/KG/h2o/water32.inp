@@ -15,11 +15,6 @@ density_cutoff   1.0E-10
 gradient_cutoff   1.0E-10
 &END 
 
-&TOPOLOGY
-nhcopt   GLOBAL
-forcefield   on
-&END 
-
 &KG
  cutoff 200.0
  eps_core_charge 1.0E-96 
@@ -31,10 +26,8 @@ forcefield   on
  ngrid_level 1
 &END
 
-&FORCE_FIELD
-  constraints
+&CONSTRAINTS
     g3x3 add 1 1 2 3 1.88 1.88 3.08
-  end constraints
 &END
 
 &PRINT low
