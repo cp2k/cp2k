@@ -1050,7 +1050,7 @@ CONTAINS
 
     lwork = 5*n + MAX(5*nn,np0*nq0) + iceil(neig,npe)*nn + 2*nb*nb +&
             INT(work_syevx*REAL((neig - 1)*n,wp)) !!!! allocates a full matrix on every CPU !!!!!
-    liwork = MAX(3*n + npe + 1,4*n,14) + 2*n
+    liwork = 6*MAX(N,npe+1,4)
 
     ALLOCATE (gap(npe),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineP,"gap",npe*wp_size)
