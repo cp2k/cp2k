@@ -51,6 +51,7 @@ MODULE kg_gpw_fm_mol_methods
   USE kg_gpw_fm_mol_types,             ONLY: allocate_fm_mol_blocks,&
                                              allocate_mol_mo_set,&
                                              fm_mol_blocks_type,&
+                                             init_mol_mo_set,&
                                              kg_fm_mol_set_type, set_kg_fm_mol_set
   USE kinds,                           ONLY: dp,dp_size,int_size
   USE molecule_kind_types,             ONLY: get_molecule_kind,molecule_kind_type
@@ -107,9 +108,10 @@ CONTAINS
     TYPE(molecule_type), POINTER              :: molecule
     TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
 
-    INTEGER  :: iao, iat, iatom, iglobal, ikind, imol, ispin, istat, maxocc, &
+    INTEGER  :: iao, iat, iatom, iglobal, ikind, imol, ispin, istat, &
                multiplicity, n_ao, n_mo(2), natom, nelectron,&
                nelectron_spin(2), nmol_global, nmol_local, nsgf
+    REAL(dp) :: maxocc
     INTEGER, DIMENSION(:), POINTER            :: index_mol_local
     INTEGER, DIMENSION(:), POINTER            :: molecule_list
     LOGICAL                                   :: failure
@@ -204,6 +206,8 @@ CONTAINS
           NULLIFY(fm_mol_block%mos(ispin)%mo_set)
           CALL allocate_mol_mo_set(fm_mol_block%mos(ispin)%mo_set,n_ao,n_mo(ispin),&
                                    maxocc,nelectron_spin(ispin),error=error)
+          CALL init_mol_mo_set(fm_mol_block%mos(ispin)%mo_set,n_ao,&
+                               n_mo(ispin),error=error)
         END DO
         ALLOCATE(fm_mol_block%ortho(n_ao,n_ao),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&

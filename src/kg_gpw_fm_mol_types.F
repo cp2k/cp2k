@@ -42,7 +42,8 @@ MODULE kg_gpw_fm_mol_types
                                              cp_to_string,&
                                              cp_warning_level
    
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,dp_size
+  USE qs_mo_types,                     ONLY: set_mo_occupation
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -88,11 +89,12 @@ MODULE kg_gpw_fm_mol_types
   END TYPE fm_mol_blocks_type
 
   TYPE kg_fm_mol_set_type
-    INTEGER  :: maxocc, multiplicity, &
+    INTEGER  :: multiplicity, &
                 n_ao, n_mo(2), natom, &
                 nelectron_spin(2),&
                 nmolecule_global,&
                 nmolecule_local
+    REAL(dp) :: maxocc
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
        POINTER                                :: fm_mol_blocks
   END TYPE kg_fm_mol_set_type
@@ -106,7 +108,8 @@ MODULE kg_gpw_fm_mol_types
 ! *** Public subroutines ***
 
   PUBLIC ::  allocate_fm_mol_blocks, allocate_mol_mo_set, &
-             kg_fm_mol_set_create, kg_fm_mol_set_release, &
+             init_mol_mo_set, kg_fm_mol_set_create, &
+             kg_fm_mol_set_release, &
              kg_fm_mol_set_retain, set_kg_fm_mol_set
 
 ! *** Public data types ***
@@ -161,7 +164,8 @@ CONTAINS
   SUBROUTINE allocate_mol_mo_set(mo_set,n_ao,nmo,maxocc,nelectron,error)
 
     TYPE(mol_mo_set_type), POINTER            :: mo_set
-    INTEGER                                   :: n_ao,nmo,maxocc,nelectron
+    INTEGER                                   :: n_ao,nmo,nelectron
+    REAL(dp)                                  :: maxocc
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 
@@ -188,6 +192,50 @@ CONTAINS
     NULLIFY (mo_set%mo)
 
   END SUBROUTINE allocate_mol_mo_set
+
+! *****************************************************************************
+
+  SUBROUTINE init_mol_mo_set(mo_set,n_ao,nmo,error)
+
+    TYPE(mol_mo_set_type), POINTER            :: mo_set
+    INTEGER                                   :: n_ao,nmo
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'init_mol_mo_set',&
+      routineP = module_name//':'//routineN
+
+    INTEGER                                  :: homo,istat,lfomo,nelectron
+    REAL(dp)                                 :: maxocc
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(mo_set),cp_failure_level,routineP,error,failure)
+
+    ALLOCATE(mo_set%eigenvalues(nmo), STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,"mo_set%eigenvalues",nmo*dp_size)
+    END IF
+    mo_set%eigenvalues(:) = 0.0_dp
+
+    ALLOCATE (mo_set%occupation_numbers(nmo),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,"mo_set%occupation_numbers",nmo*dp_size)
+    END IF
+
+    maxocc = mo_set%maxocc
+    nelectron = mo_set%nelectron
+    CALL set_mo_occupation(mo_set%occupation_numbers,mo_set%eigenvalues,&
+                           homo,lfomo,maxocc,nelectron,smear=0.0_dp)
+    mo_set%homo = homo
+    mo_set%lfomo = lfomo
+
+    ALLOCATE (mo_set%mo(n_ao,nmo),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routineN,"mo_set%mo",n_ao*nmo*dp_size)
+    END IF
+
+  END SUBROUTINE init_mol_mo_set
 
 ! *****************************************************************************
 
@@ -220,7 +268,7 @@ CONTAINS
     IF(.NOT. failure) THEN
       kg_fm%ref_count = 1
       DO i = 1,nmolecule_kind
-        kg_fm%kg_fm_mol_set(i)%maxocc = 0
+        kg_fm%kg_fm_mol_set(i)%maxocc = 0.0_dp
         kg_fm%kg_fm_mol_set(i)%n_ao = 0
         kg_fm%kg_fm_mol_set(i)%n_mo = 0
         kg_fm%kg_fm_mol_set(i)%nelectron_spin = 0
@@ -341,11 +389,12 @@ CONTAINS
 
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
 
-    INTEGER, INTENT(IN), OPTIONAL            :: maxocc, multiplicity,&
+    INTEGER, INTENT(IN), OPTIONAL            :: multiplicity,&
                                                 nmolecule_global,&
                                                 nmolecule_local,&
                                                 natom, n_ao, n_mo(2),&
                                                 nelectron_spin(2)
+    REAL(dp), INTENT(IN), OPTIONAL           :: maxocc
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_kg_fm_mol_set", &
       routineP = module_name//':'//routineN

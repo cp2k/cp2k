@@ -148,6 +148,7 @@ MODULE qs_scf
                                              read_mo_set,&
                                              mo_set_restrict,&
                                              set_mo_occupation,&
+                                             set_mo_set,&
                                              write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
                                              qs_ot_type
@@ -1447,9 +1448,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, homo, imo, nao, nmo
-    REAL(KIND=dp)                            :: alpha
+    INTEGER                                  :: handle, homo, imo, lfomo, &
+                                                nao, nelectron, nmo
+    REAL(KIND=dp)                            :: alpha, maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 !   ---------------------------------------------------------------------------
@@ -1462,7 +1465,10 @@ CONTAINS
          nao=nao,&
          nmo=nmo,&
          homo=homo, &
+         nelectron=nelectron,&
+         maxocc=maxocc,&
          eigenvalues=mo_eigenvalues,&
+         occupation_numbers=mo_occupation,&
          mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
@@ -1540,7 +1546,12 @@ CONTAINS
 
     END IF
 
-    IF (smear /= 0.0_dp) CALL set_mo_occupation(mo_set,smear)
+    IF (smear /= 0.0_dp) THEN
+      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
+                             homo,lfomo,maxocc,nelectron,smear)
+      CALL set_mo_set(mo_set=mo_set,&
+                      homo=homo,lfomo=lfomo)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
@@ -1559,20 +1570,27 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, homo, imo, nao, nmo
-    REAL(KIND=dp)                            :: alpha
+    INTEGER                                  :: handle, homo, imo, lfomo, &
+                                                nao, nelectron, nmo
+    REAL(KIND=dp)                            :: alpha, maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I"," ",handle)
 
+    NULLIFY(mo_eigenvalues,mo_occupation,mo_coeff)
+
     CALL get_mo_set(mo_set=mo_set,&
          nao=nao,&
          nmo=nmo,&
          homo=homo, &
+         nelectron=nelectron,&
+         maxocc=maxocc,&
          eigenvalues=mo_eigenvalues,&
+         occupation_numbers=mo_occupation,&
          mo_coeff=mo_coeff)
 
     IF (do_level_shift) THEN
@@ -1590,7 +1608,12 @@ CONTAINS
       CALL correct_mo_eigenvalues(mo_set,level_shift)
     END IF
 
-    IF (smear /= 0.0_dp) CALL set_mo_occupation(mo_set,smear)
+    IF (smear /= 0.0_dp) THEN
+      CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
+                             homo,lfomo,maxocc,nelectron,smear)
+      CALL set_mo_set(mo_set=mo_set,&
+                      homo=homo,lfomo=lfomo)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 

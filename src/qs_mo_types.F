@@ -115,6 +115,7 @@ MODULE qs_mo_types
             init_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
+            set_mo_set, &
             write_mo_set, &
             mo_set_restrict
 
@@ -276,7 +277,9 @@ CONTAINS
     IF (istat /= 0) THEN
       CALL stop_memory(routineP,"mo_set%occupation_numbers",mo_set%nmo*dp_size)
     END IF
-    CALL set_mo_occupation(mo_set=mo_set,smear=0.0_dp)
+    CALL set_mo_occupation(mo_set%occupation_numbers,&
+                           mo_set%eigenvalues,mo_set%homo,mo_set%lfomo,&
+                           mo_set%maxocc,mo_set%nelectron,smear=0.0_dp)
 
     CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
@@ -437,7 +440,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_mo_occupation(mo_set,smear)
+  SUBROUTINE set_mo_occupation(occupation,eigenvalues,homo,lfomo,maxocc,nelectron,smear)
 
 !   Purpose: Smearing of the MO occupation due to the given smear value.
 
@@ -445,46 +448,50 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(mo_set_type), POINTER               :: mo_set
-    REAL(KIND=dp), INTENT(IN)                :: smear
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues
+    INTEGER, INTENT(IN)                      :: nelectron 
+    INTEGER, INTENT(OUT)                     :: homo,lfomo
+    REAL(KIND=dp), INTENT(IN)                :: maxocc,smear
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_occupation", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
-    INTEGER                                  :: imo, nomo
+    INTEGER                                  :: imo, nmo, nomo
     REAL(KIND=dp)                            :: e1, e2, edelta, edist, nelec
 
 !   ---------------------------------------------------------------------------
 
-    nomo = NINT(mo_set%nelectron/mo_set%maxocc)
+    nomo = NINT(nelectron/maxocc)
+    nmo  = SIZE(eigenvalues)
 
-    mo_set%occupation_numbers(:) = 0.0_dp
-    mo_set%occupation_numbers(1:nomo) = mo_set%maxocc
+    occupation(:) = 0.0_dp
+    occupation(1:nomo) =  maxocc
 
-    mo_set%homo = nomo
-    mo_set%lfomo = nomo + 1
+    homo = nomo
+    lfomo = nomo + 1
 
     perform_smear: IF (smear /= 0.0_dp) THEN
 
 !     *** Define the energy window for the eigenvalues ***
 
-      e1 = mo_set%eigenvalues(nomo) - 0.5_dp*smear
-      e2 = mo_set%eigenvalues(nomo) + 0.5_dp*smear
+      e1 = eigenvalues(nomo) - 0.5_dp*smear
+      e2 = eigenvalues(nomo) + 0.5_dp*smear
 
 !     *** Find the lowest fractional occupied MO ***
 
       DO imo=1,nomo
-        IF (mo_set%eigenvalues(imo) > e1) THEN
-          mo_set%lfomo = imo
+        IF (eigenvalues(imo) > e1) THEN
+          lfomo = imo
           EXIT
         END IF
       END DO
 
 !     *** Find the highest fractional occupied (non-zero) MO which will be the HOMO ***
 
-      DO imo=mo_set%nmo,nomo,-1
-        IF (mo_set%eigenvalues(imo) < e2) THEN
-          mo_set%homo = imo
+      DO imo=nmo,nomo,-1
+        IF (eigenvalues(imo) < e2) THEN
+          homo = imo
           EXIT
         END IF
       END DO
@@ -494,25 +501,25 @@ CONTAINS
       edist = 0.0_dp
       nelec = 0.0_dp
 
-      DO imo=mo_set%lfomo,mo_set%homo
-        nelec = nelec + mo_set%occupation_numbers(imo)
-        edist = edist + ABS(e2 - mo_set%eigenvalues(imo))
+      DO imo=lfomo,homo
+        nelec = nelec + occupation(imo)
+        edist = edist + ABS(e2 - eigenvalues(imo))
       END DO
 
 !     *** Smear electrons inside the window ***
 
-      DO imo=mo_set%lfomo,mo_set%homo
-        edelta = ABS(e2 - mo_set%eigenvalues(imo))
-        mo_set%occupation_numbers(imo) = MIN(mo_set%maxocc,nelec*edelta/edist)
-        nelec = nelec - mo_set%occupation_numbers(imo)
+      DO imo=lfomo,homo
+        edelta = ABS(e2 - eigenvalues(imo))
+        occupation(imo) = MIN(maxocc,nelec*edelta/edist)
+        nelec = nelec - occupation(imo)
         edist = edist - edelta
       END DO
 
 !     *** Check, if the smearing involves more than one MO ***
 
-      IF (mo_set%lfomo == mo_set%homo) THEN
-        mo_set%homo = nomo
-        mo_set%lfomo = nomo + 1
+      IF (lfomo == homo) THEN
+        homo = nomo
+        lfomo = nomo + 1
       END IF
     END IF perform_smear
 
@@ -520,6 +527,52 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE set_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
+                        eigenvalues,occupation_numbers,mo_coeff)
+
+!   Purpose: Set the components of a MO set data structure.
+
+!   History: - Creation (22.04.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER               :: mo_set
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: maxocc
+    INTEGER, INTENT(IN), OPTIONAL            :: homo, lfomo, nao, nelectron, &
+                                                nmo
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: eigenvalues, &
+                                                occupation_numbers
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "set_mo_set", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+    INTEGER                                  :: istat
+
+!   ---------------------------------------------------------------------------
+
+    IF (PRESENT(maxocc)) mo_set%maxocc = maxocc
+    IF (PRESENT(homo))  mo_set%homo = homo
+    IF (PRESENT(lfomo))  mo_set%lfomo = lfomo
+    IF (PRESENT(nao))  mo_set%nao = nao
+    IF (PRESENT(nelectron))  mo_set%nelectron = nelectron
+    IF (PRESENT(nmo)) mo_set%nmo = nmo
+    IF (PRESENT(eigenvalues)) THEN
+      IF(ASSOCIATED(mo_set%eigenvalues)) DEALLOCATE(mo_set%eigenvalues,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"mo_set%eigenvalues")
+      mo_set%eigenvalues => eigenvalues
+    END IF
+    IF (PRESENT(occupation_numbers)) THEN
+      IF(ASSOCIATED(mo_set%occupation_numbers)) &
+                    DEALLOCATE(mo_set%occupation_numbers,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
+      mo_set%occupation_numbers => occupation_numbers
+    END IF
+
+  END SUBROUTINE set_mo_set
+
+! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,atomic_kind_set,particle_set,&
                                      globenv,id_nr)
 
@@ -817,7 +870,6 @@ CONTAINS
           CALL stop_program(routine,"The number of the occupied MOs on the "//&
                                      "restart unit is greater than the "//&
                                      "number of the allocated MOs.")
-          CALL set_mo_occupation(mo_array(ispin)%mo_set,0.0_dp)
         END IF
       END IF
 
