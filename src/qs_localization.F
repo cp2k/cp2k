@@ -318,6 +318,9 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env,vectors,ionode,iunit)
        CALL cp_fm_release(ZIJ(j,i)%matrix)
     ENDDO
   ENDDO
+ 
+  DEALLOCATE(zij)
+  CALL cp_fm_release(opvec)
 
   CALL timestop(0.0_wp,handle) 
 
