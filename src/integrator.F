@@ -1384,7 +1384,7 @@ SUBROUTINE get_coef_ke ( struc, ekinc )
 
 ! sum all contributions to energy over calculated parts on all processors
 #if defined(__parallel)
-!MK  CALL mp_sum(thermo%kin,int_group)
+  CALL mp_sum(ekinc,int_group)
 #endif
 END SUBROUTINE get_coef_ke
 
