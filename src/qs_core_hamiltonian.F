@@ -396,9 +396,9 @@ CONTAINS
     END IF
     sdab(:,:,:) = 0.0_wp
 
-    ALLOCATE (work(ldsab,ldsab*maxder),STAT=istat)
+    ALLOCATE (work(ldsab,MAX(ldsab,maxsgf)*maxder),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"work",ldsab*ldsab*maxder*wp_size)
+      CALL stop_memory(routine,"work",ldsab*MAX(ldsab,maxsgf)*maxder*wp_size)
     END IF
     work(:,:) = 0.0_wp
 
