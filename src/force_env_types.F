@@ -24,6 +24,7 @@
 
 MODULE force_env_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
+    USE cp_control_types,              ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -381,9 +382,12 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                           :: pot, kin
+    REAL(KIND=dp)                            :: pot, kin
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
+    TYPE(qs_environment_type), POINTER       :: my_qs_env
+
     TYPE(fist_energy_type), POINTER          :: thermo
     REAL(KIND=dp) :: penergy_mm,penergy_qm
 
@@ -426,14 +430,26 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, force_env_list, &
         CPPreconditionNoFail(.NOT.PRESENT(qs_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(force_env_list),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
+        NULLIFY(dft_control)
         CALL get_kg_env(force_env%kg_env,&
              energy=kg_energy,&
              cell=cell,&
              cell_ref=cell_ref,&
+             dft_control=dft_control,&
              error=error)
-        IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
-        IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
-        CASE (use_qmmm)
+        IF(dft_control % qs_control % method == "KG_GPW") THEN
+           NULLIFY(my_qs_env,qs_energy)
+           CALL get_kg_env(force_env%kg_env,&
+                          sub_qs_env=my_qs_env)
+           CALL get_qs_env(qs_env=my_qs_env,&
+                          energy=qs_energy)
+           IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
+           NULLIFY(qs_env,qs_energy)
+        ELSE
+          IF (PRESENT(potential_energy)) potential_energy=kg_energy%total        
+          IF (PRESENT(kinetic_energy)) kinetic_energy=kg_energy%kin
+        END IF
+     CASE (use_qmmm)
           IF (PRESENT(cell)) THEN
                CALL force_env_get(force_env%sub_force_env(1)%force_env,&
                                            cell=cell,error=error)
