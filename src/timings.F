@@ -44,7 +44,7 @@ MODULE timings
 
 ! subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 5000
-  INTEGER :: stack_size
+  INTEGER :: stack_size = 0
   CHARACTER ( LEN = 80 ) :: routine_stack ( max_stack ), routine_name
   INTEGER :: handle_stack (max_stack)=0
 
