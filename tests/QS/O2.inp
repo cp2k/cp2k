@@ -1,0 +1,41 @@
+&CP2K
+ PROGRAM      Quickstep
+ IOLEVEL      10
+ FFTLIB       FFTSG
+ RUN_TYPE     WFN_OPT
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+ LSD
+ MULTIP       3
+&END
+
+&QS
+ CUTOFF       300
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MIXING       0.4
+ EPS_SCF      1.0E-5
+&END
+
+&PRINT low
+ HOMOS 1
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          10.0  10.0  10.0
+&END
+
+&COORD
+O           0.000000  0.000000  0.608000
+O           0.000000  0.000000 -0.608000
+&END
