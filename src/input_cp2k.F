@@ -6063,7 +6063,7 @@ END SUBROUTINE create_ewald_section
     failure=.false.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        CALL section_create(section,name="poisson_mm",&
             description="Sets up the poisson resolutor.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -6074,15 +6074,13 @@ END SUBROUTINE create_ewald_section
             variants=(/"POISSON", "PSOLVER"/),& 
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
-            enum_c_vals=s2a( "PERIODIC3D", "ANALYTIC2D", "ANALYTIC1D", "ANALYTIC0D", "MT2D",&
-            "MT1D", "MT0D", "HOCKNEY2D", "HOCKNEY1D", "HOCKNEY0D"),&
-            enum_i_vals=(/ periodic3d, analytic2d, analytic1d, analytic0d, mt2d, &
-            mt1d, mt0d, hockney2d, hockney1d, hockney0d/),&
-            default_i_val=periodic3d, error=error)
+            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "HOCKNEY"),&
+            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_hockney/),&
+            default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 
-    end if
+    END IF
   END SUBROUTINE create_poisson_mm_section
 !***************************************************************************
 
@@ -6131,11 +6129,9 @@ END SUBROUTINE create_ewald_section
             variants=(/"POISSON", "PSOLVER"/),& 
             description="Specify which kind of solver to use to solve the Poisson equation.",&
             usage="POISSON_SOLVER char",&
-            enum_c_vals=s2a( "PERIODIC3D", "ANALYTIC2D", "ANALYTIC1D", "ANALYTIC0D", "MT2D",&
-            "MT1D", "MT0D", "HOCKNEY2D", "HOCKNEY1D", "HOCKNEY0D"),&
-            enum_i_vals=(/ periodic3d, analytic2d, analytic1d, analytic0d, mt2d, &
-            mt1d, mt0d, hockney2d, hockney1d, hockney0d/),&
-            default_i_val=periodic3d, error=error)
+            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT", "HOCKNEY"),&
+            enum_i_vals=(/ use_periodic, use_analytic, use_mt, use_hockney/),&
+            default_i_val=use_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
 

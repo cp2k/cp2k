@@ -25,6 +25,7 @@ MODULE mt_util
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
+                                             REALDATA1D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_transfer,&
@@ -68,22 +69,27 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'MTin_create_screen_fn', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, nn
     LOGICAL                                  :: failure
-    TYPE(pw_type), POINTER                   :: Vloc
+    TYPE(pw_type), POINTER                   :: Vloc, wrk
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-
+    NULLIFY(wrk)
     SELECT CASE( method )
     CASE(MT0D)
-       CALL pw_pool_create_pw(pw_pool,Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
+       CALL pw_pool_create_pw(pw_pool, Vloc, use_data=REALDATA3D, in_space=REALSPACE,&
             error=error)
-       CALL pw_pool_create_pw(pw_pool,screen_function, use_data=COMPLEXDATA1D,&
+       CALL pw_pool_create_pw(pw_pool, screen_function, use_data=REALDATA1D,&
             in_space=RECIPROCALSPACE,error=error)
-       CALL mt0din(Vloc,alpha)
-       CALL pw_transfer ( Vloc, screen_function )
-       CALL pw_pool_give_back_pw(pw_pool,Vloc,error=error)
+       CALL pw_pool_create_pw(pw_pool, wrk, use_data=COMPLEXDATA1D,&
+            in_space=RECIPROCALSPACE,error=error)
+       CALL mt0din( Vloc, alpha)
+       CALL pw_transfer ( Vloc, wrk )
+       nn = SIZE(wrk%cc)
+       CALL dcopy(nn, wrk%cc, 2, screen_function%cr, 1)
+       CALL pw_pool_give_back_pw(pw_pool, Vloc, error=error)
+       CALL pw_pool_give_back_pw(pw_pool, wrk, error=error)
     CASE(MT1D)
        CALL cp_unimplemented_error(routineP, "MT1D unimplemented", error, cp_failure_level)
     CASE(MT2D)
@@ -114,23 +120,26 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE mt0din(Vloc,alpha)
     TYPE(pw_type), POINTER                   :: Vloc
-    REAL(KIND=dp), INTENT(in)               :: alpha
+    REAL(KIND=dp), INTENT(in)                :: alpha
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mt0din', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, k
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                           :: dx, dy, dz, my_alpha, r, r2, &
+    REAL(KIND=dp)                            :: dx, dy, dz, my_alpha, r, r2, &
                                                 rmin, x, y, y2, z, z2
     TYPE(pw_grid_type), POINTER              :: grid
+    REAL(KIND=dp), DIMENSION(3)              :: box
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
 
     grid => Vloc%pw_grid
     Vloc%cr3d=0.0_dp
-    rmin=MIN(grid%g(1,1),grid%g(2,2),grid%g(3,3))
+    box = REAL(grid%npts,kind=dp)*grid%dr
+    WRITE(*,*)box
+    rmin=MINVAL(box)
     my_alpha=alpha/rmin
 
     dx=grid%dr(1)
@@ -145,8 +154,8 @@ CONTAINS
           x=-REAL(grid%bounds_local(1,1),dp)*dx
           DO i=grid%bounds_local(1,1),grid%bounds_local(2,1)
              r2=x*x+y2+z2
-             IF(r.GT.1.0E-20_dp) THEN
-                r=SQRT(r2)
+             r =sqrt(r2)
+             IF(r.GT.1.0E-10_dp) THEN
                 Vloc%cr3d(i,j,k)=erf(my_alpha*r)/r
              ELSE
                 Vloc%cr3d(i,j,k)=2.0_dp*my_alpha/SQRT(Pi)

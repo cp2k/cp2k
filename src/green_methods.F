@@ -44,7 +44,11 @@ MODULE green_methods
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
-                                             PERIODIC3D
+                                             PERIODIC3D,&
+                                             use_periodic,&
+                                             use_analytic,&
+                                             use_mt,&
+                                             use_hockney
   USE green_types,                     ONLY: greens_function_type,&
                                              influence_factor,&
                                              pw_green_create
@@ -171,7 +175,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     TYPE(section_vals_type), POINTER          :: mt_section
     LOGICAL :: failure
-    INTEGER :: dim, i
+    INTEGER :: dim, i, my_val
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -180,15 +184,15 @@ CONTAINS
        dim = COUNT(perd == 1)
        
        IF (parsed_cp2k_input(poisson_section,check_this_section=.TRUE.,error=error)) THEN
-          CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",c_val=poisson_solver,error=error)
-          SELECT CASE (TRIM(poisson_solver))
-          CASE ("PERIODIC")
+          CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
+          SELECT CASE (my_val)
+          CASE (use_periodic)
              gftype%method = PERIODIC3D
              IF (dim /= 3) THEN
                 CALL stop_program(routineP,&
                      "Illegal combination of periodicity and Poisson solver (perd)")
              END IF
-          CASE ("ANALYTIC")
+          CASE (use_analytic)
              SELECT CASE (dim)
              CASE (0)
                 gftype%method = ANALYTIC0D
@@ -211,7 +215,7 @@ CONTAINS
              CASE DEFAULT
                 CALL stop_program(routineP,"Illegal value for perd found")
              END SELECT
-          CASE ("HOCKNEY")
+          CASE (usE_hockney)
              SELECT CASE (dim )
              CASE (0)
                 gftype%method = HOCKNEY0D
@@ -225,7 +229,7 @@ CONTAINS
              CASE DEFAULT
                 CALL stop_program(routineP,"Illegal value for perd found")
              END SELECT
-          CASE ("MT")
+          CASE (use_mt)
              mt_section => section_vals_get_subs_vals(poisson_section,"MT",error=error)
              CALL section_vals_val_get(mt_section,"ALPHA",r_val=gftype%MT_alpha,error=error)
              SELECT CASE (dim)

@@ -171,6 +171,11 @@ MODULE input_constants
                         MT2D = 1101, MT1D = 1102, MT0D = 1103,&
                         HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
 
+  INTEGER, PARAMETER, PUBLIC :: use_periodic = 0,&
+                                use_analytic = 1,&
+                                use_mt=2,&
+                                use_hockney=3
+
   INTEGER, PARAMETER, PUBLIC :: xgga_b88=1, xgga_pw86=2, xgga_pw91=3, xgga_pbe=4,&
        xgga_revpbe=5, xgga_opt=6
 
