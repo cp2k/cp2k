@@ -35,8 +35,7 @@ MODULE qs_energy_types
                 core_self,&
                 exc,&
                 hartree,&
-                total,&
-                total_old
+                total
   END TYPE qs_energy_type
 
 ! *** Public data types ***
@@ -135,7 +134,6 @@ CONTAINS
       qs_energy%exc = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%total = 0.0_dp
-      qs_energy%total_old = 0.0_dp
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated "//&
                                 "and cannot be initialised")
