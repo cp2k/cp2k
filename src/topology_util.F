@@ -1403,7 +1403,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     ALLOCATE(bond_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bond_list',SUM(checkme))
     counter=0
-    DO j=1,SUM(checkme)
+    DO j=1,nbond
       IF (checkme(j)==1) THEN
         counter=counter+1
         bond_list(counter)%a=conn_info%bond_a(j)-first+1
@@ -1466,7 +1466,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     ALLOCATE(bend_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','bend_list',SUM(checkme))
     counter=0
-    DO j=1,SUM(checkme)
+    DO j=1,ntheta
       IF (checkme(j)==1) THEN
         counter=counter+1
         bend_list(counter)%a=conn_info%theta_a(j)-first+1
@@ -1537,7 +1537,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     IF(istat/=0) &
       CALL stop_memory('connectivity_pack','torsion_list',SUM(checkme))
     counter=0
-    DO j=1,SUM(checkme)
+    DO j=1,nphi
       IF (checkme(j)==1) THEN
         counter=counter+1
         torsion_list(counter)%a=conn_info%phi_a(j)-first+1
