@@ -418,20 +418,24 @@ CONTAINS
 ! *****************************************************************************
 ! init ncol vectors of a full matrix with random numbers
 ! *****************************************************************************
-  SUBROUTINE CP_FM_INIT_RANDOM(matrix,ncol,error)
+  SUBROUTINE cp_fm_init_random(matrix,ncol,start_col,error)
 
     TYPE(cp_full_matrix_type), POINTER           :: matrix
     INTEGER, INTENT(IN)                          :: ncol
+    INTEGER, INTENT(IN), OPTIONAL                :: start_col
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    INTEGER :: handle,n,i
+    INTEGER :: handle,n,i,my_start_col
     REAL(wp), DIMENSION(:,:), POINTER :: a,buff
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
     INTEGER, DIMENSION(4),SAVE :: ISEED
     LOGICAL, SAVE :: FIRST = .TRUE.
+    LOGICAL :: failure
     INTEGER :: icol
     TYPE(cp_blacs_env_type), POINTER :: context
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_init_random',&
+                                   routineP=moduleN//':'//routineN
 
     CALL timeset("cp_fm_init_random","I","",handle)
     IF (FIRST) THEN
@@ -442,9 +446,13 @@ CONTAINS
        FIRST=.FALSE.
     ENDIF
 
+    my_start_col = 1
+    IF (PRESENT(start_col)) my_start_col=start_col
+
     n = matrix%matrix_struct%nrow_global
+    CPPostcondition(matrix%matrix_struct%ncol_global>=(my_start_col+ncol-1),cp_failure_level,routineP,error,failure)
     ALLOCATE(buff(n,1))
-    DO icol=1,ncol
+    DO icol=my_start_col, my_start_col+ncol-1
        IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
           CALL dlarnv(1,iseed,n,buff(1,1))
        ENDIF
@@ -458,7 +466,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE CP_FM_INIT_RANDOM
+  END SUBROUTINE cp_fm_init_random
 ! *****************************************************************************
 
   SUBROUTINE cp_fm_set_all(matrix,alpha,beta,error)
