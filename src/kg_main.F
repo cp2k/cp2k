@@ -197,7 +197,7 @@ SUBROUTINE kg ( globenv )
 
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
-  CALL timeset ( 'KG_MAIN', 'I', ' ', handle1 )
+!  CALL timeset ( 'KG_MAIN', 'I', ' ', handle1 )
   CALL timeset ( 'KG_INIT', 'I', ' ', handle2 )
 
   NULLIFY ( kg_env )
