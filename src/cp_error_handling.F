@@ -51,7 +51,10 @@ MODULE cp_error_handling
                                              cp_logger_retain,&
                                              cp_logger_type,&
                                              cp_to_string
-  USE termination,                     ONLY: stop_program
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE message_passing,                 ONLY: mp_abort,&
+                                             mp_alltoall
+  USE output_utilities,                ONLY: print_message
   USE timings,                         ONLY: print_stack
 
   IMPLICIT NONE
@@ -75,7 +78,7 @@ MODULE cp_error_handling
        cp_error_get_logger, cp_error_get_stop_level,&
        cp_error_common_stop, cp_error_handle_error,&
        cp_error_message, cp_error_propagate_error,&
-       cp_error_check
+       cp_error_check, cp_error_synchronize_error
 
 #ifdef FD_DEBUG
 !! global variable to turn on/off the debugging, as i am lazy I use the 
@@ -162,16 +165,6 @@ CONTAINS
 !!   NAME
 !!    cp_error_init
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_init(error, stop_level, print_level, logger,&
-!!         template_error, error_nr, level)
-!!       Type(cp_error_type), Intent (OUT):: error
-!!       Integer, Intent (IN), Optional:: stop_level, print_level
-!!       Type(cp_logger_type), Optional, Pointer:: logger
-!!       Type(cp_error_type), Intent (IN), Optional:: template_error
-!!       Integer, Intent (IN), Optional:: error_nr, level
-!!     End Subroutine cp_error_init
-!!
 !!   FUNCTION
 !!    Initializes the error structure error.
 !!    The optional arguments initialize the values in the structure.
@@ -243,11 +236,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_reset
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_reset(error)
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_error_reset
-!!
 !!   FUNCTION
 !!     if the optional parameter error is present resets its level and 
 !!     error_nr to 0 (is tipically called when you want to discard the 
@@ -289,16 +277,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_error_set
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_error_set(error, level, error_nr, stop_level,&
-!!         print_level, logger, template_error)
-!!       Type(cp_error_type), Intent (INOUT):: error
-!!       Integer, Intent (IN), Optional:: level, error_nr, stop_level,&
-!!         print_level
-!!       Type(cp_logger_type), Optional, Pointer:: logger
-!!       Type(cp_error_type), Intent (IN), Optional:: template_error
-!!     End Subroutine cp_error_set
 !!
 !!   FUNCTION
 !!     routine to set the various components of the error structure
@@ -353,12 +331,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_dealloc_ref
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_dealloc_ref(err_to_free, error)
-!!       Type(cp_error_type), Intent (INOUT):: err_to_free
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cp_error_dealloc_ref
-!!
 !!   FUNCTION
 !!     Deallocates the memory allocated by the error
 !!
@@ -409,15 +381,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_get
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_get(error, level, error_nr, stop_level,&
-!!         print_level, logger)
-!!       Type(cp_error_type), Intent (INOUT):: error
-!!       Integer, Intent (OUT), Optional:: level, error_nr, stop_level,&
-!!         print_level
-!!       Type(cp_logger_type), Optional, Pointer:: logger
-!!     End Subroutine cp_error_get
-!!
 !!   FUNCTION
 !!     returns the various attributes of the given error
 !!
@@ -457,12 +420,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_get_level
 !!
-!!   SYNOPSIS
-!!     Function cp_error_get_level(error) Result(res)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Integer:: res
-!!     End Function cp_error_get_level
-!!
 !!   FUNCTION
 !!     gets the error level from the given error
 !!
@@ -497,12 +454,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_error_get_print_level
-!!
-!!   SYNOPSIS
-!!     Function cp_error_get_print_level(error) Result(res)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Integer:: res
-!!     End Function cp_error_get_print_level
 !!
 !!   FUNCTION
 !!     gets the print level (starting with which errorlevel something 
@@ -542,12 +493,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_get_nr
 !!
-!!   SYNOPSIS
-!!     Function cp_error_get_nr(error) Result(res)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Integer:: res
-!!     End Function cp_error_get_nr
-!!
 !!   FUNCTION
 !!     gets the error number from the given error
 !!
@@ -583,12 +528,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_error_get_logger
-!!
-!!   SYNOPSIS
-!!     Function cp_error_get_logger(error) Result(res)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Type(cp_logger_type), Pointer:: res
-!!     End Function cp_error_get_logger
 !!
 !!   FUNCTION
 !!     gets the logger of the given error.
@@ -631,12 +570,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_get_stop_level
 !!
-!!   SYNOPSIS
-!!     Function cp_error_get_stop_level(error) Result(res)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Integer:: res
-!!     End Function cp_error_get_stop_level
-!!
 !!   FUNCTION
 !!     gets the error level at which the error will stop the programm
 !!     If the error is not present returns cp_failure_level
@@ -675,11 +608,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_common_stop
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_common_stop(fromwhere, message)
-!!       Character(Len=*), Intent (IN):: fromwhere, message
-!!     End Subroutine cp_error_common_stop
-!!
 !!   FUNCTION
 !!     a subroutine that call just stop, useful because all the failures
 !!     fails calling this routine: the right point to set a breakpoint
@@ -702,8 +630,14 @@ CONTAINS
   SUBROUTINE cp_error_common_stop(fromWhere,message)
     CHARACTER(len=*), INTENT(in)             :: fromWhere, message
 
-    CALL print_stack(cp_logger_get_default_unit_nr())
-    CALL stop_program(fromWhere,message)
+    INTEGER                                  :: unit_nr
+
+    unit_nr = cp_logger_get_default_unit_nr()
+    CALL print_stack(unit_nr)
+    CALL print_message("ERROR in "//TRIM(fromWhere),unit_nr,2,2,0)
+    CALL print_message(message,unit_nr,1,1,1)
+    CALL print_stack(unit_nr)
+    CALL mp_abort()
     STOP ! just to be sure...
   END SUBROUTINE cp_error_common_stop
 !****************************************************************************
@@ -712,12 +646,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_error_handle_error
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_error_handle_error(error, fromwhere, message)
-!!       Type(cp_error_type), Intent (IN):: error
-!!       Character(Len=*), Intent (IN):: fromwhere, message
-!!     End Subroutine cp_error_handle_error
 !!
 !!   FUNCTION
 !!     all the error situations at the end should call this routine
@@ -769,13 +697,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_message
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_message(level, fromwhere, message, error)
-!!       Integer, Intent (IN):: level
-!!       Character(Len=*), Intent (IN):: fromwhere, message
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!     End Subroutine cp_error_message
-!!
 !!   FUNCTION
 !!     writes an error message of level level, subject to control of error
 !!     (i.e. if error%printlevel is >= level)
@@ -817,16 +738,6 @@ CONTAINS
 !!
 !!   NAME
 !!     cp_assert
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_assert(condition, level, error_nr, fromwhere, message,&
-!!         error, failure)
-!!       Logical, Intent (IN):: condition
-!!       Integer, Intent (IN):: level, error_nr
-!!       Character(Len=*), Intent (IN):: fromwhere, message
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical, Intent (INOUT), Optional:: failure
-!!     End Subroutine cp_assert
 !!
 !!   FUNCTION
 !!     routine that checks an assertion, if it fails set the optional
@@ -905,17 +816,6 @@ CONTAINS
 !!   NAME
 !!     cp_error_propagate_error
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_propagate_error(ierror, fromwhere, message,&
-!!         error, failure, failure_level)
-!!       Type(cp_error_type), Intent (IN):: ierror
-!!       Character(Len=*):: fromwhere
-!!       Character(Len=*), Optional:: message
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical, Intent (INOUT), Optional:: failure
-!!       Integer, Intent (IN), Optional:: failure_level
-!!     End Subroutine cp_error_propagate_error
-!!
 !!   FUNCTION
 !!     if the internal error iError of a subroutine has an error levele 
 !!     that is at least failure_level(i.e. if there was a serious error
@@ -984,15 +884,6 @@ CONTAINS
 !!   NAME
 !!     cp_unimplemented_error
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_unimplemented_error(fromwhere, message, error,&
-!!         error_level)
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Character(Len=*), Intent (IN), Optional:: message
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Integer, Intent (IN), Optional:: error_level
-!!     End Subroutine cp_unimplemented_error
-!!
 !!   FUNCTION
 !!     comodity call to signat that something is not implemented
 !!
@@ -1035,21 +926,71 @@ SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
 END SUBROUTINE cp_unimplemented_error
 !***************************************************************************
 
+!!****f* cp_error_handling/cp_error_synchronize_error [1.0] *
+!!
+!!   NAME
+!!     cp_error_synchronize_error
+!!
+!!   FUNCTION
+!!     synchronizes the error values between different processors
+!!     (propagating an eventual failure to each processor)
+!!
+!!   NOTES
+!!     allow for non uniform presence of the error argument?)
+!!
+!!   ARGUMENTS
+!!     - error: the error to synchronize
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_error_synchronize_error(error,para_env)
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_error_synchronize_error', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: codes
+    INTEGER, DIMENSION(2)                    :: my_codes
+    LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: my_para_env
+
+  failure=.FALSE.
+  NULLIFY(my_para_env)
+  IF (PRESENT(error)) THEN
+     logger => cp_error_get_logger(error)
+     my_para_env => logger%para_env
+     IF (PRESENT(para_env)) my_para_env => para_env
+     CALL cp_assert(ASSOCIATED(my_para_env),cp_failure_level,cp_failure_level,&
+          routineP,"cannot synchronize without a valid para_env",error,failure)
+     IF (my_para_env%num_pe>1) THEN
+        ALLOCATE(codes(my_para_env%num_pe*2),stat=stat)
+        my_codes(1)=error%level
+        my_codes(2)=error%error_nr
+        CALL mp_alltoall( my_codes, codes, 2, my_para_env%group )
+        error%level=codes(1)
+        error%error_nr=codes(2)
+        DO i=1,my_para_env%num_pe-1
+           IF (codes(i*2+1)> error%level) THEN
+              error%level=codes(i*2+1)
+              error%error_nr=codes(i*2+2)
+           END IF
+        END DO
+     END IF
+  END IF
+END SUBROUTINE cp_error_synchronize_error
+!***************************************************************************
+
 !!****f* cp_error_handling/cp_a_l [1.0] *
 !!
 !!   NAME
 !!     cp_a_l
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_a_l(condition, level, fromwhere, linenr, error,&
-!!         failure)
-!!       Logical, Intent (IN):: condition
-!!       Integer, Intent (IN):: level
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: linenr
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!       Logical, Intent (INOUT), Optional:: failure
-!!     End Subroutine cp_a_l
 !!
 !!   FUNCTION
 !!     assert with linenumber (to be used with the assertion macros
@@ -1091,12 +1032,6 @@ END SUBROUTINE cp_a_l
 !!   NAME
 !!     cp_error_check
 !!
-!!   SYNOPSIS
-!!     Subroutine cp_error_check(error, failure)
-!!       Type(cp_error_type), Intent (IN), Optional:: error
-!!       Logical, Intent (INOUT), Optional:: failure
-!!     End Subroutine cp_error_check
-!!
 !!   FUNCTION
 !!     if error is present sets failure to true if an error did happen
 !!
@@ -1136,13 +1071,6 @@ END SUBROUTINE cp_error_check
 !!
 !!   NAME
 !!     cp_simple_assert
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_simple_assert(condition, routinep, line)
-!!       Logical, Intent (IN):: condition
-!!       Character(Len=*), Intent (IN):: routinep
-!!       Integer, Intent (IN):: line
-!!     End Subroutine cp_simple_assert
 !!
 !!   FUNCTION
 !!     simple assert
