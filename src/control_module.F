@@ -495,6 +495,7 @@ SUBROUTINE control ( globenv )
      ELSEIF ( simpar % pol_basis == "PW" ) THEN
      
        struc ( 1 ) % pw_grid ( 1 ) % grid_span = HALFSPACE
+       struc ( 1 ) % pw_grid ( 1 ) % bounds = 0
        CALL pw_grid_setup ( struc ( 1 ) % box, struc ( 1 ) % pw_grid ( 1 ),  &
                             simpar % pol_ecut )
        nproj = n
