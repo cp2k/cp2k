@@ -409,7 +409,7 @@ END SUBROUTINE print_stack
 !   *** Local variables ***
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)  :: string1
-    CHARACTER(LEN=LEN_TRIM(checkpoint)+51) :: string2
+    CHARACTER(LEN=LEN_TRIM(checkpoint)+55) :: string2
     INTEGER                                :: group,ipe,mype,npe,output_unit,&
                                               pid
 
@@ -428,8 +428,9 @@ END SUBROUTINE print_stack
       IF (ipe == mype) THEN
         WRITE (UNIT=string1,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)
         string1 = ADJUSTL(string1)
-        WRITE (UNIT=string2,FMT="(A,I8,A,F12.3)")&
-          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime()
+        WRITE (UNIT=string2,FMT="(A,I8,A,F12.3,A)")&
+          "CPU time of process",pid," <"//TRIM(string1)//">: ",m_cputime(),&
+          " sec"
         CALL compress(string2)
         WRITE (UNIT=output_unit,FMT="(/,T2,A)",ADVANCE="NO") TRIM(string2)
       END IF
