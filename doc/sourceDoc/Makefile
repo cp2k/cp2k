@@ -6,7 +6,7 @@ ROBOOPTS=SORT
 
 #
 #
-CP2KHOME=$(HOME)/CP2K/
+CP2KHOME=$(PWD)/../..
 VPATH=$(CP2KHOME)/src
 
 # Your source files.
