@@ -14,10 +14,11 @@ repl={
     'cp_full_matrix':'cp_fm_types'
     }
 
-specialRepl={}
+specialRepl=None
 # {re.compile(r"%blacs_matrix(\W)",flags=re.IGNORECASE):r"%matrix\1"}
 
-def replaceWords(infile,outfile,replacements,specialReplacements=None,
+def replaceWords(infile,outfile,replacements=repl,
+                 specialReplacements=specialRepl,
                  logFile=sys.stdout):
     """Replaces the words in infile writing the output to outfile.
     

@@ -33,8 +33,10 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
 	    if not subs.has_key(arg):
 	      logFile.write("ERROR: missing required argument:"+arg+"\n")
 	      outfile.write("! ERROR argument '"+arg+"' missing\n") 
-          for arg in subs.keys():
-	    sost=subs[arg].split("\n")
+          kList=subs.keys()
+          kList.sort()
+          for arg in kList:
+            sost=subs[arg].split("\n")
             if (len(sost)>1):
               outfile.write('!  '+arg+' = \n')
               outfile.write('!    "'+sost[0])

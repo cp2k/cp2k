@@ -104,13 +104,13 @@ def writeUseLong(modules,outFile):
                     outFile.write(",&\n"+string.ljust("",45)+m['renames'][i])
         if m.has_key('comments') and m['comments']:
             comments=m['comments'].splitlines()
-            outfile.write("&")
+            outFile.write("&")
             for i in range(0,len(comments)-1):
-                outfile.write("\n&"+comments[i])
-            outfile.write("\n"+comments[-1])
-        outfile.write("\n")
+                outFile.write("\n&"+comments[i])
+            outFile.write("\n"+comments[-1])
+        outFile.write("\n")
 
-def rewriteUse(inFile,outFile):
+def rewriteUse(inFile,outFile,logFile=sys.stdout):
     """rewrites the use statements of in file to outFile.
     It sorts them and removes the repetitions."""
     import os.path
@@ -134,8 +134,7 @@ def rewriteUse(inFile,outFile):
         writeUseLong(modules,outFile)
         outFile.write(line)
     except:
-        import sys, traceback
-        logFile=sys.stdout
+        import traceback
         logFile.write('-'*60+"\n")
         traceback.print_exc(file=logFile)
         logFile.write('-'*60+"\n")

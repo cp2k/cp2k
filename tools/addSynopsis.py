@@ -64,10 +64,11 @@ def parseInterface(iFile,logFile=sys.stdout):
 		    if not result.has_key(stack[0]["kind"]): result[stack[0]["kind"]]={}
 		    kind_table=result[stack[0]["kind"]]
 		    if kind_table.has_key(stack[0]["name"]):
-			e=SyntaxWarning("double definition of '"+stack[0]["name"]+"' ignored")
-			del stack[0]
-			raise e
-		    kind_table[stack[0]["name"]]=stack[0] # put only the expansion??
+			logFile.write("\nWARNING double definition of '"+
+                                      stack[0]["name"]+"' at line "+
+                                      str(lineNr)+", ignoring\n")
+                    else:
+                        kind_table[stack[0]["name"]]=stack[0] # put only the expansion??
 		else:
 		    logFile.write("ignoring group "+str(stack[0])+"\n")
 		del stack[0]
@@ -209,6 +210,23 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
                           (lineNr,infile.name))
 	    logFile.write(str(w)+"\n")
 
+def addSynopsisToFile(ifile,sfile,outfile,logFile=sys.stdout):
+    """Adds the synopsis to the file sfile, reading the interface from
+    ifile, and writing the result to outfile"""
+    rawDefs=parseInterface(ifile,logFile)
+    defs={}
+    #print "rawDefs=",rawDefs
+    for kind in ["function","subroutine"]:
+        if rawDefs.has_key(kind):
+            for key in rawDefs[kind].keys():
+                if (defs.has_key(key)):
+                    raise Exception("duplicate name")
+                else:
+                    defs[key]=rawDefs[kind][key]
+    #print "def=",defs
+    insertSynopsis(defs,sfile,outfile,logFile)
+    
+
 def addSynopsisInDir(interfaceDir, outDir,filePaths,logFile=sys.stdout):
     """Add the synopsis to the files in filePaths, reading the interfaces from interfaceDir, and writing them to outDir.
     
@@ -228,18 +246,7 @@ def addSynopsisInDir(interfaceDir, outDir,filePaths,logFile=sys.stdout):
             ifile = open(interfaceFilePath,'r')
             sfile = open(sourceFilePath,'r')
             outfile= open(outFilePath,'w')
-            rawDefs=parseInterface(ifile,logFile)
-            defs={}
-            #print "rawDefs=",rawDefs
-            for kind in ["function","subroutine"]:
-                if rawDefs.has_key(kind):
-                    for key in rawDefs[kind].keys():
-                        if (defs.has_key(key)):
-                            raise Exception("duplicate name")
-                        else:
-                            defs[key]=rawDefs[kind][key]
-            #print "def=",defs
-            insertSynopsis(defs,sfile,outfile,logFile)
+            addSynopsisToFile(ifile,sfile,outfile,logFile=logFile)
             fileMapping[sfile]=outfile
         except:
             import sys, traceback
