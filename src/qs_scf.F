@@ -909,16 +909,15 @@ CONTAINS
          ortho,scf_work2, mo_eigenvectors)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
+
+    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env, error=error)
+
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
          c=c,k=k,&
          h=h,s=s, error=error)
-
-
-    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env, error=error)
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
 
