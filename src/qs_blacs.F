@@ -149,10 +149,10 @@ MODULE qs_blacs
        read_blacs_matrix, replicate_blacs_matrix,&
        blacs_set_local_block, cp_fm_vect_create2,&
        blacs_daxpy,  blacs_get_element
-  
+
   PUBLIC :: start_blacs,&
        end_blacs, get_blacs_info
-       
+
   PUBLIC ::  cp_fm_add,&
             blacs_add_to_element, &
             cp_fm_gemm,&
@@ -443,7 +443,7 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    
+
 #if defined (__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
     irow_global=1
@@ -825,8 +825,8 @@ CONTAINS
                           nrow_block =nrow_block ,ncol_block =ncol_block , &
                           nrow_local =nrow_local ,ncol_local =ncol_local , &
                           row_indices=row_indices,col_indices=col_indices)
-  
-#if defined(__SCALAPACK) 
+
+#if defined(__SCALAPACK)
     IF (direction.EQ."B2R") THEN
        CALL dcopy(nblock*nrow_global,0.0_wp,0,rep_v(1,1),1)
     ENDIF
@@ -837,7 +837,7 @@ CONTAINS
        IF (this_col.GE.1 .AND. this_col.LE.ncol) THEN
           IF (direction.EQ."B2R") THEN
              DO j=1,nrow_local
-               rep_v(this_col,row_indices(j))=blacs_block(j,i) 
+               rep_v(this_col,row_indices(j))=blacs_block(j,i)
              ENDDO
           ELSE
              DO j=1,nrow_local
@@ -847,7 +847,7 @@ CONTAINS
        ENDIF
     ENDDO
 
-#if defined(__SCALAPACK) 
+#if defined(__SCALAPACK)
     IF (direction.EQ."B2R") THEN
        CALL mp_sum(rep_v,matrix_v%matrix_struct%para_env%group)
     ENDIF
@@ -919,7 +919,7 @@ CONTAINS
 
     CALL timeset("blacs_syevd","I","",handle)
     failure=.FALSE.
-   
+
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -1038,7 +1038,7 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    
+
     n = matrix%matrix_struct%nrow_global
 
     ALLOCATE (w(n),STAT=istat)
@@ -1268,7 +1268,7 @@ CONTAINS
 !   Purpose: Copy a BLACS matrix to a full matrix.
 
 !   History: - Creation (18.06.2001, Matthias Krack)
-!   - 08.2002 changed for the transition to local_data, unoptimized 
+!   - 08.2002 changed for the transition to local_data, unoptimized
 !     (but used for debugging only...) [fawzi]
 !   ***************************************************************************
 
@@ -1621,7 +1621,7 @@ CONTAINS
 
 #endif
 !   ---------------------------------------------------------------------------
-    
+
     CALL timeset("copy_real_matrix_to_full_matrix","I","",handle)
 
     group = full_matrix%matrix_struct%para_env%group
@@ -1878,7 +1878,7 @@ CONTAINS
 
     CALL timeset("power_blacs_matrix","I","",handle)
 
-    
+
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -2086,7 +2086,7 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-   
+
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
 
@@ -2570,7 +2570,7 @@ CONTAINS
                                globenv=globenv)
 
 ! put the right pointers in place
-    
+
     ctxt => matrix_a%matrix_struct%context
     myprow=ctxt%mepos(1)
     mypcol=ctxt%mepos(2)
@@ -2958,8 +2958,8 @@ CONTAINS
 !!     - scale: how much to rescale the matrix (defaults to 1.0)
 !!     - diagonal_add: how much is added to the diagonal elements of
 !!       the matrix
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -2973,7 +2973,7 @@ SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
     TYPE(cp_para_env_type), POINTER :: para_env
     REAL(kind=wp), INTENT(in), OPTIONAL :: scale, diagonal_add
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-    
+
     INTEGER :: i,j,nrow_local, ncol_local,myprow,mypcol
     INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices
     REAL(kind=wp) :: sc, diag
@@ -2983,7 +2983,7 @@ SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
     sc=1.0_wp;  diag=0.0_wp
     IF (PRESENT(scale)) sc=scale
     IF (PRESENT(diagonal_add)) diag=diagonal_add
-    
+
     context => blacs_matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
@@ -3016,7 +3016,7 @@ SUBROUTINE blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
           END DO
         END DO
       END IF
-      
+
     END IF
 END SUBROUTINE blacs_scale_and_d
 
@@ -3045,9 +3045,9 @@ END SUBROUTINE blacs_scale_and_d
     INTEGER, INTENT(IN)                       :: Anz_max     ! Gibt die maximal Anzahl an Jacobi-Iterationen an
     REAL(wp), INTENT(IN)                      :: epsi,thresh ! epsi: Abbruchkriterium, wenn epsi kleiner als die Quadratsumme
                                                              ! der Ausserdiagonalwerte ist
-                                                             ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.         
+                                                             ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues ! Enthaelt die Eigenwerte 1:blocksize (vom kleinsten bis zum groessten)
-                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss 
+                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
 !   *** Local variables ***
     INTEGER :: handle
     REAL(wp), DIMENSION(:,:), POINTER   :: A,EV         ! EV: Eigenvektoren
@@ -3060,10 +3060,10 @@ END SUBROUTINE blacs_scale_and_d
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_jacobi","I","",handle)
-        
+
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die diagonisiert werden soll
-  
-  
+
+
     ALLOCATE(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     eigenvalues(:) = 0.0_wp      ! Contains at the end the eigenvalues (more precise: The diagonal of A)
@@ -3076,112 +3076,112 @@ END SUBROUTINE blacs_scale_and_d
        ! Arguments checken
        IF(.NOT. PRESENT(blocksize)) THEN
          bs = N
-       ELSE      
+       ELSE
          bs = blocksize
-       ENDIF      
-      
-      
+       ENDIF
+
+
        tan_theta = 0.0_wp;
        tau       = 0.0_wp;
-       
+
        ! Q zur Einheitsmatrix machen
        EV = 0.0_wp ;
        FORALL (I=1:N)
          EV(I,I)=1.0_wp
        END FORALL
-       
+
        ! Summe der Off-Diagonalwerte bis BLocksize ausrechnen
        A_off = 0.0_wp;
        DO J=2,bs
          DO I=1,(J-1)
            A_off = A_off + A(I,J)*A(I,J);
-         ENDDO 
-       ENDDO      
+         ENDDO
+       ENDDO
        A_off=2.0_wp * A_off;
-      
+
       ! Anzahl der Durchgaenge
        Anz=1;
- 
-      DO 
+
+      DO
          IF (A_off < epsi ) THEN
            EXIT
-         ENDIF  
-    
-   
+         ENDIF
+
+
          DO q=2,bs
           DO p=1,q-1
-    
-  
+
+
           IF(ABS(A(p,q))>thresh) THEN
- 
-           ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der 
+
+           ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
           A_off = A_off - 2.0_wp*A(p,q)*A(p,q);
-   
+
           tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
-    
+
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
-    
+
           ! cos theta
           c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
-          s = tan_theta*c;   
-     
+          s = tan_theta*c;
+
           ! Schnelle Implementierung von: J' * A * J
- 
+
           ! Erst wird von links dranmultiplitziert
           ! J'*A , weil die Symmetrie mir die Strides rettet
 
           J_pp=c;  J_pq=s;
-          J_qp=-s; J_qq=c;          
+          J_qp=-s; J_qq=c;
 
 
           c_ip(1:bs)=A(1:bs,p)*J_pp + A(1:bs,q)*J_qp;
           c_iq(1:bs)=A(1:bs,p)*J_pq + A(1:bs,q)*J_qq;
-     
+
           A(1:bs,p)=c_ip(1:bs);
           A(1:bs,q)=c_iq(1:bs);
 
-    
+
           ! Jetzt dann von rechts
           ! A*J
-             
+
           A(p,p) = J_pp*A(p,p) + J_qp*A(q,p);
-          A(q,q) = J_pq*A(p,q) + J_qq*A(q,q);          
-          
+          A(q,q) = J_pq*A(p,q) + J_qq*A(q,q);
+
           A(p,q) = 0.0_wp;
-          A(q,p) = 0.0_wp;        
-          
+          A(q,p) = 0.0_wp;
+
           ! Die 4 Elemente A(q,q),A(p,q),A(q,p),A(q,q) werden unnoetig mit transferiert...soll mal latte sein
            A(p,1:bs)=A(1:bs,p)
            A(q,1:bs)=A(1:bs,q)
 
-          
+
           !A(p,1:p-1)  = A(1:p-1,p)
           !A(p,p+1:q-1)= A(p+1:q-1,p)
           !A(p,q+1:bs) = A(q+1:bs,p)
-          
+
           !A(q,1:p-1)  = A(1:p-1,q)
           !A(q,p+1:q-1)= A(p+1:q-1,q)
           !A(q,q+1:bs) = A(q+1:bs,q)
 
-             
- 
+
+
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Erst wird von rechts dranmultiplitziert
           ! Q * J
-          IF (Anz==1) THEN       
+          IF (Anz==1) THEN
             c_ip(1:q)=EV(1:q,p)*J_pp + EV(1:q,q)*J_qp;
             c_iq(1:q)=EV(1:q,p)*J_pq + EV(1:q,q)*J_qq;
-     
+
             EV(1:q,p)=c_ip;
             EV(1:q,q)=c_iq;
           ELSE
             c_ip=EV(:,p)*J_pp + EV(:,q)*J_qp;
             c_iq=EV(:,p)*J_pq + EV(:,q)*J_qq;
-     
+
             EV(:,p)=c_ip;
             EV(:,q)=c_iq;
-          ENDIF  
+          ENDIF
 
         ENDIF
 
@@ -3190,33 +3190,33 @@ END SUBROUTINE blacs_scale_and_d
           EXIT
         ENDIF
 
- 
+
       ENDDO  ! for-loop Innere
-     
+
       IF(A_off<epsi) THEN
        EXIT
       ENDIF
 
-    
-    ENDDO   ! for-loop 
+
+    ENDDO   ! for-loop
 
     Anz=Anz+1;
-  
+
     IF(Anz>Anz_max) THEN
       EXIT
     ENDIF
-  
+
    ENDDO  ! END-WHILE
 
   IF(A_off<=epsi) THEN
     WRITE(*,*) 'Die Quadrat-Summe der Ausserdiagnonalelemente ist mit unter epsi: ',A_off
   ENDIF
- 
+
  ! Abschliessend noch sortieren der Eigenwerte und Eigenvektoren
  ! nach der Groesse
 
  WRITE(*,*) 'Anzahl der Zyklischen Durchlaeufe: ',(Anz-1)
-   
+
  FORALL (I=1:blocksize)
     eigenvalues(I)=A(I,I)
  END FORALL
@@ -3228,7 +3228,7 @@ END SUBROUTINE blacs_scale_and_d
 
 !   *** Release work storage ***
     DEALLOCATE (c_ip,c_iq)
-    
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_jacobi
@@ -3252,9 +3252,9 @@ END SUBROUTINE blacs_scale_and_d
 
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
-    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.         
+    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein SKALIERTES Element wird nur rotiert, wenn es grsser als thresh ist.
     REAL(wp), DIMENSION(:), INTENT(IN)        :: eigenvalues ! Enthaelt die Eigenwerte 1:N(vom kleinsten bis zum grssten)
-                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss 
+                                                             ! Da ab einem gewissen SCF-SChritt nicht mehr umsortiert werden muss
 
 !   *** Local variables ***
     INTEGER :: handle
@@ -3264,15 +3264,15 @@ END SUBROUTINE blacs_scale_and_d
     REAL(wp) :: tan_theta,tau,c,s,k,max_thresh,new_thresh, temp
     INTEGER  :: I,J,q,p,bs,N
     REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip,c_iq
-      
+
 
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_block_jacobi_scaled","I","",handle)
-        
+
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die diagonisiert werden soll
-  
+
     ALLOCATE(c_ip(N),c_iq(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     A => matrix%local_data       ! Contains the Matrix to be worked on
@@ -3281,10 +3281,10 @@ END SUBROUTINE blacs_scale_and_d
 
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
-      
+
        tan_theta = 0.0_wp;
        tau       = 0.0_wp;
-       
+
        ! Q zur Einheitsmatrix machen
        EV = 0.0_wp ;
        FORALL (I=1:N)
@@ -3298,35 +3298,35 @@ END SUBROUTINE blacs_scale_and_d
        temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
        IF(temp>max_thresh) THEN
          max_thresh=temp
-       ENDIF     
+       ENDIF
       ENDDO
-    ENDDO  
+    ENDDO
 
     new_thresh=k*max_thresh;
-       
-      
+
+
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
-    
+
           temp=ABS(1.0_wp/(eigenvalues(p)-eigenvalues(q))*A(p,q))
           IF(temp>new_thresh .OR. temp>0.00001_wp) THEN
-         
-           ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der 
+
+           ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
-  
+
           tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q));
-    
+
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
-    
+
           ! cos theta
           c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
-          s = tan_theta*c;   
+          s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
             c_ip = c*EV(:,p) - s*EV(:,q);
             c_iq = s*EV(:,p) + c*EV(:,q);
-     
+
             EV(:,p)=c_ip;
             EV(:,q)=c_iq;
 
@@ -3334,7 +3334,7 @@ END SUBROUTINE blacs_scale_and_d
 
 
       ENDDO  ! for-loop Innere
-    ENDDO   ! for-loop 
+    ENDDO   ! for-loop
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
@@ -3342,7 +3342,7 @@ END SUBROUTINE blacs_scale_and_d
 
 !   *** Release work storage ***
     DEALLOCATE (c_ip,c_iq)
-    
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_block_jacobi_scaled
@@ -3363,7 +3363,7 @@ END SUBROUTINE blacs_scale_and_d
     TYPE(cp_full_matrix_type), POINTER        :: eigenvectors,matrix
     REAL(wp), INTENT(IN)                      :: eigval(:)
     INTEGER, INTENT(IN)                       :: start_sec_block  ! Gibt an wo der zweite Block BEGINNT
-    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.         
+    REAL(wp), INTENT(IN)                      :: thresh ! thresh: Ein Element wird nur rotiert, wenn es groesser als thresh ist.
 
 !   *** Local variables ***
     INTEGER :: handle
@@ -3372,7 +3372,7 @@ END SUBROUTINE blacs_scale_and_d
 !   ***** LOKALE VARIABLEN *******
 
     REAL(wp) :: tan_theta,tau,c,s
-    INTEGER  :: I,J,q,p,bs,N
+    INTEGER  :: I,J,q,p,bs,N,q_loc
     REAL(wp), DIMENSION (:),ALLOCATABLE :: c_ip
 
 #if defined(__SCALAPACK)
@@ -3388,11 +3388,11 @@ END SUBROUTINE blacs_scale_and_d
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_block_jacobi_classic","I","",handle)
-        
+
 #if defined(__SCALAPACK)
-    
+
     ! 'Umgebung fuer die Kohn-Sham-Matrix und die Eigenvektoren uebernehmen!'
-    
+
     context =>  matrix%matrix_struct%context
     source =    matrix%matrix_struct%para_env%source ! globenv%ionode
     allgrp =    matrix%matrix_struct%para_env%group ! globenv%ionode
@@ -3401,63 +3401,35 @@ END SUBROUTINE blacs_scale_and_d
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    
+
     N = matrix%matrix_struct%nrow_global
 
     A => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
     EV => eigenvectors%local_data
     descz(:) = eigenvectors%matrix_struct%descriptor(:)
-    
-!MK    ALLOCATE(diagonale(N),STAT=status)
-!MK    IF(status > 0) THEN
-!MK      WRITE (*,*) 'Allok-Error fuer die Diagonale!'
-!MK    ENDIF  
-!MK    diagonale(:) = 0.0_wp
-!MK
-!MK    ! Extrahiere Diagonale der Matrix 
-!MK    ! Dazu guckt jeder in seinem lokalen Block und schict dann diese Diagonalteile samt INdexe an den Master
-!MK
-!MK    a_row = SIZE(A,1)
-!MK    a_col = SIZE(A,2)
-!MK    a_mb  = desca(5)
-!MK    a_nb  = desca(6)
-!MK
-!MK    DO J=1,a_col
-!MK      DO I=1,a_row
-!MK        iglob = indxl2g(I,a_mb,myprow,0,nprow)
-!MK        jglob = indxl2g(J,a_nb,mypcol,0,npcol)
-!MK        IF(iglob==jglob) diagonale(iglob) = a(i,j)
-!MK      ENDDO
-!MK    ENDDO                
-!MK
-!MK    ! Hole die Diagonalteile zusammen...
-!MK    
-!MK     CALL mp_sum(diagonale,allgrp)
 
-    ! Kopiere den Block, der wegrotiert werden soll zunaechst auf den Masterprozessor, und anschliessend
-    ! per Broadcast an alle Prozis
-    ! ACHTUNG start_sec_block sagt aus WO der ZWEITE Block STARTET!!!
-    ! Der Block wird mitsamt dem OO-Block bearbeitet
-    
+! Kopiere den Block, der wegrotiert werden soll zunaechst auf den Masterprozessor, und anschliessend
+! per Broadcast an alle Prozis
+! ACHTUNG start_sec_block sagt aus WO der ZWEITE Block STARTET!!!
+! Der Block wird mitsamt dem OO-Block bearbeitet
+
     block_dim_row = start_sec_block-1
-    block_dim_col = N
+    block_dim_col = N - block_dim_row
     ALLOCATE(A_loc(block_dim_row,block_dim_col))
-    
-    !call blacs_get(-1,0,ictxt)
+
     ictxt=0
-    
+
     CALL blacs_pinfo(mype,npe)
     CALL blacs_get(ictxt,10,ictxt_loc)
-    
+
     CALL blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
 
     CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
                   block_dim_col,0,0,ictxt_loc,block_dim_row,info)
-    
-    CALL pdgemr2d(block_dim_row,block_dim_col,A,1,1,desca,A_loc,1,1,&
-                  desc_a_block,ictxt)
 
+    CALL pdgemr2d(block_dim_row,block_dim_col,A,1,start_sec_block,desca,&
+                  A_loc,1,1,desc_a_block,ictxt)
     ! Jetzt sind eigentlich nur im Master-Prozess Daten reingekommen
     CALL mp_bcast(A_loc,0,allgrp)
 
@@ -3469,7 +3441,7 @@ END SUBROUTINE blacs_scale_and_d
     iam = mype
     ev_row_block_size = 32
     mynumrows = NUMROC(N,ev_row_block_size,iam,0,NPROW*NPCOL)
- 
+
     ALLOCATE(EV_loc(mynumrows,N),c_ip(mynumrows))
 
     CALL descinit(desc_ev_loc,N,N,ev_row_block_size,N,0,0,ictxt_loc,&
@@ -3482,43 +3454,45 @@ END SUBROUTINE blacs_scale_and_d
 
     ! Eigentliche Blockdiagonalisierung
 
+    q_loc = 0
+
     DO q=start_sec_block,N
+      q_loc = q_loc + 1
       DO p=1,(start_sec_block-1)
-    
-          IF(ABS(A_loc(p,q))>thresh) THEN         
-  
-!MK          tau = (diagonale(q)-diagonale(p))/(2.0_wp*A_loc(p,q))
-          tau = (eigval(q)-eigval(p))/(2.0_wp*A_loc(p,q))
-    
+
+          IF(ABS(A_loc(p,q_loc))>thresh) THEN
+
+          tau = (eigval(q)-eigval(p))/(2.0_wp*A_loc(p,q_loc))
+
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
-    
+
           ! cos theta
           c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
-          s = tan_theta*c;   
+          s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
           !  Verstaendliche Version (bevor die BLAS-Aufrufe sie ersetzt haben)
           !  c_ip = c*EV_loc(:,p) - s*EV_loc(:,q);
           !  c_iq = s*EV_loc(:,p) + c*EV_loc(:,q);
-     
+
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
-          
+
           CALL dcopy(mynumrows,EV_loc(1,q),1,c_ip,1)
           CALL dscal(mynumrows,-s,c_ip,1)
           CALL daxpy(mynumrows,c,EV_loc(1,p),1,c_ip,1)
-          
+
           CALL dscal(mynumrows,c,EV_loc(1,q),1)
           CALL daxpy(mynumrows,s,EV_loc(1,p),1,EV_loc(1,q),1)
-          
+
           CALL dcopy(mynumrows,c_ip,1,EV_loc(1,p),1)
-          
+
          ENDIF
 
 
       ENDDO  ! for-loop Innere
-    ENDDO   ! for-loop 
+    ENDDO   ! for-loop
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
@@ -3531,12 +3505,12 @@ END SUBROUTINE blacs_scale_and_d
     DEALLOCATE(A_loc,EV_loc,c_ip)
 
     ! ...und tschuess!
-    
+
 #else
 
     N = matrix%matrix_struct%nrow_global ! Groesse der Matrix A, die bearbeitet werden soll
-  
-  
+
+
     ALLOCATE(c_ip(N))   ! Speicher fuer den lokalen Eigenwertvektor
 
     A => matrix%local_data       ! Contains the Matrix to be worked on
@@ -3544,47 +3518,46 @@ END SUBROUTINE blacs_scale_and_d
 
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
-      
+
     tan_theta = 0.0_wp;
     tau       = 0.0_wp;
-       
+
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
-    
-          IF(ABS(A(p,q))>thresh) THEN         
-  
-!MK          tau = (A(q,q)-A(p,p))/(2.0_wp*A(p,q))
+
+          IF(ABS(A(p,q))>thresh) THEN
+
           tau = (eigval(q)-eigval(p))/(2.0_wp*A(p,q))
-    
+
           tan_theta = SIGN(1.0_wp,tau)/(ABS(tau)+SQRT(1.0_wp+tau*tau));
-    
+
           ! cos theta
           c = 1.0_wp/SQRT(1.0_wp+tan_theta*tan_theta);
-          s = tan_theta*c;   
+          s = tan_theta*c;
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
           !  Verstaendliche Version (bevor die BLAS-Aufrufe sie ersetzt haben)
           !  c_ip = c*EV(:,p) - s*EV(:,q);
           !  c_iq = s*EV(:,p) + c*EV(:,q);
-     
+
           !  EV(:,p)=c_ip;
           !  EV(:,q)=c_iq;
-          
+
           CALL dcopy(N,EV(1,q),1,c_ip,1)
           CALL dscal(N,-s,c_ip,1)
           CALL daxpy(N,c,EV(1,p),1,c_ip,1)
-          
+
           CALL dscal(N,c,EV(1,q),1)
           CALL daxpy(N,s,EV(1,p),1,EV(1,q),1)
-          
+
           CALL dcopy(N,c_ip,1,EV(1,p),1)
-          
+
          ENDIF
 
 
       ENDDO  ! for-loop Innere
-    ENDDO   ! for-loop 
+    ENDDO   ! for-loop
 
 !   *** END Diagonalising matrix ***
 !   *** END Diagonalising matrix ***
@@ -3592,8 +3565,8 @@ END SUBROUTINE blacs_scale_and_d
 
 !   *** Release work storage ***
     DEALLOCATE (c_ip)
-    
-#endif    
+
+#endif
 
     CALL timestop(0.0_wp,handle)
 
