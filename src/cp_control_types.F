@@ -180,11 +180,11 @@ MODULE cp_control_types
 ! *** Public parameters ***
 
   INTEGER, PARAMETER, PUBLIC :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
-       xc_rho_spline3_smooth=2, xc_rho_nn10=3
+       xc_rho_spline3_smooth=2, xc_rho_nn10=3, xc_rho_nn50=4
   INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
        xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
        xc_deriv_spline3_smooth=4, xc_deriv_nn10_smooth=5,&
-       xc_deriv_fd=6
+       xc_deriv_fd=6, xc_deriv_nn50_smooth=7
   INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
        xc_test_f_routine=2, xc_test_lsd_f_routine=3
 

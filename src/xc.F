@@ -30,6 +30,7 @@ MODULE xc
                                              xc_control_type,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
+                                             xc_deriv_nn50_smooth,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&
@@ -38,6 +39,7 @@ MODULE xc
                                              xc_new_f_routine,&
                                              xc_old_f_routine,&
                                              xc_rho_nn10,&
+                                             xc_rho_nn50,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
@@ -70,6 +72,8 @@ MODULE xc
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: nn10_coeffs,&
                                              nn10_deriv_coeffs,&
+                                             nn50_coeffs,&
+                                             nn50_deriv_coeffs,&
                                              pw_nn_deriv_r,&
                                              pw_nn_smear_g,&
                                              pw_nn_smear_r,&
@@ -955,6 +959,9 @@ END SUBROUTINE xc_calculate_pw_test_lsd
              CASE (xc_rho_nn10)
                 CALL pw_nn_smear_g(my_rho_g,&
                      nn10_coeffs, error=error)
+             CASE (xc_rho_nn50)
+                CALL pw_nn_smear_g(my_rho_g,&
+                     nn50_coeffs, error=error)
              END SELECT
              CALL pw_transfer(my_rho_g,my_rho_r)
           END IF
@@ -1337,6 +1344,9 @@ END SUBROUTINE xc_calculate_pw_test_lsd
              CASE (xc_rho_nn10)
                 CALL pw_nn_smear_g(my_rho_g,&
                      nn10_coeffs, error=error)
+             CASE (xc_rho_nn50)
+                CALL pw_nn_smear_g(my_rho_g,&
+                     nn50_coeffs, error=error)
              END SELECT
              CALL pw_transfer(my_rho_g,my_rho_r)
           END IF
@@ -1676,6 +1686,9 @@ END SUBROUTINE xc_calculate_pw_test_lsd
              CASE (xc_rho_nn10)
                 CALL pw_nn_smear_g(vxc_g,&
                      nn10_coeffs,error=error)
+             CASE (xc_rho_nn50)
+                CALL pw_nn_smear_g(vxc_g,&
+                     nn50_coeffs,error=error)
              CASE default
                 CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
@@ -2583,6 +2596,10 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
                     CALL pw_nn_deriv_r ( pw_in=pw_to_deriv(idir)%pw,&
                          pw_out=vxc(ispin)%pw,coeffs=nn10_deriv_coeffs,&
                          idir=idir, error=error )
+                 CASE (xc_deriv_nn50_smooth)
+                    CALL pw_nn_deriv_r ( pw_in=pw_to_deriv(idir)%pw,&
+                         pw_out=vxc(ispin)%pw,coeffs=nn50_deriv_coeffs,&
+                         idir=idir, error=error )
                  CASE (xc_deriv_fd)
                     CALL pw_pool_create_pw(pw_pool, tmp_r,&
                          use_data=REALDATA3D, in_space=REALSPACE,&
@@ -2627,6 +2644,9 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
            CASE (xc_rho_nn10)
               CALL pw_nn_smear_r(pw_in=vxc(ispin)%pw,pw_out=tmp_r,&
                    coeffs=nn10_coeffs,error=error)
+           CASE (xc_rho_nn50)
+              CALL pw_nn_smear_r(pw_in=vxc(ispin)%pw,pw_out=tmp_r,&
+                   coeffs=nn50_coeffs,error=error)
            CASE default
               CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
            END SELECT

@@ -20,6 +20,9 @@ MODULE cp_control_utils
                                              qs_control_type,&
                                              tddfpt_control_type,&
                                              wave_control_type,&
+                                             xc_deriv_fd,&
+                                             xc_deriv_nn10_smooth,&
+                                             xc_deriv_nn50_smooth,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&
@@ -28,13 +31,12 @@ MODULE cp_control_utils
                                              xc_new_f_routine,&
                                              xc_old_f_routine,&
                                              xc_rho_nn10,&
+                                             xc_rho_nn50,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_fd
+                                             xc_test_lsd_f_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -163,7 +165,7 @@ CONTAINS
     dft_control % xc_control % gradient_cut = 1.0E-10_dp
     dft_control % xc_control % gradient_functionals = .FALSE.
     dft_control % xc_control % crossterms = .FALSE.
-    dft_control % xc_control % functional_routine = xc_old_f_routine
+    dft_control % xc_control % functional_routine = xc_new_f_routine
 
     SELECT CASE (globenv%run_type)
     CASE ("WAVEFUNCTION OPTIMIZATION","MONTE CARLO")
@@ -259,12 +261,14 @@ CONTAINS
              SELECT CASE(str1)
              CASE ("NONE")
                 dft_control % xc_rho_smooth_id= xc_rho_no_smooth
-             CASE ("SPLINE2")
+             CASE ("SPLINE2","NN6")
                 dft_control % xc_rho_smooth_id= xc_rho_spline2_smooth
-             CASE ("SPLINE3")
+             CASE ("SPLINE3","NN4")
                 dft_control % xc_rho_smooth_id= xc_rho_spline3_smooth
              CASE ("NN10")
                 dft_control % xc_rho_smooth_id= xc_rho_nn10
+             CASE ("NN50")
+                dft_control % xc_rho_smooth_id= xc_rho_nn50
              CASE default
                 CALL stop_program(routine,"unknown XC_SMOOTH_RHO option: "//&
                      TRIM(str1))
@@ -282,9 +286,9 @@ CONTAINS
                 dft_control % xc_deriv_method_id = xc_deriv_fd
              CASE ("NN10_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_nn10_smooth
-             CASE ("SPLINE2_SMOOTH")
+             CASE ("SPLINE2_SMOOTH","NN6_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_spline2_smooth
-             CASE ("SPLINE3_SMOOTH")
+             CASE ("SPLINE3_SMOOTH","NN4_SMOOTH")
                 dft_control % xc_deriv_method_id = xc_deriv_spline3_smooth
              CASE default
                 CALL stop_program(routine,"unknown XC_DERIV option: "//&
@@ -1118,7 +1122,9 @@ FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
      res="SPLINE3"
   CASE (xc_rho_nn10)
      res="NN10"
-  CASE default
+  CASE (xc_rho_nn50)
+     res="NN50"
+    CASE default
      WRITE (res,"('UKN',i6)") xc_rho_smooth_id
   END SELECT
 END FUNCTION xc_get_rho_smooth_label
@@ -1174,6 +1180,8 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
      res="SPLINE3_SMOOTH"
   CASE (xc_deriv_nn10_smooth)
      res="NN10_SMOOTH"
+  CASE (xc_deriv_nn50_smooth)
+     res="NN50_SMOOTH"
   CASE (xc_deriv_fd)
      res="FD"
   CASE default

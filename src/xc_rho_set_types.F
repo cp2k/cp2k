@@ -27,17 +27,19 @@
 MODULE xc_rho_set_types
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
+                                             xc_deriv_fd,&
+                                             xc_deriv_nn10_smooth,&
+                                             xc_deriv_nn50_smooth,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&
                                              xc_deriv_spline3,&
                                              xc_deriv_spline3_smooth,&
                                              xc_rho_nn10,&
+                                             xc_rho_nn50,&
                                              xc_rho_no_smooth,&
                                              xc_rho_spline2_smooth,&
-                                             xc_rho_spline3_smooth,&
-                                             xc_deriv_nn10_smooth,&
-                                             xc_deriv_fd
+                                             xc_rho_spline3_smooth
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -47,12 +49,10 @@ MODULE xc_rho_set_types
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_log,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level,&
-                                             cp_logger_get_default_unit_nr
+                                             cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_pool_types,                   ONLY: pw_pool_create_cr3d,&
                                              pw_pool_create_pw,&
@@ -60,33 +60,31 @@ MODULE xc_rho_set_types
                                              pw_pool_give_back_pw,&
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: nn10_coeffs,&
+                                             nn10_deriv_coeffs,&
+                                             nn50_coeffs,&
+                                             nn50_deriv_coeffs,&
                                              pw_nn_deriv_r,&
-                                             pw_nn_smear_g,&
                                              pw_nn_smear_r,&
                                              pw_spline2_deriv_g,&
-                                             pw_spline2_evaluate_values_g,&
                                              pw_spline2_interpolate_values_g,&
                                              pw_spline3_deriv_g,&
-                                             pw_spline3_evaluate_values_g,&
                                              pw_spline3_interpolate_values_g,&
                                              pw_spline_scale_deriv,&
-                                             spline2_deriv_coeffs,&
-                                             spline3_deriv_coeffs,&
-                                             nn10_deriv_coeffs,&
                                              spline2_coeffs,&
-                                             spline3_coeffs
+                                             spline2_deriv_coeffs,&
+                                             spline3_coeffs,&
+                                             spline3_deriv_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_compare_debug,&
                                              pw_copy,&
                                              pw_derive,&
+                                             pw_derive_fd,&
                                              pw_p_type,&
                                              pw_transfer,&
                                              pw_type,&
-                                             pw_zero,&
-                                             pw_derive_fd
+                                             pw_zero
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -707,7 +705,7 @@ CONTAINS
              DEALLOCATE(rho_set%rho_1_3, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          IF (rho_set%owns%rho_spin) then
+          IF (rho_set%owns%rho_spin) THEN
              IF (ASSOCIATED(rho_set%rhoa_1_3)) THEN
                 DEALLOCATE(rho_set%rhoa_1_3, stat=stat)
                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1112,28 +1110,27 @@ CONTAINS
        dft_control,cell,pw_pool,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(pw_p_type), DIMENSION(:), &
-         INTENT(inout), TARGET                  :: rho_r
+      INTENT(inout), TARGET                  :: rho_r
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
     TYPE(xc_rho_cflags_type), INTENT(in)     :: needs
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_rho_set_update', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: f13 = (1.0_dp/3.0_dp)
 
     INTEGER                                  :: i, idir, ispin, j, k, nspins
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: failure, gradient_f, &
-         my_rho_g_local,&
-         my_rho_r_local,&
-         needs_rho_g
+                                                my_rho_g_local, &
+                                                my_rho_r_local, needs_rho_g
     REAL(kind=dp)                            :: rho_cutoff
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r, my_rho_r2
+    TYPE(pw_p_type), DIMENSION(2)            :: my_rho_r
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(3, 2)         :: drho_r
     TYPE(pw_type), POINTER                   :: my_rho_g, tmp_g
@@ -1226,6 +1223,11 @@ CONTAINS
              CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
                   pw_out=my_rho_r(ispin)%pw,&
                   coeffs=nn10_coeffs, error=error)
+          CASE (xc_rho_nn50)
+             CALL pw_zero(my_rho_r(ispin)%pw)
+             CALL pw_nn_smear_r(pw_in=rho_r(ispin)%pw,&
+                  pw_out=my_rho_r(ispin)%pw,&
+                  coeffs=nn50_coeffs, error=error)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -1306,11 +1308,6 @@ CONTAINS
                         coeffs=spline2_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_spline3_smooth)
-!FM             DO idir=1,3
-!FM                CALL pw_copy ( my_rho_g, tmp_g )
-!FM                CALL pw_spline3_deriv_g ( tmp_g, idir=idir, error=error )
-!FM                CALL pw_transfer ( tmp_g, drho_r(idir,ispin)%pw )
-!FM             END DO
                 DO idir=1,3
                    CALL pw_zero(drho_r(idir,ispin)%pw)
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
@@ -1323,6 +1320,13 @@ CONTAINS
                    CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
                         pw_out=drho_r(idir,ispin)%pw,&
                         coeffs=nn10_deriv_coeffs, idir=idir, error=error)
+                END DO
+             CASE (xc_deriv_nn50_smooth)
+                DO idir=1,3
+                   CALL pw_zero(drho_r(idir,ispin)%pw)
+                   CALL pw_nn_deriv_r(pw_in=my_rho_r(ispin)%pw,&
+                        pw_out=drho_r(idir,ispin)%pw,&
+                        coeffs=nn50_deriv_coeffs, idir=idir, error=error)
                 END DO
              CASE (xc_deriv_fd)
                 DO idir=1,3

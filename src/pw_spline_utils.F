@@ -51,7 +51,6 @@ MODULE pw_spline_utils
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE machine,                         ONLY: m_cputime
 
   IMPLICIT NONE
   PRIVATE
@@ -66,20 +65,25 @@ MODULE pw_spline_utils
          1._dp/(27._dp*8._dp) /),&
          spline2_coeffs=&
          (/ 27._dp/(64._dp),9._dp/(64._dp*2_dp),3._dp/(64._dp*4._dp),&
-         1._dp/(64._dp*8._dp) /)
+         1._dp/(64._dp*8._dp) /),&
+         nn50_coeffs=&
+         (/ 15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp,&
+         1._dp/140608._dp /)
          
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
          (/ 2.0_dp/9.0_dp,  1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),&
          spline2_deriv_coeffs=&
          (/ 9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /),&
          nn10_deriv_coeffs=&
-         (/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /)
+         (/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /),&
+         nn50_deriv_coeffs=&
+         (/ 625._dp/1352._dp, 25._dp/2704._dp,1._dp/5408._dp /)
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
-       pw_spline3_deriv_r, pw_spline3_deriv_g, pw_spline3_test_coeff
+       pw_spline3_deriv_g
   PUBLIC :: pw_spline_scale_deriv, pw_nn_smear_g
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
-       pw_spline2_deriv_r, pw_spline2_deriv_g, pw_spline2_test_coeff
+       pw_spline2_deriv_g
   PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r
 
   INTEGER, PRIVATE, PARAMETER :: method_rs=2
@@ -628,358 +632,6 @@ CONTAINS
   END SUBROUTINE pw_spline3_evaluate_values_g
 !***************************************************************************
 
-!!****f* xc/pw_spline3_deriv_r [1.0] *
-!!
-!!   NAME
-!!     pw_spline3_deriv_r
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline3_deriv_r(spline_coeff_r, deriv_val_r, idir,&
-!!         error)
-!!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
-!!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline3_deriv_r
-!!
-!!   FUNCTION
-!!     puts the x,y,z derivatives of the given cubic spline
-!!
-!!   NOTES
-!!     non parallel, no multigrid test, derivatives taken assuming
-!!     unit distance between gridpoints
-!!
-!!   ARGUMENTS
-!!     - spline_coeff_r: the cofficents of the spline in real space
-!!     - deriv_val_r: will contain the derivative of the spline
-!!     - idir: direction of the derivative (1,2,3: x,y,z)
-!!     - pw_pool: plane waves pool
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE pw_spline3_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
-    TYPE(pw_type), POINTER                   :: spline_coeff_r, deriv_val_r
-    INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_deriv', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, ii, ij, j, k
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: c_val
-    REAL(KIND=dp), DIMENSION(3, 3)           :: deriv_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,"I","",handle)
-
-    failure=.FALSE.
-    deriv_coeff = RESHAPE ((/ &
-         1.0_dp/72.0_dp, 1.0_dp/18.0_dp, 1.0_dp/72.0_dp,&
-         1.0_dp/18.0_dp, 2.0_dp/9.0_dp,  1.0_dp/18.0_dp,&
-         1.0_dp/72.0_dp, 1.0_dp/18.0_dp, 1.0_dp/72.0_dp /),(/3,3/))
-    logger => cp_error_get_logger(error)
-
-    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_val_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_val_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_val_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
-
-    n(1:3) = spline_coeff_r%pw_grid%npts_local (1:3)
-    n_tot(1:3) = spline_coeff_r%pw_grid%npts (1:3)
-    bo = spline_coeff_r%pw_grid%bounds_local
-
-
-    SELECT CASE(idir)
-    CASE(1)
-       ! x deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+1,n(1)),&
-                           bo(1,2)+MODULO(j+ii,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i-1,n(1)),&
-                           bo(1,2)+MODULO(j+ii,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE(2)
-       ! y deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+1,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j-1,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE(3)
-       ! z deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+ij,n(2)),&
-                           bo(1,3)+MODULO(k+1,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+ij,n(2)),&
-                           bo(1,3)+MODULO(k-1,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"invalid idir="//cp_to_string(idir)//&
-            CPSourceFileRef,&
-            error=error,failure=failure)
-    END SELECT
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE pw_spline3_deriv_r
-!***************************************************************************
-
-!!****f* xc/pw_spline2_deriv_r [1.0] *
-!!
-!!   NAME
-!!     pw_spline2_deriv_r
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline2_deriv_r(spline_coeff_r, deriv_val_r, idir,&
-!!         error)
-!!       Type(pw_type), Pointer:: spline_coeff_r, deriv_val_r
-!!       Integer, Intent (IN):: idir
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline2_deriv_r
-!!
-!!   FUNCTION
-!!     puts the x,y,z derivatives of the given quadratic spline
-!!
-!!   NOTES
-!!     non parallel, no multigrid test, derivatives taken assuming
-!!     unit distance between gridpoints
-!!
-!!   ARGUMENTS
-!!     - spline_coeff_r: the cofficents of the spline in real space
-!!     - deriv_val_r: will contain the derivative of the spline
-!!     - idir: direction of the derivative (1,2,3: x,y,z)
-!!     - pw_pool: plane waves pool
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE pw_spline2_deriv_r(spline_coeff_r,deriv_val_r, idir, error)
-    TYPE(pw_type), POINTER                   :: spline_coeff_r, deriv_val_r
-    INTEGER, INTENT(in)                      :: idir
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_deriv', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, ii, ij, j, k
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3)                    :: n, n_tot
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: c_val
-    REAL(KIND=dp), DIMENSION(3, 3)           :: deriv_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
-
-    CALL timeset(routineN,"I","",handle)
-
-    failure=.FALSE.
-    deriv_coeff = RESHAPE ((/ &
-         1.0_dp/128.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp,&
-         3.0_dp/64.0_dp, 9.0_dp/32.0_dp,  3.0_dp/64.0_dp,&
-         1.0_dp/128.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp /),(/3,3/))
-    logger => cp_error_get_logger(error)
-
-    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(deriv_val_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_val_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(deriv_val_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
-
-    n(1:3) = spline_coeff_r%pw_grid%npts_local (1:3)
-    n_tot(1:3) = spline_coeff_r%pw_grid%npts (1:3)
-    bo = spline_coeff_r%pw_grid%bounds_local
-
-
-    SELECT CASE(idir)
-    CASE(1)
-       ! x deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+1,n(1)),&
-                           bo(1,2)+MODULO(j+ii,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i-1,n(1)),&
-                           bo(1,2)+MODULO(j+ii,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE(2)
-       ! y deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+1,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j-1,n(2)),&
-                           bo(1,3)+MODULO(k+ij,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE(3)
-       ! z deriv
-       !$omp parallel do private(k,j,i,ii,ij,c_val)
-       DO k = 0,n(3)-1
-          DO j = 0,n(2)-1
-             DO i = 0,n(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      c_val=c_val+deriv_coeff(ii+2,ij+2)*&
-                           (&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+ij,n(2)),&
-                           bo(1,3)+MODULO(k+1,n(3)))&
-                           -&
-                           spline_coeff_r%cr3d &
-                           (bo(1,1)+MODULO(i+ii,n(1)),&
-                           bo(1,2)+MODULO(j+ij,n(2)),&
-                           bo(1,3)+MODULO(k-1,n(3)))&
-                           )
-                   END DO
-                END DO
-                deriv_val_r%cr3d&
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)=c_val
-
-             END DO
-          END DO
-       END DO
-    CASE default
-       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-            routineP,"invalid idir="//cp_to_string(idir)//&
-            CPSourceFileRef,&
-            error=error,failure=failure)
-    END SELECT
-
-    CALL timestop(0.0_dp,handle)
-  END SUBROUTINE pw_spline2_deriv_r
-!***************************************************************************
-
 !!****f* pw_spline_utils/pw_spline_scale_deriv [1.0] *
 !!
 !!   NAME
@@ -1023,20 +675,22 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: transpose
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: scale
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline_scale_deriv', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, k, idir
+    INTEGER                                  :: handle, i, idir, j, k
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure, my_transpose, diag
-    REAL(KIND=dp)                            :: my_scale, dVal1,dVal2,dVal3, scalef
+    LOGICAL                                  :: diag, failure, my_transpose
+    REAL(KIND=dp)                            :: dVal1, dVal2, dVal3, &
+                                                my_scale, scalef
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_grid
-    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: ddata, ddata2,ddata3
+    REAL(kind=dp), DIMENSION(:, :, :), &
+      POINTER                                :: ddata, ddata2, ddata3
 
-    ! sun does not like that its components are modified
+! sun does not like that its components are modified
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1052,12 +706,12 @@ CONTAINS
 !FM    CPPrecondition(ASSOCIATED(deriv_vals_r),cp_failure_level,routineP,error,failure)
 
     ! map grid to real derivative
-    diag=.true.
+    diag=.TRUE.
     IF (my_transpose) THEN
        DO j=1,3
           DO i=1,3
              h_grid(j,i)=my_scale*REAL(n_tot(i),dp)*cell%h_inv(i,j)
-             IF (i/=j.AND.h_grid(j,i)/=0.0_dp) diag=.false.
+             IF (i/=j.AND.h_grid(j,i)/=0.0_dp) diag=.FALSE.
           END DO
        END DO
     ELSE
@@ -1446,216 +1100,6 @@ CONTAINS
   END SUBROUTINE pw_spline2_deriv_g
 !***************************************************************************
 
-!!****f* xc/pw_spline3_test_coeff [1.0] *
-!!
-!!   NAME
-!!     pw_spline3_test_coeff
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline3_test_coeff(spline_coeff_r, spline_values_r,&
-!!         error)
-!!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine pw_spline3_test_coeff
-!!
-!!   FUNCTION
-!!     checks if the given coefficents of the cubic spline really 
-!!     interpolate the given values (looks at the differences on the grid)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - spline_coeff_r: the cofficents of the spline in realspace
-!!     - spline_values_r: the values that the spline should interpolate
-!!     - error: variable to control error  logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE pw_spline3_test_coeff(spline_coeff_r, spline_values_r,error)
-    TYPE(pw_type), POINTER                   :: spline_coeff_r, &
-                                                spline_values_r
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline3_test_coeff', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ii, ij, ik, j, k
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: c_val, diff, maxdiff
-    REAL(KIND=dp), DIMENSION(3, 3, 3)        :: spline_coeff
-
-    failure=.FALSE.
-    bo = spline_values_r%pw_grid%bounds_local
-    n_tot = spline_values_r%pw_grid%npts
-
-    spline_coeff=RESHAPE( (/&
-         1._dp/(27._dp*8._dp),1._dp/(27._dp*2._dp),1._dp/(27._dp*8._dp),&
-         1._dp/(27._dp*2._dp),2._dp/(27._dp),1._dp/(27._dp*2._dp),&
-         1._dp/(27._dp*8._dp),1._dp/(27._dp*2._dp),1._dp/(27._dp*8._dp),&
-         1._dp/(27._dp*2._dp),2._dp/(27._dp),1._dp/(27._dp*2._dp),&
-         2._dp/(27._dp),8._dp/(27._dp),2._dp/(27._dp),&
-         1._dp/(27._dp*2._dp),2._dp/(27._dp),1._dp/(27._dp*2._dp),&
-         1._dp/(27._dp*8._dp),1._dp/(27._dp*2._dp),1._dp/(27._dp*8._dp),&
-         1._dp/(27._dp*2._dp),2._dp/(27._dp),1._dp/(27._dp*2._dp),&
-         1._dp/(27._dp*8._dp),1._dp/(27._dp*2._dp),1._dp/(27._dp*8._dp)&
-         /),(/3,3,3/))
-
-    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(spline_values_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_values_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_values_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       maxdiff=0.0_dp
-       DO k = 0,spline_values_r%pw_grid%npts_local(3)-1
-          DO j = 0,spline_values_r%pw_grid%npts_local(2)-1
-             DO i = 0,spline_values_r%pw_grid%npts_local(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      DO ik=-1,1
-                         c_val=c_val+spline_coeff(ii+2,ij+2,ik+2)*&
-                              (&
-                              spline_coeff_r%cr3d &
-                              (bo(1,1)+MODULO(i+ii,n_tot(1)),&
-                              bo(1,2)+MODULO(j+ij,n_tot(2)),&
-                              bo(1,3)+MODULO(k+ik,n_tot(3)))&
-                              )
-                      END DO
-                   END DO
-                END DO
-                diff=ABS(spline_values_r%cr3d &
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)-c_val)
-                IF (diff > maxdiff) THEN
-                   maxdiff=diff
-                   PRINT *,"maxdiff",maxdiff,i,j,k
-                END IF
-
-             END DO
-          END DO
-       END DO
-    END IF
-  END SUBROUTINE pw_spline3_test_coeff
-!***************************************************************************
-
-!!****f* xc/pw_spline2_test_coeff [1.0] *
-!!
-!!   NAME
-!!     pw_spline_test_coeff
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_spline_test_coeff(spline_coeff_r, spline_values_r,&
-!!         error)
-!!       Type(pw_type), Pointer:: spline_coeff_r, spline_values_r
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_spline_test_coeff
-!!
-!!   FUNCTION
-!!     checks if the coefficents of the quadratic spline really interpolate
-!!     the given values (looks at the differences on the grid)
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - spline_coeff_r: the cofficents of the spline in realspace
-!!     - spline_values_r: the values that the spline should interpolate
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE pw_spline2_test_coeff(spline_coeff_r, spline_values_r,error)
-    TYPE(pw_type), POINTER                   :: spline_coeff_r, &
-                                                spline_values_r
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'pw_spline2_test_coeff', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i, ii, ij, ik, j, k
-    INTEGER, DIMENSION(2, 3)                 :: bo
-    INTEGER, DIMENSION(3)                    :: n_tot
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: c_val, diff, maxdiff
-    REAL(KIND=dp), DIMENSION(3, 3, 3)        :: spline_coeff
-
-    failure=.FALSE.
-    bo = spline_values_r%pw_grid%bounds_local
-    n_tot = spline_values_r%pw_grid%npts
-
-    spline_coeff=RESHAPE( (/&
-         1._dp/(64._dp*8._dp),3._dp/(64._dp*4._dp),1._dp/(64._dp*8._dp),&
-         3._dp/(64._dp*4._dp),9._dp/(64._dp*2._dp),3._dp/(64._dp*4._dp),&
-         1._dp/(64._dp*8._dp),3._dp/(64._dp*4._dp),1._dp/(64._dp*8._dp),&
-         3._dp/(64._dp*4._dp),9._dp/(64._dp*2._dp),3._dp/(64._dp*4._dp),&
-         9._dp/(64._dp*2._dp),27._dp/(64._dp),9._dp/(64._dp*2_dp),&
-         3._dp/(64._dp*4._dp),9._dp/(64._dp*2._dp),3._dp/(64._dp*4._dp),&
-         1._dp/(64._dp*8._dp),3._dp/(64._dp*4._dp),1._dp/(64._dp*8._dp),&
-         3._dp/(64._dp*4._dp),9._dp/(64._dp*2._dp),3._dp/(64._dp*4._dp),&
-         1._dp/(64._dp*8._dp),3._dp/(64._dp*4._dp),1._dp/(64._dp*8._dp)&
-         /),(/3,3,3/))
-
-    CPPrecondition(ASSOCIATED(spline_coeff_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(spline_values_r),cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_values_r%in_space==REALSPACE,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_values_r%in_use==REALDATA3D,cp_failure_level,routineP,error,failure)
-    CPPrecondition(spline_coeff_r%pw_grid%para%group_size==0,cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       maxdiff=0.0_dp
-       DO k = 0,spline_values_r%pw_grid%npts_local(3)-1
-          DO j = 0,spline_values_r%pw_grid%npts_local(2)-1
-             DO i = 0,spline_values_r%pw_grid%npts_local(1)-1
-
-                c_val=0.0_dp
-                DO ii=-1,1
-                   DO ij=-1,1
-                      DO ik=-1,1
-                         c_val=c_val+spline_coeff(ii+2,ij+2,ik+2)*&
-                              (&
-                              spline_coeff_r%cr3d &
-                              (bo(1,1)+MODULO(i+ii,n_tot(1)),&
-                              bo(1,2)+MODULO(j+ij,n_tot(2)),&
-                              bo(1,3)+MODULO(k+ik,n_tot(3)))&
-                              )
-                      END DO
-                   END DO
-                END DO
-                diff=ABS(spline_values_r%cr3d &
-                     (bo(1,1)+i,bo(1,2)+j,bo(1,3)+k)-c_val)
-                IF (diff > maxdiff) THEN
-                   maxdiff=diff
-                   PRINT *,"maxdiff",maxdiff,i,j,k
-                END IF
-
-             END DO
-          END DO
-       END DO
-    END IF
-  END SUBROUTINE pw_spline2_test_coeff
-!***************************************************************************
-
 !!****f* pw_spine_utils/pw_compose_stripe [1.0] *
 !!
 !!   NAME
@@ -1695,16 +1139,18 @@ SUBROUTINE pw_compose_stripe(weights,in_val,in_val_first,in_val_last,&
     REAL(kind=dp), INTENT(in)                :: in_val_last, in_val_first
     REAL(kind=dp), DIMENSION(1:n_el), &
       INTENT(in)                             :: in_val
-!FM    TYPE(cp_error_type), INTENT(inout), &
-!FM      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: v0, v1, v2
+
+!FM    TYPE(cp_error_type), INTENT(inout), &
+!FM      OPTIONAL                               :: error
 !    REAL(kind=dp), DIMENSION(0:2)            :: v
-    REAL(kind=dp) :: v0,v1, v2
+
   failure=.FALSE.
   v0=in_val_first
   v1=in_val(1)
@@ -1833,16 +1279,19 @@ SUBROUTINE pw_compose_stripe_r3(weights,in_val_0,in_val_1,in_val_2,&
       INTENT(in)                             :: in_val_last, in_val_first
     REAL(kind=dp), DIMENSION(1:n_el), &
       INTENT(in)                             :: in_val_2, in_val_1, in_val_0
-!FM    TYPE(cp_error_type), INTENT(inout), &
-!FM      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_compose_stripe_r3', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i
     LOGICAL                                  :: xderiv, yderiv
-    !REAL(kind=dp), DIMENSION(0:2, 0:2)       :: v
-    REAL(kind=dp) :: v_0_0,v_0_1,v_0_2,v_1_0,v_1_1,v_1_2,v_2_0,v_2_1,v_2_2
+    REAL(kind=dp)                            :: v_0_0, v_0_1, v_0_2, v_1_0, &
+                                                v_1_1, v_1_2, v_2_0, v_2_1, &
+                                                v_2_2
+
+!FM    TYPE(cp_error_type), INTENT(inout), &
+!FM      OPTIONAL                               :: error
+!REAL(kind=dp), DIMENSION(0:2, 0:2)       :: v
 
   yderiv=ALL(weights(:,1)==0.0_dp)
   xderiv=ALL(weights(1,:)==0.0_dp)
@@ -2095,27 +1544,30 @@ END SUBROUTINE pw_compose_stripe_r3
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
-  REAL(kind=dp), DIMENSION(0:2,0:2,0:2) :: weights
-  INTEGER, DIMENSION(2,3) :: bo
-  REAL(kind=dp), DIMENSION(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-       intent(in) :: in_val
-  REAL(kind=dp), DIMENSION(bo(1,1):bo(2,1),bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
-       intent(inout) :: out_val
-  TYPE(pw_type), pointer :: pw_in
-  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    TYPE(pw_type), POINTER                   :: pw_in
+    REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
+      1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
+      3)), INTENT(inout)                     :: out_val
+    REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
+      1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
+      3)), INTENT(in)                        :: in_val
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN="pw_nn_compose_r_work", &
-       routineP=moduleN//":"//routineN
-  INTEGER                                  :: handle, i, j, jw, k, kw, stat,&
-       myj,myk
-  INTEGER, DIMENSION(2, 3)                 :: gbo
-  INTEGER, DIMENSION(3)                    :: s
-  LOGICAL                                  :: failure, has_boundary, zderiv,&
-       yderiv
-  REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
-  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
-  REAL(kind=dp) :: in_val_f, in_val_l
-  REAL(kind=dp) :: v0,v1, v2, w0,w1,w2
+    CHARACTER(len=*), PARAMETER :: routineN = "pw_nn_compose_r_work", &
+      routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
+                                                stat
+    INTEGER, DIMENSION(2, 3)                 :: gbo
+    INTEGER, DIMENSION(3)                    :: s
+    LOGICAL                                  :: failure, has_boundary, &
+                                                yderiv, zderiv
+    REAL(kind=dp)                            :: in_val_f, in_val_l
+    REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
 
      zderiv=ALL(weights(:,:,1)==0.0_dp)
      yderiv=ALL(weights(:,1,:)==0.0_dp)
@@ -2124,7 +1576,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
      DO i=1,3
         s(i)=bo(2,i)-bo(1,i)+1
      END DO
-     if (any(s<1)) return
+     IF (ANY(s<1)) RETURN
      has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
           pw_in%pw_grid%bounds(:,1))
      IF (has_boundary) THEN
@@ -2228,7 +1680,7 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
 !!     Subroutine pw_nn_compose_r(weights, pw_in, pw_out, error)
 !!       Real(Kind=dp), Dimension(0:2,0:2,0:2):: weights
 !!       Type(pw_type), Pointer:: pw_in, pw_out
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine pw_nn_compose_r
 !!
 !!   FUNCTION
@@ -2249,24 +1701,17 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
-  REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
-  TYPE(pw_type), POINTER                   :: pw_in, pw_out
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
+    TYPE(pw_type), POINTER                   :: pw_in, pw_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_compose_r', &
+      routineP = moduleN//':'//routineN
 
-  INTEGER                                  :: handle, i, j, jw, k, kw, stat,&
-       myj,myk
-  INTEGER, DIMENSION(2, 3)                 :: bo, gbo
-  INTEGER, DIMENSION(3)                    :: s
-  LOGICAL                                  :: failure, has_boundary, zderiv,&
-       yderiv, xderiv
-  REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
-  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
-  REAL(kind=dp) :: in_val_f, in_val_l
-  REAL(kind=dp) :: v0,v1, v2, w0,w1,w2
+    INTEGER                                  :: handle, i
+    INTEGER, DIMENSION(2, 3)                 :: bo
+    LOGICAL                                  :: failure
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
@@ -2280,7 +1725,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, error)
        cp_failure_level,cp_assertion_failed,routineP,&
        "wrong pw distribution",error,failure)
   IF (.NOT.failure) THEN
-     call pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
+     CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
           out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
           error=error)
   END IF
@@ -2333,8 +1778,9 @@ END SUBROUTINE pw_nn_compose_r
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_nn_smear_g', &
       routineP = moduleN//':'//routineN
 
-    REAL(kind=dp), DIMENSION(-1:1, -1:1, -1:1)  :: weights
-    INTEGER :: i,j,k
+    INTEGER                                  :: i, j, k
+    REAL(kind=dp), &
+      DIMENSION(-1:1, -1:1, -1:1)            :: weights
 
     DO k=-1,1
        DO j=-1,1
