@@ -37,9 +37,9 @@ MODULE sparse_matrix_types
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE distribution_2D_types,           ONLY: distribution_2D_type, &
-                                             distribution_2D_retain, &
-                                             distribution_2D_release
+  USE distribution_2d_types,           ONLY: distribution_2d_type, &
+                                             distribution_2d_retain, &
+                                             distribution_2d_release
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
                                              wp => dp,&
@@ -84,7 +84,7 @@ MODULE sparse_matrix_types
                                                          last_col,&
                                                          last_row
     !TYPE(cp_sm_struct_type), pointer                 :: matrix_struct
-    TYPE(distribution_2D_type), POINTER               :: distribution_2D
+    TYPE(distribution_2d_type), POINTER               :: distribution_2d
   END TYPE real_matrix_type
 
   TYPE real_matrix_p_type
@@ -97,7 +97,7 @@ MODULE sparse_matrix_types
             real_matrix_p_type,&
             real_matrix_type,&
             real_block_list_type, &
-            distribution_2D_type
+            distribution_2d_type
 
 ! *** Public subroutines ***
 
@@ -492,16 +492,43 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_real_matrix_block (MODULE sparse_matrix_types)"
+    CHARACTER(len=*), PARAMETER :: routineN='add_real_matrix_block',&
+        routineP=moduleN//':'//routineN
 
 !   *** Local variables ***
 
     TYPE(real_block_node_type), POINTER :: block_node,new_block_node
 
     INTEGER :: istat,ncol,nrow
-
+    INTEGER :: myprow,mypcol
+    INTEGER :: rbr,rbc,cbr,cbc
+    LOGICAL :: failure
+    Type(cp_error_type) :: error
 !   ---------------------------------------------------------------------------
+
+!   perform checks that we are only adding allowed blocks
+
+    failure = .FALSE.
+    IF (ASSOCIATED(matrix%distribution_2d)) THEN
+       myprow = matrix%distribution_2d%blacs_env%mepos(1)
+       mypcol = matrix%distribution_2d%blacs_env%mepos(2)
+       rbr    = matrix%distribution_2d%row_distribution(block_row)
+       rbc    = matrix%distribution_2d%row_distribution(block_col)
+       cbr    = matrix%distribution_2d%col_distribution(block_row)
+       cbc    = matrix%distribution_2d%col_distribution(block_col)
+       SELECT CASE(matrix%symmetry)      
+       CASE("symmetric","anti-symmetric")
+         ! we allow for putting a block at i,j even if we officially only own j,i 
+         IF ( .NOT. ((rbr.EQ.myprow .AND. cbc.EQ.mypcol) .OR. &
+                     (rbc.EQ.myprow .AND. cbr.EQ.mypcol))       ) THEN
+            CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+         ENDIF
+       CASE DEFAULT
+         IF ( .NOT. ( rbr.EQ.myprow .AND. cbc.EQ.mypcol) ) THEN
+            CPPostcondition(.FALSE.,cp_warning_level,routineP,error,failure)
+         ENDIF
+       END SELECT
+    ENDIF
 
 !   *** Calculate the block dimensions ***
 
@@ -509,7 +536,7 @@ END SUBROUTINE cp_sm_scale_and_add
     ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
 
     ALLOCATE (new_block_node,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"Block node of "//matrix%name,0)
+    IF (istat /= 0) CALL stop_memory(routineP,"Block node of "//matrix%name,0)
 
 !   *** Define the data set of the new block node ***
 
@@ -517,7 +544,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ALLOCATE (new_block_node%block(nrow,ncol),STAT=istat)
     IF (istat /= 0) THEN
-      CALL stop_memory(routine,"new_block_node%block",wp_size*nrow*ncol)
+      CALL stop_memory(routineP,"new_block_node%block",wp_size*nrow*ncol)
     END IF
     new_block_node%block(:,:) = 0.0_wp
 
@@ -526,7 +553,7 @@ END SUBROUTINE cp_sm_scale_and_add
         IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
           new_block_node%block(:,:) = block(:,:)
         ELSE
-          CALL stop_program(routine,"Incompatible block dimensions")
+          CALL stop_program(routineP,"Incompatible block dimensions")
         END IF
       ELSE
         block => new_block_node%block
@@ -631,12 +658,12 @@ END SUBROUTINE cp_sm_scale_and_add
 ! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
                                   first_row,last_row,first_col,last_col,&
-                                  matrix_name,matrix_symmetry,distribution_2D)
+                                  matrix_name,matrix_symmetry,distribution_2d)
 
 !   Purpose: Allocate and initialize a real matrix at the real_matrix_type
 !            level.
 
-!   distribution_2D if present and not NULL, implies that this matrix has a distribution_2D compatible shape
+!   distribution_2d if present and not NULL, implies that this matrix has a distribution_2d compatible shape
 
 !   History: - Creation (16.06.2000, MK)
 
@@ -648,7 +675,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER, DIMENSION(nblock_row), INTENT(IN) :: first_row,last_row
     INTEGER, DIMENSION(nblock_col), INTENT(IN) :: first_col,last_col
-    TYPE(distribution_2D_type), OPTIONAL, POINTER :: distribution_2D
+    TYPE(distribution_2d_type), OPTIONAL, POINTER :: distribution_2d
 
 !   *** Local parameters ***
 
@@ -670,9 +697,9 @@ END SUBROUTINE cp_sm_scale_and_add
     ALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
 
-    NULLIFY(matrix%distribution_2D) 
-    IF (present(distribution_2D)) matrix%distribution_2D=>distribution_2D
-    CALL distribution_2D_retain(matrix%distribution_2D)
+    NULLIFY(matrix%distribution_2d) 
+    IF (present(distribution_2d)) matrix%distribution_2d=>distribution_2d
+    CALL distribution_2d_retain(matrix%distribution_2d)
 
     ALLOCATE (matrix%block_list(nblock_row),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name,0)
@@ -1243,7 +1270,7 @@ END SUBROUTINE cp_sm_scale_and_add
     DEALLOCATE (matrix%last_col,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name//" (last_col)")
 
-    CALL distribution_2D_release(matrix%distribution_2D)
+    CALL distribution_2d_release(matrix%distribution_2d)
 
     DEALLOCATE (matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,matrix%name)

@@ -98,8 +98,8 @@ MODULE qs_environment_methods
                                              sm_struct_release,&
                                              sm_struct_retain,&
                                              sm_struct_write
-  USE distribution_2D_types,           ONLY: distribution_2D_type, &
-                                             distribution_2D_create
+  USE distribution_2d_types,           ONLY: distribution_2d_type, &
+                                             distribution_2d_create
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: LOW,global_environment_type
   USE kinds,                           ONLY: int_size,&
@@ -213,7 +213,7 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
   TYPE(scf_control_type), POINTER               :: scf_control
   TYPE(qs_charges_type), POINTER                :: qs_charges
   TYPE(cp_para_env_type), POINTER               :: para_env
-  TYPE(distribution_2D_type), POINTER           :: distribution_2D
+  TYPE(distribution_2d_type), POINTER           :: distribution_2d
   INTEGER :: n_mo, n_ao
 
   failure=.FALSE.
@@ -243,7 +243,7 @@ SUBROUTINE qs_env_setup(qs_env,error,globenv)
 
      ! create local_particles
      CALL rr_local_particles_create(atomic_kind_set,qs_env%local_rows,&
-                                    qs_env%local_cols,qs_env%distribution_2D,&
+                                    qs_env%local_cols,qs_env%distribution_2d,&
                                     qs_env%blacs_env,globenv)
   END IF
 
@@ -551,11 +551,11 @@ END SUBROUTINE qs_env_update_rho_core
 !!*** **********************************************************************
 
   SUBROUTINE rr_local_particles_create(atomic_kind_set,local_rows,local_cols,&
-                                       distribution_2D,blacs_env,globenv)
+                                       distribution_2d,blacs_env,globenv)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(cp_blacs_env_type), POINTER              :: blacs_env
-    TYPE(distribution_2D_type), POINTER           :: distribution_2D
+    TYPE(distribution_2d_type), POINTER           :: distribution_2d
     TYPE(cp_local_lists_type), POINTER            :: local_rows,local_cols
     TYPE(global_environment_type), INTENT(IN)     :: globenv
 
@@ -749,8 +749,8 @@ END SUBROUTINE qs_env_update_rho_core
 
     END DO
 
-!   *** generate the distribution_2D structure
-    CALL distribution_2D_create(distribution_2D, row_distribution, &
+!   *** generate the distribution_2d structure
+    CALL distribution_2d_create(distribution_2d, row_distribution, &
                                 col_distribution, blacs_env)
 
 !   *** Create the local particle structure for block rows and columns ***

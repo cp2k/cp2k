@@ -75,7 +75,7 @@ OBJECTS_GENERIC =\
  dg_rho0s.o\
  dg_types.o\
  dgs.o\
- distribution_2D_types.o\
+ distribution_2d_types.o\
  dump.o\
  eigenvalueproblems.o\
  empirical_parameters.o\

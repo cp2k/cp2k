@@ -90,7 +90,7 @@ MODULE qs_core_hamiltonian
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE distribution_2D_types,           ONLY: distribution_2D_type
+  USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
@@ -275,7 +275,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER    :: la_max,la_min,lb_max,lb_min,npgfa,&
                                          npgfb,nsgfa,nsgfb
     INTEGER, DIMENSION(:,:), POINTER  :: first_sgfa,first_sgfb
-    TYPE(distribution_2D_type), POINTER :: distribution_2D
+    TYPE(distribution_2d_type), POINTER :: distribution_2d
 
 !   ---------------------------------------------------------------------------
 
@@ -295,7 +295,7 @@ CONTAINS
     NULLIFY (scf_control)
     NULLIFY (t)
     NULLIFY (w)
-    NULLIFY (distribution_2D)
+    NULLIFY (distribution_2d)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -308,7 +308,7 @@ CONTAINS
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     scf_control=scf_control,&
-                    distribution_2D=distribution_2D)
+                    distribution_2d=distribution_2d)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -368,7 +368,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
-    ! assert here that the S-matrix is of the type distribution_2D if this one is non-null
+    ! assert here that the S-matrix is of the type distribution_2d if this one is non-null
 
     CALL allocate_matrix(matrix=s(1)%matrix,&
                          nblock_row=natom,&
@@ -380,7 +380,7 @@ CONTAINS
                          first_col=particle_set(:)%first_sgf,&
                          last_col=particle_set(:)%last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
-                         matrix_symmetry="symmetric", distribution_2D=distribution_2D)
+                         matrix_symmetry="symmetric", distribution_2d=distribution_2d)
 
     DO i=2,maxder
       cgfsym = cgf_symbol(1,indco(1:3,i))
