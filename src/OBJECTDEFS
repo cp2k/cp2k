@@ -35,9 +35,11 @@ OBJECTS_GENERIC =\
  cp_array_r_utils.o\
  cp_array_utils.o\
  cp_b_matrix_structure.o\
+ cp_blacs_env.o\
  cp_block_matrix.o\
  cp_e_rosenbrok_function.o\
  cp_error_handling.o\
+ cp_f_matrix_struct.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\
  cp_lbfgs_optimizer_gerd_f.o\

@@ -290,8 +290,7 @@ contains
             p_env%c_ortho(1)%blacs_matrix,p_env%r(1)%blacs_matrix)
        call blacs_symm('R','U',p_env%n_ao,p_env%n_mo,1.0_wp,&
             p_env%m_epsilon(1)%blacs_matrix,&
-            p_env%c_ortho(1)%blacs_matrix,0.0_wp,p_env%tmp_aomo_1,&
-            global_env)
+            p_env%c_ortho(1)%blacs_matrix,0.0_wp,p_env%tmp_aomo_1)
        call sparse_times_blacs(s(1)%matrix,p_env%tmp_aomo_1, &
             p_env%r(1)%blacs_matrix,p_env%n_mo,&
             para_env=global_env%para_env,alpha=1.0_wp,beta=1.0_wp)
@@ -347,10 +346,10 @@ contains
        end do
        call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
             p_env%c_ortho(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
-            ncol=p_env%n_mo, globenv=global_env)
+            ncol=p_env%n_mo)
        call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,&
             p_env%psi0d(1)%blacs_matrix,p_env%c_ortho(1)%blacs_matrix,&
-            ncol=p_env%n_mo, globenv=global_env)
+            ncol=p_env%n_mo)
        call kpp1_calculate(p_env%K_P_P1_env,p1=p_env%P1,&
             kpp1_matrix=p_env%K_P_P1,&
             global_env=global_env,error=error)
@@ -416,10 +415,10 @@ contains
     if (.not. failure) then
        call blacs_gemm('N','T',cols,p_env%n_mo,p_env%n_ao,1.0_wp,&
             C(1)%blacs_matrix,p_env%S_psi0(1)%blacs_matrix,&
-            0.0_wp,p_env%tmp_aomo_1,global_env)
+            0.0_wp,p_env%tmp_aomo_1)
        call blacs_gemm('N','T',p_env%n_ao,cols,p_env%n_ao,-1.0_wp,&
             p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            1.0_wp,C(1)%blacs_matrix,global_env)
+            1.0_wp,C(1)%blacs_matrix)
     end if
   end subroutine p_env_preortho
 !***************************************************************************
@@ -482,10 +481,10 @@ contains
     if (.not. failure) then     
        call blacs_gemm('N','T',cols,p_env%n_mo,p_env%n_ao,1.0_wp,&
             C(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix,&
-            0.0_wp,p_env%tmp_aomo_1,global_env)
+            0.0_wp,p_env%tmp_aomo_1)
        call blacs_gemm('N','T',p_env%n_ao,cols,p_env%n_ao,-1.0_wp,&
             p_env%S_psi0(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            1.0_wp,C(1)%blacs_matrix,global_env)
+            1.0_wp,C(1)%blacs_matrix)
     end if
   end subroutine p_env_postortho
 !***************************************************************************
@@ -546,13 +545,13 @@ contains
           allocate(p_env%Hrho(1),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           nullify(p_env%Hrho(1)%matrix)
-          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_structure=s_struct,&
+          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_struct,&
                u_matrix=k(1)%matrix, should_dealloc_matrix=.false.,&
                error=error)
           allocate(p_env%P(1),stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           nullify(p_env%P(1)%matrix)
-          call cp_sp_create(p_env%P(1)%matrix, matrix_structure=s_struct,&
+          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_struct,&
                u_matrix=P(1)%matrix, should_dealloc_matrix=.false.,&
                error=error)
           call cp_sp_array_create(p_env%P1,1,s_struct,&
@@ -566,8 +565,8 @@ contains
           call copy_blacs_to_blacs_matrix(p_env%r(1)%blacs_matrix,p_env%psi0d(1)%blacs_matrix)
        else
           call blacs_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%blacs_matrix,1,1,&
-               0.0_wp,p_env%m_epsilon(1)%blacs_matrix,global_env)
-          call blacs_cholesky_decompose(p_env%m_epsilon(1)%blacs_matrix,global_env)
+               0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
+          call blacs_cholesky_decompose(p_env%m_epsilon(1)%blacs_matrix)
           call blacs_triangular_multiply(p_env%m_epsilon(1)%blacs_matrix,&
                p_env%r(1)%blacs_matrix,&
                transpose_tr=.true.,invert_tr=.true.)
@@ -576,7 +575,7 @@ contains
                transpose_tr=.false.,invert_tr=.true.)
        end if
        call sparse_plus_blacs_blacst(p_env%P1(1)%matrix%sm,p_env%r(1)%blacs_matrix,&
-            p_env%psi0d(1)%blacs_matrix,p_env%n_mo, global_env)
+            p_env%psi0d(1)%blacs_matrix,p_env%n_mo)
 
        call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
             global_env=global_env,p_changed=.true.,error=error)
@@ -594,9 +593,8 @@ contains
             p_env%tmp_aomo_1, error=error)
        call blacs_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
             1.0_wp,p_env%psi0d(1)%blacs_matrix,p_env%tmp_aomo_1,&
-            0.0_wp,p_env%m_epsilon(1)%blacs_matrix,global_env)
+            0.0_wp,p_env%m_epsilon(1)%blacs_matrix)
        call blacs_scale_and_d(p_env%m_epsilon(1)%blacs_matrix,&
-            para_env=global_env%para_env,&
             scale=-1.0_wp)
     end if
   end subroutine p_env_psi0_changed

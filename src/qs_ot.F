@@ -141,7 +141,7 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       CALL qs_ot_get_derivative(qs_ot_env%matrix_hc,qs_ot_env%matrix_x, &
                                      qs_ot_env%matrix_sx, &
                                      qs_ot_env%matrix_gx,qs_ot_env,globenv)
-      CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%delta,globenv)
+      CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%delta)
       qs_ot_env%delta=sqrt(qs_ot_env%delta/(qs_ot_env%settings%k*qs_ot_env%settings%n))
    ENDIF
 
@@ -153,18 +153,18 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       CASE ("SD")
          qs_ot_env%OT_METHOD_FULL="OT SD"
          if (qs_ot_env%use_dx) then
-            CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
+            CALL blacs_add(0.0_wp,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx) 
          else
-            CALL blacs_add(-1.0_wp,qs_ot_env%matrix_gx,0.0_wp,qs_ot_env%matrix_gx,globenv) 
+            CALL blacs_add(-1.0_wp,qs_ot_env%matrix_gx,0.0_wp,qs_ot_env%matrix_gx) 
          endif
 
       CASE ("CG")
          qs_ot_env%OT_METHOD_FULL="OT CG"
 
-         CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,gnorm_cross,globenv)
-         CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm,globenv)
+         CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx_old,gnorm_cross)
+         CALL blacs_trace(qs_ot_env%matrix_gx,qs_ot_env%matrix_gx,qs_ot_env%gnorm)
          beta_pr=(qs_ot_env%gnorm-gnorm_cross)/qs_ot_env%gnorm_old
-         CALL blacs_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx,globenv) 
+         CALL blacs_add(beta_pr,qs_ot_env%matrix_dx,-1.0_wp,qs_ot_env%matrix_gx) 
          qs_ot_env%gnorm_old=qs_ot_env%gnorm
 
       CASE ("QN") ! L-BFGS
@@ -182,19 +182,19 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
 
          ! get s
          CALL blacs_add(0.0_wp,qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix, &
-                               -1.0_wp,qs_ot_env%matrix_x_old,globenv)
+                               -1.0_wp,qs_ot_env%matrix_x_old)
          CALL blacs_add(1.0_wp,qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix, &
-                                1.0_wp,qs_ot_env%matrix_x,globenv)
+                                1.0_wp,qs_ot_env%matrix_x)
          ! get y
          CALL blacs_add(0.0_wp,qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix, &
-                               -1.0_wp,qs_ot_env%matrix_gx_old,globenv)
+                               -1.0_wp,qs_ot_env%matrix_gx_old)
          CALL blacs_add(1.0_wp,qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix, &
-                                1.0_wp,qs_ot_env%matrix_gx,globenv)
+                                1.0_wp,qs_ot_env%matrix_gx)
 
          ! get rho
          CALL blacs_trace(qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix, &
                           qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix, &
-                                  qs_ot_env%rho(MOD(j,lbfgs_m)+1),globenv)
+                                  qs_ot_env%rho(MOD(j,lbfgs_m)+1))
          if (qs_ot_env%rho(MOD(j,lbfgs_m)+1).ne.0.0_wp) then
              qs_ot_env%rho(MOD(j,lbfgs_m)+1)=1.0_wp/qs_ot_env%rho(MOD(j,lbfgs_m)+1)
          endif
@@ -206,9 +206,9 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
             j=lbfgs_incr+i
             CALL blacs_trace(qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix, &
                                                          qs_ot_env%matrix_dx, &
-                                                  qs_ot_env%alpha(i+1),globenv)
+                                                  qs_ot_env%alpha(i+1))
             CALL blacs_add(1.0_wp,qs_ot_env%matrix_dx,-qs_ot_env%alpha(i+1), &
-                            qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix,globenv)
+                            qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix)
 
          enddo
 
@@ -231,16 +231,16 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
             j=lbfgs_incr+i
             CALL blacs_trace(qs_ot_env%matrix_h_y(MOD(j,lbfgs_m)+1)%blacs_matrix, &
                                                          qs_ot_env%matrix_dx, &
-                                                            lbfgs_beta,globenv)
+                                                            lbfgs_beta)
             lbfgs_beta=lbfgs_beta*qs_ot_env%rho(MOD(j,lbfgs_m)+1)
             lbfgs_beta=qs_ot_env%alpha(i+1)-lbfgs_beta
             CALL blacs_add(1.0_wp,qs_ot_env%matrix_dx,lbfgs_beta, &
-                            qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix,globenv)
+                            qs_ot_env%matrix_h_s(MOD(j,lbfgs_m)+1)%blacs_matrix)
 
          enddo
 
          ! this is the new direction
-         CALL blacs_add(-1.0_wp,qs_ot_env%matrix_dx,0.0_wp,qs_ot_env%matrix_dx,globenv)
+         CALL blacs_add(-1.0_wp,qs_ot_env%matrix_dx,0.0_wp,qs_ot_env%matrix_dx)
          
          qs_ot_env%lbfgs_iter=qs_ot_env%lbfgs_iter+1
 
@@ -340,14 +340,14 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_dx_old, &
                  qs_ot_env%matrix_h_e(j)%blacs_matrix) 
       CALL blacs_add(qs_ot_env%ds_min,qs_ot_env%matrix_h_e(j)%blacs_matrix, &
-                            0.0_wp,qs_ot_env%matrix_dx_old,globenv)
+                            0.0_wp,qs_ot_env%matrix_dx_old)
 
       ! make the diis matrix and solve it
 
       do i=1,diis_bound
           CALL blacs_trace(qs_ot_env%matrix_h_e(j)%blacs_matrix, &
                             qs_ot_env%matrix_h_e(i)%blacs_matrix, &
-                            qs_ot_env%ls_diis(i,j),globenv)
+                            qs_ot_env%ls_diis(i,j))
           qs_ot_env%ls_diis(j,i)=qs_ot_env%ls_diis(i,j)
           qs_ot_env%ls_diis(i,diis_bound+1)=1.0_wp
           qs_ot_env%ls_diis(diis_bound+1,i)=1.0_wp
@@ -362,19 +362,19 @@ SUBROUTINE qs_ot_mini(qs_ot_env,globenv)
       if (info.ne.0) CALL stop_program("ot diis","singular diis matrix")
 
       ! OK, add the vectors now
-      CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp,globenv)
+      CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp)
       do i=1, diis_bound
          CALL blacs_add(1.0_wp,qs_ot_env%matrix_x, qs_ot_env%c_diis(i), &
-                        qs_ot_env%matrix_h_e(i)%blacs_matrix,globenv) 
+                        qs_ot_env%matrix_h_e(i)%blacs_matrix) 
          CALL blacs_add(1.0_wp,qs_ot_env%matrix_x, qs_ot_env%c_diis(i), &
-                        qs_ot_env%matrix_h_x(i)%blacs_matrix,globenv) 
+                        qs_ot_env%matrix_h_x(i)%blacs_matrix) 
       enddo
       qs_ot_env%diis_iter=qs_ot_env%diis_iter+1
    ELSE
       if (qs_ot_env%use_dx) then
-         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx,globenv)
+         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx)
       else
-         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,-ds,qs_ot_env%matrix_gx,globenv)
+         CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,-ds,qs_ot_env%matrix_gx)
       endif
    ENDIF
 
@@ -658,8 +658,7 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,globenv)
                              nrow_local=qs_ot_env%nrow_local, &
                              ncol_local=qs_ot_env%ncol_local, &
                              row_indices=qs_ot_env%row_indices, &
-                             col_indices=qs_ot_env%col_indices, &
-                             globenv=globenv)
+                             col_indices=qs_ot_env%col_indices)
 
   allocate(qs_ot_env%local_block(qs_ot_env%nrow_local,qs_ot_env%ncol_local))
 
@@ -677,9 +676,9 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    k=qs_ot_env%settings%k
 
    CALL blacs_gemm('T','N',k,k,n,rone,qs_ot_env%matrix_sc0,qs_ot_env%matrix_sc0, &
-                                 rzero,qs_ot_env%matrix_os,globenv)
-   CALL blacs_cholesky_decompose(qs_ot_env%matrix_os,globenv)
-   CALL blacs_cholesky_invert(qs_ot_env%matrix_os,globenv)
+                                 rzero,qs_ot_env%matrix_os)
+   CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
+   CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
 
    qs_ot_env%OT_energy(:)=0.0_wp
    qs_ot_env%OT_pos(:)=0.0_wp
@@ -690,15 +689,15 @@ SUBROUTINE qs_ot_init(qs_ot_env,globenv)
    qs_ot_env%ds_min=qs_ot_env%settings%ds_min
    qs_ot_env%ot_linesearch=.false.
 
-   CALL blacs_set_all(qs_ot_env%matrix_gx,0.0_wp,globenv)
+   CALL blacs_set_all(qs_ot_env%matrix_gx,0.0_wp)
    if (qs_ot_env%use_dx) &
-     CALL blacs_set_all(qs_ot_env%matrix_dx,0.0_wp,globenv)
+     CALL blacs_set_all(qs_ot_env%matrix_dx,0.0_wp)
    if (qs_ot_env%use_x_old) &
-     CALL blacs_set_all(qs_ot_env%matrix_x_old,0.0_wp,globenv)
+     CALL blacs_set_all(qs_ot_env%matrix_x_old,0.0_wp)
    if (qs_ot_env%use_dx_old) &
-     CALL blacs_set_all(qs_ot_env%matrix_dx_old,0.0_wp,globenv)
+     CALL blacs_set_all(qs_ot_env%matrix_dx_old,0.0_wp)
    if (qs_ot_env%use_gx_old) &
-     CALL blacs_set_all(qs_ot_env%matrix_gx_old,0.0_wp,globenv)
+     CALL blacs_set_all(qs_ot_env%matrix_gx_old,0.0_wp)
 
 END SUBROUTINE
 
@@ -792,7 +791,7 @@ SUBROUTINE qs_ot_get_p(matrix_x,matrix_sx,qs_ot_env,globenv)
 
 ! get the overlap
   CALL blacs_gemm('T','N',k,k,n,rone,matrix_x,matrix_sx,rzero,& 
-                           qs_ot_env%matrix_p, globenv)
+                           qs_ot_env%matrix_p)
 
   CALL qs_ot_p2m(qs_ot_env,globenv)
 
@@ -818,13 +817,13 @@ SUBROUTINE qs_ot_ortho_to_sc0(matrix_x,qs_ot_env,globenv)
   k=qs_ot_env%settings%k
 
   CALL blacs_gemm('T','N',k,k,n,rone,qs_ot_env%matrix_sc0,matrix_x, &
-                      rzero,qs_ot_env%matrix_buf1,globenv)
+                      rzero,qs_ot_env%matrix_buf1)
 
   CALL blacs_symm('L','U',k,k,rone,qs_ot_env%matrix_os,qs_ot_env%matrix_buf1, &
-                      rzero,qs_ot_env%matrix_buf2,globenv)
+                      rzero,qs_ot_env%matrix_buf2)
 
   CALL blacs_gemm('N','N',n,k,k,-rone,qs_ot_env%matrix_sc0,qs_ot_env%matrix_buf2, &
-                      rone,matrix_x,globenv)
+                      rone,matrix_x)
 
   CALL timestop(0.0_wp,handle)
 
@@ -852,9 +851,9 @@ SUBROUTINE qs_ot_get_orbitals(matrix_c, matrix_x, qs_ot_env,globenv)
   k=qs_ot_env%settings%k
 
   CALL blacs_gemm('N','N',n,k,k,rone,qs_ot_env%matrix_c0,qs_ot_env%matrix_cosp, &
-                                               rzero,matrix_c, globenv)
+                                               rzero,matrix_c)
   CALL blacs_gemm('N','N',n,k,k,rone,matrix_x,qs_ot_env%matrix_sinp, &
-                                               rone ,matrix_c, globenv)
+                                               rone ,matrix_c)
 
   CALL timestop(0.0_wp,handle)
 
@@ -883,54 +882,50 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
   k=qs_ot_env%settings%k
 
   ! this de/dc*(dX/dx)*sinp
-  CALL blacs_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx, &
-                                                          globenv)
+  CALL blacs_gemm('N','N',n,k,k,rone,matrix_hc,qs_ot_env%matrix_sinp,rzero,matrix_gx)
   ! overlap hc*x
-  CALL blacs_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2, &
-                                                        globenv)
+  CALL blacs_gemm('T','N',k,k,n,rone,matrix_hc,matrix_x,rzero,qs_ot_env%matrix_buf2)
   ! get it in the basis of the eigenvectors
-  CALL blacs_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r, &
-                                      rzero,qs_ot_env%matrix_buf1, globenv)
+  CALL blacs_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r,&
+       rzero,qs_ot_env%matrix_buf1)
   CALL blacs_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                      rzero,qs_ot_env%matrix_buf2, globenv)
+       rzero,qs_ot_env%matrix_buf2)
 
   ! get the schur product of O_uv*B_uv
   CALL blacs_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_sinp_b, &
-                                   qs_ot_env%matrix_buf3,globenv)
+                                   qs_ot_env%matrix_buf3)
 
 
   ! overlap hc*c0
   CALL blacs_gemm('T','N',k,k,n,rone,matrix_hc,qs_ot_env%matrix_c0,rzero, &
-                                    qs_ot_env%matrix_buf2, globenv)
+                                    qs_ot_env%matrix_buf2)
   ! get it in the basis of the eigenvectors
   CALL blacs_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_buf2,qs_ot_env%matrix_r, &
-                                    rzero,qs_ot_env%matrix_buf1,globenv)
+                                    rzero,qs_ot_env%matrix_buf1)
   CALL blacs_gemm('T','N',k,k,k,rone,qs_ot_env%matrix_r, qs_ot_env%matrix_buf1, &
-                                    rzero,qs_ot_env%matrix_buf2, globenv)
+                                    rzero,qs_ot_env%matrix_buf2)
   ! get the schur product of O_uv*B_uv
   CALL blacs_schur_product(qs_ot_env%matrix_buf2,qs_ot_env%matrix_cosp_b, &
-                                        qs_ot_env%matrix_buf2, globenv)
+                                        qs_ot_env%matrix_buf2)
 
   ! add the two bs and compute b+b^T
 
-  CALL blacs_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf2, &
-                                                                 globenv)
+  CALL blacs_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf2)
 
   ! get the b in the eigenvector basis
   CALL blacs_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_buf3,qs_ot_env%matrix_r, &
-                                     rzero,qs_ot_env%matrix_buf1, globenv)
+                                     rzero,qs_ot_env%matrix_buf1)
   CALL blacs_gemm('N','N',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                 rzero,qs_ot_env%matrix_buf3, globenv)
+                                 rzero,qs_ot_env%matrix_buf3)
 
 
-  CALL blacs_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1,globenv)
-  CALL blacs_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1, &
-                                                               globenv)
+  CALL blacs_transpose(qs_ot_env%matrix_buf3,qs_ot_env%matrix_buf1)
+  CALL blacs_add(1.0_wp,qs_ot_env%matrix_buf3,1.0_wp,qs_ot_env%matrix_buf1)
 
   ! and add to the derivative
 
   CALL blacs_gemm('N','N',n,k,k,rone,matrix_sx,qs_ot_env%matrix_buf3, &
-                                          rone,matrix_gx, globenv)
+                                          rone,matrix_gx)
  
   ! and make it orthogonal
   CALL qs_ot_ortho_to_sc0(matrix_gx,qs_ot_env,globenv)
@@ -958,8 +953,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
 
   k=qs_ot_env%settings%k 
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_p,qs_ot_env%matrix_buf1)
-  CALL blacs_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals, &
-                                                     globenv)
+  CALL blacs_syevd(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals)
   !CALL blacs_syevx(qs_ot_env%matrix_buf1,qs_ot_env%matrix_r,qs_ot_env%evals, &
   !                                                   k,1.0_wp,globenv)
   DO i=1,k
@@ -970,17 +964,17 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
      qs_ot_env%dum(i)=cos(sqrt(qs_ot_env%evals(i)))
   enddo
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
-  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum,globenv)
+  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL blacs_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                     rzero,qs_ot_env%matrix_cosp,globenv)
+                                     rzero,qs_ot_env%matrix_cosp)
 
   do i=1,k
      qs_ot_env%dum(i)=qs_ot_sinc(sqrt(qs_ot_env%evals(i)))
   enddo
   CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
-  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum,globenv)
+  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL blacs_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
-                                     rzero,qs_ot_env%matrix_sinp,globenv)
+                                     rzero,qs_ot_env%matrix_sinp)
 
   do j=1,qs_ot_env%ncol_local
     do i=1,qs_ot_env%nrow_local
@@ -991,8 +985,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
        qs_ot_env%local_block(i,j)=-0.5_wp*qs_ot_sinc(a)*qs_ot_sinc(b)
     enddo
   enddo
-  CALL blacs_set_local_block(qs_ot_env%matrix_cosp_b,qs_ot_env%local_block, &
-                                          globenv)
+  CALL blacs_set_local_block(qs_ot_env%matrix_cosp_b,qs_ot_env%local_block)
 
   do j=1,qs_ot_env%ncol_local
     do i=1,qs_ot_env%nrow_local
@@ -1001,8 +994,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env,globenv)
        qs_ot_env%local_block(i,j)=qs_ot_sincf(a,b)
     enddo
   enddo
-  CALL blacs_set_local_block(qs_ot_env%matrix_sinp_b,qs_ot_env%local_block, &
-                                          globenv)
+  CALL blacs_set_local_block(qs_ot_env%matrix_sinp_b,qs_ot_env%local_block)
 
 
 END SUBROUTINE qs_ot_p2m

@@ -34,6 +34,7 @@ module cp_para_env
   use timings, only: timeset, timestop
   use cp_para_types, only: cp_para_env_type
   use message_passing, only: mp_comm_dup, mp_comm_free, mp_environ
+  use global_types, only: global_environment_type
   implicit none
   private
 
@@ -42,7 +43,8 @@ module cp_para_env
 
   public :: cp_para_env_type
   public :: cp_para_retain, cp_para_release, cp_para_create, &
-      cp_para_duplicate
+      cp_para_duplicate, cp_para_env_from_globenv,&
+      cp_para_env_write
 !***
 !****************************************************************************
 contains
@@ -322,9 +324,109 @@ contains
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
     end if
     if (.not.failure) then
-      call mp_environ(para_env%mepos,para_env%num_pe,para_env%group)
+      call mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
+           groupid=para_env%group)
     end if
   end subroutine cp_para_update
+!***************************************************************************
+
+!!****f* cp_para_env/cp_para_env_from_globenv [1.0] *
+!!
+!!   NAME
+!!     cp_para_env_from_globenv
+!!
+!!   FUNCTION
+!!     returns the parallel environment stored in the global environment
+!!     gives a warning if not initialized
+!!
+!!   NOTES
+!!     should try to generate a para env??
+!!
+!!   INPUTS
+!!     - global_env: the global environment that contains the para_env
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+function cp_para_env_from_globenv(global_env, error) result(res)
+  type(cp_para_env_type),pointer :: res
+  type(global_environment_type), intent(in), target :: global_env
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_para_env_from_globenv',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+  
+  CPPrecondition(associated(global_env%para_env),cp_failure_level,routineP,error,failure)
+  res => global_env%para_env
+end function cp_para_env_from_globenv
+!***************************************************************************
+
+!!****f* cp_para_env/cp_para_env_write [1.0] *
+!!
+!!   NAME
+!!     cp_para_env_write
+!!
+!!   FUNCTION
+!!     writes a description of the parallel environment to the given unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - para_env: the parallel environment to output
+!!     - unit_nr: the unit where to output
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_para_env_write(para_env,unit_nr,error)
+  type(cp_para_env_type), pointer :: para_env
+  integer, intent(in) :: unit_nr
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_blacs_env_write',&
+        routineP=moduleN//':'//routineN
+  integer :: iostat
+  failure=.false.
+  
+  if (associated(para_env)) then
+     write (unit=unit_nr,&
+          fmt="(' <cp_para_env>:{ owns_group=',l1,',')",&
+          iostat=iostat) para_env%owns_group
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     write (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
+          iostat=iostat) para_env%group, para_env%ref_count
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     write (unit=unit_nr,fmt="('  mepos=',i8,',')",&
+          iostat=iostat) para_env%mepos
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     write (unit=unit_nr,fmt="('  source=',i8,',')",&
+          iostat=iostat) para_env%source
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+     write (unit=unit_nr,fmt="('  num_pe=',i8,'}')",&
+          iostat=iostat) para_env%num_pe
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  else
+     write (unit=unit_nr,&
+          fmt="(a)", iostat=iostat) ' <cp_para_env>:*null* '
+     CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
+  end if
+end subroutine cp_para_env_write
 !***************************************************************************
 
 end module cp_para_env

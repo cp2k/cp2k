@@ -858,7 +858,7 @@ contains
              allocate(glob_angles%min_overlap_m(1),stat=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              call cp_sp_create(glob_angles%min_overlap_m(1)%matrix,&
-                  matrix_structure=min_bas_m_struct,&
+                  matrix_struct=min_bas_m_struct,&
                   error=iError)
           end if
           call sm_matrix_transf_to_m(source_m=full_s(1)%matrix, &
@@ -880,7 +880,7 @@ contains
                 allocate(glob_angles%min_hamiltonian_m(1),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
                 call cp_sp_create(glob_angles%min_hamiltonian_m(1)%matrix, &
-                     matrix_structure=min_bas_m_struct,&
+                     matrix_struct=min_bas_m_struct,&
                      error=iError)
                 call cp_error_propagate_error(iError,routineP,&
                      CPSourceFileRef,&

@@ -288,7 +288,7 @@ contains
     if (.not.failure) then
        do i=1,size(pao_env%min_density_m)
           call cp_sp_create(pao_env%min_density_m(i)%matrix,&
-               matrix_structure=pao_env%min_bas_m_struct,&
+               matrix_struct=pao_env%min_bas_m_struct,&
                error=error)
        end do
     end if

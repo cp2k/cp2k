@@ -54,6 +54,10 @@ module qs_rho_types
   character(len=*), private, parameter :: moduleN='qs_rho_types'
   integer, private, save :: last_rho_id_nr=0
 
+  public :: qs_rho_type
+  public :: qs_rho_retain, qs_rho_release, qs_rho_create, qs_rho_did_change,&
+       qs_rho_get, qs_rho_update_rho_r_g_new_ao
+
 !***
 !****************************************************************************
 
@@ -115,7 +119,7 @@ contains
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!     - *_ptr: will be deallocated by this type
-!!     - *_valid: defaults to true
+!!     - rho_ao_valid: defaults to true, the others to false
 !!     for the explanation see the attributes of qs_rho_type
 !!
 !!   AUTHOR
@@ -343,11 +347,11 @@ end subroutine qs_rho_did_change
 !!
 !!   FUNCTION
 !!     returns info about the density described by this object.
-!!     If some representation is not available it is calculated
+!!     If some representation is not available an error is issued
 !!
 !!   NOTES
 !!     as the construction is costly a get method that gives an error
-!!     if not valid (like this at the moment) could also be useful
+!!     if not valid (like this at the moment) can be useful
 !!
 !!   INPUTS
 !!     - error: variable to control error logging, stopping,... 

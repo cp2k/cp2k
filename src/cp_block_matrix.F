@@ -230,12 +230,12 @@ contains
 !!     cp_sp_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sp_create(matrix, matrix_structure, u_matrix,&
+!!     Subroutine cp_sp_create(matrix, matrix_struct, u_matrix,&
 !!         should_dealloc_matrix, b_rep_is_primary,&
 !!         allocate_nonsparse_blocks, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
 !!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
-!!         matrix_structure
+!!         matrix_struct
 !!       Type(real_matrix_type), Optional, Intent (IN), Target:: u_matrix
 !!       Logical, Intent (IN), Optional:: should_dealloc_matrix,&
 !!         b_rep_is_primary, allocate_nonsparse_blocks
@@ -250,7 +250,7 @@ contains
 !!
 !!   INPUTS
 !!     - matrix: the matrix to initialize
-!!     - matrix_structure: the structure of this matrix
+!!     - matrix_struct: the structure of this matrix
 !!     - u_matrix: the underlying sparse matrix SHARED
 !!     - should_dealloc_matrix:if the underlying matrix should be deallocated
 !!       (defaults to true)
@@ -268,10 +268,10 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sp_create(matrix, matrix_structure, u_matrix, &
+  subroutine cp_sp_create(matrix, matrix_struct, u_matrix, &
        should_dealloc_matrix, b_rep_is_primary, allocate_nonsparse_blocks, error)
     type(cp_block_matrix_type), pointer :: matrix
-    type(cp_b_matrix_struct_type), intent(in), target :: matrix_structure
+    type(cp_b_matrix_struct_type), intent(in), target :: matrix_struct
     type(real_matrix_type), optional, intent(in), target :: u_matrix
     logical, intent(in), optional :: should_dealloc_matrix, b_rep_is_primary,&
         allocate_nonsparse_blocks
@@ -299,7 +299,7 @@ contains
        matrix%b_rep_is_primary = .true.
        if (present(b_rep_is_primary)) matrix%b_rep_is_primary=b_rep_is_primary
        matrix%b_i_rep_in_sync = .false.
-       matrix%matrix_struct => matrix_structure
+       matrix%matrix_struct => matrix_struct
        call cp_retain(matrix%matrix_struct,error=error)
        matrix%ref_count=1
        nullify(matrix%sm)
@@ -1150,11 +1150,11 @@ end subroutine cp_sp_block_handle_init
 !!     cp_sp_array_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_structure,&
+!!     Subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_struct,&
 !!         b_rep_is_primary, allocate_nonsparse_blocks, error)
 !!       Type(cp_block_matrix_p_type), Dimension(:), Pointer:: matrixes
 !!       Type(cp_b_matrix_struct_type), Intent (IN), Target::&
-!!         matrix_structure
+!!         matrix_struct
 !!       Integer, Intent (IN):: n_matrixes
 !!       Logical, Intent (IN), Optional:: b_rep_is_primary,&
 !!         allocate_nonsparse_blocks
@@ -1170,7 +1170,7 @@ end subroutine cp_sp_block_handle_init
 !!   INPUTS
 !!     - matrixes: the array of matrixes to allocate and initialize
 !!     - n_matrixes: the number of matrixes to allocate in the vector
-!!     - matrix_structure: the structure of this matrix
+!!     - matrix_struct: the structure of this matrix
 !!     - b_rep_is_primary: if the block representation is primary
 !!       (defaults to true)
 !!     - allocate_nonsparse_blocks: if the blocks outside the sparsity 
@@ -1185,10 +1185,10 @@ end subroutine cp_sp_block_handle_init
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_structure, &
+  subroutine cp_sp_array_create(matrixes, n_matrixes, matrix_struct, &
       b_rep_is_primary, allocate_nonsparse_blocks, error)
     type(cp_block_matrix_p_type), dimension(:), pointer :: matrixes
-    type(cp_b_matrix_struct_type), intent(in), target :: matrix_structure
+    type(cp_b_matrix_struct_type), intent(in), target :: matrix_struct
     integer, intent(in) :: n_matrixes
     logical, intent(in), optional :: b_rep_is_primary,&
         allocate_nonsparse_blocks
@@ -1206,7 +1206,7 @@ end subroutine cp_sp_block_handle_init
        do i=1,n_matrixes
           nullify(matrixes(i)%matrix)
           call cp_sp_create(matrixes(i)%matrix,&
-              matrix_structure=matrix_structure,&
+              matrix_struct=matrix_struct,&
               b_rep_is_primary=b_rep_is_primary,&
               allocate_nonsparse_blocks=allocate_nonsparse_blocks,&
               error=error)
@@ -1524,12 +1524,12 @@ end subroutine cp_sp_check_distribution
 !!     cp_sp_get
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sp_get(matrix, matrix_structure, distribution,&
+!!     Subroutine cp_sp_get(matrix, matrix_struct, distribution,&
 !!         dimensions, sparsity, n_block_rows, n_block_cols, n_rows, n_cols,&
 !!         frozen, b_rep_is_primary, id_nr, error)
 !!       Type(cp_block_matrix_type), Pointer:: matrix
 !!       Type(cp_b_matrix_struct_type), Pointer, Optional::&
-!!         matrix_structure
+!!         matrix_struct
 !!       Type(cp_b_distribution_type), Pointer, Optional:: distribution
 !!       Type(cp_b_dims_type), Pointer, Optional:: dimensions
 !!       Logical, Dimension(:,:), Pointer, Optional:: sparsity
@@ -1547,7 +1547,7 @@ end subroutine cp_sp_check_distribution
 !!
 !!   INPUTS
 !!     - matrix: the sparse matrix you want info about
-!!     - matrix_structure: the structure of this matrix
+!!     - matrix_struct: the structure of this matrix
 !!     - distribution: the distribution of this matrix
 !!     - dimensions: the size of this matrix
 !!     - sparsity: the sparsity of this matrix
@@ -1569,11 +1569,11 @@ end subroutine cp_sp_check_distribution
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_sp_get(matrix,matrix_structure, distribution,dimensions,&
+subroutine cp_sp_get(matrix,matrix_struct, distribution,dimensions,&
      sparsity, n_block_rows, n_block_cols, n_rows, n_cols, frozen,&
      b_rep_is_primary, id_nr, error)
   type(cp_block_matrix_type), pointer :: matrix
-  type(cp_b_matrix_struct_type), pointer, optional :: matrix_structure
+  type(cp_b_matrix_struct_type), pointer, optional :: matrix_struct
   type(cp_b_distribution_type), pointer, optional :: distribution
   type(cp_b_dims_type), pointer, optional :: dimensions
   logical, dimension(:,:), pointer, optional :: sparsity
@@ -1592,7 +1592,7 @@ subroutine cp_sp_get(matrix,matrix_structure, distribution,dimensions,&
      CPPrecondition(matrix%ref_count>0,cp_failure_level,routineP,error,failure)
   end if
   if (.not. failure) then
-     if (present(matrix_structure)) matrix_structure => matrix%matrix_struct
+     if (present(matrix_struct)) matrix_struct => matrix%matrix_struct
      if (present(distribution)) distribution => &
           matrix%matrix_struct%distribution
      if (present(dimensions)) dimensions => matrix%matrix_struct%b_dims

@@ -329,7 +329,6 @@ CONTAINS
                       globenv=globenv)
 
 
-
     call qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
     call qs_ks_did_change(ks_env,qs_env,globenv,p_changed=.true.,error=error)
 
@@ -397,9 +396,9 @@ CONTAINS
        ! set c0,sc0
        CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
        CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_c0, &
-                                           qs_ot_env%matrix_sc0,qs_ot_env%settings%k,globenv)
+                                           qs_ot_env%matrix_sc0,qs_ot_env%settings%k,para_env=globenv%para_env)
 
-       CALL blacs_make_basis(qs_ot_env%matrix_c0,k,globenv, &
+       CALL blacs_make_basis(qs_ot_env%matrix_c0,k, &
                              ortho=qs_ot_env%matrix_sc0,otype="SV")
 
        ! init
@@ -407,8 +406,8 @@ CONTAINS
        energy_only=qs_ot_env%energy_only
 
        ! set x
-       CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp,globenv)
-       CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp,globenv)
+       CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp)
+       CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp)
 
        ! get c
        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
@@ -457,7 +456,7 @@ CONTAINS
       SELECT CASE (type_switch)
       CASE (0) ! pao
 
-        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
+        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
         IF (iscf > 1) THEN
           CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
                         qs_env,globenv)
@@ -538,7 +537,7 @@ CONTAINS
           CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
         END IF
 
-        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
+        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1)
 
         IF (iscf > 1) THEN
           CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
@@ -583,8 +582,9 @@ CONTAINS
         IF ( .not. energy_only) THEN
           CALL sparse_times_blacs(ks%matrix,mo_eigenvectors, &
                                           qs_ot_env%matrix_hc,  &
-                                    qs_ot_env%settings%k,globenv)
-          CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc,globenv)
+                                    qs_ot_env%settings%k,&
+                                    para_env=globenv%para_env)
+          CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc)
         ENDIF
  
         qs_ot_env%etotal=energy%total
@@ -594,7 +594,8 @@ CONTAINS
 
         CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_x, &
                                      qs_ot_env%matrix_sx, &
-                                     qs_ot_env%settings%k,globenv)
+                                     qs_ot_env%settings%k,&
+                                     para_env=globenv%para_env)
         CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
         CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env%matrix_x,qs_ot_env,globenv)
         CALL calculate_density_matrix(mo_set,p%matrix,globenv)
@@ -733,8 +734,8 @@ CONTAINS
                                ncol_block=ncol_block,&
                                name="DUM SPARSE MATRIX",&
                                globenv=globenv)
-    CALL copy_sparse_to_blacs_matrix(m_a,dum,globenv)
-    CALL blacs_symm('L','U',n,k,1.0_wp,dum,m_b,0.0_wp,m_c,globenv)
+    CALL copy_sparse_to_blacs_matrix(m_a,dum)
+    CALL blacs_symm('L','U',n,k,1.0_wp,dum,m_b,0.0_wp,m_c)
     CALL deallocate_blacs_matrix(dum)
 
     CALL timestop(0.0_wp,handle)
@@ -764,7 +765,7 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
-    INTEGER :: context,handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
+    INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
                output_unit
     LOGICAL :: ionode, pao
     real(kind=wp):: ecore_self, ecore_overlap
@@ -780,10 +781,6 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
-    context = globenv%context
-    nprow = globenv%nprow
-    npcol = globenv%npcol
-
 
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
@@ -880,7 +877,7 @@ CONTAINS
     CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,&
                                    "OLD DENSITY MATRIX (REDUNDANT)")
 
-    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1,globenv)
+    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1)
 
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
@@ -889,7 +886,7 @@ CONTAINS
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
-      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix,globenv)
+      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix)
       CALL set_qs_env(qs_env,h=h)
     END IF
 
@@ -910,8 +907,8 @@ CONTAINS
     if (.not. use_ot) then
      if (use_cholesky .or. use_arpack) then
        ndep=0
-       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,globenv)
-       CALL blacs_cholesky_decompose(ortho,globenv)
+       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
+       CALL blacs_cholesky_decompose(ortho)
      else
        CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv)
      endif
@@ -959,10 +956,9 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,globenv)
-    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx,&
-                            globenv)
-    CALL symmetrise_blacs_matrix(ortho,work,globenv)
+    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
+    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL symmetrise_blacs_matrix(ortho,work)
 
     CALL timestop(0.0_wp,handle)
 
@@ -1016,34 +1012,34 @@ CONTAINS
 
     IF (use_cholesky) THEN
 
-       CALL blacs_cholesky_reduce(ks,ortho,globenv)
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",globenv)
+       CALL blacs_cholesky_reduce(ks,ortho)
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
        ncv = nmo + 64
-       CALL blacs_cholesky_reduce(ks,ortho,globenv)
+       CALL blacs_cholesky_reduce(ks,ortho)
        CALL arpack_diag(ks,work,mo_eigenvalues,nmo,ncv,.false.,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSE
 
        CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
        CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
-                        work,globenv)
+                        work)
        CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
-                        ks,globenv)
+                        ks)
  
        IF (do_level_shift) THEN
          DO imo=homo+1,nmo
-            CALL blacs_add_to_element(ks,imo,imo,level_shift,globenv)
+            CALL blacs_add_to_element(ks,imo,imo,level_shift)
          END DO
        ENDIF
 
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,globenv)
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
        CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                        mo_eigenvectors,globenv)
+                        mo_eigenvectors)
 
        IF (do_level_shift) THEN
           CALL correct_mo_eigenvalues(mo_set,level_shift)
@@ -1188,8 +1184,9 @@ CONTAINS
                         eigenvectors=mo_eigenvectors, nmo=nmo)
       ! ortho so that one can restart for different positions (basis sets?)
       CALL replicate_blacs_matrix(mo_eigenvectors,sv,"SV")
-      CALL sparse_times_blacs(s_sparse%matrix,mo_eigenvectors,sv,nmo,globenv)
-      CALL blacs_make_basis(mo_eigenvectors,nmo,globenv, &
+      CALL sparse_times_blacs(s_sparse%matrix,mo_eigenvectors,sv,nmo,&
+           para_env=globenv%para_env)
+      CALL blacs_make_basis(mo_eigenvectors,nmo, &
                              ortho=sv,otype="SV")
       CALL deallocate_blacs_matrix(sv)
       CALL calculate_density_matrix(mo_set,p%matrix,globenv)
@@ -1198,7 +1195,7 @@ CONTAINS
 
       CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors, nmo=nmo)
-      CALL blacs_init_random(mo_eigenvectors,nmo,globenv)
+      CALL blacs_init_random(mo_eigenvectors,nmo)
 
 
      ELSE IF (density_guess == "CORE") THEN
@@ -1210,12 +1207,12 @@ CONTAINS
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       END IF
       CALL calculate_density_matrix(mo_set,work1,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
     ELSE IF (density_guess == "ATOMIC") THEN
 
-      CALL blacs_set_all(work1,0.0_wp,globenv)
+      CALL blacs_set_all(work1,0.0_wp)
 
       sum = 0.0_wp
 
@@ -1224,7 +1221,7 @@ CONTAINS
       ALLOCATE (econf(0:maxl),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
 
-      CALL copy_sparse_to_blacs_matrix(s(1)%matrix,work2,globenv)
+      CALL copy_sparse_to_blacs_matrix(s(1)%matrix,work2)
 
       DO ikind=1,nkind
 
@@ -1274,8 +1271,8 @@ CONTAINS
                 DO iatom=1,natom
                   atom_a = atom_list(iatom)
                   isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                  CALL blacs_set_element(work1,isgf,isgf,paa,globenv)
-                  CALL blacs_get_element(work2,isgf,isgf,saa,globenv)
+                  CALL blacs_set_element(work1,isgf,isgf,paa)
+                  CALL blacs_get_element(work2,isgf,isgf,saa)
                   sum = sum + paa*saa
                 END DO
               END DO
@@ -1316,16 +1313,16 @@ CONTAINS
               DO iatom=1,natom
                 atom_a = atom_list(iatom)
                 isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                CALL blacs_get_element(work1,isgf,isgf,paa,globenv)
+                CALL blacs_get_element(work1,isgf,isgf,paa)
                 paa = paa*saa
-                CALL blacs_set_element(work1,isgf,isgf,paa,globenv)
+                CALL blacs_set_element(work1,isgf,isgf,paa)
               END DO
             END DO
           END DO
         END DO
       END DO
 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix)
 
     ELSE
 

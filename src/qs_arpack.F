@@ -137,7 +137,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,b
 
   CALL timeset('arpack_diag_blacs','I',' ',handle)
 
-  context = globenv%context
+  context = globenv%blacs_env%group
   CALL arpack_confirm(globenv)
   CALL get_blacs_matrix_info(amatrix,nrow_global=n)
   CALL get_blacs_matrix_info(vmatrix,ncol_global=ncolsv)
@@ -157,7 +157,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,b
   endif
 
   ! here we learn how big nloc has to be
-  CALL blacs_find_vector_distribution(vmatrix,nloc,globenv)
+  CALL blacs_find_vector_distribution(vmatrix,nloc)
 
 !
 ! allocate the scratch space, notice that some of these (cv,workl) are not small...
@@ -233,11 +233,11 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,b
     alpha=1.0D0
     ! sum all eigenvectors in the first one
     DO i=2,neig
-    CALL blacs_daxpy(vmatrix,i,alpha,1,globenv)
+    CALL blacs_daxpy(vmatrix,i,alpha,1)
     ENDDO
     !  and use as an initial state
     info=1
-    CALL copy_blacs_to_vector(vmatrix,1,resid,globenv)
+    CALL copy_blacs_to_vector(vmatrix,1,resid)
   ENDIF 
    
   !  the famous reverse communication let dsaupd 'call' arpack_op_blacs
@@ -312,7 +312,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,b
   do i=1,neig
      ! is there any clean way to do this ... ?
      workd(1:nloc)=cv(1:nloc,i)
-     call copy_vector_to_blacs(workd,vmatrix,i,globenv)
+     call copy_vector_to_blacs(workd,vmatrix,i)
   enddo
 
   deallocate(cv,workl,workd,d,resid,ax,select)
@@ -337,7 +337,7 @@ SUBROUTINE arpack_op_blacs(amatrix,vin,vout,matrix_buf,globenv,bmatrix)
      call stop_program("arpack_op_blacs","bmatrix not yet implemented",globenv)
   ENDIF
 
-  CALL  blacs_vector_symv(amatrix,vin,vout,matrix_buf,globenv)
+  CALL  blacs_vector_symv(amatrix,vin,vout,matrix_buf)
 
 END SUBROUTINE arpack_op_blacs
 

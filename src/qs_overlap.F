@@ -724,7 +724,7 @@ CONTAINS
     CALL get_blacs_matrix_info(blacs_matrix,name=name)
 
     NULLIFY (matrix)
-    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix,globenv)
+    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix)
 
     IF (.NOT.globenv%ionode) RETURN
 

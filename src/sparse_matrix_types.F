@@ -860,12 +860,11 @@ CONTAINS
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
   SUBROUTINE sparse_plus_rep_rept(sparse_matrix,rep_v,rep_g,ncol,nblock,&
-                                  globenv,alpha)
+                                  alpha)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v,rep_g
     REAL(wp), OPTIONAL, INTENT(IN)    :: alpha
     INTEGER, INTENT(IN)               :: ncol,nblock
-    TYPE(global_environment_type), INTENT(IN)      :: globenv
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&

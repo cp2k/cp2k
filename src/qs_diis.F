@@ -203,20 +203,18 @@ CONTAINS
 
     parameters => scf_diis_buffer%parameter(ib)%blacs_matrix
     CALL copy_blacs_to_blacs_matrix(kc,parameters)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc,globenv)
+    CALL blacs_symm("L","U",nao,nmo,2.0_wp,parameters,c,0.0_wp,kc)
 
     new_errors => scf_diis_buffer%error(ib)%blacs_matrix
-    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors,globenv)
-    CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc,globenv)
+    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,new_errors)
+    CALL blacs_symm("L","U",nao,nmo,2.0_wp,new_errors,c,0.0_wp,sc)
 
-    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors,&
-                    globenv)
-    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,kc,sc,-1.0_wp,new_errors,&
-                    globenv)
+    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,sc,kc, 0.0_wp,new_errors)
+    CALL blacs_gemm("N","T",nao,nao,nmo,1.0_wp,kc,sc,-1.0_wp,new_errors)
 
 !   *** Get maximum error ***
 
-    CALL blacs_maxval(new_errors,error_max,globenv)
+    CALL blacs_maxval(new_errors,error_max)
 
     IF (ionode.AND.globenv%print%diis_information) THEN
       WRITE (UNIT=output_unit,FMT="(/,T2,A,E12.3)")&
@@ -235,7 +233,7 @@ CONTAINS
 
       DO jb=1,nb
         old_errors => scf_diis_buffer%error(jb)%blacs_matrix
-        CALL blacs_trace(old_errors,new_errors,b(jb,ib),globenv)
+        CALL blacs_trace(old_errors,new_errors,b(jb,ib))
         b(ib,jb) = b(jb,ib)
       END DO
 
@@ -289,11 +287,11 @@ CONTAINS
 
 !     *** Update Kohn-Sham matrix ***
 
-      CALL blacs_set_all(kc,0.0_wp,globenv)
+      CALL blacs_set_all(kc,0.0_wp)
 
       DO jb=1,nb
         parameters => scf_diis_buffer%parameter(jb)%blacs_matrix
-        CALL blacs_add(1.0_wp,kc,-ev(jb),parameters,globenv)
+        CALL blacs_add(1.0_wp,kc,-ev(jb),parameters)
       END DO
 
       DEALLOCATE (a,STAT=istat)

@@ -252,7 +252,7 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
         end if
         if (.not.associated(p_env%atomic_ortho)) then
            call cp_sp_create(p_env%atomic_ortho,&
-                matrix_structure=p_env%full_min_bas_m_struct,&
+                matrix_struct=p_env%full_min_bas_m_struct,&
                 error=error)
         end if
         pao_atomic_ortho => p_env%atomic_ortho
@@ -403,7 +403,7 @@ subroutine pao_qs_env_did_change(qs_env,global_env,&
         
         do i=1,size(pao_env%min_density_m)
            call cp_sp_create(pao_env%min_density_m(i)%matrix,&
-                matrix_structure= pao_env%min_bas_m_struct,&
+                matrix_struct= pao_env%min_bas_m_struct,&
                 error=error)
         end do
         ! invalidate atomic orthogonalisation
@@ -492,7 +492,7 @@ function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
      end if
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
-             matrix_structure=pao_env%full_bas_diag_m_struct,&
+             matrix_struct=pao_env%full_bas_diag_m_struct,&
              error=error)
      end if
      atomic_ortho => pao_env%atomic_ortho
@@ -604,7 +604,7 @@ subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
      end if
      if (.not.associated(pao_env%atomic_ortho)) then
         call cp_sp_create(pao_env%atomic_ortho,&
-             matrix_structure=pao_env%full_bas_diag_m_struct,&
+             matrix_struct=pao_env%full_bas_diag_m_struct,&
              error=error)
      end if
      atomic_ortho => pao_env%atomic_ortho
@@ -615,7 +615,7 @@ subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
 #ifdef __parallel
 !!FM     ! stupid parallelization, every processor has everything
 !!FM     do i=1,n_atoms
-!!FM        if (atomic_ortho%matrix_structure%distribution%block_owner(i,i) ==&
+!!FM        if (atomic_ortho%matrix_struct%distribution%block_owner(i,i) ==&
 !!FM             atomic_ortho%global_env%mepos) then
 !!FM           call pao_qs_env_get_atomic_ortho(qs_env,&
 !!FM                global_env=atomic_ortho%global_env,&

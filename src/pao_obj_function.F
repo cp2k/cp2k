@@ -45,7 +45,7 @@ module pao_obj_function
   use pao_proj_methods, only: cp_m2f_with_B_M_pi,pao_g_ang_get_min_m
   use qs_blacs, only: blacs_matrix_type,allocate_blacs_matrix,&
        copy_sparse_to_blacs_matrix,deallocate_blacs_matrix,&
-       blacs_trace, add_blacs_to_block_diag_sm, blacs_diag_mult,&
+       blacs_trace, add_blacs_to_block_diag_sm,&
        copy_blacs_to_blacs_matrix, blacs_gemm, copy_blacs_to_sparse_matrix,&
        blacs_syrk,blacs_syevx,blacs_symm,get_blacs_matrix_info,&
        symmetrise_blacs_matrix, power_blacs_matrix
@@ -295,7 +295,7 @@ contains
        if (present(should_dealloc_mo)) &
             gf_env%should_dealloc_mo=should_dealloc_mo
        call cp_sp_create(gf_env%diag_matrix,&
-            matrix_structure=full_bas_m_struct)
+            matrix_struct=full_bas_m_struct)
        call cp_d_struct_create(gf_env%d_struct,&
             matrix=full_overlap_m(1)%matrix,&
             para_env=global_env%para_env,error=error)
@@ -305,10 +305,10 @@ contains
             default_value=0.0_wp,&
             d_struct=gf_env%d_struct)
        call cp_sp_create(gf_env%min_work_m,&
-            matrix_structure=min_bas_m_struct)
+            matrix_struct=min_bas_m_struct)
        call cp_sp_alloc_nonsparse_blocks(gf_env%min_work_m,error=error)
        call cp_sp_create(gf_env%full_work_m,&
-            matrix_structure=full_bas_m_struct)
+            matrix_struct=full_bas_m_struct)
        gf_env%rebuild_rho=.true.
        gf_env%initialized=.true.
     end if
@@ -579,14 +579,11 @@ contains
        ! calculates the new density matrix with diagonalization
        ! do not do it every time?
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
-            blacs_matrix=gf_env%min_blacs_1, &
-            globenv=g_env)
+            blacs_matrix=gf_env%min_blacs_1)
        call calculate_ortho_matrix(ortho=gf_env%min_blacs_1,&
-            work=gf_env%min_blacs_2,ndep=size_null_space,&
-            globenv=g_env)
+            work=gf_env%min_blacs_2,ndep=size_null_space, globenv=g_env)
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
-            blacs_matrix=gf_env%min_blacs_2, &
-            globenv=g_env)
+            blacs_matrix=gf_env%min_blacs_2)
        call orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
             work=gf_env%min_blacs_3,&
@@ -603,7 +600,7 @@ contains
             globenv=g_env)
        
        call copy_blacs_to_sparse_matrix(gf_env%min_blacs_2,&
-            min_density_m,g_env)
+            min_density_m)
 
        call symmetrise_diagonal_blocks(min_density_m)
 
@@ -635,20 +632,20 @@ contains
                     
           ! 2 H B P i^*
           call copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
-               gf_env%scf_work1,g_env)
+               gf_env%scf_work1)
           call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, g_env)
+               gf_env%scf_work2)
           call blacs_symm(side="L",uplo="U",m=full_bas_size,n=full_bas_size,&
                alpha=1.0_wp,matrix_a=gf_env%scf_work1,&
                matrix_b=gf_env%scf_work2,&
-               beta=0.0_wp,matrix_c=gf_env%scf_work3,globenv=g_env)
+               beta=0.0_wp,matrix_c=gf_env%scf_work3)
           call cp_set_to(diagMatrix,value=0.0_wp)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
-               diagMatrix,&
-               global_env=g_env,d_struct=gf_env%d_struct, error=error)
+               diagMatrix, para_env=g_env%para_env,&
+               d_struct=gf_env%d_struct, error=error)
           if (cp_debug .and. debug_this_module) then
              call cp_sm_output(logger=cp_error_get_logger(error), &
                outputName="obj_f_BPpi", &
@@ -662,35 +659,32 @@ contains
           end if
           ! 2 S B P minH P i^*
           call copy_sparse_to_blacs_matrix(h_matrix%sm,&
-               gf_env%min_blacs_1,g_env)
-          call symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2,&
-               g_env)
+               gf_env%min_blacs_1)
+          call symmetrise_blacs_matrix(gf_env%min_blacs_1,gf_env%min_blacs_2)
           call copy_sparse_to_blacs_matrix(min_density_m,&
-               gf_env%min_blacs_2, g_env)
+               gf_env%min_blacs_2)
           call blacs_symm('R','U',min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_1, 0.0_wp,&
-               gf_env%min_blacs_3,&
-               globenv=g_env)
+               gf_env%min_blacs_3)
           call blacs_symm('L','U',min_bas_size,min_bas_size,&
                -0.5_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
-               gf_env%min_blacs_1,&
-               globenv=g_env)
+               gf_env%min_blacs_1)
           call copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
-               cp_get_matrix(gf_env%min_work_m), g_env)
+               cp_get_matrix(gf_env%min_work_m))
           call cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, g_env)
+               gf_env%scf_work2)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
-               gf_env%scf_work1, g_env)
+               gf_env%scf_work1)
           call blacs_symm('L','U',full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3, g_env)
+               gf_env%scf_work3)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
-               diagMatrix,&
-               global_env=g_env,d_struct=gf_env%d_struct, error=error)
+               diagMatrix,para_env=g_env%para_env,&
+               d_struct=gf_env%d_struct, error=error)
           ! diag_matrix = N diag_matrix = 2 N H B P i^* - 2 N S B P minH P i^*
           call cp_l_multiply_atomic_ortho(diagMatrix,qs_env=gf_env%qs_env,&
                global_env=g_env,error=error)
@@ -767,9 +761,8 @@ contains
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx,&
-                            globenv)
-    CALL symmetrise_blacs_matrix(ortho,work,globenv)
+    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx)
+    CALL symmetrise_blacs_matrix(ortho,work)
 
     CALL timestop(0.0_wp,handle)
 
@@ -796,10 +789,8 @@ contains
     CALL timeset("orthogonalise_matrix","I","",handle)
 
     CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,&
-                    globenv)
-    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,&
-                    globenv)
+    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
+    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
 
     CALL timestop(0.0_wp,handle)
 
@@ -841,10 +832,10 @@ contains
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp,globenv)
+    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp)
 
     CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                    mo_eigenvectors,globenv)
+                    mo_eigenvectors)
 
     if (cp_debug .and. debug_this_module) then
        iter=iter+1

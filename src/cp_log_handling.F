@@ -57,9 +57,12 @@ module cp_log_handling
 ! default loggers
   public :: cp_get_local_logger, cp_get_global_logger, cp_get_default_logger
 ! generic routines
-  public :: cp_init, cp_dealloc_ref, cp_would_log, cp_get_unit_nr,&
-       cp_log, cp_set_log_level, cp_get_default_unit_nr
-  public :: cp_to_string
+  public :: cp_logger_init, cp_logger_dealloc_ref, cp_logger_would_log,&
+       cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
+       cp_logger_set_log_level
+  !  public :: cp_init, cp_dealloc_ref, cp_would_log, cp_get_unit_nr,&
+  !      cp_set_log_level, cp_get_default_unit_nr
+  public :: cp_to_string, cp_log
 ! underlying routines
 !!FM  public ::  cp_logger_dealloc_ref, cp_logger_would_log,&
 !!FM       cp_logger_get_unit_nr, cp_logger_log, cp_logger_set_log_level,&
@@ -86,27 +89,27 @@ module cp_log_handling
      module procedure cp_int_to_string, cp_real_sp_to_string, &
           cp_real_dp_to_string
   end interface
-  interface cp_init
-     module procedure cp_logger_init
-  end interface
-  interface cp_dealloc_ref
-     module procedure cp_logger_dealloc_ref
-  end interface
-  interface cp_would_log
-     module procedure cp_logger_would_log
-  end interface
-  interface cp_get_unit_nr
-     module procedure cp_logger_get_unit_nr
-  end interface
+!!FM  interface cp_init
+!!FM     module procedure cp_logger_init
+!!FM  end interface
+!!FM  interface cp_dealloc_ref
+!!FM     module procedure cp_logger_dealloc_ref
+!!FM  end interface
+!!FM  interface cp_would_log
+!!FM     module procedure cp_logger_would_log
+!!FM  end interface
+!!FM  interface cp_get_unit_nr
+!!FM     module procedure cp_logger_get_unit_nr
+!!FM  end interface
   interface cp_log
      module procedure cp_logger_log
   end interface
-  interface cp_set_log_level
-     module procedure cp_logger_set_log_level
-  end interface
-  interface cp_get_default_unit_nr
-     module procedure cp_logger_get_default_unit_nr
-  end interface
+!!FM  interface cp_set_log_level
+!!FM     module procedure cp_logger_set_log_level
+!!FM  end interface
+!!FM  interface cp_get_default_unit_nr
+!!FM     module procedure cp_logger_get_default_unit_nr
+!!FM  end interface
 !!***
 !****************************************************************************
 

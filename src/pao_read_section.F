@@ -26,8 +26,8 @@
 !****************************************************************************
 module pao_read_section
   use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log, cp_logger_type, cp_note_level, cp_init, &
-       cp_dealloc_ref
+       cp_log, cp_logger_type, cp_note_level, cp_logger_init, &
+       cp_logger_dealloc_ref
   use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
        cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
        cp_error_dealloc_ref, cp_error_get_logger, cp_error_get_print_level,&
@@ -154,7 +154,7 @@ contains
           case ("IN_SUBSPACE_PRECISION")
              call read_object(wanted_in_subspace_precision)
           case ("DO_TESTS")
-             call cp_init(fileLogger,filename="pao_tests.log")
+             call cp_logger_init(fileLogger,filename="pao_tests.log")
              call cp_error_init(newErr,logger=fileLogger)
              call cp_log(cp_error_get_logger(error),cp_note_level,&
                   routineP," performing pao tests")
@@ -168,7 +168,7 @@ contains
                      ' +++++ all the pao tests were SUCCESSFULL ++++',error)
              end if
              call cp_error_dealloc_ref(newErr)
-             call cp_dealloc_ref(fileLogger)
+             call cp_logger_dealloc_ref(fileLogger)
           case DEFAULT
              call cp_error_message(cp_warning_level,routineP,&
                   "unknown keyword '"//keyword//"' in pao section",&

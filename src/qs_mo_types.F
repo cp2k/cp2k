@@ -225,13 +225,13 @@ CONTAINS
     CALL timeset("calculate_density_matrix","I","",handle)
 
     CALL blacs_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
-                    0.0_wp,density_matrix,globenv)
+                    0.0_wp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL blacs_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix,globenv)
+                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix)
     END DO
 
     CALL timestop(0.0_wp,handle)
@@ -268,16 +268,14 @@ CONTAINS
                                   matrix_v=mo_set%eigenvectors,&
                                   first_col=1,&
                                   ncol=mo_set%lfomo-1,&
-                                  alpha=2.0_wp,&
-                                  globenv=globenv)
+                                  alpha=2.0_wp)
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL sparse_plus_blacs_blacst(sparse_matrix=density_matrix,&
                                     matrix_v=mo_set%eigenvectors,&
                                     first_col=imo,&
                                     ncol=imo,&
-                                    alpha=mo_set%occupation_numbers(imo),&
-                                    globenv=globenv)
+                                    alpha=mo_set%occupation_numbers(imo))
     END DO
 
     CALL timestop(0.0_wp,handle)
@@ -311,7 +309,7 @@ CONTAINS
                                  ncol_global=ncol_global, &
                                  nrow_global=nrow_global, &
                                  nrow_block=nrow_block, &
-                                 ncol_block=ncol_block,globenv=globenv)
+                                 ncol_block=ncol_block)
 
     CALL allocate_blacs_matrix(new_matrix=weighted_vectors,&
                                  nrow_global=nrow_global, &
@@ -335,23 +333,22 @@ CONTAINS
     if (mo_set%homo .ne. ncol_global) CALL stop_program("calculate_w_matrix","NYI")
 
     CALL sparse_times_blacs(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                                                  mo_set%homo,globenv)
+         mo_set%homo,globenv%para_env)
     CALL blacs_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block,globenv)
+         mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
     CALL blacs_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
-                    mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors,globenv)
+                    mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
 
     ! scale every column with the occupation
     CALL blacs_scale_matrix(weighted_vectors,mo_set%occupation_numbers, &
-                                                        globenv,mo_set%homo)
+                                                        mo_set%homo)
 
     CALL set_matrix(w_matrix,0.0_wp)
     CALL sparse_plus_blacs_blacst(sparse_matrix=w_matrix,&
                                   matrix_v=mo_set%eigenvectors,&
                                   matrix_g=weighted_vectors,&
                                   first_col=1,&
-                                  ncol=mo_set%homo,&
-                                  globenv=globenv)
+                                  ncol=mo_set%homo)
 
     CALL deallocate_blacs_matrix(weighted_vectors)
     CALL deallocate_blacs_matrix(h_block)
@@ -750,7 +747,7 @@ CONTAINS
 
     allocate(vecbuffer(1,nao))
     do i=1,nmo
-       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R",globenv)
+       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"B2R")
        if (globenv%ionode) write(restart_unit) vecbuffer
     enddo
     deallocate(vecbuffer)
@@ -900,7 +897,7 @@ CONTAINS
             vecbuffer(1,:)=0.0_wp
        endif
        CALL mp_sum(vecbuffer,globenv%group)  ! the usual ugly way
-       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B",globenv)
+       call blacs_replicated_copy(mo_set%eigenvectors,vecbuffer,i,1,1,"R2B")
        did_change=.false.
     enddo
     deallocate(vecbuffer)
@@ -968,7 +965,7 @@ CONTAINS
 
     IF (globenv%print%mo_eigenvectors) THEN
       NULLIFY (matrix)
-      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix,globenv)
+      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix)
     END IF
 
     IF (.NOT.globenv%ionode) RETURN
