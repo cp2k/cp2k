@@ -96,7 +96,8 @@ MODULE simulation_cell
 
 ! *** Public functions ***
 
-  PUBLIC :: pbc,&
+  PUBLIC :: plane_distance,&
+            pbc,&
             real_to_scaled,&
             scaled_to_real
 
@@ -466,6 +467,72 @@ CONTAINS
 
 ! *****************************************************************************
 
+  FUNCTION plane_distance(h,k,l,cell) RESULT(distance)
+
+!   Purpose: Calculate the distance between two lattice planes as defined by
+!            a triple of Miller indices (hkl).
+
+!   History: - Creation (18.11.2004,MK)
+
+!   ***************************************************************************
+
+    INTEGER, INTENT(IN)                      :: h,k,l
+    TYPE(cell_type), POINTER                 :: cell
+
+    REAL(KIND=dp)                            :: distance
+
+    REAL(KIND=dp)                            :: a,alpha,b,beta,c,cosa,cosb,&
+                                                cosg,d,gamma,x,y,z
+    REAL(KIND=dp), DIMENSION(3)              :: abc
+
+!   ---------------------------------------------------------------------------
+
+    x = REAL(h,KIND=dp)
+    y = REAL(k,KIND=dp)
+    z = REAL(l,KIND=dp)
+
+    CALL get_cell(cell=cell,abc=abc)
+
+    a = abc(1)
+    b = abc(2)
+    c = abc(3)
+
+    IF (cell%orthorhombic) THEN
+
+      d = (x/a)**2 + (y/b)**2 + (z/c)**2
+
+    ELSE
+
+      CALL get_cell(cell=cell,&
+                    alpha=alpha,&
+                    beta=beta,&
+                    gamma=gamma)
+
+      alpha = alpha/degree
+      beta = beta/degree
+      gamma = gamma/degree
+
+      cosa = cos(alpha)
+      cosb = cos(beta)
+      cosg = cos(gamma)
+
+      d = ((x*b*c*sin(alpha))**2 +&
+           (y*c*a*sin(beta))**2 +&
+           (z*a*b*sin(gamma))**2 +&
+           2.0_dp*a*b*c*(x*y*c*(cosa*cosb - cosg) +&
+                         z*x*b*(cosg*cosa - cosb) +&
+                         y*z*a*(cosb*cosg - cosa)))/&
+          ((a*b*c)**2*(1.0_dp - cosa**2 - cosb**2 - cosg**2 +&
+           2.0_dp*cosa*cosb*cosg))
+
+    END IF
+
+    distance = 1.0_dp/SQRT(d)
+
+  END FUNCTION plane_distance
+
+! *****************************************************************************
+
   FUNCTION pbc1(r,cell) RESULT(r_pbc)
 
 !   Purpose: Apply the periodic boundary conditions defined by a simulation
@@ -491,18 +558,9 @@ CONTAINS
       s(1) = cell%h_inv(1,1)*r(1) + cell%h_inv(1,2)*r(2) + cell%h_inv(1,3)*r(3)
       s(2) = cell%h_inv(2,1)*r(1) + cell%h_inv(2,2)*r(2) + cell%h_inv(2,3)*r(3)
       s(3) = cell%h_inv(3,1)*r(1) + cell%h_inv(3,2)*r(2) + cell%h_inv(3,3)*r(3)
-      IF ( ABS ( s ( 1 ) ) > 0.5_dp ) THEN
-         s(1) = s(1) - cell%perd(1) * INT(s(1)+SIGN(0.5_dp,s(1)))
-      END IF
-      IF ( ABS ( s ( 2 ) ) > 0.5_dp ) THEN
-         s(2) = s(2) - cell%perd(2) * INT(s(2)+SIGN(0.5_dp,s(2)))
-      END IF
-      IF ( ABS ( s ( 3 ) ) > 0.5_dp ) THEN
-         s(3) = s(3) - cell%perd(3) * INT(s(3)+SIGN(0.5_dp,s(3)))
-      END IF
-!      s(1) = s(1) - cell%perd(1)*ANINT(s(1))
-!      s(2) = s(2) - cell%perd(2)*ANINT(s(2))
-!      s(3) = s(3) - cell%perd(3)*ANINT(s(3))
+      s(1) = s(1) - cell%perd(1)*ANINT(s(1))
+      s(2) = s(2) - cell%perd(2)*ANINT(s(2))
+      s(3) = s(3) - cell%perd(3)*ANINT(s(3))
       r_pbc(1) = cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
       r_pbc(2) = cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
       r_pbc(3) = cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)

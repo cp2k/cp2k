@@ -48,6 +48,7 @@ MODULE fist_neighbor_lists
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
+                                             plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
   USE termination,                     ONLY: stop_memory
@@ -307,9 +308,9 @@ CONTAINS
 !   *** Load informations about the simulation cell ***
 
     CALL get_cell(cell=cell,&
+                  abc=abc,&
                   periodic=periodic,&
                   subcells=subcells,&
-                  abc = abc,        &
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
@@ -341,8 +342,9 @@ CONTAINS
         rab_max = r_cut(ikind,jkind)
         rab2_max = rab_max*rab_max
 
-        r(:) = rab_max
-        sab_max(:) = r(:)/abc(:)
+        sab_max(1) = rab_max/plane_distance(1,0,0,cell)
+        sab_max(2) = rab_max/plane_distance(0,1,0,cell)
+        sab_max(3) = rab_max/plane_distance(0,0,1,cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
         nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
@@ -351,7 +353,7 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
-          r(:) = s(:) * abc ( : )
+          r(:) = s(:)*abc(:)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
