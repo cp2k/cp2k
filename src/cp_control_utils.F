@@ -128,7 +128,8 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=26
 INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=27
 INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=28
 INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=29
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 29
+INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=30
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 30
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 
@@ -256,6 +257,10 @@ CONTAINS
      qs_keywords(qs_key_METHOD)=keyword_type("METHOD", &
                                        "METHOD {GAPW|GPW|KG_POL|KG_NOPOL|KG_GPW}",&
                                        "What method should be employed",&
+                                       "","","")
+     qs_keywords(qs_key_MULLIKEN_RESTRAINT)=keyword_type("MULLIKEN_RESTRAINT", &
+                                       "MULLIKEN_RESTRAINT",&
+                                       "Employ a restraint on the mulliken charges",&
                                        "","","")
   END SUBROUTINE
 
@@ -632,6 +637,7 @@ CONTAINS
     qs_control%map_paa = .FALSE.
     qs_control%map_consistent = .FALSE.
     qs_control%polarization = .FALSE.
+    qs_control%mulliken_restraint = .FALSE.
     qs_control%wf_extrapolation_order = 0
 
     CALL gapw_control_create(qs_control%gapw_control)
@@ -813,6 +819,8 @@ CONTAINS
             qs_control%gapw_control%ladd_rho0 = ivalue
           CASE (qs_key_PAO)
             qs_control%pao = .TRUE.
+          CASE (qs_key_MULLIKEN_RESTRAINT)
+            qs_control%mulliken_restraint = .TRUE.
           CASE (qs_key_PW_GRID)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)

@@ -354,10 +354,10 @@ CONTAINS
           DO ispin=1, 2
              CALL pw_create(rho_r_pw(ispin)%pw, rho_r(1)%pw%pw_grid, rho_r(1)%pw%in_use, rho_r(1)%pw%in_space)
              CALL pw_transfer(rho_r(1)%pw, rho_r_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dbl, rho_r_pw(ispin)%pw%cr3d, 1)
+             CALL dscal(PRODUCT(rho_r_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho_r_pw(ispin)%pw%cr3d, 1)
              CALL pw_create(rho_g_pw(ispin)%pw, rho_g(1)%pw%pw_grid, rho_g(1)%pw%in_use, rho_g(1)%pw%in_space)
              CALL pw_transfer(rho_g(1)%pw, rho_g_pw(ispin)%pw)
-             CALL dscal(PRODUCT(rho_g_pw(ispin)%pw%pw_grid%npts_local), 0.5_dbl, rho_g_pw(ispin)%pw%cr3d, 1)
+             CALL dscal(PRODUCT(rho_g_pw(ispin)%pw%pw_grid%npts_local), 0.5_dp, rho_g_pw(ispin)%pw%cr3d, 1)
           END DO
        ELSE
           ALLOCATE(rho_r_pw(nspins), rho_g_pw(nspins))
@@ -529,7 +529,7 @@ CONTAINS
     end do
 
     call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks=k_p_p1,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix=k_p_p1,rho=rho,energy=qs_energy,&
          calculate_forces=.false.,&
          just_energy=.false.,error=error)
 
@@ -553,7 +553,7 @@ CONTAINS
     end do
 
     call qs_ks_build_kohn_sham_matrix(ks_env=qs_env%ks_env,&
-         qs_env=qs_env,ks=ks_2,rho=rho,energy=qs_energy,&
+         qs_env=qs_env,ks_matrix=ks_2,rho=rho,energy=qs_energy,&
          calculate_forces=.false.,&
          just_energy=.false.,error=error)
 

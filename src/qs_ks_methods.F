@@ -59,6 +59,7 @@ MODULE qs_ks_methods
   USE  hartree_local_3centers,         ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kinds,                           ONLY: dp
+  USE mulliken,                        ONLY: mulliken_restraint
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
@@ -229,12 +230,12 @@ CONTAINS
 !!     10.2002 introduced pools, uses updated rho as input, LSD [fawzi]
 !!
 !!*** *********************************************************************
-  SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks,&
+  SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
        rho,energy,calculate_forces,just_energy,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      INTENT(inout)                          :: ks
+        POINTER                              :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
@@ -265,7 +266,8 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: h, s
-    REAL(dp)                                 :: tot1_h, tot1_s 
+    REAL(dp)                                 :: tot1_h, tot1_s
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! shorter for output
 
@@ -291,6 +293,7 @@ CONTAINS
          s=s,&
          pw_env=pw_env,&
          cell=cell,&
+         para_env=para_env,&
          rho_core=rho_core,&
          rho0_s_gs=rho0_s_gs,&
          qs_charges=qs_charges)
@@ -300,7 +303,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(SIZE(ks)>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_r_valid,cp_failure_level,routineP,error,failure)
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
@@ -322,6 +325,7 @@ CONTAINS
     IF(gapw) THEN
       CALL prepare_gapw_den(qs_env,error)
     ENDIF
+
 
 ! *** calculate the hartree potential on the pw density ***
     IF (.NOT. failure) THEN
@@ -434,7 +438,7 @@ CONTAINS
 
           DO ispin=1,nspins
              ! copy the core ham into the ks matrix
-             CALL transfer_matrix(h(1)%matrix,ks(ispin)%matrix)
+             CALL transfer_matrix(h(1)%matrix,ks_matrix(ispin)%matrix)
           END DO
           IF (ASSOCIATED(v_rspace_new)) THEN
              DO ispin=1,nspins
@@ -445,7 +449,7 @@ CONTAINS
 
                 ! add the part due to v_rspace
                 CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                     p=rho%rho_ao(ispin),h=ks(ispin),&
+                     p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                      qs_env=qs_env, &
                      calculate_forces=calculate_forces,&
                      gapw=gapw,error=error)
@@ -460,7 +464,7 @@ CONTAINS
              DO ispin=1,nspins
                 ! add oly v_hartree
                 CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                     p=rho%rho_ao(ispin),h=ks(ispin), qs_env=qs_env,&
+                     p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
                      calculate_forces=calculate_forces,&
                      gapw=gapw,error=error)
              END DO
@@ -473,7 +477,7 @@ CONTAINS
                       v_tau_rspace(ispin)%pw%cr3d 
 
                  CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                      p=rho%rho_ao(ispin),h=ks(ispin),&
+                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env,&
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
                       gapw=gapw,error=error)
@@ -495,23 +499,34 @@ CONTAINS
 !         *** Initialize energy
              energy%hartree_3c = 0.0_dp
              DO ispin = 1,nspins
-                CALL integrate_a_vhg0_b(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                CALL integrate_a_vhg0_b(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
                     energy,.FALSE.,calculate_forces,error=error)
              END DO
 !         ***  Single atom contributions in the KS matrix ***
              DO ispin = 1,nspins
-                CALL update_ks_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                CALL update_ks_atom(qs_env,ks_matrix(ispin),rho%rho_ao(ispin),&
                      ispin,calculate_forces,error)
              ENDDO
           ENDIF
 
        END IF
 
+!      
+       energy%mulliken = 0.0_dp
+       IF (dft_control%qs_control%mulliken_restraint) THEN
+           IF (just_energy) THEN
+               CALL mulliken_restraint(para_env,s(1)%matrix, &
+                             rho%rho_ao,energy=energy%mulliken)
+           ELSE
+               CALL mulliken_restraint(para_env,s(1)%matrix, &
+                             rho%rho_ao,energy=energy%mulliken,ks_matrix=ks_matrix)
+           ENDIF
+       ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + energy%hartree_1c +&
             energy%hartree_3c + energy%exc + energy%exc1 + &
-            energy%qmmm_el
+            energy%qmmm_el + energy%mulliken
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -529,6 +544,10 @@ CONTAINS
              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
           End If
+          IF (dft_control%qs_control%mulliken_restraint) THEN
+              WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                "Mulliken restraint energy: ",energy%mulliken
+          ENDIF
        END IF
 
     END IF
@@ -630,7 +649,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
         END DO
 
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-             ks=ks,&
+             ks_matrix=ks,&
              rho=rho,&
              energy=energy,&
              calculate_forces=c_forces,just_energy=energy_only,&

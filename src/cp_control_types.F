@@ -88,6 +88,7 @@ MODULE cp_control_types
     LOGICAL                         :: map_consistent
     LOGICAL                         :: gapw,gpw,pao
     LOGICAL                         :: polarization
+    LOGICAL                         :: mulliken_restraint
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
     TYPE (gapw_control_type), POINTER :: gapw_control

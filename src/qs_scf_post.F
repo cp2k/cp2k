@@ -182,7 +182,7 @@ CONTAINS
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, s
+      POINTER                                :: ks_rmpv, s, p
     TYPE(scf_control_type), POINTER          :: scf_control
 
     TYPE evals_p_type
@@ -222,7 +222,8 @@ CONTAINS
 
 !    *** compute the mulliken charges ***
        IF (globenv%print%mulliken_analysis)  &
-            CALL mulliken_charges(c,s(1)%matrix,particle_set,globenv%scr,globenv%ionode)
+            CALL mulliken_charges(rho%rho_ao,s(1)%matrix,globenv%para_env,particle_set, &
+                                  globenv%scr,globenv%ionode)
 
 !    *** setup the grids needed to compute a wavefunction given a vector
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &

@@ -754,6 +754,10 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "QM/MM Electrostatic energy:                    ",energy%qmmm_el
        END IF
+       IF (dft_control%qs_control%mulliken_restraint) THEN
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                "Mulliken restraint energy: ",energy%mulliken
+       ENDIF
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)

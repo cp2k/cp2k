@@ -28,6 +28,7 @@ MODULE qs_force
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE message_passing,                 ONLY: mp_sum
+  USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
@@ -42,6 +43,7 @@ MODULE qs_force
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
+  USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
@@ -105,6 +107,7 @@ CONTAINS
       POINTER                                :: k, s, w
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: gapw
+    TYPE(qs_rho_type), POINTER               :: rho
 !   ---------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -121,6 +124,7 @@ CONTAINS
     NULLIFY (s)
     NULLIFY (scf_control)
     NULLIFY (w)
+    NULLIFY (rho)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -152,14 +156,10 @@ CONTAINS
     CALL qs_energies(qs_env,globenv,&
                      neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    c=c,&
-                    k=k,&
-                    ks_env=ks_env,&
-                    s=s)
+    CALL get_qs_env(qs_env=qs_env,c=c, k=k, ks_env=ks_env, s=s, rho=rho)
 
 !   *** Build W matrix ***
-
+!   *** C^T H_ks C (from the orthonormality constraint)
     nspin = SIZE(c)
 
     CALL allocate_matrix_set(w,nspin)
@@ -177,17 +177,26 @@ CONTAINS
       END IF
     END DO
 
+!   *** from an eventual mulliken restraint
+    IF (dft_control%qs_control%mulliken_restraint) THEN
+        CALL mulliken_restraint(globenv%para_env,s(1)%matrix, &
+                                rho%rho_ao,w_matrix=w)
+    ENDIF
+
     CALL set_qs_env(qs_env=qs_env,w=w)
 
+!   *** compute core forces ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.TRUE.)
 
+!   *** compute grid-based forces ***
 !FM CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.)
     CALL qs_ks_update_qs_env(ks_env=ks_env,&
                              qs_env=qs_env,&
                              calculate_forces=.TRUE.)
 
+!   *** distribute forces ***
     DO ikind=1,SIZE(force)
       CALL mp_sum(force(ikind)%overlap,globenv%group)
       CALL mp_sum(force(ikind)%kinetic,globenv%group)

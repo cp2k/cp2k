@@ -41,6 +41,7 @@ MODULE qs_energy_types
                 hartree_3c,&
                 qmmm_el,&
                 qmmm_nu,&
+                mulliken,&
                 total
   END TYPE qs_energy_type
 
@@ -144,6 +145,7 @@ CONTAINS
       qs_energy%hartree = 0.0_dp
       qs_energy%hartree_1c = 0.0_dp
       qs_energy%hartree_3c = 0.0_dp
+      qs_energy%mulliken = 0.0_dp
       qs_energy%total = 0.0_dp
     ELSE
       CALL stop_program(routine,"The qs_energy pointer is not associated "//&
