@@ -211,12 +211,12 @@ CONTAINS
          IF (mc_par_1%lclassical) THEN
             CALL mc_classical_energy(force_env_1,&
                classical_energy_new(1),&
-               mc_par_1,1,mc_par_1%nchain,6.211D0/angstrom)
+               mc_par_1%nchain,1,mc_par_1%nchain,6.211D0/angstrom)
 !!!!!!!!!!!!
             new_energy(1)=classical_energy_new(1)
             CALL mc_classical_energy(force_env_2,&
                classical_energy_new(2),&
-               mc_par_2,1,mc_par_2%nchain,6.211D0/angstrom)
+               mc_par_2%nchain,1,mc_par_2%nchain,6.211D0/angstrom)
 !!!!!!!!!!!!
             new_energy(2)=classical_energy_new(2)
             
@@ -742,7 +742,7 @@ CONTAINS
          mc_par(insert_box)%mc_par%nunits_tot+natom
       CALL mc_classical_energy(insert_env,&
          classical_energy_new(insert_box),&
-         mc_par(insert_box)%mc_par,1,&
+         mc_par(insert_box)%mc_par%nchain,1,&
          mc_par(insert_box)%mc_par%nchain,6.211D0/angstrom)
 
 !!!!!!!!!!!!!!!!!
@@ -767,7 +767,7 @@ CONTAINS
             mc_par(remove_box)%mc_par%nunits_tot-natom
          CALL mc_classical_energy(remove_env,&
             classical_energy_new(remove_box),&
-            mc_par(remove_box)%mc_par,1,&
+            mc_par(remove_box)%mc_par%nchain,1,&
             mc_par(remove_box)%mc_par%nchain,6.211D0/angstrom)
          
 !!!!!!!!!!!!!!!!!!!!!
@@ -826,7 +826,7 @@ CONTAINS
 ! accept the move         
 
          IF ( mc_par(1)%mc_par%ionode) THEN
-!            WRITE(6,*) 'ACCEPTING'
+
 !     accept the move
             moves(insert_box)%moves%swap%successes=&
                 moves(insert_box)%moves%swap%successes+1
@@ -1014,6 +1014,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rand,w,prefactor,vol_dis
     LOGICAL,DIMENSION(1:2)                   :: lempty
 !   ---------------------------------------------------------------------------
+      
 ! begin the timing of the subroutine
 
       CALL timeset(routineN,'I','',handle)
@@ -1058,7 +1059,6 @@ CONTAINS
          ENDIF
       ENDDO
       
-
       IF (mc_par(1)%mc_par%ionode) THEN
 ! record the attempt
          DO i=1,2
@@ -1092,6 +1092,7 @@ CONTAINS
 
          DO i=1,2
 ! find the old classical energy
+
             IF(lempty(i)) THEN
 
                classical_energy_test(i)=0.0d0
@@ -1100,23 +1101,25 @@ CONTAINS
             ELSE
 
               CALL mc_classical_energy(force_env(i)%force_env,&
-                  classical_energy_original(i),mc_par(1)%mc_par,1,&
-                  mc_par(1)%mc_par%nchain,6.211d0/angstrom,&
+                  classical_energy_original(i),mc_par(i)%mc_par%nchain,&
+                  1,mc_par(i)%mc_par%nchain,6.211d0/angstrom,&
                   cell_length=old_cell_length(i))
 
                classical_energy_test(i)=classical_energy_original(i)
             ENDIF
+
 ! save the old coordiantes
             DO iatom=1,nunits_tot(i)
                r(1:3,iatom,i)=particles_old(i)%list%els(iatom)%r(1:3)
             ENDDO
+
 !     fold the coordinates into the central box
             CALL mc_coordinate_fold(r(:,:,i),&
                nunits_tot(i),test_cell_length(i))
+
 ! make the new dat file
             CALL mc_make_dat_file(r(:,:,i),nunits_tot(i),&
                test_cell_length(i)*angstrom,mc_par(i)%mc_par%dat_file)
-
 
          ENDDO
       ENDIF
@@ -1136,6 +1139,7 @@ CONTAINS
       ENDDO
 
 ! now do some classical moves to find a good move
+
       IF (mc_par(1)%mc_par%ionode) THEN
 
 ! now do a series of volume moves, accepting or rejecting each one based on
@@ -1191,7 +1195,7 @@ CONTAINS
                   classical_energy_new(i)=0.0D0
                ELSE
                   CALL mc_classical_energy(test_env(i)%force_env,&
-                     classical_energy_new(i),mc_par(i)%mc_par,1,&
+                     classical_energy_new(i),mc_par(i)%mc_par%nchain,1,&
                      mc_par(i)%mc_par%nchain,6.211d0/angstrom,&
                      cell_length=new_cell_length(i))
                ENDIF
@@ -1257,7 +1261,7 @@ CONTAINS
                   classical_energy_test(i)=classical_energy_new(i)
                ENDDO
             ENDIF
-            
+           
          ENDDO
 
 ! determine the overall energy difference
@@ -1338,7 +1342,6 @@ CONTAINS
          ENDIF
 
       ENDIF
-
 
       CALL mp_bcast(rand,mc_par(1)%mc_par%source,mc_par(1)%mc_par%group)
       CALL mp_bcast(w,mc_par(1)%mc_par%source,mc_par(1)%mc_par%group)

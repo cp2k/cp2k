@@ -218,7 +218,8 @@ CONTAINS
       IF (mc_par % ionode) THEN
 
          CALL mc_classical_energy(force_env,moves%classical_energy,&
-                               mc_par,1,mc_par%nchain,6.211D0/angstrom)
+                               mc_par%nchain,1,&
+                               mc_par%nchain,6.211D0/angstrom)
 !!!!!!!!!!!
          old_energy=moves%classical_energy
          classical_energy=moves%classical_energy
@@ -270,25 +271,34 @@ CONTAINS
 
       DO nnstep=mc_par % nstart+1,mc_par % nstart + mc_par % nstep
 
+         IF(PM0) THEN
+            WRITE(iw,*) 
+            WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
+         ENDIF
+
          CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,mc_par%source,mc_par%group)
 
          IF (rand .LT. mc_par % pmvolume) THEN
 
-! some memory stuff
-#if defined(__HMD)
-      IF (mc_par%ionode) CALL _dump_allocated(%VAL(0))
-#endif
+            IF(PM0) THEN
+               WRITE(iw,*) "Attempting a volume move"
+               WRITE(iw,*) 
+            ENDIF
+
             CALL mc_volume_move( mc_par,force_env,moves,move_updates,&
                         nnstep,old_energy,globenv,&
                         energy_check,r_old,&
                         error=error)
-#if defined(__HMD)
-      IF (mc_par%ionode) CALL _dump_allocated(%VAL(0))
-#endif
 
         ELSE
+
+            IF(PM0) THEN
+               WRITE(iw,*) "Attempting a Quickstep move"
+               WRITE(iw,*) 
+            ENDIF
+
             particle_positions(:,:)=0.0d0
 ! we want to do all this in serial
             IF( mc_par % ionode ) THEN
@@ -441,7 +451,8 @@ CONTAINS
                         
 !!!!!!!!!!!
          CALL mc_classical_energy(force_env,final_energy,&
-                               mc_par,1,mc_par%nchain,6.211D0/angstrom)
+                               mc_par%nchain,1,&
+                               mc_par%nchain,6.211D0/angstrom)
 
          WRITE(ene,*) 'Final Energy:                        ',&
                   final_energy,energy_check
@@ -640,7 +651,7 @@ CONTAINS
 !!!!!!!!!!!!
 !         CALL force_env_calculate_energy(force_env(i)%force_env)
          CALL mc_classical_energy(force_env(i)%force_env,&
-            moves(i)%moves%classical_energy,mc_par(i)%mc_par,1,&
+            moves(i)%moves%classical_energy,mc_par(i)%mc_par%nchain,1,&
             mc_par(i)%mc_par%nchain,6.211D0/angstrom)
          old_energy(i)=moves(i)%moves%classical_energy
          classical_energy(i)=moves(i)%moves%classical_energy
@@ -758,6 +769,10 @@ CONTAINS
       DO nnstep=mc_par(1)%mc_par%nstart+1,mc_par(1)%mc_par%nstart + &
                                     mc_par(1)%mc_par%nstep
 
+         IF(PM0) THEN
+            WRITE(iw,*) 
+            WRITE(iw,*) "------- On Monte Carlo Step ",nnstep
+         ENDIF
          CALL RANDOM_NUMBER(rand)
 ! broadcast the random number, to make sure we're on the same move
          CALL mp_bcast(rand,mc_par(1)%mc_par%source,&
@@ -766,6 +781,10 @@ CONTAINS
 
          IF (rand .LT. mc_par(1)%mc_par % pmvolume) THEN
 !     change the volume of the system
+            IF(PM0) THEN
+               WRITE(iw,*) "Attempting a volume move"
+               WRITE(iw,*) 
+            ENDIF
 
             CALL mc_ge_volume_move ( mc_par,force_env, moves,&
                move_updates,nnstep,old_energy,globenv,energy_check,&
@@ -774,11 +793,21 @@ CONTAINS
          ELSEIF ( rand .LT. mc_par(1)%mc_par % pmswap) THEN
 
 ! try a swap move
+            IF(PM0) THEN
+               WRITE(iw,*) "Attempting a swap move"
+               WRITE(iw,*) 
+            ENDIF
+
             CALL mc_ge_swap_move(mc_par,force_env,moves,&
                 energy_check,r_old,old_energy,&
                 nnstep,globenv,error)
 
          ELSE
+
+            IF(PM0) THEN
+               WRITE(iw,*) "Attempting a Quickstep move"
+               WRITE(iw,*) 
+            ENDIF
 
             particle_positions(:,:,:) = 0.0D0
             
@@ -1039,7 +1068,7 @@ CONTAINS
 !            CALL force_env_get(force_env(i)%force_env,&
 !               potential_energy=final_energy(i),error=error)
             CALL mc_classical_energy(force_env(i)%force_env,&
-               final_energy(i),mc_par(i)%mc_par,1,&
+               final_energy(i),mc_par(i)%mc_par%nchain,1,&
                mc_par(i)%mc_par%nchain,6.211D0/angstrom)
          ELSE
             final_energy(i)=0.0D0

@@ -580,13 +580,12 @@ END SUBROUTINE final_mc_write
 !!
 !!*****************************************************************************
 SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
-                                 mc_par, nstart, nend ,rrcut,cell_length)
+                                 nchain, nstart, nend ,rrcut,cell_length)
 
     TYPE(force_env_type), POINTER            :: force_env
     REAL(KIND=dp), INTENT(OUT)               :: classical_energy_new
-    TYPE(mc_simulation_parameters_type), &
-      POINTER                                :: mc_par
     INTEGER, INTENT(IN)                      :: nstart, nend
+    INTEGER, INTENT(IN)                      :: nchain
     REAL(KIND=dp), INTENT(IN)                :: rrcut
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cell_length
 
@@ -604,7 +603,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     TYPE(cp_error_type)                      :: error
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), &
-      DIMENSION(1:3, 1:3, 1:mc_par%nchain)   :: r
+      DIMENSION(1:3, 1:3, 1:nchain)   :: r
     TYPE(particle_list_type), POINTER        :: particles
 
 !------------------------------------------------------------------------------
@@ -643,7 +642,7 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 !!!!!!!!!!
 
 ! put the coordinates into an easier matrix to manipulate
-      DO imol=1,mc_par%nchain
+      DO imol=1,nchain
          r(1:3,1,imol)=particles%els(imol*3-2)%r(1:3)
          r(1:3,2,imol)=particles%els(imol*3-1)%r(1:3)
          r(1:3,3,imol)=particles%els(imol*3)%r(1:3)
@@ -690,10 +689,10 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 ! the charge interactions
       lall=.FALSE.
       jstart=1
-      IF( nstart == 1 .AND. nend == mc_par%nchain) lall=.TRUE.
+      IF( nstart == 1 .AND. nend == nchain) lall=.TRUE.
       DO imol=nstart,nend
          IF (lall) jstart=imol+1
-         DO jmol=jstart,mc_par%nchain
+         DO jmol=jstart,nchain
             IF(imol == jmol) CYCLE
 
 ! find the minimum image distance between oxygens

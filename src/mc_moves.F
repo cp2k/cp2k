@@ -179,7 +179,7 @@ CONTAINS
          IF (mc_par%lclassical) THEN
             CALL mc_classical_energy(force_env,&
                classical_energy_new,&
-               mc_par,1,mc_par%nchain,6.211D0/angstrom)
+               mc_par%nchain,1,mc_par%nchain,6.211D0/angstrom)
 !!!!!!!!
             new_energy=classical_energy_new
             classical_energy_old=moves%classical_energy
@@ -350,8 +350,8 @@ CONTAINS
 ! find the old classical energy of the moving mol if we're biasing classically
       imol = (mol+2)/3
       IF (mc_par % lclassical ) THEN
-         CALL mc_classical_energy(force_env,&
-            classical_energy_old,mc_par,imol,imol,6.211D0/angstrom)
+         CALL mc_classical_energy(force_env,classical_energy_old,&
+            mc_par%nchain,imol,imol,6.211D0/angstrom)
       ENDIF
 
 ! let's grab the coordinates
@@ -411,8 +411,8 @@ CONTAINS
       IF(mc_par%lclassical) THEN
 
 ! here's where we bias the moves with a classical force field 
-         CALL mc_classical_energy(force_env,&
-            classical_energy_new,mc_par,imol,imol,6.211D0/angstrom)
+         CALL mc_classical_energy(force_env,classical_energy_new,&
+            mc_par%nchain,imol,imol,6.211D0/angstrom)
 
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
@@ -546,8 +546,8 @@ CONTAINS
       IF (mc_par % lclassical ) THEN
 !          CALL mc_classical_energy(force_env,&
 !       classical_energy_old,mc_par,1,mc_par%nchain,6.211d0/angstrom)
-        CALL mc_classical_energy(force_env,&
-            classical_energy_old,mc_par,imol,imol,6.211D0/angstrom)
+        CALL mc_classical_energy(force_env,classical_energy_old,&
+           mc_par%nchain,imol,imol,6.211D0/angstrom)
       ENDIF
 
 ! record the attempt
@@ -592,8 +592,8 @@ CONTAINS
       IF(mc_par%lclassical) THEN
 
 ! here's where we bias the moves with a classical force field 
-         CALL mc_classical_energy(force_env,&
-            classical_energy_new,mc_par,imol,imol,6.211d0/angstrom)
+         CALL mc_classical_energy(force_env,classical_energy_new,&
+            mc_par%nchain,imol,imol,6.211d0/angstrom)
 !         CALL mc_classical_energy(force_env,&
 !       classical_energy_new,mc_par,1,mc_par%nchain,6.211d0/angstrom)
 
@@ -728,8 +728,8 @@ CONTAINS
       IF (mc_par % lclassical ) THEN
 !         CALL mc_classical_energy(force_env,&
 !      classical_energy_old,mc_par,1,mc_par%nchain,6.211d0/angstrom)
-         CALL mc_classical_energy(force_env,&
-            classical_energy_old,mc_par,imol,imol,6.211d0/angstrom)
+         CALL mc_classical_energy(force_env,classical_energy_old,&
+            mc_par%nchain,imol,imol,6.211d0/angstrom)
       ENDIF
 !      STOP
 
@@ -839,8 +839,8 @@ CONTAINS
       IF(mc_par%lclassical) THEN
 
 ! here's where we bias the moves with a classical force field 
-         CALL mc_classical_energy(force_env,&
-            classical_energy_new,mc_par,imol,imol,6.211d0/angstrom)
+         CALL mc_classical_energy(force_env,classical_energy_new,&
+            mc_par%nchain,imol,imol,6.211d0/angstrom)
 
 ! accept or reject the move based on the Metropolis rule
          w=dexp(-mc_par%BETA*(classical_energy_new-&
@@ -1007,7 +1007,7 @@ CONTAINS
 
 ! find the old classical energy
          CALL mc_classical_energy(force_env,&
-            classical_energy_original,mc_par,1,mc_par%nchain,&
+            classical_energy_original,mc_par%nchain,1,mc_par%nchain,&
             6.211d0/angstrom,cell_length=old_cell_length)
 
          classical_energy_test=classical_energy_original
@@ -1090,7 +1090,7 @@ CONTAINS
         
 ! find and store the classical energy
             CALL mc_classical_energy(test_env,&
-               classical_energy_new,mc_par,1,mc_par%nchain,&
+               classical_energy_new,mc_par%nchain,1,mc_par%nchain,&
                6.211d0/angstrom,cell_length=new_cell_length)
 
             IF (mc_par % nvolmoves .GT. 1) THEN
