@@ -416,8 +416,6 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   CPPrecondition(ASSOCIATED(new_pw_env),cp_failure_level,routineP,error,failure)
   IF (ASSOCIATED(rho_core)) THEN
      CALL coeff_deallocate(rho_core)
-     DEALLOCATE(rho_core,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   ELSE
      ALLOCATE(rho_core,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
