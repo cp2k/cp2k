@@ -2252,6 +2252,8 @@ END FUNCTION xc_exc_calc
           xc_control = tddfpt_control%xc_control
           lsd = .TRUE.
        END IF
+       fac = 1.0_dp
+       IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -1.0_dp
 
        ALLOCATE(tmp_r(nspins), tmp_r2(nspins), tmp_a(nspins), tmp_b(nspins),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2319,13 +2321,8 @@ END FUNCTION xc_exc_calc
           DO k = bo(1,3), bo(2,3)
              DO j = bo(1,2), bo(2,2)
                 DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
                            deriv_data(i,j,k) * rho1a(i,j,k)
-                   ELSE 
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           2.0_dp * deriv_data(i,j,k) * rho1a(i,j,k) !##
-                   END IF
                 END DO
              END DO
           END DO
@@ -2343,7 +2340,7 @@ END FUNCTION xc_exc_calc
                    DO i = bo(1,1), bo(2,1)
                       IF (nspins /= 1) THEN
                          v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                              deriv_data(i,j,k) * rho1a(i,j,k) !##
+                              deriv_data(i,j,k) * rho1a(i,j,k)
                       END IF
                    END DO
                 END DO
@@ -2362,14 +2359,12 @@ END FUNCTION xc_exc_calc
                 DO i = bo(1,1), bo(2,1)
                    IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1b(i,j,k) !##
+                           deriv_data(i,j,k) * rho1b(i,j,k)
                       v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * rho1a(i,j,k) !##
+                           deriv_data(i,j,k) * rho1a(i,j,k)
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
+                           fac * deriv_data(i,j,k) * rho1b(i,j,k)
                    END IF
                 END DO
              END DO
@@ -2389,44 +2384,38 @@ END FUNCTION xc_exc_calc
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                    END DO
-                   IF (nspins /= 1) THEN
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1a(i,j,k) !##
-                   ELSE 
-                      v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * rho1a(i,j,k) !##
-                   END IF
+                   v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
+                                            deriv_data(i,j,k) * dr1dr
+                   tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
+                                             deriv_data(i,j,k) * rho1a(i,j,k)
                 END DO
              END DO
           END DO
        END IF
 
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(drhob)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1b(i,j,k) !##
-                   END IF
+       IF (.NOT. dft_control%do_tddfpt_calculation) THEN
+          deriv_att=> xc_dset_get_derivative(deriv_set, "(rhob)(drhob)", error=error)
+          IF (ASSOCIATED(deriv_att)) THEN
+             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                  error=error)
+             !$omp parallel do private(k,j,i,dr1dr)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      IF (nspins /= 1) THEN
+                         dr1dr=0._dp
+                         DO idir=1,3
+                            dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                         END DO
+                         v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
+                                                  deriv_data(i,j,k) * dr1dr
+                         tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                                                   deriv_data(i,j,k) * rho1b(i,j,k)
+                      END IF
+                   END DO
                 END DO
              END DO
-          END DO
+          END IF
        END IF
 
        deriv_att=> xc_dset_get_derivative(deriv_set, "(rhoa)(drhob)", &
@@ -2444,14 +2433,12 @@ END FUNCTION xc_exc_calc
                    END DO
                    IF (nspins /= 1) THEN
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1a(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1a(i,j,k)
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           fac * deriv_data(i,j,k) * dr1dr !##
+                                               fac * deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2473,14 +2460,12 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1b(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1b(i,j,k)
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
+                                                fac * deriv_data(i,j,k) * rho1b(i,j,k)
                    END IF
                 END DO
              END DO
@@ -2502,33 +2487,31 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1a(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1a(i,j,k)
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1a(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1a(i,j,k)
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       v_xc(1)%pw%cr3d(i,j,k) = v_xc(1)%pw%cr3d(i,j,k) + &
-                           fac * deriv_data(i,j,k) * dr1dr !##
+                                               fac * deriv_data(i,j,k) * dr1dr
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * rho1a(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1a(i,j,k)
                    END IF
                 END DO
              END DO
@@ -2550,45 +2533,43 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           fac * deriv_data(i,j,k) * dr1dr !##
+                                                fac * deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr
+                                                deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2610,22 +2591,20 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       v_xc(2)%pw%cr3d(i,j,k) = v_xc(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                               deriv_data(i,j,k) * dr1dr
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1b(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1b(i,j,k)
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * rho1b(i,j,k) !##
+                                                deriv_data(i,j,k) * rho1b(i,j,k)
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
+                                                fac * deriv_data(i,j,k) * rho1b(i,j,k) !##
                    END IF
                 END DO
              END DO
@@ -2647,34 +2626,32 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                fac*deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2694,38 +2671,34 @@ END FUNCTION xc_exc_calc
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                    END DO
-                   IF (nspins /= 1) THEN
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
-                   ELSE
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
-                   END IF
+                                                deriv_data(i,j,k) * dr1dr
                 END DO
              END DO
           END DO
        END IF
 
-       deriv_att=> xc_dset_get_derivative(deriv_set, "(drhob)(drhob)", &
-            error=error)
-       IF (ASSOCIATED(deriv_att)) THEN
-          CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
-               error=error)
-          !$omp parallel do private(k,j,i,dr1dr)
-          DO k = bo(1,3), bo(2,3)
-             DO j = bo(1,2), bo(2,2)
-                DO i = bo(1,1), bo(2,1)
-                   IF (nspins /= 1) THEN
-                      dr1dr=0._dp
-                      DO idir=1,3
-                         dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
-                      END DO
-                      tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
-                   END IF
+       IF (.NOT. dft_control%do_tddfpt_calculation) THEN
+          deriv_att=> xc_dset_get_derivative(deriv_set, "(drhob)(drhob)", error=error)
+          IF (ASSOCIATED(deriv_att)) THEN
+             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data, &
+                  error=error)
+             !$omp parallel do private(k,j,i,dr1dr)
+             DO k = bo(1,3), bo(2,3)
+                DO j = bo(1,2), bo(2,2)
+                   DO i = bo(1,1), bo(2,1)
+                      IF (nspins /= 1) THEN
+                         dr1dr=0._dp
+                         DO idir=1,3
+                            dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
+                         END DO
+                         tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
+                                                   deriv_data(i,j,k) * dr1dr
+                      END IF
+                   END DO
                 END DO
              END DO
-          END DO
+          END IF
        END IF
 
        deriv_att=> xc_dset_get_derivative(deriv_set, "(drhoa)(drhob)", &
@@ -2743,18 +2716,16 @@ END FUNCTION xc_exc_calc
                    END DO
                    IF (nspins /= 1) THEN
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                           deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                           deriv_data(i,j,k) * dr1dr
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) - &
-                           fac * deriv_data(i,j,k) * dr1dr !##
+                                                fac * deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2776,13 +2747,8 @@ END FUNCTION xc_exc_calc
                    DO idir=1,3
                       dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                    END DO
-                   IF (nspins /= 1) THEN
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
-                   ELSE
-                      tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) + &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
-                   END IF
+                   tmp_a(1)%pw%cr3d(i,j,k) = tmp_a(1)%pw%cr3d(i,j,k) + &
+                                             deriv_data(i,j,k) * dr1dr
                 END DO
              END DO
           END DO
@@ -2805,7 +2771,7 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(2)%pw%cr3d(i,j,k) = tmp_b(2)%pw%cr3d(i,j,k) + &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2827,32 +2793,30 @@ END FUNCTION xc_exc_calc
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       tmp_a(2)%pw%cr3d(i,j,k) = tmp_a(2)%pw%cr3d(i,j,k) - &
-                           deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                    ELSE
-                      fac = 2.0_dp
-                      IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhob(idir)%array(i,j,k)*drho1a(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           2.0_dp * deriv_data(i,j,k) * dr1dr !##
+                                                deriv_data(i,j,k) * dr1dr
                       dr1dr=0._dp
                       DO idir=1,3
                          dr1dr=dr1dr+drhoa(idir)%array(i,j,k)*drho1b(idir)%array(i,j,k)
                       END DO
                       tmp_b(1)%pw%cr3d(i,j,k) = tmp_b(1)%pw%cr3d(i,j,k) - &
-                           fac * deriv_data(i,j,k) * dr1dr !##
+                                                fac * deriv_data(i,j,k) * dr1dr
                    END IF
                 END DO
              END DO
@@ -2879,17 +2843,12 @@ END FUNCTION xc_exc_calc
                            tmp_b(ispin)%pw%cr3d(i,1,1) * drhob(idir)%array(i,1,1)
                    END DO
                    IF (ASSOCIATED(e_drhoa)) THEN
-                      IF (nspins /= 1) THEN
-                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                              e_drhoa(i,j,k) * drho1a(idir)%array(i,1,1)
-                      ELSE
-                         vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
-                              2.0_dp * e_drhoa(i,1,1) * drho1a(idir)%array(i,1,1)
-                      END IF
+                      vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
+                                         e_drhoa(i,j,k) * drho1a(idir)%array(i,1,1)
                    END IF
                    IF (ASSOCIATED(e_drhob)) THEN
                       vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
-                           e_drhob(i,1,1) * drho1b(idir)%array(i,1,1)
+                                         e_drhob(i,1,1) * drho1b(idir)%array(i,1,1)
                    END IF
                    IF (ASSOCIATED(e_norm_drho)) THEN
                       IF (nspins /= 1) THEN
@@ -2898,8 +2857,6 @@ END FUNCTION xc_exc_calc
                          vxg(idir,i,ir,2) = vxg(idir,i,ir,2) - &
                               e_norm_drho(i,1,1) * drho1a(idir)%array(i,1,1)
                       ELSE
-                         fac = 2.0_dp
-                         IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                          vxg(idir,i,ir,1) = vxg(idir,i,ir,1) - &
                               fac * e_norm_drho(i,1,1) * drho1b(idir)%array(i,1,1)                         
                       END IF
@@ -2925,13 +2882,8 @@ END FUNCTION xc_exc_calc
                                  tmp_b(ispin)%pw%cr3d(i,j,k) * drhob(idir)%array(i,j,k)
                          END DO
                          IF (ASSOCIATED(e_drhoa)) THEN
-                            IF (nspins /= 1) THEN
                                tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
                                     e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
-                            ELSE
-                               tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
-                                    2.0_dp * e_drhoa(i,j,k) * drho1a(idir)%array(i,j,k)
-                            END IF
                          END IF
                          IF (ASSOCIATED(e_drhob)) THEN
                             tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
@@ -2944,8 +2896,6 @@ END FUNCTION xc_exc_calc
                                tmp_r(2)%pw%cr3d(i,j,k) = tmp_r(2)%pw%cr3d(i,j,k) - &
                                     e_norm_drho(i,j,k) * drho1a(idir)%array(i,j,k)
                             ELSE
-                               fac = 2.0_dp
-                               IF (tddfpt_control%res_etype /= tddfpt_singlet) fac = -2.0_dp
                                tmp_r(1)%pw%cr3d(i,j,k) = tmp_r(1)%pw%cr3d(i,j,k) - &
                                     fac * e_norm_drho(i,j,k) * drho1b(idir)%array(i,j,k)                         
                             END IF

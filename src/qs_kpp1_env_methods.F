@@ -431,12 +431,6 @@ CONTAINS
        DEALLOCATE(rho1_r_pw, atoms,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       ntot = SIZE(v_hartree_rspace%pw%cr3d,1) * &
-              SIZE(v_hartree_rspace%pw%cr3d,2) * &
-              SIZE(v_hartree_rspace%pw%cr3d,3)
-       CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
-                        v_hartree_rspace%pw%cr3d,1)
-
        !-------------------------------!
        ! Add both hartree and xc terms !
        !-------------------------------!
@@ -446,20 +440,22 @@ CONTAINS
                  SIZE(v_rspace_new(ispin)%pw%cr3d,2) * &
                  SIZE(v_rspace_new(ispin)%pw%cr3d,3)
 
-          CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
-                           v_rspace_new(ispin)%pw%cr3d,1)
-
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
+             ! add 2 times the KERNEL
+             CALL dscal(ntot, 2.0_dp*v_rspace_new(ispin)%pw%pw_grid%dvol, &
+                        v_rspace_new(ispin)%pw%cr3d,1)
+             ! add hartree only for SINGLETS
              IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-                ! add 2 times the hartree term in the singlet case
-                CALL daxpy(ntot, 2.0_dp, &
-                     v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
+                CALL daxpy(ntot, 2.0_dp*v_hartree_rspace%pw%pw_grid%dvol, &
+                                 v_hartree_rspace%pw%cr3d, 1, &
+                                 v_rspace_new(ispin)%pw%cr3d, 1)
              END IF
-             ! do not add the hartree term for triplets
           ELSE
-             ! just add it if not tddfpt
-             CALL daxpy(ntot, 1.0_dp, &
-                  v_hartree_rspace%pw%cr3d, 1, v_rspace_new(ispin)%pw%cr3d, 1)
+             CALL dscal(ntot, v_rspace_new(ispin)%pw%pw_grid%dvol, &
+                              v_rspace_new(ispin)%pw%cr3d,1)
+             CALL daxpy(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
+                              v_hartree_rspace%pw%cr3d, 1, &
+                              v_rspace_new(ispin)%pw%cr3d, 1)
           END IF
 
           ! remove kpp1_env%v_ao and work directly on k_p_p1 ?
