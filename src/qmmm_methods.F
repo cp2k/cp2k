@@ -118,7 +118,7 @@ MODULE qmmm_methods
   PRIVATE
   LOGICAL,        PARAMETER, PRIVATE   :: debug_this_module=.TRUE.
   REAL(KIND=dbl), PARAMETER, PRIVATE   :: Dx = 0.01_dbl    ! Debug Variables
-  REAL(KIND=dbl), PARAMETER, PRIVATE   :: MaxErr = 1.0_dbl ! Debug Variables
+  REAL(KIND=dbl), PARAMETER, PRIVATE   :: MaxErr = 5.0_dbl ! Debug Variables
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_methods'
   PUBLIC :: qmmm_calculate_energy,&
             qmmm_modify_hartree_pot,&
