@@ -821,6 +821,7 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
             CALL swap(phi_a(j),phi_a(k))
             CALL swap(phi_b(j),phi_b(k))
             CALL swap(phi_c(j),phi_c(k))
+            CALL swap(phi_d(j),phi_d(k))
           END IF
         END DO
       END DO
@@ -844,6 +845,7 @@ SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
             CALL swap(phi_a(j),phi_a(k))
             CALL swap(phi_b(j),phi_b(k))
             CALL swap(phi_c(j),phi_c(k))
+            CALL swap(phi_d(j),phi_d(k))
           END IF
         END DO
       END DO
@@ -1394,7 +1396,6 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(local_molecule_type), POINTER       :: lmi
-    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(torsion_type), DIMENSION(:), &
@@ -1524,24 +1525,16 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 7. Set and NULLIFY the molecule_set(imol)%[lmi and lci] via set_molecule_set
+  ! 7. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
   !-----------------------------------------------------------------------------
   DO i=1,topology%nmol
     molecule => molecule_set(i)
-
     NULLIFY(lmi)
     ALLOCATE(lmi,STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','lmi',1)
     lmi%nstates=0
     NULLIFY(lmi%states)
-
-    NULLIFY(lci)
-    ALLOCATE(lci,STAT=istat)
-    IF(istat/=0) CALL stop_memory('connectivity_pack','lci',1)
-    NULLIFY(lci%ldist)
-    NULLIFY(lci%lg3x3)
-
-    CALL set_molecule(molecule,lmi=lmi,lci=lci)
+    CALL set_molecule(molecule,lmi=lmi)
   END DO
 
 
@@ -2099,11 +2092,11 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   INTEGER                                  :: istat, iw, i, j, k, natom
   INTEGER                                  :: counter,nmolecule,ndist,nbond
   INTEGER                                  :: ng3x3
-  INTEGER                                  :: first, last
+  INTEGER                                  :: first, last,search1,search2
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
   INTEGER, DIMENSION(:), POINTER           :: molecule_list
-  CHARACTER(LEN=2)  :: element_symbol
+  CHARACTER(LEN=default_string_length)  :: name
   TYPE(atomic_kind_type), POINTER        :: atomic_kind
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
   TYPE(molecule_type), POINTER        :: molecule
@@ -2112,10 +2105,9 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
   TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
   TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
-  LOGICAL                                  :: found
-    TYPE(local_constraint_type), POINTER       :: lci
-    TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
-    TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
+  TYPE(local_constraint_type), POINTER       :: lci
+  TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
+  TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
 
 
 
@@ -2141,7 +2133,22 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 1. Set info necessary for atom constraint
+  ! X. NULLIFY the molecule_set(imol)%lci via set_molecule_set
+  !-----------------------------------------------------------------------------
+  DO i=1,topology%nmol
+    molecule => molecule_set(i)
+    NULLIFY(lci)
+    ALLOCATE(lci,STAT=istat)
+    IF(istat/=0) CALL stop_memory('constraint_pack','lci',1)
+    NULLIFY(lci%ldist)
+    NULLIFY(lci%lg3x3)
+    CALL set_molecule(molecule,lci=lci)
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Set info necessary for atom constraint
   !-----------------------------------------------------------------------------
   IF(topology%const_atom) THEN
     CALL stop_program("topology_constraint_pack","NO CONST_ATOM yet")
@@ -2150,48 +2157,107 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. Set info necessary for all hydrogen constraint
+  ! X. Add more stuff to topology%const_dist_* if constraint hydrogen is on
   !-----------------------------------------------------------------------------
-! IF(topology%const_hydr) THEN
-!   DO i=1,SIZE(molecule_kind_set)
-!     molecule_kind => molecule_kind_set(i)
-!     CALL get_molecule_kind(molecule_kind=molecule_kind,&
-!                            nmolecule=nmolecule,&
-!                            ndist=ndist,dist_list=dist_list,&
-!                            atom_list=atom_list,&
-!                            nbond=nbond,bond_list=bond_list)
-!     DO j=1,SIZE(atom_list)
-!       atomic_kind => atom_list(j)%atomic_kind
-!       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-!                            element_symbol=element_symbol) 
-!       IF(element_symbol=="H") THEN
-!         DO k=1,nbond
-!           IF((bond_list(k)%a==j).OR.(bond_list(k)%b)) THEN
-!             ndist = ndist + 1
-!             dist_list(ndist)%a   = bond_list(k)%a
-!             dist_list(ndist)%b   = bond_list(k)%b
-!             dist_list(ndist)%dab = bond_list(k)%bond_kind%r0
-!           END IF
-!         END DO
-!       END IF
-!     END DO
-!     CALL set_molecule_kind(molecule_kind,&
-!                            dist_list=dist_list,ndist=ndist)
-!   END DO
-! END IF
-
-
-  !-----------------------------------------------------------------------------
-  !-----------------------------------------------------------------------------
-  ! 2. compute topology%dist_list_a,topology%dist_list_b,topology%dist_list_mol
-  !-----------------------------------------------------------------------------
-  IF(topology%const_dist) THEN
+  IF(topology%const_hydr) THEN
+    ndist = topology%nconst_dist
+    DO i=1,SIZE(molecule_kind_set)
+      molecule_kind => molecule_kind_set(i)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             atom_list=atom_list,&
+                             nbond=nbond,bond_list=bond_list)
+      DO j=1,SIZE(atom_list)
+        atomic_kind => atom_list(j)%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name) 
+        IF(TRIM(name)=="H") THEN
+          DO k=1,nbond
+            IF((bond_list(k)%a==j).OR.(bond_list(k)%b==j)) THEN
+              ndist = ndist + 1
+              CALL reallocate(topology%const_dist_mol,1,ndist)
+              CALL reallocate(topology%const_dist_a,1,ndist)
+              CALL reallocate(topology%const_dist_b,1,ndist)
+              CALL reallocate(topology%const_dist_dab,1,ndist)
+              topology%const_dist_mol(ndist)  = i
+              topology%const_dist_a(ndist)    = bond_list(k)%a
+              topology%const_dist_b(ndist)    = bond_list(k)%b
+              topology%const_dist_dab(ndist)  = bond_list(k)%bond_kind%r0
+            END IF
+          END DO
+        END IF
+      END DO
+    END DO
+    topology%nconst_dist = ndist
   END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Set the distance constraint dist_list
+  ! X. sort and find duplicates topology%const_dist_*
+  !-----------------------------------------------------------------------------
+  IF(topology%const_dist) THEN
+    ndist = topology%nconst_dist
+    !Sort the first column
+    DO i=1,ndist
+      DO j=1,ndist
+        IF(topology%const_dist_mol(i)<topology%const_dist_mol(j)) THEN
+          CALL swap(topology%const_dist_mol(i),topology%const_dist_mol(j))
+          CALL swap(topology%const_dist_a(i),topology%const_dist_a(j))
+          CALL swap(topology%const_dist_b(i),topology%const_dist_b(j))
+          CALL swap(topology%const_dist_dab(i),topology%const_dist_dab(j))
+        END IF
+      END DO
+    END DO
+    !Sort the second column
+    i=1
+    DO WHILE (i<ndist)
+      search1 = topology%const_dist_mol(i)
+      CALL find_boundary(topology%const_dist_mol,ndist,first,last,search1)
+      IF(.NOT.(first==last)) THEN
+        DO j=first,last
+          DO k=first,last
+            IF(topology%const_dist_a(j)<topology%const_dist_a(k)) THEN
+              CALL swap(topology%const_dist_mol(j),topology%const_dist_mol(k))
+              CALL swap(topology%const_dist_a(j),topology%const_dist_a(k))
+              CALL swap(topology%const_dist_b(j),topology%const_dist_b(k))
+              CALL swap(topology%const_dist_dab(j),topology%const_dist_dab(k))
+            END IF
+          END DO
+        END DO
+        i=last+1
+      ELSE
+        i=i+1
+      END IF
+    END DO
+    !Sort the third column
+    i=1
+    DO WHILE (i<ndist)
+      search1 = topology%const_dist_mol(i)
+      search2 = topology%const_dist_a(i)
+      CALL find_boundary2(topology%const_dist_mol,topology%const_dist_a,&
+                          ndist,first,last,search1,search2)
+      IF(.NOT.(first==last)) THEN
+        DO j=first,last
+          DO k=first,last
+            IF(topology%const_dist_b(j)<topology%const_dist_b(k)) THEN
+              CALL swap(topology%const_dist_mol(j),topology%const_dist_mol(k))
+              CALL swap(topology%const_dist_a(j),topology%const_dist_a(k))
+              CALL swap(topology%const_dist_b(j),topology%const_dist_b(k))
+              CALL swap(topology%const_dist_dab(j),topology%const_dist_dab(k))
+            END IF
+          END DO
+        END DO
+        i=last+1
+      ELSE
+        i=i+1
+      END IF
+    END DO
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! X. Set the distance constraint molecule_kind_set(ikind)%dist_list
   !-----------------------------------------------------------------------------
   IF(topology%const_dist) THEN
     DO i=1,SIZE(molecule_kind_set)
@@ -2201,10 +2267,8 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       CALL find_boundary(topology%const_dist_mol,topology%nconst_dist,&
                          first,last,i)
       ndist = last-first+1
-
       ALLOCATE(dist_list(ndist),STAT=istat)
       IF (istat /= 0) CALL stop_memory('topology_constraint_pack','dist_list')
-
       DO j=1,nmolecule
         molecule => molecule_set(molecule_list(j))
         ALLOCATE(ldist(ndist),STAT=istat)
@@ -2215,47 +2279,27 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
           ldist(k)%scale = 0.0_dbl
           ldist(k)%scale_old = 0.0_dbl
           ldist(k)%sigma = 0.0_dbl
-          ldist(k)%f(1) = 0.0_dbl
-          ldist(k)%f(2) = 0.0_dbl
-          ldist(k)%f(3) = 0.0_dbl
-          ldist(k)%ra_old(1) = 0.0_dbl
-          ldist(k)%ra_old(2) = 0.0_dbl
-          ldist(k)%ra_old(3) = 0.0_dbl
-          ldist(k)%rb_old(1) = 0.0_dbl
-          ldist(k)%rb_old(2) = 0.0_dbl
-          ldist(k)%rb_old(3) = 0.0_dbl
+          ldist(k)%f(:) = 0.0_dbl
+          ldist(k)%ra_old(:) = 0.0_dbl
+          ldist(k)%rb_old(:) = 0.0_dbl
         END DO
-        CALL set_molecule(molecule=molecule,&
-                          ldist=ldist)
+        CALL set_molecule(molecule=molecule,ldist=ldist)
       END DO
-
       ndist = 0
       DO j=first,last
-        found = .FALSE.
-        DO k=1,ndist
-          IF((dist_list(k)%a==topology%const_dist_a(j)).AND.&
-             (dist_list(k)%b==topology%const_dist_b(j))) THEN
-            found = .TRUE.
-          END IF
-        END DO
-        IF(.NOT.found) THEN
-          ndist = ndist + 1
-          dist_list(ndist)%a   = topology%const_dist_a(j)
-          dist_list(ndist)%b   = topology%const_dist_b(j)
-          dist_list(ndist)%dab = topology%const_dist_dab(j)
-        ELSE
-          CALL stop_program("topology_constraint_pack","duplicate const_dist")
-        END IF
+        ndist = ndist + 1
+        dist_list(ndist)%a   = topology%const_dist_a(j)
+        dist_list(ndist)%b   = topology%const_dist_b(j)
+        dist_list(ndist)%dab = topology%const_dist_dab(j)
       END DO
-      CALL set_molecule_kind(molecule_kind,&
-                             dist_list=dist_list,ndist=ndist)
+      CALL set_molecule_kind(molecule_kind,dist_list=dist_list,ndist=ndist)
     END DO
   END IF
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Set the group 3x3 constraint g3x3_list
+  ! X. Set the group 3x3 constraint g3x3_list
   !-----------------------------------------------------------------------------
   IF(topology%const_33) THEN
     DO i=1,SIZE(molecule_kind_set)
@@ -2267,7 +2311,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
       ng3x3 = last-first+1
       ALLOCATE(g3x3_list(ng3x3),STAT=istat)
       IF (istat /= 0) CALL stop_memory('topology_constraint_pack','g3x3_list')
-      
       DO j=1,nmolecule
         molecule => molecule_set(molecule_list(j))
         ALLOCATE(lg3x3(ng3x3),STAT=istat)
@@ -2290,34 +2333,20 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
           lg3x3(k)%del_lam = 0.0_dbl
           lg3x3(k)%lambda = 0.0_dbl
         END DO
-        CALL set_molecule(molecule=molecule,&
-                          lg3x3=lg3x3)
+        CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
       END DO
       
       ng3x3 = 0
       DO j=1,SIZE(topology%const_g33_a)
-        found = .FALSE.
-        DO k=1,ng3x3
-          IF((g3x3_list(k)%a==topology%const_g33_a(j)).AND.&
-             (g3x3_list(k)%b==topology%const_g33_b(j)).AND.&
-             (g3x3_list(k)%c==topology%const_g33_c(j))) THEN
-            found = .TRUE.
-          END IF 
-        END DO
-        IF(.NOT.found) THEN
-          ng3x3 = ng3x3 + 1
-          g3x3_list(ng3x3)%a   = topology%const_g33_a(j)
-          g3x3_list(ng3x3)%b   = topology%const_g33_b(j)
-          g3x3_list(ng3x3)%c   = topology%const_g33_c(j)
-          g3x3_list(ng3x3)%dab = topology%const_g33_dab(j)
-          g3x3_list(ng3x3)%dac = topology%const_g33_dac(j)
-          g3x3_list(ng3x3)%dbc = topology%const_g33_dbc(j)
-        ELSE
-          CALL stop_program("topology_constraint_pack","duplicate const_g33")
-        END IF 
+        ng3x3 = ng3x3 + 1
+        g3x3_list(ng3x3)%a   = topology%const_g33_a(j)
+        g3x3_list(ng3x3)%b   = topology%const_g33_b(j)
+        g3x3_list(ng3x3)%c   = topology%const_g33_c(j)
+        g3x3_list(ng3x3)%dab = topology%const_g33_dab(j)
+        g3x3_list(ng3x3)%dac = topology%const_g33_dac(j)
+        g3x3_list(ng3x3)%dbc = topology%const_g33_dbc(j)
       END DO
-      CALL set_molecule_kind(molecule_kind,&
-                             ng3x3=ng3x3,g3x3_list=g3x3_list)
+      CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
     END DO
   END IF
 

@@ -219,7 +219,7 @@ SUBROUTINE read_topology_section ( topology, globenv )
            topology%constraint=.TRUE.
            topology%const_hydr=.TRUE.
            CALL stop_program ( "read_topology_section", &
-               "CONHYDR not implemented yet" )
+               "CONHYDR will not work until force field is completed " )
         CASE ('CONDIST')
            topology%constraint=.TRUE.
            topology%const_dist=.TRUE.
