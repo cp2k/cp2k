@@ -29,17 +29,68 @@ MODULE util
   PUBLIC :: sort, ran2, get_unit, gasdev, close_unit, &
        get_share, get_limit, include_list, getinv3x3,  &
        matmul_3x3, dotprod_3d, crossprod_3d, matvec_3x3, &
-       transpose_3d
+       transpose_3d,locate
 
   INTERFACE sort
      MODULE PROCEDURE sort2, sort2i
   END INTERFACE
 
-!******************************************************************************
+! *****************************************************************************
 
 CONTAINS
 
-!******************************************************************************
+! *****************************************************************************
+
+  FUNCTION locate(array,x) RESULT(x_index)
+
+!   Purpose: Given an array array(1:n), and given a value x, a value x_index
+!            is returned which is the index value of the array element equal
+!            to the value x: x = array(x_index)
+!            The array must be monotonic increasing.
+!            x_index = 0 is returned, if no array element equal to the value
+!            of x was found.
+
+!   History: - Derived from the locate function described in
+!              Numerical Recipes in Fortran 90 (09.01.2004,MK)
+
+!   ***************************************************************************
+
+    INTEGER, DIMENSION(:), INTENT(IN) :: array
+    INTEGER, INTENT(IN)               :: x
+
+    INTEGER :: x_index
+
+!   *** Local variables ***
+
+    INTEGER :: jl,jm,ju,n
+
+!   ---------------------------------------------------------------------------
+
+    x_index = 0
+
+    IF (x < array(1)) RETURN
+
+    n = SIZE(array)
+
+    IF (x > array(n)) RETURN
+
+    jl = 0
+    ju = n + 1
+
+    DO WHILE (ju - jl > 1)
+      jm = (ju + jl)/2
+      IF (x >= array(jm)) THEN
+        jl = jm
+      ELSE
+        ju = jm
+      END IF
+    END DO
+
+    IF (x == array(jl)) x_index = jl
+
+  END FUNCTION locate
+
+! *****************************************************************************
 
 SUBROUTINE sort2 ( arr, n, index )
 

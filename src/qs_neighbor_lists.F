@@ -1914,6 +1914,7 @@ CONTAINS
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
+    CALL mp_sync(group)
     CALL m_flush(output_unit)
     CALL mp_sync(group)
 
@@ -2033,14 +2034,11 @@ CONTAINS
 
       END IF
 
+      CALL mp_sync(group)
       CALL m_flush(output_unit)
       CALL mp_sync(group)
 
     END DO
-
-    CALL mp_sync(group)
-    CALL m_flush(output_unit)
-    CALL mp_sync(group)
 
   END SUBROUTINE write_neighbor_lists
 
