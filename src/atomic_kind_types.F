@@ -892,7 +892,7 @@ CONTAINS
     END IF
 
 !   *** Allocate and initialise the orbital basis set data set structure ***
-    CALL init_orbital_pointers(1) ! debug the SUN optimizer
+    CALL init_orbital_pointers(5) ! debug the SUN optimizer
 
     IF (orb_basis_set_name /= "") THEN
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
