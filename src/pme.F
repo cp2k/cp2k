@@ -20,6 +20,7 @@
 
 MODULE pme
 
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
        coeff_deallocate, coeff_zero, coeff_transform_space, &
        PW_COMPLEXDATA3D, PW_REALDATA3D, &
@@ -283,13 +284,17 @@ SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
   REAL ( dbl ) :: q1, q2
   COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
   INTEGER, DIMENSION ( : ), POINTER :: center1, center2
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
   rho0 => dg % dg_rho0 % density
 
   r1 = part ( p1 ) % r
-  q1 = part ( p1 ) % prop % charge
+  
+  atomic_kind => part (p1) % atomic_kind
+  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
+
   center1 => exp_igr % centre ( :, p1 )
   ex1 => exp_igr % ex ( :, p1 )
   ey1 => exp_igr % ey ( :, p1 )
@@ -299,7 +304,8 @@ SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
 
   IF ( p2 /= 0 ) THEN
      r2 = part ( p2 ) % r
-     q2 = part ( p2 ) % prop % charge
+     atomic_kind => part (p2) % atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
      center2 => exp_igr % centre ( :, p2 )
      ex2 => exp_igr % ex ( :, p2 )
      ey2 => exp_igr % ey ( :, p2 )
@@ -335,18 +341,21 @@ SUBROUTINE get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
   TYPE ( coeff_type ), POINTER :: rho0
   REAL ( dbl ) :: q1, q2
   COMPLEX ( dbl ), DIMENSION ( : ), POINTER :: ex1, ey1, ez1, ex2, ey2, ez2
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
   rho0 => dg % dg_rho0 % density
 
-  q1 = part ( p1 ) % prop % charge
+  atomic_kind => part (p1) % atomic_kind
+  CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
   ex1 => exp_igr % ex ( :, p1 )
   ey1 => exp_igr % ey ( :, p1 )
   ez1 => exp_igr % ez ( :, p1 )
 
   IF ( p2 /= 0 ) THEN
-     q2 = part ( p2 ) % prop % charge
+     atomic_kind => part (p2) % atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
      ex2 => exp_igr % ex ( :, p2 )
      ey2 => exp_igr % ey ( :, p2 )
      ez2 => exp_igr % ez ( :, p2 )
@@ -394,6 +403,8 @@ SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
 
 ! Local
   INTEGER :: dir, lb, ub, ndim, npos
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+  REAL ( dbl ) :: charge
 
 !------------------------------------------------------------------------------
 
@@ -412,7 +423,9 @@ SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
   DO
     ipart = ipart + 1
     IF ( ipart > npart ) EXIT
-    IF ( part ( ipart ) % prop % charge == 0._dbl ) CYCLE
+    atomic_kind => part ( ipart ) % atomic_kind
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
+    IF ( charge == 0._dbl ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid
@@ -438,7 +451,9 @@ SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
   DO
     ipart = ipart + 1
     IF ( ipart > npart ) EXIT
-    IF ( part ( ipart ) % prop % charge == 0._dbl ) CYCLE
+    atomic_kind => part ( ipart ) % atomic_kind
+    CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
+    IF ( charge == 0._dbl ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid

@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE qs_md
-  USE atoms_input,                     ONLY: set_particle_properties
+
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
@@ -42,6 +42,7 @@ MODULE qs_md
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
+  USE md_conserved_quantities,         ONLY: compute_conserved_quantity
   USE md_environment_types,            ONLY: init_md_env,&
                                              md_environment_type,&
                                              set_md_env,&
@@ -54,8 +55,7 @@ MODULE qs_md
                                              molecule_type,&
                                              particle_node_type,&
                                              topology_type
-  USE particle_types,                  ONLY: particle_prop_type,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -122,13 +122,13 @@ CONTAINS
     TYPE(molecule_structure_type), DIMENSION(:), POINTER :: molecule
     TYPE(molecule_type), DIMENSION(:), POINTER           :: mol_setup
     TYPE(particle_node_type), DIMENSION(:), POINTER      :: pnode
-    TYPE(particle_prop_type), DIMENSION(:), POINTER      :: pstat
     TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
     TYPE(structure_type), DIMENSION(:), POINTER          :: struc
     TYPE(virial_type), POINTER                           :: virial
     REAL(wp), POINTER                                    :: constant
     INTEGER, POINTER                                     :: itimes
     REAL(wp)                                             :: ekin
+    REAL(wp)                                             :: econs 
     INTEGER                                              :: i,nnodes
     TYPE(qs_energy_type), POINTER                                 :: energy
 
@@ -143,7 +143,6 @@ CONTAINS
     NULLIFY (molecule)
     NULLIFY (mol_setup)
     NULLIFY (pnode)
-    NULLIFY (pstat)
     NULLIFY (energy)
 
     ALLOCATE (simpar,STAT=istat)
@@ -164,8 +163,6 @@ CONTAINS
 
     CALL read_md_section(simpar,globenv,mdio)
     simpar%program = globenv%program_name
-
-    CALL set_particle_properties(setup,mol_setup,pstat)
 
     CALL set_units(setup%unit_type,units)
     CALL convert(units=units,simpar=simpar)
@@ -201,20 +198,6 @@ CONTAINS
     CALL initialize_nhc_baro(simpar,globenv,extended_type%nhc_baro(1))
 
     CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
-
-
-! JV : NOTICE THIS KIND OF HACK ....
-! GT: !!WARNING!!
-! This is only a temporary setup
-! A general fix of the working units is needed !!
-!JV  box%unit_of_length_name = "BOHR"
-!JV  box%unit_of_length = 1.0_dbl
-!JV  box%scaled_coordinates = .FALSE.
-  do i=1,size(particle_set)
-    particle_set(i)%prop%mass = units%mconv*particle_set(i)%prop%mass
-  end do
-!tmp
-
 
     IF ((simpar%read_type == "POS").OR.&
         (simpar%read_type == "INIT")) THEN
@@ -257,14 +240,16 @@ CONTAINS
 
       CALL velocity_verlet(md_env)
 
-      nnodes = SIZE ( pnode)
-      ekin=0.0_wp
-      DO i = 1, nnodes
-           ekin = ekin + 0.5_wp*pnode(i)%p%prop%mass*( &
-           pnode(i)%p%v(1)*pnode(i)%p%v(1)+pnode(i)%p%v(2)* &
-           pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
-      END DO
-      write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,energy%total+ekin
+      CALL compute_conserved_quantity (md_env, energy%total, econs, ekin=ekin)
+      write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,econs            
+!!      nnodes = SIZE ( pnode)
+!!      ekin=0.0_wp
+!!      DO i = 1, nnodes
+!!           ekin = ekin + 0.5_wp*pnode(i)%p%prop%mass*( &
+!!           pnode(i)%p%v(1)*pnode(i)%p%v(1)+pnode(i)%p%v(2)* &
+!!           pnode(i)%p%v(2)+pnode(i)%p%v(3)*pnode(i)%p%v(3))
+!!      END DO
+!!    write(6,'(A,3F20.12)') "XXXXXXXXXXXXXXXX EKIN,EPOT,TOTAL ",ekin,energy%total,energy%total+ekin
     END DO
 
     CALL timestop(0.0_wp,handle)

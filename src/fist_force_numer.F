@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE fist_force_numer
-  USE atomic_kind_types, ONLY : get_atomic_kind
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl, wp_size=>dp_size
@@ -503,6 +503,7 @@ SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
  REAL ( dbl ) :: energy_plus, energy_minus, qa, qb
  TYPE ( linklist_exclusion ), POINTER :: ll_exclude
  TYPE ( pbc_coord_type ) ::  pbc_coord
+ TYPE ( atomic_kind_type ), POINTER :: atomic_kind
  LOGICAL :: match
 
 !------------------------------------------------------------------------------
@@ -533,24 +534,24 @@ SUBROUTINE force_nonbond_numer ( box, ewald_param, part, pnode, potparm,  &
 ! starting the force loop
 !
  ILOOP:   DO inode = 1, nnode
-            CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
-                             kind_number=ikind )
+            atomic_kind => pnode ( inode ) % p % atomic_kind
+            CALL get_atomic_kind ( atomic_kind = atomic_kind, &
+                             kind_number=ikind, qeff=qa )
             atom_a = pnode ( inode ) % p % iatom
-            qa = pnode ( inode ) % p % prop % charge
             nexcl = pnode ( inode ) % nexcl
             ll_exclude => pnode ( inode ) % ex
  JLOOP:     DO jnode = 1, nnode
               atom_b = pnode ( jnode ) % p % iatom
               IF ( atom_b < atom_a ) CYCLE
               sb_pbc(:) = pbc_coord % s ( :, atom_b )
-              CALL get_atomic_kind ( pnode ( jnode ) % p % atomic_kind, &
-                                kind_number=jkind )
+              atomic_kind => pnode ( jnode ) % p % atomic_kind
+              CALL get_atomic_kind ( atomic_kind = atomic_kind, &
+                             kind_number=jkind, qeff=qb )
               rab2_max = potparm ( ikind, jkind ) % rcutsq 
               rab_max = SQRT ( potparm ( ikind, jkind ) % rcutsq )
               r(:) = rab_max
               sab_max ( : ) = real_to_scaled ( r ( : ), box )
               ncell ( : ) = ( INT ( sab_max ( : ) ) + 1 ) * periodic ( : )
-              qb = pnode ( jnode ) % p % prop % charge
 
               DO icell=-ncell(1),ncell(1)
                 cell_b(1) = icell
@@ -663,6 +664,7 @@ SUBROUTINE ewald_force_numer ( ewald_param, pnode, box, pw_grid,  &
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( : ) :: r_delta
   REAL ( dbl ) :: alpha, epsilon0, ep, em, charge
   INTEGER :: gpt, i, idim, natoms, ngtot, isos, lp, mp, np
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -688,7 +690,8 @@ SUBROUTINE ewald_force_numer ( ewald_param, pnode, box, pw_grid,  &
 ! computing the numerical force on each atom
   natoms = size(pnode)
   DO i = 1, natoms
-     charge = pnode(i) % p % prop % charge
+     atomic_kind => pnode(i) % p % atomic_kind
+     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge)
      r_delta ( : ) = pnode(i) % p % r ( : )
      DO idim = 1, 3
         r_delta(idim) = r_delta(idim) + numerical_shift
@@ -1332,6 +1335,7 @@ SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
 ! Locals
   REAL ( dbl ) :: gdotr, gsq, charge
   INTEGER :: iatom, ig, natoms
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -1344,8 +1348,9 @@ SUBROUTINE potential_g_numer(energy,pnode,sum_igr,gauss,alpha, &
      IF ( gsq <= 1.0E-10_dbl ) CYCLE
      gauss(ig) = exp(-gsq*0.25_dbl/alpha/alpha)/gsq
      DO iatom = 1, natoms
+        atomic_kind => pnode(iatom) % p % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, qeff=charge)
         gdotr = DOT_PRODUCT(pnode(iatom) % p % r ( : ), glocal(:,ig))
-        charge = pnode(iatom) % p % prop % charge
         sum_igr(ig) = sum_igr(ig) + charge*CMPLX(COS(gdotr),SIN(gdotr),dbl)
      END DO
 
@@ -1783,9 +1788,8 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, pbc_coord, box, periodic, potparm, v
  nnode = SIZE ( pnode )
  ILOOP:   DO inode = 1, nnode
             CALL get_atomic_kind ( pnode ( inode ) % p % atomic_kind, &
-                              kind_number = ikind )
+                              kind_number = ikind, qeff=qa )
             atom_a = pnode ( inode ) % p % iatom
-            qa = pnode ( inode ) % p % prop % charge
             nexcl = pnode ( inode ) % nexcl
             ll_exclude => pnode ( inode ) % ex
  JLOOP:     DO jnode = 1, nnode
@@ -1793,13 +1797,12 @@ SUBROUTINE getv_ptens ( ewald_param, pnode, pbc_coord, box, periodic, potparm, v
               IF ( atom_b < atom_a ) CYCLE
               sb_pbc(:) = pbc_coord % s ( :, atom_b )
               CALL get_atomic_kind ( pnode ( jnode ) % p % atomic_kind, &
-                                  kind_number = jkind )
+                                  kind_number = jkind, qeff=qb )
               rab2_max = potparm ( ikind, jkind ) % rcutsq 
               rab_max = SQRT ( potparm ( ikind, jkind ) % rcutsq )
               r(:) = rab_max
               sab_max ( : ) = real_to_scaled ( r ( : ), box )
               ncell ( : ) = ( INT ( sab_max ( : ) ) + 1 ) * periodic ( : )
-              qb = pnode ( jnode ) % p % prop % charge
 
               DO icell=-ncell(1),ncell(1)
                 cell_b(1) = icell

@@ -24,6 +24,7 @@
 
 MODULE integrator
   
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE constraint, ONLY: shake_control, rattle_control, pv_constraint, getold, &
       shake_roll_control, rattle_roll_control
@@ -140,11 +141,12 @@ SUBROUTINE nve_pw ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm, cmass
+  REAL ( dbl ) :: dtom, dtocm, cmass, mass
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
@@ -162,7 +164,9 @@ SUBROUTINE nve_pw ( md_env )
 !
   nnodes = size(struc%pnode)
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -202,7 +206,9 @@ SUBROUTINE nve_pw ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -263,11 +269,12 @@ SUBROUTINE nve_ao ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm
+  REAL ( dbl ) :: dtom, dtocm, mass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 ! Associating local structures
@@ -285,7 +292,9 @@ SUBROUTINE nve_ao ( md_env )
 !
   nnodes = size(struc%pnode)
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -324,7 +333,9 @@ SUBROUTINE nve_ao ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -383,12 +394,13 @@ SUBROUTINE nvt_pw ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom,dtocm,cmass
+  REAL ( dbl ) :: dtom,dtocm,cmass,mass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_part
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
@@ -409,7 +421,9 @@ SUBROUTINE nvt_pw ( md_env )
 !
   nnodes = size(struc%pnode)
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -449,7 +463,9 @@ SUBROUTINE nvt_pw ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -512,12 +528,13 @@ SUBROUTINE nvt_ao ( md_env )
 ! Local
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes, ncoef
-  REAL ( dbl ) :: dtom, dtocm
+  REAL ( dbl ) :: dtom, dtocm, mass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_part
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 ! Associating local pointers
@@ -538,7 +555,9 @@ SUBROUTINE nvt_ao ( md_env )
 !
   nnodes = size(struc%pnode)
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -577,7 +596,9 @@ SUBROUTINE nvt_ao ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -637,10 +658,11 @@ SUBROUTINE nve ( md_env )
 ! locals
   LOGICAL, PARAMETER :: box_change = .FALSE.
   INTEGER :: i, nnodes
-  REAL ( dbl ) :: dtom
+  REAL ( dbl ) :: dtom, mass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 ! assigning the locals
   simpar => md_env % simpar
@@ -657,7 +679,9 @@ SUBROUTINE nve ( md_env )
 !
   nnodes = size(struc%pnode)
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -687,7 +711,9 @@ SUBROUTINE nve ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -737,12 +763,13 @@ SUBROUTINE nvt ( md_env )
   
 ! Locals
   INTEGER :: i, nnodes
-  REAL ( dbl ) :: dtom
+  REAL ( dbl ) :: dtom, mass
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc
   TYPE ( lnhc_parameters_type ), POINTER :: nhc
   LOGICAL, PARAMETER :: box_change = .FALSE.
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 ! assigning the locals
   simpar => md_env % simpar
@@ -761,7 +788,9 @@ SUBROUTINE nvt ( md_env )
 !
   nnodes = SIZE ( struc % pnode )
   DO i = 1, nnodes
-     dtom = 0.5_dbl * simpar%dt / struc%pnode(i)%p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl * simpar%dt / mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -789,7 +818,9 @@ SUBROUTINE nvt ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1) + &
           dtom*struc%pnode(i) %p%f(1)
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2) + &
@@ -847,7 +878,8 @@ SUBROUTINE npt_i ( md_env )
   TYPE (structure_type ), POINTER :: struc
   TYPE (lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
   TYPE (npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
-  REAL ( dbl ) :: dtom
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+  REAL ( dbl ) :: dtom, mass
   REAL ( dbl ), PARAMETER :: e2 = 1._dbl/6._dbl, e4 = e2/20._dbl, &
        e6 = e4/42._dbl, e8 = e6/72._dbl
   REAL ( dbl ), SAVE :: eps_0
@@ -912,7 +944,9 @@ SUBROUTINE npt_i ( md_env )
                   (1._dbl + 3._dbl * infree ) )
      nnodes = size(struc%pnode)
      DO i = 1, nnodes
-        dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+        atomic_kind => struc%pnode(i)%p%atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+        dtom = 0.5_dbl*simpar%dt/mass
 
         struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1)*scale_v*scale_v + &
              scale_v*poly_v*struc%pnode(i) %p%f(1)* dtom
@@ -959,7 +993,9 @@ SUBROUTINE npt_i ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind => struc%pnode(i)%p%atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      struc%pnode(i) %p%v(1) = struc%pnode(i) %p%v(1)*scale_v*scale_v + &
           scale_v*poly_v*struc%pnode(i) %p%f(1)* dtom
      struc%pnode(i) %p%v(2) = struc%pnode(i) %p%v(2)*scale_v*scale_v + &
@@ -1031,7 +1067,8 @@ SUBROUTINE pressure ( pnode, thermo )
 
 ! Locals
   INTEGER :: i, j, iatom, nnodes, handle
-  REAL ( dbl ) :: mfl
+  REAL ( dbl ) :: mfl, mass
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -1042,9 +1079,10 @@ SUBROUTINE pressure ( pnode, thermo )
   DO i = 1, 3
      DO j = 1, 3
         DO iatom = 1, nnodes
+           atomic_kind => pnode ( iatom ) % p % atomic_kind
+           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
            thermo % pv_kinetic ( i, j ) = thermo % pv_kinetic ( i, j ) + &
-                pnode ( iatom ) % p % prop % mass * &
-                pnode ( iatom ) % p % v ( i )* &
+                mass*pnode ( iatom ) % p % v ( i )* &
                 pnode ( iatom ) % p % v ( j )
         END DO
      END DO
@@ -1243,7 +1281,7 @@ SUBROUTINE npt_f ( md_env )
   
 ! Locals
   INTEGER :: i, j, nnodes, iroll
-  REAL ( dbl ) :: dtom
+  REAL ( dbl ) :: dtom, mass
   REAL ( dbl ), PARAMETER :: e2 = 1._dbl/6._dbl, e4 = e2/20._dbl, &
        e6 = e4/42._dbl, e8 = e6/72._dbl
   REAL ( dbl ), SAVE :: eps_0
@@ -1257,6 +1295,7 @@ SUBROUTINE npt_f ( md_env )
   TYPE ( structure_type ), POINTER :: struc
   TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
   TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   LOGICAL, PARAMETER :: box_change = .TRUE.
   LOGICAL :: first
 
@@ -1271,8 +1310,6 @@ SUBROUTINE npt_f ( md_env )
 
 !------------------------------------------------------------------------------
   infree = 1.0_dbl / REAL ( simpar % nfree, dbl ) 
-  
-
 
 ! Nose-Hoover for the Barostat
      CALL lnhc ( nhc_baro, npt, int_group )
@@ -1317,7 +1354,10 @@ SUBROUTINE npt_f ( md_env )
 
      nnodes = size(struc%pnode)
      DO i = 1, nnodes
-        dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+
+        atomic_kind=> struc% pnode(i) %p% atomic_kind
+        call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        dtom = 0.5_dbl*simpar%dt/mass
 ! Transform positions and velocities and forces
         ur = MATVEC_3X3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % r )
         uv = MATVEC_3X3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % v )
@@ -1369,7 +1409,9 @@ SUBROUTINE npt_f ( md_env )
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
-     dtom = 0.5_dbl*simpar%dt/struc%pnode(i) %p%prop%mass
+     atomic_kind=> struc % pnode(i) %p% atomic_kind
+     call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+     dtom = 0.5_dbl*simpar%dt/mass
      uv = MATVEC_3X3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % v )
      uf = MATVEC_3x3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % f )
 
@@ -1508,8 +1550,9 @@ SUBROUTINE get_veps ( box, npt, simpar, struc, thermo, infree )
 
 ! locals
   INTEGER :: i, j, iatom, ii, jj, nnodes
-  REAL ( dbl ) :: kin, fdotr
+  REAL ( dbl ) :: kin, fdotr,mass
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_kin, unit
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 ! dbg ISOTROPIC LIMIT
 !  REAL ( dbl ) :: trace
 ! dbg
@@ -1525,9 +1568,11 @@ SUBROUTINE get_veps ( box, npt, simpar, struc, thermo, infree )
   DO i = 1, 3
      DO j = 1, 3
         DO iatom = 1, nnodes
+           atomic_kind=> struc% pnode(iatom) %p% atomic_kind
+           CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+
            pv_kin ( i, j ) = pv_kin ( i, j ) + &
-                struc % pnode ( iatom ) % p % prop % mass * &
-                struc % pnode ( iatom ) % p % v ( i )* &
+                mass*struc % pnode ( iatom ) % p % v ( i )* &
                 struc % pnode ( iatom ) % p % v ( j )
         END DO
      END DO
@@ -1605,8 +1650,9 @@ SUBROUTINE nvt_pimd ( md_env )
   TYPE ( virial_type ), POINTER :: thermo
   TYPE ( structure_type ), POINTER :: struc ( : )
   TYPE ( lnhc_parameters_type ), POINTER :: nhc ( : )
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   INTEGER :: i, j, k, nnodes, beads
-  REAL ( dbl ) :: dtom, transdt, old_u, fac
+  REAL ( dbl ) :: dtom, transdt, old_u, fac, mass
   LOGICAL, PARAMETER :: box_change=.false.
   
 !------------------------------------------------------------------------------
@@ -1637,7 +1683,9 @@ SUBROUTINE nvt_pimd ( md_env )
   DO j=1, beads
      transdt = simpar%dt*struc(j)%pimd_env%ismeff
      DO i = 1, nnodes
-        dtom = fac*transdt/struc(j)%pnode(i) %p%prop%mass
+        atomic_kind=> struc(j)%pnode(i) %p% atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        dtom = fac*transdt/mass
         struc(j)%pnode(i) %p%v(1) = struc(j)%pnode(i) %p%v(1) + &
              dtom*struc(j)%pnode(i) %p%f(1)
         struc(j)%pnode(i) %p%v(2) = struc(j)%pnode(i) %p%v(2) + &
@@ -1739,7 +1787,10 @@ SUBROUTINE nvt_pimd ( md_env )
   DO j=1, beads
      transdt = 0.5_dbl*simpar%dt*struc(j)%pimd_env%ismeff / beads
      DO i = 1, nnodes
-        dtom = transdt/struc(j)%pnode(i) %p%prop%mass
+       atomic_kind=> struc(j) % pnode(i) %p% atomic_kind
+       call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+
+        dtom = transdt/mass
         struc(j)%pnode(i) %p%v(1) = struc(j)%pnode(i) %p%v(1) + &
              dtom*struc(j)%pnode(i) %p%f(1)
         struc(j)%pnode(i) %p%v(2) = struc(j)%pnode(i) %p%v(2) + &

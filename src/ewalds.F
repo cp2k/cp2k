@@ -20,6 +20,7 @@
 
 MODULE ewalds
 
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE coefficient_types, ONLY : coeff_type
   USE dgs, ONLY : dg_pme_grid_setup
   USE dg_types, ONLY : dg_type
@@ -103,6 +104,7 @@ SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
   REAL ( dbl ), DIMENSION ( 3 ) :: vec
   REAL ( dbl ), DIMENSION ( :, :, : ), POINTER :: rho0
   COMPLEX ( dbl ), DIMENSION ( : ), ALLOCATABLE :: summe
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   TYPE ( coeff_type ), POINTER :: dg_rho0
   TYPE ( pw_grid_type ), POINTER :: pw_grid
   TYPE ( structure_factor_type ) :: exp_igr
@@ -156,7 +158,8 @@ SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
 
 ! initializing sum to be used in the energy and force
      DO node = 1, nnodes
-        charge = pnode ( node ) % p % prop % charge
+        atomic_kind => pnode (node) % p % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=charge)
         summe ( gpt ) = summe ( gpt ) + charge * &
              ( exp_igr % ex ( lp, node ) &
              * exp_igr % ey ( mp, node ) &
@@ -195,7 +198,9 @@ SUBROUTINE ewald_evaluate (dg, ewald_param, fg_coulomb, vg_coulomb, &
              ( exp_igr % ex ( lp, node ) &
              * exp_igr % ey ( mp, node ) &
              * exp_igr % ez ( np, node ) ) )
-        charge = pnode ( node ) % p % prop % charge * gauss * e_igdotr
+        atomic_kind => pnode (node) % p % atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=charge)
+        charge =  charge * gauss * e_igdotr
         fg_coulomb ( :, node ) = fg_coulomb ( :, node ) &
              + charge * pw_grid % g ( :, gpt )
      END DO
@@ -273,6 +278,7 @@ SUBROUTINE ewald_self ( ewald_param, pnode, e_self, e_neut  )
 ! Locals
   INTEGER :: nnodes, i
   REAL ( dbl ) :: q_self, q_sum, q
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -280,7 +286,8 @@ SUBROUTINE ewald_self ( ewald_param, pnode, e_self, e_neut  )
   q_sum = 0.0_dbl
   nnodes = SIZE ( pnode )
   DO i = 1, nnodes
-     q = pnode ( i ) % p % prop % charge
+     atomic_kind => pnode (i) % p % atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind, qeff=q)
      q_self = q_self + q*q
      q_sum = q_sum + q
   END DO

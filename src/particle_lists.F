@@ -20,8 +20,8 @@
 
 MODULE particle_lists
 
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE kinds, ONLY : dbl
-
   USE molecule_types, ONLY : particle_node_type
   USE particle_types, ONLY : particle_type
   USE termination, ONLY : stop_memory
@@ -56,7 +56,9 @@ SUBROUTINE particle_list_select ( pnode, plist, nparts)
 
 ! Locals
   INTEGER :: node, nnodes, isos
+  REAL ( dbl ), TARGET :: charge
   TYPE ( particle_list_type ), POINTER :: plist_loc
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -69,7 +71,9 @@ SUBROUTINE particle_list_select ( pnode, plist, nparts)
 
   nparts = 0
   DO node = 1, nnodes
-     IF ( pnode ( node ) % p % prop % charge /= 0.0_dbl ) THEN
+     atomic_kind => pnode ( node ) % p % atomic_kind
+     CALL get_atomic_kind (atomic_kind=atomic_kind, qeff=charge)
+     IF ( charge /= 0.0_dbl ) THEN
 
         IF ( .NOT. ASSOCIATED ( plist_loc ) ) THEN
            ALLOCATE ( plist, STAT = isos )
@@ -90,7 +94,7 @@ SUBROUTINE particle_list_select ( pnode, plist, nparts)
         nparts = nparts + 1
         plist_loc % particle_index = node
         plist_loc % r => pnode ( node ) % p % r
-        plist_loc % charge => pnode ( node ) % p % prop % charge
+        plist_loc % charge => charge
 
      END IF
   END DO

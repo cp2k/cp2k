@@ -21,7 +21,6 @@
 MODULE fist_main
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_coord_vel,&
-                                             set_particle_properties,&
                                              system_type
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
@@ -64,7 +63,6 @@ MODULE fist_main
                                              set_md_env,&
                                              zero_virial
   USE md_fist_energies,                ONLY: md_energy_fist,&
-                                             md_energy_fist_pimd,&
                                              set_fist_energies,&
                                              set_fist_energies_param
   USE molecule_input,                  ONLY: read_molecule_section,&
@@ -75,8 +73,7 @@ MODULE fist_main
                                              topology_type
   USE pair_potential,                  ONLY: potentialparm_type,&
                                              spline_nonbond_control
-  USE particle_types,                  ONLY: particle_prop_type,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: boltzmann,&
                                              h_planck
   USE read_pimd,                       ONLY: read_pimd_section
@@ -158,7 +155,6 @@ SUBROUTINE fist ( globenv )
   TYPE ( md_environment_type ) :: md_env
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE ( replica_environment_type ), DIMENSION ( : ), POINTER :: rep_env
   TYPE ( simulation_parameters_type ), POINTER :: simpar
@@ -261,10 +257,6 @@ SUBROUTINE fist ( globenv )
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-! setup the particle properties
-  
-  CALL set_particle_properties ( setup, mol_setup, pstat )
-
 !..read atomic coordinates, velocities (optional) and the simulation box
   ainp % rtype = simpar % read_type
 
@@ -277,7 +269,7 @@ SUBROUTINE fist ( globenv )
   simpar % pimd_params % beta = 1.0_dbl / simpar % temp_ext
 
   CALL convert ( units = units, simpar = simpar, &
-                 pstat = pstat, potparm = potparm,  &
+                 potparm = potparm,  &
                  intra_param = intra_param,  &
                  ewald_param = ewald_param )
 
@@ -295,7 +287,7 @@ SUBROUTINE fist ( globenv )
 
     CALL read_coord_vel ( rep_env (ibead) % part, rep_env ( ibead ) % atomic_kind_set,&
                           ainp, project_name, mol_setup, setup % atom_names, &
-                          pstat, globenv )
+                          globenv )
 
 !..initialize box, perd
     IF (ainp%n > 0) THEN
@@ -386,7 +378,7 @@ SUBROUTINE fist ( globenv )
 
   potparm ( :, : ) % energy_cutoff = 0.0_dbl
   potparm ( :, : ) % e_cutoff_coul = 0.0_dbl
-  CALL spline_nonbond_control ( potparm, pstat, 2500, ewald_param )
+  CALL spline_nonbond_control ( potparm, rep_env(1)%atomic_kind_set, 2500, ewald_param )
 
 !..set linklist control parameters
   ALLOCATE ( rcut ( setup % natom_type, setup % natom_type ), STAT = isos )
@@ -634,21 +626,9 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
 
 
 ! Initial call to md energy
-  IF ( fist_env % pimd ) THEN
-    CALL md_energy_fist_pimd ( md_env % itimes, md_env % constant,       &
-                               fist_env % rep_env ( 1 ) % box,           & 
+  CALL md_energy_fist ( md_env , fist_env % rep_env ( 1 ) % box,  &
                                fist_env % rep_env ( 1 ) % ll_data ( 1 ), &
-                               md_env % nhc_part, md_env % nhc_baro,     &
-                               md_env % npt, md_env % simpar,            &
-                               md_env % struc, fist_env % thermo )
-  ELSE 
-    CALL md_energy_fist ( md_env % itimes, md_env % constant,       &
-                          fist_env % rep_env ( 1 ) % box,           & 
-                          fist_env % rep_env ( 1 ) % ll_data ( 1 ), &
-                          md_env % nhc_part ( 1 ), md_env % nhc_baro ( 1 ),  &
-                          md_env % npt, md_env % simpar,            &
-                          md_env % struc ( 1 ), fist_env % thermo )
-  ENDIF
+                               fist_env % thermo, fist_env % pimd )
 
 ! Main MD loop
   DO itimes = 1, md_env % simpar % nsteps
@@ -657,22 +637,9 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
      CALL velocity_verlet ( md_env )
 
 ! Call the energy routines
-     IF ( fist_env % pimd ) THEN
-       CALL md_energy_fist_pimd ( md_env % itimes, md_env % constant,       &
-                                  fist_env % rep_env ( 1 ) % box,           & 
-                                  fist_env % rep_env ( 1 ) % ll_data ( 1 ), &
-                                  md_env % nhc_part, md_env % nhc_baro,     &
-                                  md_env % npt, md_env % simpar,            &
-                                  md_env % struc, fist_env % thermo )
-     ELSE 
-       CALL md_energy_fist ( md_env % itimes, md_env % constant,       &
-                             fist_env % rep_env ( 1 ) % box,           & 
-                             fist_env % rep_env ( 1 ) % ll_data ( 1 ), &
-                             md_env % nhc_part ( 1 ), md_env % nhc_baro ( 1 ),  &
-                             md_env % npt, md_env % simpar,            &
-                             md_env % struc ( 1 ), fist_env % thermo )
-     ENDIF
-     
+     CALL md_energy_fist ( md_env , fist_env % rep_env ( 1 ) % box,  &
+                               fist_env % rep_env ( 1 ) % ll_data ( 1 ), &
+                               fist_env % thermo, fist_env % pimd )
 ! Test for the dump cycle
      IF ( MOD ( itimes, mdio % idump ) == 0 ) THEN
           IF ( fist_env % pimd ) CALL ud2v ( md_env % struc, md_env % simpar )

@@ -98,7 +98,6 @@ OBJECTS_GENERIC =\
  header.o\
  initialize_extended_types.o\
  initialize_molecule_types.o\
- initialize_particle_types.o\
  initialize_pimd_types.o\
  input_types.o\
  integrator.o\
@@ -133,6 +132,7 @@ OBJECTS_GENERIC =\
  mathconstants.o\
  mathlib.o\
  md.o\
+ md_conserved_quantities.o\
  md_environment_types.o\
  md_fist_energies.o\
  md_kg_energies.o\

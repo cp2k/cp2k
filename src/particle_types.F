@@ -56,15 +56,8 @@ MODULE particle_types
 
   INTEGER, PARAMETER :: max_name_length = 60
 
-  TYPE particle_prop_type
-     REAL(wp) :: charge
-     REAL(wp) :: mass
-     INTEGER  :: ptype
-  END TYPE particle_prop_type
-
   TYPE particle_type
      TYPE(atomic_kind_type), POINTER       :: atomic_kind
-     TYPE(particle_prop_type), POINTER     :: prop
      INTEGER                               :: abase,first_cgf,first_cgf_aux,&
                                               first_sgf,first_sgf_aux,grid_id,&
                                               iatom,kind,last_cgf,last_sgf
@@ -74,8 +67,7 @@ MODULE particle_types
 
 ! *** Public data types ***
 
-  PUBLIC :: particle_prop_type,&
-            particle_type
+  PUBLIC :: particle_type
 
 ! *** Public subroutines ***
 
@@ -122,7 +114,6 @@ CONTAINS
 
     DO iatom=1,natom
       NULLIFY (particle_set(iatom)%atomic_kind)
-      NULLIFY (particle_set(iatom)%prop)
       NULLIFY (particle_set(iatom)%coef_list)
     END DO
 
@@ -237,11 +228,6 @@ CONTAINS
                              orb_basis_set=orb_basis_set,&
                              kind_number=kind_number,&
                              mass=mass)
-        ALLOCATE (particle_set(iatom)%prop,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"particle_set(iatom)%prop",0)
-        particle_set(iatom)%prop%charge = 0.0_wp
-        particle_set(iatom)%prop%mass = mass
-        particle_set(iatom)%prop%ptype = kind_number
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,ncgf=ncgf,nsgf=nsgf)
         particle_set(iatom)%first_cgf = icgf + 1
         icgf = icgf + ncgf

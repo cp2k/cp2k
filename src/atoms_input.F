@@ -26,30 +26,43 @@
 
 MODULE atoms_input
 
-  USE atomic_kind_types,   ONLY: allocate_atomic_kind_set,&
-                                 atomic_kind_type,&
-                                 get_atomic_kind,&
-                                 set_atomic_kind
-  USE global_types, ONLY : global_environment_type
-  USE input_types, ONLY : setup_parameters_type
-  USE kinds, ONLY : dbl
-  USE memory_utilities,    ONLY: reallocate
-  USE message_passing, ONLY : mp_bcast
-  USE molecule_types, ONLY : molecule_type
-  USE particle_types, ONLY : particle_type, allocate_particle_set, &
-                             particle_prop_type
-  USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, search_label
-  USE periodic_table,      ONLY: ptable
-  USE string_utilities, ONLY : xstring, uppercase, integer_to_string, &
-                               string_to_integer, str_search
-  USE termination, ONLY : stop_memory, stop_program
-  USE util, ONLY : get_unit
+  USE atomic_kind_types,        ONLY : allocate_atomic_kind_set,&
+                                       atomic_kind_type,&
+                                       get_atomic_kind,&
+                                       init_atomic_kind_set,&
+                                       set_atomic_kind
+  USE external_potential_types, ONLY : epc_potential_type,&
+                                       set_potential
+  USE global_types,             ONLY : global_environment_type
+  USE input_types,              ONLY : setup_parameters_type
+  USE kinds,                    ONLY : dbl
+  USE memory_utilities,         ONLY : reallocate
+  USE message_passing,          ONLY : mp_bcast
+  USE molecule_types,           ONLY : molecule_type
+  USE particle_types,           ONLY : particle_type, &
+                                       allocate_particle_set
+  USE parser,                   ONLY : parser_init, &
+                                       parser_end, &
+                                       read_line, &
+                                       test_next, &
+                                       p_error, &
+                                       get_next, &
+                                       search_label
+  USE periodic_table,           ONLY : ptable
+  USE physcon,                   ONLY : massunit
+  USE string_utilities,         ONLY : xstring,&
+                                       uppercase, &
+                                       integer_to_string, &
+                                       string_to_integer, &
+                                       str_search
+  USE termination,              ONLY : stop_memory, &
+                                       stop_program
+  USE util,                     ONLY : get_unit
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_coord_vel, system_type, set_particle_properties
+  PUBLIC :: read_coord_vel, system_type
 
   TYPE system_type
      REAL ( dbl ) :: box ( 3, 3 ), box_ref ( 3, 3 )
@@ -89,34 +102,34 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE set_particle_properties ( setup, mol_setup, pstat )
-  IMPLICIT NONE 
-  TYPE ( setup_parameters_type ), INTENT ( IN )  :: setup
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN )  :: mol_setup
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
+!!SUBROUTINE set_particle_properties ( setup, mol_setup, pstat )
+!!  IMPLICIT NONE 
+!!  TYPE ( setup_parameters_type ), INTENT ( IN )  :: setup
+!!  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN )  :: mol_setup
+!!  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
 
 !locals
-  INTEGER :: nmol_type, natom_type, ios, i, j, n  
+!!  INTEGER :: nmol_type, natom_type, ios, i, j, n  
 
-  nmol_type = size(mol_setup)
-  natom_type = setup % natom_type
+!!  nmol_type = size(mol_setup)
+!!  natom_type = setup % natom_type
 
 !..define pstat to hold all information (static) on different particle types
-  ALLOCATE ( pstat ( natom_type ), STAT = ios )
-  IF ( ios /= 0 ) CALL stop_memory ( 'atoms_input', 'pstat', natom_type )
+!!  ALLOCATE ( pstat ( natom_type ), STAT = ios )
+!!   IF ( ios /= 0 ) CALL stop_memory ( 'atoms_input', 'pstat', natom_type )
 
 !..this defines the order of the atoms!
-  DO i = 1, nmol_type
-     DO j = 1, mol_setup(i) % molpar % natom
-        n = str_search ( setup % atom_names,natom_type, &
-                         mol_setup(i) % molpar % aname(j) )
-        pstat(n) % charge = mol_setup(i) % molpar % acharge(j)
-        pstat(n) % mass = mol_setup(i) % molpar % aweight(j)
-        pstat(n) % ptype = n
-     END DO
-  END DO
+!!  DO i = 1, nmol_type
+!!     DO j = 1, mol_setup(i) % molpar % natom
+!!        n = str_search ( setup % atom_names,natom_type, &
+!!                         mol_setup(i) % molpar % aname(j) )
+!!        pstat(n) % charge = mol_setup(i) % molpar % acharge(j)
+!!        pstat(n) % mass = mol_setup(i) % molpar % aweight(j)
+!!        pstat(n) % ptype = n
+!!     END DO
+!!  END DO
 
-END SUBROUTINE set_particle_properties 
+!!END SUBROUTINE set_particle_properties 
 
 !******************************************************************************
 !!****** atoms_input/read_coord_vel [1.0] *
@@ -148,7 +161,7 @@ END SUBROUTINE set_particle_properties
 !!*** *************************************************************************
 
 SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
-                           mol_setup, atom_names, pstat, globenv )
+                           mol_setup, atom_names, globenv )
 
   IMPLICIT NONE
 
@@ -159,7 +172,6 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
-  TYPE ( particle_prop_type ), INTENT ( IN ), DIMENSION ( : ), TARGET :: pstat
   CHARACTER ( len = * ), DIMENSION ( : ), INTENT ( IN ) :: atom_names
 
 
@@ -171,6 +183,7 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
                         nblock_kind = 10
 
   TYPE(atomic_kind_type), POINTER :: atomic_kind
+    TYPE(epc_potential_type), POINTER :: epc_potential
   CHARACTER(LEN=max_name_length)  :: current_label,label,string
   CHARACTER(LEN=200)              :: message
   CHARACTER(LEN=8)                :: unit_name
@@ -181,9 +194,9 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
                                        init
 
   INTEGER, DIMENSION(:), POINTER :: kind_of,natom_of_kind,natom_of_kind_check
-
-  REAL(dbl), DIMENSION(:,:), POINTER :: r
   INTEGER, DIMENSION(:,:), POINTER  :: atom_list,kind_label
+  REAL(dbl), DIMENSION (:), POINTER :: charge, mass
+  REAL(dbl), DIMENSION(:,:), POINTER :: r
 
 !   ---------------------------------------------------------------------------
 
@@ -206,12 +219,14 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
   NULLIFY ( atype % eta_baro )
   NULLIFY ( atype % veta_baro )
   NULLIFY ( atype % mass_eta_baro )
-  NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,r)
+  NULLIFY (atom_list,kind_label,kind_of,natom_of_kind,charge,mass,r)
 
   CALL reallocate(atom_list,1,nblock_kind,1,nblock_atom)
   CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
   CALL reallocate(kind_of,1,nblock_atom)
   CALL reallocate(natom_of_kind,1,nblock_kind)
+  CALL reallocate(mass,1,nblock_kind)
+  CALL reallocate(charge,1,nblock_kind)
   CALL reallocate(r,1,3,1,nblock_atom)
 
 !..parse the input section
@@ -309,6 +324,8 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
      CALL reallocate(kind_label,1,max_name_length,1,nkind)
      CALL reallocate(kind_of,1,natom)
      CALL reallocate(natom_of_kind,1,nkind)
+     CALL reallocate(charge,1,nkind)
+     CALL reallocate(mass,1,nkind)
 
 !   *** Allocate the data structure for the atomic kind information ***
 
@@ -324,7 +341,13 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
            iat = iat + 1
            n = str_search ( atom_names, natom_types, &
                 mol_setup ( i ) % molpar % aname ( j ) )
-           particle_set ( iat ) % prop => pstat ( n )
+           charge(n)= mol_setup(i) % molpar % acharge(j)
+!dbg gt this should be done using general unit conversion routine
+! au:
+!            mass(n)= massunit*mol_setup(i) % molpar % aweight(j)
+! kelvin:
+            mass(n)= mol_setup(i) % molpar % aweight(j)
+!dbg
            natom_of_kind(n) = natom_of_kind(n) + 1
            atom_list(n,natom_of_kind(n)) = iat
            kind_of(iat) = n
@@ -339,9 +362,21 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
        string = atom_names (ikind) 
        CALL set_atomic_kind(atomic_kind=atomic_kind,&
                             kind_number=ikind,&
+                            mass=mass(ikind),&
                             name=string,&
                             atom_list=atom_list(ikind,1:natom_of_kind(ikind)))
      END DO
+
+     IF (globenv%program_name == "FIST") THEN
+       CALL  init_atomic_kind_set(atomic_kind_set,globenv)
+       DO ikind=1,nkind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           epc_potential=epc_potential) 
+         CALL set_potential(potential=epc_potential,&
+                           qeff=charge(ikind))
+       END DO
+     END IF
 
       DO iatom=1,natom
         ikind = kind_of(iatom)
@@ -406,6 +441,8 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
            CALL reallocate(atom_list,1,nkind+nblock_kind,1,natom)
            CALL reallocate(kind_label,1,max_name_length,1,nkind+nblock_kind)
            CALL reallocate(natom_of_kind,1,nkind+nblock_kind)
+           CALL reallocate(charge,1,nkind+nblock_kind)
+           CALL reallocate(mass,1,nkind+nblock_kind)
          END IF
          ikind = nkind
          CALL string_to_integer(current_label,kind_label(:,ikind))
@@ -427,6 +464,8 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
      CALL reallocate(kind_label,1,max_name_length,1,nkind)
      CALL reallocate(kind_of,1,natom)
      CALL reallocate(natom_of_kind,1,nkind)
+     CALL reallocate(charge,1,nkind)
+     CALL reallocate(mass,1,nkind)
      CALL reallocate(r,1,3,1,natom)
 
 !   *** Allocate the data structure for the atomic kind information ***
@@ -464,6 +503,7 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
     END DO
 
 !   *** check if the lables in &COORD match with the &MOLECULE setup
+!   *** and store the charge and mass read in the &MOLECULE section
 
      ALLOCATE (natom_of_kind_check(nkind), STAT=istat) 
      nmol_type = SIZE (mol_setup) 
@@ -474,13 +514,19 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
            iat = iat + 1
            n = str_search ( atom_names, natom_types, &
                 mol_setup ( i ) % molpar % aname ( j ) )
+           charge(n)= mol_setup(i) % molpar % acharge(j)
+!dbg this should be done using general unit conversion routine
+!AU
+!            mass(n)= massunit* mol_setup(i) % molpar % aweight(j)
+! kelvin
+             mass(n)= mol_setup(i) % molpar % aweight(j)
+! gt
            ikind = particle_set ( iat) % kind        
            IF (ikind/=n) CALL stop_program ( 'read_coord_vel', &
                 'kind label ordering in &COORD and &MOL dont match ')
            CALL integer_to_string(kind_label(:,ikind),string)
            IF (string/=mol_setup(i)%molpar%aname(j)) CALL stop_program ( 'read_coord_vel', &
                 'inconsistent kind labels in &COORD and &MOL- check input')
-           particle_set ( iat ) % prop => pstat ( ikind )
            natom_of_kind_check(ikind) = natom_of_kind_check(ikind) + 1
            iatom =  atom_list(ikind,natom_of_kind_check(ikind)) 
            IF (iatom/=iat) CALL stop_program ( 'read_coord_vel', &
@@ -488,13 +534,29 @@ SUBROUTINE read_coord_vel (particle_set, atomic_kind_set, atype, filen, &
         END DO
       END DO
     END DO
+    DO ikind=1,nkind
+       atomic_kind => atomic_kind_set(ikind)
+       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+                            mass=mass(ikind)) 
+    END DO
+    IF (globenv%program_name == "FIST") THEN
+       CALL  init_atomic_kind_set(atomic_kind_set,globenv)
+       DO ikind=1,nkind
+         atomic_kind => atomic_kind_set(ikind)
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           epc_potential=epc_potential) 
+         CALL set_potential(potential=epc_potential,&
+                           qeff=charge(ikind))
+       END DO
+    END IF
 
 !   *** Release work storage ***
 
     DEALLOCATE (atom_list,kind_label,kind_of,natom_of_kind,natom_of_kind_check,r,STAT=istat)
+    DEALLOCATE (charge,mass,STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory('ATOM',&
-                       "atom_list,kind_label,kind_of,natom_of_kind_check,natom_of_kind,r")
+                 "atom_list,charge,kind_label,kind_of,mass,natom_of_kind_check,natom_of_kind,r")
     END IF
 
  END IF

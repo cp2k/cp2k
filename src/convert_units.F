@@ -24,7 +24,7 @@ MODULE convert_units
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : intra_parameters_type
   USE pair_potential, ONLY : potentialparm_type
-  USE particle_types, ONLY : particle_type, particle_prop_type
+  USE particle_types, ONLY : particle_type
   USE physcon, ONLY : joule, evolt, boltzmann
   USE simulation_cell, ONLY : cell_type
   USE unit, ONLY : unit_convert_type
@@ -42,7 +42,7 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 !
 ! routine to convert input variables from external units to internal units
-SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
+SUBROUTINE convert ( units, simpar, part, box, potparm, &
      intra_param, ewald_param )
 
   IMPLICIT NONE
@@ -55,7 +55,7 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
   TYPE (intra_parameters_type ), INTENT ( INOUT ), OPTIONAL :: intra_param
   TYPE (ewald_parameters_type ), INTENT ( INOUT ), OPTIONAL :: ewald_param
   TYPE (potentialparm_type ), INTENT ( INOUT ), OPTIONAL :: potparm ( :, : )
-  TYPE (particle_prop_type ), INTENT ( INOUT ), OPTIONAL :: pstat ( : )
+!  TYPE (particle_prop_type ), INTENT ( INOUT ), OPTIONAL :: pstat ( : )
 
 ! Locals
   REAL ( dbl ), PARAMETER :: permittivity = 8.854187817E-12_dbl
@@ -93,12 +93,13 @@ SUBROUTINE convert ( units, simpar, part, pstat, box, potparm, &
      END SELECT
   END IF
 
-  IF ( PRESENT ( pstat)) THEN
+!! gt units to be fixed !!
+!!  IF ( PRESENT ( pstat)) THEN
 ! convert mass
-     DO i = 1, size(pstat)
-        pstat(i) %mass = pstat(i) %mass*units%mconv
-     END DO
-  END IF
+!!     DO i = 1, size(pstat)
+!!        pstat(i) %mass = pstat(i) %mass*units%mconv
+!!     END DO
+!!  END IF
 
   IF ( PRESENT ( part)) THEN
 ! convert position

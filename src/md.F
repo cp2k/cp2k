@@ -19,6 +19,8 @@
 !******************************************************************************
 
 MODULE md
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE message_passing,                 ONLY: mp_bcast
@@ -602,6 +604,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
   REAL ( dbl ) :: denom, sc, mass
   REAL ( dbl ) :: akin, temp
   LOGICAL :: domdec
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -626,7 +629,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      END DO
      akin = 0.0_dbl
      DO i = 1, natoms
-        mass = part ( i ) % prop % mass
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         akin = akin + 0.5_dbl *  &
          ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
         akin = akin + 0.5_dbl *  &
@@ -647,7 +651,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 ! Computing the COM velocities
      DO i = 1, natoms
-        mass = part(i) % prop % mass
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         vcom(1) = vcom(1) + mass*part(i) % v(1)
         vcom(2) = vcom(2) + mass*part(i) % v(2)
         vcom(3) = vcom(3) + mass*part(i) % v(3)
@@ -657,7 +662,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 ! Moving the velocities so that the COM velocity is zero
      vcom = vcom / denom
      DO i = 1, natoms
-        mass = part(i) % prop % mass
+        atomic_kind => part (i) % atomic_kind
+        CALL get_atomic_kind (atomic_kind=atomic_kind, mass=mass)
         part(i) % v ( : ) = part(i) % v ( : ) - vcom ( : )
         sum ( : ) = sum ( : ) + mass*part(i) % v ( : )
      END DO

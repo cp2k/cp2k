@@ -22,6 +22,7 @@
 MODULE nose
  
   USE ao_types, ONLY : ao_type
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
@@ -514,7 +515,8 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
 
 ! Locals
   INTEGER :: i, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2
-  REAL ( dbl ) :: scale, flops
+  REAL ( dbl ) :: scale, flops, mass
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -529,12 +531,14 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
   nhc % s_kin = 0.0_dbl
   nnodes = SIZE ( pnode )
   DO i = 1, nnodes
+     atomic_kind=>pnode(i)%p%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
      nhc % p_kin(1,i) % point = nhc % p_kin(1,i) % point &
-          + pnode(i) % p % prop % mass*pnode(i) % p % v(1)*pnode(i) % p % v(1)
+          + mass*pnode(i) % p % v(1)*pnode(i) % p % v(1)
      nhc % p_kin(2,i) % point = nhc % p_kin(2,i) % point &
-          + pnode(i) % p % prop % mass*pnode(i) % p % v(2)*pnode(i) % p % v(2)
+          + mass*pnode(i) % p % v(2)*pnode(i) % p % v(2)
      nhc % p_kin(3,i) % point = nhc % p_kin(3,i) % point &
-          + pnode(i) % p % prop % mass*pnode(i) % p % v(3)*pnode(i) % p % v(3)
+          + mass*pnode(i) % p % v(3)*pnode(i) % p % v(3)
   END DO
 #if defined(__parallel)
 ! for replicated thermostats and distributed molecules, we have to

@@ -22,7 +22,7 @@
 
 MODULE fist_nonbond_force
 
-  USE atomic_kind_types, ONLY : get_atomic_kind
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE kinds, ONLY : dbl, wp_size => dp_size
   USE mathconstants, ONLY : pi
@@ -319,6 +319,7 @@ SUBROUTINE bonded_correct_gaussian ( ewald_param, molecule, v_bonded_corr, &
   REAL ( dbl ) :: const, ifourpieps0, dij, idij, rijsq, qi, qj
   REAL ( dbl ), DIMENSION (3) :: rij
   INTEGER :: i, j, nmol, imol, iat, handle
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -341,12 +342,14 @@ SUBROUTINE bonded_correct_gaussian ( ewald_param, molecule, v_bonded_corr, &
      llat => molecule ( imol ) % ll_atoms
 
      DO iat = 1, molecule ( imol ) % natoms_mol
-        qi = llat % part % p % prop % charge
+        atomic_kind => llat % part % p % atomic_kind
+        CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=qi)
         llex => llat % part % ex
 
         DO j = 1, llat % part % nexcl
 !defining the charge
-           qj = llex % p % prop % charge
+           atomic_kind => llex % p % atomic_kind
+           CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=qj)
            rij(1) = llat % part % p % r(1) - llex % p % r(1)
            rij(2) = llat % part % p % r(2) - llex % p % r(2)
            rij(3) = llat % part % p % r(3) - llex % p % r(3)

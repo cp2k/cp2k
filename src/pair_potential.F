@@ -20,13 +20,20 @@
 
 MODULE pair_potential
 
-  USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : zero, pi
-  USE particle_types, ONLY : particle_prop_type
-  USE splines, ONLY : init_spline, init_splinexy,  &
-       spline, spline_1, kill_spline, spline_data, splineh
-  USE termination, ONLY : stop_memory, stop_program
+  USE atomic_kind_types,        ONLY : atomic_kind_type,&
+                                       get_atomic_kind
+  USE ewald_parameters_types,   ONLY : ewald_parameters_type
+  USE kinds,                    ONLY : dbl
+  USE mathconstants,            ONLY : zero, pi
+  USE splines,                  ONLY : init_spline,&
+                                       init_splinexy,  &
+                                       spline, &
+                                       spline_1, &
+                                       kill_spline, &
+                                       spline_data, &
+                                       splineh
+  USE termination,              ONLY : stop_memory, &
+                                       stop_program
 
   IMPLICIT NONE
 
@@ -158,20 +165,21 @@ END FUNCTION ener_coul
 
 ! creates the splines for the potentials
 
-SUBROUTINE spline_nonbond_control ( potparm, pstat, npoints, ewald_param )
+SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_param )
 
   IMPLICIT NONE
 
 ! Arguments
   INTEGER, INTENT ( IN ) :: npoints
   TYPE (potentialparm_type ), INTENT ( INOUT ), DIMENSION ( :, : ) :: potparm
-  TYPE (particle_prop_type ), INTENT ( IN ) :: pstat ( : )
+  TYPE(atomic_kind_type), DIMENSION(:), INTENT (IN), TARGET :: atomic_kind_set
   TYPE (ewald_parameters_type ), INTENT ( IN ) :: ewald_param
 
 ! Locals
   LOGICAL, SAVE :: first_visit = .TRUE.
   INTEGER :: ntype, ntab, n, i, j, jx, isos
   REAL ( dbl ) :: qi, qj, e, ee, x, x2, dx2, locut, hicut, a, cutmax, cutmin
+  TYPE(atomic_kind_type), POINTER   :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -212,10 +220,16 @@ SUBROUTINE spline_nonbond_control ( potparm, pstat, npoints, ewald_param )
   cutmin = 1.0E+30_dbl
   cutmax = 0.0_dbl
   n = 0
+
   DO i = 1, ntype ! i:  first atom type
-     qi = pstat(i) %charge
+
+     atomic_kind=> atomic_kind_set(i)
+     CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi)
+
      DO j = i, ntype ! j:  second atom type
-        qj = pstat(j) %charge
+
+        atomic_kind=> atomic_kind_set(j)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qj)
         n = n + 1
         spltab(i,j) = n
         spltab(j,i) = n

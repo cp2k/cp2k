@@ -67,6 +67,9 @@ MODULE atomic_kind_types
                                              wp => dp
   USE pao_bas_projection_types
   USE periodic_table,                  ONLY: ptable
+!dbg
+  USE physcon,                         ONLY: massunit
+!dbg
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -687,6 +690,8 @@ CONTAINS
       IF (ASSOCIATED(atomic_kind%aux_basis_set))THEN
         CALL init_aux_basis_set(atomic_kind%aux_basis_set)
       END IF
+    ELSE IF (globenv%program_name == "FIST") THEN
+      CALL allocate_potential(atomic_kind%epc_potential)
     END IF
 
   END SUBROUTINE init_atomic_kind
@@ -841,6 +846,12 @@ CONTAINS
         END IF
       END DO
     END IF
+
+!dbg
+!dbg sets the correct masses in A.U. for md runs
+!dbg should be replaced by call to general convert_unit routine
+     atomic_kind%mass = ptable(i)%amass*massunit
+!dbg
 
     IF (z == -1) THEN
       CALL stop_program(routine,&

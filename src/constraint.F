@@ -19,6 +19,7 @@
 
 MODULE constraint
 
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, virial_type
@@ -274,11 +275,13 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
 ! Locals
   REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
   REAL ( dbl ) :: sigma, max_sigma
+  REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
   REAL ( dbl ), DIMENSION(3) :: r1, r2, r3, v1, v2, v3, fc1, fc2, fc3
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER :: info, iconst
 
 !------------------------------------------------------------------------------
@@ -293,9 +296,15 @@ SUBROUTINE shake_3x3 ( molecule, simpar, ishake )
      r0_12=llconst%p1%r-llconst%p2%r
      r0_13=llconst%p1%r-llconst%p3%r
      r0_23=llconst%p2%r-llconst%p3%r
-     imass1 = 1._dbl/llconst%p1%prop%mass
-     imass2 = 1._dbl/llconst%p2%prop%mass
-     imass3 = 1._dbl/llconst%p3%prop%mass
+     atomic_kind=>llconst%p1%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass1 = 1._dbl/mass
+     atomic_kind=>llconst%p2%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass2 = 1._dbl/mass
+     atomic_kind=>llconst%p3%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass3 = 1._dbl/mass
      llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
      llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
      llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
@@ -391,7 +400,7 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
   INTEGER, INTENT ( OUT ) :: ishake
 
 ! Locals
-  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3
+  REAL ( dbl ) :: idtsq, dtsqby2, dtby2, imass1, imass2, imass3, mass
   REAL ( dbl ) :: sigma, max_sigma
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
   REAL ( dbl ), DIMENSION(3) :: r0_12, r0_23, r0_13
@@ -399,6 +408,7 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
   f_roll1, f_roll2, f_roll3
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind 
   INTEGER :: info, iconst
 
 !------------------------------------------------------------------------------
@@ -414,9 +424,15 @@ SUBROUTINE shake_roll_3x3(molecule,simpar,r_shake,v_shake,ishake)
      r0_12=llconst%p1%r-llconst%p2%r
      r0_13=llconst%p1%r-llconst%p3%r
      r0_23=llconst%p2%r-llconst%p3%r
-     imass1 = 1._dbl/llconst%p1%prop%mass
-     imass2 = 1._dbl/llconst%p2%prop%mass
-     imass3 = 1._dbl/llconst%p3%prop%mass
+     atomic_kind=>llconst%p1%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass1 = 1._dbl/mass
+     atomic_kind=>llconst%p2%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass2 = 1._dbl/mass
+     atomic_kind=>llconst%p3%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass3 = 1._dbl/mass
      llconst%fc1 = -2._dbl*(llconst%rold1-llconst%rold2)
      llconst%fc2 = -2._dbl*(llconst%rold1-llconst%rold3)
      llconst%fc3 = -2._dbl*(llconst%rold2-llconst%rold3)
@@ -520,7 +536,7 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
 ! Locals
   INTEGER :: iconst, info
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, sigma_dot
+  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass, sigma_dot
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
   REAL ( dbl ), DIMENSION(3) :: f_roll1, f_roll2, f_roll3
   REAL ( dbl ), DIMENSION(3) :: v12_0, v23_0, v13_0
@@ -528,6 +544,7 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3, lambda
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -540,9 +557,15 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         llconst % vold1 = llconst % p1 % v
         llconst % vold2 = llconst % p2 % v
         llconst % vold3 = llconst % p3 % v
-        imass1 = 1._dbl / llconst % p1 % prop % mass
-        imass2 = 1._dbl / llconst % p2 % prop % mass
-        imass3 = 1._dbl / llconst % p3 % prop % mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+        atomic_kind=>llconst%p3%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass3 = 1._dbl/mass
         llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
         llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
         llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
@@ -569,9 +592,15 @@ SUBROUTINE rattle_roll_3x3(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         r12=llconst%p1%r-llconst%p2%r
         r13=llconst%p1%r-llconst%p3%r
         r23=llconst%p2%r-llconst%p3%r
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
-        imass3 = 1._dbl/llconst%p3%prop%mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+        atomic_kind=>llconst%p3%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass3 = 1._dbl/mass
         llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
         llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
         llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
@@ -650,12 +679,13 @@ SUBROUTINE rattle_3x3(molecule,simpar)
 
 ! Locals
   INTEGER :: iconst, info
-  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3
+  REAL ( dbl ) :: idt, dtby2, imass1, imass2, imass3, mass
   REAL ( dbl ), DIMENSION(3) :: r12, r23, r13, vec, bvec
   REAL ( dbl ), DIMENSION(3) :: v12, v23, v13
   REAL ( dbl ), DIMENSION(3) :: fc1, fc2, fc3
   REAL ( dbl ), DIMENSION(3,3) :: amat, ainv
   TYPE (linklist_g3x3_constraints), POINTER :: llconst
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -670,9 +700,15 @@ SUBROUTINE rattle_3x3(molecule,simpar)
      r12=llconst%p1%r-llconst%p2%r
      r13=llconst%p1%r-llconst%p3%r
      r23=llconst%p2%r-llconst%p3%r
-     imass1 = 1._dbl/llconst%p1%prop%mass
-     imass2 = 1._dbl/llconst%p2%prop%mass
-     imass3 = 1._dbl/llconst%p3%prop%mass
+     atomic_kind=>llconst%p1%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass1 = 1._dbl/mass
+     atomic_kind=>llconst%p2%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass2 = 1._dbl/mass
+     atomic_kind=>llconst%p3%atomic_kind
+     CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+     imass3 = 1._dbl/mass
      llconst%fc1 = -2._dbl*(llconst%p1%r-llconst%p2%r)
      llconst%fc2 = -2._dbl*(llconst%p1%r-llconst%p3%r)
      llconst%fc3 = -2._dbl*(llconst%p2%r-llconst%p3%r)
@@ -725,9 +761,12 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
   TYPE (simulation_parameters_type ), INTENT ( IN ) :: simpar
   REAL ( dbl ), INTENT ( INOUT ) :: max_sigma
   INTEGER, INTENT ( IN ) :: ishake
+!locals
   REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
+  REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION (3) :: fc_t, r12
   TYPE (linklist_dist_constraints), POINTER :: llconst
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
   INTEGER :: imol, iconst
 
 !------------------------------------------------------------------------------
@@ -738,8 +777,12 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
   IF (ishake==1) THEN
      llconst => molecule%ll_dist_const
      DO iconst = 1, molecule%ndistconst_mol
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
         llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
 
 ! update positions with full multiplier
@@ -768,8 +811,12 @@ SUBROUTINE shake(molecule,simpar,max_sigma,ishake)
 
 ! computing fc(dt)
         fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
         fdotf = dot_product(llconst%fc,fc_t)
         fdotf_sum = fdotf*imass1 + fdotf*imass2
         del_lam = 2._dbl*llconst%sigma/(simpar%dt*simpar%dt*fdotf_sum)
@@ -813,8 +860,10 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
 
 ! Locals
   REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
+  REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION (3) :: r12, v12
   TYPE (linklist_dist_constraints), POINTER :: llconst
+  TYPE (atomic_kind_type), POINTER :: atomic_kind
   INTEGER :: imol, iconst
 
 !------------------------------------------------------------------------------
@@ -825,8 +874,14 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
      llconst => molecule%ll_dist_const
 ! if statement to catch molecule types with no constraints.:
      DO iconst = 1, molecule%ndistconst_mol
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+
         llconst%fc = -2._dbl*(llconst%p1%r-llconst%p2%r)
 
 ! update velocites with full multiplier
@@ -849,8 +904,12 @@ SUBROUTINE rattle ( molecule, simpar, max_sigma, irattle )
 
 ! computing f(dt)
         llconst%fc = -2._dbl*(llconst%p1%r-llconst%p2%r)
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
         fdotf = dot_product(llconst%fc,llconst%fc)
         fdotf_sum = fdotf*imass1 + fdotf*imass2
         del_lam = 2._dbl*llconst%sigma/(simpar%dt*fdotf_sum)
@@ -895,8 +954,10 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
 
 ! Locals
   REAL ( dbl ) :: dtby2, imass1, imass2, fdotf, fdotf_sum, del_lam
+  REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION (3) :: r12, v12, f_roll
   TYPE (linklist_dist_constraints), POINTER :: llconst
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   INTEGER :: imol, iconst, isos
 
 !------------------------------------------------------------------------------
@@ -906,8 +967,14 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
   IF ( irattle == 1 ) THEN
      llconst => molecule % ll_dist_const
      DO iconst = 1, molecule % ndistconst_mol
-        imass1 = 1._dbl / llconst % p1 % prop % mass
-        imass2 = 1._dbl / llconst % p2 % prop % mass
+
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+
         llconst % fc = -2._dbl * ( llconst % p1 % r - llconst % p2 % r )
 
 ! update velocites with full multiplier
@@ -937,8 +1004,14 @@ SUBROUTINE rattle_roll(molecule,simpar,r_rattle,veps,max_sigma,irattle)
         v12 ( : ) = llconst % p1 % v + MATVEC_3X3 ( veps, llconst % p1 % r ) &
              - llconst % p2 % v - MATVEC_3X3 ( veps, llconst % p2 % r )
         llconst % sigma = 2._dbl * DOTPROD_3D ( r12, v12 )
-        imass1 = 1._dbl / llconst % p1 % prop % mass
-        imass2 = 1._dbl / llconst % p2 % prop % mass
+
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+
         fdotf = DOTPROD_3D (f_roll, llconst % fc )
         fdotf_sum = fdotf * imass1 + fdotf * imass2
         llconst % del_lam = 2._dbl * llconst % sigma / ( simpar % dt * fdotf_sum )
@@ -1170,8 +1243,10 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
 
 ! Locals
   REAL ( dbl ) :: dtsqby2, dtby2, imass1, imass2, fdotf, fdotf_sum
+  REAL ( dbl ) :: mass
   REAL ( dbl ), DIMENSION (3) :: fc_t, r12, f_roll_r, f_roll_v
   TYPE (linklist_dist_constraints), POINTER :: llconst
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   INTEGER :: imol, iconst
 
 !------------------------------------------------------------------------------
@@ -1182,8 +1257,13 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
   IF (ishake==1) THEN
      llconst => molecule%ll_dist_const
      DO iconst = 1, molecule%ndistconst_mol
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
+
         llconst%fc = -2._dbl*(llconst%rold1-llconst%rold2)
 
 ! rotate fconst:
@@ -1212,8 +1292,13 @@ SUBROUTINE shake_roll(molecule,simpar,r_shake,v_shake,max_sigma,ishake)
 
 ! computing fc(dt)
         fc_t = -2._dbl*(llconst%p1%r-llconst%p2%r)
-        imass1 = 1._dbl/llconst%p1%prop%mass
-        imass2 = 1._dbl/llconst%p2%prop%mass
+
+        atomic_kind=>llconst%p1%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass1 = 1._dbl/mass
+        atomic_kind=>llconst%p2%atomic_kind
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        imass2 = 1._dbl/mass
 
 ! rotate fc:
         f_roll_r = MATVEC_3X3 ( r_shake, llconst % fc )

@@ -21,7 +21,7 @@
 MODULE molecule_types
 
   USE kinds, ONLY : dbl
-  USE particle_types, ONLY : particle_type, particle_prop_type
+  USE particle_types, ONLY : particle_type
   USE qs_neighbor_list_types, ONLY: neighbor_list_type
 
   IMPLICIT NONE
@@ -32,7 +32,7 @@ MODULE molecule_types
        torsion_parameters_type, linklist_torsions, linklist_dist_constraints, &
        linklist_g3x3_constraints, linklist_exclusion, &
        particle_node_type, localization_list
-  PUBLIC :: particle_type, particle_prop_type
+  PUBLIC :: particle_type
   PUBLIC :: molecule_type, molecule_parameter_type
   PUBLIC :: intra_parameters_type
   PUBLIC :: topology_type

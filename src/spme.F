@@ -21,6 +21,7 @@
 
 MODULE spme
 
+  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, &
       coeff_deallocate, coeff_transform_space, &
       PW_REALDATA3D, PW_COMPLEXDATA1D, &
@@ -314,7 +315,8 @@ SUBROUTINE get_patch ( part, box, npts, p, rhos )
 
   nbox = SIZE ( rhos, 1 )
   r = part(p)% r
-  q = part(p)% prop % charge
+   
+  CALL get_atomic_kind ( atomic_kind=part(p)%atomic_kind, qeff=q)
 
   CALL get_delta ( box, r, npts, delta, nbox )
 
@@ -432,6 +434,8 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
 
 ! Local
   INTEGER :: dir, lb, ub, ndim, npos
+  REAL (dbl) :: charge
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 
 !------------------------------------------------------------------------------
 
@@ -449,7 +453,9 @@ SUBROUTINE set_list ( part, npart, center, p1, rs, ipart, jpart )
   DO
     ipart = ipart + 1
     IF ( ipart > npart ) EXIT
-    IF ( part ( ipart ) % prop % charge == 0._dbl ) CYCLE
+    atomic_kind => part(ipart)%atomic_kind
+    CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=charge)
+    IF ( charge == 0._dbl ) CYCLE
     IF ( rs % parallel ) THEN
       IF ( rs % group_dim ( 1 ) == 1 ) THEN
         ! All processor work on the same grid

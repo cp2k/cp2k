@@ -23,7 +23,6 @@ MODULE kg_main
                                               write_atomic_kind_set,&
                                               write_gto_basis_sets
   USE atoms_input,                     ONLY : read_coord_vel,&
-                                              set_particle_properties,&
                                               system_type
   USE cntl_input,                      ONLY : read_cntl_section
   USE coefficient_types,               ONLY : coeff_type
@@ -87,8 +86,7 @@ MODULE kg_main
                                               topology_type
   USE orbital_transformation_matrices, ONLY : init_spherical_harmonics
   USE pair_potential,                  ONLY : potentialparm_type
-  USE particle_types,                  ONLY : particle_prop_type, &
-                                              particle_type, &
+  USE particle_types,                  ONLY : particle_type,&
                                               init_particle_set
   USE physcon,                         ONLY : boltzmann,&
                                               h_planck
@@ -178,7 +176,6 @@ SUBROUTINE kg ( globenv )
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
   TYPE ( molecule_structure_type ), DIMENSION ( : ), POINTER :: molecule
-  TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( particle_type ), DIMENSION(:), POINTER    :: particle_set
   TYPE ( particle_node_type ), DIMENSION(:), POINTER    :: pnode
   TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
@@ -275,11 +272,6 @@ SUBROUTINE kg ( globenv )
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
 
-! set the particle properties
- 
-  CALL set_particle_properties ( setup, mol_setup, pstat )
-
-
 !..read atomic coordinates, velocities (optional) and the simulation box
   ainp % rtype = simpar % read_type
 
@@ -289,7 +281,7 @@ SUBROUTINE kg ( globenv )
 !..1.0e-15 because convert_unit expects time in [fs]^-1 not [s]^-1
 
   CALL convert ( units = units, simpar = simpar, &
-                pstat = pstat, intra_param = intra_param ) 
+                 intra_param = intra_param ) 
 
   CALL xstring ( setup % coord_file_name, ia, ib )
 
@@ -297,7 +289,7 @@ SUBROUTINE kg ( globenv )
 
   CALL read_coord_vel ( particle_set, atomic_kind_set, &
                            ainp, project_name, mol_setup, &
-                           setup%atom_names, pstat, globenv )
+                           setup%atom_names, globenv )
 ! Read the atomic kind set
   CALL read_atomic_kind_set(atomic_kind_set,globenv)
 
@@ -323,9 +315,6 @@ SUBROUTINE kg ( globenv )
 ! Initialize the atomic data sets completely ***
   CALL init_particle_set(particle_set)
 
-!..initialize box, perd
-!  set defaults for working units (a.u)
-
 !tmp
 ! GT: !!WARNING!!
 ! This is only a temporary setup
@@ -333,9 +322,6 @@ SUBROUTINE kg ( globenv )
   box%unit_of_length_name = "BOHR"
   box%unit_of_length = 1.0_dbl
   box%scaled_coordinates = .FALSE.
-  do i=1,size(particle_set)
-    particle_set(i)%prop%mass = units%mconv*particle_set(i)%prop%mass
-  end do
 !tmp
 
   IF (ainp%n > 0) THEN

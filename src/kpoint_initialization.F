@@ -24,6 +24,7 @@
 
       USE kinds, ONLY : dbl
 
+      USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
       USE brillouin, ONLY : kpoint_type
       USE global_types, ONLY : global_environment_type
       USE k290, ONLY : set_k290, set_k290_atoms, kp_sym_gen
@@ -70,7 +71,8 @@
 
         REAL (dbl), ALLOCATABLE :: coor(:,:)
         INTEGER, ALLOCATABLE :: types(:)
-        INTEGER :: i, nat, isos
+        INTEGER :: i, nat, isos, ikind
+        TYPE (atomic_kind_type), POINTER :: atomic_kind
 
         IF (symm .OR. kp%scheme=='MONKHORST-PACK' .OR. kp%scheme=='MACDONALD') &
             THEN
@@ -83,7 +85,9 @@
           IF (isos/=0) CALL stop_memory('initialize_kpoints','types',nat)
           DO i = 1, nat
             coor(:,i) = part(i) %r
-            types(i) = part(i) %prop%ptype
+            atomic_kind=>part(i)%atomic_kind
+            CALL get_atomic_kind(atomic_kind=atomic_kind,kind_number=ikind)
+            types(i) = ikind                 
           END DO
           CALL set_k290_atoms(coor,types)
           DEALLOCATE (coor,STAT=isos)

@@ -15,6 +15,7 @@
 !!     gt, 20.10.2002
 !!
 !!   MODIFICATION HISTORY
+!!   6Feb03  calcualtion of conserv quantity moved to md_conserved_quantities
 !!
 !!   SOURCE
 !******************************************************************************
@@ -28,6 +29,7 @@ MODULE md_kg_energies
   USE mathconstants,                     ONLY : zero
   USE md,                                ONLY : simulation_parameters_type,&
                                                 mdio_parameters_type
+  USE md_conserved_quantities,           ONLY : compute_conserved_quantity
   USE md_environment_types,              ONLY : md_environment_type, &
                                                 get_md_env
   USE message_passing,                   ONLY : mp_sum,&
@@ -203,32 +205,25 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
   INTEGER, POINTER :: itimes
   REAL (dbl), POINTER :: constant
   TYPE ( cell_type ), POINTER :: box
-  TYPE ( lnhc_parameters_type ), POINTER :: nhc_part 
-  TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef 
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( structure_type ), POINTER :: struc 
 
   INTEGER i, j, id, n, l, nnodes, ncoef, iw, handle, inuse
-  REAL ( dbl ) :: nhc_part_pot, nhc_part_kin
-  REAL ( dbl ) :: coef_temp, coef_kin
-  REAL ( dbl ) :: nhc_coef_pot, nhc_coef_kin
-  REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
-  REAL ( dbl ) :: cons, temp, econs
+  REAL ( dbl ) :: ekin_coefs, temp_coefs
+  REAL ( dbl ) :: temp, econs, cons
   REAL ( dbl ), DIMENSION(3) :: cell, ang
-  REAL ( dbl ) :: pv_scalar
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'ENERGY', 'E', ' ', handle )
   CALL get_md_env ( md_env=md_env, itimes=itimes, constant=constant, &
                             cell=box, simpar=simpar )                  
-  nhc_part => md_env % nhc_part ( 1 )
+
   struc => md_env % struc ( 1 )
 
   nnodes = SIZE ( struc % pnode )
  
   IF (ASSOCIATED (struc % coef_vel ) ) THEN 
-    nhc_coef => md_env % nhc_coef         
     inuse = struc % coef_pos ( 1 ) % in_use
     SELECT CASE ( inuse )
     CASE ( 402 )
@@ -257,17 +252,22 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
 
   iw = scr
 
-  CALL get_part_ke ( struc, thermo )
-  
-  CALL get_part_temp ( thermo, simpar, temp )
+  IF (ASSOCIATED (struc%coef_vel)) THEN
+    CALL compute_conserved_quantity ( md_env, thermo%pot, cons, &
+                                      cons_rel=econs, &
+                                      ekin=thermo%kin, &
+                                      temp=temp,&
+                                      ekin_coefs=ekin_coefs, &
+                                      temp_coefs=temp_coefs)
+  ELSE
+    CALL compute_conserved_quantity ( md_env, thermo%pot, cons, &
+                                      cons_rel=econs , &
+                                      ekin=thermo%kin, temp=temp )                          
+  END IF
 
-  IF ( ASSOCIATED ( struc % coef_vel  ) ) THEN
-  
-    CALL get_coef_ke ( struc % coef_vel ( 1 ), inuse, ncoef, coef_kin )
-
-    CALL get_coef_temp ( coef_kin, inuse, ncoef, coef_temp )
-
-  ENDIF 
+!GT to be changed?
+  temp=temp/temp_conv
+!GT to be changed?
 
   IF (ionode .AND. mod(itimes,itemp)==0) THEN
      WRITE (tem, *) itimes, temp
@@ -286,6 +286,9 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
   END IF
 
   IF ( ASSOCIATED ( struc % coef_vel  ) ) THEN
+!GT to be changed?
+    temp_coefs=temp_coefs/temp_conv
+!GT to be changed?
     IF (ionode .AND. mod(itimes,icoef)==0) THEN
       SELECT CASE ( struc % coef_pos ( 1 ) % in_use )
       CASE ( 402 )
@@ -301,36 +304,6 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
       END SELECT
     END IF
   END IF
-
-  IF ( simpar % ensemble ( 1 : 3 )/= 'NVE' ) &
-  CALL get_nhc_energies ( nhc_part, nhc_part_kin, nhc_part_pot )
-
-  IF ( simpar % ensemble_coef ( 1 : 3 )/= 'NVE' ) &
-  CALL get_nhc_energies ( nhc_coef, nhc_coef_kin, nhc_coef_pot )
-
-  IF ( simpar % ensemble ( 1 : 3 ) == 'NPT' ) &
-  CALL stop_program ( "md_kg_energies", "npt not implemented " )
-
-  SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
-  CASE ( 'NVE')
-     cons = thermo%kin + thermo%pot
-  CASE ( 'NVT')
-     cons = thermo%kin + thermo%pot + nhc_part_kin + nhc_part_pot
-  END SELECT
-
-  IF  ( ASSOCIATED ( struc % coef_vel  ) ) THEN 
-     SELECT CASE ( simpar % ensemble_coef ( 1 : 3 ) )
-     CASE ( 'NVE')
-        cons = cons + coef_kin
-     CASE ( 'NVT')
-        cons = cons + nhc_coef_kin + nhc_coef_pot + coef_kin
-     END SELECT
-  END IF
-
-  IF (itimes==1) THEN
-     constant = cons
-  END IF
-  IF (itimes /= 0 ) econs = abs((cons-constant)/constant)
 
 ! cell parameters:
   CALL get_cell_param ( box, cell, ang )
@@ -351,8 +324,8 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
      IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
-       averages%avekinc = coef_kin   
-       averages%avetempc = coef_temp
+       averages%avekinc = ekin_coefs   
+       averages%avetempc = temp_coefs
      END IF
      econs_avg =  0._dbl
   CASE DEFAULT
@@ -371,9 +344,9 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
      averages%avekin = (averages%avekin*real(itimes-1)+thermo%kin)/ &
           real(itimes)
      IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
-       averages%avekinc = (averages%avekinc*real(itimes-1)+ coef_kin)/ &
+       averages%avekinc = (averages%avekinc*real(itimes-1)+ ekin_coefs)/ &
             real(itimes)
-       averages%avetempc = (averages%avetempc*real(itimes-1)+coef_temp)/ &
+       averages%avetempc = (averages%avetempc*real(itimes-1)+temp_coefs)/ &
             real(itimes)
      END IF
      econs_avg = econs_avg + abs((cons-constant)/constant)
@@ -411,9 +384,9 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(temp_label), '= ', temp
      IF  ( ASSOCIATED ( struc % coef_vel  ) ) THEN 
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF KINETIC ENERGY', &
-            adjustl(e_label), '= ', coef_kin
+            adjustl(e_label), '= ', ekin_coefs
        WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL COEF TEMPERATURE', &
-            adjustl(temp_label), '= ', coef_temp
+            adjustl(temp_label), '= ', temp_coefs
      END IF 
      WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
           adjustl(vol_label), '= ', box%deth
@@ -456,9 +429,9 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
           adjustl(temp_label), '= ', temp, averages%avetemp
      IF  ( ASSOCIATED ( struc % coef_vel ) ) THEN 
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF KINETIC ENERGY', &
-            adjustl(e_label), '= ', coef_kin,  averages%avekinc
+            adjustl(e_label), '= ', ekin_coefs,  averages%avekinc
        WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' COEF TEMPERATURE', &
-            adjustl(temp_label), '= ', coef_temp, averages%avetempc
+            adjustl(temp_label), '= ', temp_coefs, averages%avetempc
      END IF
      WRITE ( iw, '( A,A )' ) ' **************************************', &
           '*****************************************'
@@ -469,175 +442,6 @@ SUBROUTINE md_energy_kg ( md_env, thermo )
 
 END SUBROUTINE md_energy_kg
 
-!******************************************************************************
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin )
-  IMPLICIT NONE
-  TYPE ( lnhc_parameters_type ), INTENT ( IN ) :: nhc
-  REAL ( dbl ), INTENT ( OUT ) :: nhc_pot, nhc_kin
-
-  INTEGER :: n, l
-
-   nhc_kin = 0.0_dbl
-   nhc_pot = 0.0_dbl
-   DO n = 1, nhc % num_nhc
-      DO l = 1, nhc % nhc_len
-         nhc_kin = nhc_kin +  &
-         0.5_dbl * nhc % nvt ( l, n ) % mass * &
-         nhc % nvt ( l, n ) % v * nhc % nvt ( l, n ) % v
-
-         nhc_pot = nhc_pot + nhc % nvt ( l, n ) % nkt *  &
-                        nhc % nvt ( l, n ) % eta
-      END DO
-   END DO
-#if defined(__parallel)
-   IF (nhc%dis_type=='DIS_REP') THEN
-      CALL mp_sum(nhc_kin,int_group)
-      CALL mp_sum(nhc_pot,int_group)
-   END IF
-#endif
-END SUBROUTINE get_nhc_energies 
-!******************************************************************************
-!!****** md_fist_energies/get_part_temp [1.0] *
-!!
-!!   NAME
-!!     get_part_temp
-!!
-!!   FUNCTION
-!!     Calculates temperature of particles
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE get_part_temp ( thermo, simpar, temperature )
-
-  IMPLICIT NONE
-  REAL ( dbl ), INTENT ( OUT ) :: temperature 
-  TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
-  TYPE ( kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
-
-  temperature = 2.0_dbl*thermo%kin/float(simpar%nfree)/temp_conv
-
-END SUBROUTINE  get_part_temp
-!!*****
-!******************************************************************************
-!!****** md_fist_energies/get_part_ke [1.0] *
-!!
-!!   NAME
-!!     get_part_ke
-!!
-!!   FUNCTION
-!!     Calculates kinetic energy of particles
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE get_part_ke ( struc, thermo )
-  IMPLICIT NONE
-  TYPE ( structure_type ), INTENT ( IN ) :: struc
-  TYPE ( kg_thermodynamic_type ), INTENT ( INOUT ) :: thermo
-
-  INTEGER :: i, nnodes
-
-  thermo % kin = zero
-  nnodes = SIZE ( struc % pnode )
-  DO i = 1, nnodes
-     thermo%kin = thermo%kin + 0.5_dbl*struc%pnode(i) %p%prop%mass*(struc &
-          %pnode(i)%p%v(1)*struc%pnode(i)%p%v(1)+struc%pnode(i)%p%v(2)*struc &
-          %pnode(i)%p%v(2)+struc%pnode(i)%p%v(3)*struc%pnode(i)%p%v(3))
-  END DO
-
-! sum all contributions to energy over calculated parts on all processors
-#if defined(__parallel)
-  CALL mp_sum(thermo%kin,int_group)
-#endif
-END SUBROUTINE get_part_ke 
-
-!******************************************************************************
-!
- SUBROUTINE get_coef_temp ( ekinc, inuse, ncoef, ctemp )
-   IMPLICIT NONE
-   REAL (dbl), INTENT ( IN ) :: ekinc
-   INTEGER, INTENT ( IN ) :: inuse, ncoef
-   REAL ( dbl ), INTENT ( OUT ) :: ctemp
-!! locals
-!
-   SELECT CASE ( inuse )
-   CASE ( 402 )
-     ctemp = 2.0_dbl* ekinc / REAL ( ncoef, dbl ) / temp_conv
-   CASE ( 401 )
-     ctemp =  ekinc / REAL ( ncoef, dbl ) / temp_conv
-   CASE DEFAULT
-      CALL stop_program ( 'get_coef_temp','integrator not implemented')
-   END SELECT
- END SUBROUTINE  get_coef_temp
-!
-!******************************************************************************
-!!****** md_fist_energies/get_coef_ke [1.0] *
-!!
-!!   NAME
-!!     get_coef_ke
-!!
-!!   FUNCTION
-!!     Calculates kinetic energy of coefs
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
-!
- SUBROUTINE get_coef_ke ( coef, inuse, ncoef, ekinc )
-   IMPLICIT NONE
-   TYPE ( coeff_type ), INTENT ( IN ) :: coef
-   INTEGER, INTENT ( IN ) :: inuse, ncoef
-   REAL ( dbl ), INTENT ( out ) :: ekinc
-!
-   INTEGER :: i
-   REAL ( dbl ) :: cmass
-   ekinc = zero
-!
-   SELECT CASE ( inuse )
-   CASE ( 402 )
-     DO i = 1, ncoef 
-        ekinc = ekinc + 0.5_dbl * coef % ao % mass ( i ) * & 
-                coef % ao % cr ( i ) * coef % ao % cr ( i )
-     END DO
-   CASE ( 401 )
-     DO i = 1, ncoef 
-        cmass = coef % pw % mass_cc ( i )
-        ekinc = ekinc + 0.5_dbl * cmass * &
-         ( REAL ( coef % pw % cc ( i ) ) * REAL ( coef % pw % cc ( i ) ) + &
-           AIMAG ( coef % pw % cc ( i ) )* AIMAG ( coef % pw % cc ( i ) ) )
-     END DO
-   CASE DEFAULT
-      CALL stop_program ( 'get_coef_ke','integrator not implemented')
-   END SELECT 
- 
-!! sum all contributions to energy over calculated parts on all processors
-!#if defined(__parallel)
-!  CALL mp_sum(ekinc,int_group)
-!#endif
- END SUBROUTINE get_coef_ke
 !******************************************************************************
 END MODULE md_kg_energies
 !******************************************************************************
