@@ -772,7 +772,7 @@ SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
           struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
           struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
           struc % coef_force ( 1 ), struc % projector ( 1 ), struc % pw_grid ( 1 ), &
-          thermo, inter % potparm, inter % empparm, struc % ll_data )
+          thermo, inter % potparm, inter % empparm, simpar, struc % ll_data )
     ENDIF
   ELSE
      CALL stop_program ( "control_debug_work", "no method to debug found" )
