@@ -361,7 +361,6 @@ CONTAINS
              CALL pw_create(rho1_r_pw(ispin)%pw, rho1_r(1)%pw%pw_grid, &
                   rho1_r(1)%pw%in_use, rho1_r(1)%pw%in_space)
              CALL pw_transfer(rho1_r(1)%pw, rho1_r_pw(ispin)%pw)
-             rho1_r_pw(ispin)%pw%cr3d = 0.5_dp * rho1_r_pw(ispin)%pw%cr3d
           END DO
 
        ELSE
@@ -452,15 +451,20 @@ CONTAINS
 
           IF (dft_control%do_tddfpt_calculation .AND. nspins==1) THEN
 
+             IF (.NOT.(dft_control%tddfpt_control%lsd_singlets .OR. &
+                       dft_control%tddfpt_control%res_etype == tddfpt_triplet)) THEN
+
+                v_rspace_new(1)%pw%cr3d = 2.0_dp * v_rspace_new(1)%pw%cr3d
+
+             END IF
+
              ! add hartree only for SINGLETS
              IF (dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
                 v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
                                            v_hartree_rspace%pw%pw_grid%dvol
                 v_rspace_new(1)%pw%cr3d  = v_rspace_new(1)%pw%cr3d + &
-                                           v_hartree_rspace%pw%cr3d
+                                           2.0_dp * v_hartree_rspace%pw%cr3d
              END IF
-
-             v_rspace_new(1)%pw%cr3d = v_rspace_new(1)%pw%cr3d * 2.0_dp
 
           ELSE
              v_hartree_rspace%pw%cr3d = v_hartree_rspace%pw%cr3d * &
