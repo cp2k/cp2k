@@ -29,7 +29,7 @@ MODULE particle_lists
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: particle_list_type, particle_list_ewald, particle_list_grid 
+  PUBLIC :: particle_list_type, particle_list_select, particle_list_grid 
 
   TYPE particle_list_type
      INTEGER :: particle_index
@@ -46,7 +46,7 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE particle_list_ewald ( pnode, plist, nparts)
+SUBROUTINE particle_list_select ( pnode, plist, nparts)
   IMPLICIT NONE
 
 ! Arguments
@@ -95,7 +95,7 @@ SUBROUTINE particle_list_ewald ( pnode, plist, nparts)
      END IF
   END DO
 
-END SUBROUTINE particle_list_ewald
+END SUBROUTINE particle_list_select
 
 !****************************************************************************
 
@@ -144,9 +144,9 @@ SUBROUTINE particle_list_grid ( part, plist, atom_list, nparts, grid_tag )
  
         nparts = nparts + 1
         part_index = atom_list (npart)
-	part ( part_index ) %  grid_id = grid_tag
+        part ( part_index ) %  grid_id = grid_tag
         plist_loc % particle_index = atom_list (npart)
-	plist_loc % grid_id = grid_tag
+        plist_loc % grid_id = grid_tag
         plist_loc % r => part ( part_index )  % r
         plist_loc % charge =>  charge 
  

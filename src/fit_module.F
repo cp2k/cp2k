@@ -94,16 +94,16 @@
     TYPE ( fit_averages_type ) :: fit_ave
     TYPE ( linklist_parameters_type ), POINTER, DIMENSION ( :, : ) :: param   
     LOGICAL :: conv_flag
-!	
+!
     SELECT CASE (fit_param%fit_type)
-!	
+!
 ! before fitting short-range parameters to the cp forces, correct them 
 ! by subtracting the polarization contribution (and Coulomb if present)
 !
     CASE ('FORCES_POL')
 
 ! gt to be implemanted
-!       	  CALL calculate_polar_forces(struc,thermo,simpar,potparm)
+!         CALL calculate_polar_forces(struc,thermo,simpar,potparm)
 ! gt to be implemanted
 !       
 !       amoeba fit on the cpmd forces , or on the forces obtained
@@ -134,7 +134,7 @@
 
         ALLOCATE (fit_ave % ave_a(size(potparm,1),size(potparm,2)),STAT=isos)
         IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'ave_a')
-	
+
         ALLOCATE (fit_ave % ave_b(size(potparm,1),size(potparm,2)),STAT=isos)
         IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'ave_b')
      
@@ -179,29 +179,29 @@
         IF ( ASSOCIATED ( fit_ave % ave_sig ) ) THEN   
           DEALLOCATE (fit_ave % ave_sig , STAT=isos)
           IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'deallocate ave_sig')
-	END IF   
+        END IF   
 
         IF ( ASSOCIATED ( fit_ave % ave_eps ) ) THEN   
           DEALLOCATE (fit_ave % ave_eps , STAT=isos)
           IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'deallocate ave_eps')
-	END IF   
+        END IF   
    
       CASE ('WILL')
 
         IF ( ASSOCIATED ( fit_ave % ave_a ) ) THEN   
           DEALLOCATE (fit_ave % ave_a , STAT=isos)
           IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'deallocate ave_a' )
-	END IF  
+        END IF  
 
         IF ( ASSOCIATED ( fit_ave % ave_b ) ) THEN   
           DEALLOCATE (fit_ave % ave_b , STAT=isos)
           IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'deallocate ave_b' )
-	END IF  
+        END IF  
 
         IF ( ASSOCIATED ( fit_ave % ave_c ) ) THEN   
           DEALLOCATE (fit_ave % ave_c , STAT=isos)
           IF ( isos /= 0 ) CALL stop_memory ( 'control_fit', 'deallocate ave_c' )
-	END IF  
+        END IF  
    
       END SELECT
 
@@ -315,7 +315,7 @@
 
      DO i = 1, SIZE ( y )
         y ( i ) = func ( p ( i, : ), struc, potparm, thermo, simpar, &
-	   fit_param, box_ref, finfo, param, pstat, ewald_param, globenv )
+          fit_param, box_ref, finfo, param, pstat, ewald_param, globenv )
      END DO
 
   CASE DEFAULT
@@ -328,7 +328,7 @@
   DO iter = 1, fit_param%max_iter, fit_param%iwrite
   
     CALL amoeba_evaluate(p,y,tol,struc, thermo, potparm, simpar, fit_param, &
-	    box_ref, finfo, param, pstat, ewald_param, globenv, func )
+            box_ref, finfo, param, pstat, ewald_param, globenv, func )
 
     SELECT CASE (fit_param%fit_type)
 
@@ -338,7 +338,7 @@
         CALL get_lj_params(potparm, y, param, fit_ave%ave_sig, fit_ave%ave_eps)
       CASE ('WILL')
         CALL get_will_params(potparm, y, param, fit_ave% ave_a, &
-	                      fit_ave%ave_b, fit_ave%ave_c)
+                              fit_ave%ave_b, fit_ave%ave_c)
       END SELECT
       CALL fit_print_info(tol,potparm,fit_param,y,atom_names, &
                            fit_ave,globenv,iter)
@@ -391,7 +391,7 @@
       struc%pnode(ipart) %p%r(:) = finfo(itime,ipart) %r(:)
     END DO
 
-!pass the box	  
+!pass the box  
 
     struc%box=box_ref(itime)
 

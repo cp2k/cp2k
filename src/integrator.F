@@ -1434,7 +1434,7 @@ SUBROUTINE nve_ao ( itimes, constant, simpar, inter, thermo, struc, &
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao  % cr ( i ) &
                      * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
      struc % coef_pos ( 1 ) % ao % cr ( i ) = struc % coef_pos ( 1 ) % ao % cr ( i ) &
-	         * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
+             * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
   END DO
 
 #if defined(__parallel)
@@ -1559,7 +1559,7 @@ SUBROUTINE nvt_ao ( itimes, constant, simpar, inter, thermo, struc, &
      struc % coef_vel ( 1 ) % ao % cr ( i ) = struc % coef_vel ( 1 ) % ao  % cr ( i ) &
                       * dtocm * struc % coef_force ( 1 ) % ao % cr ( i )
      struc % coef_pos ( 1 ) % ao % cr ( i ) = struc % coef_pos ( 1 ) % ao % cr ( i ) &
-	          * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
+                      * struc % coef_vel ( 1 ) % ao % cr ( i ) * simpar % dt
   END DO
 
 #if defined(__parallel)

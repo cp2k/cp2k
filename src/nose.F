@@ -184,7 +184,7 @@ YOSH:     DO iyosh = 1, nhc % nyosh
 ! updating the forces on all  the thermostats
         DO n = 1, nhc % num_nhc
           nhc % nvt ( inhc+1, n ) % f =  & 
-	 (nhc % nvt ( inhc, n ) % mass * nhc % nvt ( inhc, n ) % v &
+         (nhc % nvt ( inhc, n ) % mass * nhc % nvt ( inhc, n ) % v &
          *nhc % nvt ( inhc, n ) % v-nhc % nvt ( inhc + 1, n ) % nkt ) / &
           nhc % nvt ( inhc + 1, n ) % mass
         END DO

@@ -97,8 +97,8 @@ SUBROUTINE coef_list_grid ( ao, clist, part, ncoef, grid_type_tag, &
         clist_loc % coef_index = ic 
         ipart = ao % coef_to_part ( ic )  
         clist_loc % particle_index =  ipart
-	clist_loc % grid_type_id = grid_type_tag
-	clist_loc % grid_id = grid_tag
+        clist_loc % grid_type_id = grid_type_tag
+        clist_loc % grid_id = grid_tag
         clist_loc % r => part ( ipart ) % r
         clist_loc % c => ao  % cr (ic)              
 

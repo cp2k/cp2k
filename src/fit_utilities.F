@@ -94,7 +94,7 @@
           copy = .TRUE.
           it = it + 1
         END IF
-!  particle position and forces from ab-initio trajectory	    
+!  particle position and forces from ab-initio trajectory    
         DO ipart = 1, npart
           READ (250,*) ii, r(1,1,:), v(1,1,:)
           IF (copy) THEN
@@ -102,7 +102,7 @@
             finfo(it,ipart) %f_ref(:) = v(1,1,:)
           END IF
         END DO
-! read the box	    
+! read the box    
         DO ii=1,3
           READ (250,*) kk, (hmat(ii,jj),jj=1,3)
         ENDDO
@@ -201,7 +201,7 @@
         DO jatom = iatom, size(potparm,2)
           WRITE (iw,'(T5,A,T15,A,T45,E15.8,T66,E15.8)') atom_names(iatom), &
             atom_names(jatom), fit_ave% ave_eps(iatom,jatom), &
-	    fit_ave% ave_sig(iatom,jatom)
+             fit_ave% ave_sig(iatom,jatom)
         END DO
       END DO
     ELSE IF (fit_param%pot_type=='WILL') THEN
@@ -243,9 +243,9 @@
         llsig => param(iatom,jatom) %llsig
         DO i = 1, size(y)
           ave_sig(iatom,jatom) = ave_sig(iatom,jatom) + &
-	                         llsig%real_value*llsig%real_value
+                                 llsig%real_value*llsig%real_value
           ave_eps(iatom,jatom) = ave_eps(iatom,jatom) + &
-	                         lleps%real_value*lleps%real_value
+                                 lleps%real_value*lleps%real_value
           llsig => llsig%next
           lleps => lleps%next
         END DO

@@ -1,6 +1,4 @@
 !-----------------------------------------------------------------------------!
-!-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
@@ -165,6 +163,7 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
   CALL calculate_hartree ( rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
 
+  CALL coeff_deallocate ( phi_r )
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -183,8 +182,6 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
   pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
 !--------END OF STRESS TENSOR CALCULATION -----------
-
-  CALL coeff_deallocate ( phi_r )
 
   CALL rs_grid_setup ( drpot, grid_b , grid_s % npts)
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )

@@ -32,7 +32,7 @@ MODULE ewalds
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
-  USE particle_lists, ONLY : particle_list_ewald
+  USE particle_lists, ONLY : particle_list_select
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
@@ -525,8 +525,8 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         CALL rs_grid_setup ( rs, pme_big_grid, pme_small_grid % npts, &
              pnode_grp % scr )
 
-        ! set up a list with all particles having a chage
-        CALL particle_list_ewald ( pnode, dg % plist, dg % nparts )
+        ! set up a list with all particles having a charge
+        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
 
         IF ( pnode_grp % ionode ) THEN
           WRITE ( iw, '( A,T71,E10.4 )' ) &
@@ -555,8 +555,8 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         npts_s ( : ) = ewald_param % o_spline
         CALL rs_grid_setup ( rs, spme_grid, npts_s, pnode_grp % scr )
 
-        ! set up a list with all particles having a chage
-        CALL particle_list_ewald ( pnode, dg % plist, dg % nparts )
+        ! set up a list with all particles having a charge
+        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
 
      END IF
 

@@ -221,7 +221,7 @@ SUBROUTINE list_control ( internal_data, pnode, part, box, ki )
              internal_data%rlist_cut,string,pnode,part, &
              box,internal_data%pp_cell_ll,internal_data%pp_startlist_cell,&
              internal_data%pp_neighbor, internal_data%globenv_ll, &
-	     internal_data%list_type)
+             internal_data%list_type)
 
         CALL verlet_list(internal_data%natom_types,internal_data%pp_images,&
              internal_data%pp_cell,pnode,part,box, &
@@ -229,7 +229,7 @@ SUBROUTINE list_control ( internal_data, pnode, part, box, ki )
              internal_data%rlist_cutsq,internal_data%pp_neighbor,&
              internal_data%pp_cell_ll,internal_data%pp_startlist_nl,&
              internal_data%pp_startlist_im, internal_data%globenv_ll, &
-	     internal_data%list_type)
+             internal_data%list_type)
 
      CASE ( 2 )
 
@@ -239,7 +239,7 @@ SUBROUTINE list_control ( internal_data, pnode, part, box, ki )
              internal_data%rlist_cut,string,pnode,part, &
              box,internal_data%pp_cell_ll,internal_data%pp_startlist_cell,&
              internal_data%pp_neighbor, internal_data%globenv_ll, & 
-	     internal_data%list_type)
+             internal_data%list_type)
 
         CALL overlap_list(internal_data%pp_images,&
              internal_data%pp_cell,pnode,part,box, ki, &
@@ -247,7 +247,7 @@ SUBROUTINE list_control ( internal_data, pnode, part, box, ki )
              internal_data%rlist_cutsq,internal_data%pp_neighbor,&
              internal_data%pp_cell_ll,internal_data%pp_startlist_nl,&
              internal_data%pp_startlist_im, internal_data%globenv_ll, &
-	     internal_data%list_type)
+             internal_data%list_type)
 
      END SELECT
 

@@ -95,22 +95,22 @@ CONTAINS
   ALLOCATE (dg_coef(ntc), STAT = ios)
   IF (ios /= 0 ) THEN
     CALL stop_memory ('allocate_pol_grids', 'dg_coef', ntc)
-  END IF	
+  END IF
 
   ALLOCATE (dg_atom(nta), STAT = ios)
   IF (ios /= 0 ) THEN
     CALL stop_memory ('allocate_pol_grids', 'dg_atom', nta)
-  END IF	
+  END IF
 
   ALLOCATE (small_grid(ng), STAT = ios)
   IF (ios /= 0 ) THEN
     CALL stop_memory ('allocate_pol_grids', 'small_grid', ng)
-  END IF	
+  END IF
 
   ALLOCATE (big_grid(ng), STAT = ios)
   IF (ios /= 0 ) THEN
     CALL stop_memory ('allocate_pol_grids', 'big_grid', ng)
-  END IF	
+  END IF
 
  END SUBROUTINE pol_grids_allocate
 
@@ -217,35 +217,35 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
      DO iset = 1, gto_info%nset
      
         nshell = gto_info%nshell(iset)
-	
+
         DO ishell=1, nshell
-	
+
            igrid = igrid+1
-	   
+   
            SELECT CASE(gto_info%l(ishell,iset))
-	     
+     
            CASE(0)
-	   
+   
               igt=igt+1 
 
-	      dg(igt) % grid_index = igrid
+              dg(igt) % grid_index = igrid
               dg(igt)% dg_rho0 % type  = "S"
               dg(igt)% dg_rho0 % grid = igrid 
               dg(igt)% dg_rho0 % kind = ikind 
               dg(igt)% dg_rho0 % cutoff_radius = gto_info%set_radius(iset)
-	      dg(igt)% nparts = size (ki(ikind)%atom_list)
+              dg(igt)% nparts = size (ki(ikind)%atom_list)
 
               ncc=SIZE(gto_info % gcc(:,ishell,iset))
 
               ALLOCATE(dg(igt)%dg_rho0%gcc(ncc), STAT=ios)
               IF (ios /= 0 ) THEN
                  CALL stop_memory ('pol_grids_map', 'gcc', ncc)
-              END IF	
+              END IF
 
               ALLOCATE(dg(igt)%dg_rho0%zet(ncc), STAT=ios)
               IF (ios /= 0 ) THEN
                  CALL stop_memory ('pol_grids_map', 'zet', ncc)
-	      END IF	 
+              END IF 
 
               DO icc=1, ncc
                 dg(igt)% dg_rho0 % zet(icc) = gto_info%zet(icc,iset)
@@ -257,7 +257,7 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
                DO ip=1,3
 
                  igt=igt+1
-		 
+ 
                  SELECT CASE(ip)
                  CASE(1)
                   dg(igt)% dg_rho0% type ="PX"
@@ -267,18 +267,18 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
                   dg(igt)% dg_rho0% type ="PZ"
                  END SELECT                       
 
-	         dg(igt) % grid_index = igrid
+                 dg(igt) % grid_index = igrid
                  dg(igt)% dg_rho0% grid = igrid 
                  dg(igt)% dg_rho0% kind = ikind 
                  dg(igt)% dg_rho0 % cutoff_radius = gto_info%set_radius(iset)
-	         dg(igt)% nparts = size (ki(ikind)%atom_list)
+                 dg(igt)% nparts = size (ki(ikind)%atom_list)
 
                  ncc=SIZE(gto_info % gcc(:,ishell,iset))
 
                  ALLOCATE(dg(igt)%dg_rho0%gcc(ncc), STAT=ios)
                  IF (ios /= 0 ) THEN
                     CALL stop_memory ('pol_grids_map', 'gcc', ncc)
-                 END IF	
+                 END IF
 
                  ALLOCATE(dg(igt)%dg_rho0%zet(ncc), STAT=ios)
                  IF (ios /= 0 ) THEN
@@ -289,11 +289,11 @@ SUBROUTINE pol_grids_map ( dg, ki, igrid)
                    dg(igt)% dg_rho0 % zet(icc) = gto_info%zet(icc,iset)
                    dg(igt)% dg_rho0 % gcc(icc) = gto_info%gcc(icc,ishell,iset)
                  ENDDO                                             
-		 
-	      END DO	 
+ 
+                 END DO
 
            END SELECT
-	   
+   
         ENDDO
 
      ENDDO

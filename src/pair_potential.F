@@ -31,7 +31,7 @@ MODULE pair_potential
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_potrange, potential_f, potential_s, ener_coul
+  PUBLIC :: get_potrange, potential_f, potential_s
   PUBLIC :: potentialparm_type, spline_nonbond_control
   PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type
 
@@ -274,7 +274,7 @@ SUBROUTINE potential_s ( rijsq, potparm, iatom, jatom, energy, fscalar )
 
   energy = splineh ( spline_table ( spltab ( iatom, jatom ) ), rijsq, fscalar )
   fscalar = -2.0_dbl * fscalar
-  
+
 END SUBROUTINE potential_s
 
 !******************************************************************************

@@ -858,7 +858,7 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
         fpart ( 1, p2 ) = fpart ( 1, p2 ) - q2 * fat ( 1 ) * dvols
         fpart ( 2, p2 ) = fpart ( 2, p2 ) - q2 * fat ( 2 ) * dvols
         fpart ( 3, p2 ) = fpart ( 3, p2 ) - q2 * fat ( 3 ) * dvols
-     END IF	
+     END IF
 
 ! forces on the coeffs
 
@@ -869,7 +869,7 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
      IF ( p2 /= 0 ) THEN
         CALL dg_sum_patch_force_1d ( phi1_r, rhos2, exp_igr % centre ( :, ip2 ), fc )
         fcoef ( c2 ) = fcoef ( c2 ) - fc * dvols
-     END IF	
+     END IF
 
      ! sum boxes on real space grids (big box) due to phi2_r
      
@@ -878,7 +878,7 @@ SUBROUTINE force_coef_evaluate ( dg, drpot1, drpot2, phi1_r, phi2_r, part, &
      IF ( p2 /= 0 ) THEN
         CALL dg_sum_patch_force_1d ( phi2_r, rhos2, exp_igr % centre ( :, ip2 ), fc )
         fcoef ( c2 ) = fcoef ( c2 ) - fc * dvols
-     END IF	
+     END IF
 
      ip1 = ip2 
   END DO 

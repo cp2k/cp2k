@@ -140,7 +140,7 @@ SUBROUTINE initialize_molecule_type ( mol_setup, intra_param, &
         DO j = 1, molecule(imol) % natoms_mol
            k = k + 1
            pnode ( k ) % p => part ( atombase + j )
-	   part ( atombase + j ) % node = k
+           part ( atombase + j ) % node = k
         END DO
      END DO
   END IF

@@ -31,7 +31,7 @@ MODULE tbmd_debug
   USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
-  USE pair_potential, ONLY : potentialparm_type, ener_coul
+  USE pair_potential, ONLY : potentialparm_type
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
   USE simulation_cell, ONLY : cell_type

@@ -346,11 +346,7 @@ SUBROUTINE coeff_transform_c1c2 ( c1, c2, debug )
 
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c1 % in_use == PLANEWAVES  .AND. c2 % in_use == PLANEWAVES ) THEN
-    IF ( PRESENT ( debug ) ) THEN
-      CALL pw_fft_wrap ( c1 % pw, c2 % pw, debug )
-    ELSE
-      CALL pw_fft_wrap ( c1 % pw, c2 % pw )
-    END IF
+    CALL pw_fft_wrap ( c1 % pw, c2 % pw, debug )
   ELSE
     CALL stop_program ( "coeff_transform_c1c2", "not implemented")
   END IF

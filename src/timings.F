@@ -28,19 +28,20 @@ MODULE timings
   USE termination, ONLY : stop_program
   USE timesl, ONLY : cputime, walltime
   USE util, ONLY : sort
+  USE message_passing, ONLY : mp_world_setup
 
   PRIVATE
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
 
-!!subroutine calling stack
+! subroutine calling stack
   INTEGER, PARAMETER :: max_stack = 100
   INTEGER :: stack_size
-  CHARACTER ( LEN = 30 ) :: routine_stack ( max_stack ), routine_name
+  CHARACTER ( LEN = 31 ) :: routine_stack ( max_stack ), routine_name
 
-!!subroutine timing and performance information
+! subroutine timing and performance information
   INTEGER, PARAMETER :: max_timer = 200
 
-  CHARACTER ( LEN = 30 ) :: clock_name ( max_timer )
+  CHARACTER ( LEN = 31 ) :: clock_name ( max_timer )
   INTEGER :: routine_calls ( max_timer )
   INTEGER :: clock_status ( max_timer )
   REAL ( dbl ) :: clock_start ( max_timer )
@@ -54,6 +55,7 @@ MODULE timings
 
   INTEGER :: iod = 0
   LOGICAL :: trace = .false.
+  CHARACTER ( LEN = 15 ) :: astring, bstring
 
 !!*****
 !******************************************************************************
@@ -99,7 +101,7 @@ SUBROUTINE timeset ( name, ct, pu, handle )
 
 !..if debug mode echo the subroutine name
   IF ( trace ) write ( iod, '(A,A,A)') &
-     " >>>>> ",TRIM(name)," started ..."
+     astring,TRIM(name)," started ..."
 
 !..is this a new timer or has this routine been called before
   handle = 0
@@ -186,7 +188,7 @@ SUBROUTINE timestop ( perf, handle )
 
 !..if debug mode echo the subroutine name
   IF ( trace ) write ( iod, '(A,A,A)') &
-     " <<<<< ",TRIM(routine_stack(stack_size))," ... ended"
+     bstring,TRIM(routine_stack(stack_size))," ... ended"
 
 !..remove name from subroutine stack
      stack_size = stack_size - 1
@@ -213,84 +215,74 @@ END SUBROUTINE timestop
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE timeprint ( iw, global_print_level )
+SUBROUTINE timeprint(iw,global_print_level)
 
   IMPLICIT NONE
 
 ! Arguments
-  INTEGER :: iw, global_print_level
+  INTEGER, INTENT(IN) :: global_print_level,iw
 
 ! Locals
-  INTEGER :: index ( max_timer ), i, j, ia, ie
-  REAL ( dbl ) :: maxtime, mintime, perf
-  CHARACTER ( LEN = 17 ) :: sname
-  CHARACTER ( LEN = 6 ) :: punit
-  CHARACTER ( LEN = 1 ) :: blank = ' ', ct ( 0 : 1 ) = (/ 'I', 'E' /)
+  REAL(dbl) :: maxtime,mintime,perf
+  INTEGER   :: i,j
+
+  CHARACTER(LEN=1), DIMENSION(0:1) :: ct = (/"I","E"/)
+
+  INTEGER, DIMENSION(max_timer) :: index
 
 !------------------------------------------------------------------------------
 
-  IF ( num_timer > 0 .AND. global_print_level >= 0 ) THEN
+  IF ((num_timer > 0).AND.(global_print_level >= 0)) THEN
 
-     CALL sort ( clock_accu, num_timer, index )
+     CALL sort(clock_accu,num_timer,index)
 
-     maxtime = clock_accu ( index ( num_timer ) )
+     maxtime = clock_accu(num_timer)
 
-     IF ( global_print_level > 10 ) THEN
+     IF (global_print_level > 10) THEN
         mintime = zero
-     ELSE IF ( global_print_level > 5 ) THEN
-        mintime = maxtime * 0.002_dbl
+     ELSE IF (global_print_level > 5) THEN
+        mintime = maxtime*0.002_dbl
      ELSE
-        mintime = maxtime * 0.02_dbl
+        mintime = maxtime*0.02_dbl
      END IF
 
-     WRITE ( iw, '( /, 1X, 79("-") )' )
-     WRITE ( iw, '( " -", 77X, "-" )' )
-     WRITE ( iw, '( " -", 32X, A, 32X, "-" )' ) ' T I M I N G '
-     WRITE ( iw, '( " -", 77X, "-" )' )
-     WRITE ( iw, '( 1X, 79("-"), / )' )
-     WRITE ( iw, '( A, A, A )' ) ' SUBROUTINE', '        CALLS      ', &
-          ' CPU TIME T        PERFORMANCE        ELAPSED TIME'
+     WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
+     WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+     WRITE (UNIT=iw,FMT="(T2,A,T35,A,T80,A)") "-","T I M I N G","-"
+     WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
+     WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
+     WRITE (UNIT=iw,FMT="(T2,A,T36,A,T43,A,T55,A,T69,A)")&
+       "SUBROUTINE","CALLS","CPU TIME T","PERFORMANCE","ELAPSED TIME"
 
-     DO i = num_timer, 1, -1
+     DO i=num_timer,1,-1
 
-        j = index ( i )
-        IF ( clock_accu ( j ) > mintime ) THEN
+       j = index(i)
 
-           IF ( clock_accu ( i ) > zero ) THEN
-              perf = perf_count ( j ) / clock_accu ( i )
-           ELSE
-              perf = zero
-           END IF
+       IF (clock_accu(i) > mintime) THEN
 
-           sname = blank
-           ia = 0
-           ie = 0
-           CALL xstring ( clock_name ( j ), ia, ie )
-           ie = min ( ia+16-1, ie )
-           sname ( 1 : ie-ia+1 ) = clock_name ( j ) ( ia : ie )
-           punit = blank
+         IF (clock_accu(i) > zero) THEN
+           perf = perf_count(j)/clock_accu(i)
+         ELSE
+           perf = zero
+         END IF
 
-           CALL xstring ( perf_unit ( j ), ia, ie )
+         IF (LEN_TRIM(perf_unit(j)) == 0) THEN
+           WRITE (UNIT=iw,&
+                  FMT="(T2,A,T34,I7,T42,F9.2,T52,A,T60,A,T67,F13.2)")&
+             TRIM(clock_name(j)),routine_calls(j),clock_accu(i),&
+             ct(clock_type(j)),"---",wallclock_accu(j)
+         ELSE
+           WRITE (UNIT=iw,&
+                  FMT="(T2,A,T34,I7,T42,F9.2,T52,A,T54,F5.1,T60,A,T67,F13.2)")&
+             TRIM(clock_name(j)),routine_calls(j),clock_accu(i),&
+             ct(clock_type(j)),perf,TRIM(perf_unit(j)),wallclock_accu(j)
+         END IF
+       END IF
 
-           IF ( ia > ie ) THEN
-              punit = '---   '
-              WRITE ( iw, &
-                   '( 1X, A16, I7, F15.2, 1X, A1, 12X, 1X, A6, 5X, F15.2 )' ) &
-                   sname, routine_calls ( j ), clock_accu ( i ), &
-                   ct ( clock_type ( j ) ), punit, wallclock_accu ( j )
-           ELSE
-              ie = MIN ( ia+6-1, ie )
-              punit ( 6-ie+ia : 6 ) = perf_unit ( j ) ( ia : ie )
-              WRITE ( iw, &
-                   '( 1X, A16, I7, F15.2, 1X, A1, F12.2, 1X, A6, 5X, F15.2 )' &
-                   ) &
-                   sname, routine_calls ( j ), clock_accu ( i ), &
-                   ct ( clock_type ( j ) ), perf, punit, wallclock_accu ( j )
-           END IF
-        END IF
      END DO
 
-     WRITE ( iw, '( 1X, 79("-"), / )' )
+     WRITE (UNIT=iw,FMT="(T2,A,/)") REPEAT("-",79)
+
   END IF
 
 END SUBROUTINE timeprint
@@ -324,6 +316,7 @@ SUBROUTINE trace_debug ( set, iw )
 
 ! Locals
   INTEGER :: ia, ie
+  INTEGER :: numtask, taskid, groupid
 
   CALL uppercase(set)
   CALL xstring ( set, ia, ie )
@@ -335,6 +328,16 @@ SUBROUTINE trace_debug ( set, iw )
     call stop_program ("trace_debug","unknown action")
   ENDIF
   IF ( PRESENT ( iw ) ) iod = iw
+#if defined (__parallel)
+  CALL mp_world_setup ( numtask, taskid, groupid )
+  astring = " >>>>>>>>>>>>> "
+  bstring = " >>>>>>>>>>>>> "
+  WRITE(astring(1:9),'(i4,a,i4)') taskid,":",numtask
+  WRITE(bstring(1:9),'(i4,a,i4)') taskid,":",numtask
+#else
+  astring = " >>>>>>>>>>>>> "
+  bstring = " >>>>>>>>>>>>> "
+#endif
 
 END SUBROUTINE trace_debug
 

@@ -132,7 +132,7 @@
         icount = icount + 1
         potparm(iatom,jatom) %lj%sigma6 = x(icount)*x(icount)
         potparm(iatom,jatom) %lj%sigma12 = x(icount)*x(icount) &
-	                                            *x(icount)*x(icount)
+                                                    *x(icount)*x(icount)
 ! symmetrizing
         potparm(jatom,iatom) %lj%sigma6 = potparm(iatom,jatom) &
           %lj%sigma6
