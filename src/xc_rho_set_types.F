@@ -1270,9 +1270,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%rho_1_3, &
                error=error)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%rho_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
@@ -1290,9 +1290,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drho, &
                error=error)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%norm_drho(i,j,k)=SQRT(&
                         drho_r(1,1)%pw%cr3d(i,j,k)**2+&
                         drho_r(2,1)%pw%cr3d(i,j,k)**2+&
@@ -1319,9 +1319,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho,error=error)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%rho(i,j,k)=my_rho_r(1)%pw%cr3d(i,j,k)+&
                         my_rho_r(2)%pw%cr3d(i,j,k)
                 END DO
@@ -1334,9 +1334,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rho_1_3,error=error)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%rho_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k)+&
                         my_rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
@@ -1349,9 +1349,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhoa_1_3,error=error)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%rhoa_1_3(i,j,k)=MAX(my_rho_r(1)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
@@ -1359,9 +1359,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool,rho_set%rhob_1_3,error=error)
           !assume that the bounds are the same?
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,my_rho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%rhob_1_3(i,j,k)=MAX(my_rho_r(2)%pw%cr3d(i,j,k),0.0_dp)**f13
                 END DO
              END DO
@@ -1385,9 +1385,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%norm_drhoa, &
                error=error)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%norm_drhoa(i,j,k)=SQRT(&
                         drho_r(1,1)%pw%cr3d(i,j,k)**2+&
                         drho_r(2,1)%pw%cr3d(i,j,k)**2+&
@@ -1400,9 +1400,9 @@ CONTAINS
                error=error)
           rho_set%owns%norm_drho_spin=.TRUE.
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%norm_drhob(i,j,k)=SQRT(&
                         drho_r(1,2)%pw%cr3d(i,j,k)**2+&
                         drho_r(2,2)%pw%cr3d(i,j,k)**2+&
@@ -1418,9 +1418,9 @@ CONTAINS
           CALL pw_pool_create_cr3d(pw_pool, rho_set%drhoa_drhob, &
                error=error)
           !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r)
-          DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+          DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
              DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                    rho_set%drhoa_drhob(i,j,k)=&
                         drho_r(1,1)%pw%cr3d(i,j,k)*drho_r(1,2)%pw%cr3d(i,j,k)+&
                         drho_r(2,1)%pw%cr3d(i,j,k)*drho_r(2,2)%pw%cr3d(i,j,k)+&
@@ -1439,9 +1439,9 @@ CONTAINS
                   error=error)
              !assume that the bounds are the same?
              !$omp parallel do default(none) private(i,j,k) shared(rho_set,drho_r,idir)
-             DO k=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
+             DO k=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
                 DO j=rho_set%local_bounds(1,2),rho_set%local_bounds(2,2)
-                   DO i=rho_set%local_bounds(1,3),rho_set%local_bounds(2,3)
+                   DO i=rho_set%local_bounds(1,1),rho_set%local_bounds(2,1)
                       rho_set%drho(idir)%array(i,j,k)=&
                            drho_r(idir,1)%pw%cr3d(i,j,k)+&
                            drho_r(idir,2)%pw%cr3d(i,j,k)
