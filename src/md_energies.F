@@ -283,6 +283,8 @@ END SUBROUTINE set_energies
         filename=ener_file_name
         INQUIRE (FILE=filename,EXIST=file_exists)
         CALL open_md_file(ener_file_name,ene,replace_file)
+        WRITE (iw,*) "Format of the energy file"
+        WRITE (iw,*) "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
         IF (.NOT.replace_file.AND.file_exists) THEN
           BACKSPACE (UNIT=ene,IOSTAT=istat)
           IF (istat /= 0) THEN
@@ -477,35 +479,13 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( )' )
        END IF
 
-!dbg
-!        IF (MODULO(itimes,iscreen) == 0) THEN
-!          IF (ASSOCIATED (dyn_coeff_set)) THEN
-!            WRITE (scr, "(/,T2,A6,I8,F12.3,F16.9,F16.9,F16.9,F16.9,F16.9,F16.9,F20.12,F12.6/)")&
-!              "-MD-",itimes,t,ekin,ekin_coefs,temp,temp_coefs,epot,&
-!              cons,cons-constant, used_time
-!          ELSE
-!            WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
-!              "-MD-",itimes,t,ekin,temp,epot,&
-!              cons,cons-constant, used_time
-!          END IF
-!        END IF
-!dbg
-!MK
-!        IF (MODULO(itimes,iscreen) == 0) THEN
-!          DO isubsys=1,SIZE(subsys)
-!            CALL cp_subsys_get(subsys(isubsys)%subsys,&
-!                               particles=particles,&
-!                               error=error)
-!            CALL write_qs_particle_coordinates(particle_set=particles%els,&
-!                                               cell=cell,&
-!                                               error=error)
-!          END DO
-!        END IF
-!MK
         IF (MODULO(itimes,iener) == 0) THEN
-          WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
-            itimes,t,ekin,temp,epot,&
-            econs, econs_avg/REAL(delta_t,dp)
+          ! please change also the corresponding format explaination above
+          ! keep the constant of motion the true constant of motion !
+          ! "Step Nr.    Time[fs]  Kin.[a.u.]     Temp[K]  Pot.[a.u.]    Cons Qty UsedTime[s]"
+          !
+          WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.9)")&
+            itimes,t,ekin,temp,epot,cons,used_time
           CALL m_flush(ene)
         END IF
 
