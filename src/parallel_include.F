@@ -20,11 +20,13 @@
 !******************************************************************************
 
 MODULE parallel_include
-#if defined(__parallel)
-  INCLUDE "mpif.h"
-#endif
+
   IMPLICIT NONE
 
+#if defined(__parallel)
+  INCLUDE "mpif.h"
+
+#endif
   PUBLIC
 
   INTEGER :: dummy
