@@ -439,7 +439,7 @@ CONTAINS
 
     NULLIFY(aux_basis_set,orb_basis_set)
     IF (.NOT.globenv%ionode) RETURN
-
+    bas=""
     bas(1:3) = basis(1:3)
     CALL uppercase ( bas )
     IF ( bas(1:3) == "ORB" ) THEN
