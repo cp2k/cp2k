@@ -19,32 +19,6 @@
   print  screen       1
 &END
 
-&FORCE_EVAL
-        &QMMM
-         ECOUPL GAUSS
-         ABC_QM  6.0 6.0 6.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND H
-          mm_index 2
-          mm_index 3
-         &END QM_KIND
-         &QM_KIND O
-          mm_index 1
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND H
-          radius 0.44
-         &END MM_KIND
-         &MM_KIND O
-          radius 0.78
-         &END MM_KIND
-         #
-        &END QMMM
-&END FORCE_EVAL
 
 &TOPOLOGY
  FORCEFIELD ON
@@ -119,3 +93,38 @@ H    -2.090603     1.352766     1.597519    H2O3
  POTENTIAL    GTH-PADE-q6
 &END
 
+&FORCE_EVAL
+        &DFT
+	   &MGRID
+              &INTERPOLATOR
+		EPS_R 1.0e-14
+		EPS_X 1.0e-14
+                MAXITER 100
+	      &END INTERPOLATOR
+           &END MGRID
+        &END DFT
+        &QMMM
+         ECOUPL GAUSS
+         ABC_QM  6.0 6.0 6.0
+         #
+         # QM_KINDS
+         #
+         &QM_KIND H
+          mm_index 2
+          mm_index 3
+         &END QM_KIND
+         &QM_KIND O
+          mm_index 1
+         &END QM_KIND
+         #
+         # MM_KINDS
+         #
+         &MM_KIND H
+          radius 0.44
+         &END MM_KIND
+         &MM_KIND O
+          radius 0.78
+         &END MM_KIND
+         #
+        &END QMMM
+&END FORCE_EVAL

@@ -19,7 +19,66 @@
   print  screen       1
 &END
 
+
+&TOPOLOGY
+ coord_file     ../../Fist/sample_pdb/butane.pdb
+ coordinate     pdb
+ CHARGE_BETA
+&END
+
+&EWALD
+ units angstrom
+ ewald_type spme
+ ewald_param .44 24 6
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM ../../Fist/sample_pot/butane.pot
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          15.0 15.0 15.0
+&END
+
+&IO
+ BASIS_SET_FILE GTH_BASIS_SETS
+ POTENTIAL_FILE POTENTIAL
+&END
+
+&DFT
+ FUNCTIONAL  pade
+&END
+
+&QS
+ CUTOFF       50
+ COMMENSURATE
+&END
+
+&SCF
+ GUESS        atomic
+&END
+
+&KIND H
+ BASIS_SET    SZV-GTH
+ POTENTIAL    GTH-PADE-q1
+&END
+
+&KIND C
+ BASIS_SET    SZV-GTH
+ POTENTIAL    GTH-PADE-q4
+&END
+
 &FORCE_EVAL
+        &DFT
+	   &MGRID
+              &INTERPOLATOR
+		EPS_R 1.0e-14
+		EPS_X 1.0e-14
+                MAXITER 100
+	      &END INTERPOLATOR
+           &END MGRID
+        &END DFT
         &QMMM
          ECOUPL GAUSS
          ABC_QM  7.0 7.0 7.0
@@ -98,53 +157,3 @@
          #
         &END QMMM
 &END FORCE_EVAL
-
-&TOPOLOGY
- coord_file     ../../Fist/sample_pdb/butane.pdb
- coordinate     pdb
- CHARGE_BETA
-&END
-
-&EWALD
- units angstrom
- ewald_type spme
- ewald_param .44 24 6
-&END
-
-&FORCE_FIELD
- PARMFILE CHM ../../Fist/sample_pot/butane.pot
-&END
-
-&CELL
- UNIT         ANGSTROM
- ABC          15.0 15.0 15.0
-&END
-
-&IO
- BASIS_SET_FILE GTH_BASIS_SETS
- POTENTIAL_FILE POTENTIAL
-&END
-
-&DFT
- FUNCTIONAL  pade
-&END
-
-&QS
- CUTOFF       50
- COMMENSURATE
-&END
-
-&SCF
- GUESS        atomic
-&END
-
-&KIND H
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q1
-&END
-
-&KIND C
- BASIS_SET    SZV-GTH
- POTENTIAL    GTH-PADE-q4
-&END
-

@@ -14,58 +14,6 @@
  MAX_ITER  0
 &END
 
-&FORCE_EVAL
-        &QMMM
-         ECOUPL GAUSS
-         ABC_QM  10.0 10.0 10.0
-         #
-         # QM_KINDS
-         #
-         &QM_KIND C
-          mm_index   14 17 20 23
-         &END QM_KIND
-         &QM_KIND H
-          mm_index  15 16 18 19 21 22 24 25
-         &END QM_KIND
-         #
-         # MM_KINDS
-         #
-         &MM_KIND CTL2
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND CTL3
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND HAL2
-          radius 0.78
-         &END MM_KIND
-         &MM_KIND HAL3
-          radius 0.78
-         &END MM_KIND
-         #
-         # LINKS
-         # 
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 14
-          MM_INDEX 11
-          ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
-          FIST_SCALE_FACTOR 0.0
-          RADIUS 0.80
-         &END LINK
-         &LINK
-          LINK_TYPE IMOMM
-          QM_INDEX 23
-          MM_INDEX 26
-          ALPHA  1.50
-          QMMM_SCALE_FACTOR 0.0
-          FIST_SCALE_FACTOR 0.0
-          RADIUS 0.80
-         &END LINK
-         #
-        &END QMMM
-&END FORCE_EVAL
 
 &TOPOLOGY
  coord_file     C11H24.pdb
@@ -117,3 +65,64 @@
  POTENTIAL    GTH-PADE-q4
 &END
 
+&FORCE_EVAL
+        &DFT
+	   &MGRID
+              &INTERPOLATOR
+		EPS_R 1.0e-14
+		EPS_X 1.0e-14
+                MAXITER 100
+	      &END INTERPOLATOR
+           &END MGRID
+        &END DFT
+        &QMMM
+         ECOUPL GAUSS
+         ABC_QM  10.0 10.0 10.0
+         #
+         # QM_KINDS
+         #
+         &QM_KIND C
+          mm_index   14 17 20 23
+         &END QM_KIND
+         &QM_KIND H
+          mm_index  15 16 18 19 21 22 24 25
+         &END QM_KIND
+         #
+         # MM_KINDS
+         #
+         &MM_KIND CTL2
+          radius 0.78
+         &END MM_KIND
+         &MM_KIND CTL3
+          radius 0.78
+         &END MM_KIND
+         &MM_KIND HAL2
+          radius 0.78
+         &END MM_KIND
+         &MM_KIND HAL3
+          radius 0.78
+         &END MM_KIND
+         #
+         # LINKS
+         # 
+         &LINK
+          LINK_TYPE IMOMM
+          QM_INDEX 14
+          MM_INDEX 11
+          ALPHA  1.50
+          QMMM_SCALE_FACTOR 0.0
+          FIST_SCALE_FACTOR 0.0
+          RADIUS 0.80
+         &END LINK
+         &LINK
+          LINK_TYPE IMOMM
+          QM_INDEX 23
+          MM_INDEX 26
+          ALPHA  1.50
+          QMMM_SCALE_FACTOR 0.0
+          FIST_SCALE_FACTOR 0.0
+          RADIUS 0.80
+         &END LINK
+         #
+        &END QMMM
+&END FORCE_EVAL
