@@ -45,6 +45,7 @@ MODULE pw_types
                                              FWFFT,&
                                              fft3d
   USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_sendrecv
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE termination,                     ONLY: stop_memory,&
@@ -58,7 +59,7 @@ MODULE pw_types
   PUBLIC :: pw_allocate, pw_deallocate, pw_retain, pw_release, pw_create
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
-  PUBLIC :: pw_derive, pw_sumup_square, pw_fft_wrap, pw_write
+  PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -677,6 +678,264 @@ SUBROUTINE pw_derive ( pw, n )
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_derive
+
+!******************************************************************************
+!!****** pw_types/pw_get_left_right [1.0] *
+!!
+!!   NAME
+!!     pw_get_left_right
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_get_left_right(pw, left, right )
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw
+!!       Real(dbl), DIMENSION(:,:), POINTER :: left,right
+!!     End Subroutine pw_derive
+!!
+!!   FUNCTION
+!!     Gets the slice on the left and on the right of the pw_grid owned by the current cpu
+!!     user allocates left & right 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele 2004
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   NOTES
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE pw_get_left_right ( pw, left, right )
+  IMPLICIT NONE
+  ! Arguments
+  TYPE ( pw_type ), INTENT ( IN ) :: pw
+  REAL ( KIND=dbl ), DIMENSION(:,:), POINTER :: left, right
+
+  REAL ( KIND=dbl ), DIMENSION(:,:), POINTER :: send
+  INTEGER, DIMENSION(:,:), POINTER :: bl
+  INTEGER :: left_x,right_x,left_cpu,right_cpu
+
+  bl => pw%pw_grid%bounds_local
+  IF ( pw % in_space /= REALSPACE .OR.  pw % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_get_left_right","wrong pw type")
+  ENDIF
+  IF ( .NOT. ASSOCIATED(left) .OR. .NOT. ASSOCIATED(right)) THEN
+     CALL stop_program("pw_get_left_right","left right not associated")
+  ENDIF
+  IF ( .NOT. ASSOCIATED(left) .OR. .NOT. ASSOCIATED(right)) THEN
+     CALL stop_program("pw_get_left_right","left right not associated")
+  ENDIF
+
+  ! if we have a part of x we try to get the neighbor (trying to avoid mistakes if CPU>npoints_x)
+  ALLOCATE(  send(bl(1,2):bl(2,2) , bl(1,3):bl(2,3)) )
+  left_x=bl(1,1)-1
+  IF (left_x  .lt. pw%pw_grid%bounds(1,1)) left_x =pw%pw_grid%bounds(2,1)
+  left_cpu=pw%pw_grid%para%pos_of_x(left_x)
+  right_x=bl(2,1)+1
+  IF (right_x .gt. pw%pw_grid%bounds(2,1)) right_x=pw%pw_grid%bounds(1,1)
+  right_cpu=pw%pw_grid%para%pos_of_x(right_x)
+  ! send the left data (receive the right)
+  send = pw%cr3d(bl(1,1),:,:)
+  CALL mp_sendrecv(send,left_cpu,right,right_cpu,pw%pw_grid%para%group)
+  ! send the right data (receive the left)
+  send = pw%cr3d(bl(1,2),:,:)
+  CALL mp_sendrecv(send,right_cpu,left,left_cpu,pw%pw_grid%para%group)
+  DEALLOCATE(send)
+
+END SUBROUTINE pw_get_left_right
+
+!!*****
+!******************************************************************************
+!!****** pw_types/pw_derive_fd [1.0] *
+!!
+!!   NAME
+!!     pw_derive_fd
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_derive_fd(pw, pw_der n)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw
+!!       Type(pw_type), Intent (INOUT):: pw_der
+!!       Integer, Dimension(3), Intent (IN):: n
+!!     End Subroutine pw_derive
+!!
+!!   FUNCTION
+!!     Calculate the derivative of a plane wave vector using finite
+!!     differences. Only for cr3d and order 1 right now.
+!!
+!!   AUTHOR
+!!     Joost VandeVondele 2004
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   NOTES
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE pw_derive_fd ( pw, pw_der, n )
+  IMPLICIT NONE
+  ! Arguments
+  TYPE ( pw_type ), INTENT ( IN ) :: pw
+  TYPE ( pw_type ), INTENT ( INOUT ) :: pw_der
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: n
+
+  INTEGER :: i,j,k
+  INTEGER, DIMENSION(:,:), POINTER :: bl
+  REAL(dbl) :: itwodelta
+  INTEGER, ALLOCATABLE, DIMENSION(:) :: wrap
+  INTEGER :: handle
+  REAL(KIND=dbl), DIMENSION(:,:), POINTER :: left,right
+
+  CALL timeset ( 'pw_derive_fd', 'I', '', handle )
+ 
+  ! just one component one for the time being
+  IF (ANY(n.LT.0) .OR. SUM(n).NE.1) THEN
+     CALL stop_program("pw_derive_fd","wrong derivative order") 
+  ENDIF
+  ! only cr3d supported
+  IF ( pw % in_space /= REALSPACE .OR.  pw % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_derive_fd","wrong pw type") 
+  ENDIF
+  ! only distribution over x is allowed
+  IF (ANY(pw%pw_grid%bounds_local(:,2:3) .NE. pw%pw_grid%bounds(:,2:3))) THEN
+     CALL stop_program("pw_derive_fd","wrong pw distribution") 
+  ENDIF
+  ! pw and pw_der should be fully equivalent. Only one test here.
+  IF ( pw_der % in_space /= REALSPACE .OR.  pw_der % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_derive_fd","wrong pw_der type") 
+  ENDIF
+
+  bl => pw%pw_grid%bounds_local
+ 
+  ! fully local derivs, z
+  IF (n(3) .EQ. 1) THEN
+    itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(3) )
+
+    ! precomputed wrapping for PBC
+    ALLOCATE(wrap(bl(1,3)-1:bl(2,3)+1))
+    DO k=bl(1,3),bl(2,3)
+       wrap(k)=k
+    ENDDO
+    wrap(bl(1,3)-1)=bl(2,3)
+    wrap(bl(2,3)+1)=bl(1,3)
+
+    ! deriv
+    DO k=bl(1,3),bl(2,3)
+    DO j=bl(1,2),bl(2,2)
+    DO i=bl(1,1),bl(2,1)
+       pw_der % cr3d(i,j,k) = (pw % cr3d(i,j,wrap(k+1)) - pw % cr3d(i,j,wrap(k-1)))*itwodelta
+    ENDDO
+    ENDDO
+    ENDDO
+
+    DEALLOCATE(wrap)
+  ENDIF
+
+  ! fully local derivs, y
+  IF (n(2) .EQ. 1) THEN
+    itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(2) )
+
+    ! precomputed wrapping for PBC
+    ALLOCATE(wrap(bl(1,2)-1:bl(2,2)+1))
+    DO j=bl(1,2),bl(2,2)
+       wrap(j)=j
+    ENDDO
+    wrap(bl(1,2)-1)=bl(2,2)
+    wrap(bl(2,2)+1)=bl(1,2)
+
+    ! deriv
+    DO k=bl(1,3),bl(2,3)
+    DO j=bl(1,2),bl(2,2)
+    DO i=bl(1,1),bl(2,1)
+       pw_der % cr3d(i,j,k) = (pw % cr3d(i,wrap(j+1),k) - pw % cr3d(i,wrap(j-1),k))*itwodelta
+    ENDDO
+    ENDDO
+    ENDDO
+
+    DEALLOCATE(wrap)
+  ENDIF
+
+  ! possibly non-local deriv, x
+  IF (n(1) .EQ. 1) THEN
+     ! treat local case first
+     IF ( ALL(pw%pw_grid%bounds(1:2,1) .EQ. pw%pw_grid%bounds_local(1:2,1)) ) THEN
+
+        itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(1) )
+        ! precomputed wrapping for PBC
+        ALLOCATE(wrap(bl(1,1)-1:bl(2,1)+1))
+        DO i=bl(1,1),bl(2,1)
+          wrap(i)=i
+        ENDDO
+        wrap(bl(1,1)-1)=bl(2,1)
+        wrap(bl(2,1)+1)=bl(1,1)
+
+        ! deriv
+        DO k=bl(1,3),bl(2,3)
+        DO j=bl(1,2),bl(2,2)
+        DO i=bl(1,1),bl(2,1)
+           pw_der % cr3d(i,j,k) = (pw % cr3d(wrap(i+1),j,k) - pw % cr3d(wrap(i-1),j,k))*itwodelta
+        ENDDO
+        ENDDO
+        ENDDO
+
+        DEALLOCATE(wrap)
+     ELSE ! the non-local case, involves exchanging boundaries with other CPUs.
+
+        IF (bl(2,1)-bl(1,1).GT.0) THEN
+
+           ALLOCATE(  left(bl(1,2):bl(2,2) , bl(1,3):bl(2,3)) )
+           ALLOCATE( right(bl(1,2):bl(2,2) , bl(1,3):bl(2,3)) )
+
+           CALL pw_get_left_right(pw,left,right)
+
+           itwodelta = 1.0_dbl/( 2.0_dbl * pw%pw_grid%dr(1) )
+           ! deriv the inner part
+           DO k=bl(1,3),bl(2,3)
+           DO j=bl(1,2),bl(2,2)
+           DO i=bl(1,1)+1,bl(2,1)-1
+              pw_der % cr3d(i,j,k) = (pw % cr3d(i+1,j,k) - pw % cr3d(i-1,j,k))*itwodelta
+           ENDDO
+           ENDDO
+           ENDDO
+
+           ! deriv the left part
+           i=bl(1,1)
+           DO k=bl(1,3),bl(2,3)
+           DO j=bl(1,2),bl(2,2)
+              pw_der % cr3d(i,j,k) = ( pw % cr3d(i+1,j,k) - left(j,k))*itwodelta
+           ENDDO
+           ENDDO
+
+           ! deriv the right part
+           i=bl(2,1)
+           DO k=bl(1,3),bl(2,3)
+           DO j=bl(1,2),bl(2,2)
+              pw_der % cr3d(i,j,k) = (right(j,k) - pw % cr3d(i-1,j,k))*itwodelta
+           ENDDO
+           ENDDO
+
+           DEALLOCATE(left,right)
+        ENDIF
+     ENDIF
+  ENDIF
+
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw x", pw%pw_grid%bounds(1:2,1)
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw y", pw%pw_grid%bounds(1:2,2)
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw z", pw%pw_grid%bounds(1:2,3)
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw x", pw%pw_grid%bounds_local(1:2,1)
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw y", pw%pw_grid%bounds_local(1:2,2)
+  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw z", pw%pw_grid%bounds_local(1:2,3)
+  !IF (pw%pw_grid%para%my_pos .EQ. 0) THEN
+  !    DO i=pw%pw_grid%bounds(1,1),pw%pw_grid%bounds(2,1)
+  !       write(6,*) i,pw%pw_grid%para%pos_of_x(i)
+  !    ENDDO
+  !ENDIF
+
+  CALL timestop(0.0_dbl,handle)
+
+END SUBROUTINE pw_derive_fd
+
 
 !!*****
 !******************************************************************************
