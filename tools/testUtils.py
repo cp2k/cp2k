@@ -13,7 +13,9 @@ class simpleRunTest(unittest.TestCase):
         unittest.TestCase.__init__(self)
         self.cp2kRoot=cp2kRoot
         self.testName=testName
-        self.command=command
+        self.archName=commands.getoutput(join(self.cp2kRoot,"tools",
+                                              "get_arch_code"))
+        self.command=join(cp2kRoot,"exe",self.archName,command)
         self.testRoot=join(cp2kRoot,testsRoot,testName+"-"+basename(command))
         self.inputFile=testName+".inp"
         self.outputFile=testName+".out"
@@ -43,11 +45,10 @@ class simpleRunTest(unittest.TestCase):
             self.fail('error, the command returned an error')
         else:
             file1=open(join(self.cp2kRoot,"tests","QS","test_outputs",
-                            commands.getoutput(join(self.cp2kRoot,"tools",
-                                                    "get_arch_code"))
-                            ,self.outputFile))
-            file2=open(join(self.testRoot),self.outputFile)
-            diffs=open(join(self.testRoot),self.testName+".diff","w")
+                            self.archName,
+                            self.outputFile))
+            file2=open(join(self.testRoot,self.outputFile))
+            diffs=open(join(self.testRoot,self.testName+".diff"),"w")
             if diffEpsilon.compareCp2kOutput(file1,file2,logFile=diffs)!=0:
                 self.fail('output was different than expected, see '+
                           diffs.name)
@@ -68,8 +69,15 @@ def simpleTests(cp2kRoot,testsRoot=None,command="cp2k.sopt"):
     return suite
 
 if __name__=="__main__":
+
     cp2kRoot=os.path.normpath(join(os.getcwd(),
                                    os.path.dirname(sys.argv[0]),".."))
-    runner=unittest.TextTestRunner()
-    suite=simpleTests(cp2kRoot)
+    testsRoot="test-"+time.strftime("%y%m%d-%H:%M")
+    os.mkdir(join(cp2kRoot,testsRoot))
+
+    runner=unittest.TextTestRunner(stream=open(join(cp2kRoot,testsRoot,
+                                                    "main.log"),"w"))
+    suite=simpleTests(cp2kRoot,testsRoot=testsRoot)
+    print "testsRoot:",join(cp2kRoot,testsRoot)
+    print "mainLog:",join(cp2kRoot,testsRoot,"main.log")
     runner.run(suite)

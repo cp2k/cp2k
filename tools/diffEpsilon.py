@@ -28,12 +28,16 @@ def diffEpsilon(str1, str2,incomparable_val=1):
 
 def getCoreLine(file,lineNr):
   import re
-  bannerRe=re.compile(r"([ *]+PROGRAM | CP2K\| | IO\| | +[a-zA-Z_\.0-9@]* +has created process number| *$)")
+  bannerRe=re.compile(r"([ *]+PROGRAM | CP2K\| | IO\| | +[a-zA-Z_\.\-0-9@]* +has created process number| *$)")
   timingRe=re.compile(" *- +(T I M I N G|MESSAGE PASSING PERFORMANCE) +- *$")
   timedLineRe=re.compile(" *[0-9][0-9]:[0-9][0-9]:[0-9][0-9] (.*)$")
-  scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z/ ]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
+  scfLineRe=re.compile(r" *([0-9]+) +([a-zA-Z/ \.]+) +([-+]?[0-9]*\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
   line=file.readline()
-  while bannerRe.match(line):
+  if bannerRe.match(line):
+    while bannerRe.match(line):
+      if not line: return (line,lineNr)
+      lineNr=lineNr+1
+      line=file.readline()
     if not line: return (line,lineNr)
     lineNr=lineNr+1
     line=file.readline()
