@@ -132,7 +132,7 @@ MODULE qs_integrate_potential
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix,&
+                                             allocate_matrix,&
                                              set_matrix
   USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
@@ -526,7 +526,17 @@ CONTAINS
     DO igrid_level = 1, gridlevel_info%ngrid_levels
       IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
         NULLIFY ( dh )
-        CALL replicate_matrix ( h%matrix, dh, "LocalH", allocate_blocks=.FALSE. )
+        CALL allocate_matrix(matrix=dh,&
+                         nrow=h%matrix%nrow,&
+                         ncol=h%matrix%ncol,&
+                         nblock_row=h%matrix%nblock_row,&
+                         nblock_col=h%matrix%nblock_col,&
+                         first_row=h%matrix%first_row(:),&
+                         last_row=h%matrix%last_row(:),&
+                         first_col=h%matrix%first_col(:),&
+                         last_col=h%matrix%last_col(:),&
+                         matrix_name="LocalH",&
+                         matrix_symmetry=h%matrix%symmetry)
         h_duplicated = .TRUE.
         EXIT
       END IF
@@ -537,7 +547,17 @@ CONTAINS
        DO igrid_level = 1, gridlevel_info%ngrid_levels
          IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
            NULLIFY ( dp )
-           CALL replicate_matrix ( p%matrix, dp, "LocalP", allocate_blocks=.FALSE. )
+           CALL allocate_matrix(matrix=dp,&
+                         nrow=p%matrix%nrow,&
+                         ncol=p%matrix%ncol,&
+                         nblock_row=p%matrix%nblock_row,&
+                         nblock_col=p%matrix%nblock_col,&
+                         first_row=p%matrix%first_row(:),&
+                         last_row=p%matrix%last_row(:),&
+                         first_col=p%matrix%first_col(:),&
+                         last_col=p%matrix%last_col(:),&
+                         matrix_name="LocalP",&
+                         matrix_symmetry=p%matrix%symmetry)
            p_duplicated = .TRUE.
            EXIT
          END IF

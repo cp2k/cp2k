@@ -131,7 +131,7 @@ MODULE qs_collocate_density
                                              get_block_node,&
                                              get_matrix_info,&
                                              real_matrix_type,&
-                                             replicate_matrix
+                                             allocate_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -418,7 +418,17 @@ CONTAINS
 
 !   *** Initialize working density matrix ***
 
-    CALL replicate_matrix ( p, dp, "DeltaP", allocate_blocks=.FALSE. )
+    CALL allocate_matrix(matrix=dp,&
+                         nrow=p%nrow,&
+                         ncol=p%ncol,&
+                         nblock_row=p%nblock_row,&
+                         nblock_col=p%nblock_col,&
+                         first_row=p%first_row(:),&
+                         last_row=p%last_row(:),&
+                         first_col=p%first_col(:),&
+                         last_col=p%last_col(:),&
+                         matrix_name="DeltaP",&
+                         matrix_symmetry=p%symmetry)
 
     DO ikind=1,nkind
 
