@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****h* cp2k/global_types [1.0] *
 !!
 !!   NAME
@@ -23,8 +24,29 @@
 
 MODULE global_types
 
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length
+  USE print_key_types,                 ONLY: DEBUG,&
+                                             HIGH,&
+                                             LOW,&
+                                             MEDIUM,&
+                                             SILENT,&
+                                             WANNIER_CRAZY,&
+                                             WANNIER_DIRECT,&
+                                             WANNIER_JACOBI,&
+                                             WANNIER_NONE,&
+                                             init_print_keys,&
+                                             print_key_type
 
   IMPLICIT NONE
 
@@ -44,109 +66,13 @@ MODULE global_types
 ! *** Public subroutines ***
 
   PUBLIC :: init_print_keys
-
-! *** Print level parameters ***
-
-  INTEGER, PARAMETER :: SILENT = 0,&
-                        LOW = 1,&
-                        MEDIUM = 2,&
-                        HIGH = 3,&
-                        DEBUG = 4
+  PUBLIC :: cp_para_env_from_globenv
 
   INTEGER, PARAMETER :: BLACS_GRID_SQUARE=1, &
                         BLACS_GRID_ROW=2, &
                         BLACS_GRID_COL=3
 
-  INTEGER, PARAMETER :: WANNIER_JACOBI=1, WANNIER_CRAZY=2, WANNIER_DIRECT=3, WANNIER_NONE=4
-
-!!*****
-!!****s* global_types/print_key_type [1.0] *
-!!
-!!   NAME
-!!     print_key_type
-!!
-!!   FUNCTION
-!!     
-!!   NOTES
-!!     -
-!!
-!!   SOURCE
-!!
-  TYPE print_key_type
-    INTEGER :: level,precision,ref_count
-    LOGICAL :: atomic_coordinates,&
-               basic_data_types,&
-               basis_set,&
-               blacs_info,&
-               cartesian_om,&
-               cell_parameters,&
-               charge_density_matrix,&
-               core_hamiltonian_matrix,&
-               core_charge_radii,&
-               cputime,&
-               density_matrix,&
-               derivatives,&
-               dft_control_parameters,&
-               diis_information,&
-               distribution,&
-               each_scf_step,&
-               forces,&
-               hartree_matrix,&
-               interatomic_distances,&
-               kind_information,&
-               kind_radii,&
-               kinetic_energy_matrix,&
-               kohn_sham_matrix,&
-               memory,&
-               mo_eigenvalues,&
-               mo_eigenvectors,&
-               mo_occupation_numbers
-    LOGICAL :: optical_conductivity,&
-               ortho_matrix,&
-               overlap_matrix,&
-               overlap_matrix_magnitude, &
-               density_matrix_magnitude, &
-               pgf_radii,&
-               physcon,&
-               potential,&
-               potential_energy_matrix,&
-               ppl_radii,&
-               ppnl_radii,&
-               prj_radii,&
-               program_banner,&
-               program_run_information,&
-               projectors,&
-               pw_grid_information,&
-               rho0_information,&
-               sab_orb_neighbor_lists,&
-               sac_ppl_neighbor_lists,&
-               sac_ppnl_neighbor_lists,&
-               sbc_ppnl_neighbor_lists,&
-               sac_oce_neighbor_lists,&
-               sbc_oce_neighbor_lists,&
-               scf,&
-               scf_energies,&
-               set_radii,&
-               spherical_harmonics,&
-               title,&
-               total_densities,&
-               total_numbers
-    LOGICAL :: w_matrix,&
-               e_density_cube, &
-               v_hartree_cube, &
-               lumos, &
-               homos, &
-               cubes, &
-               mulliken_analysis, &
-               mo_orthonormality, &
-               molecular_states
-    LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
-    LOGICAL :: timecumul
-    INTEGER    nlumos,nhomos
-    LOGICAL :: localization
-    INTEGER :: localization_method
-    LOGICAL :: HPM
-  END TYPE print_key_type
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="global_types"
 
 !!*****
 !!****s* global_types/global_environment_type [1.0] *
@@ -163,7 +89,7 @@ MODULE global_types
 !!
   TYPE global_environment_type
      TYPE(cp_para_env_type), POINTER         :: para_env
-     TYPE(print_key_type)                    :: print
+     TYPE(print_key_type)                    :: PRINT
      CHARACTER(LEN=default_string_length)    :: basis_set_file_name,&
                                                 coord_file_name,&
                                                 default_fft_library,&
@@ -192,128 +118,46 @@ MODULE global_types
 CONTAINS
 
 !!*****
-!!****f* global_types/init_print_keys [1.0] *
+
+!!****f* global_types/cp_para_env_from_globenv [1.0] *
 !!
 !!   NAME
-!!     init_print_keys
+!!     cp_para_env_from_globenv
 !!
 !!   FUNCTION
-!!     
+!!     returns the parallel environment stored in the global environment
+!!     gives a warning if not initialized
+!!
 !!   NOTES
-!!     -
+!!     should try to generate a para env??
 !!
-!!   SOURCE
+!!   INPUTS
+!!     - global_env: the global environment that contains the para_env
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
-  SUBROUTINE init_print_keys(print_key,level)
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
+    TYPE(global_environment_type), &
+      INTENT(in), TARGET                     :: global_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(cp_para_env_type), POINTER          :: res
 
-    TYPE(print_key_type)                     :: print_key
-    INTEGER, INTENT(IN)                      :: level
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_from_globenv', &
+      routineP = moduleN//':'//routineN
 
-    LOGICAL, PARAMETER                       :: f = .FALSE., t = .TRUE.
+    LOGICAL                                  :: failure
 
-!   ---------------------------------------------------------------------------
-
-    print_key%ref_count=1
-    print_key%atomic_coordinates = key_value(level,(/t,t,t/))
-    print_key%basic_data_types = key_value(level,(/f,f,f/))
-    print_key%basis_set = key_value(level,(/f,t,t/))
-    print_key%blacs_info = key_value(level,(/f,t,t/))
-    print_key%cartesian_om = key_value(level,(/f,f,f/))
-    print_key%cell_parameters = key_value(level,(/t,t,t/))
-    print_key%charge_density_matrix = key_value(level,(/f,f,t/))
-    print_key%core_hamiltonian_matrix = key_value(level,(/f,f,t/))
-    print_key%core_charge_radii = key_value(level,(/f,t,t/))
-    print_key%cputime = key_value(level,(/f,f,f/))
-    print_key%dft_control_parameters = key_value(level,(/t,t,t/))
-    print_key%density_matrix = key_value(level,(/f,f,t/))
-    print_key%derivatives = key_value(level,(/f,f,f/))
-    print_key%diis_information = key_value(level,(/f,f,t/))
-    print_key%distribution = key_value(level,(/f,t,t/))
-    print_key%each_scf_step = key_value(level,(/f,f,t/))
-    print_key%ep_matrixes = key_value(level,(/f,f,t/))
-    print_key%ep_rho1_cube = key_value(level,(/f,f,t/))
-    print_key%ep_operator = key_value(level,(/f,f,t/))
-    print_key%forces = key_value(level,(/f,t,t/))
-    print_key%hartree_matrix = key_value(level,(/f,f,t/))
-    print_key%interatomic_distances = key_value(level,(/f,f,t/))
-    print_key%kind_information = key_value(level,(/f,t,t/))
-    print_key%kind_radii = key_value(level,(/f,t,t/))
-    print_key%kinetic_energy_matrix = key_value(level,(/f,f,t/))
-    print_key%kohn_sham_matrix = key_value(level,(/f,f,t/))
-    print_key%memory = key_value(level,(/f,f,t/))
-    print_key%mo_eigenvalues = key_value(level,(/f,f,t/))
-    print_key%mo_eigenvectors = key_value(level,(/f,f,t/))
-    print_key%mo_occupation_numbers = key_value(level,(/f,f,t/))
-    print_key%ortho_matrix = key_value(level,(/f,f,t/))
-    print_key%overlap_matrix = key_value(level,(/f,f,t/))
-    print_key%pgf_radii = key_value(level,(/f,f,t/))
-    print_key%physcon = key_value(level,(/f,t,t/))
-    print_key%potential = key_value(level,(/f,t,t/))
-    print_key%ppl_radii = key_value(level,(/f,t,t/))
-    print_key%ppnl_radii = key_value(level,(/f,f,t/))
-    print_key%prj_radii = key_value(level,(/f,f,t/))
-    print_key%program_banner = key_value(level,(/t,t,t/))
-    print_key%program_run_information = key_value(level,(/t,t,t/))
-    print_key%projectors = key_value(level,(/f,t,t/))
-    print_key%potential_energy_matrix = key_value(level,(/f,f,f/))
-    print_key%pw_grid_information = key_value(level,(/f,t,t/))
-    print_key%rho0_information = key_value(level,(/f,f,t/))
-    print_key%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sbc_ppnl_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sac_oce_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%sbc_oce_neighbor_lists = key_value(level,(/f,f,t/))
-    print_key%scf = key_value(level,(/t,t,t/))
-    print_key%scf_energies = key_value(level,(/f,t,t/))
-    print_key%set_radii = key_value(level,(/f,t,t/))
-    print_key%spherical_harmonics = key_value(level,(/f,f,t/))
-    print_key%title = key_value(level,(/t,t,t/))
-    print_key%total_densities = key_value(level,(/f,t,t/))
-    print_key%total_numbers = key_value(level,(/t,t,t/))
-    print_key%w_matrix = key_value(level,(/f,f,f/))
-    print_key%density_matrix_magnitude = key_value(level,(/f,f,f/))
-    print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
-    print_key%e_density_cube = key_value(level,(/f,f,f/))
-    print_key%v_hartree_cube = key_value(level,(/f,f,f/))
-    print_key%cubes = key_value(level,(/f,f,f/))
-    print_key%lumos = key_value(level,(/f,f,f/))
-    print_key%mo_orthonormality = key_value(level,(/f,f,t/))
-    print_key%optical_conductivity = key_value(level,(/f,f,f/))
-    print_key%homos = key_value(level,(/f,f,f/))
-    print_key%nlumos = 4
-    print_key%nhomos = 4
-    print_key%timecumul = key_value(level,(/f,f,f/))
-    print_key%localization = key_value(level,(/f,f,f/))
-    print_key%localization_method = WANNIER_CRAZY
-    print_key%mulliken_analysis = key_value(level,(/f,t,t/))
-    print_key%molecular_states = key_value(level,(/f,f,f/))
-    print_key%HPM = key_value(level,(/f,f,f/))
-
-  END SUBROUTINE init_print_keys
-
-! *****************************************************************************
-
-  FUNCTION key_value(level,level_values) RESULT(value)
-
-    INTEGER, INTENT(IN)                      :: level
-    LOGICAL, DIMENSION(3), INTENT(IN)        :: level_values
-    LOGICAL                                  :: value
-
-!   ---------------------------------------------------------------------------
-
-    SELECT CASE (level)
-    CASE (:SILENT)
-      value = .FALSE.
-    CASE (LOW:HIGH)
-      value = level_values(level)
-    CASE (DEBUG:)
-      value = .TRUE.
-    END SELECT
-
-  END FUNCTION key_value
-
-! *****************************************************************************
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(global_env%para_env),cp_failure_level,routineP,error,failure)
+  res => global_env%para_env
+END FUNCTION cp_para_env_from_globenv
+!***************************************************************************
 
 END MODULE global_types
 !!*****
