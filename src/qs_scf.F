@@ -299,7 +299,7 @@ CONTAINS
                 output_unit,n,k,nrow_block,ncol_block, type_switch, &
                 fileunit
     LOGICAL  :: diis_step,do_level_shift,ionode, gth_potential_present,&
-                use_jacobi
+                use_jacobi,use_cholesky
     TYPE(cp_full_matrix_type), POINTER :: mo_eigenvectors
 
     LOGICAL :: pao, failure
@@ -413,6 +413,7 @@ CONTAINS
     iscf = 0
     diis_step = .FALSE.
     rebuild = .TRUE.
+    use_jacobi = .FALSE.
 
     CALL init_preconditioner(ot_preconditioner,globenv)
 
@@ -576,7 +577,6 @@ CONTAINS
 
         do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
                          ((scf_control%density_guess == "CORE").OR.(iscf > 1)))
-        use_jacobi = ((iscf > 1).AND.(delta < scf_control%eps_jacobi))
 
         IF (diis_step) THEN
            pmix = 1.0_wp
@@ -596,6 +596,13 @@ CONTAINS
            END IF
         END IF
 
+        IF ((iscf > 1).AND.(delta < scf_control%eps_jacobi)) THEN
+          use_jacobi = .TRUE.
+        ELSE
+          use_cholesky = scf_control%use_cholesky
+          use_jacobi = .FALSE.
+        END IF
+
         delta = 0.0_wp
 
         DO ispin=1,dft_control%nspins
@@ -603,7 +610,7 @@ CONTAINS
            CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
                             do_level_shift,scf_control%level_shift,globenv,&
                             use_arpack=scf_control%use_arpack,&
-                            use_cholesky=scf_control%use_cholesky,&
+                            use_cholesky=use_cholesky,&
                             work_syevx=scf_control%work_syevx,&
                             use_jacobi=use_jacobi,&
                             eps_jacobi=scf_control%eps_jacobi,&
@@ -1216,8 +1223,9 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
+    LOGICAL, INTENT(INOUT)                    :: use_cholesky
     LOGICAL, INTENT(IN)                       :: do_level_shift,use_arpack,&
-                                                 use_cholesky,use_jacobi
+                                                 use_jacobi
     REAL(wp), INTENT(IN)                      :: level_shift,work_syevx,&
                                                  eps_jacobi,jacobi_threshold
 
@@ -1249,8 +1257,15 @@ CONTAINS
     IF (use_cholesky) THEN
 
        CALL cp_fm_cholesky_reduce(ks,ortho)
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-       CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+       IF (use_jacobi) THEN
+         CALL blacs_syevx(ks,work,mo_eigenvalues,nao,work_syevx)
+         use_cholesky = .FALSE.
+         CALL cp_fm_cholesky_restore(work,nao,ortho,mo_eigenvectors,"SOLVE")
+         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
+      ELSE
+         CALL blacs_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
+         CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
+       END IF
 
     ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
@@ -1267,10 +1282,10 @@ CONTAINS
     ELSE
 
        CALL cp_fm_get_info(matrix=ks,nrow_global=nao)
-       CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
-                        work)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
-                        ks)
+
+!MK    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work)
+       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks)
  
        IF (do_level_shift) THEN
          DO imo=homo+1,nmo
