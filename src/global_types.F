@@ -243,7 +243,7 @@ CONTAINS
     print_key%ortho_matrix = key_value(level,(/f,f,t/))
     print_key%overlap_matrix = key_value(level,(/f,f,t/))
     print_key%pgf_radii = key_value(level,(/f,f,t/))
-    print_key%physcon = key_value(level,(/f,f,t/))
+    print_key%physcon = key_value(level,(/f,t,t/))
     print_key%potential = key_value(level,(/f,f,t/))
     print_key%ppl_radii = key_value(level,(/f,t,t/))
     print_key%ppnl_radii = key_value(level,(/f,f,t/))
