@@ -37,3 +37,10 @@ H2O-3.inp          1
 H2O-4.inp          1
 # core ham bug
 ZrO.inp            1
+# new xc routines
+Ar-12.inp          1
+Ar-13.inp          1
+# LSD 
+H2-1.inp           1
+H2-2.inp           1
+H2-3.inp           1

@@ -1,0 +1,43 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&DFT
+ FUNCTIONAL BLYP
+ LSD
+&END
+
+&QS
+ NGRID 1
+ EPS_DEFAULT  1.0E-12
+ MAP_CONSISTENT
+ CUTOFF       240
+&END
+
+&SCF
+ GUESS        RANDOM
+ EPS_SCF      1.0E-6
+ OT
+ MAX_SCF      5
+&END
+
+&PRINT
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-BLYP-q1
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          6.0  4.0  4.0
+&END
+
+&COORD
+ H   0.0 0.0 0.0
+ H   3.0 0.0 0.0
+&END

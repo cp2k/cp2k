@@ -1,0 +1,43 @@
+&CP2K
+ PROGRAM      Quickstep
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&DFT
+ FUNCTIONAL   OLYP
+ XC_SMOOTH_RHO NN10
+&END
+
+&QS
+ CUTOFF       200
+ EPS_DEFAULT  1.0E-12
+ EPS_RHO      1.0E-8
+ EPS_GVG      1.0E-6
+&END
+
+&SCF
+ GUESS        atomic
+ EPS_DIIS     0.1
+ MAX_DIIS     4
+ EPS_SCF      1.0E-6
+ MAX_SCF      20
+ MIXING       0.4
+&END
+
+&PRINT medium
+&END
+
+&KIND Ar
+ BASIS_SET    DZVP-GTH-BLYP
+ POTENTIAL    GTH-BLYP-q8
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          4.0  5.0  6.0
+&END
+
+&COORD
+ Ar     0.000000  0.000000  0.000000
+&END
