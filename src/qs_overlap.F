@@ -413,10 +413,15 @@ CONTAINS
     DEALLOCATE (work,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work")
 
+    DO i=1,maxder
+      NULLIFY (sint(i)%block)
+    END DO
     DEALLOCATE (sint,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"sint")
 
     CALL timestop(0.0_wp,handle)
+
+!   *** Print the overlap matrix distribution ***
 
     CALL write_matrix_distribution(s(1)%matrix,globenv)
 
@@ -437,131 +442,223 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_blacs_matrix(blacs_matrix,before,after,qs_env,globenv)
+  SUBROUTINE write_blacs_matrix(blacs_matrix,before,after,qs_env,globenv,&
+                                first_row,last_row,first_col,last_col)
 
-!   Purpose: Write a spherical matrix of blacs_type.
+!   Purpose: Print a spherical matrix of blacs type.
 
-!   History: - Creation (12.06.2001, MK)
+!   History: - Creation (12.06.2001,MK)
+!            - Allow for printing of a sub-matrix (01.07.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: blacs_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(cp_full_matrix_type), POINTER        :: blacs_matrix
     INTEGER, INTENT(IN)                       :: after,before
+    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, OPTIONAL, INTENT(IN)             :: first_col,first_row,&
+                                                 last_col,last_row
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_blacs_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE write_blacs_matrix (MODULE qs_overlap)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    CHARACTER(LEN=60) :: matrix_name
+    INTEGER           :: col1,col2,group,istat,nsgf,output_unit,row1,row2
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+
+    REAL(wp), DIMENSION(:,:), POINTER :: matrix
+
+!   ---------------------------------------------------------------------------
+
+    group = globenv%group
+    output_unit = globenv%scr
+
+    CALL cp_fm_get_info(blacs_matrix,name=matrix_name)
+
+    NULLIFY (matrix)
+
+    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix)
+
+!   *** Get the matrix dimension and check the optional arguments ***
+
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+
+    IF (PRESENT(first_row)) THEN
+      row1 = MAX(1,first_row)
+    ELSE
+      row1 = 1
+    END IF
+
+    IF (PRESENT(last_row)) THEN
+      row2 = MIN(nsgf,last_row)
+    ELSE
+      row2 = nsgf
+    END IF
+
+    IF (PRESENT(first_col)) THEN
+      col1 = MAX(1,first_col)
+    ELSE
+      col1 = 1
+    END IF
+
+    IF (PRESENT(last_col)) THEN
+      col2 = MIN(nsgf,last_col)
+    ELSE
+      col2 = nsgf
+    END IF
+
+    CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+                      row1,row2,col1,col2)
+
+!   *** Release work storage ***
+
+    IF (ASSOCIATED(matrix)) THEN
+      DEALLOCATE (matrix,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"matrix")
+    END IF
+
+  END SUBROUTINE write_blacs_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+                          first_row,last_row,first_col,last_col)
+
+!   Purpose: Write a matrix or a sub-matrix to the output unit.
+
+!   History: - Creation (01.07.2003,MK)
+
+!   ***************************************************************************
+
+    REAL(wp), DIMENSION(:,:), POINTER         :: matrix
+    CHARACTER(LEN=*), INTENT(IN)              :: matrix_name
+    INTEGER, INTENT(IN)                       :: after,before,first_col,&
+                                                 first_row,last_col,last_row
+    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_matrix"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
     TYPE(gto_basis_set_type), POINTER :: orb_basis_set
 
-    CHARACTER(LEN=60) :: name
-    CHARACTER(LEN=40) :: symmetry
     CHARACTER(LEN=25) :: fmtstr1
     CHARACTER(LEN=35) :: fmtstr2
     CHARACTER(LEN=2)  :: element_symbol
-    INTEGER           :: from,iatom,icol,irow,iset,isgf,iso,ishell,istat,jcol,&
-                         l,left,natom,ncol,ndigits,nset,nsgf,output_unit,&
+    INTEGER           :: from,group,iatom,icol,irow,iset,isgf,iso,ishell,istat,&
+                         jcol,l,left,natom,ncol,ndigits,nset,nsgf,output_unit,&
                          right,to,width
+    LOGICAL           :: ionode
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
     CHARACTER(LEN=6), DIMENSION(:), POINTER :: sgf_symbol
     INTEGER, DIMENSION(:), POINTER          :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
     INTEGER, DIMENSION(:,:), POINTER        :: lshell
 
 !   ---------------------------------------------------------------------------
 
+    group = globenv%group
+    ionode = globenv%ionode
     output_unit = globenv%scr
 
-    CALL cp_fm_get_info(blacs_matrix,name=name)
+    CALL m_flush(output_unit)
 
-    NULLIFY (matrix)
-    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix)
+    IF (ionode) THEN
 
-    IF (.NOT.globenv%ionode) RETURN
+      CALL get_qs_env(qs_env=qs_env,&
+                      atomic_kind_set=atomic_kind_set,&
+                      particle_set=particle_set)
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    particle_set=particle_set)
+      natom = SIZE(particle_set)
 
-    natom = SIZE(particle_set)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
-!   *** Definition of the variable formats ***
+!     *** Definition of the variable formats ***
 
-    fmtstr1 = "(/,T2,23X,  (  X,I5,  X))"
-    fmtstr2 = "(T2,2I5,2X,A2,1X,A8,   (1X,F  .  ))"
+      fmtstr1 = "(/,T2,23X,  (  X,I5,  X))"
+      fmtstr2 = "(T2,2I5,2X,A2,1X,A8,   (1X,F  .  ))"
 
-!   *** Write headline ***
+!     *** Write headline ***
 
-    WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(name)
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(matrix_name)
 
-!   *** Write the variable format strings ***
+!     *** Write the variable format strings ***
 
-    ndigits = after + globenv%print%precision
+      ndigits = after + globenv%print%precision
 
-    width = before + ndigits + 3
-    ncol = INT(56/width)
+      width = before + ndigits + 3
+      ncol = INT(56/width)
 
-    right = MAX((ndigits-2),1)
-    left =  width - right - 5
+      right = MAX((ndigits-2),1)
+      left =  width - right - 5
 
-    WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
-    WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
-    WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
+      WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
+      WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
+      WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
 
-    WRITE (UNIT=fmtstr2(22:23),FMT="(I2)") ncol
-    WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") width - 1
-    WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
+      WRITE (UNIT=fmtstr2(22:23),FMT="(I2)") ncol
+      WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") width - 1
+      WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
 
-!   *** Write the matrix in the selected format ***
+!     *** Write the matrix in the selected format ***
 
-    DO icol=1,nsgf,ncol
-      from = icol
-      to = MIN((from+ncol-1),nsgf)
-      WRITE (UNIT=output_unit,FMT=fmtstr1) (jcol,jcol=from,to)
-      irow = 1
-      DO iatom=1,natom
-        IF (iatom /= 1) WRITE (UNIT=output_unit,FMT="(A)")
-        CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                             element_symbol=element_symbol,&
-                             orb_basis_set=orb_basis_set)
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               nset=nset,&
-                               nshell=nshell,&
-                               l=lshell,&
-                               sgf_symbol=sgf_symbol)
-        isgf = 1
-        DO iset=1,nset
-          DO ishell=1,nshell(iset)
-            l = lshell(ishell,iset)
-            DO iso=1,nso(l)
-              WRITE (UNIT=output_unit,FMT=fmtstr2)&
-                irow,iatom,element_symbol,sgf_symbol(isgf),&
-                (matrix(irow,jcol),jcol=from,to)
-              isgf = isgf + 1
-              irow = irow + 1
+      DO icol=first_col,last_col,ncol
+        from = icol
+        to = MIN((from+ncol-1),last_col)
+        WRITE (UNIT=output_unit,FMT=fmtstr1) (jcol,jcol=from,to)
+        irow = 1
+        DO iatom=1,natom
+          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
+                               element_symbol=element_symbol,&
+                               orb_basis_set=orb_basis_set)
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 nset=nset,&
+                                 nshell=nshell,&
+                                 l=lshell,&
+                                 sgf_symbol=sgf_symbol)
+          isgf = 1
+          DO iset=1,nset
+            DO ishell=1,nshell(iset)
+              l = lshell(ishell,iset)
+              DO iso=1,nso(l)
+                IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+                  WRITE (UNIT=output_unit,FMT=fmtstr2)&
+                    irow,iatom,element_symbol,sgf_symbol(isgf),&
+                    (matrix(irow,jcol),jcol=from,to)
+                END IF
+                isgf = isgf + 1
+                irow = irow + 1
+              END DO
             END DO
           END DO
+          IF ((irow >= first_row).AND.(irow <= last_row)) THEN
+            WRITE (UNIT=output_unit,FMT="(A)")
+          END IF
         END DO
       END DO
-    END DO
 
-    WRITE (UNIT=output_unit,FMT="(/)")
+      WRITE (UNIT=output_unit,FMT="(/)")
 
-!   *** Release work storage ***
+    END IF
 
-    DEALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix")
+    CALL mp_sync(group)
+    CALL m_flush(output_unit)
 
-  END SUBROUTINE write_blacs_matrix
+  END SUBROUTINE write_matrix
 
 ! *****************************************************************************
 
@@ -665,179 +762,95 @@ CONTAINS
   SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,globenv,&
                                  first_row,last_row,first_col,last_col)
 
-!   Purpose: Write a spherical matrix.
+!   Purpose: Print a spherical matrix of sparse_matrix_type.
 
-!   History: - Creation (07.06.2000, MK)
+!   History: - Creation (07.06.2000,MK)
+!            - Allow for printing of a sub-matrix (01.07.2003,MK)
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
     INTEGER, INTENT(IN)                       :: after,before
+    TYPE(qs_environment_type), INTENT(IN)     :: qs_env
+    TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, OPTIONAL, INTENT(IN)             :: first_col,first_row,&
                                                  last_col,last_row
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE write_sparse_matrix (MODULE qs_overlap)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
-    TYPE(gto_basis_set_type), POINTER :: orb_basis_set
-
-    CHARACTER(LEN=80) :: name
-    CHARACTER(LEN=40) :: symmetry
-    CHARACTER(LEN=25) :: fmtstr1
-    CHARACTER(LEN=35) :: fmtstr2
-    CHARACTER(LEN=2)  :: element_symbol
-    INTEGER           :: col1,col2,from,group,iatom,icol,irow,iset,isgf,iso,&
-                         ishell,istat,jcol,l,left,natom,ncol,ndigits,nset,&
-                         nsgf,output_unit,right,row1,row2,to,width
-    LOGICAL           :: ionode
+    CHARACTER(LEN=80) :: matrix_name
+    CHARACTER(LEN=40) :: matrix_symmetry
+    INTEGER           :: col1,col2,group,istat,nsgf,output_unit,row1,row2
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
 
-    CHARACTER(LEN=6), DIMENSION(:), POINTER :: sgf_symbol
-    INTEGER, DIMENSION(:), POINTER          :: nshell
-    REAL(wp), DIMENSION(:,:), POINTER       :: matrix
-    INTEGER, DIMENSION(:,:), POINTER        :: lshell
+    REAL(wp), DIMENSION(:,:), POINTER :: matrix
 
 !   ---------------------------------------------------------------------------
 
     group = globenv%group
-    ionode = globenv%ionode
     output_unit = globenv%scr
 
     CALL get_matrix_info(matrix=sparse_matrix,&
-                         matrix_name=name,&
-                         matrix_symmetry=symmetry)
+                         matrix_name=matrix_name,&
+                         matrix_symmetry=matrix_symmetry)
 
     NULLIFY (matrix)
+
     CALL copy_sparse_to_full_matrix(sparse_matrix,matrix)
 
-    IF (symmetry == "symmetric") THEN
+    IF (matrix_symmetry == "symmetric") THEN
       CALL symmetrize_matrix(matrix,"upper_to_lower")
-    ELSE IF (symmetry == "antisymmetric") THEN
+    ELSE IF (matrix_symmetry == "antisymmetric") THEN
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
-    ELSE IF (symmetry /= "none") THEN
+    ELSE IF (matrix_symmetry /= "none") THEN
       CALL stop_program(routine,"Invalid matrix structure")
     END IF
 
     CALL mp_sum(matrix,group)
 
-    CALL m_flush(output_unit)
+!   *** Get the matrix dimension and check the optional arguments ***
 
-    IF (ionode) THEN
+    CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set)
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
-      CALL get_qs_env(qs_env=qs_env,&
-                      atomic_kind_set=atomic_kind_set,&
-                      particle_set=particle_set)
-
-      natom = SIZE(particle_set)
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
-
-      IF (PRESENT(first_row)) THEN
-        row1 = MAX(1,first_row)
-      ELSE
-        row1 = 1
-      END IF
-
-      IF (PRESENT(last_row)) THEN
-        row2 = MIN(nsgf,last_row)
-      ELSE
-        row2 = nsgf
-      END IF
-
-      IF (PRESENT(first_col)) THEN
-        col1 = MAX(1,first_col)
-      ELSE
-        col1 = 1
-      END IF
-
-      IF (PRESENT(last_col)) THEN
-        col2 = MIN(nsgf,last_col)
-      ELSE
-        col2 = nsgf
-      END IF
-
-!     *** Definition of the variable formats ***
-
-      fmtstr1 = "(/,T2,23X,  (  X,I5,  X))"
-      fmtstr2 = "(T2,2I5,2X,A2,1X,A8,   (1X,F  .  ))"
-
-!     *** Write headline ***
-
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") TRIM(name)
-
-!     *** Write the variable format strings ***
-
-      ndigits = after + globenv%print%precision
-
-      width = before + ndigits + 3
-      ncol = INT(56/width)
-
-      right = MAX((ndigits-2),1)
-      left =  width - right - 5
-
-      WRITE (UNIT=fmtstr1(11:12),FMT="(I2)") ncol
-      WRITE (UNIT=fmtstr1(14:15),FMT="(I2)") left
-      WRITE (UNIT=fmtstr1(21:22),FMT="(I2)") right
-
-      WRITE (UNIT=fmtstr2(22:23),FMT="(I2)") ncol
-      WRITE (UNIT=fmtstr2(29:30),FMT="(I2)") width - 1
-      WRITE (UNIT=fmtstr2(32:33),FMT="(I2)") ndigits
-
-!     *** Write the matrix in the selected format ***
-
-      DO icol=col1,col2,ncol
-        from = icol
-        to = MIN((from+ncol-1),col2)
-        WRITE (UNIT=output_unit,FMT=fmtstr1) (jcol,jcol=from,to)
-        irow = 1
-        DO iatom=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               element_symbol=element_symbol,&
-                               orb_basis_set=orb_basis_set)
-          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                 nset=nset,&
-                                 nshell=nshell,&
-                                 l=lshell,&
-                                 sgf_symbol=sgf_symbol)
-          isgf = 1
-          DO iset=1,nset
-            DO ishell=1,nshell(iset)
-              l = lshell(ishell,iset)
-              DO iso=1,nso(l)
-                IF ((irow >= row1).AND.(irow <= row2)) THEN
-                  WRITE (UNIT=output_unit,FMT=fmtstr2)&
-                    irow,iatom,element_symbol,sgf_symbol(isgf),&
-                    (matrix(irow,jcol),jcol=from,to)
-                END IF
-                isgf = isgf + 1
-                irow = irow + 1
-              END DO
-            END DO
-          END DO
-          IF ((irow >= row1).AND.(irow <= row2)) THEN
-            WRITE (UNIT=output_unit,FMT="(A)")
-          END IF
-        END DO
-      END DO
-
-      WRITE (UNIT=output_unit,FMT="(/)")
-
+    IF (PRESENT(first_row)) THEN
+      row1 = MAX(1,first_row)
+    ELSE
+      row1 = 1
     END IF
 
-!   *** Release work storage ***
+    IF (PRESENT(last_row)) THEN
+      row2 = MIN(nsgf,last_row)
+    ELSE
+      row2 = nsgf
+    END IF
 
-    DEALLOCATE (matrix,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"matrix")
+    IF (PRESENT(first_col)) THEN
+      col1 = MAX(1,first_col)
+    ELSE
+      col1 = 1
+    END IF
 
-    CALL mp_sync(group)
-    CALL m_flush(output_unit)
+    IF (PRESENT(last_col)) THEN
+      col2 = MIN(nsgf,last_col)
+    ELSE
+      col2 = nsgf
+    END IF
+
+    CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+                      row1,row2,col1,col2)
+
+    IF (ASSOCIATED(matrix)) THEN
+      DEALLOCATE (matrix,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"matrix")
+    END IF
 
   END SUBROUTINE write_sparse_matrix
 
