@@ -26,7 +26,8 @@ MODULE cp_control_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                             cp_fm_release
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -467,9 +468,12 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
     CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
       routineP = moduleN//"/"//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, ispin
 
   IF (ASSOCIATED(tddfpt_control%lumos)) THEN
+     DO ispin=1, SIZE(tddfpt_control%lumos)
+        CALL cp_fm_release(tddfpt_control%lumos(ispin)%matrix)
+     END DO
      DEALLOCATE(tddfpt_control%lumos,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
