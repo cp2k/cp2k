@@ -1220,7 +1220,7 @@ CONTAINS
     IF (.not.ASSOCIATED(k)) THEN
        CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
             name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-            "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            "KOHN-SHAM_MATRIX",&
             error=error)
        CALL set_qs_env(qs_env=qs_env,&
             k=k)
