@@ -78,15 +78,16 @@ MODULE pw_pool_types
                                              pw_type,&
                                              pw_write
   USE timings,                         ONLY: timeset,&
-                                             timestop
+                                             timestop,&
+                                             print_stack
 
   IMPLICIT NONE
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE., no_cache=.FALSE.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_pool_types'
   INTEGER, SAVE, PRIVATE :: last_pw_pool_id_nr=0
-  INTEGER, PARAMETER :: default_max_cache=15
+  INTEGER, PARAMETER :: default_max_cache=10, max_max_cache=20
 
   PUBLIC :: pw_pool_type, pw_pool_p_type
   PUBLIC :: pw_pool_create, pw_pool_retain, pw_pool_release,&
@@ -197,9 +198,10 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_pool_create(pool, pw_grid, error)
+  SUBROUTINE pw_pool_create(pool, pw_grid, max_cache, error)
     TYPE(pw_pool_type), POINTER              :: pool
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    INTEGER, optional :: max_cache
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -222,9 +224,12 @@ CONTAINS
        pool%id_nr=last_pw_pool_id_nr
        pool%ref_count=1
        pool%max_cache=default_max_cache
+       if (present(max_cache)) pool%max_cache=max_cache
+       pool%max_cache=MIN(max_max_cache,pool%max_cache)
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' has been created')") pool%id_nr
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
        NULLIFY(pool%real1d_pw, pool%real3d_pw, &
             pool%complex1d_pw, pool%complex3d_pw, pool%real3d_array)
@@ -284,6 +289,7 @@ CONTAINS
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' has been retained, ref_count=',i4)")&
                pool%id_nr, pool%ref_count
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
     END IF
   END SUBROUTINE pw_pool_retain
@@ -346,6 +352,7 @@ CONTAINS
        IF (debug_this_module) THEN
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' is flushing the cache')") pool%id_nr
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
 
        iterator => pool%real1d_pw
@@ -440,6 +447,7 @@ CONTAINS
           WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                fmt="(' *** pw_pool ',i4,' released ref_count=',i4)") &
                pool%id_nr, pool%ref_count
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
        IF (pool%ref_count==0) THEN
           pool%ref_count=1
@@ -564,16 +572,16 @@ CONTAINS
        pw => try_pop(pool%real1d_pw)
     CASE (REALDATA3D)
        pw => try_pop(pool%real3d_pw)
-    CASE (COMPLEXDATA1D)
-       pw => try_pop(pool%complex1d_pw)
-    CASE (COMPLEXDATA3D)
-       pw => try_pop(pool%complex3d_pw)
        IF (.NOT.ASSOCIATED(pw)) THEN
           IF (ASSOCIATED(pool%real3d_array)) THEN
              cr3d_ptr => cp_sll_3d_r_get_first_el(pool%real3d_array)
              CALL cp_sll_3d_r_rm_first_el(pool%real3d_array)
           END IF
        END IF
+    CASE (COMPLEXDATA1D)
+       pw => try_pop(pool%complex1d_pw)
+    CASE (COMPLEXDATA3D)
+       pw => try_pop(pool%complex3d_pw)
     CASE default
 ! unknown use_data
        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -595,6 +603,7 @@ CONTAINS
           CALL pw_write(&
                unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                pw=pw, error=error)
+          CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
     ELSEIF (debug_this_module) THEN
        WRITE(unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
@@ -603,6 +612,7 @@ CONTAINS
        CALL pw_write(&
             unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
             pw=pw, error=error)
+       CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
     END IF
 
     IF (PRESENT(mass_flag)) THEN
@@ -708,6 +718,7 @@ CONTAINS
                   pool%id_nr, pw%id_nr
              CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                   pw=pw,error=error)
+             CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
           END IF
 
           CALL cp_assert(my_accept_non_compatible,&
@@ -738,91 +749,89 @@ CONTAINS
                pool%id_nr, pw%id_nr
           CALL pw_write(unit_nr=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                pw=pw,error=error)
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
        END IF
 
-       IF (no_cache) THEN
-          CALL pw_release(pw, error=error)
-       ELSE
-          SELECT CASE(pw%in_use)
-          CASE(REALDATA1D)
-             IF (cp_sll_pw_get_length(pool%real1d_pw,error=error)<pool%max_cache) THEN
+       SELECT CASE(pw%in_use)
+       CASE(REALDATA1D)
+          IF (cp_sll_pw_get_length(pool%real1d_pw,error=error)<pool%max_cache) THEN
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
+             ELSE
+                CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
+             END IF
+          ELSE
+             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
+                  routineP,"hit max_cache"//&
+                  CPSourceFileRef,&
+                  error)
+             CALL pw_release(pw,error=error)
+          END IF
+       CASE(REALDATA3D)
+          IF (ASSOCIATED(pw%cr3d)) THEN
+             IF (cp_sll_pw_get_length(pool%real3d_pw,error=error)<pool%max_cache) THEN
                 IF (cp_debug) THEN
-                   CALL cp_sll_pw_insert_ordered(pool%real1d_pw, el=pw,&
+                   CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
                         insert_equals=.FALSE., did_insert=did_insert)
                    CPAssert(did_insert,cp_failure_level,routineP,error,failure)
                 ELSE
-                   CALL cp_sll_pw_insert_el(pool%real1d_pw, el=pw)
+                   CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
                 END IF
              ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+                CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                      routineP,"hit max_cache"//&
-                        CPSourceFileRef,&
-                        error)
+                     CPSourceFileRef,&
+                     error)
                 CALL pw_release(pw,error=error)
              END IF
-          CASE(REALDATA3D)
-             IF (ASSOCIATED(pw%cr3d)) THEN
-                IF (cp_sll_pw_get_length(pool%real3d_pw,error=error)<pool%max_cache) THEN
-                   IF (cp_debug) THEN
-                      CALL cp_sll_pw_insert_ordered(pool%real3d_pw, el=pw,&
-                           insert_equals=.FALSE., did_insert=did_insert)
-                      CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-                   ELSE
-                      CALL cp_sll_pw_insert_el(pool%real3d_pw, el=pw, error=error)
-                   END IF
-                ELSE
-                   CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                        routineP,"hit max_cache"//&
-                        CPSourceFileRef,&
-                        error)
-                   CALL pw_release(pw,error=error)
-                END IF
-             ELSE
-                IF (debug_this_module) THEN
-                   WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
-                        fmt="(' *** pw_pool ',i4,' pw ',i4,' cr3d is not associated, discarding')")&
-                        pool%id_nr, pw%id_nr
-                END IF
-                CPAssert(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
-                CALL pw_release(pw, error=error)
+          ELSE
+             IF (debug_this_module) THEN
+                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+                     fmt="(' *** pw_pool ',i4,' pw ',i4,' cr3d is not associated, discarding')")&
+                     pool%id_nr, pw%id_nr
+                CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
              END IF
-          CASE(COMPLEXDATA1D)
-             IF (cp_sll_pw_get_length(pool%complex1d_pw,error=error)<pool%max_cache) THEN
-                IF (cp_debug) THEN
-                   CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
-                        insert_equals=.FALSE., did_insert=did_insert)
-                   CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-                ELSE
-                   CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
-                END IF
+             CPAssert(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
+             CALL pw_release(pw, error=error)
+          END IF
+       CASE(COMPLEXDATA1D)
+          IF (cp_sll_pw_get_length(pool%complex1d_pw,error=error)<pool%max_cache) THEN
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%complex1d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"hit max_cache"//&
-                        CPSourceFileRef,&
-                        error)
-                CALL pw_release(pw,error=error)
+                CALL cp_sll_pw_insert_el(pool%complex1d_pw, el=pw)
              END IF
-          CASE(COMPLEXDATA3D)
-             IF (cp_sll_pw_get_length(pool%complex3d_pw,error=error)<pool%max_cache) THEN
-                IF (cp_debug) THEN
-                   CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
-                        insert_equals=.FALSE., did_insert=did_insert)
-                   CPAssert(did_insert,cp_failure_level,routineP,error,failure)
-                ELSE
-                   CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
-                END IF
+          ELSE
+             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
+                  routineP,"hit max_cache"//&
+                  CPSourceFileRef,&
+                  error)
+             CALL pw_release(pw,error=error)
+          END IF
+       CASE(COMPLEXDATA3D)
+          IF (cp_sll_pw_get_length(pool%complex3d_pw,error=error)<pool%max_cache) THEN
+             IF (cp_debug) THEN
+                CALL cp_sll_pw_insert_ordered(pool%complex3d_pw, el=pw,&
+                     insert_equals=.FALSE., did_insert=did_insert)
+                CPAssert(did_insert,cp_failure_level,routineP,error,failure)
              ELSE
-                CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                     routineP,"hit max_cache"//&
-                        CPSourceFileRef,&
-                        error)
-                CALL pw_release(pw,error=error)
+                CALL cp_sll_pw_insert_el(pool%complex3d_pw, el=pw)
              END IF
-          CASE default
-             ! unknown in_use
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-          END SELECT
-       END IF
+          ELSE
+             CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
+                  routineP,"hit max_cache"//&
+                  CPSourceFileRef,&
+                  error)
+             CALL pw_release(pw,error=error)
+          END IF
+       CASE default
+          ! unknown in_use
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
     END IF
     NULLIFY(pw)
     CALL timestop(0.0_dp, handle)
@@ -905,11 +914,13 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' created cr3d at 0x',z16.16)")&
                 pw_pool%id_nr, m_loc_r(cr3d)
+           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
      ELSEIF (debug_this_module) THEN
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' created cr3d reusing the one at 0x',z16.16)")&
                 pw_pool%id_nr, m_loc_r(cr3d)
+          call print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
      END IF
   END IF
 END SUBROUTINE pw_pool_create_cr3d
@@ -980,20 +991,16 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' received back a cr3d at 0x',z16.16)")&
                 pw_pool%id_nr, m_loc_r(cr3d)
+           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
         compatible=ALL(LBOUND(cr3d)==pw_pool%pw_grid%bounds_local(1,:)).AND.&
              ALL(UBOUND(cr3d)==pw_pool%pw_grid%bounds_local(2,:))
         CPPrecondition(compatible.OR.my_accept_non_compatible,cp_failure_level,routineP,error,failure)
         IF (compatible) THEN
            IF (cp_sll_3d_r_get_length(pw_pool%real3d_array,error=error)<pw_pool%max_cache) THEN
-              IF (no_cache) THEN
-                 DEALLOCATE(cr3d, stat=stat)
-                 CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-              ELSE
-                 CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
-              END IF
+              CALL cp_sll_3d_r_insert_el(pw_pool%real3d_array, el=cr3d, error=error)
            ELSE
-              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                    routineP,"hit max_cache"//&
                    CPSourceFileRef,&
                    error)
@@ -1005,6 +1012,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
               WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                    fmt="(' *** pw_pool ',i4,' cr3d not accepted, deallocating')")&
                 pw_pool%id_nr
+              CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
            END IF
            DEALLOCATE(cr3d, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -1014,6 +1022,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
                 fmt="(' *** pw_pool ',i4,' received back a null cr3d')")&
                 pw_pool%id_nr
+           CALL print_stack(cp_logger_get_default_unit_nr(logger,local=.TRUE.))
         END IF
         CPPrecondition(my_accept_non_compatible,cp_failure_level,routineP,error,failure)
      END IF
@@ -1476,8 +1485,9 @@ SUBROUTINE pw_pool_write(pw_pool,unit_nr,error)
   failure=.FALSE.
   
   IF (ASSOCIATED(pw_pool)) THEN
-     WRITE (unit=unit_nr, fmt="(' <pw_pool>{ id_nr=',i8,', ref_count=',i8,',')")&
-          pw_pool%id_nr,pw_pool%ref_count
+     WRITE (unit=unit_nr, &
+          fmt="(' <pw_pool>{ id_nr=',i8,', ref_count=',i8,', max_cache=',i8,',')")&
+          pw_pool%id_nr,pw_pool%ref_count,pw_pool%max_cache
 
      WRITE (unit=unit_nr, fmt="('real1d_pw=(')",advance="no")
      iter => pw_pool%real1d_pw

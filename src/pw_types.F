@@ -57,7 +57,8 @@ MODULE pw_types
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
-                                             timestop
+                                             timestop,&
+                                             print_stack
 
   IMPLICIT NONE
 
@@ -101,6 +102,7 @@ MODULE pw_types
   INTEGER, SAVE, PRIVATE :: allocated_pw_count=0
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='pw_types'
+  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.false.
 
   INTERFACE pw_gather
      MODULE PROCEDURE pw_gather_s, pw_gather_p
@@ -166,10 +168,21 @@ SUBROUTINE pw_allocate ( pw, pw_grid, use_data, mass_flag, cr3d_ptr, error )
     INTEGER                                  :: allocstat, handle
     INTEGER, DIMENSION(:, :), POINTER        :: bounds
     LOGICAL                                  :: mass_flag_local
+    TYPE(cp_logger_type), pointer :: logger
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
+  logger => cp_error_get_logger(error)
+  IF (debug_this_module) THEN
+     WRITE (cp_logger_get_default_unit_nr(logger),"('*** allocated pw ***')")
+     IF (PRESENT(cr3d_ptr)) THEN
+        IF (ASSOCIATED(cr3d_ptr)) THEN
+           WRITE (cp_logger_get_default_unit_nr(logger),"('*** cr3d associated ***')")
+        END IF
+     END IF
+     CALL print_stack(cp_logger_get_default_unit_nr(logger))
+  END IF
   mass_flag_local = .FALSE.
   IF ( PRESENT ( mass_flag ) ) mass_flag_local = mass_flag
 
