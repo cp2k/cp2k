@@ -293,10 +293,10 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 
 ! Projector calculation
      CALL dg_sum_patch_force_1d ( rden, rhos1, exp_igr % centre ( :, ip1 ), sum )
-     ao % cr ( c1 ) = sum * dvols * ivol 
+     ao % cr ( c1 ) = sum * dvols * ivol * ao % norm ( c1 )
      IF ( p2 /= 0 ) THEN  
        CALL dg_sum_patch_force_1d ( rden, rhos2, exp_igr % centre ( :, ip2 ), sum )
-       ao % cr ( c2 ) = sum * dvols * ivol
+       ao % cr ( c2 ) = sum * dvols * ivol * ao % norm ( c2 )
      ENDIF
 
      IF ( PRESENT ( fproj_part ) ) THEN
@@ -304,15 +304,15 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
      ! sum boxes on real space grids (big box) due to drpot1
        CALL dg_sum_patch_force_3d ( drpot1, rhos1, exp_igr % centre ( :, ip1 ), fat )
        fproj_part ( c1 ) % ipart = p1
-       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 ) * dvols *ivol
-       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 ) * dvols *ivol
-       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 ) * dvols *ivol
+       fproj_part ( c1 ) % force ( 1 ) = -fat ( 1 ) * dvols * ivol * ao % norm ( c1 )
+       fproj_part ( c1 ) % force ( 2 ) = -fat ( 2 ) * dvols * ivol * ao % norm ( c1 )
+       fproj_part ( c1 ) % force ( 3 ) = -fat ( 3 ) * dvols * ivol * ao % norm ( c1 )
        IF ( p2 /= 0 ) THEN
           CALL dg_sum_patch_force_3d ( drpot1, rhos2, exp_igr % centre ( :, ip2 ), fat )
           fproj_part ( c2 ) % ipart = p2
-          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 ) * dvols * ivol
-          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 ) * dvols * ivol
-          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 ) * dvols * ivol
+          fproj_part ( c2 ) % force ( 1 ) =  -fat ( 1 ) * dvols * ivol * ao % norm ( c2 )
+          fproj_part ( c2 ) % force ( 2 ) =  -fat ( 2 ) * dvols * ivol * ao % norm ( c2 )
+          fproj_part ( c2 ) % force ( 3 ) =  -fat ( 3 ) * dvols * ivol * ao % norm ( c2 )
        END IF
      ENDIF
      ip1 = ip2
