@@ -25,30 +25,52 @@
 !!***
 MODULE qs_tddfpt_types
   USE cp_error_handling,               ONLY: cp_simple_assert
-  USE cp_fm_types,                     ONLY: cp_fm_release,&
-                                             cp_fm_set_all
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
+                                             cp_fm_cholesky_invert
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_type, &
+                                             cp_fm_struct_create, &
+                                             optimal_blacs_col_block_size, &
+                                             optimal_blacs_row_block_size
+  USE cp_fm_types,                     ONLY: cp_full_matrix_type, &
+                                             cp_full_matrix_p_type, &
+                                             cp_fm_create, &
+                                             cp_fm_release,&
+                                             cp_fm_set_all, &
+                                             cp_fm_init_random
   USE cp_log_handling,                 ONLY: cp_to_string
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp_size
-  USE qs_blacs,                        ONLY: cp_fm_vect_dealloc,&
-                                             cp_full_matrix_p_type,&
-                                             replicate_blacs_matrix
+  USE qs_blacs,                        ONLY: cp_fm_vect_dealloc, &
+                                             cp_full_matrix_p_type, &
+                                             replicate_blacs_matrix, &
+                                             copy_full_matrix_to_real_matrix, &
+                                             copy_real_matrix_to_full_matrix
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_methods,                ONLY: p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   IMPLICIT NONE
-
+  
+  !---------------------------!
+  ! Is gonna hold eigenvalues !
+  !---------------------------!
   TYPE real_2d_array_p_type
      REAL(dbl), DIMENSION(:,:), POINTER :: values
   END TYPE real_2d_array_p_type
 
+  !----------------------------------------------!
+  ! The type that will hold the X and Y matrices !
+  !----------------------------------------------!
   TYPE fm_p_spins_p_type
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
   END TYPE fm_p_spins_p_type
 
+  !-----------------------------------!
+  ! A type that holds some parameters !
+  !-----------------------------------!
   TYPE tddfpt_control_type
      INTEGER :: n_ev    ! number of eigenvalues
      INTEGER :: n_spins ! number of spins used in the calculation (cached value)
@@ -63,7 +85,6 @@ MODULE qs_tddfpt_types
 !!   A type to hold data necessary for a tddfpt calculation
 !!
 !! ATTRIBUTES
-!!   - n_ev   : number of eigenvalues 
 !!   - x      : right eigenvector     
 !!   - y      : left eigenvector      
 !!   - eval_x : the eigenvalues       
@@ -73,11 +94,13 @@ MODULE qs_tddfpt_types
 !!
 !!***
   TYPE tddfpt_env_type
-     TYPE(tddfpt_control_type), POINTER                :: control
-     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER    :: x      ! right eigenvector     
-     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER    :: y      ! left eigenvector
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER :: eval_x ! the eigenvalues       
-     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER :: eval_y ! the eigenvalues       
+     TYPE(tddfpt_control_type), POINTER                 :: control
+     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
+     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
+     REAL(DBL), DIMENSION(:,:), POINTER                 :: ev     ! eigenvalues
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_X ! the eigenvalues       
+     TYPE(real_2d_array_p_type), DIMENSION(:), POINTER  :: eval_Y ! the eigenvalues       
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: invS   ! the inverse of the metric
   END TYPE tddfpt_env_type
     
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
@@ -116,9 +139,10 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
   	! LOCALS
-    INTEGER                     :: stat          ! 
-    INTEGER                     :: n_ev, n_spins ! (convenience values)
-    INTEGER                     :: ev, spin      ! loop indices
+    INTEGER                            :: stat          ! 
+    INTEGER                            :: n_ev, n_spins ! (convenience values)
+    INTEGER                            :: ev, spin      ! loop indices
+    TYPE(cp_fm_struct_type), POINTER   :: fm_struct
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
                                    routineP = moduleN//'/'//routineN
@@ -143,6 +167,9 @@ CONTAINS
        IF (stat/=0) CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins", n_spins)
     END DO
     
+    ALLOCATE(t_env%ev(n_ev,2), stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev", n_ev*2)
+
     DO spin=1, n_spins
 
        ! arpack needs one field more, hence the +1
@@ -166,6 +193,16 @@ CONTAINS
        END DO
     END DO
   
+    ALLOCATE(t_env%invS(n_spins), stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS", n_spins)
+    DO spin=1, n_spins
+       NULLIFY(fm_struct)
+       CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
+                                p_env%n_ao(spin), p_env%n_ao(spin), &
+                                optimal_blacs_row_block_size, optimal_blacs_col_block_size)
+       CALL cp_fm_create(t_env%invS(spin)%matrix, fm_struct, routineP//"invS")
+    END DO
+
   END SUBROUTINE tddfpt_env_allocate
 
 ! *****************************************************************************
@@ -189,30 +226,42 @@ CONTAINS
   
   	! LOCALS
     INTEGER                            :: stat
-    INTEGER                            :: ev 
+    INTEGER                            :: ev, spin, n_spins
+    TYPE(cp_full_matrix_type), POINTER :: fm
+    
 
     CHARACTER(len=*), PARAMETER        :: routineN = 'tddfpt_env_init', &
                                           routineP = moduleN//'/'//routineN
 
     ! -------------------------------------------------------------------
 
+    !--------------------!
+    ! Some preconditions !
+    !--------------------!
     IF (ASSOCIATED(t_control)) THEN
        t_env%control => t_control
     ELSE
        CALL stop_program(routineP, "t_control not associated")
     END IF
 
-    !----------------------------!
-    ! fill x and y of the t_env  !
-    ! with something meaningfull !
-    !----------------------------!
-    IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A)') &
-         routineP//": Initialization of x and y not yet implemented"
-    
-    ! finally make them orthogonal to the p_env%psi0d
-    DO ev=1, t_env%control%n_ev
-       CALL p_preortho(p_env, qs_env, t_env%x(ev)%spins)
-       CALL p_preortho(p_env, qs_env, t_env%y(ev)%spins)
+    n_spins = qs_env%dft_control%nspins
+
+    !------------------!
+    ! initialize the x !
+    !------------------!
+    ev = 1 ! we only need the first vector as starting point
+    DO spin=1, n_spins
+       CALL cp_fm_init_random(t_env%X(ev)%spins(spin)%matrix, p_env%n_mo(spin))
+    END DO
+    CALL p_preortho(p_env, qs_env, t_env%X(ev)%spins)
+
+    !-------------------------------------------------------!
+    ! Compute the inverse of S using cholesky factorization !
+    !-------------------------------------------------------!
+    DO spin=1, n_spins
+       CALL copy_real_matrix_to_full_matrix(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+       CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
+       CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
     END DO
 
   END SUBROUTINE tddfpt_env_init
@@ -282,6 +331,17 @@ CONTAINS
        DEALLOCATE(t_env%control, stat=stat)
        IF (stat/=0) CALL stop_memory(routineP, "t_env%control")
     END IF
+
+    DEALLOCATE(t_env%ev, stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev")
+
+    DO spin=1, n_spins
+       IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
+            CALL cp_fm_release(t_env%invS(spin)%matrix)
+    END DO
+    DEALLOCATE (t_env%invS, stat=stat)
+    NULLIFY(t_env%invS)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS")
  
   END SUBROUTINE tddfpt_env_deallocate
 

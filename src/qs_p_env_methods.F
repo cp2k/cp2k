@@ -188,20 +188,22 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE p_env_create(p_env, qs_env, kpp1_env,&
+  SUBROUTINE p_env_create(p_env, qs_env, kpp1_env, p1_option, &
        psi0d, orthogonal_orbitals, error)
 
     IMPLICIT NONE
 
     ! arguments
-    TYPE(qs_p_env_type), POINTER                  :: p_env
+    TYPE(qs_p_env_type), POINTER                     :: p_env
     TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
     TYPE(qs_kpp1_env_type), INTENT(in),&
-         TARGET, OPTIONAL                         :: kpp1_env
+         TARGET, OPTIONAL                            :: kpp1_env
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER, &
+         OPTIONAL                                    :: p1_option
     TYPE(cp_full_matrix_p_type), DIMENSION(:),&
-         POINTER, OPTIONAL                        :: psi0d
-    LOGICAL, INTENT(in), OPTIONAL                 :: orthogonal_orbitals
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)  :: error
+         POINTER, OPTIONAL                           :: psi0d
+    LOGICAL, INTENT(in), OPTIONAL                    :: orthogonal_orbitals
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
 
     ! locals
     LOGICAL :: failure
@@ -218,6 +220,9 @@ CONTAINS
     ! code
 
     CALL timeset(routineN,"I","",handle)
+
+    n_spins = qs_env%dft_control%nspins
+
     failure=.FALSE.
     NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env)
     
@@ -225,6 +230,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.not.failure) THEN
        NULLIFY(p_env%kpp1, &
+            p_env%p1, &
             p_env%m_epsilon, &
             p_env%psi0d, &
             p_env%S_psi0, &
@@ -243,9 +249,22 @@ CONTAINS
           CALL kpp1_create(p_env%kpp1_env, qs_env=qs_env, error=error)
        END IF
 
+       IF (PRESENT(p1_option)) THEN
+          p_env%p1 => p1_option
+       ELSE
+          ALLOCATE(p_env%p1(n_spins), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DO spin=1, n_spins
+             NULLIFY(p_env%p1(spin)%matrix)
+             CALL replicate_matrix_structure(qs_env%s(1)%matrix, p_env%p1(spin)%matrix,&
+                  target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+                  "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
+             CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_wp)
+          END DO
+       END IF
+
        CALL get_qs_env(qs_env, ao_mo_fm_pools=ao_mo_fm_pools,para_env=para_env)
 
-       n_spins = qs_env%dft_control%nspins
        p_env%n_mo=0
        p_env%n_ao=0
        DO spin=1, n_spins
@@ -992,11 +1011,11 @@ END SUBROUTINE p_env_did_change
              CALL cp_sm_output(logger=logger, &
                   outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  fromWhere=routineP, iter=iter, matrix=p1_new(ispin)%matrix,&
+                  fromWhere=routineP, iter=iter, matrix=p_env%p1(ispin)%matrix,&
                   para_env=qs_env%para_env, error=error)
           END IF
        END DO
-       CALL p_op_l2_tom(p_env, qs_env, p1_new, res, my_alpha, my_beta, error)
+       CALL p_op_l2_tom(p_env, qs_env, p_env%p1, res, my_alpha, my_beta, error)
        CALL deallocate_matrix_set(p1_new)
     END IF
 
@@ -1050,8 +1069,8 @@ END SUBROUTINE p_env_did_change
     END IF
     IF (.not.failure) THEN
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-            rho_ao_new=p1,qs_env=qs_env,&
-            rebuild=.TRUE.,error=error)
+            rho_ao_new=p1, qs_env=qs_env,&
+            rebuild=.TRUE., error=error)
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&
                k_p_p1=p_env%kpp1, rho=rho ,rho1=p_env%rho1,&
@@ -1062,12 +1081,18 @@ END SUBROUTINE p_env_did_change
                rebuild=.TRUE.,error=error)
        END IF
        DO ispin=1,n_spins
+!!          CALL cp_sm_output(logger=logger, &
+!!               outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+!!               "%kpp1-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+!!               fromWhere=routineP, iter=iter, matrix=p_env%kpp1(ispin)%matrix,&
+!!               para_env=qs_env%para_env, error=error)
           CALL cp_sm_fm_multiply(sparse_matrix=p_env%kpp1(ispin)%matrix,&
                v_in=p_env%psi0d(ispin)%matrix, v_out=res(ispin)%matrix,&
                ncol=p_env%n_mo(ispin),&
                para_env=para_env,&
                alpha=my_alpha,beta=my_beta,error=error)
        END DO
+!!       stop
     END IF
 
   END SUBROUTINE p_op_l2_tom

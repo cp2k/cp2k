@@ -145,8 +145,7 @@ MODULE qs_p_env_types
   TYPE qs_p_env_type
      LOGICAL :: orthogonal_orbitals
      INTEGER :: id_nr, ref_count, iter
-     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: &
-          kpp1
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: kpp1, p1
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0, Smo_inv
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
@@ -286,6 +285,7 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
           CALL cp_fm_vect_dealloc(p_env%Smo_inv, error=error)
           IF (ASSOCIATED(p_env%kpp1)) CALL deallocate_matrix_set(p_env%kpp1)
+          IF (ASSOCIATED(p_env%p1)) CALL deallocate_matrix_set(p_env%p1)
        END IF
     END IF
     NULLIFY(p_env)

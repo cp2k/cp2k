@@ -47,11 +47,8 @@ MODULE qs_tddfpt_utils
   USE qs_p_env_methods,                ONLY: p_env_create, &
                                              p_op_l1, &
                                              p_env_psi0_changed
-  USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_tddfpt_types,                 ONLY: tddfpt_control_type,&
-                                             tddfpt_env_allocate,&
-                                             tddfpt_env_init,&
-                                             tddfpt_env_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type, p_env_release
+  USE qs_tddfpt_types
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory
   IMPLICIT NONE
@@ -63,10 +60,10 @@ MODULE qs_tddfpt_utils
   PRIVATE
   
   ! METHODS
-  PUBLIC :: tddfpt_init, &
+  PUBLIC :: tddfpt_cleanup, &
+            tddfpt_init, &
             tddfpt_write_banner, &
-            update_p_env, &
-            report_tddfpt_results, &
+            tddfpt_report_results, &
             read_tddfpt_control
 
 CONTAINS
@@ -143,7 +140,7 @@ CONTAINS
        CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
     END DO
 
-    CALL p_env_create(p_env, qs_env, kpp1_env, psi0d, .TRUE.)
+    CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, orthogonal_orbitals=.TRUE.)
     ! update the m_epsilon matrix
     CALL p_env_psi0_changed(p_env, qs_env)
 
@@ -178,25 +175,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE update_p_env(p_env, t_env, glob_env)
-    IMPLICIT NONE
-    ! arguments
-    TYPE(qs_p_env_type), POINTER              :: p_env
-    TYPE(tddfpt_env_type), INTENT(in)         :: t_env
-    TYPE(global_environment_type), INTENT(in) :: glob_env
-
-    ! locals
-    CHARACTER(len=*), PARAMETER  :: routineN = "update_p_env", &
-                                    routineP = moduleN//"/"//routineN
-
-    ! code
-    IF (glob_env%ionode) WRITE (glob_env%scr, '(1X,A)') routineP//": Not yet implemented"
-
-  END SUBROUTINE update_p_env
-
-! *****************************************************************************
-
-  SUBROUTINE report_tddfpt_results(t_env, glob_env)
+  SUBROUTINE tddfpt_report_results(t_env, glob_env)
     
     IMPLICIT NONE
 
@@ -216,16 +195,13 @@ CONTAINS
          "-------------------------------------------------------------------------------", &
          ""
 
-    DO spin=1, t_env%control%n_spins
-       WRITE (glob_env%scr, '(3X,A5,I3)') "SPIN ", spin
-       WRITE (glob_env%scr, '(3X,A,T60,A)') "Nr", " numerical value"
-       DO ev=1, t_env%control%n_ev
-          WRITE (glob_env%scr, '(3X,I5,T60,F20.10)') ev, t_env%eval_x(spin)%values(ev,1)
-       END DO
-       WRITE (glob_env%scr, *)
+    WRITE (glob_env%scr, '(3X,A,T35,A)') "Nr", " numerical value"
+    DO ev=1, t_env%control%n_ev
+       WRITE (glob_env%scr, '(3X,I5,T35,F20.10,A3,F20.10,A1)') &
+            ev, t_env%ev(ev,1), " + ", t_env%ev(ev,2), "i"
     END DO
   
-  END SUBROUTINE report_tddfpt_results
+  END SUBROUTINE tddfpt_report_results
 
 ! *****************************************************************************
 
@@ -280,6 +256,106 @@ CONTAINS
     CALL parser_end()
     
   END SUBROUTINE read_tddfpt_control
+
+! *****************************************************************************
+
+  SUBROUTINE tddfpt_cleanup(t_env, p_env, glob_env)
+
+    IMPLICIT NONE
+
+    ! arguments
+    TYPE(qs_p_env_type), POINTER              :: p_env
+    TYPE(tddfpt_env_type), INTENT(inout)      :: t_env
+    TYPE(global_environment_type), INTENT(IN) :: glob_env
+
+    ! locals
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cleanup", &
+                                   routineP = moduleN//'/'//routineN
+
+    ! -------------------------------------------------------------------
+
+    CALL tddfpt_env_deallocate(t_env, glob_env)
+    CALL p_env_release(p_env)
+    
+  END SUBROUTINE tddfpt_cleanup
+
+! *****************************************************************************
+
+  FUNCTION check_eigenvalues(t_env, spin, glob_env, print_values_opt) RESULT (are_ok)
+
+    IMPLICIT NONE
+
+    ! FUNCTION DECLARATION
+    LOGICAL                           :: are_ok
+
+    ! ARGUMENTS
+    TYPE(tddfpt_env_type), INTENT(IN)         :: t_env
+    INTEGER, INTENT(IN)                       :: spin
+    TYPE(global_environment_type), INTENT(IN) :: glob_env
+    LOGICAL, INTENT(IN), OPTIONAL             :: print_values_opt
+
+    ! LOCALS
+    INTEGER                            :: ev
+    LOGICAL                            :: print_values
+    REAL(KIND=dbl)                     :: relative_difference
+    REAL(DBL), DIMENSION(:,:), POINTER :: val_x, val_y
+                                       
+    CHARACTER(LEN=*), PARAMETER        :: routineN = 'check_eigenvalues', &
+                                          routineP = moduleN//'/'//routineN
+
+    ! -------------------------------------------------------------------
+
+    val_x => t_env%eval_x(spin)%values
+    val_y => t_env%eval_y(spin)%values
+
+    IF (PRESENT(print_values_opt)) THEN
+       print_values = print_values_opt
+    ELSE
+       print_values = .FALSE.
+    END IF
+    are_ok = .TRUE.
+    
+    DO ev=1, t_env%control%n_ev
+       IF (ABS(val_x(ev,2)) < 1.0E-2_dbl) THEN
+
+          !-------------!
+          ! REAL NUMBER !
+          !-------------!
+          IF (ABS(val_x(ev,1)) > 1.0E-12_dbl) THEN
+             relative_difference = ABS((val_x(ev,1)-val_y(ev,1))/val_x(ev,1))
+          ELSEIF (ABS(val_y(ev,1)) > 1.0E-12_dbl) THEN
+             relative_difference = ABS((val_x(ev,1)-val_y(ev,1))/val_y(ev,1))
+          ELSE
+             relative_difference = 0._dbl ! both are smaller than 1.0E-12 !!!
+          END IF
+
+          IF (relative_difference > 0.05_dbl) THEN
+             are_ok = .FALSE.
+             IF (print_values) THEN
+                IF (glob_env%ionode) &
+                     WRITE (glob_env%scr, '(1X,A,I4,A,ES11.4,2X,ES11.4)') &
+                     "eigenvalues differ ", ev, ": ", val_x(ev,1), val_y(ev,1)
+             END IF
+          END IF
+
+       ELSE
+
+          !----------------!
+          ! COMPLEX NUMBER !
+          !----------------!
+          are_ok = .FALSE.
+          IF (print_values) THEN
+             IF (glob_env%ionode) &
+                  WRITE (glob_env%scr, '(1X,A,I4,A,ES11.4,A,ES11.4,A)') &
+                  "complex eigenvalue ", ev, " is complex: ", &
+                  val_x(ev,1), " + ", val_x(ev,2),"i"
+          END IF
+
+       END IF
+
+    END DO
+
+  END FUNCTION check_eigenvalues
 
 ! *****************************************************************************
 
