@@ -40,10 +40,6 @@ MODULE qs_debug
                                              globenv_create,&
                                              globenv_retain,&
                                              globenv_release
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
-  USE force_env_types,                 ONLY: force_env_type, &
-                                             force_env_release,&
-                                             force_env_set, force_env_get
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -51,8 +47,8 @@ MODULE qs_debug
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
                                              force_env_set, force_env_get
-  USE kinds,                           only: dp
-  USE particle_types,             ONLY: particle_type
+  USE kinds,                           ONLY: dp
+  USE particle_types,                  ONLY: particle_type
 
   IMPLICIT NONE
   PRIVATE
