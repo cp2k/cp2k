@@ -834,7 +834,7 @@ CONTAINS
 
               sac_ppnl_neighbor_node => first_node(sac_ppnl_neighbor_list)
 
-1              DO kneighbor=1,nneighbor
+              DO kneighbor=1,nneighbor
                 CALL get_neighbor_node(neighbor_node=sac_ppnl_neighbor_node,&
                                        cell=cell_c)
                 vppnl(kkind)%neighbor(cell_c(1),cell_c(2),cell_c(3))%n =&
