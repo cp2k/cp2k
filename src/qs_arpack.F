@@ -36,11 +36,10 @@
 module qs_arpack
 
   use qs_arpack_diag_sy,   only : arpack_diag_sy
-  use qs_arpack_utils,     only : arpack_confirm
   
   implicit none
 
   private
-  public  :: arpack_diag_sy, arpack_confirm
+  public  :: arpack_diag_sy
 
 end module qs_arpack

@@ -39,6 +39,8 @@ module qs_arpack_full
 
   type full_m_op_type
      type(cp_full_matrix_type), pointer :: a
+     integer                            :: a_size
+     logical                            :: general
      type(cp_full_matrix_type), pointer :: b
      type(cp_full_matrix_type), pointer :: buffer
   end type full_m_op_type

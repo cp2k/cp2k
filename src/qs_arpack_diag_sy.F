@@ -15,10 +15,8 @@
 !!     
 !!
 !!   MODIFICATION HISTORY
-!!     , TCH, created
 !!
-!!   SEE ALSO
-!!     
+!!****     
 module qs_arpack_diag_sy
 
   use kinds, only: wp => dp, wp_size => dp_size
@@ -128,11 +126,17 @@ subroutine arpack_diag_sy(vmatrix, &
 
   context = globenv%blacs_env%group
   call arpack_confirm(globenv)
-  call cp_fm_get_info(full_m_op%a, nrow_global=n)
+
+  if (present(full_m_op)) then
+     n = full_m_op%a_size
+  end if
+
+  ! this should go into qs_arpack_full
   call cp_fm_get_info(vmatrix, ncol_global=ncolsv)
   if (ncolsv.lt.2) then
       call stop_program(routineP,'too few cols in (buffer) vmatrix',globenv)
   endif
+
   if (nev .lt. 1) then
      call stop_program(routineP,"nev too small",globenv)
   endif
@@ -193,27 +197,30 @@ subroutine arpack_diag_sy(vmatrix, &
   arpack_comm = 0
 
 #if defined(__parallel)
-  ! arpack_comm = context       ! to use BLACS / seems to be a bug on SUN
-  arpack_comm = globenv%group ! to use MPI / needs renaming of pxlamch
-                              ! conflicts with scalapack
+  ! arpack_comm = context       ! use BLACS / seems to be a bug on SUN
+  arpack_comm = globenv%group   ! use MPI / needs renaming of pxlamch
+                                ! conflicts with scalapack
 #endif
   
-  ! some standard arpack settings
-  ! solves the eval problem
-  ! AX=XE
-  ! for the lowest eigenvalues (E) and eigenvectors
-  ! in a kind of default mode
-  ! many options can be given to arpack to satisfy all your dreams (about this kind of subject, OK ?)
-  bmat = 'I'
-  which = 'SA'
-  tol  = 1.0E-15_wp
-  info = 0 ! no intial guess for the eigenvectors
-           ! one starting guess can be given in resid if info=1
-  ido  = 0 ! initial go
+  
+  ! arpack settings
+  !
+  if (present(full_m_op)) then
+     if (full_m_op%general) then
+        bmat = 'G'   ! solve general problem Ax = BxE
+     else
+        bmat = 'I'   ! solve simple problem Ax = xE
+     end if
+  end if
+  which = 'SA'       ! compute the nev smallest eigenvalues (algebraic)
+  tol  = 1.0E-15_wp  ! accuracy
+  info = 0           ! no intial guess for the eigenvectors
+                     ! one starting guess can be given in resid if info=1
+  ido  = 0           ! initial go
   iparam(:) = 0
-  iparam(7) = 1   ! simple mode
-  iparam(1) = 1   ! with exact shifts
-  iparam(3) = 1500 ! maxiter
+  iparam(7) = 1      ! simple mode
+  iparam(1) = 1      ! with exact shifts
+  iparam(3) = 1500   ! maxiter
   select(:) = .true.
 
 
@@ -232,17 +239,14 @@ subroutine arpack_diag_sy(vmatrix, &
   do
      !write(6,*) "in the loop",globenv%mepos
 
-#if defined(__ARPACK)
 #if defined(__parallel)
      call pdsaupd(arpack_comm, ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
                  lworkl, info )
-
 #else
      call dsaupd ( ido, bmat, nloc, which, nev, tol, resid, &
                  ncv, cv, nloc, iparam, ipntr, workd, workl, &
                  lworkl, info )
-#endif
 #endif
 
      if (ido .eq. -1 .or. ido .eq. 1) then
@@ -266,7 +270,6 @@ subroutine arpack_diag_sy(vmatrix, &
   rvec = .true.
   ierr = 0 
 
-#if defined(__ARPACK)
 #if defined(__parallel)
   call pdseupd ( arpack_comm, rvec, 'All', select, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
@@ -275,7 +278,6 @@ subroutine arpack_diag_sy(vmatrix, &
   call dseupd ( rvec, 'All', select, d, cv, nloc, sigma, &        
                 bmat, nloc, which, nev, tol, resid, ncv, cv, nloc, &
                 iparam, ipntr, workd, workl, lworkl, ierr )
-#endif
 #endif
 
   if ( ierr .ne. 0) then
