@@ -70,7 +70,7 @@
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
   INTEGER, SAVE :: ihist
-  REAL(dbl) :: eold,cons,fconv,tol, deltae
+  REAL(dbl) :: cons,fconv,tol, deltae
   REAL (dbl), SAVE :: step
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad              
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
@@ -125,18 +125,8 @@
     tol = maxval(abs(cgrad(:)))
   END SELECT                                                                     
 
-  eold = energy_min % min_info %e
-  energy_min % min_info %e = thermo % pot
-  energy_min % min_info %e_class = thermo % e_class      
-  energy_min % min_info %e_over = thermo % e_overlap
-  energy_min % min_info %e_electro = thermo % e_electro
-  energy_min % min_info %e_electro_0 = thermo % e_electro_0
-  energy_min % min_info %e_electro_1 = thermo % e_electro_1
-  energy_min % min_info %e_electro_2 = thermo % e_electro_2
-  energy_min % min_info %e_thk = thermo % e_thk
-  energy_min % min_info %de = thermo % pot - eold
-  energy_min % min_info %tol = tol                     
-  energy_min % min_info %err = fconv                     
+  CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv )
+
   IF (ALLOCATED (cgrad)) DEALLOCATE (cgrad, STAT = isos)
 
   END SUBROUTINE optimize_ao_pol
@@ -162,7 +152,7 @@
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
   INTEGER, SAVE :: ihist, jhist
-  REAL(dbl) :: eold,cons,fconv,tol, deltae, tol1, tol2, ivol
+  REAL(dbl) :: cons,fconv,tol, deltae, tol1, tol2, ivol
   REAL (dbl), SAVE :: step
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad              
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
@@ -273,18 +263,8 @@
     tol = max(tol1,tol2)
   END SELECT                                                                     
 
-  eold = energy_min % min_info %e
-  energy_min % min_info %e = thermo % pot
-  energy_min % min_info %e_class = thermo % e_class      
-  energy_min % min_info %e_over = thermo % e_overlap
-  energy_min % min_info %e_electro = thermo % e_electro
-  energy_min % min_info %e_electro_0 = thermo % e_electro_0
-  energy_min % min_info %e_electro_1 = thermo % e_electro_1
-  energy_min % min_info %e_electro_2 = thermo % e_electro_2
-  energy_min % min_info %e_thk = thermo % e_thk
-  energy_min % min_info %de = thermo % pot - eold
-  energy_min % min_info %tol = tol                     
-  energy_min % min_info %err = fconv                     
+  CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv )
+
   IF (ALLOCATED (agrad)) DEALLOCATE (agrad, STAT = isos)
   IF (ALLOCATED (bgrad)) DEALLOCATE (bgrad, STAT = isos)
 
@@ -310,7 +290,7 @@
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
   INTEGER, SAVE :: ihist
-  REAL(dbl) :: eold,cons,fconv,tol, deltae
+  REAL(dbl) :: cons,fconv,tol, deltae
   REAL (dbl), SAVE :: step
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
@@ -365,18 +345,9 @@
     tol = maxval(abs(cgrad(:)))
   END SELECT
 
-  eold = energy_min % min_info %e
-  energy_min % min_info %e = thermo % pot
-  energy_min % min_info %e_class = thermo % e_class
-  energy_min % min_info %e_over = thermo % e_overlap
-  energy_min % min_info %e_electro = thermo % e_electro
-  energy_min % min_info %e_electro_0 = thermo % e_electro_0
-  energy_min % min_info %e_electro_1 = thermo % e_electro_1
-  energy_min % min_info %e_electro_2 = thermo % e_electro_2
-  energy_min % min_info %e_thk = thermo % e_thk
-  energy_min % min_info %de = thermo % pot - eold
-  energy_min % min_info %tol = tol
-  energy_min % min_info %err = fconv
+  CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv ) 
+
+  IF (ALLOCATED (cgrad)) DEALLOCATE (cgrad, STAT = isos)
 
   END SUBROUTINE optimize_ao_fit
 !
@@ -401,7 +372,7 @@
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
   INTEGER, SAVE :: ihist, jhist
-  REAL(dbl) :: eold,cons,fconv,tol, deltae, tol1, tol2, ivol
+  REAL(dbl) :: cons,fconv,tol, deltae, tol1, tol2, ivol
   REAL (dbl), SAVE :: step
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess_r, hess_i
@@ -512,18 +483,8 @@
     tol = max(tol1,tol2)
   END SELECT                                                                     
 
-  eold = energy_min % min_info %e
-  energy_min % min_info %e = thermo % pot
-  energy_min % min_info %e_class = thermo % e_class      
-  energy_min % min_info %e_over = thermo % e_overlap
-  energy_min % min_info %e_electro = thermo % e_electro
-  energy_min % min_info %e_electro_0 = thermo % e_electro_0
-  energy_min % min_info %e_electro_1 = thermo % e_electro_1
-  energy_min % min_info %e_electro_2 = thermo % e_electro_2
-  energy_min % min_info %e_thk = thermo % e_thk
-  energy_min % min_info %de = thermo % pot - eold
-  energy_min % min_info %tol = tol                     
-  energy_min % min_info %err = fconv                     
+  CALL copy_energy_info ( energy_min % min_info, thermo, tol, fconv ) 
+
   IF (ALLOCATED (agrad)) DEALLOCATE (agrad, STAT = isos)
   IF (ALLOCATED (bgrad)) DEALLOCATE (bgrad, STAT = isos)
 
@@ -679,6 +640,34 @@
      END DO
   END IF
   END SUBROUTINE sd_pw
+!------------------------------------------------------------------------------!
+  SUBROUTINE copy_energy_info ( min_info, thermo, tol, fconv )
+  IMPLICIT NONE
+! Arguments
+  TYPE ( min_info_type ), INTENT ( INOUT ) :: min_info
+  TYPE ( thermodynamic_type ), INTENT ( IN ) :: thermo
+  REAL ( dbl ), intent (in) :: tol
+  REAL ( dbl ), intent (in) :: fconv
+!
+!Locals
+  REAL ( dbl ) :: eold
+
+  eold = min_info %e
+  min_info %e = thermo % pot
+  min_info %e_class = thermo % e_class
+  min_info %e_over = thermo % e_overlap
+  min_info %e_over_ii = thermo % e_overlap_ii
+  min_info %e_over_ij = thermo % e_overlap_ij
+  min_info %e_electro = thermo % e_electro
+  min_info %e_electro_0 = thermo % e_electro_0
+  min_info %e_electro_1 = thermo % e_electro_1
+  min_info %e_electro_2 = thermo % e_electro_2
+  min_info %e_thk = thermo % e_thk
+  min_info %e_pol = thermo % e_pol
+  min_info %de = thermo % pot - eold
+  min_info %tol = tol
+  min_info %err = fconv
+ END  SUBROUTINE copy_energy_info 
 !------------------------------------------------------------------------------!
     END MODULE energy_optimize
 !--------------------------------------------------------------------------------!
