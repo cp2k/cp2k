@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/[el_typename]_list_types [1.0] *
+!!****h* cp2k/mol_new_list_types [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_types
+!!     mol_new_list_types
 !!
 !!   FUNCTION
 !!     represent a simple array based list of the given type
@@ -27,34 +27,46 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE [el_typename]_list_types
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_a_l, cp_error_check
-  USE kinds, ONLY: wp=>dp
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  [USE]
+MODULE mol_new_list_types
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE molecule_types_new,              ONLY: molecule_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='[el_typename]_list_types'
-  INTEGER, PRIVATE, SAVE :: last_[el_typename]_list_id=0
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='mol_new_list_types'
+  INTEGER, PRIVATE, SAVE :: last_mol_new_list_id=0
 
-  PUBLIC :: [el_typename]_list_type, [el_typename]_list_p_type
-  PUBLIC :: [el_typename]_list_create, [el_typename]_list_retain,&
-       [el_typename]_list_release
+  PUBLIC :: mol_new_list_type, mol_new_list_p_type
+  PUBLIC :: mol_new_list_create, mol_new_list_retain,&
+       mol_new_list_release
        
 !***
 !****************************************************************************
 
-!!****s* [el_typename]_list_types/[el_typename]_list_type [1.0] *
+!!****s* mol_new_list_types/mol_new_list_type [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_type
+!!     mol_new_list_type
 !!
 !!   FUNCTION
 !!     represent a list of objects
@@ -79,18 +91,18 @@ MODULE [el_typename]_list_types
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE [el_typename]_list_type
+  TYPE mol_new_list_type
      INTEGER :: id_nr, ref_count, n_els
      LOGICAL :: owns_els
-     [el_type], DIMENSION(:), POINTER :: els
-  END TYPE [el_typename]_list_type
+     TYPE(molecule_type), DIMENSION(:), POINTER :: els
+  END TYPE mol_new_list_type
 !!***
 !****************************************************************************
 
-!!****s* [el_typename]_list_types/[el_typename]_list_p_type [1.0] *
+!!****s* mol_new_list_types/mol_new_list_p_type [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_p_type
+!!     mol_new_list_p_type
 !!
 !!   FUNCTION
 !!     represents a pointer to a list
@@ -109,18 +121,28 @@ MODULE [el_typename]_list_types
 !!
 !!   SOURCE
 !***************************************************************************
-  TYPE [el_typename]_list_p_type
-     TYPE([el_typename]_list_type), POINTER :: list
-  END TYPE [el_typename]_list_p_type
+  TYPE mol_new_list_p_type
+     TYPE(mol_new_list_type), POINTER :: list
+  END TYPE mol_new_list_p_type
 !!***
 !****************************************************************************
 
 CONTAINS
 
-!!****f* [el_typename]_list_types/[el_typename]_list_create [1.0] *
+!!****f* mol_new_list_types/mol_new_list_create [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_create
+!!     mol_new_list_create
+!!
+!!   SYNOPSIS
+!!     Subroutine mol_new_list_create(list, els_ptr, owns_els, n_els,&
+!!         error)
+!!       Type(mol_new_list_type), Pointer, Optional:: list
+!!       Type(molecule_type), Dimension(:), Pointer, Optional:: els_ptr
+!!       Logical, Intent (IN), Optional:: owns_els
+!!       Integer, Intent (IN), Optional:: n_els
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_new_list_create
 !!
 !!   FUNCTION
 !!     creates a list
@@ -146,16 +168,16 @@ CONTAINS
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE [el_typename]_list_create(list, els_ptr, &
+SUBROUTINE mol_new_list_create(list, els_ptr, &
      owns_els, n_els, error)
-  TYPE([el_typename]_list_type), POINTER, OPTIONAL :: list
-  [el_type], DIMENSION(:), POINTER, OPTIONAL :: els_ptr
+  TYPE(mol_new_list_type), POINTER, OPTIONAL :: list
+  TYPE(molecule_type), DIMENSION(:), POINTER, OPTIONAL :: els_ptr
   LOGICAL, INTENT(in), OPTIONAL :: owns_els
   INTEGER, INTENT(in), OPTIONAL :: n_els
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_create',&
+  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
 
@@ -168,8 +190,8 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF (.NOT. failure) THEN
-     last_[el_typename]_list_id=last_[el_typename]_list_id+1
-     list%id_nr=last_[el_typename]_list_id
+     last_mol_new_list_id=last_mol_new_list_id+1
+     list%id_nr=last_mol_new_list_id
      list%ref_count=1
      list%owns_els=.TRUE.
      list%n_els=0
@@ -188,13 +210,19 @@ SUBROUTINE [el_typename]_list_create(list, els_ptr, &
         CPPreconditionNoFail(list%owns_els,cp_warning_level,routineP,error)
      END IF
   END IF
-END SUBROUTINE [el_typename]_list_create
+END SUBROUTINE mol_new_list_create
 !***************************************************************************
 
-!!****f* [el_typename]_list_types/[el_typename]_list_retain [1.0] *
+!!****f* mol_new_list_types/mol_new_list_retain [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_retain
+!!     mol_new_list_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine mol_new_list_retain(list, error)
+!!       Type(mol_new_list_type), Pointer:: list
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_new_list_retain
 !!
 !!   FUNCTION
 !!     retains a list (see doc/ReferenceCounting.html)
@@ -214,12 +242,12 @@ END SUBROUTINE [el_typename]_list_create
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE [el_typename]_list_retain(list, error)
-  TYPE([el_typename]_list_type), POINTER :: list
+SUBROUTINE mol_new_list_retain(list, error)
+  TYPE(mol_new_list_type), POINTER :: list
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_retain',&
+  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_retain',&
         routineP=moduleN//':'//routineN
 
   failure=.FALSE.
@@ -229,13 +257,19 @@ SUBROUTINE [el_typename]_list_retain(list, error)
      CPPrecondition(list%ref_count>0,cp_failure_level,routineP,error,failure)
      list%ref_count=list%ref_count+1
   END IF
-END SUBROUTINE [el_typename]_list_retain
+END SUBROUTINE mol_new_list_retain
 !***************************************************************************
 
-!!****f* [el_typename]_list_types/[el_typename]_list_release [1.0] *
+!!****f* mol_new_list_types/mol_new_list_release [1.0] *
 !!
 !!   NAME
-!!     [el_typename]_list_release
+!!     mol_new_list_release
+!!
+!!   SYNOPSIS
+!!     Subroutine mol_new_list_release(list, error)
+!!       Type(mol_new_list_type), Pointer:: list
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine mol_new_list_release
 !!
 !!   FUNCTION
 !!     releases a  list (see doc/ReferenceCounting.html)
@@ -255,12 +289,12 @@ END SUBROUTINE [el_typename]_list_retain
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE [el_typename]_list_release(list, error)
-  TYPE([el_typename]_list_type), POINTER :: list
+SUBROUTINE mol_new_list_release(list, error)
+  TYPE(mol_new_list_type), POINTER :: list
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='[el_typename]_list_release',&
+  CHARACTER(len=*), PARAMETER :: routineN='mol_new_list_release',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
 
@@ -272,7 +306,8 @@ SUBROUTINE [el_typename]_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              [deallocate_els_code]
+              DEALLOCATE(list%els,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END IF
         END IF
         NULLIFY(list%els)
@@ -281,11 +316,19 @@ SUBROUTINE [el_typename]_list_release(list, error)
      END IF
   END IF
   NULLIFY(list)
-END SUBROUTINE [el_typename]_list_release
+END SUBROUTINE mol_new_list_release
 !***************************************************************************
 
 ! template def put here so that line numbers in template and derived 
 ! files are almost the same (multi-line use change it a bit)
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
+! ARGS:
+!  USE = "use molecule_types_new, only: molecule_type"
+!  deallocate_els_code = 
+!    "DEALLOCATE(list%els,stat=stat)
+!                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"
+!  el_type = "type(molecule_type)"
+!  el_typename = "mol_new"
 
-END MODULE [el_typename]_list_types
+
+END MODULE mol_new_list_types
