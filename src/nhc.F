@@ -127,16 +127,19 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
     ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
     IF (isos/=0) CALL stop_program('nhc_ao_setup', &
        'failed to allocate nhc%nvt' )
+
+! Find the number of degrees of freedom on each thermostat
+    nhc % s_kin = 0._dbl
+    DO i = 1, ncoef
+      nhc % p_kin ( 1, i ) % point  = nhc % p_kin ( 1, i ) % point  + 1._dbl
+    ENDDO
+     
 !
 ! Now that we know how many there are stick this into nhc % static % nkt
 ! (number of degrees of freedom times k_B T )
 
     DO i = 1, nhc % num_nhc
-      IF ( simpar % pol_option == 'GLOBAL' )  THEN
-         nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * number
-      ELSEIF (simpar % pol_option == 'MASSIVE' ) THEN
-         nhc % nvt ( 1, i ) % nkt = simpar % pol_temp 
-      ENDIF
+       nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * nhc % s_kin ( i )
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain
