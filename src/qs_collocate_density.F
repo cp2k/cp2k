@@ -347,7 +347,7 @@ CONTAINS
       ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, &
       jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), &
       natom_pairs, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, &
-      nsetb, nthread, omp_get_max_threads, omp_get_thread_num, pdim1, pdim2, &
+      nsetb, nthread, omp_get_max_threads, omp_get_thread_num, &
       sgfa, sgfb, stat, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -396,6 +396,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
+    LOGICAL                                  :: distributed_rs_grids
 
 !   ---------------------------------------------------------------------------
 
@@ -470,9 +471,13 @@ CONTAINS
     ENDIF
 
     ! *** set up the rs multi-grids
+    distributed_rs_grids=.FALSE.
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
+       IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN
+          distributed_rs_grids=.TRUE.
+       ENDIF
     END DO
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
@@ -513,7 +518,11 @@ CONTAINS
 
 !   *** Initialize working density matrix ***
 
-    CALL allocate_matrix(matrix=deltap,&
+
+    ! distributed rs grids require a matrix that will be changed (rs_get_my_tasks)
+    ! whereas this is not the case for replicated grids
+    IF (distributed_rs_grids) THEN
+        CALL allocate_matrix(matrix=deltap,&
                          nrow=matrix_p%nrow,&
                          ncol=matrix_p%ncol,&
                          nblock_row=matrix_p%nblock_row,&
@@ -524,6 +533,9 @@ CONTAINS
                          last_col=matrix_p%last_col(:),&
                          matrix_name="DeltaP",&
                          matrix_symmetry=matrix_p%symmetry)
+    ELSE
+        deltap=>matrix_p
+    ENDIF
 
     DO ikind=1,nkind
 
@@ -622,13 +634,14 @@ CONTAINS
                CYCLE
              END IF
 
-             pdim1 = SIZE(p_block,1)
-             pdim2 = SIZE(p_block,2)
+             IF (distributed_rs_grids) THEN
+                 NULLIFY ( pblock )
+                 CALL add_block_node ( deltap, brow, bcol, pblock )
+                 pblock = p_block
+             ELSE
+                 pblock => p_block
+             ENDIF
 
-             NULLIFY ( pblock )
-             CALL add_block_node ( deltap, brow, bcol, pblock )
-
-             pblock = p_block
   
              IF (.NOT. map_consistent) THEN
                 IF ( ALL ( 100.0_dp*ABS(pblock) < eps_rho_rspace) ) THEN
@@ -754,6 +767,7 @@ CONTAINS
             tasks_local(2,i) = 0
           END DO
           npme = 0
+          ! modifies deltap if distributed_rs_grids
           CALL rs_get_my_tasks ( rs_rho(igrid_level)%rs_grid, tasks_local, &
                npme, ival=ival, rval=dab_local, pmat=deltap, pcor=latom )
           CALL rs_get_loop_vars ( npme, ival, natom_pairs, asets, atasks )
@@ -917,7 +931,7 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    CALL deallocate_matrix ( deltap )
+    IF (distributed_rs_grids) CALL deallocate_matrix ( deltap )
 
     IF ( nthread > 1 ) THEN
       DEALLOCATE (lgrid%r,STAT=istat)
