@@ -592,7 +592,7 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
         ELSE
            CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
            SELECT CASE (TRIM(keyword))
-           CASE ('OPTIMIZER')
+           CASE ('OPTIMIZER','MINIMIZER')
               CALL read_object(keyword2)
               SELECT CASE (TRIM(keyword2))
               CASE ('BFGS')
