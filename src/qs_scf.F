@@ -126,13 +126,15 @@ MODULE qs_scf
                                       mo_set_type,&
                                       read_mo_set,&
                                       set_mo_occupation,&
-                                      write_mo_set
+                                      write_mo_set, &
+                                      calculate_occupied_eigenvalues
   USE qs_overlap,               ONLY: write_blacs_matrix,&
                                       write_sparse_matrix
   USE qs_parser,                ONLY: finish_parser,&
                                       read_object,&
                                       start_parser,&
                                       test_object
+  USE realspace_grid_types,     ONLY: rs_pw_to_cube
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell
   USE sparse_matrix_types,      ONLY: add_matrices,&
@@ -182,7 +184,8 @@ MODULE qs_scf
   use cp_matrix_utils,          only: cp_sm_output
   USE qs_collocate_density,     ONLY: calculate_rho_core,&
                                       calculate_rho_elec,&
-                                      calculate_total_rho
+                                      calculate_total_rho, &
+                                      calculate_wavefunction
   USE qs_core_energies,         ONLY: calculate_ecore,&
                                       calculate_ecore_overlap,&
                                       calculate_ecore_self
@@ -278,7 +281,9 @@ CONTAINS
 
     CHARACTER(LEN=6)   :: extension
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit
+    INTEGER            :: file_unit,ivector
+    CHARACTER(LEN=60)  :: filename
+
 
 !   ---------------------------------------------------------------------------
 
@@ -668,6 +673,33 @@ CONTAINS
 !   *** Write last wavefunction ***
 
     CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
+
+!   *** temporary ***
+
+    ! write the electron density
+    if (globenv%ionode) open(UNIT=21,FILE="E_DENSITY.cube")
+    call rs_pw_to_cube(ks_env%rho_elec_rspace(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+    if (globenv%ionode) close(21)
+
+    ! write the hartree potential
+    if (globenv%ionode) open(UNIT=21,FILE="V_HARTREE.cube")
+    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,"HARTREE POTENTIAL")
+    if (globenv%ionode) close(21)
+
+
+    CALL  calculate_occupied_eigenvalues(mo_set,ks%matrix,globenv)
+
+    ! overwrites rho_rspace with a wavefunction !
+    CALL get_mo_set(mo_set=mo_set,homo=ivector)
+    CALL calculate_wavefunction(mo_set,ivector,ks_env%rho_elec_rspace,ks_env%rho_gspace,&
+                                 ks_env%gridlevel_info,ks_env%cube_info,ks_env%l_info,&
+                                 qs_env,globenv)
+
+    write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
+    if (globenv%ionode) open(UNIT=21,FILE=filename)
+    write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO"
+    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,filename)
+    if (globenv%ionode) close(21)
 
     IF (globenv%print%density_matrix) THEN
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
