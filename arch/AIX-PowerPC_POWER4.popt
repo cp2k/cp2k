@@ -1,15 +1,14 @@
 PERL     = perl
 CC       = cc
 CPP      = /usr/ccs/lib/cpp
-FC       = mpxlf95_r -qsuffix=f=f90 
-FC_fixed = mpxlf95_r -qfixed -qsuffix=f=f90 
+FC       = mpxlf95_r -qsuffix=f=f90
 LD       = mpxlf95_r
 AR       = ar -r -X64
 DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL -D__parallel
 CPPFLAGS = -C $(DFLAGS) -P
-FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel\
-           -O2 -q64 -qarch=pwr4 -qcache=auto -qmaxmem=-1 -qtune=pwr4
-LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP4/64 -L/apps/mass/lib -bnoquiet
+FCFLAGS  = -O2 -q64 -qarch=pwr4 -qcache=auto -qmaxmem=-1 -qtune=pwr4
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP4/64 -L/apps/mass/lib -bnoquiet\
+           -bmaxdata:0x800000000  -bmaxstack:0x80000000
 LIBS     = -lscalapack -lblacsF77init -lblacs\
            -llapack3 -lessl -lmass -lhm
 
