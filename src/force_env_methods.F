@@ -76,6 +76,7 @@ MODULE force_env_methods
   USE simulation_cell,                 ONLY: cell_type
   USE qmmm_types, ONLY: qmmm_env_type, qmmm_env_retain
   USE particle_types, only: particle_type
+  USE qmmm_electrostatic_methods, ONLY: qmmm_el_coupling
 
   IMPLICIT NONE
 
@@ -590,14 +591,21 @@ RECURSIVE SUBROUTINE qmmm_forces(force_env,box_change,error)
      END IF
      particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
   END DO
+
+  ! Initialize ks_qmmm_env
+  CALL init_ks_qmmm_env(qs_env=force_env%sub_force_env(2)%force_env%qs_env,error=error)
+
+  ! Compute the QM/MM Electrostatic Potential
+  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
+                        force_env%qmmm_env,particles_mm,error)
 !TL
-! quando sara' pronto fist bisogna ripristinare il loop...
-! ora abilito solo il calcolo QS sub sistema piu' piccolo.. 
-!  DO isubsys=1,2
-     isubsys = 2
-     CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error)
-!  END DO
+! Fist: isubsys = 1
+!  isubsys = 1
+!  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+!       box_change=box_change,error=error)
+  isubsys = 2
+  CALL force_env_calculate_force(force_env%sub_force_env(isubsys)%force_env,&
+       box_change=box_change,error=error)
 ! TL
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
@@ -672,11 +680,69 @@ RECURSIVE SUBROUTINE qmmm_energy(force_env,box_change,error)
      END IF
      particles_qm(ip)%r=particles_mm(qm_atom_index(ip))%r
   END DO
-  DO isubsys=1,2
-     CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
-          box_change=box_change,error=error)
-  END DO
+
+  ! Initialize ks_qmmm_env
+  CALL init_ks_qmmm_env(qs_env=force_env%sub_force_env(2)%force_env%qs_env,error=error)
+
+  ! Compute the QM/MM Electrostatic Potential
+  CALL qmmm_el_coupling(force_env%sub_force_env(2)%force_env%qs_env,&
+                        force_env%qmmm_env,particles_mm,error)
+!TL
+! Fist: isubsys = 1
+!  isubsys = 1
+!  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+!       box_change=box_change,error=error) 
+  isubsys = 2
+  CALL force_env_calculate_energy(force_env%sub_force_env(isubsys)%force_env,&
+       box_change=box_change,error=error) 
+!TL
 END SUBROUTINE qmmm_energy
+!***************************************************************************
+
+
+!!****f* force_env_methods/init_ks_qmmm_env [1.0] *
+!!
+!!   NAME
+!!     init_ks_qmmm_env
+!!
+!!   FUNCTION
+!!     Initialize the ks_qmmm_env
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+SUBROUTINE init_ks_qmmm_env(qs_env,error)
+  USE qs_ks_methods, ONLY:     qs_ks_qmmm_create
+  USE qs_ks_qmmm_types, ONLY:  qs_ks_qmmm_release,&
+                               qs_ks_qmmm_env_type
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  TYPE(qs_environment_type), OPTIONAL, &
+       POINTER                                :: qs_env 
+  TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env
+
+  NULLIFY(ks_qmmm_env)
+  CALL get_qs_env(qs_env=qs_env,&
+       ks_qmmm_env=ks_qmmm_env)
+ 
+!   *** allocate the ks_qmmm env if not allocated yet!**
+    IF (.not.ASSOCIATED(ks_qmmm_env)) THEN
+       CALL qs_ks_qmmm_create(ks_qmmm_env=ks_qmmm_env,qs_env=qs_env,error=error)
+       CALL set_qs_env(qs_env=qs_env, ks_qmmm_env=ks_qmmm_env)
+       CALL qs_ks_qmmm_release(ks_qmmm_env=ks_qmmm_env,error=error)
+    END IF
+END SUBROUTINE init_ks_qmmm_env
 !***************************************************************************
 
 END MODULE force_env_methods

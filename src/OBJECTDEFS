@@ -236,7 +236,10 @@ OBJECTS_GENERIC =\
  pw_spline_utils.o\
  pw_types.o\
  pws.o\
+ qmmm_coulomb_potential.o\
+ qmmm_electrostatic_methods.o\
  qmmm_init.o\
+ qmmm_methods.o\
  qmmm_types.o\
  qs_charges_types.o\
  qs_collocate_density.o\
@@ -264,6 +267,7 @@ OBJECTS_GENERIC =\
  qs_ks_atom.o\
  qs_ks_methods.o\
  qs_ks_types.o\
+ qs_ks_qmmm_types.o\
  qs_localization.o\
  qs_localization_methods.o\
  qs_main.o\

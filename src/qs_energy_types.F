@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (11.08.2002) exchange and correlation energy now in exc
+!!     TL  (25.05.2004) qmmm energy
 !!
 !!   SOURCE
 !******************************************************************************
@@ -34,6 +35,7 @@ MODULE qs_energy_types
                 core_overlap,&
                 core_self,&
                 exc,&
+                qmmm,&
                 hartree,&
                 total
   END TYPE qs_energy_type
@@ -131,6 +133,7 @@ CONTAINS
       qs_energy%core = 0.0_dp
       qs_energy%core_overlap = 0.0_dp
       qs_energy%core_self = 0.0_dp
+      qs_energy%qmmm = 0.0_dp
       qs_energy%exc = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%total = 0.0_dp

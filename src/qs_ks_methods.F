@@ -82,6 +82,7 @@ MODULE qs_ks_methods
                                              integrate_v_rspace
   USE qs_ks_atom,                      ONLY: update_ks_vxc_atom
   USE qs_ks_types,                     ONLY: qs_ks_env_type
+  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
@@ -91,7 +92,8 @@ MODULE qs_ks_methods
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-
+  USE qmmm_methods, ONLY: qmmm_calculate_energy,&
+                          qmmm_modify_hartree_pot
   IMPLICIT NONE
 
   PRIVATE
@@ -100,12 +102,82 @@ MODULE qs_ks_methods
   CHARACTER(len=*), PARAMETER :: moduleN='qs_ks_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
-  PUBLIC :: qs_ks_create, qs_ks_did_change,&
+  PUBLIC :: qs_ks_create, qs_ks_qmmm_create, qs_ks_did_change,&
        qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix
 !***
 !****************************************************************************
 
 CONTAINS
+!!****f* qs_ks_methods/qs_ks_qmmm_create [1.0] *
+!!
+!!   NAME
+!!     qs_ks_qmmm_create
+!!
+!!   FUNCTION
+!!     allocates and initializes the given ks_qmmm_env.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - ks_qmmm_env: the ks_qmmm env to be initialized
+!!     - qs_env: the qs environment
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, error)
+    TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
+    TYPE(qs_environment_type), INTENT(in), &
+         TARGET                                 :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_qmmm_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    CPPreconditionNoFail(.NOT.ASSOCIATED(ks_qmmm_env),cp_failure_level,routineP,error)
+    ALLOCATE(ks_qmmm_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    IF (.not.failure) THEN
+       NULLIFY( pw_env, auxbas_pw_pool)
+       CALL get_qs_env(qs_env=qs_env,&
+            pw_env=pw_env)
+       CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool)
+
+       ks_qmmm_env%n_evals=0
+       ks_qmmm_env%ref_count=1
+       last_ks_id_nr=last_ks_id_nr+1
+       ks_qmmm_env%id_nr=last_ks_id_nr
+
+    END IF
+    IF (.NOT.failure) THEN
+       ks_qmmm_env%auxbas_pw_pool=>auxbas_pw_pool
+       CALL pw_pool_retain(ks_qmmm_env%auxbas_pw_pool)
+       CALL pw_pool_init_coeff(auxbas_pw_pool,ks_qmmm_env%v_qmmm_rspace,&
+            use_data=REALDATA3D, in_space=REALSPACE)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE qs_ks_qmmm_create
+!***************************************************************************
+
 !!****f* qs_ks_methods/qs_ks_create [1.0] *
 !!
 !!   NAME
@@ -359,8 +431,21 @@ CONTAINS
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
 
-       ! *** calculate the xc potential ***       
+       ! *** Add the QM/MM potential ***
+       If (qs_env%qmmm) Then
+          WRITE (UNIT=output_unit,FMT="(T3,A)")&
+               "Adding QM/MM Electrostatic Potential to the Kohn-Sham Matrix.."
+           CALL qmmm_calculate_energy (qs_env=qs_env,&
+                                       rho=rho%rho_r,&
+                                       v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
+                                       qmmm_energy=energy%qmmm,&
+                                       error=error)
+           CALL qmmm_modify_hartree_pot(v_hartree=ks_env%v_hartree_rspace,&
+                                        v_qmmm=qs_env%ks_qmmm_env%v_qmmm_rspace,&
+                                        error=error)
+       End If
 
+       ! *** calculate the xc potential ***       
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
             calculate_forces=calculate_forces, &
@@ -372,13 +457,17 @@ CONTAINS
        ENDIF
 
        energy%total = energy%core_overlap + energy%core_self + &
-            energy%core + energy%hartree + energy%exc
+            energy%core + energy%hartree + energy%exc + energy%qmmm
 
        IF (ionode.AND.logger%print_keys%scf_energies) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                "Core Hamiltonian energy:                       ",energy%core,&
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
+          If  (qs_env%qmmm) Then
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm
+          End If
        END IF
 
        IF (.NOT. just_energy) THEN

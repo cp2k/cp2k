@@ -92,6 +92,9 @@ MODULE qs_environment_types
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
+  USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type,&
+                                             qs_ks_qmmm_release,&
+                                             qs_ks_qmmm_retain
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_release,&
                                              mpools_retain,&
@@ -226,6 +229,7 @@ MODULE qs_environment_types
 !   PRIVATE
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
+    LOGICAL :: qmmm
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
@@ -247,6 +251,7 @@ MODULE qs_environment_types
     TYPE(coeff_type), POINTER                             :: rho_core
     TYPE(qs_charges_type), POINTER                        :: qs_charges
     TYPE(qs_ks_env_type), POINTER                         :: ks_env
+    TYPE(qs_ks_qmmm_env_type), POINTER                    :: ks_qmmm_env
     TYPE(qs_wf_history_type), POINTER                     :: wf_history
     TYPE(qs_scf_env_type), POINTER                        :: scf_env
     TYPE(qs_matrix_pools_type), POINTER                   :: mpools
@@ -290,13 +295,13 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
-                        dft_control,c,sab_orb,&
+                        dft_control,c,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho,rho_soft, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
-                        kinetic,qs_charges, rho_core, ks_env,&
+                        kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,&
                         id_nr,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
@@ -314,7 +319,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
-    LOGICAL, OPTIONAL                        :: use_ref_cell
+    LOGICAL, OPTIONAL                        :: use_ref_cell,qmmm
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -346,6 +351,7 @@ CONTAINS
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
     TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
+    TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER  :: ks_qmmm_env
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
@@ -391,6 +397,7 @@ CONTAINS
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
+    IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
     IF (PRESENT(c)) c => qs_env%c
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
@@ -417,6 +424,7 @@ CONTAINS
     IF (PRESENT(rho_core)) rho_core => qs_env%rho_core
     IF (PRESENT(qs_charges)) qs_charges => qs_env%qs_charges
     IF (PRESENT(ks_env)) ks_env => qs_env%ks_env
+    IF (PRESENT(ks_qmmm_env)) ks_qmmm_env => qs_env%ks_qmmm_env
     IF (PRESENT(wf_history)) wf_history => qs_env%wf_history
     IF (PRESENT(scf_env)) scf_env => qs_env%scf_env
     IF (PRESENT(id_nr)) id_nr=qs_env%id_nr
@@ -488,6 +496,7 @@ CONTAINS
     NULLIFY (qs_env%qs_charges)
     NULLIFY (qs_env%rho_core)
     NULLIFY (qs_env%ks_env)
+    NULLIFY (qs_env%ks_qmmm_env)
     NULLIFY (qs_env%wf_history)
     NULLIFY (qs_env%scf_env)
     NULLIFY (qs_env%distribution_2d)
@@ -506,17 +515,18 @@ CONTAINS
     last_qs_env_id_nr=last_qs_env_id_nr+1
     qs_env%id_nr=last_qs_env_id_nr
     qs_env%use_ref_cell=.FALSE.
+    qs_env%qmmm=.FALSE.
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,cell_ref, use_ref_cell, &
-                        dft_control,c,&
+                        dft_control,c,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
-                        scf_control,qs_charges,rho_core, ks_env,&
+                        scf_control,qs_charges,rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,local_particles,local_molecules,&
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,error)
@@ -533,7 +543,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: atomic_kind_set
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
-    LOGICAL, OPTIONAL                        :: use_ref_cell
+    LOGICAL, OPTIONAL                        :: use_ref_cell,qmmm
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -561,6 +571,7 @@ CONTAINS
     TYPE(qs_charges_type), OPTIONAL, POINTER :: qs_charges
     TYPE(coeff_type), OPTIONAL, POINTER      :: rho_core
     TYPE(qs_ks_env_type), OPTIONAL, POINTER  :: ks_env
+    TYPE(qs_ks_qmmm_env_type), OPTIONAL, POINTER  :: ks_qmmm_env
     TYPE(qs_wf_history_type), OPTIONAL, &
       POINTER                                :: wf_history
     TYPE(qs_scf_env_type), OPTIONAL, POINTER :: scf_env
@@ -616,6 +627,7 @@ CONTAINS
        qs_env%dft_control => dft_control
     END IF
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
+    IF ( PRESENT ( use_ref_cell ) ) qs_env%qmmm = qmmm
     IF (PRESENT(c)) qs_env%c => c
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
@@ -658,6 +670,11 @@ CONTAINS
        CALL qs_charges_retain(qs_charges,error=error)
        CALL qs_charges_release(qs_env%qs_charges,error=error)
        qs_env%qs_charges => qs_charges
+    END IF
+    IF (PRESENT(ks_qmmm_env)) THEN
+       CALL qs_ks_qmmm_retain(ks_qmmm_env, error=error)
+       CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
+       qs_env%ks_qmmm_env => ks_qmmm_env
     END IF
     IF (PRESENT(ks_env)) THEN ! accept also null pointers?
        CALL qs_ks_retain(ks_env, error=error)
@@ -1017,6 +1034,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF
         CALL qs_charges_release(qs_env%qs_charges, error=error)
         CALL qs_ks_release(qs_env%ks_env, error=error)
+        CALL qs_ks_qmmm_release(qs_env%ks_qmmm_env, error=error)
         CALL wfi_release(qs_env%wf_history,error=error)
         CALL scf_env_release(qs_env%scf_env, error=error)
         CALL mpools_release(qs_env%mpools,error=error)

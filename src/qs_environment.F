@@ -204,7 +204,7 @@ CONTAINS
     CALL mol_kind_new_list_release(mol_kinds,error=error)
     
     CALL qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
-         globenv,error)
+         globenv,.false.,error)
     CALL cell_release(cell,error=error)
     CALL cell_release(cell_ref,error=error)
     CALL cp_subsys_release(subsystem,error=error)
@@ -213,7 +213,7 @@ CONTAINS
 
 
   SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
-       globenv,error)
+       globenv,qmmm,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -226,6 +226,7 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
+    LOGICAL, INTENT(in)                      :: qmmm
     TYPE(global_environment_type), &
       INTENT(INOUT)                          :: globenv
     TYPE(cp_error_type), INTENT(inout), &
@@ -429,6 +430,7 @@ CONTAINS
                     cell=cell,&
                     cell_ref=cell_ref,&
                     use_ref_cell=use_ref_cell,&
+                    qmmm=qmmm,&
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&
