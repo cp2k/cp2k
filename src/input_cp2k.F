@@ -1656,7 +1656,7 @@ SUBROUTINE create_tddfpt_section(section,error)
             default_i_val=md_init_start,&
             enum_c_vals=s2a("init","pos","posvel"),&
             enum_desc=s2a("from scratch",&
-            "position from restart, velocities from blotzmann distribution",&
+            "position from restart, velocities from Boltzmann distribution",&
             "positions and velocities from restart"),&
             enum_i_vals=(/kg_coeff_init_start,kg_coeff_pos_restart, &
             kg_coeff_pos_vel_restart/),&
