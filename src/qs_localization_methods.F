@@ -60,7 +60,7 @@ MODULE qs_localization_methods
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
-  PUBLIC :: jacobi_rotations, initialize_weights
+  PUBLIC :: jacobi_rotations, initialize_weights, direct_mini
   PRIVATE
 
 ! *****************************************************************************
@@ -76,7 +76,6 @@ CONTAINS
       weights ( idim ) = cell % hmat ( idim, idim ) * cell % hmat ( idim, idim )
     ENDDO
   END SUBROUTINE initialize_weights 
-! *****************************************************************************
 ! *****************************************************************************
   SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
     IMPLICIT NONE
@@ -279,6 +278,47 @@ CONTAINS
     CALL cp_fm_release ( wf )
   END SUBROUTINE rotate_orbitals 
 ! *****************************************************************************
+  SUBROUTINE gradsq_at_0 ( matrix_p, weights, matrix )
+    IMPLICIT NONE
+    TYPE ( cp_cfm_p_type ) :: matrix_p ( : )
+    TYPE ( cp_fm_type ), POINTER :: matrix
+    REAL ( KIND = wp ), INTENT ( IN ) :: weights ( : )
+! Locals
+    TYPE ( cp_error_type ) :: error
+    COMPLEX ( KIND = wp ) :: zii, zjj
+    COMPLEX ( KIND = wp ), DIMENSION(:,:), POINTER  :: diag
+    REAL ( KIND = wp ) ::  gradsq_ij
+    INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
+    INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
+
+    NULLIFY(diag)
+    CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
+                   ncol_local = ncol_local, nrow_global = nrow_global, &
+                   row_indices = row_indices, col_indices = col_indices, error = error )
+    ALLOCATE(diag(nrow_global,3))
+
+    DO idim = 1, 3
+      DO istate = 1, nrow_global
+         CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,diag(istate,idim))
+      ENDDO
+    ENDDO
+
+    DO istate = 1, nrow_local
+      DO jstate = 1, ncol_local
+! get real and imaginary parts
+        gradsq_ij = 0.0_wp
+        DO idim = 1, 3
+          zii = diag(row_indices(istate),idim)
+          zjj = diag(col_indices(jstate),idim)
+          gradsq_ij = gradsq_ij - weights ( idim ) * &
+                     4.0_wp * ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj )
+        END DO
+        matrix % local_data ( istate, jstate ) = gradsq_ij
+      END DO
+    END DO
+    DEALLOCATE(diag)
+  END SUBROUTINE gradsq_at_0
+! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
     IMPLICIT NONE
     TYPE ( cp_cfm_p_type ) :: matrix_p ( : )
@@ -288,7 +328,7 @@ CONTAINS
     TYPE ( cp_error_type ) :: error
     COMPLEX ( KIND = wp ) :: zii, zjj, zij 
     COMPLEX ( KIND = wp ), DIMENSION(:,:), POINTER  :: diag
-    REAL ( KIND = wp ) :: mii ( 2 ), mjj ( 2 ), mij ( 2 ), grad_ij
+    REAL ( KIND = wp ) :: grad_ij
     INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
     INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
 
@@ -297,10 +337,11 @@ CONTAINS
                    ncol_local = ncol_local, nrow_global = nrow_global, &
                    row_indices = row_indices, col_indices = col_indices, error = error )
     ALLOCATE(diag(nrow_global,3))
+
     DO idim = 1, 3
-    DO istate = 1, nrow_global
-       CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,diag(istate,idim))
-    ENDDO
+      DO istate = 1, nrow_global
+         CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,diag(istate,idim))
+      ENDDO
     ENDDO
 
     DO istate = 1, nrow_local
@@ -318,8 +359,6 @@ CONTAINS
       END DO
     END DO
     DEALLOCATE(diag)
-!    CALL cp_fm_write(matrix,formatted=.true.)
-!    stop
   END SUBROUTINE grad_at_0
 ! *****************************************************************************
 !
@@ -405,7 +444,6 @@ CONTAINS
     Iterations=0
     line_searches=0
     line_search_count=0
-
     DO
          iterations = iterations + 1
          ! compute U,R,evals given A
@@ -475,7 +513,7 @@ CONTAINS
          CALL cp_fm_maxval(matrix_G,tol)
 
          ! from here on, minimizing technology
-         IF (new_direction) THEN
+         IF ( new_direction ) THEN
             ! energy converged up to machine precision ?
             line_searches=line_searches+1
             ! DO i=1,line_search_count
