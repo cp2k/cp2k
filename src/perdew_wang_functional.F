@@ -31,7 +31,9 @@ MODULE perdew_wang_functional
 
   USE functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
+  USE mathconstants, ONLY : zero
   USE termination, ONLY : stop_program
+  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
 
@@ -222,8 +224,11 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL :: order
 
     INTEGER :: k, n, m, order_ = 0
+    INTEGER :: timer_handle
     LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
     REAL(DBL), DIMENSION(0:3) :: ed
+
+    CALL timeset('perdew_wang lda', 'I', ' ', timer_handle)
 
     IF (PRESENT(order)) order_ = order
 
@@ -249,6 +254,7 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
+!$omp parallel do private (k, ed, m)
     DO k=1, n
        
        !! order_ is positive as it must be in this case:
@@ -273,6 +279,9 @@ CONTAINS
        END IF
     
     END DO
+!$omp end parallel do
+    
+    CALL timestop(zero, timer_handle)
 
   END SUBROUTINE pw_lda
   
@@ -341,6 +350,7 @@ CONTAINS
     
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
+!$omp parallel do private ( k )
     DO k=1, n
        CALL pw_lda_ed_loc(rho(k), ed(k,:), order_)
     END DO
@@ -392,9 +402,12 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL :: order
 
     INTEGER :: k, n, m, order_ = 0
+    INTEGER :: timer_handle
     LOGICAL, DIMENSION(0:3) :: calc = .FALSE.
     REAL(DBL), DIMENSION(0:9) :: ed
     REAL(DBL) :: rho
+
+    CALL timeset('perdew_wang lsd', 'I', ' ', timer_handle)
 
     IF (PRESENT(order)) order_ = order
     IF (ABS(order_) > 3) CALL stop_program("perdew_wang_functional/pw_lsd", &
@@ -417,6 +430,7 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
+!$omp parallel do private (k, rho, ed, m)
     DO k=1, n
 
        rho = rhoa(k) + rhob(k)
@@ -448,6 +462,8 @@ CONTAINS
        END IF
        
     END DO
+
+    CALL timestop(zero, timer_handle)
 
   END SUBROUTINE pw_lsd
 
@@ -520,6 +536,7 @@ CONTAINS
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
+!$omp parallel do private ( k )
     DO k=1, n
        CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed(k,:), order_)
     END DO
@@ -559,6 +576,7 @@ CONTAINS
 
     IF (r < 1._dbl) THEN
        
+       ! order 0 must always be calculated
        g(0) = c0(z)*LOG(r) - c1(z) + c2(z)*r*LOG(r) - c3(z)*r
        IF (order >= 1) g(1) = c0(z)/r + c2(z)*LOG(r) + c2(z) - c3(z)
        IF (order >= 2) g(2) = -c0(z)/rr + c2(z)/r
@@ -620,6 +638,7 @@ CONTAINS
 
     ELSE
 
+       ! order 0 must always be calculated
        g(0) = -d0(z)/r + d1(z)/rsr
        IF (order >= 1) g(1) = d0(z)/rr - 1.5_dbl*d1(z)/(rsr*r)
        IF (order >= 2) g(2) = -2._dbl*d0(z)/(rr*r) + 3.75_dbl*d1(z)/(rsr*rr)
@@ -645,7 +664,6 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
     order_ = order
     
-    !! check order_ with an assertion here instead
     IF (order_ >= 0) THEN
        calc(0:order_) = .TRUE.
     ELSE
@@ -654,7 +672,7 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
     END IF
 
     CALL calc_rs(rho, r(0))
-    CALL calc_g(r(0), 0, e0(0:order_), order_)
+    CALL calc_g(r(0), 0, e0, order_)
 
     IF (order_ >= 1) r(1) = (-1._dbl/3._dbl)*r(0)/rho
     IF (order_ >= 2) r(2) = (-4._dbl/3._dbl)*r(1)/rho
