@@ -99,9 +99,7 @@ MODULE qs_ks_methods
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type,&
-                                             qs_ks_release,&
-                                             qs_ks_retain
+                                             qs_ks_env_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_did_change,&
                                              qs_rho_type

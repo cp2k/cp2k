@@ -122,9 +122,7 @@ MODULE qs_scf_post
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type,&
-                                             qs_ks_release,&
-                                             qs_ks_retain
+                                             qs_ks_env_type
   USE qs_localization,                 ONLY: qs_loc_compute_properties,&
                                              qs_loc_destroy,&
                                              qs_loc_env_type,&

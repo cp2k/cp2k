@@ -130,9 +130,7 @@ MODULE qs_ep_methods
                                              qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type,&
-                                             qs_ks_release,&
-                                             qs_ks_retain
+                                             qs_ks_env_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              mpools_rebuild_fm_pools,&
                                              qs_matrix_pools_type
