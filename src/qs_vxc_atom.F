@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002 -2004  CP2K developers group                                 !
+!   Copyright (C) 2002 -2004  CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -381,228 +381,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, grad_cut, &
-                              ir, r_h, r_s, rho_h, rho_s, &
-                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, &
-                              oodrho_h, oodrho_s, error)
-
-   ! ARGUMENTS
-   TYPE(grid_atom_type), POINTER       :: grid_atom
-   TYPE(harmonics_atom_type), POINTER  :: harmonics
-   INTEGER, INTENT(IN)                 :: nspins
-   LOGICAL, INTENT(IN)                 :: grad_func
-   REAL(KIND=dp), INTENT(IN)           :: grad_cut
-   INTEGER, INTENT(IN)                 :: ir
-   TYPE(rho_atom_coeff),DIMENSION(:),& 
-        POINTER                        :: r_h,r_s
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: rho_h, rho_s
-   TYPE(rho_atom_coeff),DIMENSION(:),&
-        POINTER                        :: dr_h,dr_s
-   TYPE(rho_atom_coeff),DIMENSION(:,:),&
-        POINTER                        :: r_h_d,r_s_d
-   REAL(KIND=dp), DIMENSION(:,:,:,:), &
-        POINTER                        :: drho_h,drho_s
-   REAL(KIND=dp), DIMENSION(:,:), &
-        POINTER                        :: oodrho_h, oodrho_s
-   TYPE(cp_error_type), INTENT(inout), &
-        OPTIONAL                       :: error
-
-   ! LOCALS
-   INTEGER                             :: ispin, iso
-   INTEGER                             :: ia, na
-   LOGICAL                             :: failure
-   REAL(KIND=dp)                       :: rad, urad, usin_ia
-
-   ! PARAMETERS
-   CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_rho_angular", &
-                                          routineP = module_name//"/"//routineN
-
-   failure = .FALSE.
-   CPPostcondition(ASSOCIATED(r_h),cp_failure_level,routineP,error,failure)
-   CPPostcondition(ASSOCIATED(r_s),cp_failure_level,routineP,error,failure)
-   CPPostcondition(ASSOCIATED(rho_h),cp_failure_level,routineP,error,failure)
-   CPPostcondition(ASSOCIATED(rho_s),cp_failure_level,routineP,error,failure)
-   IF (grad_func) THEN
-      CPPostcondition(ASSOCIATED(dr_h),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(dr_s),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(r_h_d),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(r_s_d),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(drho_h),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(drho_s),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(oodrho_h),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(oodrho_s),cp_failure_level,routineP,error,failure)
-   END IF
-   
-   IF (failure) RETURN
-
-   na = grid_atom%ng_sphere
-   rad = grid_atom%rad(ir)
-   urad = grid_atom%oorad2l(ir,1)
-   rho_h = 0.0_dp
-   rho_s = 0.0_dp
-
-
-
-   IF(grad_func) THEN
-      oodrho_h = 0.0_dp
-      oodrho_s = 0.0_dp
-      DO ispin = 1,nspins
-         DO iso = 1,harmonics%max_iso_not0
-            DO ia = 1,na
-               usin_ia = grid_atom%usin_theta(ia) 
-               rho_h(ia,ispin) = rho_h(ia,ispin) + & 
-                                 r_h(ispin)%r_coef(ir,iso)*&
-                                 harmonics%slm(ia,iso)
-               rho_s(ia,ispin) = rho_s(ia,ispin) + & 
-                                 r_s(ispin)%r_coef(ir,iso)*&
-                                 harmonics%slm(ia,iso)
-
-!dbg
-!                 *** Derivatives in spherical coordinates ***
-!                 *** d/dr
-!                  drho_h(1,ia,ir,ispin) = drho_h(1,ia,irispin) + &
-!                                       dr_h(ispin)%r_coef(ir,iso)*&
-!                                       harmonics%slm(ia,iso)
-!                  drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + &
-!                                       dr_s(ispin)%r_coef(ir,iso)*&
-!                                      harmonics%slm(ia,iso)
-!
-!                 *** d/d theta
-!                  drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + &
-!                                       r_h(ispin)%r_coef(ir,iso)*&
-!                                       urad*&
-!                                       harmonics%dslm(1,ia,iso) 
-!                  drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + &
-!                                       r_s(ispin)%r_coef(ir,iso)*&
-!                                       urad*&
-!                                       harmonics%dslm(1,ia,iso)
-
-!                 *** d/d phi
-!                  drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + &
-!                                       r_h(ispin)%r_coef(ir,iso)*&
-!                                       urad*usin_ia*&
-!                                       harmonics%dslm(2,ia,iso)
-!                  drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + &
-!                                       r_s(ispin)%r_coef(ir,iso)*&
-!                                       urad*usin_ia*&
-!                                       harmonics%dslm(2,ia,iso)
-
-
-               drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
-                                       dr_h(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(1,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(1,ia)*harmonics%a(1,ia))*&
-!                                       harmonics%dslm_dxyz(1,ia,iso)
-               drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + & 
-                                       dr_h(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(2,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-
-!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(2,ia)*harmonics%a(2,ia))*&
-!                                       harmonics%dslm_dxyz(2,ia,iso)
-               drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + & 
-                                       dr_h(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(3,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-
-!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(3,ia)*harmonics%a(3,ia))*&
-!                                       harmonics%dslm_dxyz(3,ia,iso)
-
-               drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + & 
-                                       dr_s(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(1,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-
-!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(1,ia)*harmonics%a(1,ia))*&
-!                                       harmonics%dslm_dxyz(1,ia,iso)
-               drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + & 
-                                       dr_s(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(2,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-
-!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(2,ia)*harmonics%a(2,ia))*&
-!                                       harmonics%dslm_dxyz(2,ia,iso)
-               drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + & 
-                                       dr_s(ispin)%r_coef(ir,iso)*&
-                                       harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(3,ispin)%r_coef(ir,iso)*&
-                                       harmonics%slm(ia,iso)
-
-!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
-!                                       (1.0_dp-harmonics%a(3,ia)*harmonics%a(3,ia))*&
-!                                       harmonics%dslm_dxyz(3,ia,iso)
-
-
-
-               drho_h(4,ia,ir,ispin) = SQRT(&
-                    drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+& 
-                    drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
-                    drho_h(3,ia,ir,ispin)*drho_h(3,ia,ir,ispin))
-               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
-                  oodrho_h(ia,ispin) = 1.0_dp/drho_h(4,ia,ir,ispin)
-               ELSE
-                  oodrho_h(ia,ispin) =  0.0_dp
-               END IF
-               
-               drho_s(4,ia,ir,ispin) = SQRT(&
-                    drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
-                    drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
-                    drho_s(3,ia,ir,ispin)*drho_s(3,ia,ir,ispin))
-               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
-                  oodrho_s(ia,ispin) = 1.0_dp/drho_s(4,ia,ir,ispin)
-               ELSE
-                  oodrho_s(ia,ispin) =  0.0_dp
-               END IF
-
-            END DO  ! ia
-         END DO  ! iso
-!  WRITE(*,*) 'iatom ', iatom, 'ir=10', grid_atom%rad(ir)
-!  DO ia = 1,na
-!    WRITE(50,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%slm(ia,1:9)   
-!    WRITE(51,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%dslm(1,ia,1:9)   
-!    WRITE(52,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
-!             harmonics%dslm(2,ia,1:9)   
-! if(iatom == 3) then
-!    WRITE(51,'(I4,7f16.10)') ia,grid_atom%rad(ir),rho_h(ia,ispin),&
-!                  drho_h(ia,1,ispin),drho_h(ia,2,ispin),drho_h(ia,3,ispin),drho_h(ia,4,ispin)
-! end if
-!  end do 
-!    WRITE(46,*)
-      END DO  ! ispin
-   ELSE
-     DO ispin = 1,nspins
-        DO iso = 1,harmonics%max_iso_not0
-           DO ia = 1,na
-              rho_h(ia,ispin) = rho_h(ia,ispin) + & 
-                                r_h(ispin)%r_coef(ir,iso)*&
-                                harmonics%slm(ia,iso)
-              rho_s(ia,ispin) = rho_s(ia,ispin) + & 
-                                r_s(ispin)%r_coef(ir,iso)*&
-                                harmonics%slm(ia,iso)
-           END DO  ! ia
-        END DO  ! iso
-     END DO  ! ispin
-   END IF
-
- END SUBROUTINE calc_rho_angular
-
-
-! *****************************************************************************
-
  SUBROUTINE calculate_xc_2nd_deriv_atom(p_env, qs_env, error)
 
    ! ARGUMENTS
@@ -667,6 +445,8 @@ CONTAINS
    nspins = dft_control%nspins
    gradient_functional = ANY(xc_control%gradient_functionals)
    lsd = (nspins==2)
+   ! TDDFT needs an unrestricted 2nd derivative in any case
+   IF (dft_control%do_tddfpt_calculation) lsd = .TRUE. 
    nkind = SIZE(atomic_kind_set)
 
 !  Here starts the loop over all the atoms
@@ -700,12 +480,32 @@ CONTAINS
          CALL xc_functional_get_info(xc_control%functionals(i), lsd=lsd, &
                                      needs=needs, error=error)
       END DO
+      ! basic components
+      IF (lsd) THEN
+         needs%rho_spin=.TRUE.
+         needs%tau_spin=needs%tau_spin.OR.needs%tau
+      ELSE
+         needs%rho=.TRUE.
+      END IF
+      IF (needs%drho .OR. needs%drho_spin .OR. &
+          needs%norm_drho .OR. needs%norm_drho_spin) THEN
+         IF (lsd) THEN
+            needs%drho_spin = .TRUE.
+         ELSE
+            needs%drho = .TRUE.
+         END IF
+      END IF
+
       ! allocate the required 3d arrays where to store rho and drho
-      CALL xc_rho_set_atom_update(rho_set, needs, nspins, na)
+      IF (.NOT.dft_control%do_tddfpt_calculation) THEN
+         CALL xc_rho_set_atom_update(rho_set, needs, nspins, na)
+      ELSE
+         CALL xc_rho_set_atom_update(rho_set, needs, 2, na)
+      END IF
 
       !! Will I need to change this??
       cross_term = .FALSE.
-      IF(lsd) THEN
+      IF (lsd) THEN
          cross_term = needs%norm_drho .OR. needs%drhoa_drhob
       END IF
       
@@ -764,7 +564,8 @@ CONTAINS
                      gradient_functional, xc_control%gradient_cut, &
                      ir, r_h, r_s, rho_h, rho_s, &
                      dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, oodrho_h, oodrho_s, &
-                               error)
+                     error)
+
          weight(1:na) = grid_atom%wr(ir)*grid_atom%wa(1:na)
       END DO
 
@@ -1261,7 +1062,221 @@ CONTAINS
 
 ! *****************************************************************************
 
- 
+  SUBROUTINE calc_rho_angular(grid_atom, harmonics, nspins, grad_func, grad_cut, &
+                              ir, r_h, r_s, rho_h, rho_s, &
+                              dr_h, dr_s, r_h_d, r_s_d, drho_h, drho_s, &
+                              oodrho_h, oodrho_s, error)
+
+   ! ARGUMENTS
+   TYPE(grid_atom_type), POINTER       :: grid_atom
+   TYPE(harmonics_atom_type), POINTER  :: harmonics
+   INTEGER, INTENT(IN)                 :: nspins
+   LOGICAL, INTENT(IN)                 :: grad_func
+   REAL(KIND=dp), INTENT(IN)           :: grad_cut
+   INTEGER, INTENT(IN)                 :: ir
+   TYPE(rho_atom_coeff),DIMENSION(:),& 
+        POINTER                        :: r_h,r_s
+   REAL(KIND=dp), DIMENSION(:,:), &
+        POINTER                        :: rho_h, rho_s
+   TYPE(rho_atom_coeff),DIMENSION(:),&
+        POINTER                        :: dr_h,dr_s
+   TYPE(rho_atom_coeff),DIMENSION(:,:),&
+        POINTER                        :: r_h_d,r_s_d
+   REAL(KIND=dp), DIMENSION(:,:,:,:), &
+        POINTER                        :: drho_h,drho_s
+   REAL(KIND=dp), DIMENSION(:,:), &
+        POINTER                        :: oodrho_h, oodrho_s
+   TYPE(cp_error_type), INTENT(inout), &
+        OPTIONAL                       :: error
+
+   ! LOCALS
+   INTEGER                             :: ispin, iso, asize
+   INTEGER                             :: ia, na
+   LOGICAL                             :: failure
+   REAL(KIND=dp)                       :: rad, urad, usin_ia
+
+   ! PARAMETERS
+   CHARACTER(LEN=*), PARAMETER         :: routineN = "calculate_rho_angular", &
+                                          routineP = module_name//"/"//routineN
+
+   failure = .FALSE.
+   CPPostcondition(ASSOCIATED(r_h),cp_failure_level,routineP,error,failure)
+   CPPostcondition(ASSOCIATED(r_s),cp_failure_level,routineP,error,failure)
+   CPPostcondition(ASSOCIATED(rho_h),cp_failure_level,routineP,error,failure)
+   CPPostcondition(ASSOCIATED(rho_s),cp_failure_level,routineP,error,failure)
+   IF (grad_func) THEN
+      CPPostcondition(ASSOCIATED(dr_h),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(dr_s),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(r_h_d),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(r_s_d),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(drho_h),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(drho_s),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(oodrho_h),cp_failure_level,routineP,error,failure)
+      CPPostcondition(ASSOCIATED(oodrho_s),cp_failure_level,routineP,error,failure)
+   END IF
+   
+   IF (failure) RETURN
+
+   na = grid_atom%ng_sphere
+   rad = grid_atom%rad(ir)
+   urad = grid_atom%oorad2l(ir,1)
+   asize = SIZE(rho_h,1)*SIZE(rho_h,2)
+   CALL DCOPY(asize, 0.0_dp, 0, rho_h, 1)
+   CALL DCOPY(asize, 0.0_dp, 0, rho_s, 1)
+
+   DO ispin = 1,nspins
+      DO iso = 1,harmonics%max_iso_not0
+         DO ia = 1,na
+            rho_h(ia,ispin) = rho_h(ia,ispin) + & 
+                              r_h(ispin)%r_coef(ir,iso)*&
+                              harmonics%slm(ia,iso)
+            rho_s(ia,ispin) = rho_s(ia,ispin) + & 
+                              r_s(ispin)%r_coef(ir,iso)*&
+                              harmonics%slm(ia,iso)
+         END DO  ! ia
+      END DO  ! iso
+   END DO  ! ispin
+
+
+   IF(grad_func) THEN
+      asize = SIZE(oodrho_h,1)*SIZE(oodrho_h,2)
+      CALL DCOPY(asize, 0.0_dp, 0, oodrho_h, 1)
+      CALL DCOPY(asize, 0.0_dp, 0, oodrho_s, 1)
+      DO ispin = 1,nspins
+         DO iso = 1,harmonics%max_iso_not0
+            DO ia = 1,na
+               usin_ia = grid_atom%usin_theta(ia) 
+!dbg
+!                 *** Derivatives in spherical coordinates ***
+!                 *** d/dr
+!                  drho_h(1,ia,ir,ispin) = drho_h(1,ia,irispin) + &
+!                                       dr_h(ispin)%r_coef(ir,iso)*&
+!                                       harmonics%slm(ia,iso)
+!                  drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + &
+!                                       dr_s(ispin)%r_coef(ir,iso)*&
+!                                      harmonics%slm(ia,iso)
+!
+!                 *** d/d theta
+!                  drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + &
+!                                       r_h(ispin)%r_coef(ir,iso)*&
+!                                       urad*&
+!                                       harmonics%dslm(1,ia,iso) 
+!                  drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + &
+!                                       r_s(ispin)%r_coef(ir,iso)*&
+!                                       urad*&
+!                                       harmonics%dslm(1,ia,iso)
+
+!                 *** d/d phi
+!                  drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + &
+!                                       r_h(ispin)%r_coef(ir,iso)*&
+!                                       urad*usin_ia*&
+!                                       harmonics%dslm(2,ia,iso)
+!                  drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + &
+!                                       r_s(ispin)%r_coef(ir,iso)*&
+!                                       urad*usin_ia*&
+!                                       harmonics%dslm(2,ia,iso)
+
+
+               drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
+                                       dr_h(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_h_d(1,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(1,ia)*harmonics%a(1,ia))*&
+!                                       harmonics%dslm_dxyz(1,ia,iso)
+               drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + & 
+                                       dr_h(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_h_d(2,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+
+!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(2,ia)*harmonics%a(2,ia))*&
+!                                       harmonics%dslm_dxyz(2,ia,iso)
+               drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + & 
+                                       dr_h(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_h_d(3,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+
+!                                       urad*r_h(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(3,ia)*harmonics%a(3,ia))*&
+!                                       harmonics%dslm_dxyz(3,ia,iso)
+
+               drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + & 
+                                       dr_s(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_s_d(1,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+
+!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(1,ia)*harmonics%a(1,ia))*&
+!                                       harmonics%dslm_dxyz(1,ia,iso)
+               drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + & 
+                                       dr_s(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_s_d(2,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+
+!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(2,ia)*harmonics%a(2,ia))*&
+!                                       harmonics%dslm_dxyz(2,ia,iso)
+               drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + & 
+                                       dr_s(ispin)%r_coef(ir,iso)*&
+                                       harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
+                                       urad*r_s_d(3,ispin)%r_coef(ir,iso)*&
+                                       harmonics%slm(ia,iso)
+
+!                                       urad*r_s(ispin)%r_coef(ir,iso)*&
+!                                       (1.0_dp-harmonics%a(3,ia)*harmonics%a(3,ia))*&
+!                                       harmonics%dslm_dxyz(3,ia,iso)
+
+
+
+               drho_h(4,ia,ir,ispin) = SQRT(&
+                    drho_h(1,ia,ir,ispin)*drho_h(1,ia,ir,ispin)+& 
+                    drho_h(2,ia,ir,ispin)*drho_h(2,ia,ir,ispin)+&
+                    drho_h(3,ia,ir,ispin)*drho_h(3,ia,ir,ispin))
+               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
+                  oodrho_h(ia,ispin) = 1.0_dp/drho_h(4,ia,ir,ispin)
+               ELSE
+                  oodrho_h(ia,ispin) =  0.0_dp
+               END IF
+               
+               drho_s(4,ia,ir,ispin) = SQRT(&
+                    drho_s(1,ia,ir,ispin)*drho_s(1,ia,ir,ispin)+& 
+                    drho_s(2,ia,ir,ispin)*drho_s(2,ia,ir,ispin)+&
+                    drho_s(3,ia,ir,ispin)*drho_s(3,ia,ir,ispin))
+               IF(drho_h(4,ia,ir,ispin) > grad_cut ) THEN
+                  oodrho_s(ia,ispin) = 1.0_dp/drho_s(4,ia,ir,ispin)
+               ELSE
+                  oodrho_s(ia,ispin) =  0.0_dp
+               END IF
+
+            END DO  ! ia
+         END DO  ! iso
+!  WRITE(*,*) 'iatom ', iatom, 'ir=10', grid_atom%rad(ir)
+!  DO ia = 1,na
+!    WRITE(50,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
+!             harmonics%slm(ia,1:9)   
+!    WRITE(51,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
+!             harmonics%dslm(1,ia,1:9)   
+!    WRITE(52,'(I4,11f16.10)') ia,grid_atom%theta(ia),grid_atom%phi(ia),&
+!             harmonics%dslm(2,ia,1:9)   
+! if(iatom == 3) then
+!    WRITE(51,'(I4,7f16.10)') ia,grid_atom%rad(ir),rho_h(ia,ispin),&
+!                  drho_h(ia,1,ispin),drho_h(ia,2,ispin),drho_h(ia,3,ispin),drho_h(ia,4,ispin)
+! end if
+!  end do 
+!    WRITE(46,*)
+      END DO  ! ispin
+   END IF
+
+ END SUBROUTINE calc_rho_angular
+
+
+! *****************************************************************************
 
 END MODULE qs_vxc_atom
 
