@@ -983,12 +983,12 @@ CONTAINS
           IF (lggr%para_env%mepos==lggr%para_env%source) THEN
              CALL cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
                   ".out",local=.FALSE.)
-             INQUIRE (FILE=TRIM(filename),EXIST=exists)
-             IF (exists) THEN
-                PRINT *," WARNING ", routineP, " overwriting file ",filename
-             END IF
+             !INQUIRE (FILE=TRIM(filename),EXIST=exists)
+             !IF (exists) THEN
+             !   PRINT *," WARNING ", routineP, " overwriting file ",filename
+             !END IF
              CALL open_file(TRIM(filename),file_status="unknown",&
-                  file_action="WRITE",&
+                  file_action="WRITE",file_position="APPEND",&
                   unit_number=lggr%default_global_unit_nr)
           ELSE
              lggr%default_global_unit_nr=cp_logger_get_default_unit_nr(lggr,.true.)
@@ -1015,12 +1015,13 @@ CONTAINS
        IF (lggr%default_local_unit_nr<0) THEN
           CALL cp_logger_generate_filename(lggr,filename,lggr%local_filename,&
                ".out",local=.TRUE.)
-          INQUIRE (FILE=TRIM(filename),EXIST=exists)
-          IF (exists) THEN
-             PRINT *," WARNING ", routineP, " overwriting file ",filename
-          END IF
+          !INQUIRE (FILE=TRIM(filename),EXIST=exists)
+          !IF (exists) THEN
+          !   PRINT *," WARNING ", routineP, " overwriting file ",filename
+          !END IF
           CALL open_file(TRIM(filename),file_status="unknown",&
                file_action="WRITE",&
+               file_position="APPEND",& 
                unit_number=lggr%default_local_unit_nr)
           CALL m_getpid(pid)
           CALL m_hostnm(host_name)
