@@ -65,6 +65,8 @@ MODULE global_types
                mo_occupation_numbers
     LOGICAL :: ortho_matrix,&
                overlap_matrix,&
+               overlap_matrix_magnitude, &
+               density_matrix_magnitude, &
                pgf_radii,&
                physcon,&
                potential,&
@@ -193,6 +195,8 @@ CONTAINS
     print_key%total_densities = key_value(level,(/f,f,t/))
     print_key%total_numbers = key_value(level,(/t,t,t/))
     print_key%w_matrix = key_value(level,(/f,f,f/))
+    print_key%density_matrix_magnitude = key_value(level,(/f,f,f/))
+    print_key%overlap_matrix_magnitude = key_value(level,(/f,f,f/))
 
   END SUBROUTINE init_print_keys
 

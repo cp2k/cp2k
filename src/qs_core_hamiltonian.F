@@ -81,6 +81,10 @@ MODULE qs_core_hamiltonian
                    wp_size => dp_size
 
   USE ai_kinetic,               ONLY: kinetic
+
+  USE qs_parser,            ONLY: close_file,&
+                                  open_file
+
   USE ai_overlap_new,           ONLY: overlap
   USE ai_overlap_ppl,           ONLY: overlap_ppl
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
@@ -126,7 +130,8 @@ MODULE qs_core_hamiltonian
                                       real_matrix_p_type,&
                                       real_matrix_type,&
                                       replicate_matrix_structure,&
-                                      set_matrix
+                                      set_matrix, &
+                                      write_blocks_maxabsval
   USE string_utilities,         ONLY: compress,&
                                       uppercase
   USE termination,              ONLY: stop_memory,&
@@ -236,6 +241,9 @@ CONTAINS
     END TYPE vppl_type
 
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: file_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -1092,6 +1100,21 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
 !   *** Print the overlap integral matrix, if requested ***
+    IF (globenv%print%overlap_matrix_magnitude) THEN
+        IF (globenv%num_pe > 1) THEN
+           WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
+           file_name = "S_MAGNITUDE"//"."//ADJUSTL(extension)
+        ELSE
+           file_name = "S_MAGNITUDE"
+        END IF
+        CALL open_file(file_name=file_name,&
+                       file_action="WRITE",&
+                       file_form="FORMATTED",&
+                       file_status="REPLACE",&
+                       unit_number=file_unit)
+        CALL write_blocks_maxabsval(s(1)%matrix,file_unit)
+        CALL close_file(unit_number=file_unit)
+    ENDIF
 
     IF (globenv%print%overlap_matrix) THEN
       CALL write_sparse_matrix(s(1)%matrix,4,6,qs_env,globenv)

@@ -53,6 +53,10 @@ MODULE qs_scf
   USE atomic_kind_types,        ONLY: atomic_kind_type,&
                                       get_atomic_kind,&
                                       get_atomic_kind_set
+  
+  USE qs_parser,            ONLY: close_file,&
+                                  open_file
+
   USE basis_set_types,          ONLY: get_gto_basis_set,&
                                       gto_basis_set_type
   USE coefficient_types,        ONLY: coeff_allocate,&
@@ -142,9 +146,12 @@ MODULE qs_scf
                                       real_matrix_p_type,&
                                       real_matrix_type,&
                                       replicate_matrix_structure,&
+                                      replicate_matrix, &
                                       set_matrix,&
                                       symmetrise_diagonal_blocks,&
-                                      transfer_matrix
+                                      transfer_matrix, &
+                                      write_blocks_maxabsval, &
+                                      add_all_real_matrix_blocks
   USE termination,              ONLY: stop_memory,&
                                       stop_program
   USE timings,                  ONLY: timeset,&
@@ -245,7 +252,7 @@ CONTAINS
 
     REAL(wp) :: delta,diis_error,t1,t2
     INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
-                output_unit,n,k,nrow_block,ncol_block, type_switch
+                output_unit,n,k,nrow_block,ncol_block, type_switch, fileunit
     LOGICAL  :: diis_step,do_level_shift,ionode
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
@@ -260,9 +267,13 @@ CONTAINS
     type(real_matrix_p_type), pointer :: ks, p
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
+    type(real_matrix_type), POINTER :: pfull
     type(qs_energy_type), pointer :: energy
     logical :: energy_only
-   
+
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: file_unit
 
 !   ---------------------------------------------------------------------------
 
@@ -599,6 +610,10 @@ CONTAINS
 
     END DO scf_loop
 
+    IF (use_ot) THEN
+     call qs_ot_destroy(qs_ot_env,globenv)
+    END IF
+
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
@@ -630,6 +645,27 @@ CONTAINS
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
     END IF
 
+    IF (globenv%print%density_matrix_magnitude) THEN
+        IF (globenv%num_pe > 1) THEN
+           WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
+           file_name = "P_MAGNITUDE"//"."//ADJUSTL(extension)
+        ELSE
+           file_name = "P_MAGNITUDE"
+        END IF
+        CALL open_file(file_name=file_name,&
+                       file_action="WRITE",&
+                       file_form="FORMATTED",&
+                       file_status="REPLACE",&
+                       unit_number=file_unit)
+
+       CALL replicate_matrix(s(1)%matrix,pfull,"FULL DENSITY MATRIX",.false.)
+       CALL add_all_real_matrix_blocks(pfull,globenv)
+       CALL calculate_density_matrix(mo_set,pfull,globenv)
+       CALL write_blocks_maxabsval(pfull,file_unit)
+       CALL deallocate_matrix(pfull)
+       CALL close_file(unit_number=file_unit)
+    ENDIF
+
     IF (globenv%print%kohn_sham_matrix) THEN
       call qs_ks_update_qs_env(ks_env,qs_env=qs_env,global_env=globenv,&
            rebuild=rebuild,&
@@ -647,9 +683,6 @@ CONTAINS
 
 !    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
 
-    IF (use_ot) THEN
-     call qs_ot_destroy(qs_ot_env,globenv)
-    END IF
 
     CALL timestop(0.0_wp,handle)
 

@@ -345,6 +345,10 @@ CONTAINS
         globenv%print%core_charge_radii = print_request
       CASE ("DENSITY_MATRIX","P_MATRIX")
         globenv%print%density_matrix = print_request
+      CASE ("DENSITY_MATRIX_MAGNITUDE")
+        globenv%print%density_matrix_magnitude = print_request
+      CASE ("OVERLAP_MATRIX_MAGNITUDE")
+        globenv%print%overlap_matrix_magnitude = print_request
       CASE ("DERIVATIVES")
         globenv%print%derivatives = print_request
       CASE ("DIIS_INFORMATION","DIIS_INFO","DIIS")

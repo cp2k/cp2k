@@ -100,7 +100,9 @@ MODULE sparse_matrix_types
             transfer_matrix, &
             sparse_times_replicated, &
             sparse_plus_rep_rept, &
-            remove_block_node
+            remove_block_node, &
+            write_blocks_maxabsval, &
+            add_all_real_matrix_blocks
 
 ! *** Public functions ***
 
@@ -372,8 +374,75 @@ CONTAINS
 
   END SUBROUTINE add_real_matrix_block
 
-! *****************************************************************************
+!*****************************************************************************************
+! writes for all local blocks the maximum absolute value of 
+! the block entries to unit fileunit
+!*****************************************************************************************
 
+  SUBROUTINE write_blocks_maxabsval(sparse_matrix,fileunit)
+
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    INTEGER, INTENT(IN)               :: fileunit
+
+!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE write_block_magnitude (MODULE sparse_matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
+               ncol,nrow,sbncol,sbnrow,  handle
+
+    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+
+    DO iblock_row=1,sparse_matrix%nblock_row
+
+      block_node => first_block_node(sparse_matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=sparse_block)
+
+        write(fileunit,*) iblock_row,iblock_col,maxval(abs(sparse_block))
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE write_blocks_maxabsval
+
+!******************************************************************************************
+! add all real matrix blocks, but distributed over all cpus, keeps into account symmetric
+!******************************************************************************************
+  SUBROUTINE add_all_real_matrix_blocks(sparse_matrix,globenv)
+
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+
+    integer iblock_row,iblock_col,ij
+    ij=0
+    DO iblock_row=1,sparse_matrix%nblock_row
+      DO iblock_col=1,sparse_matrix%nblock_col
+         if (sparse_matrix%symmetry.eq."symmetric") then
+            if (iblock_col.lt.iblock_row) CYCLE
+         endif
+         ij=ij+1
+         if (MOD(ij,globenv%num_pe).eq. globenv%mepos) then
+            CALL add_real_matrix_block(sparse_matrix, &
+                 block_row=iblock_row,block_col=iblock_col)
+         endif
+      END DO
+    END DO
+
+  END SUBROUTINE add_all_real_matrix_blocks
+
+! *****************************************************************************
   SUBROUTINE allocate_real_matrix(matrix,nrow,ncol,nblock_row,nblock_col,&
                                   first_row,last_row,first_col,last_col,&
                                   matrix_name,matrix_symmetry)
@@ -1444,10 +1513,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE replicate_real_matrix(source,target,target_name)
+  SUBROUTINE replicate_real_matrix(source,target,target_name,allocate_blocks)
 
 !   Purpose: Replicate the existing matrix source. The replicated matrix is
 !            target with the name target_name.
+!            by default copies the data blocks,
+!            if optional allocate_blocks=false then no blocks are allocated
 
 !   History: - Creation (17.11.2000, MK)
 
@@ -1455,6 +1526,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER :: source,target
     CHARACTER(LEN=*), INTENT(IN)    :: target_name
+    LOGICAL, OPTIONAL, INTENT(IN)   :: allocate_blocks
 
 !   *** Local parameters ***
 
@@ -1466,6 +1538,7 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: block_node
 
     INTEGER :: iblock_col,iblock_row
+    LOGICAL :: make_data_blocks
 
     REAL(wp), DIMENSION(:,:), POINTER :: block
 
@@ -1493,12 +1566,19 @@ CONTAINS
                          matrix_name=target_name,&
                          matrix_symmetry=source%symmetry)
 
+    make_data_blocks=.true.
+    IF (PRESENT(allocate_blocks)) THEN
+       if (allocate_blocks) THEN 
+          make_data_blocks=.true.
+       ELSE
+          make_data_blocks=.false.
+       ENDIF
+    ENDIF
+
 !   *** Initialize all block nodes ***
-
-    DO iblock_row=1,source%nblock_row
-
+    IF (make_data_blocks) THEN
+     DO iblock_row=1,source%nblock_row
       block_node => first_block_node(source,iblock_row)
-
       DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
@@ -1513,8 +1593,8 @@ CONTAINS
         block_node => next_block_node(block_node)
 
       END DO
-
-    END DO
+     END DO
+    ENDIF
 
   END SUBROUTINE replicate_real_matrix
 
