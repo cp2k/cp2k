@@ -373,10 +373,10 @@ CONTAINS
     IF (ASSOCIATED(pool)) THEN
        CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
        pool%ref_count=pool%ref_count-1
-       IF (pool%ref_count<1) THEN
-
+       IF (pool%ref_count==0) THEN
+          pool%ref_count=1
           CALL pw_pool_flush_cache(pool,error=error)
-
+          pool%ref_count=0
           CPPrecondition(ASSOCIATED(pool%pw_grid),cp_warning_level,routineP,error,failure)
           IF (.NOT.failure) THEN
              CALL pw_grid_destruct(pool%pw_grid)
