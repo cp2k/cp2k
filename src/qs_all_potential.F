@@ -183,8 +183,8 @@ MODULE qs_all_potential
                        r=rbc)
 
         rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-        rac(:) = rab(:) + rbc(:)
-        rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
+!        rac(:) = rab(:) + rbc(:)
+!        rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
 
         vall(kkind)%index_c(knode) = katom
 
@@ -210,6 +210,9 @@ MODULE qs_all_potential
            sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
            CYCLE knodeloop
         END IF
+
+        rac(:) = sac_3c_neighbor%r(:,kneighbor)
+        rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
 
         IF(nder > 0) THEN
 

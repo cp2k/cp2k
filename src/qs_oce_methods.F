@@ -46,7 +46,8 @@ MODULE qs_oce_methods
                                              next,&
                                              qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
-  USE sparse_matrix_types,             ONLY: add_1d_block_node
+  USE sparse_matrix_types,             ONLY: add_1d_block_node,&
+                                             get_block_node
   USE util,                            ONLY: locate
 
   IMPLICIT NONE
@@ -327,7 +328,7 @@ CONTAINS
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
                       1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
-                      0.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1)) 
+                      1.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1)) 
 
             CALL dgemm("N","N",np_sph,nsgfb(jset),ncob,&
                       1.0_dp,ovs(1,first_col),SIZE(ovs,1),&
@@ -337,7 +338,7 @@ CONTAINS
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
                       1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
-                      0.0_dp,oces(ider)%block(1,isgfb),SIZE(oces(ider)%block,1))
+                      1.0_dp,oces(ider)%block(1,isgfb),SIZE(oces(ider)%block,1))
           ENDDO
         ELSE       
           DO ider = 1,maxder
@@ -350,7 +351,7 @@ CONTAINS
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
                       1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
-                      0.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1))
+                      1.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1))
 
             oces(ider)%block(1:nsoatot,isgfb:lsgfb) = &
                       oceh(ider)%block(1:nsoatot,isgfb:lsgfb)
@@ -386,12 +387,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "set_up_oce"
 
     INTEGER                                  :: i, ibc, j, katom, kkind, &
-                                                kkneighbor, kneighbor, nkind, &
+                                                kkneighbor, kneighbor, ndist, nkind, &
                                                 nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: add_oce,dist_done,paw_atom
     REAL(KIND=dp)                            :: dac, dbc
-    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
+    REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
@@ -485,23 +486,51 @@ CONTAINS
            dac = SQRT(rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3))
 
 !          *** Check whether this block is already done
-           IF(oce%block_added(katom,iatom)) THEN
-             GOTO 10
+           add_oce = .FALSE.
+!           IF(oce%block_added(katom,iatom)) THEN
+           IF(oce%couple(katom,iatom)%block_created) THEN
+             dist_done = .FALSE.
+             DO i = 1,oce%couple(katom,iatom)%ndist
+               rdist(1:3) = oce%couple(katom,iatom)%rdist_old(1:3,i)
+               IF(ABS(rdist(1)-rac(1))< 1.E-8_dp .AND.&
+                    ABS(rdist(2)-rac(2))< 1.E-8_dp .AND.&
+                    ABS(rdist(3)-rac(3))< 1.E-8_dp ) THEN
+                 dist_done = .TRUE.
+!     WRITE(*,'(A,2I3,A,3f12.6,I6,A,3I4,A,3f12.6)') 'DONE k i ', &
+!           katom,iatom,' rac ',rac(1:3),kneighbor,' c ',cell_c(1:3),' rbc ',rbc(1:3)
+                 GOTO 10
+               END IF
+             END DO
+             add_oce = .TRUE.
            END IF
 
-           DO i=1,SIZE(oce%hardo)
-              NULLIFY (oceh(i)%block)
-              CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
+           IF (add_oce) THEN
+             DO i=1,SIZE(oce%hardo)
+                NULLIFY (oceh(i)%block)
+                CALL get_block_node(matrix=oce%hardo(i)%matrix,&
+                                    block_row=katom,&
+                                    block_col=iatom,&
+                                    BLOCK=oceh(i)%block)
+                NULLIFY (oces(i)%block)
+                CALL get_block_node(matrix=oce%softo(i)%matrix,&
+                                    block_row=katom,&
+                                    block_col=iatom,&
+                                    BLOCK=oces(i)%block)
+             END DO
+           ELSE
+             DO i=1,SIZE(oce%hardo)
+                NULLIFY (oceh(i)%block)
+                CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
                                  BLOCK=oceh(i)%block)
-              NULLIFY (oces(i)%block)
-              CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
+                NULLIFY (oces(i)%block)
+                CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                  block_row=katom,&
                                  block_col=iatom,&
                                  BLOCK=oces(i)%block)
-           ENDDO
-
+             ENDDO
+           END IF
            at_a => atomic_kind_set(kkind)
            at_b => atomic_kind_set(ikind)
 
@@ -513,6 +542,11 @@ CONTAINS
 
 !         *** This block has been done ***
           oce%block_added(katom,iatom) = .TRUE.
+          oce%couple(katom,iatom)%block_created = .TRUE.
+          oce%couple(katom,iatom)%ndist =oce%couple(katom,iatom)%ndist + 1
+          ndist = oce%couple(katom,iatom)%ndist
+          CALL reallocate(oce%couple(katom,iatom)%rdist_old,1,3,1,ndist)
+          oce%couple(katom,iatom)%rdist_old(1:3,ndist) = rac(1:3) 
 
 10         CONTINUE
            IF(jatom == iatom) THEN
@@ -520,21 +554,51 @@ CONTAINS
              CYCLE
            ENDIF
 !          *** Check whether this block is already done
-           IF(oce%block_added(katom,jatom)) THEN
-             GOTO 20
+           add_oce = .FALSE.
+!           IF(oce%block_added(katom,jatom)) THEN
+           IF(oce%couple(katom,jatom)%block_created) THEN
+             dist_done = .FALSE.
+             DO i = 1,oce%couple(katom,jatom)%ndist
+               rdist(1:3) = oce%couple(katom,jatom)%rdist_old(1:3,i)
+               IF(ABS(rdist(1)-rbc(1))< 1.E-8_dp .AND.&
+                    ABS(rdist(2)-rbc(2))< 1.E-8_dp .AND.&
+                    ABS(rdist(3)-rbc(3))< 1.E-8_dp ) THEN
+                 dist_done = .TRUE.
+!     WRITE(*,'(A,2I3,A,3f12.6,I6,A,3I4)') 'DONE k j ', &
+!                         katom,jatom,' rbc ',rbc(1:3),kneighbor,' c ',cell_c(1:3)
+                 GOTO 20
+               END IF
+             END DO
+             add_oce = .TRUE.
            END IF
-           DO i=1,SIZE(oce%hardo)
-             NULLIFY (oceh(i)%block)
-             CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
+
+           IF(add_oce) THEN
+             DO i=1,SIZE(oce%hardo)
+                NULLIFY (oceh(i)%block)
+                CALL get_block_node(matrix=oce%hardo(i)%matrix,&
+                                block_row=katom,&
+                                block_col=jatom,&
+                                BLOCK=oceh(i)%block)
+                NULLIFY (oces(i)%block)
+                CALL get_block_node(matrix=oce%softo(i)%matrix,&
+                                block_row=katom,&
+                                block_col=jatom,&
+                                BLOCK=oces(i)%block)
+             END DO
+           ELSE
+             DO i=1,SIZE(oce%hardo)
+                NULLIFY (oceh(i)%block)
+                CALL add_1d_block_node(matrix=oce%hardo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
                                BLOCK=oceh(i)%block)
-             NULLIFY (oces(i)%block)
-             CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
+                NULLIFY (oces(i)%block)
+                CALL add_1d_block_node(matrix=oce%softo(i)%matrix,&
                                block_row=katom,&
                                block_col=jatom,&
                                BLOCK=oces(i)%block)
-           ENDDO
+             ENDDO
+           END IF
 
            at_a => atomic_kind_set(kkind)
            at_b => atomic_kind_set(jkind)
@@ -547,6 +611,11 @@ CONTAINS
                               nder)
 !         *** This block has been done ***
           oce%block_added(katom,jatom) = .TRUE.
+          oce%couple(katom,jatom)%block_created = .TRUE.
+          oce%couple(katom,jatom)%ndist =oce%couple(katom,jatom)%ndist + 1
+          ndist = oce%couple(katom,jatom)%ndist
+          CALL reallocate(oce%couple(katom,jatom)%rdist_old,1,3,1,ndist)
+          oce%couple(katom,jatom)%rdist_old(1:3,ndist) = rbc(1:3)
 
 20         CONTINUE
            sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)

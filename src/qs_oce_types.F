@@ -68,16 +68,22 @@ MODULE qs_oce_types
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
   END TYPE vtriple_type
 
+  TYPE oce_couple
+    LOGICAL                           :: block_created
+    INTEGER                           :: ndist
+    REAL(dp), DIMENSION(:,:), POINTER :: rdist_old
+  END TYPE oce_couple
 
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
     TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce 
     LOGICAL, DIMENSION(:,:), POINTER                 :: block_added
+    TYPE(oce_couple), DIMENSION(:,:), POINTER        :: couple
   END TYPE
 
 ! *** Public data types ***
 
-  PUBLIC :: oce_matrix_type
+  PUBLIC :: oce_couple,oce_matrix_type,vtriple_type
 
 ! *** Public subroutines ***
 
@@ -85,8 +91,7 @@ MODULE qs_oce_types
             deallocate_oce_set, &
             deallocate_vtriple,&
             prepare_oce_coeff,&
-            retrieve_sac_list,&
-            vtriple_type
+            retrieve_sac_list
 
 !!***
 ! *****************************************************************************
@@ -140,6 +145,10 @@ CONTAINS
     ALLOCATE(oce_set%block_added(natom,natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"block_added",natom*natom)
     oce_set%block_added = .FALSE.
+    ALLOCATE(oce_set%couple(natom,natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"couple",natom*natom)
+    oce_set%couple(1:natom,1:natom)%block_created = .FALSE.
+    oce_set%couple(1:natom,1:natom)%ndist = 0
   
   END SUBROUTINE allocate_oce_set
 
@@ -156,7 +165,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE deallocate_oce_set (MODULE oce_types)"
 
-    INTEGER                                :: istat
+    INTEGER                                :: istat,i,j
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(oce_set)) RETURN
@@ -166,6 +175,15 @@ CONTAINS
     IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
     IF(ASSOCIATED(oce_set%block_added)) DEALLOCATE(oce_set%block_added,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"deallocate_block_added",0)
+    IF(ASSOCIATED(oce_set%couple)) THEN
+       DO i=1,SIZE(oce_set%couple,2)
+         DO j = 1,SIZE(oce_set%couple,1)
+           DEALLOCATE(oce_set%couple(j,i)%rdist_old,STAT=istat)
+         END DO
+       END DO
+       DEALLOCATE(oce_set%couple,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine,"deallocate_couple",0)
+    END IF
     DEALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"deallocate_oce_set",0)
 
@@ -341,6 +359,8 @@ CONTAINS
 
 !   Initialize the control variable block_added
     oce%block_added(1:natom,1:natom) = .FALSE.
+    oce%couple(1:natom,1:natom)%block_created = .FALSE.
+    oce%couple(1:natom,1:natom)%ndist = 0
 
   END SUBROUTINE prepare_oce_coeff
 

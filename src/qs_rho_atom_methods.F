@@ -107,7 +107,9 @@ MODULE qs_rho_atom_methods
       lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
       n1s, n2s, nr, nset, size1, size2
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    REAL(dp)                                 :: c1, c2, rho_h, rho_s, root_zet12, zet12
+    REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
+                                                rho1h_iat, rho1s_iat, &
+                                                root_zet12, zet12
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: erf_zet12, g1, g2, gg0, int1, int2
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: dgg, gg
     REAL(dp), ALLOCATABLE, DIMENSION(:,:,:)  :: vgg
@@ -313,25 +315,22 @@ MODULE qs_rho_atom_methods
                       rho_atom_set(iatom)%vrho_rad_s(i)%r_coef(1:nr,iso) +&
                       vgg(1:nr,l,l_iso)*CPCS_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
 
-                  ENDDO ! icg
+                  ENDDO  ! icg
                   DO icg = 1,harmonics%ncg_dxyz(iso,iset1,iset2)
                     iso1 = harmonics%ind_cg_a_dxyz(icg,iso,iset1,iset2)
                     iso2 = harmonics%ind_cg_b_dxyz(icg,iso,iset1,iset2)
 
                     l = indso(1,iso1) + indso(1,iso2)
                     DO j = 1,3
+                      rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
+                         rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) +&
+                         gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
 
-                    rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) =&
-                      rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef(1:nr,iso) +&
-                      gg(1:nr,l)*CPCH_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
-
-                    rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) =&
-                      rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) +&
-                      gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
-
+                      rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) =&
+                         rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef(1:nr,iso) +&
+                         gg(1:nr,l)*CPCS_sphere(iso1,iso2)*my_CG_dxyz(j,iso1,iso2,iso)
                     END DO
-
-                  END DO
+                  END DO  ! icg
 
                 ENDDO  ! iso 
 
@@ -347,8 +346,9 @@ MODULE qs_rho_atom_methods
     ENDDO    ! iset1
 
     DO i = 1,nspins
-
       DO iat = 1,natom
+        rho1h_iat = 0.0_dp
+        rho1s_iat = 0.0_dp
         iatom = atom_list(iat) 
         DO iso = 1,max_iso_not0
           rho_s = 0.0_dp
@@ -361,6 +361,8 @@ MODULE qs_rho_atom_methods
                     rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)*&
                     grid_atom%wr(ir)
           END DO  ! ir
+          rho1h_iat = rho1h_iat + rho_h*harmonics%slm_int(iso)
+          rho1s_iat = rho1s_iat + rho_s*harmonics%slm_int(iso)
           tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
           tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
         END DO  ! iso

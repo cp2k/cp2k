@@ -525,22 +525,22 @@ CONTAINS
     DO ipgf=1,npgfa
 
 !     *** Screening ***
-      IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max - maxder_local)
-        nap = nap + ncoset(la_max)
-        CYCLE
-      END IF
+!      IF (rpgfa(ipgf) + rpgfc < dac) THEN
+!        na = na + ncoset(la_max - maxder_local)
+!        nap = nap + ncoset(la_max)
+!        CYCLE
+!      END IF
 
       nb = 0
 
       DO jpgf=1,npgfb
 
 !       *** Screening ***
-        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
-            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max)
-          CYCLE
-        END IF
+!        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+!            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+!          nb = nb + ncoset(lb_max)
+!          CYCLE
+!        END IF
 
 !       *** Calculate some prefactors ***
 
