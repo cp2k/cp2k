@@ -159,7 +159,6 @@ contains
     character(len=*), parameter :: routineP='pao_env_methods:pao_env_init'
     type(cp_error_type) :: iError
     integer :: stat, i, n_atoms, size_excl_bas, size_min_bas, size_full_bas,j
-    type(real_matrix_p_type), dimension(:), pointer :: p
     type(pao_bas_projection_type), pointer :: bproj
     integer, dimension(:), allocatable :: min_bas_sizes, full_bas_sizes
     type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
@@ -233,11 +232,11 @@ contains
     end if
 
     ! others
-    call get_qs_env(qs_env,p=p, natoms=n_atoms) ! p might be uninitialized
+    call get_qs_env(qs_env, natoms=n_atoms) ! p might be uninitialized
     allocate(pao_env%min_density_m(1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     if (.not.failure) then
-       do i=1,size(p)
+       do i=1,size(pao_env%min_density_m)
           nullify(pao_env%min_density_m(i)%matrix)
        end do
     end if
