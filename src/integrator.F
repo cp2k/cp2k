@@ -70,8 +70,8 @@ MODULE integrator
 !  USE transformations,                 ONLY: fr2fu,&
 !                                             u2r
 
-  USE virial_methods,                   ONLY : virial_evaluate
-  USE virial_types,                     ONLY : virial_type
+  USE virial_methods,                  ONLY: virial_evaluate
+  USE virial_types,                    ONLY: virial_type
 
   IMPLICIT NONE
 
@@ -1275,7 +1275,7 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( virial_type )                     :: virial
+    TYPE ( virial_type ), POINTER            :: virial
 
 !   ---------------------------------------------------------------------------
 
@@ -1288,7 +1288,7 @@ END SUBROUTINE set_integrator
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set)
+                       dyn_coeff_set=dyn_coeff_set, virial=virial)
 
     DO isubsys=1,SIZE(subsys)
 

@@ -159,11 +159,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     ALLOCATE ( virial, stat=istat )
     CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
-    IF ( PRESENT ( virial_in_use ) ) THEN
-      CALL zero_virial ( virial, virial_in_use = virial_in_use )
-    ELSE
-      CALL zero_virial ( virial )
-    ENDIF
+    CALL zero_virial ( virial, virial_in_use = virial_in_use )
     last_virial_id_nr=last_virial_id_nr+1
     virial%id_nr=last_virial_id_nr
     virial%ref_count=1
