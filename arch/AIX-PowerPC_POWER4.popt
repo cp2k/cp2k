@@ -1,0 +1,17 @@
+PERL     = perl
+CC       = cc
+CPP      = /usr/ccs/lib/cpp
+FC       = mpxlf95_r
+FC_fixed = mpxlf95_r -qfixed
+LD       = mpxlf95_r
+AR       = ar -r
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL -D__parallel
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = -WF,-C,-D__AIX,-D__ESSL,-D__FFTSG,-D__FFTESSL,-D__parallel,-P\
+           -O3 -q64 -qalias=noaryovrlp -qarch=pwr4 -qcache=auto -qmaxmem=-1\
+           -qtune=pwr4 -w
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP4 -L/apps/mass/lib -bnoquiet
+LIBS     = -lscalapack_64 -lblacsF77init -lblacs\
+           -llapack3_64 -lessl -lmass -lhm
+
+OBJECTS_ARCHITECTURE = machine_aix.o
