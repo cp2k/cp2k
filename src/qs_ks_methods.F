@@ -759,11 +759,9 @@ END SUBROUTINE qs_ks_did_change
     TYPE(qs_energy_type), POINTER :: energy
     TYPE(pw_env_type), POINTER :: pw_env
     TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
-    TYPE(coeff_type), DIMENSION(:), POINTER :: v_rspace_new2
 
-    REAL(wp) :: ec,ex,max_diff,tmp
     LOGICAL :: failure
-    INTEGER :: i,ispin, stat
+    INTEGER :: i
     CHARACTER(len=*), PARAMETER :: routineN='calculate_xc_potential',&
          routineP=moduleN//':'//routineN
 
@@ -772,8 +770,7 @@ END SUBROUTINE qs_ks_did_change
     CALL timeset( routineN ,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool,&
-         v_rspace_new2)
+    NULLIFY(drho,rho,vxc,dft_control,rho_struct,energy,pw_env,auxbas_pw_pool)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -796,55 +793,39 @@ END SUBROUTINE qs_ks_did_change
          END IF
       END IF
 
-!FM      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
-!FM         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
-!FM         ALLOCATE(v_rspace_new2(dft_control%nspins), stat=stat)
-!FM         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM
-!FM         DO ispin=1,dft_control%nspins
-!FM            CALL pw_pool_init_coeff(auxbas_pw_pool, v_rspace_new2(ispin),&
-!FM                 use_data=REALDATA3D, in_space=REALSPACE, error=error)
-!FM         END DO
-!FM         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
-!FM              rho_g=rho_struct%rho_g, vxc=v_rspace_new2,exc=energy%exc,&
-!FM              dft_control=dft_control,&
-!FM              pw_pool=auxbas_pw_pool,error=error)
-!FM      END IF
-      IF ( dft_control%nspins == 1) THEN
-         CALL xc_calculate (rho_struct%rho_r(1)%pw,&
-              rho_struct%rho_g(1)%pw,&
-              v_rspace_new(1)%pw,&
-              energy%exc,qs_env%dft_control)
-         energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
-      ELSEIF ( qs_env%dft_control%nspins == 2) THEN
-         energy%exc=0.0_wp
-!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-!
-! temporary hack trying to get the same number as LDA with LSD
-!
-!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-          CALL coeff_sumup(rho_struct%rho_r(2),rho_struct%rho_r(1))
-          CALL coeff_sumup(rho_struct%rho_g(2),rho_struct%rho_g(1))
-          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
-                 rho_struct%rho_g(1)%pw,&
-                 v_rspace_new(1)%pw,&
-                 energy%exc,qs_env%dft_control)
-          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
-          CALL coeff_copy(v_rspace_new(1),v_rspace_new(2))
-          CALL coeff_reduce(rho_struct%rho_r(2),rho_struct%rho_r(1))
-          CALL coeff_reduce(rho_struct%rho_g(2),rho_struct%rho_g(1))
+      IF ( dft_control%nspins == 1 .OR. dft_control%nspins == 2) THEN
+         CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
+         CALL xc_calculate_pw_new(rho_r=rho_struct%rho_r,&
+              rho_g=rho_struct%rho_g, vxc=v_rspace_new,exc=energy%exc,&
+              dft_control=dft_control,&
+              pw_pool=auxbas_pw_pool,error=error)
+!FM      IF ( dft_control%nspins == 1) THEN
+!FM         CALL xc_calculate (rho_struct%rho_r(1)%pw,&
+!FM              rho_struct%rho_g(1)%pw,&
+!FM              v_rspace_new(1)%pw,&
+!FM              energy%exc,qs_env%dft_control)
+!FM         energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
+!FM      ELSEIF ( qs_env%dft_control%nspins == 2) THEN
+!FM         energy%exc=0.0_wp
+!FM!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+!FM!
+!FM! temporary hack trying to get the same number as LDA with LSD
+!FM!
+!FM!XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+!FM          CALL coeff_sumup(rho_struct%rho_r(2),rho_struct%rho_r(1))
+!FM          CALL coeff_sumup(rho_struct%rho_g(2),rho_struct%rho_g(1))
+!FM          CALL xc_calculate (rho_struct%rho_r(1)%pw,&
+!FM                 rho_struct%rho_g(1)%pw,&
+!FM                 v_rspace_new(1)%pw,&
+!FM                 energy%exc,qs_env%dft_control)
+!FM          energy%exc = rho_struct%rho_r(1)%pw%pw_grid%dvol*energy%exc
+!FM          CALL coeff_copy(v_rspace_new(1),v_rspace_new(2))
+!FM          CALL coeff_reduce(rho_struct%rho_r(2),rho_struct%rho_r(1))
+!FM          CALL coeff_reduce(rho_struct%rho_g(2),rho_struct%rho_g(1))
       ELSE
          CALL stop_program(routineP,"nspins > 2")
       END IF
 
-!FM      IF (.not.failure) THEN
-!FM         max_diff=0.0_wp
-!FM         DO ispin=1,dft_control%nspins
-!FM            tmp=MAXVAL(ABS(v_rspace_new2(ispin)%pw%cr3d-v_rspace_new(ispin)%pw%cr3d))
-!FM            max_diff=MAX(max_diff,tmp)
-!FM         END DO
-!FM         PRINT *,'maxdiffpot=',max_diff
-!FM      END IF
    END IF
 
     CALL timestop(0.0_wp,handle)

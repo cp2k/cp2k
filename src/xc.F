@@ -275,7 +275,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        ! allocate potential
        npot = xc_get_pot_size ( nspins>1, gradient_f, crossterms, 1 )
-       ALLOCATE ( pot ( ntot, 0:npot ), STAT = stat )
+       ALLOCATE ( pot ( ntot, 0:(npot-1) ), STAT = stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
@@ -299,8 +299,6 @@ CONTAINS
        CASE (2)
           DO ifun = 1, SIZE(dft_control%functional)
              IF ( dft_control%functional(ifun)/="NONE" ) THEN
-                lp = xc_get_pot_size ( nspins>1, dft_control%ftags(1,ifun),&
-                     dft_control%ftags(2,ifun).and.nspins>1 , 1 )
                 IF (dft_control%ftags(1,ifun)) THEN
                    CALL xc_calculate_lsd(functional=dft_control%functional(ifun),&
                         rhoa=rgrid(:,1),&
@@ -355,7 +353,7 @@ CONTAINS
              ! filter vxc
              CALL pw_transfer ( vxc(ispin)%pw, vxc_g )
 
-             ipot=2+ispin
+             ipot=nspins+ispin
 
              DO i = 1, ntot
                 IF ( drgrid(i,ispin) > dft_control%gradient_cut ) THEN
@@ -379,7 +377,6 @@ CONTAINS
                 CALL pw_transfer ( drho_r(idir,ispin)%pw, tmp_g )
                 CALL pw_derive ( tmp_g, nd(:,idir) )
                 CALL pw_sumup ( tmp_g, vxc_g )
-
              END DO
 
              ! transform back vxc
