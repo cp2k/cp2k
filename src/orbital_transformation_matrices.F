@@ -81,7 +81,7 @@ CONTAINS
 
     USE global_types,     ONLY: global_environment_type
     USE mathconstants,    ONLY: dfac,fac,pi
-    USE mathlib,          ONLY: OPERATOR(.over.)
+    USE mathlib !,          ONLY: OPERATOR(.over.)
     USE memory_utilities, ONLY: reallocate
     USE termination,      ONLY: stop_memory
 
