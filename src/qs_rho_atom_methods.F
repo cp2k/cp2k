@@ -396,12 +396,12 @@ MODULE qs_rho_atom_methods
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
     INTEGER :: handle, i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
-      jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
+      jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, last_katom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: a_list
-    LOGICAL                                  :: new_atom_b, paw_atom
+    LOGICAL                                  :: new_atom_b, new_atom_c, paw_atom
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h_a, C_coeff_h_b, &
                                                 C_coeff_s_a, C_coeff_s_b, PC
@@ -606,6 +606,7 @@ MODULE qs_rho_atom_methods
               CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
                                      nnode=nnode_c)
 
+              last_katom = 0
               sbc_oce_neighbor_node => first_node(sbc_oce_neighbor_list)
 
               knodeloop: DO knode=1,nnode_c
@@ -640,6 +641,15 @@ MODULE qs_rho_atom_methods
                 IF (kneighbor == 0) THEN
                     sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                     CYCLE
+                END IF
+
+                IF (katom /= last_katom) THEN
+                   new_atom_c = .TRUE.
+                   last_katom = katom
+                ELSE
+                   new_atom_c = .FALSE.
+                   sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
+                   CYCLE
                 END IF
 
                 NULLIFY(c_block)

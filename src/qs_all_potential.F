@@ -101,6 +101,7 @@ MODULE qs_all_potential
              OPTIONAL                          :: f_a, f_b
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "all_integrals"
+    REAL(dp), PARAMETER         :: EPS = 1.E-8_dp
 
     TYPE(neighbor_list_type),     POINTER      :: sbc_3c_neighbor_list
     TYPE(neighbor_node_type),     POINTER      :: sbc_3c_neighbor_node
@@ -183,8 +184,6 @@ MODULE qs_all_potential
                        r=rbc)
 
         rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-!        rac(:) = rab(:) + rbc(:)
-!        rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
 
         vall(kkind)%index_c(knode) = katom
 
@@ -213,6 +212,13 @@ MODULE qs_all_potential
 
         rac(:) = sac_3c_neighbor%r(:,kneighbor)
         rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
+                
+        IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS .OR. &
+             ABS(rac(2)-(rab(2) + rbc(2))) > EPS .OR. &
+             ABS(rac(3)-(rab(3) + rbc(3))) > EPS ) THEN
+           sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
+           CYCLE knodeloop
+        END IF
 
         IF(nder > 0) THEN
 

@@ -90,12 +90,14 @@ CONTAINS
 
     INTEGER :: handle, i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
-               kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
+               kkind, kneighbor, knode, last_jatom, last_katom, max_gau, max_nsgf, &
                maxsoc, natom, nkind, nlist, nnode, nnode_c, &
                nsetc, nsgfa, nsgfb, nsoctot
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: paw_atom, new_atom_b, my_tddft
+    LOGICAL                                  ::  my_tddft, &
+                                                 new_atom_b, new_atom_c,&
+                                                 paw_atom
     REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
@@ -230,9 +232,6 @@ CONTAINS
               last_jatom = jatom
             ELSE
               new_atom_b = .FALSE.
-            END IF
-
-            IF (.NOT. new_atom_b) THEN
               sab_orb_neighbor_node => next(sab_orb_neighbor_node)
               CYCLE
             END IF
@@ -293,6 +292,7 @@ CONTAINS
 
               CALL get_neighbor_list(neighbor_list=sbc_oce_neighbor_list,&
                                      nnode=nnode_c)
+              last_katom = 0
               sbc_oce_neighbor_node => first_node(sbc_oce_neighbor_list)
 
               knodeloop: DO knode=1,nnode_c
@@ -324,8 +324,17 @@ CONTAINS
                     sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
                     CYCLE
                 END IF
+
+                IF (katom /= last_katom) THEN
+                   new_atom_c = .TRUE.
+                   last_katom = katom
+                ELSE
+                   new_atom_c = .FALSE.
+                   sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
+                   CYCLE
+                END IF
+
                 rho_at => rho_atom(katom)
-! WRITE(*,*) 'iat' , iatom, jatom, katom
                 CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau,factor)
@@ -365,9 +374,6 @@ CONTAINS
                                           force(jkind)%vhxc_atom(1:3,ja_kind) + &
                                           force_tmp(1:3,1) 
                   END IF
-! WRITE(*,'(A,I3,3f20.10)') 'f ', iatom,  force(ikind)%vhxc_atom(1:3,ia_kind)
-! WRITE(*,'(A,I3,3f20.10)') 'f ', jatom,  force(jkind)%vhxc_atom(1:3,ja_kind)
-! WRITE(*,'(A,I3,3f20.10)') 'f ', katom,  force(kkind)%vhxc_atom(1:3,ka_kind)
                 END IF
 
                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
@@ -378,9 +384,7 @@ CONTAINS
           ENDDO    ! inode
         ENDDO    ! ilist 
       ENDDO    ! jkind
-! if(forces)  stop 'ks up'
     ENDDO    ! ikind
-! if(forces)  stop 'ks up'
     DEALLOCATE (C_coeff_h)
     DEALLOCATE (C_coeff_s)
     IF(forces) DEALLOCATE (atom_of_kind)
@@ -474,7 +478,7 @@ CONTAINS
 !  END DO
 ! WRITE(24,*) 'int_hard'
 !  DO is1 = 1,nsp
-!  WRITE(24,'(I4,36f20.12)') is1,int_hard(is1,1:nsp)
+!  WRITE(24,'(I4,36f16.8)') is1,int_hard(is1,1:nsp)
 !  END DO
 
 !dbg

@@ -1136,14 +1136,14 @@ CONTAINS
               new_atom_b = .TRUE.
               last_jatom = jatom
 
+            ELSE
+              new_atom_b = .FALSE.
+            END IF
               IF(oce_present) THEN
 !             *** Calculate the coefficients of the one center expansions ***
                 CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
                               oceh,oces,nder)
-              ENDIF
-            ELSE
-              new_atom_b = .FALSE.
-            END IF
+             END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
 
@@ -1736,8 +1736,8 @@ CONTAINS
                         katom = vall(kkind)%index_c(knode)
                         atom_c = atom_of_kind(katom)
 !$OMP critical (qs_core_force_all_potential)
-                        force(kkind)%all_potential(:,atom_c) = & 
-                          force(kkind)%all_potential(:,atom_c) + &
+                        force(kkind)%all_potential(1:3,atom_c) = & 
+                          force(kkind)%all_potential(1:3,atom_c) + &
                           f0*vall(kkind)%force_c(1:3,knode)
 !$OMP end critical (qs_core_force_all_potential)
                       END DO  ! knode

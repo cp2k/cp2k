@@ -241,17 +241,7 @@ MODULE qs_rho0_methods
     DO iat = 1,natom
        iatom = a_list(iat)
        mpole_rho => rho0_mp%mp_rho(iatom)
-!dbg
-!    WRITE(*,*) 'iat ', iatom
-! dbg
-!    do i = 1,size(rho_atom_set(iatom)%cpc_h(1)%r_coef,1)
-!      write(*,'(I4,72f13.8)') i, (rho_atom_set(iatom)%cpc_h(1)%r_coef(i,j),&
-!                       j=1,size(rho_atom_set(iatom)%cpc_h(1)%r_coef,2))
-!    END DO
-!dbg
 
-!    WRITE(*,*) 'size qlm ', size(mpole_rho%Qlm_tot,1)
-!    WRITE(*,'(A,20f20.10)') 'qlm' , mpole_rho%Qlm_tot
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
@@ -316,8 +306,6 @@ MODULE qs_rho0_methods
                         cpc_s(ispin)%r_coef,nsotot,&
                         nsotot,nsotot)
     END DO  ! ispin
-
-
 
     mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
                              mpole_rho%Qlm_h(iso)-mpole_rho%Qlm_s(iso)
@@ -405,7 +393,7 @@ MODULE qs_rho0_methods
 !   For each kind, determine the max l for the compensation charge density
     lmaxg = gapw_control%lmax_rho0
     laddg = gapw_control%ladd_rho0
-    eps_fit = gapw_control%eps_Vrho0
+    eps_fit = gapw_control%eps_fit
 
     CALL reallocate(rho0_mpole%lmax0_kind,1,nkind)
 
@@ -488,13 +476,6 @@ MODULE qs_rho0_methods
       rho0_mpole%zet0_s=rho0_mpole%zet0_s*1.1_dp 
     END DO
     rho0_mpole%zet0_s=0.25_dp/rho0_mpole%zet0_s
-!dbg
-    IF(rho0_mpole%zet0_s < 3.5_dp) rho0_mpole%zet0_s = 3.5_dp
-!    rho0_mpole%zet0_s = 3.855_dp
-!    rho0_mpole%zet0_s =  5.31_dp
-    rho0_mpole%zet0_s =  2.394_dp
-!   WRITE(*,*) rho0_mpole%zet0_s
-! stop
 !   Allocate and calculate the normalization factors for g0_lm_h and g0_lm_s
     CALL reallocate(rho0_mpole%norm_g0l_h,0,rho0_mpole%lmax_0)
     CALL reallocate(rho0_mpole%norm_g0l_s,0,rho0_mpole%lmax_0)
@@ -626,7 +607,6 @@ MODULE qs_rho0_methods
         END DO  ! ir
 
       END DO  ! l
-!      rho0_mpole%mp_gau(ik)%r_V0hmV0s = 2.9121780864_dp !r_hms
       rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
 
     ELSE

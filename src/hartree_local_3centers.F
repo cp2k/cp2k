@@ -107,6 +107,7 @@ MODULE  hartree_local_3centers
         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_a_vhg0_b"
+    REAL(dp), PARAMETER         :: EPS = 1.E-8_dp
 
     TYPE(atomic_kind_type), DIMENSION(:),&
                                   POINTER      :: atomic_kind_set
@@ -321,9 +322,9 @@ MODULE  hartree_local_3centers
               new_atom_b = .TRUE.
               last_jatom = jatom
             ELSE
-              new_atom_b = .FALSE.
-              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-              CYCLE
+!              new_atom_b = .FALSE.
+!              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!              CYCLE
             END IF
 
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -508,43 +509,45 @@ MODULE  hartree_local_3centers
 
               knodeloop: DO knode=1,nnode_c
 
-                CALL get_neighbor_node(neighbor_node=sbc_3c_neighbor_node,&
-                          neighbor=katom,&
-                          cell=cell_c,&
-                          r=rbc)
+                 CALL get_neighbor_node(neighbor_node=sbc_3c_neighbor_node,&
+                      neighbor=katom,&
+                      cell=cell_c,&
+                      r=rbc)
 
-                rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
-                rc(:) = pbc(particle_set(katom)%r,cell)
-                rac(:) = rab(:) + rbc(:)
-                rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
+                 rbc2= rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3) 
+                 rc(:) = pbc(particle_set(katom)%r,cell)
 
-                tmp_neighbor => VH_3c_list(kkind,iatom)%neighbor
-                DO i=1, 3
-                   IF ( (cell_c(i) < LBOUND(tmp_neighbor,i)) .OR. &
+                 tmp_neighbor => VH_3c_list(kkind,iatom)%neighbor
+                 DO i=1, 3
+                    IF ( (cell_c(i) < LBOUND(tmp_neighbor,i)) .OR. &
                          (cell_c(i) > UBOUND(tmp_neighbor,i))) THEN
-                      sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                      CYCLE knodeloop
+                       sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
+                       CYCLE knodeloop
                    END IF
                 END DO
                 sac_3c_neighbor => VH_3c_list(kkind,iatom)%neighbor(cell_c(1),&
-                                                            cell_c(2),&
-                                                            cell_c(3))
+                     cell_c(2),&
+                     cell_c(3))
                 IF(sac_3c_neighbor%n == 0) THEN
-                  sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                  CYCLE knodeloop
+                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
+                   CYCLE knodeloop
                 END IF
 
                 kneighbor = locate(sac_3c_neighbor%list,katom)
 
                 IF (kneighbor == 0) THEN
-                  sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
-                  CYCLE knodeloop
+                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
+                   CYCLE knodeloop
                 END IF
-!                rac(:) =sac_3c_neighbor%r(:,kneighbor)
-!                rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
-
-!dbg
-!   WRITE(*,*) 'kneighbor ' , iatom, jatom, katom
+                rac(:) =sac_3c_neighbor%r(:,kneighbor)
+                rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
+                
+                IF(ABS(rac(1)-(rab(1) + rbc(1)))   > EPS .OR. &
+                     ABS(rac(2)-(rab(2) + rbc(2))) > EPS .OR. &
+                     ABS(rac(3)-(rab(3) + rbc(3))) > EPS ) THEN
+                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
+                   CYCLE knodeloop
+                END IF
 
                 Int_abc = 0.0_dp
                 NULLIFY(QN_s,QN_h,Qlm)
@@ -599,8 +602,6 @@ MODULE  hartree_local_3centers
                       energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
-!dbg
-!write(*,'(/,3(A,I3))') ' iat1 ', iatom,' iat2 ', jatom, ' iat0 ' , katom
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -611,8 +612,6 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - ieqj*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
-!dbg
-! grad1 = trace
                           trace = trace_r_AxB(hab,maxcoa,&
                                   Int_adb_sum(:,:,idir),maxcoa,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
@@ -620,10 +619,6 @@ MODULE  hartree_local_3centers
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + ieqj*trace
                         END DO 
-!dbg
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',iatom,force(ikind)%hartree_3c(1:3,i_atom)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',jatom,force(jkind)%hartree_3c(1:3,j_atom)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',katom,force(kkind)%hartree_3c(1:3,k_atom)
                       END IF
 
                       m2 = m2 + maxcob
@@ -673,9 +668,6 @@ MODULE  hartree_local_3centers
                       energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
-!dbg
-!write(*,'(/,3(A,I3))') ' iat1 ', iatom,' iat2 ', jatom, ' iat0 ' , katom
-
                         i_atom = atom_of_kind(iatom)
                         j_atom = atom_of_kind(jatom)
                         k_atom = atom_of_kind(katom)
@@ -686,23 +678,13 @@ MODULE  hartree_local_3centers
                                   force(ikind)%hartree_3c(idir,i_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
-!dbg
-!grad1 = trace
                           trace = trace_r_AxB(hab,maxcob,&
                                   Int_adb_sum(:,:,idir),maxcob,nco1,nco2)
                           force(jkind)%hartree_3c(idir,j_atom) = &
                                   force(jkind)%hartree_3c(idir,j_atom) - 2._dp*trace
                           force(kkind)%hartree_3c(idir,k_atom) = &
                                   force(kkind)%hartree_3c(idir,k_atom) + 2._dp*trace
-!dbg
-! grad2 = trace
-! WRITE(*,'(A,I3,2(A,f20.10))') 'der ', idir ,'  grad1 ',grad1, '  grad2 ', grad2
                         END DO 
-!dbg
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',iatom,force(ikind)%hartree_3c(1:3,i_atom)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',jatom,force(jkind)%hartree_3c(1:3,j_atom)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',katom,force(kkind)%hartree_3c(1:3,k_atom)
-
                       END IF
                       m2 = m2 + maxcoa
                     END DO  ! iset2
@@ -719,7 +701,6 @@ MODULE  hartree_local_3centers
                                   ieqj*trace_r_AxB(CPC_ab,ns1,Int_abc(:,:,ico),&
                                   ns1,ns1,ns2)
                 END DO  ! ico
-!WRITE(*,'A,3I4,A,f16.8') 'kneighbor ' , iatom, jatom, katom,'    3c',energy_hartree_3c
                 sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
               END DO knodeloop  ! knode
             END DO  !kkind
@@ -732,14 +713,6 @@ MODULE  hartree_local_3centers
     END DO  ! ikind
 
     CALL mp_sum(energy_hartree_3c,para_env%group)
-
-!dbg
-! IF(calculate_forces) THEN
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',1,force(1)%hartree_3c(1:3,1)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',2,force(2)%hartree_3c(1:3,1)
-!   WRITE(*,'(A,I3,3f20.10)') 'f3c ',3,force(2)%hartree_3c(1:3,2)
-! stop 'f3c'
-! END IF
 
 
     IF(just_energy) GOTO 100

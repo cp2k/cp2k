@@ -143,8 +143,6 @@ CONTAINS
 
     ENDDO
 
-!dbg
-!  stop 'qlm'
     DO ispin = 1,nspins
       qs_charges%total_rho1_hard(ispin) = - rho1_h_tot(ispin)
       qs_charges%total_rho1_soft(ispin) = - rho1_s_tot(ispin)
@@ -156,7 +154,7 @@ CONTAINS
 !   Put the rho0_soft on the global grid
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
 
-    WRITE(*,*)  -rho0_s_tot,  tot_rs_int,tot_rs_int/rho0_s_tot 
+!    WRITE(*,*)  -rho0_s_tot,  tot_rs_int,tot_rs_int/rho0_s_tot 
 
     IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-6_dp) THEN
         WRITE(6,'(/,72("*"))')

@@ -533,7 +533,7 @@ CONTAINS
     IF(qs_env%dft_control%qs_control%gapw) THEN
        CPPrecondition(ASSOCIATED(rho0_s_gs), cp_failure_level, routineP, error, failure)
        CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
-       WRITE(*,*) ' rho0_soft ' ,calculate_total_rho(rho0_s_gs) 
+!       WRITE(*,*) ' rho0_soft ' ,calculate_total_rho(rho0_s_gs) 
     ELSE
        CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
     END IF

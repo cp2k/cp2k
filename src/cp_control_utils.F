@@ -221,15 +221,15 @@ CONTAINS
      qs_keywords(qs_key_EPSFIT)=keyword_type("EPSFIT", &
                                        "EPSFIT real",&
                                        "GAPW : precision to determine the gaussian radius",&
-                                       "","","")
+                                       "EPS_FIT","","")
      qs_keywords(qs_key_EPSISO)=keyword_type("EPSISO", &
                                        "EPSISO real",&
                                        "GAPW : precision to determine an isolated projector",&
-                                       "","","")
+                                       "EPS_ISO","","")
      qs_keywords(qs_key_EPSRHO0)=keyword_type("EPSRHO0", &
                                        "EPSRHO0 real",&
                                        "GAPW : precision to determine the range of V(rho0-rho0soft)",&
-                                       "EPSVRHO0","","")
+                                       "EPSVRHO0","EPS_VRHO0","")
      qs_keywords(qs_key_QUADRATURE)=keyword_type("QUADRATURE", &
                                        "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
                                        "GAPW: algorithm to construct the atomic radial grids",&

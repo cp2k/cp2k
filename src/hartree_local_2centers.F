@@ -245,10 +245,8 @@ MODULE  hartree_local_2centers
 
             IF(calculate_forces) THEN
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-!                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
-!                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
-                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
-                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
+                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
 
@@ -265,10 +263,8 @@ MODULE  hartree_local_2centers
             ELSE
 
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-!                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
-!                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
-                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
-                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
+                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
             END IF 
