@@ -104,7 +104,9 @@ module qs_error_handling
 !!         (if null they go to qs_default_logger)
 !!     stop_level: the level at which the execution stops
 !!     print_level: starting at which level something gets printed
-!!     level: level of the error (0 = no error)
+!!     level: level of the error (0 = qs_note_level=no error, 
+!!          qs_warning_level, qs_failure_level or qs_fatal_level=3).
+!!          Definition of these constants is in qs_log_handling.
 !!     error_nr: the number of the error (0 = no error)
 !!
 !!   AUTHOR
@@ -164,9 +166,10 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine qs_init_error(error, stop_level, print_level, logger, template_error)
+  subroutine qs_init_error(error, stop_level, print_level, logger, template_error, error_nr, level)
     type(qs_error_type), intent(out) :: error
-    integer, optional, intent(in) :: stop_level, print_level
+    integer, optional, intent(in) :: stop_level, print_level, &
+         error_nr, level
     type(qs_logger), optional, target, intent(in) :: logger
     type(qs_error_type), intent(in), optional :: template_error
 
@@ -191,6 +194,8 @@ contains
     if (present(print_level)) then
        error%print_level=print_level
     end if
+    if (present(level)) error%level=level
+    if(present(error_nr)) error%error_nr=error_nr
   end subroutine qs_init_error
 !!***
 !****************************************************************************
@@ -720,27 +725,25 @@ contains
 
     logical :: oldFailure
     type(qs_error_type) :: err
+    character(len=*),parameter :: routineN='qs_error_handling:qs_assert'
     if (.NOT. condition) then
        if (debug_this_module) print *, "assertion failed, in "//fromWhere//" msg="//message
        if (present(failure)) then
-          failure=.TRUE.
           oldFailure=failure
+          failure=.TRUE.
        end if
+       call qs_init_error(err, level=level,error_nr=error_nr, &
+            template_error=error)
        if (present(error)) then
           if (error%level <= level) then
              error%level=level
              error%error_nr=error_nr
-             call qs_handle_error(error, fromWhere,message)
           else if (present(failure) .AND. .NOT. oldFailure) then
-             print *,'ERROR in qs_error_handling:qs_assert, error level bigger than level, but no failure appened before'
-             call qs_common_error_stop(fromWhere,message)
+             call qs_error_message(qs_warning_level,routineN,&
+                  'error level bigger than level, but no failure appened before')
           end if
-       else
-          call qs_init_error(err)
-          err%level=level
-          err%error_nr=error_nr
-          call qs_handle_error(err, fromWhere,message)
        end if
+       call qs_handle_error(err, fromWhere,message)
     else
        if (debug_this_module) print *, "assertion checked, in "//fromWhere//" msg="//message
     end if
