@@ -312,7 +312,7 @@ CONTAINS
     END IF
 
     IF (gapw) &
-       CALL prepare_gapw_den(qs_env, .TRUE., p_env, error)
+       CALL prepare_gapw_den(qs_env, p_env%local_rho_set, error=error)
 
 
 ! *** calculate the hartree potential on the total density ***
