@@ -671,7 +671,8 @@ CONTAINS
 
     IF (.NOT.failure) THEN
 
-       pot = 0._wp
+       CALL dcopy(size(pot,1)*size(pot,2),0.0_dbl,0,pot,1)
+!       pot = 0._wp
 
        ! calculate functionals
        CALL xc_set ( dft_control%density_cut, dft_control%gradient_cut )
