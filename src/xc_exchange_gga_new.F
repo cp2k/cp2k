@@ -846,7 +846,7 @@ write(*,*) 'X order ', order
       END DO
     END IF
     IF ( m >= 2 ) THEN
-!$omp parallel do private(ip,x,s1)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
         t1 = b**2     
@@ -889,7 +889,7 @@ write(*,*) 'X order ', order
       END DO
     END IF
     IF ( m >= 3 ) THEN
-!$omp parallel do private(ip,x,s1,s2,s3)
+!$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
           t1 = b**2 

@@ -383,7 +383,7 @@ CONTAINS
           !$omp parallel do default (none) private( i, j, k, Imm, IndMM,jj,my_k,my_j,&
           !$omp                            r, rc, qt, ix, rx, rx2, rx3, rx4, rx5,&
           !$omp                   dr1,dr2,dr3, xs1,xs2,xs3, rv1,rv2,rv3, rt1,rt2,rt3)&
-          !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3)
+          !$omp                            shared(Varray,pot0_2,dx,bo,n1,n2,n3,gbo)
           LoopOnGrid: DO k = bo(1,3), bo(2,3)
              my_k=k-gbo(1,3)
              xs3 = REAL(my_k,dp)*dr3
