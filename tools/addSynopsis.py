@@ -76,8 +76,16 @@ def writeSynopsis(objDef,outfile):
 	wasEmptyLine=1
 	for line in objDef["expansion"].splitlines(1):
 	    if not (wasEmptyLine and line.isspace()):
-		outfile.write("!! "+line)
-	    wasEmptyLine=line.isspace()
+                wasEmptyLine=line.isspace()
+                while len(line)>=74:
+                    import string
+                    posToBreak=string.rfind(line," ",30,74)
+                    if posToBreak<0: posToBreak=74
+                    outfile.write("!! "+line[:posToBreak]+"&\n")
+                    line="       "+line[posToBreak:]
+                outfile.write("!! "+line)
+            else:
+                wasEmptyLine=line.isspace()
 	if not wasEmptyLine:
 	    outfile.write("!!\n")
     else:
@@ -106,7 +114,7 @@ def insertSynopsis(defs,infile,outfile):
 		    if name:
 			if not defs.has_key(name):
 			    e=SyntaxWarning("ignoring unknown object with name '"+name+"'")
-			    outfile.write(line)
+			    outfile.write(line.lstrip())
 			    status=0
 			    raise e
 			elif defs[name]:
@@ -114,7 +122,7 @@ def insertSynopsis(defs,infile,outfile):
 		    status=0
 		elif status==2: # searching for name
 		    status=1
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 		    raise SyntaxWarning("name not found")
 		elif status==3 or status==4: # synopsis inserted
 		    status=0
@@ -122,13 +130,13 @@ def insertSynopsis(defs,infile,outfile):
 		    status=1
 		    name=""
 		    if not match.groups()[startStopPos]: # only 3 *, start should have 4
-			outfile.write(line)
+			outfile.write(line.lstrip())
 			raise SyntaxWarning("incorrect start of comment")
 		else:
 		    status=0
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 		    raise SyntaxWarning("internal error, status="+str(status))
-		outfile.write(line)
+		outfile.write(line.lstrip())
 	    elif match.groups()[directivePos]:
 		if status==4: status=3
 		if status==1 and name and defs.has_key(name) and defs[name]:
@@ -136,7 +144,7 @@ def insertSynopsis(defs,infile,outfile):
 		    status=3
 		if match.groups()[directivePos]=="NAME":
 		    status=2
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 		elif match.groups()[directivePos]=="SYNOPSIS":
 		    print "found synopsis at line",lineNr
 		    if status==3 or status==4:
@@ -144,23 +152,23 @@ def insertSynopsis(defs,infile,outfile):
 			print "skipping synopsis"
 		    elif status==2:
 			status=1
-			outfile.write(line)
+			outfile.write(line.lstrip())
 			raise SyntaxWarning("did not find the name")
 		    elif status==1:
-			outfile.write(line)
+			outfile.write(line.lstrip())
 		    else:
 			raise SyntaxWarning("unknown status "+str(status))
 		else:
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 	    elif match.groups()[namePos]:
 		if status==2:
 		    name=match.groups()[namePos]
 		    status=1
 		if status!=4:
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 	    elif match.groups()[genericCommentPos]!=None:
 		if status!=4:
-		    outfile.write(line)
+		    outfile.write(line.lstrip())
 	    else:
 		raise SyntaxError("unknown match: "+str(match))
 	except SyntaxError, e:
@@ -172,35 +180,49 @@ def insertSynopsis(defs,infile,outfile):
 	    print w
 
 
-if len(sys.argv)!=4:
-    print "usage:", sys.argv[0]," interface_file source_file out_file"
+if len(sys.argv)<4:
+    print "usage:", sys.argv[0]," interface_dir out_dir sourcefile1.F [sourcefile2.F ...]"
 else:
-    try:
-	interfaceFilePath=sys.argv[1]
-	sourceFilePath=sys.argv[2]
-	outFilePath=sys.argv[3]
-	ifile = open(interfaceFilePath,'r')
-	sfile = open(sourceFilePath,'r')
-	outfile= open(outFilePath,'w')
-	rawDefs=parseInterface(ifile)
-	defs={}
-	#print "rawDefs=",rawDefs
-	for kind in ["function","subroutine"]:
-	    if rawDefs.has_key(kind):
-		for key in rawDefs[kind].iterkeys():
-		    if (defs.has_key(key)):
-			raise Exception("duplicate name")
-		    else:
-			defs[key]=rawDefs[kind][key]
-	#print "def=",defs
-	insertSynopsis(defs,sfile,outfile)
-    except:
-	import sys
-	for obj in sys.exc_info():
-	    print str(obj)
-	tb=sys.exc_info()[2]
-	while 1:
-	    if tb==None: break
-	    print "at line "+str(tb.tb_lineno)+" in"
-	    tb=tb.tb_next
+    interfaceDir=sys.argv[1]
+    outDir=sys.argv[2]
+    for sourceFilePath in sys.argv[3:]:
+        import string, os.path
+        try:
+            fileName=os.path.basename(sourceFilePath)
+            fileName=fileName[:string.rfind(fileName,".")]
+            interfaceFilePath=interfaceDir+"/"+fileName+".int"
+            outFilePath=outDir+"/"+os.path.basename(sourceFilePath)
+            print "=== began brocessing of",sourceFilePath
+            ifile = open(interfaceFilePath,'r')
+            sfile = open(sourceFilePath,'r')
+            outfile= open(outFilePath,'w')
+            rawDefs=parseInterface(ifile)
+            defs={}
+            #print "rawDefs=",rawDefs
+            for kind in ["function","subroutine"]:
+                if rawDefs.has_key(kind):
+                    for key in rawDefs[kind].keys():
+                        if (defs.has_key(key)):
+                            raise Exception("duplicate name")
+                        else:
+                            defs[key]=rawDefs[kind][key]
+            #print "def=",defs
+            insertSynopsis(defs,sfile,outfile)
+        except:
+            import sys, traceback
+            print '-'*60
+            traceback.print_exc(file=sys.stdout)
+            print '-'*60
+            if os.access(outFilePath,os.F_OK):
+                try:
+                    os.rename(outFilePath,outFilePath+".err")
+                except:
+                    print "+++ error renaming",outFilePath
+            #for obj in sys.exc_info():
+            #    print str(obj)
+            #tb=sys.exc_info()[2]
+            #while 1:
+            #    if tb==None: break
+            #    print "at line "+str(tb.tb_lineno)+" in"
+            #    tb=tb.tb_next
     
