@@ -47,16 +47,10 @@ MODULE pw_env_types
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fn,                       ONLY: greens_function_type
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_grids,                        ONLY: pw_find_cutoff,&
-                                             pw_grid_construct,&
-                                             pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
