@@ -37,7 +37,8 @@ MODULE ao_types
   TYPE ao_type
      REAL ( dbl ), DIMENSION ( : ), POINTER :: cr
      REAL ( dbl ), DIMENSION ( : ), POINTER :: mass
-     INTEGER, DIMENSION ( : ), POINTER :: coef_to_basis_set 
+     INTEGER, DIMENSION ( : ), POINTER :: coef_to_basis 
+     INTEGER, DIMENSION ( : ), POINTER :: coef_to_set 
      INTEGER, DIMENSION ( : ), POINTER :: coef_to_part 
      INTEGER, DIMENSION ( : ), POINTER :: grid_id
      TYPE ( kind_info_type ), DIMENSION ( : ),  POINTER :: kind_info
@@ -93,16 +94,19 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag )
     local_grid_flag=.FALSE.
   ENDIF
    
-  NULLIFY ( ao % cr, ao % coef_to_basis_set, ao % coef_to_part )
+  NULLIFY ( ao % cr, ao % coef_to_basis, ao % coef_to_set, ao % coef_to_part )
   NULLIFY ( ao % mass )
   NULLIFY ( ao % grid_id )
 
   ALLOCATE ( ao % cr ( ncoefs ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
      "ao % cr",  ncoefs )
-  ALLOCATE ( ao % coef_to_basis_set ( ncoefs ), STAT = allocstat )
+  ALLOCATE ( ao % coef_to_basis ( ncoefs ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
-     "ao % coef_to_basis_set",  ncoefs )
+     "ao % coef_to_basis",  ncoefs )
+  ALLOCATE ( ao % coef_to_set ( ncoefs ), STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
+     "ao % coef_to_set",  ncoefs )
   ALLOCATE ( ao % coef_to_part ( ncoefs ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
      "ao % coef_to_part",  ncoefs )
@@ -155,9 +159,13 @@ SUBROUTINE ao_deallocate ( ao )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
      "ao % cr",  SIZE ( ao % cr ) )
 
-  DEALLOCATE ( ao % coef_to_basis_set, STAT = allocstat )
+  DEALLOCATE ( ao % coef_to_basis, STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
-     "ao % coef_to_basis_set",  SIZE ( ao % coef_to_basis_set ) )
+     "ao % coef_to_basis",  SIZE ( ao % coef_to_basis ) )
+
+  DEALLOCATE ( ao % coef_to_set, STAT = allocstat )
+  IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
+     "ao % coef_to_set",  SIZE ( ao % coef_to_set ) )
 
   DEALLOCATE ( ao % coef_to_part, STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_deallocate", &
@@ -213,7 +221,8 @@ SUBROUTINE ao_zero ( ao )
 
   ns = SIZE ( ao % cr)
   ao % cr = 0.0_dbl
-  ao % coef_to_basis_set = 0
+  ao % coef_to_basis = 0
+  ao % coef_to_set = 0
   IF ( ASSOCIATED ( ao % mass ) ) ao % mass = 0.0_dbl
   IF ( ASSOCIATED ( ao % grid_id ) ) ao % grid_id = 0
   zr = REAL ( ns, dbl ) * 1.e-6_dbl
