@@ -15,6 +15,8 @@
 !!   MODIFICATION HISTORY
 !!    gloria  8 may 2001 : linklist_verlet_list : added argument list_type,
 !!    adapt the routine to be used as well for the overlaps lists
+!!    cjm & haf 27 july 2001: fixed problem with cutoffs larger
+!!    than half the boxsize and absolute coordinates far of the original box
 !!   SOURCE
 !******************************************************************************
 
@@ -89,26 +91,27 @@ MODULE linklist_utilities
     lat_vec ( 1 ) = perd(1)*INT(s(1)+SIGN(0.5_dbl,s(1)))
     lat_vec ( 2 ) = perd(2)*INT(s(2)+SIGN(0.5_dbl,s(2)))
     lat_vec ( 3 ) = perd(3)*INT(s(3)+SIGN(0.5_dbl,s(3)))
-    IF ( MAXVAL ( n_images ) ==0 ) THEN
-      IF(ABS(s(1)) > 0.5_dbl) THEN
-        s(1) = s(1) - lat_vec ( 1 )
-      END IF
-      IF(ABS(s(2)) > 0.5_dbl) THEN
-        s(2) = s(2) - lat_vec ( 2 )
-      END IF
-      IF(abs(s(3)) > 0.5_dbl) THEN
-        s(3) = s(3) - lat_vec ( 3 )
-      END IF
-    ENDIF
-    rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-    rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-    rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
+!
+! lat_vec is the (negative) lattice translation needed to get
+! the minimum image
+!
+    rij(1) = hmat(1,1)*(s(1)-lat_vec(1)) + hmat(1,2)*(s(2)-lat_vec(2)) + &
+             hmat(1,3)*(s(3)-lat_vec(3))
+    rij(2) = hmat(2,1)*(s(1)-lat_vec(1)) + hmat(2,2)*(s(2)-lat_vec(2)) + &
+             hmat(2,3)*(s(3)-lat_vec(3))
+    rij(3) = hmat(3,1)*(s(1)-lat_vec(1)) + hmat(3,2)*(s(2)-lat_vec(2)) + &
+             hmat(3,3)*(s(3)-lat_vec(3))
     rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
 !
 ! if we are within the cutoff, let the current_neighor
 ! position in the link_list point to the jth atom
 !
-    IF ( rijsq <= distsq .OR. MAXVAL ( n_images ) /= 0 ) THEN
+! rijsq is the minimum image, with that we decide whether to include this
+! atom in the neighbor list or not. This should be general except if
+! the ith atom and jth atom are identical (rij = 0.0). Then we'd
+! need to examine the next nearest image. For now we ignore that part.
+!
+    IF ( rijsq <= distsq ) THEN
     
       SELECT CASE ( list_type )
          CASE (1)
@@ -204,6 +207,11 @@ MODULE linklist_utilities
 
     current_image=>current_neighbor%image
 
+!
+! search through all translation vectors that could yield
+! a distance within the cutoff. (centered at -lat_vec which
+! describes the minimum image)
+
     kmin = -n_images ( 3 ) - lat_vec ( 3 )
     kmax = n_images ( 3 ) - lat_vec ( 3 )
     jmin = -n_images ( 2 ) - lat_vec ( 2 )
@@ -214,7 +222,6 @@ MODULE linklist_utilities
     DO kcell=kmin, kmax
       DO jcell=jmin, jmax
         DO icell=imin, imax
-! exclude the center cell
 
           vec ( : )=(/icell,jcell,kcell/)
 

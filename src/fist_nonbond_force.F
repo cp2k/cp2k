@@ -14,6 +14,8 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (11 May 2001) : cleaning up of support structures
+!!     CJM & HAF (27 July 2001): fixed bug with handling of cutoff larger than
+!!                               half the boxsize.
 !!
 !!   SOURCE
 !******************************************************************************
@@ -64,13 +66,11 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
   INTEGER :: i, j, ii, jj, iatomtype, jatomtype, imol, nmol, iat
   INTEGER :: id,itype,jtype,isos,natom_types
   INTEGER :: jatom, handle, ios, im
-  REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, &
-       vec, quotient, cell_lengths
+  REAL ( dbl ), DIMENSION (3) :: ri, rij, s, perd, vec
   REAL ( dbl ), DIMENSION (3,3) :: hmat, h_inv
-  REAL ( dbl ) :: energy, fscalar, rijsq, flops, rcut
+  REAL ( dbl ) :: energy, fscalar, rijsq, flops
   TYPE (linklist_neighbor), POINTER :: current_neighbor
   TYPE (linklist_images), POINTER :: current_image
-  INTEGER, DIMENSION(:,:), ALLOCATABLE :: n_images
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: rtest
 
 !------------------------------------------------------------------------------
@@ -100,20 +100,6 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
      END DO
   END DO
 
-  ALLOCATE ( n_images ( natom_types, natom_types ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', &
-          'n_images', natom_types ** 2 )
-
-  CALL get_cell_param ( box, cell_lengths )
-  n_images = 0
-  DO itype = 1, natom_types
-     DO jtype = itype, natom_types
-        rcut = SQRT ( rtest ( itype, jtype ) )
-        quotient ( : ) = rcut / cell_lengths ( : )
-        IF ( ANY ( quotient ( : ) > 0.5_dbl ) ) n_images ( itype, jtype ) = 1
-        n_images ( jtype, itype ) = n_images ( itype, jtype )
-     END DO
-  END DO
 !
 ! starting the force loop
 !
@@ -137,7 +123,10 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
                 + h_inv ( 2, 3 ) * rij ( 3 )
         s ( 3 ) = h_inv ( 3, 1 ) * rij ( 1 ) + h_inv ( 3, 2 ) * rij ( 2 ) & 
                 + h_inv ( 3, 3 ) * rij ( 3 )
-        IF ( MAXVAL ( n_images ) == 0 ) THEN
+        IF ( current_neighbor % nimages == 0 ) THEN
+!
+! if there are no images in the image-list, then check the minimum image
+!
           IF ( ABS ( s ( 1 ) ) > 0.5_dbl ) THEN
              s(1) = s(1) - perd(1) * INT(s(1)+SIGN(0.5_dbl,s(1)))
           END IF
@@ -147,47 +136,51 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
           IF ( ABS ( s ( 3 ) ) > 0.5_dbl ) THEN
              s(3) = s(3) - perd(3) * INT(s(3)+SIGN(0.5_dbl,s(3)))
           END IF
-        ENDIF
-        rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
-        rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
-        rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
+          rij(1) = hmat(1,1)*s(1) + hmat(1,2)*s(2) + hmat(1,3)*s(3)
+          rij(2) = hmat(2,1)*s(1) + hmat(2,2)*s(2) + hmat(2,3)*s(3)
+          rij(3) = hmat(3,1)*s(1) + hmat(3,2)*s(2) + hmat(3,3)*s(3)
+          rijsq = rij(1) * rij(1) + rij(2) * rij(2) + rij(3) * rij(3)
+          flops = flops + 41.0_dbl
 
-        rijsq = rij(1) *rij(1) + rij(2) * rij(2) + rij(3) * rij(3)
-        flops = flops + 41.0_dbl
-        IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) &
-           .AND. MAXVAL ( n_images ) == 0 ) THEN
-           CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, energy, &
-                fscalar )
+          IF ( i /= jatom .AND. rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
+             CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, &
+                                energy, fscalar )
 !
 ! summing up the potential energy,the force and pressure tensor
 !
-           CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
-                fscalar, f_nonbond, rij, ptens_nonbond )
-           flops = flops + 64.0_dbl
-
-        END IF
+             CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
+                  fscalar, f_nonbond, rij, ptens_nonbond )
+             flops = flops + 64.0_dbl
+          END IF
+        ELSE
+!
+! there are images in the image list
+!
+          flops = flops + 19.0_dbl
 !
 ! now sum over lattice translations of neighbors
 !
-        current_image => current_neighbor % image
-        DO im = 1, current_neighbor % nimages
+          current_image => current_neighbor % image
+          DO im = 1, current_neighbor % nimages
 
-           CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
-           flops = flops + 41.0_dbl
-
-           IF ( rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
-              CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, &
-                   energy, fscalar )
+             CALL find_image ( s, perd, current_image % vec, hmat, rijsq, rij )
+             flops = flops + 41.0_dbl
+             IF ( rijsq <= rtest ( iatomtype, jatomtype ) ) THEN
+                CALL potential_s ( rijsq, potparm, iatomtype, jatomtype, &
+                     energy, fscalar )
 !
 ! summing up the potential energy,the force and pressure tensor
 !
-              CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
-                   fscalar, f_nonbond, rij, ptens_nonbond )
-              flops = flops + 64.0_dbl
-           END IF
 
-           current_image => current_image % next
-        END DO
+                CALL sum_ener_forces ( i, jatom, pot_nonbond, energy, &
+                     fscalar, f_nonbond, rij, ptens_nonbond )
+                flops = flops + 64.0_dbl
+             END IF
+
+             current_image => current_image % next
+          END DO
+
+        ENDIF
 
         current_neighbor => current_neighbor % next
      END DO
@@ -203,8 +196,6 @@ SUBROUTINE force_nonbond ( ewald_param, pnode, box, potparm, pot_nonbond, &
 !
   DEALLOCATE ( rtest, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'fist_nonbond_force', 'rtest' )
-  DEALLOCATE ( n_images, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'n_images' )
 !
   flops = flops * 1.E-6_dbl
   CALL timestop ( flops, handle )
