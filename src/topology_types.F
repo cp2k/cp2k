@@ -62,6 +62,7 @@ MODULE topology_types
     REAL (dbl), POINTER :: atm_mass(:)
     REAL (dbl), POINTER :: occup(:)
     REAL (dbl), POINTER :: beta(:)
+    CHARACTER (LEN=default_string_length), POINTER :: element(:)
 
     LOGICAL                                   :: constraint
     LOGICAL                                   :: const_atom
@@ -171,6 +172,7 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%atm_mass)
   NULLIFY(topology%occup)
   NULLIFY(topology%beta)
+  NULLIFY(topology%element)
 
   topology%constraint=.FALSE.
   topology%const_atom=.FALSE.
@@ -201,6 +203,14 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%ff_bend_c)
   NULLIFY(topology%ff_bend_k)
   NULLIFY(topology%ff_bend_theta0)
+
+  NULLIFY(topology%ff_torsion_a)
+  NULLIFY(topology%ff_torsion_b)
+  NULLIFY(topology%ff_torsion_c)
+  NULLIFY(topology%ff_torsion_d)
+  NULLIFY(topology%ff_torsion_k)
+  NULLIFY(topology%ff_torsion_phi0)
+
     
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
@@ -336,6 +346,11 @@ SUBROUTINE deallocate_topology (topology)
   IF(ASSOCIATED(topology%beta)) THEN
     DEALLOCATE(topology%beta,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','beta')
+  END IF
+
+  IF(ASSOCIATED(topology%element)) THEN
+    DEALLOCATE(topology%element,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','element')
   END IF
 
   IF(ASSOCIATED(topology%const_dist_a)) THEN
