@@ -906,7 +906,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: context
 
-    CALL timeset(routineN//','//moduleN,"I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
     i0=1; j0=1; tr_a=.FALSE.
     failure=.FALSE.
