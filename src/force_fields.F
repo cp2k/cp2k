@@ -3181,6 +3181,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
   INTEGER, POINTER                         :: bad1(:),bad2(:)
   INTEGER                                  :: counter
+  INTEGER                                  :: nub,nonfo
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   PM1 = .FALSE.
@@ -3208,8 +3209,10 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nub=nub,&
                            ub_kind_set=ub_kind_set,&
                            ub_list=ub_list)
+   IF(nub>0) THEN
     IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old UB Count: ",&
                         SIZE(ub_list),SIZE(ub_kind_set)
     NULLIFY(bad1,bad2)
@@ -3268,6 +3271,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     END IF
     DEALLOCATE(bad1,STAT=istat)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+   END IF
   END DO
 
 
@@ -3278,8 +3282,10 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 !  DO ikind=1,SIZE(molecule_kind_set)
 !    molecule_kind => molecule_kind_set(ikind)
 !    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+!                           nonfo=nonfo,&
 !                           onfo_kind_set=onfo_kind_set,&
 !                           onfo_list=onfo_list)
+!   IF(nub>0) THEN
 !    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old ONFO Count: ",&
 !                        SIZE(onfo_list),SIZE(onfo_kind_set)
 !    NULLIFY(bad1,bad2)
@@ -3340,6 +3346,7 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
 !    END IF
 !    DEALLOCATE(bad1,STAT=istat)
 !    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+!   END IF
 !  END DO
 
 
