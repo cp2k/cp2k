@@ -50,6 +50,7 @@ PROGRAM cp2k
   USE fist_main,     ONLY: fist
   USE global_types,  ONLY: global_environment_type
   USE kg_main,       ONLY: kg
+  USE machine,       ONLY: m_getlog,m_getpid,m_hostnm
   USE library_tests, ONLY: lib_test
   USE parallel,      ONLY: start_parallel,end_parallel
   USE physcon,       ONLY: write_physcon
@@ -60,9 +61,19 @@ PROGRAM cp2k
   IMPLICIT NONE
 
   TYPE(global_environment_type), TARGET :: globenv
+  CHARACTER(LEN=30)                     :: host_name,user_name
+  INTEGER                               :: my_pid
 
 !------------------------------------------------------------------------------
-  print*
+
+  CALL m_getpid(my_pid)
+  CALL m_getlog(user_name)
+  CALL m_hostnm(host_name)
+
+  WRITE (UNIT=*,FMT="(T2,A,T70,I10)")&
+    TRIM(user_name)//"@"//TRIM(host_name)//" has created process number:",&
+    my_pid
+
   CALL start_parallel ( globenv )
 
   CALL initialisation ( globenv )
