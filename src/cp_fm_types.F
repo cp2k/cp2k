@@ -48,6 +48,7 @@ MODULE cp_fm_types
                                              cp_unimplemented_error
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_equivalent,&
+                                             cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
                                              cp_fm_struct_type,&
@@ -937,7 +938,7 @@ CONTAINS
   SUBROUTINE cp_fm_get_info(matrix,name,nrow_global,ncol_global,&
        nrow_block,ncol_block,nrow_local,ncol_local,&
        row_indices,col_indices,local_data,context,&
-       matrix_struct,para_env,error)
+       nrow_locals, ncol_locals, matrix_struct,para_env,error)
 
 !   Purpose: Return informations about the specified FULL matrix.
 !   the indices vectors are cached.
@@ -954,7 +955,8 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(OUT)          :: ncol_block,ncol_global,&
          nrow_block,nrow_global,&
          nrow_local,ncol_local
-    INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices
+    INTEGER, OPTIONAL, DIMENSION(:), POINTER   :: row_indices,col_indices,&
+         nrow_locals, ncol_locals
     TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
     TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
     TYPE(cp_fm_struct_type),POINTER,OPTIONAL :: matrix_struct
@@ -973,69 +975,28 @@ CONTAINS
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
     IF (PRESENT(name)) name = matrix%name
-    IF (PRESENT(nrow_global)) nrow_global = matrix%matrix_struct%nrow_global
-    IF (PRESENT(ncol_global)) ncol_global = matrix%matrix_struct%ncol_global
-    IF (PRESENT(nrow_block)) nrow_block = matrix%matrix_struct%nrow_block
-    IF (PRESENT(ncol_block)) ncol_block = matrix%matrix_struct%ncol_block
     IF (PRESENT(context)) context => matrix%matrix_struct%context
     IF (PRESENT(matrix_struct)) matrix_struct => matrix%matrix_struct
     IF (PRESENT(local_data)) local_data => matrix%local_data ! not hiding things anymore :-(
-
-    ctxt => matrix%matrix_struct%context
-    myprow=ctxt%mepos(1)
-    mypcol=ctxt%mepos(2)
-    nprow=ctxt%num_pe(1)
-    npcol=ctxt%num_pe(2)
-
-    IF (PRESENT(nrow_local)) THEN
-       nrow_local = matrix%matrix_struct%nrow_local(myprow)
-    ENDIF
-
-    IF (PRESENT(ncol_local)) THEN
-       ncol_local = matrix%matrix_struct%ncol_local(mypcol)
-    ENDIF
-
     IF (PRESENT(row_indices)) THEN
-       row_indices => matrix%matrix_struct%row_indices
-       IF (.NOT.ASSOCIATED(row_indices)) THEN
-          ALLOCATE(matrix%matrix_struct%row_indices &
-               (matrix%matrix_struct%nrow_local(myprow)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          row_indices => matrix%matrix_struct%row_indices
-#ifdef __SCALAPACK
-          DO i=1,SIZE(row_indices)
-             matrix%matrix_struct%row_indices(i)=&
-                  indxl2g(i,matrix%matrix_struct%nrow_block,myprow,&
-                  matrix%matrix_struct%first_p_pos(1),nprow)
-          ENDDO
-#else
-          DO i=1,SIZE(row_indices)
-             row_indices(i)=i
-          ENDDO
-#endif
-       END IF
+       CALL cp_fm_struct_get(matrix%matrix_struct, row_indices=row_indices,&
+            error=error)
     ENDIF
-
     IF (PRESENT(col_indices)) THEN
-       col_indices => matrix%matrix_struct%col_indices
-       IF (.NOT.ASSOCIATED(col_indices)) THEN
-          ALLOCATE(matrix%matrix_struct%col_indices &
-               (matrix%matrix_struct%ncol_local(mypcol)),stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          col_indices => matrix%matrix_struct%col_indices
-#ifdef __SCALAPACK
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=&
-                  indxl2g(i,matrix%matrix_struct%ncol_block,mypcol,&
-                  matrix%matrix_struct%first_p_pos(2),npcol)
-          ENDDO
-#else
-          DO i=1,SIZE(col_indices)
-             col_indices(i)=i
-          ENDDO
-#endif
-       END IF
+       CALL cp_fm_struct_get(matrix%matrix_struct, col_indices=col_indices,&
+            error=error)
     ENDIF
+    IF (PRESENT(nrow_locals)) THEN
+       nrow_locals => matrix%matrix_struct%nrow_local
+    END IF
+    IF (PRESENT(ncol_locals)) THEN
+       nrow_locals => matrix%matrix_struct%ncol_local
+    END IF
+
+    CALL cp_fm_struct_get(matrix%matrix_struct, nrow_local=nrow_local,&
+          ncol_local=ncol_local, nrow_global=nrow_global,&
+          ncol_global=ncol_global, nrow_block=nrow_block, &
+          ncol_block=ncol_block, error=error)
 
     IF (PRESENT(para_env)) para_env => matrix%matrix_struct%para_env
 
