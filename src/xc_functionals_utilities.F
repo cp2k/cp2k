@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/functionals_utilities [1.0] *
+!!****** cp2k/xc_functionals_utilities [1.0] *
 !!
 !!   NAME
-!!     functionals_utilities
+!!     xc_functionals_utilities
 !!
 !!   FUNCTION
 !!     Utility routines for the functional calculations
@@ -19,7 +19,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE functionals_utilities
+MODULE xc_functionals_utilities
 
 ! *****************************************************************************
 
@@ -455,6 +455,6 @@ CONTAINS
     
 ! *****************************************************************************
 
-END MODULE functionals_utilities
+END MODULE xc_functionals_utilities
 
 ! *****************************************************************************

@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/vwn_functional [1.0] *
+!!****** cp2k/xc_vwn [1.0] *
 !!
 !!   NAME
-!!     vwn_functional
+!!     xc_vwn
 !!
 !!   FUNCTION
 !!     Calculate the LDA functional according to Vosk, Wilk and Nusair
@@ -24,13 +24,13 @@
 !!
 !******************************************************************************
 
-MODULE vwn_functional
+MODULE xc_vwn
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_srs, calc_fx, &
-                                   setup_calculation
+  USE xc_functionals_utilities, ONLY: set_util, calc_srs, calc_fx, &
+                                      setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -228,15 +228,13 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)
          ln1 = log(x(ip)*x(ip)/px)
          ln2 = log((x(ip)-x0)**2/px)
-         pot(ip) = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip)
+         pot(ip) = pot(ip) + a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) ) * rho(ip)
       END IF
 
     END DO
@@ -262,9 +260,7 @@ CONTAINS
     xb = 2._dbl*x0+b
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)
@@ -277,7 +273,7 @@ CONTAINS
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
-         pot(ip) = ex - x(ip)*dex/6._dbl
+         pot(ip) = pot(ip) + ex - x(ip)*dex/6._dbl
       END IF
 
     END DO
@@ -303,10 +299,7 @@ CONTAINS
     xb = 2._dbl*x0+b
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          at = 2._dbl/q*ATAN(q/dpx)
@@ -319,8 +312,8 @@ CONTAINS
          ex = a * ( ln1 + b*at - b*x0/px* ( ln2 + xb * at ) )
          dex = a * ( dln1 + b*dat + b*x0*dpx/(px*px) * ( ln2 + xb * at ) - &
                b*x0/px* ( dln2 + xb * dat ) )
-         pot(ip,1) = ex * rho(ip)
-         pot(ip,2) = ex - x(ip)*dex/6._dbl
+         pot(ip,1) = pot(ip,1) + ex * rho(ip)
+         pot(ip,2) = pot(ip,2) + ex - x(ip)*dex/6._dbl
       END IF
 
     END DO
@@ -349,9 +342,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          px = x(ip)*x(ip)+b*x(ip)+c
@@ -373,7 +364,7 @@ CONTAINS
          dex = a * ( dln1 + b*dat + dfp * ( ln2 + xb * at ) + fp * ( dln2 + xb * dat ) )
          d2ex= a * ( d2ln1 + b*d2at + d2fp * ( ln2 + xb * at ) + &
                2._dbl*dfp * ( dln2 + xb * dat ) + fp * ( d2ln2 + xb * d2at ) )
-         pot(ip) = x(ip)/(36._dbl*rho(ip))*(x(ip)*d2ex-5._dbl*dex)
+         pot(ip) = pot(ip) + x(ip)/(36._dbl*rho(ip))*(x(ip)*d2ex-5._dbl*dex)
       END IF
 
     END DO
@@ -402,9 +393,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          px = x(ip)*x(ip)+b*x(ip)+c
          dpx = 2._dbl*x(ip)+b
          px = x(ip)*x(ip)+b*x(ip)+c
@@ -440,7 +429,7 @@ CONTAINS
          d3ex= a * ( d3ln1 + b*d3at + d3fp * ( ln2 + xb * at ) + &
                3._dbl*d2fp * ( dln2 + xb * dat ) + 3._dbl*dfp * ( d2ln2 + xb * d2at ) + &
                fp * ( d3ln2 + xb * d3at ) )
-         pot(ip) = -7._dbl*x(ip)/(216._dbl*rho(ip)*rho(ip))*(x(ip)*d2ex-5._dbl*dex) - &
+         pot(ip) = pot(ip) - 7._dbl*x(ip)/(216._dbl*rho(ip)*rho(ip))*(x(ip)*d2ex-5._dbl*dex) - &
                    x(ip)*x(ip)/(216._dbl*rho(ip)*rho(ip))*(x(ip)*d3ex-4._dbl*d2ex)
       END IF
 
@@ -471,13 +460,9 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
+      IF ( rhoab > eps_rho ) THEN
 
-         pot(ip) = 0.0_dbl
-
-      ELSE
-
-         pot(ip) = 0.0_dbl
+         pot(ip) = pot(ip) + 0.0_dbl
 
       END IF
 
@@ -508,15 +493,10 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
+      IF ( rhoab > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
 
       END IF
 
@@ -547,17 +527,11 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
+      IF ( rhoab > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
 
       END IF
 
@@ -589,17 +563,11 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
+      IF ( rhoab > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
 
       END IF
 
@@ -632,19 +600,12 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
+      IF ( rhoab > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
 
       END IF
 
@@ -654,6 +615,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE vwn_functional
+END MODULE xc_vwn
 
 ! *****************************************************************************

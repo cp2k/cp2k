@@ -1,12 +1,12 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
-!!****m* cp2k/perdew_wang_functional *
+!!****m* cp2k/xc_perdew_wang *
 !!
 !!   NAME
-!!     perdew_wang_functional
+!!     xc_perdew_wang
 !!
 !!   FUNCTION
 !!     Calculate the Perdew-Wang correlation potential and 
@@ -27,9 +27,9 @@
 !!
 !!****
 
-MODULE perdew_wang_functional
+MODULE xc_perdew_wang
 
-  USE functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
+  USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
   USE termination, ONLY : stop_program
@@ -61,7 +61,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_info *
+!!****f* cp2k/xc_perdew_wang/pw_info *
 !!
 !!   NAME
 !!     perdew_wang
@@ -97,7 +97,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_init *
+!!****f* cp2k/xc_perdew_wang/pw_init *
 !!
 !!   NAME
 !!     perdew_wnag
@@ -140,7 +140,7 @@ CONTAINS
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program("perdew_wang_functional/pw_init", "unknown method")
+       CALL stop_program("xc_perdew_wang/pw_init", "unknown method")
 
     CASE ('PWO')
        A(0)  = 0.031091_dbl ; A(1)  = 0.015545_dbl
@@ -184,7 +184,7 @@ CONTAINS
   
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_lda *
+!!****f* cp2k/xc_perdew_wang/pw_lda *
 !!
 !!   NAME
 !!     perdew_wang
@@ -242,15 +242,15 @@ CONTAINS
           m = 1
        END IF
     ELSE
-       CALL stop_program("perdew_wang_functional/pw_lda", &
+       CALL stop_program("xc_perdew_wang/pw_lda", &
             "parameter order must be between -3 and 3")
     END IF
 
     n = SIZE(rho)
     IF (SIZE(ec,1) < n) &
-         CALL stop_program("perdew_wang_functional/pw_lda", "SIZE(ec,1) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda", "SIZE(ec,1) too small")
     IF (SIZE(ec,2) < m) &
-         CALL stop_program("perdew_wang_functional/pw_lda", "SIZE(ec,2) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda", "SIZE(ec,2) too small")
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
@@ -263,19 +263,19 @@ CONTAINS
 
        m = 0
        IF (calc(0)) THEN
-          ec(k,m) = rho(k)*ed(0)
+          ec(k,m) = ec(k,m) + rho(k)*ed(0)
           m = m + 1
        END IF
        IF (calc(1)) THEN
-          ec(k,m) = ed(0) + rho(k)*ed(1)
+          ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
           m =  m + 1
        END IF
        IF (calc(2)) THEN
-          ec(k,m) = 2._dbl*ed(1) + rho(k)*ed(2)
+          ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
           m = m + 1
        END IF
        IF (calc(3)) THEN
-          ec(k,m) = 3._dbl*ed(2) + rho(k)*ed(3)
+          ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
        END IF
     
     END DO
@@ -287,7 +287,7 @@ CONTAINS
   
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_lda_ed *
+!!****f* cp2k/xc_perdew_wang/pw_lda_ed *
 !!
 !!   NAME
 !!     perdew_wang_energy_density
@@ -344,9 +344,9 @@ CONTAINS
     END IF
 
     IF (SIZE(ed,1) < n) &
-         CALL stop_program("perdew_wang_functional/pw_lda_ed", "SIZE(ec,1) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda_ed", "SIZE(ec,1) too small")
     IF (SIZE(ed,2) < m) &
-         CALL stop_program("perdew_wang_functional/pw_lda_ed", "SIZE(ec,2) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda_ed", "SIZE(ec,2) too small")
     
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
@@ -359,7 +359,7 @@ CONTAINS
   
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_lsd *
+!!****f* cp2k/xc_perdew_wang/pw_lsd *
 !!
 !!   NAME
 !!     perdew_wang
@@ -410,7 +410,7 @@ CONTAINS
     CALL timeset('perdew_wang lsd', 'I', ' ', timer_handle)
 
     IF (PRESENT(order)) order_ = order
-    IF (ABS(order_) > 3) CALL stop_program("perdew_wang_functional/pw_lsd", &
+    IF (ABS(order_) > 3) CALL stop_program("xc_perdew_wang/pw_lsd", &
          "order must be between -3 and 3")
 
     IF (order_ > 0) THEN
@@ -424,9 +424,9 @@ CONTAINS
 
     n = SIZE(rhoa)
     IF (SIZE(ec,1) < n) &
-         CALL stop_program("perdew_wang_functional/pw_lda", "SIZE(ec,1) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda", "SIZE(ec,1) too small")
     IF (SIZE(ec,2) < m) &
-         CALL stop_program("perdew_wang_functional/pw_lda", "SIZE(ec,2) too small")
+         CALL stop_program("xc_perdew_wang/pw_lda", "SIZE(ec,2) too small")
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
@@ -440,25 +440,25 @@ CONTAINS
 
        m=0
        IF (calc(0)) THEN
-          ec(k,m) = rho*ed(0)
+          ec(k,m) = ec(k,m) + rho*ed(0)
           m = m + 1
        END IF
        IF (calc(1)) THEN
-          ec(k,m)   = ed(0) + rho*ed(1)
-          ec(k,m+1) = ed(0) + rho*ed(2)
+          ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
+          ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
           m = m + 2
        END IF
        IF (calc(2)) THEN
-          ec(k,m)   = 2._dbl*ed(1) + rho*ed(3)
-          ec(k,m+1) = ed(1) + ed(2) + rho*ed(4)
-          ec(k,m+2) = 2._dbl*ed(2) + rho*ed(5)
+          ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
+          ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
+          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
           m = m + 3
        END IF
        IF (calc(3)) THEN
-          ec(k,m)   = 3._dbl*ed(3) + rho*ed(6)
-          ec(k,m+1) = 2._dbl*ed(4) + ed(3) + rho*ed(7)
-          ec(k,m+2) = 2._dbl*ed(4) + ed(5) + rho*ed(8)
-          ec(k,m+3) = 3._dbl*ed(5) + rho*ed(9)
+          ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
+          ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
+          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
+          ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
        END IF
        
     END DO
@@ -469,7 +469,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_wang_functional/pw_lsd_ed *
+!!****f* cp2k/xc_perdew_wang/pw_lsd_ed *
 !!
 !!   NAME
 !!     perdew_wang_energy_density
@@ -524,15 +524,15 @@ CONTAINS
           m = 1
        END IF
     ELSE
-       CALL stop_program("perdew_wang_functional/pz", &
+       CALL stop_program("xc_perdew_wang/pz", &
             "parameter order must be between -3 and 3")
     END IF
 
     n = SIZE(rhoa)
     IF (SIZE(ed,1) < n) &
-         CALL stop_program("perdew_wang_functional/pw_lsd_ed", "SIZE(ed,1) too small")
+         CALL stop_program("xc_perdew_wang/pw_lsd_ed", "SIZE(ed,1) too small")
     IF (SIZE(ed,2) < m) &
-         CALL stop_program("perdew_wang_functional/pw_lsd_ed", "SIZE(ed,2) too small")
+         CALL stop_program("xc_perdew_wang/pw_lsd_ed", "SIZE(ed,2) too small")
 
     IF (.NOT.initialized) CALL pw_init('PWO', epsilon)
 
@@ -858,4 +858,4 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 ! *****************************************************************************
 
-END MODULE perdew_wang_functional
+END MODULE xc_perdew_wang

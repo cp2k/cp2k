@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/pade_functional [1.0] *
+!!****** cp2k/xc_pade [1.0] *
 !!
 !!   NAME
-!!     pade_functional
+!!     xc_pade
 !!
 !!   FUNCTION
 !!     Calculate the LDA functional in the Pade approximation
@@ -24,13 +24,13 @@
 !!
 !******************************************************************************
 
-MODULE pade_functional
+MODULE xc_pade
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rs, calc_fx, &
-                                   setup_calculation
+  USE xc_functionals_utilities, ONLY: set_util, calc_rs, calc_fx, &
+                                      setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -248,16 +248,12 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
-         pot(ip) = epade*rho(ip)
+         pot(ip) = pot(ip) + epade*rho(ip)
 
       END IF
 
@@ -282,11 +278,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
@@ -296,7 +288,7 @@ CONTAINS
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
          depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
 
-         pot(ip) = epade + depade
+         pot(ip) = pot(ip) + epade + depade
 
       END IF
 
@@ -321,12 +313,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
@@ -336,8 +323,8 @@ CONTAINS
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
          depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
 
-         pot(ip,1) = epade * rho(ip)
-         pot(ip,2) = epade + depade
+         pot(ip,1) = pot(ip,1) + epade * rho(ip)
+         pot(ip,2) = pot(ip,2) + epade + depade
 
       END IF
 
@@ -362,11 +349,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
@@ -382,7 +365,7 @@ CONTAINS
          t2 = (d2p*q - p*d2q)/(q*q)
          t3 = (p*dq*dq - dp*q*dq)/(q*q*q)
 
-         pot(ip) = -f13 * ( f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip) ) * rsr
+         pot(ip) = pot(ip) - f13 * ( f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip) ) * rsr
 
       END IF
 
@@ -408,11 +391,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
@@ -434,7 +413,7 @@ CONTAINS
          rsr2 = f13*f13*rs(ip) * rsr1
          rsr3 = f13*rs(ip) * rsr2
          rsr1 = -f23*f23*f23*rsr1
-         pot(ip) = rsr1*ab1 + rsr2*ab2 + rsr3*ab3
+         pot(ip) = pot(ip) + rsr1*ab1 + rsr2*ab2 + rsr3*ab3
 
       END IF
 
@@ -463,11 +442,7 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
-
-         pot(ip) = 0.0_dbl
-
-      ELSE
+      IF ( rhoab > eps_rho ) THEN
 
          fa0 = a0 + fx(ip,1)*da0
          fa1 = a1 + fx(ip,1)*da1
@@ -481,7 +456,7 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs(ip))*rs(ip))*rs(ip)
          q = (fb1 + (fb2 + (fb3 + fb4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         pot(ip) = -p/q*rhoab
+         pot(ip) = pot(ip) - p/q*rhoab
 
       END IF
 
@@ -510,12 +485,7 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-
-      ELSE
+      IF ( rhoab > eps_rho ) THEN
 
          fa0 = a0 + fx(ip,1)*da0
          fa1 = a1 + fx(ip,1)*da1
@@ -538,8 +508,8 @@ CONTAINS
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
          dc = f13*rs(ip)*dr - p/q
 
-         pot(ip,1) = dc - dx*rhob(ip)
-         pot(ip,2) = dc + dx*rhoa(ip)
+         pot(ip,1) = pot(ip,1) + dc - dx*rhob(ip)
+         pot(ip,2) = pot(ip,2) + dc + dx*rhoa(ip)
 
       END IF
 
@@ -568,13 +538,7 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
+      IF ( rhoab > eps_rho ) THEN
 
          fa0 = a0 + fx(ip,1)*da0
          fa1 = a1 + fx(ip,1)*da1
@@ -597,9 +561,9 @@ CONTAINS
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(ip,2)/rhoab
          dc = f13*rs(ip)*dr - p/q
 
-         pot(ip,1) = -p/q*rhoab
-         pot(ip,2) = dc - dx*rhob(ip)
-         pot(ip,3) = dc + dx*rhoa(ip)
+         pot(ip,1) = pot(ip,1) - p/q*rhoab
+         pot(ip,2) = pot(ip,2) + dc - dx*rhob(ip)
+         pot(ip,3) = pot(ip,3) + dc + dx*rhoa(ip)
 
       END IF
 
@@ -629,13 +593,7 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
+      IF ( rhoab > eps_rho ) THEN
 
          fa0 = a0 + fx(ip,1)*da0
          fa1 = a1 + fx(ip,1)*da1
@@ -673,15 +631,15 @@ CONTAINS
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         pot(ip,1) = pot(ip,1) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      + f43*rs(ip)*fx(ip,2)*dxr*yt*or &
                      - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*yt*yt*or &
                      - 4._dbl*dx*fx(ip,3)*yt*yt*or
-         pot(ip,2) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         pot(ip,2) = pot(ip,2) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      + f23*rs(ip)*fx(ip,2)*dxr*(yt-xt)*or &
                      + 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*yt*or &
                      + 4._dbl*dx*fx(ip,3)*xt*yt*or
-         pot(ip,3) = f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
+         pot(ip,3) = pot(ip,3) + f23*f13*dr*rs(ip)*or - f13*f13*drr*rs(ip)*rs(ip)*or &
                      - f43*rs(ip)*fx(ip,2)*dxr*xt*or &
                      - 4._dbl*fx(ip,2)*fx(ip,2)*dxx*xt*xt*or &
                      - 4._dbl*dx*fx(ip,3)*xt*xt*or
@@ -718,14 +676,7 @@ CONTAINS
 
       rhoab = rhoa(ip) + rhob(ip)
 
-      IF ( rhoab < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-
-      ELSE
+      IF ( rhoab > eps_rho ) THEN
 
          fa0 = a0 + fx(ip,1)*da0
          fa1 = a1 + fx(ip,1)*da1
@@ -777,13 +728,13 @@ CONTAINS
          yt = rhob(ip)*or
          xt = rhoa(ip)*or
 
-         pot(ip,1) = 8._dbl/27._dbl*dr*rs(ip)*or*or + &
+         pot(ip,1) = pot(ip,1) + 8._dbl/27._dbl*dr*rs(ip)*or*or + &
                      1._dbl/9._dbl*drr*rs(ip)*rs(ip)*or*or + &
                      1._dbl/27._dbl*drrr*rs(ip)**3*or*or + &
                      dxr*or*or*yt*rs(ip)*(-8._dbl/3._dbl*fx(ip,2)+4._dbl*fx(ip,3)*yt) 
-         pot(ip,2) = 1._dbl
-         pot(ip,3) = 1._dbl
-         pot(ip,4) = 1._dbl
+         pot(ip,2) = pot(ip,2) + 0._dbl
+         pot(ip,3) = pot(ip,3) + 0._dbl
+         pot(ip,4) = pot(ip,4) + 0._dbl
 
       END IF
 
@@ -793,6 +744,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE pade_functional
+END MODULE xc_pade
 
 ! *****************************************************************************

@@ -25,7 +25,6 @@ MODULE tbmd_module
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
-  USE dft_input, ONLY : read_dft_section, read_wave_section
   USE dft_types, ONLY : dft_control_type
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters
@@ -141,7 +140,7 @@ SUBROUTINE tbmd ( globenv )
   TYPE ( kpoint_type ) :: kp
   TYPE ( fermi_distribution_type ) :: fd
   TYPE ( band_structure_type ) :: bs
-  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( dft_control_type ), POINTER :: dft_control
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( fit_parameter_type ) :: fit_param
   TYPE ( energy_min_type ) :: energy_min

@@ -23,8 +23,8 @@ MODULE wave_module
   USE band, ONLY : band_structure_type
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
-  USE dft_input, ONLY : read_dft_section, read_wave_section
-  USE dft_types, ONLY : dft_control_type
+  USE dft_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
+                        write_dft_control, write_wave_control
   USE extended_system_types, ONLY : extended_system_type
   USE fermi, ONLY : fermi_distribution_type
   USE force_fields, ONLY : read_force_field_section
@@ -89,7 +89,7 @@ SUBROUTINE wave ( globenv )
   TYPE ( kpoint_type ) :: kp
   TYPE ( fermi_distribution_type ) :: fd
   TYPE ( band_structure_type ) :: bs
-  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( dft_control_type ), POINTER :: dft_control
   TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( interaction_type ) :: inter
   TYPE ( intra_parameters_type ) :: intra_param
@@ -120,8 +120,10 @@ SUBROUTINE wave ( globenv )
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'struc', beads )
 
 ! read the dft and wave section inputs
-  CALL read_dft_section ( dft_control, globenv )
-  CALL read_wave_section ( dft_control % wave_control, globenv )
+  CALL read_dft_control ( dft_control, globenv )
+  CALL write_dft_control ( dft_control, globenv )
+  CALL read_wave_control ( dft_control % wave_control, globenv )
+  CALL write_wave_control ( dft_control % wave_control, globenv )
 
 ! read the K-Point information
   CALL kpoint_input ( kp, globenv )

@@ -1,12 +1,11 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
-!!****m* cp2k/perdew_zunger_funcional *
+!!****m* cp2k/xc_perdew_zunger *
 !!
 !!   NAME
-!!     perdew_zunger_functional
+!!     xc_perdew_zunger
 !!
 !!   FUNCTION
 !!     Calculate the Perdew-Zunger correlation potential and 
@@ -29,9 +28,9 @@
 !!
 !!****
 
-MODULE perdew_zunger_functional
+MODULE xc_perdew_zunger
   
-  USE functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
+  USE xc_functionals_utilities, ONLY : calc_fx, calc_rs, set_util, calc_z
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero
   USE termination, ONLY : stop_program
@@ -61,7 +60,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pz_info *
+!!****f* cp2k/xc_perdew_zunger/pz_info *
 !!
 !!   NAME
 !!     perdew_zunger
@@ -97,7 +96,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pz_lda *
+!!****f* cp2k/xc_perdew_zunger/pz_lda *
 !!
 !!   NAME
 !!     perdew_zunger
@@ -160,12 +159,12 @@ CONTAINS
           m = 1
        END IF
     ELSE
-       CALL stop_program("perdew_zunger_functional/pz_lda", &
+       CALL stop_program("xc_perdew_zunger/pz_lda", &
             "parameter order must be between -3 and 3")
     END IF
 
     IF (SIZE(ec,1) < n .OR. SIZE(ec,2) < m) & 
-         CALL stop_program("perdew_zunger_functional/pz_lda", &
+         CALL stop_program("xc_perdew_zunger/pz_lda", &
          "array ec too small")
 
     IF (.NOT.initialized) THEN
@@ -179,19 +178,19 @@ CONTAINS
        
        m = 0
        IF (calc(0)) THEN
-          ec(k,m) = rho(k)*ed(0)
+          ec(k,m) = ec(k,m) + rho(k)*ed(0)
           m = m + 1
        END IF
        IF (calc(1)) THEN
-          ec(k,m) = ed(0) + rho(k)*ed(1)
+          ec(k,m) = ec(k,m) + ed(0) + rho(k)*ed(1)
           m =  m + 1
        END IF
        IF (calc(2)) THEN
-          ec(k,m) = 2._dbl*ed(1) + rho(k)*ed(2)
+          ec(k,m) = ec(k,m) + 2._dbl*ed(1) + rho(k)*ed(2)
           m = m + 1
        END IF
        IF (calc(3)) THEN
-          ec(k,m) = 3._dbl*ed(2) + rho(k)*ed(3)
+          ec(k,m) = ec(k,m) + 3._dbl*ed(2) + rho(k)*ed(3)
        END IF
 
     END DO
@@ -203,7 +202,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pw_lda_ed *
+!!****f* cp2k/xc_perdew_zunger/pw_lda_ed *
 !!
 !!   NAME
 !!     perdew_zunger_energy_density
@@ -254,14 +253,14 @@ CONTAINS
           m = 1
        END IF
     ELSE
-       CALL stop_program("perdew_zunger_functional/pz_lda_ed", &
+       CALL stop_program("xc_perdew_zunger/pz_lda_ed", &
             "parameter order must be between -3 and 3")
     END IF
 
     IF (SIZE(ed,1) < n) &
-         CALL stop_program("perdew_zunger_functional/pz_lda_ed", "SIZE(ec,1) too small")
+         CALL stop_program("xc_perdew_zunger/pz_lda_ed", "SIZE(ec,1) too small")
     IF (SIZE(ed,2) < m) &
-         CALL stop_program("perdew_zunger_functional/pz_lda_ed", "SIZE(ec,2) too small")
+         CALL stop_program("xc_perdew_zunger/pz_lda_ed", "SIZE(ec,2) too small")
     
     IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
 
@@ -274,7 +273,7 @@ CONTAINS
   
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pz_lsd *
+!!****f* cp2k/xc_perdew_zunger/pz_lsd *
 !!
 !!   NAME
 !!     perdew_zunger
@@ -341,12 +340,12 @@ CONTAINS
           m = order_ + 1
        END IF
     ELSE
-       CALL stop_program("perdew_zunger_functional/pz_lsd", &
+       CALL stop_program("xc_perdew_zunger/pz_lsd", &
             "parameter order must be between -3 and 3")
     END IF
 
     IF (SIZE(ec,1) < n .OR. SIZE(ec,2) < m) & 
-         CALL stop_program("perdew_zunger_functional/pz_lsd", &
+         CALL stop_program("xc_perdew_zunger/pz_lsd", &
          "array ec too small")
 
     IF (.NOT.initialized) THEN
@@ -362,28 +361,28 @@ CONTAINS
 
        m=0
        IF (calc(0)) THEN
-          ec(k,m) = rho*ed(0)
+          ec(k,m) = ec(k,m) + rho*ed(0)
           m = m + 1
        END IF
 
        IF (calc(1)) THEN
-          ec(k,m)   = ed(0) + rho*ed(1)
-          ec(k,m+1) = ed(0) + rho*ed(2)
+          ec(k,m)   = ec(k,m) + ed(0) + rho*ed(1)
+          ec(k,m+1) = ec(k,m+1) + ed(0) + rho*ed(2)
           m = m + 2
        END IF
        
        IF (calc(2)) THEN
-          ec(k,m)   = 2._dbl*ed(1) + rho*ed(3)
-          ec(k,m+1) = ed(1) + ed(2) + rho*ed(4)
-          ec(k,m+2) = 2._dbl*ed(2) + rho*ed(5)
+          ec(k,m)   = ec(k,m) + 2._dbl*ed(1) + rho*ed(3)
+          ec(k,m+1) = ec(k,m+1) + ed(1) + ed(2) + rho*ed(4)
+          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(2) + rho*ed(5)
           m = m + 3
        END IF
        
        IF (calc(3)) THEN
-          ec(k,m)   = 3._dbl*ed(3) + rho*ed(6)
-          ec(k,m+1) = 2._dbl*ed(4) + ed(3) + rho*ed(7)
-          ec(k,m+2) = 2._dbl*ed(4) + ed(5) + rho*ed(8)
-          ec(k,m+3) = 3._dbl*ed(5) + rho*ed(9)
+          ec(k,m)   = ec(k,m) + 3._dbl*ed(3) + rho*ed(6)
+          ec(k,m+1) = ec(k,m+1) + 2._dbl*ed(4) + ed(3) + rho*ed(7)
+          ec(k,m+2) = ec(k,m+2) + 2._dbl*ed(4) + ed(5) + rho*ed(8)
+          ec(k,m+3) = ec(k,m+3) + 3._dbl*ed(5) + rho*ed(9)
        END IF
 
     END DO
@@ -395,7 +394,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pw_lsd_ed *
+!!****f* cp2k/xc_perdew_zunger/pw_lsd_ed *
 !!
 !!   NAME
 !!     perdew_zunger_energy_density
@@ -450,15 +449,15 @@ CONTAINS
           m = 1
        END IF
     ELSE
-       CALL stop_program("perdew_zunger_functional/pz", &
+       CALL stop_program("xc_perdew_zunger/pz", &
             "parameter order must be between -3 and 3")
     END IF
 
     n = SIZE(rhoa)
     IF (SIZE(ed,1) < n) &
-         CALL stop_program("perdew_zunger_functional/pz_lsd_ed", "SIZE(ed,1) too small")
+         CALL stop_program("xc_perdew_zunger/pz_lsd_ed", "SIZE(ed,1) too small")
     IF (SIZE(ed,2) < m) &
-         CALL stop_program("perdew_zunger_functional/pz_lsd_ed", "SIZE(ed,2) too small")
+         CALL stop_program("xc_perdew_zunger/pz_lsd_ed", "SIZE(ed,2) too small")
 
     IF (.NOT.initialized) CALL pz_init('PWO', epsilon)
 
@@ -471,7 +470,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/perdew_zunger_functional/pz_init *
+!!****f* cp2k/xc_perdew_zunger/pz_init *
 !!
 !!   NAME
 !!     perdew_zunger
@@ -504,7 +503,7 @@ CONTAINS
     SELECT CASE (method)
 
     CASE DEFAULT
-       CALL stop_program("perdew_zunger_functional/pz_init", "unknown method")
+       CALL stop_program("xc_perdew_zunger/pz_init", "unknown method")
        
     CASE ('ORIG')
        ga(0)  = -0.1423_dbl;  ga(1)  = -0.0843_dbl
@@ -764,4 +763,4 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE PERDEW_ZUNGER_FUNCTIONAL
+END MODULE XC_PERDEW_ZUNGER

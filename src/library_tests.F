@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000 - 2002 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/library_tests [1.0] *
 !!
@@ -29,7 +29,7 @@ MODULE library_tests
   USE fft_tools, ONLY : init_fft, get_fft_library, fft1dm, fft2dm, fft3d, &
                  fft_radix_operations, FWFFT, BWFFT, FFT_RADIX_CLOSEST, &
                  FFT_RADIX_NEXT, FFT_RADIX_NEXT_ODD
-  USE functionals_tests, ONLY : functional_test
+  USE xc_functionals_tests, ONLY : xc_functional_test
   USE cg_test, ONLY : clebsch_gordon_test
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
@@ -100,7 +100,7 @@ SUBROUTINE lib_test ( globenv )
 !
   IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
 !
-  IF ( runtest ( 5 ) /= 0 ) CALL functional_test ( globenv )
+  IF ( runtest ( 5 ) /= 0 ) CALL xc_functional_test ( globenv )
 !
   IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
 

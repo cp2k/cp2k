@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/ke_gga_functional [1.0] *
+!!****** cp2k/xc_ke_gga [1.0] *
 !!
 !!   NAME
-!!     ke_gga_functional
+!!     xc_ke_gga
 !!
 !!   FUNCTION
 !!     Calculate the several different kinetic energy functionals
@@ -19,13 +19,13 @@
 !!
 !******************************************************************************
 
-MODULE ke_gga_functional
+MODULE xc_ke_gga
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation, &
-                                   calc_wave_vector
+  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation, &
+                                      calc_wave_vector
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -398,7 +398,6 @@ CONTAINS
     tact = t13
 
     IF ( calc(0) ) THEN
-       pot(:,1) = 0._dbl
        CALL kex_p_0 ( rho, r13, fs, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
@@ -488,7 +487,6 @@ CONTAINS
     END SELECT
 
     IF ( calc(0) ) THEN
-       pot(:,1) = 0._dbl
        CALL kex_p_0 ( rhoa, r13, fs, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
@@ -601,19 +599,14 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          a0 = fact*r13(ip)*r13(ip)*rho(ip)
          a1 = f53*fact*r13(ip)*r13(ip)
          sx = -f43*s(ip)/rho(ip)
          sy = sfac*tact/(r13(ip)*rho(ip))
-         pot(ip,1) = a1*fs(ip,1) + a0*fs(ip,2)*sx
-         pot(ip,2) = a0*fs(ip,2)*sy
+         pot(ip,1) = pot(ip,1) + a1*fs(ip,1) + a0*fs(ip,2)*sx
+         pot(ip,2) = pot(ip,2) + a0*fs(ip,2)*sy
 
       END IF
 
@@ -640,13 +633,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          a0 = fact*r13(ip)*r13(ip)*rho(ip)
          a1 = f53*fact*r13(ip)*r13(ip)
@@ -655,10 +642,11 @@ CONTAINS
          sy = sfac*tact/(r13(ip)*rho(ip))
          sxx= 28._dbl/9._dbl*s(ip)/(rho(ip)*rho(ip))
          sxy= -f43*sfac*tact/(r13(ip)*rho(ip)*rho(ip))
-         pot(ip,1) = a2*fs(ip,1) +2._dbl*a1*fs(ip,2)*sx + a0*fs(ip,3)*sx*sx +&
-                     a0*fs(ip,2)*sxx
-         pot(ip,2) = a1*fs(ip,2)*sy + a0*fs(ip,3)*sx*sy + a0*fs(ip,2)*sxy
-         pot(ip,3) = a0*fs(ip,3)*sy*sy
+         pot(ip,1) = pot(ip,1) + a2*fs(ip,1) +2._dbl*a1*fs(ip,2)*sx + &
+                     a0*fs(ip,3)*sx*sx + a0*fs(ip,2)*sxx
+         pot(ip,2) = pot(ip,2) + a1*fs(ip,2)*sy + a0*fs(ip,3)*sx*sy + &
+                     a0*fs(ip,2)*sxy
+         pot(ip,3) = pot(ip,3) + a0*fs(ip,3)*sy*sy
 
       END IF
 
@@ -685,14 +673,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
 
          a0 = fact*r13(ip)*r13(ip)*rho(ip)
          a1 = f53*fact*r13(ip)*r13(ip)
@@ -704,17 +685,17 @@ CONTAINS
          sxy= -f43*sfac*tact/(r13(ip)*rho(ip)*rho(ip))
          sxxx= -280._dbl/27._dbl*s(ip)/(rho(ip)*rho(ip)*rho(ip))
          sxxy= 28._dbl/9._dbl*sfac*tact/(r13(ip)*rho(ip)*rho(ip)*rho(ip))
-         pot(ip,1) = a3*fs(ip,1) + 3._dbl*a2*fs(ip,2)*sx + &
+         pot(ip,1) = pot(ip,1) + a3*fs(ip,1) + 3._dbl*a2*fs(ip,2)*sx + &
                      3._dbl*a1*fs(ip,3)*sx*sx + 3._dbl*a1*fs(ip,2)*sxx + &
                      a0*fs(ip,4)*sx*sx*sx + 3._dbl*a0*fs(ip,3)*sx*sxx + &
                      a0*fs(ip,2)*sxxx
-         pot(ip,2) = a2*fs(ip,2)*sy + 2._dbl*a1*fs(ip,3)*sx*sy + &
+         pot(ip,2) = pot(ip,2) + a2*fs(ip,2)*sy + 2._dbl*a1*fs(ip,3)*sx*sy + &
                      2._dbl*a1*fs(ip,2)*sxy + a0*fs(ip,4)*sx*sx*sy + &
                      2._dbl*a0*fs(ip,3)*sx*sxy + a0*fs(ip,3)*sxx*sy + &
                      a0*fs(ip,2)*sxxy
-         pot(ip,3) = a1*fs(ip,3)*sy*sy + a0*fs(ip,4)*sx*sy*sy + &
+         pot(ip,3) = pot(ip,3) + a1*fs(ip,3)*sy*sy + a0*fs(ip,4)*sx*sy*sy + &
                      2._dbl*a0*fs(ip,3)*sxy*sy
-         pot(ip,4) = a0*fs(ip,4)*sy*sy*sy
+         pot(ip,4) = pot(ip,4) + a0*fs(ip,4)*sy*sy*sy
 
       END IF
 
@@ -1097,6 +1078,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE ke_gga_functional
+END MODULE xc_ke_gga
 
 ! *****************************************************************************

@@ -2,7 +2,7 @@
 
 include ../MACHINEDEFS
 
-OBJECTS_fftsg = mltfftsg.o ctrig.o fftstp.o fftpre.o fftrot.o
+OBJECTS_fftsg = mltfftsg.o mltfftsg_tools.o ctrig.o fftstp.o fftpre.o fftrot.o
 
 #################################
 

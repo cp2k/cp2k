@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/functionals_tests [1.0] *
+!!****** cp2k/xc_functionals_tests [1.0] *
 !!
 !!   NAME
-!!     functionals_tests
+!!     xc_functionals_tests
 !!
 !!   FUNCTION
 !!     Test routines for XC functionals
@@ -45,31 +45,23 @@
 !!*****
 !******************************************************************************
 
-MODULE functionals_tests
+MODULE xc_functionals_tests
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
   USE global_types, ONLY : global_environment_type
-  USE exchange_gga_functional, ONLY : b88, x_pw86, x_pw91, pbex, revpbex, optx
-  USE ke_gga_functional, ONLY : ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92
-  USE lyp_functional, ONLY : lyp
-  USE pade_functional, ONLY : pade
-  USE xalpha_functional, ONLY : xalpha
-  USE thomas_fermi_functional, ONLY : thomas_fermi
-  USE tfw_functional, ONLY : tfw
+  USE xc_functionals, ONLY : b88, x_pw86, x_pw91, pbex, revpbex, optx, &
+                             ol1, ol2, llp, ke_pw86, ke_pw91, lc, t92, &
+                             lyp, pade, xalpha, thomas_fermi, tfw, vwn, &
+                             perdew_wang, perdew_zunger, perdew86, cs1
   USE termination, ONLY : stop_memory, stop_program
-  USE vwn_functional, ONLY : vwn
-  USE perdew_wang_functional, ONLY : perdew_wang
-  USE perdew_zunger_functional, ONLY : perdew_zunger
-  USE perdew86_functional, ONLY : perdew86
-  USE cs1_functional, ONLY : cs1
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: functional_test
+  PUBLIC :: xc_functional_test
 
   INTEGER, PARAMETER :: n=20
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: rhoref, rhorefa, rhorefb
@@ -101,10 +93,10 @@ MODULE functionals_tests
 CONTAINS
 
 !******************************************************************************
-!!****** functionals_tests/functional_test [1.0] *
+!!****** xc_functionals_tests/xc_functional_test [1.0] *
 !!
 !!   NAME
-!!     functional_test
+!!     xc_functional_test
 !!
 !!   FUNCTION
 !!     Tests XC-functional derivaties by finite derivatives
@@ -118,7 +110,7 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-SUBROUTINE functional_test ( globenv )
+SUBROUTINE xc_functional_test ( globenv )
 
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
@@ -374,7 +366,7 @@ SUBROUTINE functional_test ( globenv )
 
   END IF
 
-END SUBROUTINE functional_test
+END SUBROUTINE xc_functional_test
 
 ! *****************************************************************************
 
@@ -732,16 +724,22 @@ SUBROUTINE fun_lda ( fun, rho, pot, order )
 
     SELECT CASE (fun)
     CASE (1)
+      pot = 0._dbl
       CALL xalpha ( rho, pot, order )
     CASE (2)
+      pot = 0._dbl
       CALL pade ( rho, pot, order )
     CASE (3)
+      pot = 0._dbl
       CALL vwn ( rho, pot, order )
     CASE (4)
+      pot = 0._dbl
       CALL thomas_fermi ( rho, pot, order )
     CASE (5)
+      pot = 0._dbl
       CALL perdew_wang ( rho, pot, order )
     CASE (6)
+      pot = 0._dbl
       CALL perdew_zunger ( rho, pot, order )
     CASE DEFAULT
       CALL stop_program("fun_lda","functional not found")
@@ -758,14 +756,19 @@ SUBROUTINE fun_lsd ( fun, rhoa, rhob, pot, order )
 
     SELECT CASE (fun)
     CASE (1)
+      pot = 0._dbl
       CALL xalpha ( rhoa, rhob, pot, order )
     CASE (2)
+      pot = 0._dbl
       CALL pade ( rhoa, rhob, pot, order )
     CASE (4)
+      pot = 0._dbl
       CALL thomas_fermi ( rhoa, rhob, pot, order )
     CASE (5)
+      pot = 0._dbl
       CALL perdew_wang ( rhoa, rhob, pot, order )
     CASE (6)
+      pot = 0._dbl
       CALL perdew_zunger ( rhoa, rhob, pot, order )
     CASE DEFAULT
       CALL stop_program("fun_lsd","functional not found")
@@ -782,38 +785,55 @@ SUBROUTINE funggau ( fun, rho, grho, pot, order )
 
     SELECT CASE (fun)
     CASE (7)
+      pot = 0._dbl
       CALL tfw ( rho, grho, pot, order )
     CASE (8)
+      pot = 0._dbl
       CALL ol1 ( rho, grho, pot, order )
     CASE (9)
+      pot = 0._dbl
       CALL ol2 ( rho, grho, pot, order )
     CASE (10)
+      pot = 0._dbl
       CALL llp ( rho, grho, pot, order )
     CASE (11)
+      pot = 0._dbl
       CALL ke_pw86 ( rho, grho, pot, order )
     CASE (12)
+      pot = 0._dbl
       CALL ke_pw91 ( rho, grho, pot, order )
     CASE (13)
+      pot = 0._dbl
       CALL lc ( rho, grho, pot, order )
     CASE (14)
+      pot = 0._dbl
       CALL t92 ( rho, grho, pot, order )
     CASE (15)
+      pot = 0._dbl
       CALL b88 ( rho, grho, pot, order )
     CASE (16)
+      pot = 0._dbl
       CALL x_pw86 ( rho, grho, pot, order )
     CASE (17)
+      pot = 0._dbl
       CALL x_pw91 ( rho, grho, pot, order )
     CASE (18)
+      pot = 0._dbl
       CALL pbex ( rho, grho, pot, order )
     CASE (19)
+      pot = 0._dbl
       CALL revpbex ( rho, grho, pot, order )
     CASE (20)
+      pot = 0._dbl
       CALL optx ( rho, grho, pot, order )
     CASE (21)
+      pot = 0._dbl
       CALL lyp ( rho, grho, pot, order )
     CASE (22)
+      pot = 0._dbl
       CALL perdew86 ( rho, grho, pot, order )
     CASE (23)
+      pot = 0._dbl
       CALL cs1 ( rho, grho, pot, order )
     CASE DEFAULT
       CALL stop_program("funggau","functional not found")
@@ -831,32 +851,46 @@ SUBROUTINE funggap ( fun, rhoa, rhob, grhoa, grhob, pot, order )
 
     SELECT CASE (fun)
     CASE (7)
+      pot = 0._dbl
       CALL tfw ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (8)
+      pot = 0._dbl
       CALL ol1 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (9)
+      pot = 0._dbl
       CALL ol2 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (10)
+      pot = 0._dbl
       CALL llp ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (11)
+      pot = 0._dbl
       CALL ke_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (12)
+      pot = 0._dbl
       CALL ke_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (13)
+      pot = 0._dbl
       CALL lc ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (14)
+      pot = 0._dbl
       CALL t92 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (15)
+      pot = 0._dbl
       CALL b88 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (16)
+      pot = 0._dbl
       CALL x_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (17)
+      pot = 0._dbl
       CALL x_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (18)
+      pot = 0._dbl
       CALL pbex ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (19)
+      pot = 0._dbl
       CALL revpbex ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE (20)
+      pot = 0._dbl
       CALL optx ( rhoa, rhob, grhoa, grhob, pot, order )
     CASE DEFAULT
       CALL stop_program("funggap","functional not found")
@@ -874,6 +908,7 @@ SUBROUTINE funggab ( fun, rhoa, rhob, grhoa, grhob, grhoab, pot, order )
 
     SELECT CASE (fun)
     CASE (23)
+      pot = 0._dbl
       CALL cs1 ( rhoa, rhob, grhoa, grhob, grhoab, pot, order )
     CASE DEFAULT
       CALL stop_program("funggap","functional not found")
@@ -883,6 +918,6 @@ END SUBROUTINE funggab
 
 ! *****************************************************************************
 
-END MODULE functionals_tests
+END MODULE xc_functionals_tests
 
 ! *****************************************************************************

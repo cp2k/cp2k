@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/cs1_functional [1.0] *
+!!****** cp2k/xc_cs1 [1.0] *
 !!
 !!   NAME
-!!     cs1_functional
+!!     xc_cs1
 !!
 !!   FUNCTION
 !!     Calculate the CS1 Functional (Handy s improved LYP functional)
@@ -18,12 +18,12 @@
 !!
 !******************************************************************************
 
-MODULE cs1_functional
+MODULE xc_cs1
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
+  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -92,7 +92,7 @@ CONTAINS
     CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "N.C. Handy and A.J. Cohen, J. Phys. Chem. to appear (2002)"
+      reference = "N.C. Handy and A.J. Cohen, J. Chem. Phys., 116, 5411 (2002)"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
       shortform = "CS1: Handy improved LYP correlation energy functional"
@@ -240,9 +240,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
@@ -255,7 +253,7 @@ CONTAINS
          F2 = c2p*g**4*r3*r*odp*ocp*ocp
          F3 = c3p*r*r3*od
          F4 = c4p*g**4*r3*r*od*oc*oc
-         pot(ip) = F1 + F2 + F3 + F4
+         pot(ip) = pot(ip) + F1 + F2 + F3 + F4
       END IF
 
     END DO
@@ -286,10 +284,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
@@ -305,8 +300,8 @@ CONTAINS
          drF4 = -f13*c4p*g**4*r3*(13*r**3-3*r3*c*g*g+12*r*r*r3*r3*d-&
                  4*d*c*g*g)*od**2*oc**3
          dgF4 = 4*c4p*g**3*r**4*od*oc**3
-         pot(ip,1) = dF1 + drF2 + dF3 + drF4
-         pot(ip,2) = dgF2 + dgF4
+         pot(ip,1) = pot(ip,1) + dF1 + drF2 + dF3 + drF4
+         pot(ip,2) = pot(ip,2) + dgF2 + dgF4
       END IF
 
     END DO
@@ -337,11 +332,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
@@ -365,9 +356,9 @@ CONTAINS
          drgF4 = c4p*f43*g**3*r*r*r3*(-13*r**3*r3*r3+11*c*r*g*g-12*d*r**3*r3 &
                  +12*r3*r3*d*c*g*g)*od*od*oc**4
          d2gF4 = -12*c4p*g*g*r**4*(c*g*g-r*r*r3*r3)*od*oc**4
-         pot(ip,1) = d2F1 + d2rF2 + d2F3 + d2rF4
-         pot(ip,2) = drgF2 + drgF4
-         pot(ip,3) = d2gF2 + d2gF4
+         pot(ip,1) = pot(ip,1) + d2F1 + d2rF2 + d2F3 + d2rF4
+         pot(ip,2) = pot(ip,2) + drgF2 + drgF4
+         pot(ip,3) = pot(ip,3) + d2gF2 + d2gF4
       END IF
 
     END DO
@@ -402,12 +393,7 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-      ELSE
+      IF ( rho(ip) > eps_rho ) THEN
          r = rho(ip)
          r3 = r13(ip)
          g = grho(ip)
@@ -457,10 +443,10 @@ CONTAINS
                   +13*r**6*r3-40*r**3*r3*r3*c*g*g+11*r*c*c*g**4+12*r**6*d) &
                   *od*od*oc**5
          d3gF4 = c4p*24*g*r**3*r3*(r**6-5*c*g*g*r**3*r3+2*c*c*g**4*r3*r3)*od*oc**5
-         pot(ip,1) = d3F1 + d3rF2 + d3F3 + d3rF4
-         pot(ip,2) = d2rgF2 + d2rgF4
-         pot(ip,3) = dr2gF2 + dr2gF4
-         pot(ip,4) = d3gF2 + d3gF4
+         pot(ip,1) = pot(ip,1) + d3F1 + d3rF2 + d3F3 + d3rF4
+         pot(ip,2) = pot(ip,2) + d2rgF2 + d2rgF4
+         pot(ip,3) = pot(ip,3) + dr2gF2 + dr2gF4
+         pot(ip,4) = pot(ip,4) + d3gF2 + d3gF4
       END IF
 
     END DO
@@ -516,7 +502,7 @@ CONTAINS
          F2b = c2*gb**4*r3b*rb*odb*ocb*ocb
       END IF
 
-      pot(ip) = F1a + F1b + F2a + F2b
+      pot(ip) = pot(ip) + F1a + F1b + F2a + F2b
 
     END DO
 
@@ -581,11 +567,11 @@ CONTAINS
 
       END IF
 
-      pot(ip,1) = dF1a + drF2a
-      pot(ip,2) = dgF2a 
-      pot(ip,3) = dF1b + drF2b
-      pot(ip,4) = dgF2b
-      pot(ip,5) = 0._dbl
+      pot(ip,1) = pot(ip,1) + dF1a + drF2a
+      pot(ip,2) = pot(ip,2) + dgF2a 
+      pot(ip,3) = pot(ip,3) + dF1b + drF2b
+      pot(ip,4) = pot(ip,4) + dgF2b
+      pot(ip,5) = pot(ip,5) + 0._dbl
 
     END DO
 
@@ -611,22 +597,22 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
       ELSE
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,4) = 0.0_dbl
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
+         pot(ip,5) = pot(ip,5) + 0.0_dbl
+         pot(ip,6) = pot(ip,6) + 0.0_dbl
       ELSE
-         pot(ip,4) = 0.0_dbl
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
+         pot(ip,5) = pot(ip,5) + 0.0_dbl
+         pot(ip,6) = pot(ip,6) + 0.0_dbl
       END IF
 
     END DO
@@ -653,26 +639,26 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
       ELSE
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
+         pot(ip,1) = pot(ip,1) + 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 0.0_dbl
+         pot(ip,3) = pot(ip,3) + 0.0_dbl
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
       END IF
       IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
-         pot(ip,7) = 0.0_dbl
-         pot(ip,8) = 0.0_dbl
+         pot(ip,5) = pot(ip,5) + 0.0_dbl
+         pot(ip,6) = pot(ip,6) + 0.0_dbl
+         pot(ip,7) = pot(ip,7) + 0.0_dbl
+         pot(ip,8) = pot(ip,8) + 0.0_dbl
       ELSE
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
-         pot(ip,7) = 0.0_dbl
-         pot(ip,8) = 0.0_dbl
+         pot(ip,5) = pot(ip,5) + 0.0_dbl
+         pot(ip,6) = pot(ip,6) + 0.0_dbl
+         pot(ip,7) = pot(ip,7) + 0.0_dbl
+         pot(ip,8) = pot(ip,8) + 0.0_dbl
       END IF
 
     END DO
@@ -681,6 +667,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE cs1_functional
+END MODULE xc_cs1
 
 ! *****************************************************************************

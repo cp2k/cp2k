@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/tfw_functional [1.0] *
+!!****** cp2k/xc_tfw [1.0] *
 !!
 !!   NAME
-!!     tfw_functional
+!!     xc_tfw
 !!
 !!   FUNCTION
 !!     Calculate the Thomas-Fermi kinetic energy functional
@@ -19,12 +19,12 @@
 !!
 !******************************************************************************
 
-MODULE tfw_functional
+MODULE xc_tfw
 
 ! *****************************************************************************
 
   USE kinds, ONLY: dbl
-  USE functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
+  USE xc_functionals_utilities, ONLY: set_util, calc_rho13, setup_calculation
   USE termination, ONLY: stop_memory, stop_program
 
   IMPLICIT NONE
@@ -250,13 +250,9 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
+      IF ( rho(ip) > eps_rho ) THEN
 
-         pot(ip) = 0.0_dbl
-
-      ELSE
-
-         pot(ip) = flda*r13(ip)*r13(ip)*rho(ip) + fvw * s(ip)
+         pot(ip) = pot(ip) + flda*r13(ip)*r13(ip)*rho(ip) + fvw * s(ip)
 
       END IF
 
@@ -283,15 +279,10 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
+      IF ( rho(ip) > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = f * r13(ip)*r13(ip) - fvw * s(ip)/rho(ip)
-         pot(ip,2) = 2._dbl * fvw * grho(ip)/rho(ip)
+         pot(ip,1) = pot(ip,1) + f * r13(ip)*r13(ip) - fvw * s(ip)/rho(ip)
+         pot(ip,2) = pot(ip,2) + 2._dbl * fvw * grho(ip)/rho(ip)
 
       END IF
 
@@ -318,17 +309,11 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
+      IF ( rho(ip) > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = f / r13(ip) + 2._dbl * fvw * s(ip)/(rho(ip)*rho(ip))
-         pot(ip,2) = -2._dbl * fvw * grho(ip)/(rho(ip)*rho(ip))
-         pot(ip,3) = 2._dbl * fvw / rho(ip)
+         pot(ip,1) = pot(ip,1) + f / r13(ip) + 2._dbl * fvw * s(ip)/(rho(ip)*rho(ip))
+         pot(ip,2) = pot(ip,2) - 2._dbl * fvw * grho(ip)/(rho(ip)*rho(ip))
+         pot(ip,3) = pot(ip,3) + 2._dbl * fvw / rho(ip)
 
       END IF
 
@@ -355,20 +340,13 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rho(ip) < eps_rho ) THEN
+      IF ( rho(ip) > eps_rho ) THEN
 
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-
-      ELSE
-
-         pot(ip,1) = f / ( r13(ip) * rho(ip) ) &
+         pot(ip,1) = pot(ip,1) + f / ( r13(ip) * rho(ip) ) &
                      - 6._dbl * fvw * s(ip)/(rho(ip)*rho(ip)*rho(ip))
-         pot(ip,2) = 4._dbl * fvw * grho(ip)/(rho(ip)*rho(ip)*rho(ip))
-         pot(ip,3) = - 2._dbl * fvw / (rho(ip)*rho(ip))
-         pot(ip,4) = 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 4._dbl * fvw * grho(ip)/(rho(ip)*rho(ip)*rho(ip))
+         pot(ip,3) = pot(ip,3) - 2._dbl * fvw / (rho(ip)*rho(ip))
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
 
       END IF
 
@@ -394,10 +372,8 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip) = 0.0_dbl
-      ELSE
-         pot(ip) = flsd * r13a(ip) * r13a(ip) * rhoa(ip) + fvw * sa(ip)
+      IF ( rhoa(ip) > eps_rho ) THEN
+         pot(ip) = pot(ip) + flsd * r13a(ip) * r13a(ip) * rhoa(ip) + fvw * sa(ip)
       END IF
       IF ( rhob(ip) > eps_rho ) THEN
          pot(ip) = pot(ip) + flsd * r13b(ip) * r13b(ip) * rhob(ip) + fvw*sb(ip)
@@ -427,19 +403,13 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-      ELSE
-         pot(ip,1) = f * r13a(ip)*r13a(ip) - fvw * sa(ip)/rhoa(ip)
-         pot(ip,2) = 2._dbl * fvw * grhoa(ip)/rhoa(ip)
+      IF ( rhoa(ip) > eps_rho ) THEN
+         pot(ip,1) = pot(ip,1) + f * r13a(ip)*r13a(ip) - fvw * sa(ip)/rhoa(ip)
+         pot(ip,2) = pot(ip,2) + 2._dbl * fvw * grhoa(ip)/rhoa(ip)
       END IF
-      IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-      ELSE
-         pot(ip,3) = f * r13b(ip)*r13b(ip) - fvw * sb(ip)/rhob(ip)
-         pot(ip,4) = 2._dbl * fvw * grhob(ip)/rhob(ip)
+      IF ( rhob(ip) > eps_rho ) THEN
+         pot(ip,3) = pot(ip,3) + f * r13b(ip)*r13b(ip) - fvw * sb(ip)/rhob(ip)
+         pot(ip,4) = pot(ip,4) + 2._dbl * fvw * grhob(ip)/rhob(ip)
       END IF
 
     END DO
@@ -466,23 +436,15 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-      ELSE
-         pot(ip,1) = f / r13a(ip) + 2._dbl * fvw * sa(ip)/(rhoa(ip)*rhoa(ip))
-         pot(ip,2) = -2._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip))
-         pot(ip,3) = 2._dbl * fvw / rhoa(ip)
+      IF ( rhoa(ip) > eps_rho ) THEN
+         pot(ip,1) = pot(ip,1) + f / r13a(ip) + 2._dbl * fvw * sa(ip)/(rhoa(ip)*rhoa(ip))
+         pot(ip,2) = pot(ip,2) - 2._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip))
+         pot(ip,3) = pot(ip,3) + 2._dbl * fvw / rhoa(ip)
       END IF
-      IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,4) = 0.0_dbl
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
-      ELSE
-         pot(ip,4) = f / r13b(ip) + 2._dbl * fvw * sb(ip)/(rhob(ip)*rhob(ip))
-         pot(ip,5) = -2._dbl * fvw * grhob(ip)/(rhob(ip)*rhob(ip))
-         pot(ip,6) = 2._dbl * fvw / rhob(ip)
+      IF ( rhob(ip) > eps_rho ) THEN
+         pot(ip,4) = pot(ip,4) + f / r13b(ip) + 2._dbl * fvw * sb(ip)/(rhob(ip)*rhob(ip))
+         pot(ip,5) = pot(ip,5) - 2._dbl * fvw * grhob(ip)/(rhob(ip)*rhob(ip))
+         pot(ip,6) = pot(ip,6) + 2._dbl * fvw / rhob(ip)
       END IF
 
     END DO
@@ -509,29 +471,19 @@ CONTAINS
 
     DO ip = 1, npoints
 
-      IF ( rhoa(ip) < eps_rho ) THEN
-         pot(ip,1) = 0.0_dbl
-         pot(ip,2) = 0.0_dbl
-         pot(ip,3) = 0.0_dbl
-         pot(ip,4) = 0.0_dbl
-      ELSE
-         pot(ip,1) = f / ( r13a(ip) * rhoa(ip) ) &
+      IF ( rhoa(ip) > eps_rho ) THEN
+         pot(ip,1) = pot(ip,1) + f / ( r13a(ip) * rhoa(ip) ) &
                      - 6._dbl * fvw * sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
-         pot(ip,2) = 4._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
-         pot(ip,3) = - 2._dbl * fvw / (rhoa(ip)*rhoa(ip))
-         pot(ip,4) = 0.0_dbl
+         pot(ip,2) = pot(ip,2) + 4._dbl * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+         pot(ip,3) = pot(ip,3) - 2._dbl * fvw / (rhoa(ip)*rhoa(ip))
+         pot(ip,4) = pot(ip,4) + 0.0_dbl
       END IF
-      IF ( rhob(ip) < eps_rho ) THEN
-         pot(ip,5) = 0.0_dbl
-         pot(ip,6) = 0.0_dbl
-         pot(ip,7) = 0.0_dbl
-         pot(ip,8) = 0.0_dbl
-      ELSE
-         pot(ip,5) = f / ( r13b(ip) * rhob(ip) ) &
+      IF ( rhob(ip) > eps_rho ) THEN
+         pot(ip,5) = pot(ip,5) + f / ( r13b(ip) * rhob(ip) ) &
                      - 6._dbl * fvw * sb(ip)/(rhob(ip)*rhob(ip)*rhob(ip))
-         pot(ip,6) = 4._dbl * fvw * grhob(ip)/(rhob(ip)*rhob(ip)*rhob(ip))
-         pot(ip,7) = - 2._dbl * fvw / (rhob(ip)*rhob(ip))
-         pot(ip,8) = 0.0_dbl
+         pot(ip,6) = pot(ip,6) + 4._dbl * fvw * grhob(ip)/(rhob(ip)*rhob(ip)*rhob(ip))
+         pot(ip,7) = pot(ip,7) - 2._dbl * fvw / (rhob(ip)*rhob(ip))
+         pot(ip,8) = pot(ip,8) + 0.0_dbl
       END IF
 
     END DO
@@ -540,6 +492,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE tfw_functional
+END MODULE xc_tfw
 
 ! *****************************************************************************

@@ -15,6 +15,7 @@
 !!   MODIFICATION HISTORY
 !!     - qs_control_type extended (18.01.2002,MK)
 !!     - added pao (18.04.02,fawzi)
+!!     - new xc code (31.05.02,jgh)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -33,6 +34,8 @@ MODULE dft_types
                           test_object
   USE termination,  ONLY: stop_memory,&
                           stop_program
+  USE pw_grid_types, ONLY : pw_grid_type
+  USE xc_functionals, ONLY : xc_get_functional, xc_print_info
 
   IMPLICIT NONE
 
@@ -63,27 +66,36 @@ MODULE dft_types
 ! *** Control parameters for a WAVE calculation ***
 
   TYPE wave_control_type
-    REAL(wp) :: e_cutoff_dual,e_cutoff_wf
+     REAL(wp) :: e_cutoff_wf
+     REAL(wp) :: e_cutoff_dual
   END TYPE wave_control_type
 
 ! *** Control parameters for a DFT calculation ***
 
+  TYPE xc_grid_type
+     LOGICAL                   :: pw_default
+     TYPE ( pw_grid_type )     :: pw_grid
+     INTEGER                   :: pw_mesh ( 3 )
+     REAL ( wp )               :: pw_cutoff
+  END TYPE xc_grid_type
+
   TYPE dft_control_type
-     TYPE(band_structure_type) :: band
      TYPE(qs_control_type)     :: qs_control
      TYPE(wave_control_type)   :: wave_control
-     CHARACTER(LEN=40)         :: correlation_functional,&
-                                  exchange_functional,&
-                                  functional
-     REAL(wp)                  :: density_cut,gradient_cut
+     TYPE(band_structure_type) :: band
      INTEGER                   :: nspins
-     LOGICAL                   :: gradient_functional,smooth_gradient
-     INTEGER, DIMENSION(3)     :: xc_mesh
+     CHARACTER(LEN=40),DIMENSION(3) :: functional
+     REAL(wp)                  :: density_cut
+     REAL(wp)                  :: gradient_cut
+     LOGICAL                   :: gradient_functional
+     LOGICAL, DIMENSION ( 2, 3 ) :: ftags
+     LOGICAL                   :: smooth_gradient
+     TYPE(xc_grid_type)        :: integration_grid
   END TYPE dft_control_type
 
 ! *** Public data types ***
 
-  PUBLIC :: dft_control_type,&
+  PUBLIC :: dft_control_type, xc_grid_type,&
             qs_control_type,&
             wave_control_type
 
@@ -109,6 +121,20 @@ CONTAINS
 !   History: - Creation (21.01.2002,MK)
 
 !   ***************************************************************************
+!!>----------------------------------------------------------------------------
+!!  SECTION: &dft ... &end                                                    !
+!!                                                                            !
+!!  functional       [ ... ]                                                  !
+!!  x-functional     [ ... ]                                                  !
+!!  c-functional     [ ... ]                                                  !
+!!  ke-functional    [ ... ]                                                  !
+!!  density_cutoff   den_cut                                                  !
+!!  gradient_cutoff  grad_cut                                                 !
+!!  spin             nspins                                                   !
+!!  lsd                                                                       !
+!!  grid             plane_wave     [cutoff ecut, mesh nx ny nz]              !
+!!                                                                            !
+!!<----------------------------------------------------------------------------
 
     TYPE(dft_control_type), POINTER           :: dft_control
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -120,9 +146,10 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=60) :: keyword,string
+    CHARACTER(LEN=60) :: keyword, string, str1, str2, str3
     INTEGER           :: istat
     LOGICAL           :: section_found
+    REAL ( wp )       :: ecut, mesh(3)
 
 !   ---------------------------------------------------------------------------
 
@@ -133,15 +160,18 @@ CONTAINS
 
 !   *** Load the default values ***
 
-    dft_control%correlation_functional = "None"
-    dft_control%exchange_functional = "None"
-    dft_control%functional = "Pade"
-    dft_control%density_cut = 1.0E-10_wp
-    dft_control%gradient_cut = 1.0E-8_wp
-    dft_control%nspins = 1
-    dft_control%gradient_functional = .FALSE.
-    dft_control%smooth_gradient = .FALSE.
-    dft_control%xc_mesh(1:3) = -1
+    dft_control % functional ( 1 ) = "NONE"
+    dft_control % functional ( 2 ) = "PADE"
+    dft_control % functional ( 3 ) = "NONE"
+    dft_control % density_cut = 1.0E-10_wp
+    dft_control % gradient_cut = 1.0E-8_wp
+    dft_control % nspins = 1
+    dft_control % ftags = .FALSE.
+    dft_control % gradient_functional = .FALSE.
+    dft_control % smooth_gradient= .FALSE.
+    dft_control % integration_grid % pw_default = .TRUE.
+    dft_control % integration_grid % pw_cutoff  = -1._wp
+    dft_control % integration_grid % pw_mesh    = -1_wp
 
 !   *** Read the input section ***
 
@@ -151,137 +181,46 @@ CONTAINS
                       section_found=section_found)
 
     DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
+
       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
+
       SELECT CASE (TRIM(keyword))
-      CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
-        CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (string)
-        CASE ("LEE-YANG-PARR","LYP")
-          dft_control%correlation_functional = "LYP"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("NONE")
-          dft_control%correlation_functional = "None"
-          dft_control%functional = ""
-        CASE ("PBE")
-          dft_control%correlation_functional = "PBE"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("PERDEW86","P86")
-          dft_control%correlation_functional = "Perdew86"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("VWN")
-          dft_control%correlation_functional = "VWN"
-          dft_control%functional = ""
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                           "Invalid functional name <"//TRIM(string)//&
-                           "> specified for the correlation functional")
-        END SELECT
-      CASE ("DENSITY_CUTOFF")
-        CALL read_object(dft_control%density_cut)
       CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&
             "XCFUN","FUNCTIONAL","FUN")
         CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (string)
-        CASE ("BLYP")
-          dft_control%exchange_functional = "Becke88"
-          dft_control%correlation_functional = "LYP"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("BP")
-          dft_control%exchange_functional = "Becke88"
-          dft_control%correlation_functional = "Perdew86"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("HCTH/93","HCTH-93","HCTH93")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "HCTH/93"
-          dft_control%gradient_functional = .TRUE.
-        CASE ("HCTH/120","HCTH-120","HCTH120")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "HCTH/120"
-          dft_control%gradient_functional = .TRUE.
-        CASE ("HCTH/147","HCTH-147","HCTH147")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "HCTH/147"
-          dft_control%gradient_functional = .TRUE.
-        CASE ("HCTH/407","HCTH-407","HCTH407")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "HCTH/407"
-          dft_control%gradient_functional = .TRUE.
-        CASE ("NONE")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "None"
-        CASE ("PADE")
-          dft_control%exchange_functional = "None"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = "Pade"
-        CASE ("PBE")
-          dft_control%exchange_functional = "PBE"
-          dft_control%correlation_functional = "PBE"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("PERDEW86","P86")
-          dft_control%exchange_functional = "Perdew86"
-          dft_control%correlation_functional = "Perdew86"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("SLATER","XALPHA")
-          dft_control%exchange_functional = "Slater"
-          dft_control%correlation_functional = "None"
-          dft_control%functional = ""
-        CASE ("VWN")
-          dft_control%exchange_functional = "VWN"
-          dft_control%correlation_functional = "VWN"
-          dft_control%functional = ""
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                           "Invalid functional name <"//TRIM(string)//&
-                           "> specified for the exchange-correlation "//&
-                           " functional")
-        END SELECT
+        CALL xc_get_functional ( 0, string, dft_control % functional, &
+                                    dft_control % ftags )
       CASE ("EXCHANGE-FUNCTIONAL","X-FUNCTIONAL","X-FUN","XFUN")
         CALL read_object(string,lower_to_upper=.TRUE.)
-        SELECT CASE (string)
-        CASE ("BECKE88","B88")
-          dft_control%exchange_functional = "Becke88"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("NONE")
-          dft_control%exchange_functional = "None"
-          dft_control%functional = ""
-        CASE ("PBE")
-          dft_control%exchange_functional = "PBE"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("PERDEW86","P86")
-          dft_control%exchange_functional = "Perdew86"
-          dft_control%functional = ""
-          dft_control%gradient_functional = .TRUE.
-        CASE ("SLATER","XALPHA")
-          dft_control%exchange_functional = "Slater"
-          dft_control%functional = ""
-        CASE ("VWN")
-          dft_control%exchange_functional = "VWN"
-          dft_control%functional = ""
-        CASE DEFAULT
-          CALL stop_parser(routine,&
-                           "Invalid functional name <"//TRIM(string)//&
-                           "> specified for the exchange functional")
-        END SELECT
+        CALL xc_get_functional ( 1, string, dft_control % functional, &
+                                    dft_control % ftags )
+      CASE ("CORRELATION-FUNCTIONAL","C-FUNCTIONAL","C-FUN","CFUN")
+        CALL read_object(string,lower_to_upper=.TRUE.)
+        CALL xc_get_functional ( 2, string, dft_control % functional, &
+                                    dft_control % ftags )
+      CASE ("KINETIC-ENERGY-FUNCTIONAL","KE-FUNCTIONAL","KE-FUN","KEFUN")
+        CALL read_object(string,lower_to_upper=.TRUE.)
+        CALL xc_get_functional ( 3, string, dft_control % functional, &
+                                    dft_control % ftags )
+      CASE ("DENSITY_CUTOFF")
+        CALL read_object(dft_control%density_cut)
       CASE ("GRADIENT_CUTOFF")
         CALL read_object(dft_control%gradient_cut)
-      CASE ("XC_MESH","MESH")
-        CALL read_object(dft_control%xc_mesh(1))
-        CALL read_object(dft_control%xc_mesh(2))
-        CALL read_object(dft_control%xc_mesh(3))
+      CASE ("GRID")
+        CALL read_object(str1,lower_to_upper=.TRUE.)
+        SELECT CASE (TRIM(str1))
+        CASE ( "PLANE_WAVE", "PW" )
+          dft_control % integration_grid % pw_default = .FALSE.
+          CALL read_object(str2,lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(str2))
+          CASE ( "MESH" )
+            CALL read_object(dft_control % integration_grid % pw_mesh(1))
+            CALL read_object(dft_control % integration_grid % pw_mesh(2))
+            CALL read_object(dft_control % integration_grid % pw_mesh(3))
+          CASE ( "CUTOFF" )
+            CALL read_object(dft_control % integration_grid % pw_cutoff)
+          END SELECT
+        END SELECT
       CASE ("NSPINS","SPINS","SPIN")
         CALL read_object(dft_control%nspins)
       CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
@@ -291,10 +230,8 @@ CONTAINS
 
     CALL finish_parser()
 
-    IF (LEN_TRIM(dft_control%functional) == 0) THEN
-      dft_control%functional = TRIM(dft_control%exchange_functional)//"-"//&
-                               TRIM(dft_control%correlation_functional)
-    END IF
+    ! set derived information
+    dft_control % gradient_functional = ANY ( dft_control % ftags ( 1, : ) )
 
   END SUBROUTINE read_dft_control
 
@@ -456,6 +393,13 @@ CONTAINS
 !   History: - Creation (21.01.2002,MK)
 
 !   ***************************************************************************
+!!>----------------------------------------------------------------------------
+!!  SECTION: &wave ... &end                                                   !
+!!                                                                            !
+!!  ecut             e_cutoff_wf                                              !
+!!  dual             e_cutoff_dual                                            !
+!!                                                                            !
+!!<----------------------------------------------------------------------------
 
     TYPE(wave_control_type), INTENT(OUT)      :: wave_control
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -520,22 +464,38 @@ CONTAINS
     IF (.NOT.globenv%ionode) RETURN
 
     IF (globenv%print%dft_control_parameters) THEN
+
       output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A)")&
-        "DFT| Exchange-correlation functional",&
-        ADJUSTR(dft_control%functional)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,I10)")&
-        "DFT| Sets of spin states:",dft_control%nspins
-      WRITE (UNIT=output_unit,FMT="(T2,A,T67,E13.5)")&
+
+      CALL xc_print_info ( output_unit, dft_control % functional )
+
+      IF ( dft_control % nspins == 1 ) then
+         !do nothing
+      ELSE IF ( dft_control % nspins == 2 ) then
+         WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
+      ELSE
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
+            dft_control % nspins
+      END IF
+
+      WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
         "DFT| Cutoffs: density ",dft_control%density_cut,&
         "DFT|          gradient",dft_control%gradient_cut
-      IF (dft_control%xc_mesh(1) == -1 ) THEN
-        WRITE (UNIT=output_unit,FMT="(T2,A,T73,A)")&
-          "DFT| XC mesh (PW density)","default"
+
+      IF ( dft_control % smooth_gradient )  WRITE ( output_unit, '( A, T79, A )' ) &
+           " DFT| Density gradient smoothing ","ON"
+
+      IF ( dft_control % integration_grid % pw_default ) THEN
+         WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T2,A,T50,3I10)")&
-          "DFT| XC mesh (PW density)",dft_control%xc_mesh(1:3)
+        IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
+              WRITE ( output_unit, '( A, T51, 3I10 )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
+        IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
+              WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
       END IF
+
     END IF
 
   END SUBROUTINE write_dft_control
@@ -564,17 +524,17 @@ CONTAINS
     IF (globenv%print%dft_control_parameters) THEN
       ngrid_level = SIZE(qs_control%e_cutoff)
       output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T70,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
         "QS| Method:",ADJUSTR(qs_control%method)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,I10)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
         "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
       IF (ngrid_level == 1) THEN
-        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.1)")&
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
           "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.1)")&
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
           "QS| Density cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
-        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T70,F10.1)")&
+        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
           ("QS|                      ",igrid_level,") grid level",&
            qs_control%e_cutoff(igrid_level),&
            igrid_level=2,SIZE(qs_control%e_cutoff))
@@ -582,11 +542,11 @@ CONTAINS
       IF (qs_control%pao) THEN
          WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
       END IF
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.1)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
         "QS| Grid level progression factor:",qs_control%progression_factor
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.1)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
         "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
-      WRITE (UNIT=output_unit,FMT="(T2,A,T72,ES8.1)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
         "QS| Interaction thresholds: eps_pgf_orb:",&
         qs_control%eps_pgf_orb,&
         "QS|                         eps_core_charge:",&

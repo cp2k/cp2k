@@ -27,8 +27,8 @@ MODULE control_module
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
-  USE dft_input, ONLY : read_dft_section, read_wave_section
-  USE dft_types, ONLY : dft_control_type
+  USE dft_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
+                        write_dft_control, write_wave_control
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters
   USE energy_input, ONLY : read_energy_section, energy_min_type, min_info_type
@@ -159,7 +159,7 @@ SUBROUTINE control ( globenv )
   TYPE ( kpoint_type ) :: kp
   TYPE ( fermi_distribution_type ) :: fd
   TYPE ( band_structure_type ) :: bs
-  TYPE ( dft_control_type ) :: dft_control
+  TYPE ( dft_control_type ), POINTER :: dft_control
   TYPE ( mdio_parameters_type ) :: mdio
   TYPE ( fit_parameter_type ) :: fit_param
   TYPE ( energy_min_type ) :: energy_min
@@ -300,9 +300,11 @@ SUBROUTINE control ( globenv )
      
      IF ( wave ) THEN
         
-        CALL read_dft_section ( dft_control, globenv )
+        CALL read_dft_control ( dft_control, globenv )
+        CALL write_dft_control ( dft_control, globenv )
         
-        CALL read_wave_section ( dft_control % wave_control, globenv )
+        CALL read_wave_control ( dft_control % wave_control, globenv )
+        CALL write_wave_control ( dft_control % wave_control, globenv )
         
      ELSE
         CALL stop_program ( "control", "DFT method not implemented" )

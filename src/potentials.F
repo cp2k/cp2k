@@ -28,7 +28,7 @@ MODULE potentials
   USE hartree, ONLY : calculate_hartree
   USE kinds, ONLY : dbl
   USE potential_types, ONLY : potential_type
-  USE xc, ONLY : calculate_xc
+!JH  USE xc, ONLY : calculate_xc
   
   PRIVATE
   PUBLIC :: potential_update, zero
@@ -97,7 +97,7 @@ SUBROUTINE potential_update ( n, vloc, dft_control, tprint )
      END IF
      
 ! Calculate the exchange-correlation energy and potential
-     CALL calculate_xc ( n ( densityset ), e_xc, xc_pot = v_xc )
+!JH     CALL calculate_xc ( n ( densityset ), e_xc, xc_pot = v_xc )
      
 ! Calculate the contribution due to the external potential
 !*apsi*TMPTMPTMP     CALL potential_external_evaluate ( n ( densityset ), e_ext, v_ext )
