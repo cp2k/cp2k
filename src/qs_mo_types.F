@@ -790,11 +790,6 @@ CONTAINS
                             mo_array(ispin)%mo_set%homo,&
                             mo_array(ispin)%mo_set%lfomo,&
                             mo_array(ispin)%mo_set%nelectron
-        IF (mo_array(ispin)%mo_set%homo > nmo) THEN
-          CALL stop_program(routine,"The number of the occupied MOs on the "//&
-                                    "restart unit is greater than the "//&
-                                    "number of the allocated MOs.")
-        END IF
         IF (nmo_read < nmo) THEN
           nmo = nmo_read
           CALL print_warning(routine,"The number of MOs on the restart "//&
@@ -809,6 +804,12 @@ CONTAINS
         END IF
         READ (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                             mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
+        IF (mo_array(ispin)%mo_set%homo > nmo) THEN
+          CALL print_warning(routine,"The number of the occupied MOs on the "//&
+                                     "restart unit is greater than the "//&
+                                     "number of the allocated MOs.")
+          CALL set_mo_occupation(mo_array(ispin)%mo_set,0.0_wp)
+        END IF
       END IF
 
       CALL mp_bcast(nmo,source,group)
