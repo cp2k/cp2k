@@ -42,8 +42,7 @@ MODULE kg_rho_methods
                                              init_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fn,                       ONLY: pw_green_fn_destroy,&
-                                             pw_green_fn_init
+  USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_rho_types,                    ONLY: allocate_kg_densities,&
@@ -332,14 +331,12 @@ END SUBROUTINE kg_rho_create
 !   poisson solver initialized only for the reference cutoff grid 
 !   Total density and potentials are allocated on the reference grid
 
-      CALL pw_green_fn_destroy(cell%green)
-      CALL pw_green_fn_init(cell%green,pw_grid(auxbas))
-
-!   pw pools initialized
-
       pw_grid_loc=>pw_grid(auxbas)
+      !   pw pools initialized
       NULLIFY (pw_pool)
       CALL pw_pool_create(pw_pool, pw_grid=pw_grid_loc)     
+      CALL pw_green_fn_rebuild(cell%green,pw_pool)
+
       kg_rho%pw_pool => pw_pool
     END IF 
     CALL timestop(0.0_dp,handle)

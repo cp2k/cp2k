@@ -52,7 +52,6 @@ MODULE pws
   USE mathconstants,                   ONLY: fourpi
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             PW_MODE_LOCAL,&
                                              PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
@@ -91,13 +90,6 @@ CONTAINS
 !!
 !!   NAME
 !!     init_pw_poisson_solver
-!!
-!!   SYNOPSIS
-!!     Subroutine init_pw_poisson_solver(gftype, error)
-!!       Implicit None
-!!       Type(greens_function_type), Intent (IN), Target:: gftype
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine init_pw_poisson_solver
 !!
 !!   FUNCTION
 !!     Initialize the module variable gf, used in the poisson solver
@@ -145,13 +137,6 @@ END SUBROUTINE init_pw_poisson_solver
 !!   NAME
 !!     cleanup_pw_poisson_solver
 !!
-!!   SYNOPSIS
-!!     Subroutine cleanup_pw_poisson_solver(gftype, error)
-!!       Implicit None
-!!       Type(greens_function_type), Intent (IN), Target, Optional:: gftype
-!!       Type(cp_error_type), Intent (INOUT), Optional:: error
-!!     End Subroutine cleanup_pw_poisson_solver
-!!
 !!   FUNCTION
 !!     Frees again the module variable gf, used in the poisson solver.
 !!     call this as soon as you don't need the poisson solver anymore
@@ -195,17 +180,6 @@ END SUBROUTINE cleanup_pw_poisson_solver
 !!
 !!   NAME
 !!     pw_poisson_solver
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_poisson_solver(density, ehartree, vhartree, dvhartree,&
-!!         h_stress)
-!!       Implicit None
-!!       Type(coeff_type), Intent (IN):: density
-!!       Real(Kind=dbl), Intent (OUT), Optional:: ehartree
-!!       Type(coeff_type), Intent (OUT), Target, Optional:: vhartree
-!!       Type(coeff_type), Dimension(3), Intent (OUT), Optional:: dvhartree
-!!       Real(Kind=dbl), Dimension(3,3), Intent (OUT), Optional:: h_stress
-!!     End Subroutine pw_poisson_solver
 !!
 !!   FUNCTION
 !!     Solve Poisson equation in a plane wave basis set
@@ -516,17 +490,6 @@ END FUNCTION pw_integral_a2b
 !!   NAME
 !!     pw_kinetic_evaluate
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_kinetic_evaluate(psi, xkpt, e_kinetic,&
-!!         kinetic_oper_psi, stress_kinetic)
-!!       Implicit None
-!!       Type(coeff_type), Intent (IN):: psi
-!!       Real(Kind=dbl), Intent (IN):: xkpt(3)
-!!       Real(Kind=dbl), Intent (OUT), Optional:: e_kinetic
-!!       Type(coeff_type), Intent (INOUT), Optional:: kinetic_oper_psi
-!!       Real(Kind=dbl), Intent (INOUT), Optional:: stress_kinetic(3,3)
-!!     End Subroutine pw_kinetic_evaluate
-!!
 !!   FUNCTION
 !!     Calculate kinetic energy, potential, derivative of potential and
 !!     stress tensor
@@ -588,16 +551,6 @@ END SUBROUTINE pw_kinetic_evaluate
 !!
 !!   NAME
 !!     pw_h_psi
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_h_psi(psi_iks, xkpt, vloc, h_psi, psi_iks_r)
-!!       Implicit None
-!!       Type(coeff_type), Intent (IN):: psi_iks
-!!       Type(coeff_type), Intent (IN), Optional:: psi_iks_r
-!!       Type(coeff_type), Intent (IN):: vloc
-!!       Real(Kind=dbl), Intent (IN):: xkpt(3)
-!!       Type(coeff_type), Intent (INOUT):: h_psi
-!!     End Subroutine pw_h_psi
 !!
 !!   FUNCTION
 !!     Apply local potential to a wavefunction in plane wave basis

@@ -55,21 +55,20 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fn,                       ONLY: pw_green_fn_destroy,&
-                                             pw_green_fn_init
+  USE greens_fn,                       ONLY: pw_green_fn_destroy
+  USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info
-  USE orbital_pointers,                 ONLY: init_orbital_pointers
-  USE pw_env_types,                    ONLY: pw_env_type,&
-                                             pw_env_get
+  USE orbital_pointers,                ONLY: init_orbital_pointers
+  USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_construct,&
+  USE pw_grids,                        ONLY: pw_grid_change,&
+                                             pw_grid_construct,&
                                              pw_grid_release,&
-                                             pw_grid_setup,&
-                                             pw_grid_change
+                                             pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_create,&
                                              pw_pool_p_type,&
                                              pw_pools_dealloc
@@ -98,13 +97,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_env_create(pw_env, qs_env, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(qs_environment_type), Intent (IN), Target, Optional:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_create
 !!
 !!   FUNCTION
 !!     creates a pw_env, if qs_env is given calls pw_env_rebuild
@@ -158,13 +150,6 @@ END SUBROUTINE pw_env_create
 !!   NAME
 !!     pw_env_rebuild
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_env_rebuild(pw_env, qs_env, error)
-!!       Type(pw_env_type), Pointer:: pw_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine pw_env_rebuild
-!!
 !!   FUNCTION
 !!     rebuilds the pw_env data (necessary if cell or cutoffs change)
 !!
@@ -197,10 +182,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
     INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
       ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, maxlgto, &
-      ngrid_level, nkind, nseta, nsetb, nsmax, stat
+      ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
-    LOGICAL                                  :: failure, pw_grid_information,&
+    LOGICAL                                  :: failure, pw_grid_information, &
                                                 use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 maxradius, rel_cutoff, zetp
@@ -210,8 +195,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cell_type), POINTER                 :: cell_ref
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
@@ -221,7 +205,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    INTEGER                                  :: ncommensurate
 
 ! should be be avoided (see later)
 
@@ -403,7 +386,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                  ELSE
                     lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
                  ENDIF
-                 IF (lgrid_level .eq. igrid_level) THEN
+                 IF (lgrid_level .EQ. igrid_level) THEN
                     maxradius=MAX(maxradius,exp_radius( la, zetp, &
                                   dft_control%qs_control%eps_rho_rspace, 1.0_dp))
                  ENDIF
@@ -413,7 +396,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                     zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
                     lb = lshellb(jshell,jset)+la
                     lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
-                    IF (lgrid_level .eq. igrid_level) THEN
+                    IF (lgrid_level .EQ. igrid_level) THEN
                        ! density
                        maxradius=MAX(maxradius,exp_radius( lb, zetp, &
                                      dft_control%qs_control%eps_rho_rspace, 1.0_dp))
@@ -449,13 +432,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         IF (cutoff(i) == dft_control%qs_control%cutoff) pw_env%auxbas_grid=i
      END DO
 
-     ! init green's function
-     CALL pw_green_fn_destroy(cell%green)
-     CALL pw_green_fn_init(cell%green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
-     CALL pw_green_fn_destroy(cell_ref%green)
-     CALL pw_green_fn_init(cell_ref%green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+     ! complete init of green's function
+     CALL pw_green_fn_rebuild(cell%green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
+     CALL pw_green_fn_rebuild(cell_ref%green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
   END IF
 
 ! If reference cell is present, then use pw_grid_change to keep bounds constant...MJM is looking at a way to phase this out, because it doesn't seem like everything gets initialized properly
@@ -465,8 +446,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
       CALL pw_green_fn_destroy(cell%green)
-      CALL pw_green_fn_init(cell%green,&
-          pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+      CALL pw_green_fn_rebuild(cell%green,&
+          pw_env%pw_pools(pw_env%auxbas_grid)%pool)
   ENDIF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_env_rebuild

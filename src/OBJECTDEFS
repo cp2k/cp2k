@@ -131,6 +131,7 @@ OBJECTS_GENERIC =\
  global_types.o\
  gopt_f_types.o\
  greens_fn.o\
+ greens_fns.o\
  hartree.o\
  hartree_local_methods.o\
  hartree_local_types.o\
@@ -191,6 +192,7 @@ OBJECTS_GENERIC =\
  molecular_states.o\
  molecule_kind_types.o\
  molecule_types_new.o\
+ mt_util.o\
  mulliken.o\
  nhc.o\
  nrutil.o\

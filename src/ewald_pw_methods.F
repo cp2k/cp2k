@@ -22,47 +22,39 @@
 MODULE ewald_pw_methods
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
-                                             cp_debug,&
-                                             cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
-                                             cp_error_init,&
                                              cp_error_message,&
-                                             cp_error_type,&
-                                             cp_internal_error
+                                             cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
-                                             cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE dgs,                             ONLY: dg_grid_change
-  USE dg_rho0_types,                   ONLY: dg_rho0_init, &
-                                             dg_rho0_get, &
-                                             dg_rho0_set, &
+  USE dg_rho0_types,                   ONLY: dg_rho0_get,&
+                                             dg_rho0_init,&
+                                             dg_rho0_set,&
                                              dg_rho0_type
-  USE dg_types,                        ONLY: dg_type, dg_get, dg_set
+  USE dg_types,                        ONLY: dg_get,&
+                                             dg_set,&
+                                             dg_type
+  USE dgs,                             ONLY: dg_grid_change
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
-                                             ewald_pw_set, &
-                                             ewald_pw_get
-  USE greens_fn,                       ONLY: pw_green_fn_init,&
-                                             pw_green_fn_destroy
-  USE kinds,                           ONLY: dp,dp_size,&
-                                             default_string_length
-  USE mathconstants,                   ONLY: pi,&
-                                             zero
-  USE pw_grids,                        ONLY: pw_grid_change
+  USE ewald_pw_types,                  ONLY: ewald_pw_get,&
+                                             ewald_pw_set,&
+                                             ewald_pw_type
+  USE greens_fns,                      ONLY: pw_green_fn_rebuild
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_grids,                        ONLY: pw_grid_change
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE simulation_cell,                 ONLY: cell_type
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -95,19 +87,17 @@ CONTAINS
 
 SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( ewald_pw_type ), POINTER :: ewald_pw
-! locals
-  TYPE ( dg_type ), POINTER :: dg
-  TYPE ( pw_pool_type ), POINTER :: pw_big_pool, pw_small_pool
-  TYPE ( pw_grid_type ), POINTER :: pw_big_grid, pw_small_grid
-  TYPE ( cell_type ), POINTER :: cell
-  CHARACTER ( len = default_string_length ) :: ewald_type
-  REAL ( dp ) :: alpha
-  INTEGER :: o_spline
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+
+    CHARACTER(len=default_string_length)     :: ewald_type
+    INTEGER                                  :: o_spline
+    REAL(dp)                                 :: alpha
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dg_type), POINTER                   :: dg
+    TYPE(pw_grid_type), POINTER              :: pw_big_grid, pw_small_grid
+    TYPE(pw_pool_type), POINTER              :: pw_big_pool, pw_small_pool
 
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )
@@ -129,8 +119,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
      CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
                          pw_small_pool = pw_small_pool, dg = dg )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_destroy ( cell % green )
-     CALL pw_green_fn_init ( cell % green, pw_big_pool % pw_grid )
+     CALL pw_green_fn_rebuild ( cell % green, pw_big_pool )
      CALL dg_grid_change ( cell, pw_big_pool % pw_grid, pw_small_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_small_pool % pw_grid, dg )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool,  &
@@ -138,8 +127,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env )
   CASE ( 'SPME' )
      CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
-     CALL pw_green_fn_destroy ( cell % green )
-     CALL pw_green_fn_init ( cell % green, pw_big_pool % pw_grid, p3m=o_spline, &
+     CALL pw_green_fn_rebuild ( cell % green, pw_big_pool, p3m=o_spline, &
                              alpha = alpha )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool )
   END SELECT
@@ -165,20 +153,16 @@ END SUBROUTINE ewald_pw_grid_change
 
 SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg )
 
-  IMPLICIT NONE
 
-! Arguments
-  TYPE ( ewald_environment_type ), POINTER :: ewald_env
-  TYPE ( pw_grid_type ), POINTER :: pw_grid
-  TYPE ( dg_type ), POINTER :: dg
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(dg_type), POINTER                   :: dg
 
-! Locals
-  INTEGER :: isos
-  CHARACTER ( len = default_string_length ) :: ewald_type
-  REAL ( dp ), POINTER :: gcc ( : ), zet ( : )
-  REAL ( dp ) :: alpha
-  TYPE ( dg_rho0_type ), POINTER :: dg_rho0
-  INTEGER :: grid_index
+    CHARACTER(len=default_string_length)     :: ewald_type
+    INTEGER                                  :: grid_index, isos
+    REAL(dp)                                 :: alpha
+    REAL(dp), POINTER                        :: gcc( : ), zet( : )
+    TYPE(dg_rho0_type), POINTER              :: dg_rho0
 
 !------------------------------------------------------------------------------
 
@@ -198,7 +182,7 @@ SUBROUTINE ewald_pw_rho0_setup ( ewald_env, pw_grid, dg )
   NULLIFY ( gcc )
 
   zet ( 1 ) =  alpha
-  CALL dg_rho0_set (  dg_rho0, type = ewald_type, zet = zet ) 
+  CALL dg_rho0_set (  dg_rho0, TYPE = ewald_type, zet = zet ) 
 
   CALL dg_rho0_init ( dg_rho0, pw_grid )
   

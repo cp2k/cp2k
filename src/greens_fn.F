@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000,2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/greens_fn [1.0] *
 !!
 !!   NAME
@@ -26,14 +27,25 @@ MODULE greens_fn
                                              bessj1,&
                                              bessk0,&
                                              bessk1
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi,&
                                              twopi
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_types,                        ONLY: REALDATA1D,&
                                              RECIPROCALSPACE,&
-                                             pw_allocate,&
                                              pw_deallocate,&
+                                             pw_release,&
                                              pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -41,15 +53,15 @@ MODULE greens_fn
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: pw_green_fn, pw_green_fn_init, pw_green_fn_destroy,greens_function_type
-  PUBLIC :: PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, &
-            MT2D, MT1D, MT0D, HOCKNEY2D, HOCKNEY1D, HOCKNEY0D
+  PUBLIC :: pw_green_fn, pw_green_fn_destroy,greens_function_type,&
+       pw_green_fn_init1
   
   TYPE greens_function_type
     INTEGER :: method
     INTEGER :: special_dimension
     INTEGER :: id_nr
     REAL ( dbl ) :: radius
+    REAL ( dbl ) :: MT_alpha
     REAL ( dbl ) :: slab_size
     REAL ( dbl ) :: alpha
     REAL ( dbl ) :: volume
@@ -59,15 +71,16 @@ MODULE greens_fn
     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p3m_coeff
     REAL ( dbl ), DIMENSION ( :, : ), POINTER :: p3m_bm2
     TYPE ( pw_type ), POINTER :: influence_function
+    TYPE ( pw_type ), POINTER :: screen_function
     TYPE ( pw_type ), POINTER :: p3m_charge
   END TYPE greens_function_type
 
-  INTEGER, PARAMETER :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
+  INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
                         ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
-                        MT2D = 1101, MT1D = 1102, MT0D = 1103, &
+                        MT2D = 1101, MT1D = 1102, MT0D = 1103,&
                         HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
-
+  CHARACTER(len=*),PARAMETER,PRIVATE :: moduleN='greens_fn'
 !!*****
 !******************************************************************************
 
@@ -78,12 +91,6 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_green_fn_destroy
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_green_fn_init(gftype )
-!!       Implicit None
-!!       Type(greens_function_type), Intent (INOUT):: gftype
-!!     End Subroutine pw_green_fn_init
 !!
 !!   FUNCTION
 !!     destroys the type (deallocates data)
@@ -102,115 +109,81 @@ SUBROUTINE pw_green_fn_destroy ( gftype )
     TYPE(greens_function_type), &
       INTENT(INOUT)                          :: gftype
 
-  IF (ASSOCIATED(gftype%influence_function)) THEN
-     CALL pw_deallocate(gftype%influence_function)
-     DEALLOCATE(gftype%influence_function)
-  ENDIF
+    IF (ASSOCIATED(gftype%influence_function)) THEN
+       CALL pw_deallocate(gftype%influence_function)
+       DEALLOCATE(gftype%influence_function)
+    ENDIF
+    
+    CALL pw_release(gftype%screen_function)
 
-  IF (gftype % p3m) THEN
-        IF (ASSOCIATED(gftype % p3m_charge)) &
+    IF (gftype % p3m) THEN
+       IF (ASSOCIATED(gftype % p3m_charge)) &
             CALL pw_deallocate(gftype % p3m_charge)
-        IF (ASSOCIATED(gftype % p3m_charge)) &
+       IF (ASSOCIATED(gftype % p3m_charge)) &
             DEALLOCATE ( gftype % p3m_charge )
-        IF (ASSOCIATED(gftype % p3m_bm2)) &
+       IF (ASSOCIATED(gftype % p3m_bm2)) &
             DEALLOCATE ( gftype % p3m_bm2 )
-        IF (ASSOCIATED(gftype % p3m_coeff)) &
+       IF (ASSOCIATED(gftype % p3m_coeff)) &
             DEALLOCATE ( gftype % p3m_coeff )
-  ENDIF
+    ENDIF
 
 END SUBROUTINE pw_green_fn_destroy 
 
 
 !******************************************************************************
-!!****** greens_fn/pw_green_fn_init [1.0] *
+
+!!****f* green_fn/pw_green_fn_init [1.0] *
 !!
 !!   NAME
 !!     pw_green_fn_init
 !!
-!!   SYNOPSIS
-!!     Subroutine pw_green_fn_init(gftype, grid, p3m, alpha)
-!!       Implicit None
-!!       Type(greens_function_type), Intent (INOUT):: gftype
-!!       Type(pw_grid_type), Intent (IN):: grid
-!!       Integer, Optional, Intent (IN):: p3m
-!!       Real(Kind=dbl), Optional, Intent (IN):: alpha
-!!     End Subroutine pw_green_fn_init
-!!
 !!   FUNCTION
-!!     Initialisation
+!!     initializes the green function
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - green_fn: the object to initialize
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     JGH (12-Mar-2001)
+!!     fawzi
 !!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+!!*** **********************************************************************
+SUBROUTINE pw_green_fn_init1(green,error)
+    TYPE(greens_function_type), INTENT(out)  :: green
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-SUBROUTINE pw_green_fn_init ( gftype, grid, p3m, alpha )
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_fn_init', &
+      routineP = moduleN//':'//routineN
 
-
-    TYPE(greens_function_type), &
-      INTENT(INOUT)                          :: gftype
-    TYPE(pw_grid_type), INTENT(IN)           :: grid
-    INTEGER, INTENT(IN), OPTIONAL            :: p3m
-    REAL(dbl), INTENT(IN), OPTIONAL          :: alpha
-
-    INTEGER                                  :: ierr, use_data
-
-!------------------------------------------------------------------------------
-
-  SELECT CASE ( gftype % method )
-  CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
-     ALLOCATE ( gftype % influence_function, STAT = ierr )
-     IF ( ierr /= 0 ) CALL stop_memory ( "pw_green_fn_init", &
-       "gftype % influence_function", 0 )
-     use_data = REALDATA1D
-     CALL pw_allocate ( gftype % influence_function, grid, use_data )
-     gftype % influence_function % in_space = RECIPROCALSPACE
-     IF ( PRESENT ( p3m ) ) THEN
-        gftype % p3m = .TRUE.
-        gftype % p3m_order = p3m
-        IF ( PRESENT ( alpha ) ) THEN
-          gftype % p3m_alpha = alpha
-        ELSE
-          CALL stop_program ( "pw_green_fn_init", "P3M needs alpha PARAMETER")
-        END IF
-        ALLOCATE ( gftype % p3m_charge, STAT = ierr )
-        IF ( ierr /= 0 ) CALL stop_memory ( "pw_green_fn_init", &
-           "gftype % p3m_charge", 0 )
-        CALL pw_allocate ( gftype % p3m_charge, grid, REALDATA1D )
-        gftype % p3m_charge % in_space = RECIPROCALSPACE
-        CALL influence_factor ( gftype )
-     ELSE
-        gftype % p3m = .FALSE.
-        NULLIFY( gftype % p3m_charge )
-        NULLIFY( gftype % p3m_coeff )
-        NULLIFY( gftype % p3m_bm2 )
-     END IF
-  CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
-     CALL stop_program ( "pw_green_fn_init", " Method not implemented ")
-  CASE DEFAULT
-     CALL stop_program ( "pw_green_fn_init", " Method not implemented ")
-  END SELECT
+  green%p3m=.FALSE.
+  green%special_dimension = 0
+  green%radius = 0.0_dbl
+  green%slab_size = 0.0_dbl
+  green%alpha = 0.0_dbl
+  green%volume = 0.0_dbl
+  green%method=PERIODIC3D
   last_greens_fn_id_nr = last_greens_fn_id_nr+1
-  gftype % id_nr = last_greens_fn_id_nr
+  green % id_nr = last_greens_fn_id_nr
+  green%MT_alpha=1.0_dbl
+  green%p3m=.FALSE.
+  green%p3m_order=0
+  green%p3m_alpha=0.0_dbl
+  
+  NULLIFY (green%influence_function,green%p3m_charge)
+  NULLIFY (green%p3m_coeff,green%p3m_bm2)
+  NULLIFY (green%screen_function)
+END SUBROUTINE pw_green_fn_init1
+!***************************************************************************
 
-END SUBROUTINE pw_green_fn_init
-
-!!*****
-!******************************************************************************
 !!****** greens_fn/pw_green_fn [1.0] *
 !!
 !!   NAME
 !!     pw_green_fn
-!!
-!!   SYNOPSIS
-!!     Subroutine pw_green_fn(gftype)
-!!       Implicit None
-!!       Type(greens_function_type), Intent (INOUT):: gftype
-!!     End Subroutine pw_green_fn
 !!
 !!   FUNCTION
 !!     Calculates the Green's function in reciprocal space  '''
@@ -231,8 +204,9 @@ SUBROUTINE pw_green_fn ( gftype )
       INTENT(INOUT)                          :: gftype
 
     INTEGER                                  :: ig, iz, method, nz
-    REAL(dbl)                                :: g2, g3d, gg, gxy, j0g, j1g, &
-                                                k0g, k1g, rlength, zlength
+    REAL(dbl)                                :: alpha, alpha2, g2, g3d, gg, &
+                                                gxy, j0g, j1g, k0g, k1g, &
+                                                rlength, zlength
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
 
@@ -318,7 +292,18 @@ SUBROUTINE pw_green_fn ( gftype )
     CASE ( MT1D )
        CALL stop_program ( "pw_green_fn", " Method not implemented ")
     CASE ( MT0D )
-       CALL stop_program ( "pw_green_fn", " Method not implemented ")
+       alpha   = gftype % MT_alpha   ! alpha is the convergence tuning parameter
+       alpha2  = alpha * alpha
+       DO ig = grid % first_gne0, grid % ngpts_cut_local
+          g2 = grid % gsq ( ig ) 
+          g3d = fourpi / g2
+          gf%cr ( ig ) = g3d +  gftype%screen_function%cr(ig) - &
+               g3d * EXP( - g2 / (4.D0 * alpha2) )
+       END DO
+       IF ( grid % have_g0 ) &
+            gf%cr(1) = gftype%screen_function%cr(1) + fourpi / (4.D0*alpha2)
+       
+!       CALL stop_program ( "pw_green_fn", " Method not implemented ")
     CASE ( HOCKNEY2D )
        CALL stop_program ( "pw_green_fn", " Method not implemented ")
     CASE ( HOCKNEY1D )

@@ -68,7 +68,7 @@ MODULE qs_ep_methods
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fn,                       ONLY: pw_green_fn_init
+  USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE particle_types,                  ONLY: particle_type
@@ -153,13 +153,6 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_ep_calculation
-!!
-!!   SYNOPSIS
-!!     Subroutine qs_ep_calculation(qs_env, globenv, error)
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(global_environment_type), Intent (INOUT), Target:: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine qs_ep_calculation
 !!
 !!   FUNCTION
 !!     Perform an ep calculation
@@ -397,15 +390,6 @@ END SUBROUTINE qs_ep_calculation
 !!   NAME
 !!     ep_env_create
 !!
-!!   SYNOPSIS
-!!     Subroutine ep_env_create(ep_env, main_qs_env, projections, error)
-!!       Type(qs_ep_env_type), Pointer:: ep_env
-!!       Type(qs_environment_type), Intent (INOUT), Target:: main_qs_env
-!!       Type(qs_p_projection_p_type), Dimension(:), Intent (IN)::&
-!!         projections
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine ep_env_create
-!!
 !!   FUNCTION
 !!     creates the environement to perform an ep perturbation
 !!
@@ -633,8 +617,8 @@ END SUBROUTINE qs_ep_calculation
           ! init green's function
           CALL get_qs_env(sub_qs, cell=sub_cell, pw_env=pw_env,&
                rho_core=sub_rho_core, error=error)
-          CALL pw_green_fn_init(sub_cell%green,&
-               pw_env%pw_pools(pw_env%auxbas_grid)%pool%pw_grid)
+          CALL pw_green_fn_rebuild(sub_cell%green,&
+               pw_env%pw_pools(pw_env%auxbas_grid)%pool)
           ! reallocate rho_core
           IF (ASSOCIATED(sub_rho_core)) THEN
              CALL coeff_deallocate(sub_rho_core)
@@ -711,13 +695,6 @@ END SUBROUTINE qs_ep_calculation
 !!
 !!   NAME
 !!     ep_env_finish_qs_init
-!!
-!!   SYNOPSIS
-!!     Subroutine ep_env_finish_qs_init(qs_env, globenv, error)
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Type(global_environment_type), Intent (IN), Target:: globenv
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine ep_env_finish_qs_init
 !!
 !!   FUNCTION
 !!     finish the initialization of the qs environement

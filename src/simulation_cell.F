@@ -40,7 +40,8 @@ MODULE simulation_cell
                                              MT2D,&
                                              PERIODIC3D,&
                                              greens_function_type,&
-                                             pw_green_fn_destroy
+                                             pw_green_fn_destroy,&
+                                             pw_green_fn_init1
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
@@ -117,28 +118,28 @@ MODULE simulation_cell
 CONTAINS
 
   SUBROUTINE cell_clone (cell_in, cell_out, nullify_pointer, error)
-    ! Arguments
-    TYPE(cell_type), POINTER    :: cell_in
-    TYPE(cell_type), POINTER    :: cell_out
-    LOGICAL, INTENT(IN) :: nullify_pointer
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL :: error
-    ! Local Variables
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: RoutineP=module_name//&
-                                    ":cell_clone"
-    failure=.false.
+    TYPE(cell_type), POINTER                 :: cell_in, cell_out
+    LOGICAL, INTENT(IN)                      :: nullify_pointer
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: RoutineP = module_name//":cell_clone"
+
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(cell_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(cell_out),cp_failure_level,routineP,error,failure)
 
-    if (nullify_pointer) then
+    IF (nullify_pointer) THEN
        NULLIFY(cell_out%green%p3m_coeff, &
                                  cell_out%green%p3m_bm2, &
                                  cell_out%green%influence_function, &
                                  !cell_out%green%screen_function, &
                                  cell_out%green%p3m_charge)
-    else
-       CPAssert(.false.,cp_failure_level,RoutineP,error,failure)
-    endif
+    ELSE
+       CPAssert(.FALSE.,cp_failure_level,RoutineP,error,failure)
+    ENDIF
 
     cell_out%unit_of_length_name = cell_in%unit_of_length_name
     cell_out%deth =                cell_in%deth
@@ -270,9 +271,7 @@ CONTAINS
 
     TYPE(cell_type), INTENT(INOUT)           :: box
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "get_hinv"
-
-    REAL(KIND=dp)                            :: dethinv
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_hinv"
 
 !   ---------------------------------------------------------------------------
 
@@ -323,24 +322,24 @@ CONTAINS
 
   END SUBROUTINE init_cell
 
-  !!****f* simulation_cell/init_qmmm_cell
-  !!
-  !!   NAME
-  !!     init_qmmm_cell
-  !!
-  !!   FUNCTION
-  !!     Initialize the QM cell for a QM/MM calculation
-  !!
-  !!   INPUTS
-  !!     - cell : QM cell to initialize
-  !!
-  !!   AUTHOR
-  !!     Teodoro Laino
-  !!
-  !!   MODIFICATION HISTORY
-  !!     05.2004 created [tlaino]
-  !!
-  !!*************************************************************************
+!!****f* simulation_cell/init_qmmm_cell
+!!
+!!   NAME
+!!     init_qmmm_cell
+!!
+!!   FUNCTION
+!!     Initialize the QM cell for a QM/MM calculation
+!!
+!!   INPUTS
+!!     - cell : QM cell to initialize
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2004 created [tlaino]
+!!
+!!*************************************************************************
   SUBROUTINE init_qmmm_cell(cell)
     TYPE(cell_type), POINTER                 :: cell
 
@@ -370,7 +369,6 @@ CONTAINS
       routine = "SUBROUTINE init_cell_new (MODULE simulation_cell)"
 
     INTEGER                                  :: dim, i
-    REAL(KIND=dp)                            :: dethinv
     REAL(KIND=dp), DIMENSION(3)              :: abc
 
 !   ---------------------------------------------------------------------------
@@ -404,17 +402,7 @@ CONTAINS
 
     CALL get_cell(cell=cell,abc=abc)
 
-    ! shouldn't this call something like green function init ?!
-    cell%green%p3m=.FALSE.
-    cell%green%special_dimension = 0
-    cell%green%radius = 0.0_dp
-    cell%green%slab_size = 0.0_dp
-    cell%green%alpha = 0.0_dp
-    cell%green%volume = 0.0_dp
-
-    NULLIFY (cell%green%influence_function,cell%green%p3m_charge)
-    NULLIFY (cell%green%p3m_coeff,cell%green%p3m_bm2)
-
+    CALL pw_green_fn_init1(cell%green)
     dim = COUNT(cell%perd == 1)
 
     SELECT CASE (dim)
@@ -599,14 +587,15 @@ CONTAINS
 
 !   ***************************************************************************
 
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra,rb
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rb
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3)              :: rab_pbc
 
-    REAL(KIND=dp)                            :: rab2,rab2_pbc
-    INTEGER                                  :: icell,jcell,kcell
-    REAL(KIND=dp), DIMENSION(3)              :: r,ra_pbc,rab,rb_image,rb_pbc
+    INTEGER                                  :: icell, jcell, kcell
     INTEGER, DIMENSION(3)                    :: periodic
+    REAL(KIND=dp)                            :: rab2, rab2_pbc
+    REAL(KIND=dp), DIMENSION(3)              :: r, ra_pbc, rab, rb_image, &
+                                                rb_pbc
 
 !   ---------------------------------------------------------------------------
 
@@ -645,12 +634,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cell_type), POINTER, OPTIONAL       :: cell_ref
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
-    LOGICAL,INTENT(OUT),OPTIONAL             :: use_ref_cell
-!    REAL(dp), DIMENSION(1:3, 1:3), &
-!      INTENT(IN), OPTIONAL                   :: new_h_matrix
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_ref
+    LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_cell (MODULE simulation_cell)"
@@ -659,6 +646,8 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: section_found
 
+!    REAL(dp), DIMENSION(1:3, 1:3), &
+!      INTENT(IN), OPTIONAL                   :: new_h_matrix
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(cell)) THEN
@@ -1030,15 +1019,6 @@ CONTAINS
 !!   NAME
 !!     cell_create
 !!
-!!   SYNOPSIS
-!!     Subroutine cell_create(cell, hmat, periodic, poisson_solver, error)
-!!       Type(cell_type), Pointer:: cell
-!!       Real(KIND = dp), Dimension(3,3), Optional, Intent (IN):: hmat
-!!       Integer, Dimension(3), Optional, Intent (IN):: periodic
-!!       Character(Len=*), Optional, Intent (IN):: poisson_solver
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cell_create
-!!
 !!   FUNCTION
 !!     allocates and initializes a cell
 !!
@@ -1092,12 +1072,6 @@ CONTAINS
 !!   NAME
 !!     cell_retain
 !!
-!!   SYNOPSIS
-!!     Subroutine cell_retain(cell, error)
-!!       Type(cell_type), Pointer:: cell
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cell_retain
-!!
 !!   FUNCTION
 !!     retains the given cell (see doc/ReferenceCounting.html)
 !!
@@ -1140,12 +1114,6 @@ END SUBROUTINE cell_retain
 !!
 !!   NAME
 !!     cell_release
-!!
-!!   SYNOPSIS
-!!     Subroutine cell_release(cell, error)
-!!       Type(cell_type), Pointer:: cell
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cell_release
 !!
 !!   FUNCTION
 !!     releases the given cell (see doc/ReferenceCounting.html)
