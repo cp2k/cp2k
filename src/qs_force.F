@@ -177,9 +177,9 @@ CONTAINS
       CALL replicate_matrix_structure(s(1)%matrix,w(ispin)%matrix,"W MATRIX")
       mo_set => c(ispin)%mo_set
       IF (scf_control%use_ot) THEN
-        CALL calculate_w_matrix(mo_set,k(ispin)%matrix,w(ispin)%matrix,globenv)
+        CALL calculate_w_matrix(mo_set,k(ispin)%matrix,w(ispin)%matrix)
       ELSE
-        CALL calculate_w_matrix(mo_set,w(ispin)%matrix,globenv)
+        CALL calculate_w_matrix(mo_set,w(ispin)%matrix)
       END IF
       IF (globenv%print%w_matrix) THEN
         CALL write_sparse_matrix(w(ispin)%matrix,4,6,qs_env,globenv)

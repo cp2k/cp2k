@@ -463,7 +463,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix,globenv)
+  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
@@ -473,7 +473,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), POINTER           :: w_matrix,ks_matrix
-    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(cp_full_matrix_type), POINTER        :: weighted_vectors,h_block
     TYPE(cp_fm_struct_type), POINTER          :: fm_struct_tmp
@@ -501,15 +500,13 @@ CONTAINS
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
-!   CALL blacs_scale_matrix(weighted_vectors,mo_set%eigenvalues,&
-!                           globenv,mo_set%homo)
 
     IF (mo_set%homo /= ncol_global) THEN
       CALL stop_program("calculate_w_matrix_2","NYI")
     END IF
 
     CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                           mo_set%homo,globenv%para_env)
+                           mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_wp, &
                     mo_set%eigenvectors,weighted_vectors,0.0_wp,h_block)
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_wp, &
