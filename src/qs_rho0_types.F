@@ -26,6 +26,8 @@ MODULE qs_rho0_types
   USE memory_utilities,                ONLY: reallocate
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   IMPLICIT NONE
@@ -42,13 +44,16 @@ MODULE qs_rho0_types
     REAL(dp), DIMENSION(:), POINTER             ::  Qlm_h, &
                                                     Qlm_s, & 
                                                     Qlm_tot,&
-                                                    Qlm_tot_c
+                                                    Qlm_car_h,&
+                                                    Qlm_car_s
     REAL(dp)                                    ::  Qlm_z
   END TYPE mpole_rho_atom
 
   TYPE mpole_gau_overlap
     REAL(dp), DIMENSION(:,:,:), POINTER         :: Qlm_gg 
     REAL(dp), DIMENSION(:,:), POINTER           :: g0_h, g0_s
+    REAL(dp)                                    :: rpgf0_h, rpgf0_s
+    REAL(dp)                                    :: r_V0hmV0s
   END TYPE mpole_gau_overlap
 
   TYPE rho0_mpole_type
@@ -113,7 +118,8 @@ CONTAINS
       NULLIFY(mp_rho(iat)%Qlm_h)
       NULLIFY(mp_rho(iat)%Qlm_s)
       NULLIFY(mp_rho(iat)%Qlm_tot)
-      NULLIFY(mp_rho(iat)%Qlm_tot_c)
+      NULLIFY(mp_rho(iat)%Qlm_car_h)
+      NULLIFY(mp_rho(iat)%Qlm_car_s)
     END DO
 
     IF(ASSOCIATED(mp_gau)) THEN
@@ -128,6 +134,9 @@ CONTAINS
       NULLIFY(mp_gau(ikind)%Qlm_gg)
       NULLIFY(mp_gau(ikind)%g0_h)
       NULLIFY(mp_gau(ikind)%g0_s)
+      mp_gau(ikind)%rpgf0_h = 0.0_dp
+      mp_gau(ikind)%rpgf0_s = 0.0_dp
+      mp_gau(ikind)%r_V0hmV0s = 0.0_dp
     END DO
 
   END SUBROUTINE allocate_multipoles
@@ -318,10 +327,11 @@ CONTAINS
       DEALLOCATE(mp_rho(iat)%Qlm_h,STAT=istat)
       DEALLOCATE(mp_rho(iat)%Qlm_s,STAT=istat) 
       DEALLOCATE(mp_rho(iat)%Qlm_tot,STAT=istat)
-      DEALLOCATE(mp_rho(iat)%Qlm_tot_c,STAT=istat)
+      DEALLOCATE(mp_rho(iat)%Qlm_car_h,STAT=istat)
+      DEALLOCATE(mp_rho(iat)%Qlm_car_s,STAT=istat)
 
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_tot_c")
+                      "Qlm_h,Qlm_s,Qlm_tot,Qlm_car_h,Qlm_car_s")
     END DO
 
     DEALLOCATE(mp_rho,STAT=istat)
@@ -429,7 +439,8 @@ CONTAINS
 ! ******************************************************************************
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
-                            Qlm_gg, Qlm_tot_c, zet0_h, zet0_s, igrid_zet0_s)
+                            Qlm_gg, Qlm_car_h,Qlm_car_s, zet0_h, zet0_s, igrid_zet0_s,&
+                            rpgf0_h,rpgf0_s,r_V0hmV0s)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -437,9 +448,11 @@ CONTAINS
                              OPTIONAL,  POINTER  :: mp_rho
     TYPE(mpole_gau_overlap), OPTIONAL, POINTER   :: mp_gau_ikind
     REAL(dp), INTENT(OUT), OPTIONAL              :: zet0_h,zet0_s
+    REAL(dp), INTENT(OUT), OPTIONAL              :: rpgf0_h, rpgf0_s
+    REAL(dp), INTENT(OUT), OPTIONAL              :: r_V0hmV0s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
                                                     norm_g0l_s
-    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_tot_c
+    REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
     REAL(dp), DIMENSION(:,:), OPTIONAL,POINTER   :: g0_h, g0_s
     REAL(dp), DIMENSION(:,:,:), OPTIONAL, & 
                                        POINTER   :: Qlm_gg
@@ -468,9 +481,13 @@ CONTAINS
         IF(PRESENT(g0_h))         g0_h => rho0_mpole%mp_gau(ikind)%g0_h
         IF(PRESENT(g0_s))         g0_s => rho0_mpole%mp_gau(ikind)%g0_s
         IF(PRESENT(Qlm_gg))       Qlm_gg => rho0_mpole%mp_gau(ikind)%Qlm_gg
+        IF(PRESENT(rpgf0_h))      rpgf0_h = rho0_mpole%mp_gau(ikind)%rpgf0_h
+        IF(PRESENT(rpgf0_s))      rpgf0_s = rho0_mpole%mp_gau(ikind)%rpgf0_s
+        IF(PRESENT(r_V0hmV0s))    r_V0hmV0s = rho0_mpole%mp_gau(ikind)%r_V0hmV0s
       END IF
       IF(PRESENT(iat)) THEN
-        IF(PRESENT(Qlm_tot_c)) Qlm_tot_c => rho0_mpole%mp_rho(iat)%Qlm_tot_c
+        IF(PRESENT(Qlm_car_h)) Qlm_car_h => rho0_mpole%mp_rho(iat)%Qlm_car_h
+        IF(PRESENT(Qlm_car_s)) Qlm_car_s => rho0_mpole%mp_rho(iat)%Qlm_car_s
       END IF
 
     ELSE
@@ -494,31 +511,40 @@ CONTAINS
    CALL reallocate(mp_rho%Qlm_h,1,nchan_s)
    CALL reallocate(mp_rho%Qlm_s,1,nchan_s)
    CALL reallocate(mp_rho%Qlm_tot,1,nchan_s)
-   CALL reallocate(mp_rho%Qlm_tot_c,1,nchan_c)
+   CALL reallocate(mp_rho%Qlm_car_h,1,nchan_c)
+   CALL reallocate(mp_rho%Qlm_car_s,1,nchan_c)
 
    mp_rho%Qlm_h = 0.0_dp
    mp_rho%Qlm_s = 0.0_dp
    mp_rho%Qlm_tot = 0.0_dp
-   mp_rho%Qlm_tot_c = 0.0_dp
+   mp_rho%Qlm_car_h = 0.0_dp
+   mp_rho%Qlm_car_s = 0.0_dp
    mp_rho%Qlm_z = -2._dp*ROOTPI*Zeff
 
 
   END SUBROUTINE initialize_mpole_rho
 ! ******************************************************************************
 
-  SUBROUTINE write_rho0_info(rho0_mpole,globenv)
+  SUBROUTINE write_rho0_info(rho0_mpole,cell,globenv)
 
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_rho0_info"
 
     INTEGER                                  :: ikind,l,nkind,output_unit
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    REAL(dp)                                 :: unit_of_length
 
 !   ---------------------------------------------------------------------------
 
     IF (.NOT.globenv%ionode) RETURN
+
+    CALL get_cell(cell=cell,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
 
     IF (ASSOCIATED(rho0_mpole)) THEN
       output_unit = globenv%scr
@@ -530,13 +556,7 @@ CONTAINS
             "- Soft exponent :",rho0_mpole%zet0_s
       WRITE (UNIT=output_unit,FMT="(T2,A,T35,I5)")&
             "- Global max l :",rho0_mpole%lmax_0
-      WRITE (UNIT=output_unit,FMT="(T2,A,T25,A4,T35,I2,T40,I5)")&
-            "- l max per kind :","kind", 1,rho0_mpole%lmax0_kind(1)
-      nkind = SIZE(rho0_mpole%lmax0_kind,1)
-      DO ikind = 2,nkind
-        WRITE (UNIT=output_unit,FMT="(T25,A4,T35,I2,T40,I5)")&
-                      "kind",ikind,rho0_mpole%lmax0_kind(ikind)  
-      END DO
+
       WRITE (UNIT=output_unit,FMT="(T2,A)")&
             "- Normalization constants for soft and hard g0"
       DO l = 0,rho0_mpole%lmax_0
@@ -544,6 +564,29 @@ CONTAINS
             "ang. mom.= ", l, " hard= ", rho0_mpole%norm_g0l_h(l),&
                               " soft= ", rho0_mpole%norm_g0l_s(l)
       END DO
+
+      nkind = SIZE(rho0_mpole%lmax0_kind,1)
+      DO ikind = 1, nkind
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T55,I2)")&
+            "- rho0 max L and radii in "//TRIM(unit_of_length_name)//&
+            " for the atom kind :", ikind
+
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,I5)")&
+            "=> l max  :",rho0_mpole%lmax0_kind(ikind)
+
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+            "=> radius of Vh(rho0_h-rho0_s): ",&
+            rho0_mpole%mp_gau(ikind)%r_V0hmV0s/unit_of_length
+
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+            "=> max radius of g0 hard: ",&
+            rho0_mpole%mp_gau(ikind)%rpgf0_h/unit_of_length
+
+        WRITE (UNIT=output_unit,FMT="(T2,T25,A,T55,f12.6)")&
+            "=> max radius of g0 soft: ",&
+            rho0_mpole%mp_gau(ikind)%rpgf0_s/unit_of_length
+      END DO  ! ikind
+
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&

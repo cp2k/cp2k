@@ -56,6 +56,7 @@ MODULE qs_ks_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
+  USE  hartree_local_3centers,         ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -425,29 +426,6 @@ CONTAINS
          CALL calculate_vxc_atom(qs_env,error)
          CALL Vh_1c_gg_integrals(qs_env,energy)
        ENDIF
-!       WRITE(*,*) energy%hartree_1c
-!      stop 'hartree'
-       energy%total = energy%core_overlap + energy%core_self + &
-            energy%core + energy%hartree + energy%hartree_1c +&
-            energy%exc + energy%exc1 + &
-            energy%qmmm_el
-
-       IF (ionode.AND.logger%print_keys%scf_energies) THEN
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-               "Core Hamiltonian energy:                       ",energy%core,&
-               "Hartree energy:                                ",energy%hartree,&
-               "Exchange-correlation energy:                   ",energy%exc
-          IF(gapw) THEN
-             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-                "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-                "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
-          END IF
-          WRITE(*,*)'QM/MM enabled:', qs_env%qmmm
-          If  (qs_env%qmmm) Then
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-          End If
-       END IF
 
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
@@ -513,6 +491,13 @@ CONTAINS
              CALL integrate_vhg0_rspace(qs_env,ks_env%v_hartree_rspace, &
                                         calculate_forces, error=error)
 
+!         ***  Energy, Integrals and Forces coming from the 3-centers terms
+!         *** Initialize energy
+             energy%hartree_3c = 0.0_dp
+             DO ispin = 1,nspins
+                CALL integrate_a_vhg0_b(qs_env,ks(ispin),rho%rho_ao(ispin),&
+                    energy,.FALSE.,calculate_forces,error=error)
+             END DO
 !         ***  Single atom contributions in the KS matrix ***
              DO ispin = 1,nspins
                 CALL update_ks_atom(qs_env,ks(ispin),rho%rho_ao(ispin),&
@@ -520,6 +505,30 @@ CONTAINS
              ENDDO
           ENDIF
 
+       END IF
+
+
+       energy%total = energy%core_overlap + energy%core_self + &
+            energy%core + energy%hartree + energy%hartree_1c +&
+            energy%hartree_3c + energy%exc + energy%exc1 + &
+            energy%qmmm_el
+
+       IF (ionode.AND.logger%print_keys%scf_energies) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Hartree energy:                                ",energy%hartree,&
+               "Exchange-correlation energy:                   ",energy%exc
+          IF(gapw) THEN
+             WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+                "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
+                "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
+                "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
+          END IF
+          WRITE(*,*)'QM/MM enabled:', qs_env%qmmm
+          If  (qs_env%qmmm) Then
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+          End If
        END IF
 
     END IF

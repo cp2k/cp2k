@@ -92,9 +92,9 @@ MODULE qs_environment_types
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release,&
                                              qs_ks_retain
-  USE qs_local_rho_types,              ONLY: get_local_rho,&
-                                             local_rho_set_create,&
+  USE qs_local_rho_types,              ONLY: local_rho_set_create,&
                                              local_rho_set_release,&
+                                             get_local_rho,&
                                              local_rho_type,&
                                              rhoz_type,&
                                              set_local_rho
@@ -108,13 +108,17 @@ MODULE qs_environment_types
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE qs_oce_types,                    ONLY: deallocate_oce_set,&
-                                             oce_matrix_type
-  USE qs_rho0_types,                   ONLY: rho0_atom_type,&
-                                             rho0_mpole_type
-  USE qs_rho_atom_types,               ONLY: rho_atom_type
+                                             oce_matrix_type,&
+                                             vtriple_type
+  USE qs_rho_atom_types,               ONLY: deallocate_rho_atom_set, &
+                                             rho_atom_type
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_retain,&
                                              qs_rho_type
+  USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
+                                             deallocate_rho0_mpole,&
+                                             rho0_atom_type,&
+                                             rho0_mpole_type
   USE qs_scf_types,                    ONLY: ot_method_nr,&
                                              qs_scf_env_type,&
                                              scf_env_release,&
@@ -173,8 +177,12 @@ MODULE qs_environment_types
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
 !!     - c: the molecular orbitals, in LSD array with the different spins
-!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,sac_oce,sbc_oce:
+!!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
+!!     - sac_oce,sbc_oce: neighbor lists for the calculation of the expansion
+!!       coefficients of the local atomic densities rho1_hard and rho1_soft
+!!     - sac_3c, sbc_3c: neighbor lists for the calculation of the 3 centers
+!!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !!     - pao_env: things needed by the pao method
 !!     - energy: place where the energies calculated are stored
 !!     - h: core hamiltonian (h(1)), if needed by the calculation also
@@ -237,7 +245,8 @@ MODULE qs_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
-                                                             sbc_oce
+                                                             sbc_oce,sac_3c,&
+                                                             sbc_3c
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
@@ -296,7 +305,7 @@ CONTAINS
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
                         dft_control,c,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,&
+                        sac_oce,sbc_oce,sac_3c,sbc_3c,&
                         pao_env,particle_set,energy,force,h,k,s,w,&
                         rho,rho_soft, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
@@ -306,7 +315,7 @@ CONTAINS
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys,error,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,&
-                        rhoz_set,ecoul_1c,rho0_s_rs,rho0_s_gs)
+                        rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -325,11 +334,10 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: c
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
+                                                sac_ppnl, sbc_ppnl,&
+                                                sac_oce,sbc_oce,sac_3c,sbc_3c
     LOGICAL, OPTIONAL                        :: qmmm
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl, sac_oce, sbc_oce
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
@@ -382,7 +390,10 @@ CONTAINS
       OPTIONAL, POINTER                      :: rhoz_set
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
-    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs, rho0_s_gs
+    TYPE(vtriple_type), DIMENSION(:,:), &
+      OPTIONAL, POINTER                      :: VH_3c_list
+    TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs,&
+                                                rho0_s_gs
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -416,6 +427,8 @@ CONTAINS
     IF (PRESENT(sbc_ppnl)) sbc_ppnl => qs_env%sbc_ppnl
     IF (PRESENT(sac_oce)) sac_oce =>  qs_env%sac_oce
     IF (PRESENT(sbc_oce)) sbc_oce =>  qs_env%sbc_oce
+    IF (PRESENT(sac_3c)) sac_3c =>  qs_env%sac_3c
+    IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
@@ -452,6 +465,8 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
     IF (PRESENT(ecoul_1c)) &
          CALL get_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
+    IF (PRESENT(VH_3c_list)) &
+         CALL get_hartree_local(qs_env%hartree_local,vtriple=VH_3c_list)
     IF (PRESENT(rho0_s_rs)) THEN
        CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
        rho0_s_rs => rho0_m%rho0_s_rs
@@ -507,6 +522,8 @@ CONTAINS
     NULLIFY (qs_env%sbc_ppnl)
     NULLIFY (qs_env%sac_oce)
     NULLIFY (qs_env%sbc_oce)
+    NULLIFY (qs_env%sac_3c)
+    NULLIFY (qs_env%sbc_3c)
     NULLIFY (qs_env%pao_env)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
@@ -552,14 +569,14 @@ CONTAINS
   SUBROUTINE set_qs_env(qs_env,cell,cell_ref,use_ref_cell, &
                         dft_control,c,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
-                        sac_oce,sbc_oce,&
+                        sac_oce,sbc_oce,sac_3c,sbc_3c,&
                         pao_env,energy,force,h,k,s,w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,&
                         distribution_2d,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        rhoz_set,rhoz_tot,ecoul_1c,error)
+                        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -578,8 +595,9 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl, sac_oce, &
-                                                sbc_oce
+                                                sac_ppnl, sbc_ppnl,&
+                                                sac_oce, sbc_oce,&
+                                                sac_3c,sbc_3c
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
@@ -589,7 +607,7 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_soft
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho,rho_soft
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -617,6 +635,8 @@ CONTAINS
     REAL(dp), OPTIONAL                       :: rhoz_tot
     TYPE(ecoul_1center_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:,:),&
+      OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -656,6 +676,8 @@ CONTAINS
     IF (PRESENT(sbc_ppnl)) qs_env%sbc_ppnl => sbc_ppnl
     IF (PRESENT(sac_oce)) qs_env%sac_oce => sac_oce
     IF (PRESENT(sbc_oce)) qs_env%sbc_oce => sbc_oce
+    IF (PRESENT(sac_3c)) qs_env%sac_3c => sac_3c
+    IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
@@ -732,6 +754,10 @@ CONTAINS
     IF (PRESENT(ecoul_1c)) THEN
         CALL set_hartree_local(qs_env%hartree_local,ecoul_1c=ecoul_1c)
     END IF
+    IF (PRESENT(VH_3c_list)) THEN
+        CALL set_hartree_local(qs_env%hartree_local,vtriple=VH_3c_list)
+    END IF
+
     IF (PRESENT(subsys)) THEN
        CALL cp_subsys_retain(subsys,error=error)
        CALL cp_subsys_release(qs_env%subsys,error=error)
@@ -944,6 +970,22 @@ SUBROUTINE qs_env_release(qs_env,error)
                    qs_env%sbc_oce(i)%neighbor_list_set)
            END DO
            DEALLOCATE(qs_env%sbc_oce,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sac_3c)) THEN
+           DO i=1,SIZE(qs_env%sac_3c)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sac_3c(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sac_3c,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(qs_env%sbc_3c)) THEN
+           DO i=1,SIZE(qs_env%sbc_3c)
+              CALL deallocate_neighbor_list_set(&
+                   qs_env%sbc_3c(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(qs_env%sbc_3c,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         IF (ASSOCIATED(qs_env%energy)) &

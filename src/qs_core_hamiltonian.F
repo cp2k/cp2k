@@ -123,7 +123,8 @@ MODULE qs_core_hamiltonian
   USE qs_oce_types,                    ONLY: allocate_oce_set,&
                                              oce_matrix_type, &
                                              prepare_oce_coeff,&
-                                             retrieve_sac_oce
+                                             retrieve_sac_oce,&
+                                             vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
   USE qs_parser,                       ONLY: close_file,&
@@ -274,11 +275,12 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
                                                              sac_ppnl,sbc_ppnl,&
-                                                             sac_oce,sbc_oce
+                                                             sac_oce,sac_3c
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,p,s,t,v,w
     TYPE(oce_matrix_type), POINTER                        :: oce
+    TYPE(vtriple_type), DIMENSION(:,:),POINTER            :: VH_3c_list
 
     REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: h_block,p_block,rpgfa,rpgfb,&
@@ -306,6 +308,7 @@ CONTAINS
     NULLIFY (h)
     NULLIFY (habt)
     NULLIFY (oce)
+    NULLIFY (VH_3c_list)
     NULLIFY (p)
     NULLIFY (pabt)
     NULLIFY (particle_set)
@@ -317,7 +320,7 @@ CONTAINS
     NULLIFY (sac_ppnl)
     NULLIFY (sbc_ppnl)
     NULLIFY (sac_oce)
-    NULLIFY (sbc_oce)
+    NULLIFY (sac_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
     NULLIFY (t)
@@ -338,7 +341,8 @@ CONTAINS
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     sac_oce=sac_oce,&
-                    sbc_oce=sbc_oce,&
+                    VH_3c_list=VH_3c_list,&
+                    sac_3c=sac_3c,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d)
 
@@ -716,6 +720,7 @@ CONTAINS
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,w,globenv,p,h,t,iab) &
+!$OMP shared(oce,sac_oce,sac_3c,VH_3c_list)&
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
@@ -768,9 +773,10 @@ CONTAINS
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
 
-!         *** Retrieve the data of the SAC_OCE neighbors of atom "iatom" ***
+!         *** Retrieve data of SAC_OCE and of SAC_3C neighbors of atom "iatom" ***
           IF(qs_env%dft_control%qs_control%gapw) THEN
             CALL retrieve_sac_oce(oce%voce,sac_oce,iatom,ikind,nkind)
+            CALL retrieve_sac_oce(VH_3c_list,sac_3c,iatom,ikind,nkind)
           ENDIF
 
           IF (ppl_present) THEN

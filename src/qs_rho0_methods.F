@@ -64,6 +64,7 @@ MODULE qs_rho0_methods
   USE qs_util,                         ONLY: exp_radius,&
                                              gaussint_sph,&
                                              trace_r_AxB
+  USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
 
 
@@ -174,7 +175,7 @@ MODULE qs_rho0_methods
     TYPE(rho_atom_type), POINTER             :: rho_atom
     TYPE(rho_atom_type), DIMENSION(:), &
                            POINTER           :: rho_atom_set
-    REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_s
+    REAL(dp), DIMENSION(:), POINTER          :: norm_g0l_h, norm_g0l_s
 
     INTEGER                                  :: iat, iatom, ic, ico, ir, is, iso,&
                                                 istat, l, lshell, lx, ly, lz,&
@@ -194,6 +195,7 @@ MODULE qs_rho0_methods
     CALL get_rho0_mpole(rho0_mpole=rho0_mp,ikind=ikind, &
                         l0_ikind=lmax0,mp_gau_ikind=mpole_gau,&
                         g0_h=g0_h,g0_s=g0_s,&
+                        norm_g0l_h=norm_g0l_h,&
                         norm_g0l_s=norm_g0l_s)
 
     nr = g_atom%nr
@@ -241,7 +243,8 @@ MODULE qs_rho0_methods
        DO lshell = 0,lmax0
          DO ic = 1,nco(lshell)
            ico = ic + ncoset(lshell-1)
-           mpole_rho%Qlm_tot_c(ico) = 0.0_dp
+           mpole_rho%Qlm_car_h(ico) = 0.0_dp
+           mpole_rho%Qlm_car_s(ico) = 0.0_dp
            lx = indco(1,ico)
            ly = indco(2,ico)
            lz = indco(3,ico)
@@ -249,12 +252,19 @@ MODULE qs_rho0_methods
            DO is = 1,nso(lshell)
              iso = is + nsoset(lshell-1)
 
-             mpole_rho%Qlm_tot_c(ico) = mpole_rho%Qlm_tot_c(ico) + &
+             mpole_rho%Qlm_car_s(ico) = mpole_rho%Qlm_car_s(ico) + &
                   orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
-                  norm_g0l_s(lshell)/&
-                SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
+                  norm_g0l_s(lshell)&
+!                *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
 ! second possibility, don't know yet which one is correct
-!               SQRT(fourpi)
+                 /SQRT(fourpi)
+
+             mpole_rho%Qlm_car_h(ico) = mpole_rho%Qlm_car_h(ico) + &
+                  orbtramat(lshell)%s2c(is,ic)*mpole_rho%Qlm_tot(iso)*&
+                  norm_g0l_h(lshell)&
+!                 *SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/fourpi)
+                  /SQRT(fourpi) 
+
            END DO 
          END DO
        END DO  ! lshell
@@ -304,10 +314,11 @@ MODULE qs_rho0_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE init_rho0(qs_env,gapw_control,globenv,error)
+  SUBROUTINE init_rho0(qs_env,gapw_control,cell,globenv,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(gapw_control_type), POINTER         :: gapw_control
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type)            :: globenv 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error   
@@ -327,8 +338,8 @@ MODULE qs_rho0_methods
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     REAL(dp)                                 :: alpha_core,&
-                                                ecut, eps_fit, gcut, &
-                                                radius, rhoz_tot,&
+                                                ecut, eps_fit, eps_orb,&
+                                                gcut, radius, rhoz_tot,&
                                                 rc_orb, rc_min
     INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, max_nr, maxl, maxso, nat, &
                  natom, nchan_c, nchan_s, nkind, nr, nset, nsotot,  zeff
@@ -351,6 +362,7 @@ MODULE qs_rho0_methods
 
     ecut = dft_control%qs_control%cutoff 
     nkind = SIZE(atomic_kind_set,1)
+    eps_orb = dft_control%qs_control%eps_pgf_orb
 
 !   Initialize rhoz total to zero
 !   in gapw rhoz is calculated on local the lebedev grids
@@ -466,7 +478,9 @@ MODULE qs_rho0_methods
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,&
                            grid_atom=grid_atom)
-      CALL  calculate_g0(rho0_mpole,grid_atom,ikind)
+      CALL calculate_g0(rho0_mpole,grid_atom,ikind)
+
+      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_orb,.true.)
     END DO
 
     rhoz_tot = qs_charges%total_rho_core_rspace
@@ -479,12 +493,107 @@ MODULE qs_rho0_methods
     CALL rho0_s_grid_create(qs_env,error)
 
     IF(globenv%print%rho0_information) THEN
-      CALL write_rho0_info(rho0_mpole,globenv)
+      CALL write_rho0_info(rho0_mpole,cell,globenv)
     END IF
 
   END SUBROUTINE init_rho0
 
 ! *****************************************************************************
+
+  SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
+                                    eps_orb,calculate_V0hmV0s)
+
+    TYPE(rho0_mpole_type), POINTER      :: rho0_mpole
+    TYPE(grid_atom_type), POINTER       :: grid_atom
+    INTEGER                             :: ik
+    REAL(dp)                            :: eps_orb
+    LOGICAL                             :: calculate_V0hmV0s
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "interaction_radii_g0"
+
+    INTEGER                             :: ir, l, lmax, nr
+    REAL(dp)                            :: z_h, z_s
+    REAL(dp)                            :: r_h, r_s, r_hms
+    REAL(dp)                            :: I_down_h, I_down_s
+    REAL(dp)                            :: I_up_h, I_up_s
+    REAL(dp)                            :: V_h, V_s
+    REAL(dp), DIMENSION(:), POINTER     :: n_h, n_s
+    REAL(dp), DIMENSION(:,:), POINTER   :: g0_h, g0_s
+
+!   ---------------------------------------------------------------------------
+
+
+    CALL get_rho0_mpole(rho0_mpole, ikind =ik, l0_ikind=lmax,&
+                        zet0_h=z_h, zet0_s=z_s, norm_g0l_h=n_h,&
+                        norm_g0l_s=n_s, g0_h=g0_h, g0_s=g0_s)
+    nr = grid_atom%nr
+    
+    r_h = 0.0_dp
+    r_s = 0.0_dp
+    DO l = 1,lmax
+      r_h = max(r_h, exp_radius(l,z_h,eps_orb,n_h(l)))
+      r_s = max(r_s, exp_radius(l,z_s,eps_orb,n_s(l)))
+    END DO
+
+    rho0_mpole%mp_gau(ik)%rpgf0_h = r_h
+    rho0_mpole%mp_gau(ik)%rpgf0_s = r_s
+
+    IF(calculate_V0hmV0s) THEN
+
+      r_hms = 0.0_dp
+      DO l = 1,lmax
+        
+        I_up_h = g0_h(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)  
+        I_up_s = g0_s(nr,l)*grid_atom%rad2l(nr,l)*grid_atom%wr(nr)  
+        I_down_h = 0.0_dp
+        I_down_s = 0.0_dp
+        DO ir = nr-1,1,-1
+          I_down_h = I_down_h + g0_h(ir,l)*&
+                       grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
+          I_down_s = I_down_s + g0_s(ir,l)*&
+                       grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
+        END DO
+ 
+        V_h = grid_atom%oorad2l(nr,l+1)*I_up_h + &
+              grid_atom%rad2l(nr,l)*I_down_h
+        V_s = grid_atom%oorad2l(nr,l+1)*I_up_s + &
+              grid_atom%rad2l(nr,l)*I_down_s
+
+        DO ir = nr-1,1,-1
+
+          V_h = grid_atom%oorad2l(ir,l+1)*I_up_h + &
+              grid_atom%rad2l(ir,l)*I_down_h
+
+          V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
+              grid_atom%rad2l(ir,l)*I_down_s
+
+          IF(abs(V_h-V_s)<eps_orb) THEN
+            r_hms = MAX(r_hms,grid_atom%rad(ir))
+            exit
+          END IF
+
+          I_up_h = I_up_h + g0_h(ir,l)*&
+                    grid_atom%rad2l(ir,l)*grid_atom%wr(ir)
+          I_down_h = I_down_h - g0_h(ir,l)* &
+                      grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
+          I_up_s = I_up_s + g0_s(ir,l)*&
+                    grid_atom%rad2l(ir,l)*grid_atom%wr(ir)
+          I_down_s = I_down_s - g0_s(ir,l)* &
+                      grid_atom%oorad2l(ir,l+1)*grid_atom%wr(ir)
+
+        END DO  ! ir
+
+      END DO  ! l
+
+      rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_hms
+
+    ELSE
+      rho0_mpole%mp_gau(ik)%r_V0hmV0s = r_s
+    END IF
+
+  END SUBROUTINE  interaction_radii_g0
+
+!******************************************************************************
 
 END MODULE qs_rho0_methods
 

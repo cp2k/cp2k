@@ -374,12 +374,14 @@ CONTAINS
 
        ibc = jkind + nkind*(kkind - 1)
 
+       IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+       NULLIFY(sbc_oce_neighbor_list)
+
        sbc_oce_neighbor_list =>&
              find_neighbor_list(neighbor_list_set=&
              sbc_oce(ibc)%neighbor_list_set,&
              atom=jatom)
-
-       IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+       IF (.NOT.ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
 
        atomic_kind => atomic_kind_set(kkind)
 

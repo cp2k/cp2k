@@ -29,6 +29,8 @@ MODULE hartree_local_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
+  USE qs_oce_types,                    ONLY: deallocate_vtriple,&
+                                             vtriple_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -46,7 +48,8 @@ MODULE hartree_local_types
   TYPE ecoul_1center_type
     TYPE(rho_atom_coeff), POINTER   :: Vh1_h, Vh1_s
     TYPE(rho_atom_coeff), POINTER   :: aVh1b_h, aVh1b_s, &
-                                       aVh1b_0, aVhsb_0s
+                                       aVh1b_0, aVhsb_0s,&
+                                       aVh3c0b
     REAL(dp)                        :: ecoul_1_h, ecoul_1_s, &
                                        ecoul_1_z, ecoul_1_0
   END TYPE ecoul_1center_type
@@ -54,6 +57,7 @@ MODULE hartree_local_types
   TYPE hartree_local_type
     TYPE(ecoul_1center_type), &
             DIMENSION(:), POINTER   :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:,:), POINTER :: vtriple
   END TYPE hartree_local_type
 
 ! *** Public subroutines ***
@@ -105,6 +109,9 @@ MODULE hartree_local_types
       NULLIFY(ecoul_1c(iat)%aVh1b_0%r_coef)
       ALLOCATE(ecoul_1c(iat)%aVhsb_0s)
       NULLIFY(ecoul_1c(iat)%aVhsb_0s%r_coef)
+      ALLOCATE(ecoul_1c(iat)%aVh3c0b)
+      NULLIFY(ecoul_1c(iat)%aVh3c0b%r_coef)
+
     END DO
 
   END SUBROUTINE allocate_ecoul_1center
@@ -154,6 +161,11 @@ MODULE hartree_local_types
                        "ecoul_1c%aVhsb_0s%r_coef")
       NULLIFY(ecoul_1c(iat)%aVhsb_0s)
 
+      DEALLOCATE(ecoul_1c(iat)%aVh3c0b%r_coef,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "ecoul_1c%aVh3c0b%r_coef")
+      NULLIFY(ecoul_1c(iat)%aVh3c0b)
+
     END DO
 
     DEALLOCATE(ecoul_1c, STAT=istat)
@@ -165,13 +177,14 @@ MODULE hartree_local_types
 ! *****************************************************************************
 
   SUBROUTINE get_ecoul_1c(ecoul_1c,iatom,Vh1_h,Vh1_s,aVh1b_h,aVh1b_s,&
-                          aVh1b_0,aVhsb_0s)
+                          aVh1b_0,aVhsb_0s,aVh3c0b)
 
     TYPE(ecoul_1center_type), DIMENSION(:),&
                               INTENT(IN), TARGET  ::  ecoul_1c
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: Vh1_h, Vh1_s
     REAL(dp), DIMENSION(:,:), OPTIONAL, POINTER   :: aVh1b_h, aVh1b_s, &
-                                                     aVh1b_0, aVhsb_0s
+                                                     aVh1b_0, aVhsb_0s,&
+                                                     aVh3c0b
     INTEGER, INTENT(IN), OPTIONAL                 :: iatom
 
 !   ---------------------------------------------------------------------------
@@ -183,23 +196,27 @@ MODULE hartree_local_types
       IF(PRESENT(aVh1b_s)) aVh1b_s => ecoul_1c(iatom)%aVh1b_s%r_coef
       IF(PRESENT(aVh1b_0)) aVh1b_0 => ecoul_1c(iatom)%aVh1b_0%r_coef
       IF(PRESENT(aVhsb_0s)) aVhsb_0s => ecoul_1c(iatom)%aVhsb_0s%r_coef
+      IF(PRESENT(aVhsb_0s)) aVh3c0b => ecoul_1c(iatom)%aVh3c0b%r_coef
     END IF
     
   END SUBROUTINE get_ecoul_1c
 
 ! *****************************************************************************
 
-  SUBROUTINE get_hartree_local(hartree_local,ecoul_1c)
+  SUBROUTINE get_hartree_local(hartree_local,ecoul_1c,vtriple)
 
     TYPE(hartree_local_type), INTENT(IN), TARGET  :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             OPTIONAL, POINTER     :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:,:), &
+                            OPTIONAL, POINTER     :: vtriple
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_hartree_local'
 
 !   ---------------------------------------------------------------------------
 
     IF(PRESENT(ecoul_1c)) ecoul_1c => hartree_local%ecoul_1c
+    IF(PRESENT(vtriple))  vtriple => hartree_local%vtriple
 
   END SUBROUTINE get_hartree_local
 
@@ -223,6 +240,7 @@ MODULE hartree_local_types
     CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
   
     NULLIFY (hartree_local%ecoul_1c)
+    NULLIFY (hartree_local%vtriple)
 
   END SUBROUTINE hartree_local_create
 
@@ -244,6 +262,11 @@ MODULE hartree_local_types
       IF (ASSOCIATED(hartree_local%ecoul_1c)) THEN
         CALL deallocate_ecoul_1center(hartree_local%ecoul_1c)
       END IF
+
+      IF (ASSOCIATED(hartree_local%vtriple)) THEN
+        CALL deallocate_vtriple(hartree_local%vtriple)
+      END IF
+
       DEALLOCATE(hartree_local,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineN,error)
     END IF
@@ -273,17 +296,20 @@ MODULE hartree_local_types
 
 ! *****************************************************************************
 
-  SUBROUTINE set_hartree_local(hartree_local,ecoul_1c)
+  SUBROUTINE set_hartree_local(hartree_local,ecoul_1c,vtriple)
 
     TYPE(hartree_local_type), INTENT(INOUT), TARGET  :: hartree_local
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             OPTIONAL, POINTER        :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:,:), &
+                            OPTIONAL, POINTER     :: vtriple
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_hartree_local'
 
 !   ---------------------------------------------------------------------------
 
     IF(PRESENT(ecoul_1c)) hartree_local%ecoul_1c => ecoul_1c
+    IF(PRESENT(vtriple))  hartree_local%vtriple => vtriple
     
   END SUBROUTINE set_hartree_local
 

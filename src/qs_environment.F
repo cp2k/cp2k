@@ -568,7 +568,7 @@ CONTAINS
 !     *** Allocate and initialize the set of atomic densities ***
       CALL init_rho_atom(qs_env,gapw_control,globenv)
 !     *** Allocate and initialize the compensation density rho0 ***
-      CALL init_rho0(qs_env,gapw_control,globenv,error)
+      CALL init_rho0(qs_env,gapw_control,cell,globenv,error)
 !     *** Allocate and Initialize the local coulomb terms (1,2 and 3 centers) ***
       CALL init_coulomb_local(qs_env,gapw_control,globenv)
     ENDIF

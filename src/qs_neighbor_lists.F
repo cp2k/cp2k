@@ -64,6 +64,8 @@ MODULE qs_neighbor_lists
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                             rho0_mpole_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
@@ -143,7 +145,8 @@ CONTAINS
                                                 ppnl_present,oce_present
     REAL(dp)                                 :: r_skin,rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orb_radius, ppl_radius, &
-                                                ppnl_radius, oce_radius
+                                                ppnl_radius, oce_radius,&
+                                                V0hmv0s_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -157,9 +160,12 @@ CONTAINS
       DIMENSION(:)                           :: atom
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb, sac_ppl, sac_ppnl, &
-                                                sbc_ppnl,sac_oce,sbc_oce
+                                                sbc_ppnl,sac_oce,sbc_oce,&
+                                                sac_3c,sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
+    CHARACTER(20)                            :: name
 
 !   ---------------------------------------------------------------------------
 
@@ -180,6 +186,9 @@ CONTAINS
     NULLIFY (sbc_ppnl)
     NULLIFY (sac_oce)
     NULLIFY (sbc_oce)
+    NULLIFY (sac_3c)
+    NULLIFY (sbc_3c)
+    NULLIFY (rho0_mpole)
 
     output_unit = globenv%scr
 
@@ -199,12 +208,15 @@ CONTAINS
                     cell=cell,&
                     distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
+                    rho0_mpole=rho0_mpole,&
                     sab_orb=sab_orb,&
                     sac_ppl=sac_ppl,&
                     sac_ppnl=sac_ppnl,&
                     sbc_ppnl=sbc_ppnl,&
                     sac_oce=sac_oce,&
-                    sbc_oce=sbc_oce)
+                    sbc_oce=sbc_oce,&
+                    sac_3c=sac_3c,&
+                    sbc_3c=sbc_3c)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
@@ -259,6 +271,11 @@ CONTAINS
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "oce_radius",nkind*dp_size)
       oce_radius = 0.0_dp
+
+      ALLOCATE (V0hmV0s_radius(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "V0hmV0s_radius",nkind*dp_size)
+      V0hmV0s_radius = 0.0_dp
     END IF
 
 !   *** Initialize the local data structures ***
@@ -382,6 +399,8 @@ CONTAINS
           oce_present(ikind) = .TRUE.
           CALL get_paw_proj_set(paw_proj_set=paw_proj,&
                                 rcprj=oce_radius(ikind))
+          CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind,&
+                              r_V0hmV0s=V0hmV0s_radius(ikind))
         ELSE
           oce_present(ikind) = .FALSE.
         END IF
@@ -428,11 +447,11 @@ CONTAINS
       END IF
 
       IF (ANY(ppnl_present)) THEN
-
+        name = " ORBITAL GTH-PPNL"
         CALL build_gth_ppnl_neighbor_lists(sac_ppnl,sbc_ppnl,atom,cell,r_skin,&
                                            maxatom,maxatom_local,print_subcell_grid,&
                                            output_unit,orb_present,ppnl_present,&
-                                           orb_radius,ppnl_radius)
+                                           orb_radius,ppnl_radius,name)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -457,11 +476,11 @@ CONTAINS
     IF (paw_atom_present) THEN
 
       IF(ANY(oce_present)) THEN
-
+        name = " ORBITAL GTH-PAW PRJ"
         CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
                                      maxatom,maxatom_local,print_subcell_grid,&
                                      output_unit,orb_present,oce_present,&
-                                     orb_radius,oce_radius)
+                                     orb_radius,oce_radius,name)
 
 !       *** Put the generated neighbor lists into the QS environment ***
 
@@ -474,6 +493,25 @@ CONTAINS
         IF (globenv%print%sbc_oce_neighbor_lists) THEN
           CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,&
                                     "ORBITAL(B) PAW-PRJ NEIGHBOR LISTS")
+        END IF
+
+        name = " ORBITAL GTH-3C VH" 
+        CALL build_gth_ppnl_neighbor_lists(sac_3c,sbc_3c,atom,cell,r_skin,&
+                                     maxatom,maxatom_local,print_subcell_grid,&
+                                     output_unit,orb_present,oce_present,&
+                                     orb_radius,V0hmV0s_radius,name)
+
+!       *** Put the generated neighbor lists into the QS environment ***
+
+        CALL set_qs_env(qs_env=qs_env,sac_3c=sac_3c,sbc_3c=sbc_3c)
+
+        IF (globenv%print%sac_oce_neighbor_lists) THEN
+          CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,&
+                                    "ORBITAL(A) 3-CENTERS-VH NEIGHBOR LISTS")
+        END IF
+        IF (globenv%print%sbc_oce_neighbor_lists) THEN
+          CALL write_neighbor_lists(sbc_3c,particle_set,cell,globenv,&
+                                    "ORBITAL(B) 3-CENTERS-VH NEIGHBOR LISTS")
         END IF
 
       ENDIF
@@ -550,6 +588,10 @@ CONTAINS
       DEALLOCATE (oce_radius,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "oce_radius")
+
+      DEALLOCATE (V0hmV0s_radius,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "V0hmV0s_radius")
 
     ENDIF
 
@@ -911,7 +953,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
-    REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c 
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
     TYPE(particle_type), DIMENSION(:), &
       POINTER, OPTIONAL                      :: particle_set
 
@@ -1262,7 +1304,7 @@ CONTAINS
                                            maxatom,maxatom_local,&
                                            print_subcell_grid,output_unit,&
                                            present_a,present_c,&
-                                           radius_a,radius_c)
+                                           radius_a,radius_c,name)
 
 !   Purpose: Build the neighbor lists for the calculation of the non-local part
 !            of the GTH pseudo potential (PPNL). Atom c is a PPNL operator
@@ -1284,6 +1326,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_c
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_c
+    CHARACTER(20)                            :: name
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine_name = "build_gth_ppnl_neighbor_lists"
@@ -1358,7 +1401,7 @@ CONTAINS
 
     IF (print_subcell_grid) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
-        "SUBCELL GRID FOR THE ORBITAL GTH-PPNL NEIGHBOR LISTS",&
+        "SUBCELL GRID FOR THE"//TRIM(name)//" ORBITAL GTH-PPNL NEIGHBOR LISTS",&
         "Atomic kind pair","Grid size",&
         "Subcell size in "//unit_of_length_name
     END IF

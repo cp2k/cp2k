@@ -254,7 +254,7 @@ MODULE qs_rho0_ggrid
         iat =  tasks(1,j)
         iatom = atom_list(iat)
 
-        CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_tot_c=Qlm_c)
+        CALL  get_rho0_mpole(rho0_mpole=rho0, iat=iatom, Qlm_car_s=Qlm_c)
 
         pab(1:nch_ik,1)=Qlm_c(1:nch_ik)
 
@@ -265,7 +265,6 @@ MODULE qs_rho0_ggrid
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
            rs_grid, cube_info,l_info,eps_rho_rspace,ithread=ithread)
-
 
       END DO  !  j
 
@@ -667,16 +666,16 @@ MODULE qs_rho0_ggrid
                 lz = indco(3,ico)
   
                 hab_sph(iso) = hab_sph(iso) + &
-                    orbtramat(lshell)%c2s(is,ic)*hab(ico,1)/&
-                    norm_l(lshell)*&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!                /SQRT(2.dp*lshell+1)
+                    orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
+                    norm_l(lshell)/&
+                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    dfac(2*lshell+1))
 
                 hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
-                    orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)/&
-                    norm_l(lshell)*&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!                /SQRT(2.dp*lshell+1)
+                    orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)*&
+                    norm_l(lshell)/&
+                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    dfac(2*lshell+1))
 
               END DO  ! ic
             END DO  ! is
@@ -693,10 +692,10 @@ MODULE qs_rho0_ggrid
                 lz = indco(3,ico)
   
                 hab_sph(iso) = hab_sph(iso) + &
-                    orbtramat(lshell)%c2s(is,ic)*hab(ico,1)/&
-                    norm_l(lshell)*&
-                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1))
-!                /SQRT(2.dp*lshell+1)
+                    orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*&
+                    norm_l(lshell)/&
+                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
+                    dfac(2*lshell+1))
 
               END DO  ! ic
             END DO  ! is

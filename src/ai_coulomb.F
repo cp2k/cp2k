@@ -405,7 +405,8 @@ CONTAINS
   SUBROUTINE coulomb3(la_max,zeta,rpgfa,la_min,&
                       lb_max,zetb,rpgfb,lb_min,&
                       lc_max,zetc,rpgfc,lc_min,gccc,&
-                      rab,rab2,rac,rac2,rbc,rbc2,vabc)
+                      rab,rab2,rac,rac2,rbc,rbc2,vabc,int_abc,&
+                      maxder,vabc_plus)
 
 !   Purpose: Calculation of the primitive three-center Coulomb integrals over
 !            Cartesian Gaussian-type functions (electron repulsion integrals,
@@ -431,12 +432,17 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
+    REAL(KIND=dp), DIMENSION(:,:,:), &
+      INTENT(OUT)                            :: int_abc
+    INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  :: vabc_plus
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coc, &
                                                 cocx, cocy, cocz, cx, cy, cz, &
                                                 i, ipgf, j, jpgf, k, kk, la, &
                                                 la_start, lb, lc, n, na, nb, &
                                                 nmax
+    INTEGER                                  :: maxder_local, nap, nbp
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, f5, f6, f7, fcx, fcy, &
                                                 fcz, fx, fy, fz, t, zetp, &
@@ -450,6 +456,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    maxder_local = 0
+    IF(PRESENT(maxder))  maxder_local = maxder
+
     nmax = la_max + lb_max + lc_max + 1
 
 !   *** Calculate the distances of the centers a, b and c ***
@@ -458,20 +467,26 @@ CONTAINS
     dac = SQRT(rac2)
     dbc = SQRT(rbc2)
 
+!   *** Initialize integrals array
+    int_abc = 0.0_dp
+
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
+    nap = 0
 
     DO ipgf=1,SIZE(zeta)
 
 !     *** Screening ***
 
       IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max)
+        na = na + ncoset(la_max - maxder_local)
+        nap = nap + ncoset(la_max)
         CYCLE
       END IF
 
       nb = 0
+      nbp = 0
 
       DO jpgf=1,SIZE(zetb)
 
@@ -479,7 +494,8 @@ CONTAINS
 
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max)
+          nb = nb + ncoset(lb_max - maxder_local)
+          nbp = nbp + ncoset(lb_max)
           CYCLE
         END IF
 
@@ -1553,18 +1569,32 @@ CONTAINS
 
         DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
           kk = k - ncoset(lc_min-1)
-          DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-            DO i=ncoset(la_min-1)+1,ncoset(la_max)
+          DO j=ncoset(lb_min-1)+1,ncoset(lb_max-maxder_local)
+            DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
               vabc(na+i,nb+j) = vabc(na+i,nb+j) + gccc(kk)*v(i,j,k,1)
+              int_abc(na+i,nb+j,k) = v(i,j,k,1)
             END DO
           END DO
         END DO
 
-        nb = nb + ncoset(lb_max)
+        IF(PRESENT(maxder)) THEN
+          DO k=ncoset(lc_min-1)+1,ncoset(lc_max)
+            kk = k - ncoset(lc_min-1)
+            DO j=1,ncoset(lb_max)
+              DO i=1,ncoset(la_max)
+                vabc_plus(nap+i,nbp+j) = vabc_plus(nap+i,nbp+j) + gccc(kk)*v(i,j,k,1)
+              END DO
+            END DO
+          END DO
+        END IF
+
+        nb = nb + ncoset(lb_max - maxder_local)
+        nbp = nbp + ncoset(lb_max)
 
       END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max - maxder_local)
+      nap = nap + ncoset(la_max)
 
     END DO
 

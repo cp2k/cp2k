@@ -31,7 +31,7 @@ MODULE qs_ks_atom
   USE cp_log_handling,                 ONLY: cp_failure_level
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_ecoul_1c
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, int_size
   USE memory_utilities,                ONLY: reallocate
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
@@ -54,6 +54,7 @@ MODULE qs_ks_atom
   USE qs_util,                         ONLY: trace_r_AxB
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate
@@ -84,15 +85,19 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_vxc_atom"
 
-    INTEGER :: i, iab, iatom, ibc, ikind, ilist, inode, jatom, jkind, katom, &
-      kkind, kneighbor, knode, max_gau, max_nsgf, maxsoc, natom, nkind, &
-      nlist, nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot
+    INTEGER :: i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
+               istat, ja_kind, jatom, jkind, ka_kind, katom, &
+               kkind, kneighbor, knode, max_gau, max_nsgf, &
+               maxsoc, natom, nkind, nlist, nnode, nnode_c, &
+               nsetc, nsgfa, nsgfb, nsoctot
     INTEGER, DIMENSION(3)                    :: cell_c
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     LOGICAL                                  :: paw_atom
     REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
+    REAL(dp), DIMENSION(3,3)                 :: force_tmp
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -131,9 +136,15 @@ CONTAINS
            sbc_oce=sbc_oce,&
            ecoul_1c=ecoul_1c)
 
-
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
+    IF(forces) THEN
+      ALLOCATE (atom_of_kind(natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                               atom_of_kind=atom_of_kind)
+    END IF
+
 
     ALLOCATE (C_coeff_h(max_gau,max_nsgf))
     ALLOCATE (C_coeff_s(max_gau,max_nsgf))
@@ -187,6 +198,7 @@ CONTAINS
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom)
 
+            NULLIFY(h_block, p_block)
             IF (iatom <= jatom) THEN
               CALL get_block_node(matrix=ks%matrix,&
                                   block_row=iatom,&
@@ -207,13 +219,11 @@ CONTAINS
 !  stop 'h_b'
             IF(forces) THEN
               IF (iatom <= jatom) THEN
-                NULLIFY ( p_block )
                 CALL get_block_node(matrix=p%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
                                   BLOCK=p_block)
               ELSE
-                NULLIFY ( p_block )
                 CALL get_block_node(matrix=p%matrix,&
                                     block_row=jatom,&
                                     block_col=iatom,&
@@ -225,14 +235,16 @@ CONTAINS
 
               IF(.NOT.ASSOCIATED(oce%voce(kkind,iatom)%neighbor)) CYCLE
 
-               ibc = jkind + nkind*(kkind - 1)
+              ibc = jkind + nkind*(kkind - 1)
 
-               sbc_oce_neighbor_list =>&
+              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+              NULLIFY(sbc_oce_neighbor_list)
+
+              sbc_oce_neighbor_list =>&
                          find_neighbor_list(neighbor_list_set=&
                          sbc_oce(ibc)%neighbor_list_set,&
                          atom=jatom)
-
-              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+              IF(.NOT. ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
 
               atomic_kind => atomic_kind_set(kkind)
 
@@ -280,23 +292,45 @@ CONTAINS
                     CYCLE
                 END IF
                 rho_at => rho_atom(katom)
-!dbg
-!   write(*,*) 'katom ', katom
+
                 CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
 
                 IF(forces)THEN
+                  ia_kind = atom_of_kind(iatom)
+                  ja_kind = atom_of_kind(jatom)
+                  ka_kind = atom_of_kind(katom)
                   IF(iatom <= jatom) THEN
                     rho_at => rho_atom(katom)
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ecoul_1c,&
+                    force_tmp(1:3,1:3) = 0.0_dp 
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
                                     ispin,iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
+                    force(kkind)%vxc_atom(1:3,ka_kind) = &
+                                          force(kkind)%vxc_atom(1:3,ka_kind) + &
+                                          force_tmp(1:3,3) 
+                    force(ikind)%vxc_atom(1:3,ia_kind) = &
+                                         force(ikind)%vxc_atom(1:3,ia_kind) + &
+                                         force_tmp(1:3,1) 
+                    force(jkind)%vxc_atom(1:3,ja_kind) = &
+                                         force(jkind)%vxc_atom(1:3,ja_kind) + &
+                                         force_tmp(1:3,2) 
                   ELSE
                     rho_at => rho_atom(katom)
-                    CALL add_vhxca_forces(p_block,oce,rho_at,force(kkind),ecoul_1c,&
+                    force_tmp(1:3,1:3) = 0.0_dp 
+                    CALL add_vhxca_forces(p_block,oce,rho_at,force_tmp,ecoul_1c,&
                                     ispin,jatom,nsgfb,iatom,nsgfa,katom,nsoctot,&
                                     C_coeff_h,C_coeff_s,max_gau)
+                    force(kkind)%vxc_atom(1:3,ka_kind) = &
+                                          force(kkind)%vxc_atom(1:3,ka_kind) + &
+                                          force_tmp(1:3,3) 
+                    force(ikind)%vxc_atom(1:3,ia_kind) = &
+                                          force(ikind)%vxc_atom(1:3,ia_kind) + &
+                                          force_tmp(1:3,2) 
+                    force(jkind)%vxc_atom(1:3,ja_kind) = &
+                                          force(jkind)%vxc_atom(1:3,ja_kind) + &
+                                          force_tmp(1:3,1) 
                   END IF
                 END IF
 
@@ -317,6 +351,7 @@ CONTAINS
 !  stop 'ks up'
     DEALLOCATE (C_coeff_h)
     DEALLOCATE (C_coeff_s)
+    IF(forces) DEALLOCATE (atom_of_kind)
 
 
   END SUBROUTINE update_ks_atom
@@ -340,16 +375,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: c_block, IntC_h, IntC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_xc_h, int_xc_s
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, int_h_0
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
+                                                int_h_0h, int_h_0s,&
+                                                int_h_3c
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
     INTEGER                                  :: is1, is2
 
-!dbg
-!    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_test
 !******************************************************************************
 
     NULLIFY(int_h,int_s,intC_h,intC_s)
-    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0)
+    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
 
     CALL reallocate(int_h,1,nsp,1,nsp)
     CALL reallocate(int_s,1,nsp,1,nsp)
@@ -358,14 +393,17 @@ CONTAINS
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
     CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
-                      aVh1b_s=int_h_s,aVh1b_0=int_h_0)
+                      aVh1b_s=int_h_s,aVh1b_0=int_h_0h,&
+                      aVhsb_0s=int_h_0s, aVh3c0b=int_h_3c)
 
     DO is1 = 1,nsp
       DO is2 = is1,nsp
         int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
-                         int_h_h(is2,is1) + int_h_0(is2,is1)
+                         int_h_h(is2,is1) - int_h_0h(is2,is1) +&
+                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
         int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
-                         int_h_s(is2,is1) + int_h_0(is2,is1)
+                         int_h_s(is2,is1) - int_h_0h(is2,is1) +&
+                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
         int_h(is1,is2) = int_h(is2,is1)
         int_s(is1,is2) = int_s(is2,is1)
       END DO
@@ -524,7 +562,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_block
     TYPE(oce_matrix_type), POINTER           :: oce
     TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(qs_force_type)                      :: force
+    REAL(dp), DIMENSION(3,3)                 :: force
     TYPE(ecoul_1center_type), DIMENSION(:), & 
                                  POINTER     :: ecoul_1c
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
@@ -539,14 +577,16 @@ CONTAINS
                                                 p_blockt, PC_h, PC_s
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_xc_h, int_xc_s
-    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, int_h_0
+    REAL(dp), DIMENSION(:,:), POINTER        :: int_h_h, int_h_s, &
+                                                int_h_0h, int_h_0s,&
+                                                int_h_3c
     REAL(dp), DIMENSION(:,:), POINTER        :: int_h, int_s
     INTEGER                                  :: is1, is2
 
 ! *****************************************************************************
 
     NULLIFY(int_h, int_s, PC_h, PC_s, dCPC_h, dCPC_s)
-    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0)
+    NULLIFY(int_xc_h, int_xc_s,int_h_h, int_h_s, int_h_0h, int_h_0s)
 
     CALL reallocate(int_h,1,nsp,1,nsp)
     CALL reallocate(int_s,1,nsp,1,nsp)
@@ -555,14 +595,17 @@ CONTAINS
                      ga_Vxc_gb_h=int_xc_h,ga_Vxc_gb_s=int_xc_s)
 
     CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=ka,aVh1b_h=int_h_h,&
-                      aVh1b_s=int_h_s,aVh1b_0=int_h_0)
+                      aVh1b_s=int_h_s,aVh1b_0=int_h_0h,aVhsb_0s=int_h_0s,&
+                      aVh3c0b=int_h_3c)
 
     DO is1 = 1,nsp
       DO is2 = is1,nsp
         int_h(is2,is1) = int_xc_h(ispin)%r_coef(is2,is1) + &
-                         int_h_h(is2,is1) + int_h_0(is2,is1)
+                         int_h_h(is2,is1) - int_h_0h(is2,is1) + &
+                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
         int_s(is2,is1) = int_xc_s(ispin)%r_coef(is2,is1) + &
-                         int_h_s(is2,is1) + int_h_0(is2,is1)
+                         int_h_s(is2,is1) - int_h_0h(is2,is1) + &
+                         int_h_0s(is2,is1) + int_h_3c(is2,is1)
         int_h(is1,is2) = int_h(is2,is1)
         int_s(is1,is2) = int_s(is2,is1)
       END DO
@@ -627,8 +670,8 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
 
-       force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
-       force%vxc_atom(dir,ia) = force%vxc_atom(dir,ia) - 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
+       force(dir-1,1) = force(dir-1,1) - 2.0_dp * trace
 
        CALL dgemm("N","N",nsp,nsp,na,&
                   1.0_dp,C_s,ldc,&
@@ -637,8 +680,8 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
 
-       force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) - 2.0_dp * trace
-       force%vxc_atom(dir,ia) = force%vxc_atom(dir,ia) + 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
+       force(dir-1,1) = force(dir-1,1) + 2.0_dp * trace
 
     END DO
 
@@ -704,8 +747,8 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_h,nsp,int_h,nsp,nsp,nsp)
 
-       force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) + 2.0_dp * trace
-       force%vxc_atom(dir,ja) = force%vxc_atom(dir,ja) - 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
+       force(dir-1,2) = force(dir-1,2) - 2.0_dp * trace
 
        CALL dgemm("N","N",nsp,nsp,nb,&
                   1.0_dp,C_s,ldc,&
@@ -714,8 +757,8 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_s,nsp,int_s,nsp,nsp,nsp)
 
-       force%vxc_atom(dir,ka) = force%vxc_atom(dir,ka) - 2.0_dp * trace
-       force%vxc_atom(dir,ja) = force%vxc_atom(dir,ja) + 2.0_dp * trace
+       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
+       force(dir-1,2) = force(dir-1,2) + 2.0_dp * trace
 
     END DO
 

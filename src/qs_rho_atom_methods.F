@@ -318,7 +318,7 @@ MODULE qs_rho_atom_methods
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
+      DIMENSION(:), POINTER                  :: sab_orb, sbc_oce
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local, &
                                                 sbc_oce_neighbor_list
@@ -337,7 +337,6 @@ MODULE qs_rho_atom_methods
     NULLIFY(atomic_kind_set)
     NULLIFY(oce)
     NULLIFY(sab_orb)
-    NULLIFY(sac_oce)
     NULLIFY(sbc_oce)
     NULLIFY(rho_atom)
     NULLIFY(orb_basis_set)
@@ -348,7 +347,6 @@ MODULE qs_rho_atom_methods
             dft_control=dft_control,&
             atomic_kind_set=atomic_kind_set,&
             oce=oce,sab_orb=sab_orb,&
-            sac_oce=sac_oce,&
             sbc_oce=sbc_oce,&
             rho_atom_set=rho_atom)
 
@@ -467,14 +465,18 @@ MODULE qs_rho_atom_methods
             DO kkind=1,nkind
               IF(.NOT.ASSOCIATED(oce%voce(kkind,iatom)%neighbor)) CYCLE
 
-               ibc = jkind + nkind*(kkind - 1)
+              ibc = jkind + nkind*(kkind - 1)
 
-               sbc_oce_neighbor_list =>&
+              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+              NULLIFY(sbc_oce_neighbor_list)
+
+              sbc_oce_neighbor_list =>&
                          find_neighbor_list(neighbor_list_set=&
                          sbc_oce(ibc)%neighbor_list_set,&
                          atom=jatom)
 
-              IF (.NOT.ASSOCIATED(sbc_oce(ibc)%neighbor_list_set)) CYCLE
+
+              IF (.NOT.ASSOCIATED(sbc_oce_neighbor_list)) CYCLE
 
               atomic_kind => atomic_kind_set(kkind)
 
@@ -528,23 +530,23 @@ MODULE qs_rho_atom_methods
                     CYCLE
                 END IF
 
-                 NULLIFY(c_block)
-                 CALL get_block_node(matrix=oce%hardo(1)%matrix,&
+                NULLIFY(c_block)
+                CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
                                     BLOCK=c_block)
-                 C_coeff_h_a = 0.0_dp
-                 C_coeff_h_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
+                C_coeff_h_a = 0.0_dp
+                C_coeff_h_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
 
-                 NULLIFY(c_block)
-                 CALL get_block_node(matrix=oce%softo(1)%matrix,&
+                NULLIFY(c_block)
+                CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=iatom,&
                                     BLOCK=c_block)
-                 C_coeff_s_a = 0.0_dp
-                 C_coeff_s_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
+                C_coeff_s_a = 0.0_dp
+                C_coeff_s_a(1:nsoctot,1:nsgfa)=c_block(1:nsoctot,1:nsgfa)
 
-                 IF(iatom == jatom) THEN
+                IF(iatom == jatom) THEN
 !        if(katom == iatom) then
                    DO ispin = 1,nspins
                      CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,p_coeff(1,1,ispin),&
@@ -579,26 +581,26 @@ MODULE qs_rho_atom_methods
 !     enddo
 !    endif
 !      stop 'katom'
-                 ELSE
-                    NULLIFY(c_block)
-                    CALL get_block_node(matrix=oce%hardo(1)%matrix,&
+                ELSE
+                   NULLIFY(c_block)
+                   CALL get_block_node(matrix=oce%hardo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
                                     BLOCK=c_block)
-                    C_coeff_h_b = 0.0_dp
-                    C_coeff_h_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
+                   C_coeff_h_b = 0.0_dp
+                   C_coeff_h_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
 
-                    NULLIFY(c_block)
-                    CALL get_block_node(matrix=oce%softo(1)%matrix,&
+                   NULLIFY(c_block)
+                   CALL get_block_node(matrix=oce%softo(1)%matrix,&
                                     block_row=katom,&
                                     block_col=jatom,&
                                     BLOCK=c_block)
-                    C_coeff_s_b = 0.0_dp
-                    C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
+                   C_coeff_s_b = 0.0_dp
+                   C_coeff_s_b(1:nsoctot,1:nsgfb)=c_block(1:nsoctot,1:nsgfb)
 
 
-                    DO ispin = 1,nspins
+                   DO ispin = 1,nspins
                       CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,&
                                  1.0_dp,p_coeff(1,1,ispin),SIZE(p_coeff,1),&
                                  C_coeff_h_b,SIZE(C_coeff_h_b,1),&
@@ -624,13 +626,12 @@ MODULE qs_rho_atom_methods
                                        coef_aux_h(1,1,ispin),max_gau,nsoctot)
                       CALL symmetric_add(rho_atom(katom)%cpc_s(ispin)%r_coef,nsoctot,&
                                        coef_aux_s(1,1,ispin),max_gau,nsoctot)
-                    END DO
+                   END DO
 !     do i = 1,nsoctot
 !     write(*,'(i3,32f8.3)') i,rho_atom(katom)%cpc_h(1)%r_coef(i,1:nsoctot)
 !     enddo
-                 ENDIF
-10   CONTINUE
-                 sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
+                ENDIF
+                sbc_oce_neighbor_node => next(sbc_oce_neighbor_node)
               ENDDO  knodeloop ! knode
             ENDDO  ! kkind
           sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -639,10 +640,6 @@ MODULE qs_rho_atom_methods
       ENDDO  ! jkind
     ENDDO ! ikind
 
-!     do i = 1,32
-!     write(*,'(i3,16f10.5)') i,rho_atom(1)%cpc_h(1)%r_coef(i,1:16)
-!     enddo
-!  stop 'coef'
 #ifdef PARALLEL
     DO iatom = 1,natom
        DO ispin = 1,nspins
@@ -796,7 +793,7 @@ MODULE qs_rho_atom_methods
         WRITE(6,'(/,72("*"))')
         WRITE(6,'(T2,A,T66,I4)') & 
           "WARNING: the lebedev grid is built for angular momentum l up to ",ll,&
-          "            the max l of spherical harminics is larger, l_max = ", llmax,&
+          "            the max l of spherical harmonics is larger, l_max = ", llmax,&
           "                   good integration is guaranteed only for l <= ", ll
         WRITE(6,'(72("*"),/)')
       END IF

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_oce_types
 !!
@@ -63,14 +63,14 @@ MODULE qs_oce_types
 
 ! *** Define a oce matrix type ***
 
-  TYPE voce_type
+  TYPE vtriple_type
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER :: neighbor
-  END TYPE voce_type
+  END TYPE vtriple_type
 
 
   TYPE oce_matrix_type
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER  :: hardo,softo
-    TYPE(voce_type), DIMENSION(:,:), POINTER         :: voce 
+    TYPE(vtriple_type), DIMENSION(:,:), POINTER      :: voce 
   END TYPE
 
 ! *** Public data types ***
@@ -81,9 +81,10 @@ MODULE qs_oce_types
 
   PUBLIC :: allocate_oce_set, &
             deallocate_oce_set, &
+            deallocate_vtriple,&
             prepare_oce_coeff,&
             retrieve_sac_oce,&
-            voce_type
+            vtriple_type
 
 !!***
 ! *****************************************************************************
@@ -127,7 +128,7 @@ CONTAINS
     oce_set%softo => so
 
     ALLOCATE (oce_set%voce(nkind,natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"voce",0)
+    IF (istat /= 0) CALL stop_memory(routine,"voce",nkind*natom)
     DO ia = 1,natom
       DO ik = 1,nkind
         NULLIFY(oce_set%voce(ik,ia)%neighbor)
@@ -156,7 +157,7 @@ CONTAINS
 
     IF(ASSOCIATED(oce_set%hardo)) CALL deallocate_matrix_set(oce_set%hardo)
     IF(ASSOCIATED(oce_set%softo)) CALL deallocate_matrix_set(oce_set%softo)
-    IF(ASSOCIATED(oce_set%voce))  CALL deallocate_voce(oce_set%voce)
+    IF(ASSOCIATED(oce_set%voce))  CALL deallocate_vtriple(oce_set%voce)
     DEALLOCATE (oce_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"deallocate_oce_set",0)
 
@@ -164,30 +165,30 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_voce(voce)
+  SUBROUTINE deallocate_vtriple(vtriple)
 
-    TYPE(voce_type), DIMENSION(:,:), POINTER :: voce
+    TYPE(vtriple_type), DIMENSION(:,:), POINTER :: vtriple
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_voce"
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_vtriple"
 
-    TYPE(qlist_type), POINTER    :: sac_oce_neighbor
+    TYPE(qlist_type), POINTER                   :: sac_oce_neighbor
     INTEGER  iat, icell, istat, jcell, kcell, kkind, natom, nkind
 
 ! *****************************************************************************
 
-    IF(ASSOCIATED(voce)) THEN
-      nkind = SIZE(voce,1)
-      natom = SIZE(voce,2)
+    IF(ASSOCIATED(vtriple)) THEN
+      nkind = SIZE(vtriple,1)
+      natom = SIZE(vtriple,2)
       DO iat = 1,natom
          DO kkind=1,nkind
-           IF (ASSOCIATED(voce(kkind,iat)%neighbor)) THEN
-             DO kcell=LBOUND(voce(kkind,iat)%neighbor,3),&
-                      UBOUND(voce(kkind,iat)%neighbor,3)
-               DO jcell=LBOUND(voce(kkind,iat)%neighbor,2),&
-                        UBOUND(voce(kkind,iat)%neighbor,2)
-                 DO icell=LBOUND(voce(kkind,iat)%neighbor,1),&
-                          UBOUND(voce(kkind,iat)%neighbor,1)
-                   sac_oce_neighbor => voce(kkind,iat)%neighbor(icell,&
+           IF (ASSOCIATED(vtriple(kkind,iat)%neighbor)) THEN
+             DO kcell=LBOUND(vtriple(kkind,iat)%neighbor,3),&
+                      UBOUND(vtriple(kkind,iat)%neighbor,3)
+               DO jcell=LBOUND(vtriple(kkind,iat)%neighbor,2),&
+                        UBOUND(vtriple(kkind,iat)%neighbor,2)
+                 DO icell=LBOUND(vtriple(kkind,iat)%neighbor,1),&
+                          UBOUND(vtriple(kkind,iat)%neighbor,1)
+                   sac_oce_neighbor => vtriple(kkind,iat)%neighbor(icell,&
                                                                jcell,&
                                                                kcell)
                    IF (sac_oce_neighbor%n > 0) THEN
@@ -215,19 +216,25 @@ CONTAINS
                  END DO
                END DO
              END DO
-             DEALLOCATE (voce(kkind,iat)%neighbor,STAT=istat)
+             DEALLOCATE (vtriple(kkind,iat)%neighbor,STAT=istat)
              IF (istat /= 0) THEN
                CALL stop_memory(routine_name,module_name,__LINE__,&
-                               "voce(kkind,iat)%neighbor")
+                               "vtriple(kkind,iat)%neighbor")
              END IF
            END IF
          END DO
-       END DO
+      END DO
+      DEALLOCATE(vtriple,STAT=istat)
+      IF (istat /= 0) THEN
+                       CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "vtriple")
+      END IF
     ELSE
-
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The pointer vtriple is not associated")
     ENDIF
 
-  END SUBROUTINE deallocate_voce
+  END SUBROUTINE deallocate_vtriple
 ! *****************************************************************************
 
   SUBROUTINE prepare_oce_coeff(particle_set,oce,natom,nsgf, & 
@@ -329,10 +336,10 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE retrieve_sac_oce(voce,sac_oce,iatom,ikind,nkind)
 
-    TYPE(voce_type), DIMENSION(:,:), &
-                     POINTER            :: voce
+    TYPE(vtriple_type), DIMENSION(:,:), &
+                     POINTER             :: voce
     TYPE(neighbor_list_set_p_type),  &
-                  DIMENSION(:), POINTER :: sac_oce
+                  DIMENSION(:), POINTER  :: sac_oce
     INTEGER, INTENT(IN)                  :: iatom,ikind,nkind
 
 !   *** Local parameters ***
@@ -342,12 +349,12 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(qlist_type), POINTER            :: sac_oce_neighbor
-    TYPE(neighbor_list_type), POINTER   :: sac_oce_neighbor_list
-    TYPE(neighbor_node_type), POINTER   :: sac_oce_neighbor_node
+    TYPE(neighbor_list_type), POINTER    :: sac_oce_neighbor_list
+    TYPE(neighbor_node_type), POINTER    :: sac_oce_neighbor_node
 
-    REAL(dp)                            :: rac2
-    REAL(dp), DIMENSION(3)              :: rac
-    INTEGER, DIMENSION(3)               :: cell_c,cell_c_max,cell_c_min
+    REAL(dp)                             :: rac2
+    REAL(dp), DIMENSION(3)               :: rac
+    INTEGER, DIMENSION(3)                :: cell_c,cell_c_max,cell_c_min
     INTEGER :: i, iac, icell, istat, jcell, katom, kcell, kkind, kneighbor, n, nneighbor
 
 !   ---------------------------------------------------------------------------

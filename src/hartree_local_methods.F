@@ -42,6 +42,7 @@ MODULE  hartree_local_methods
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
+  USE qs_oce_types,                    ONLY: vtriple_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -86,10 +87,12 @@ MODULE  hartree_local_methods
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                 POINTER      :: ecoul_1c
+    TYPE(vtriple_type), DIMENSION(:,:),&
+                                POINTER      :: vtriple
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
 
-    INTEGER                                  :: iat, iatom, ikind,&
+    INTEGER                                  :: iat, iatom, ikind, istat,&
                                                 max_iso_not0, maxso, nat,&
                                                 natom, nkind, nr, nset, nsotot 
 
@@ -100,6 +103,7 @@ MODULE  hartree_local_methods
     NULLIFY(orb_basis)
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
+    NULLIFY(vtriple)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
     nkind = SIZE(atomic_kind_set,1)
@@ -131,11 +135,20 @@ MODULE  hartree_local_methods
         CALL reallocate(ecoul_1c(iatom)%aVh1b_s%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVh1b_0%r_coef,1,nsotot,1,nsotot)
         CALL reallocate(ecoul_1c(iatom)%aVhsb_0s%r_coef,1,nsotot,1,nsotot)
+        CALL reallocate(ecoul_1c(iatom)%aVh3c0b%r_coef,1,nsotot,1,nsotot)
 
       END DO
     END DO
 
-    CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c)
+    ALLOCATE (vtriple(nkind,natom),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine_name,"vtriple",nkind*natom)
+    DO iat = 1,natom
+      DO ikind = 1,nkind
+        NULLIFY(vtriple(ikind,iat)%neighbor)
+      ENDDO
+    ENDDO
+
+    CALL set_qs_env(qs_env=qs_env,ecoul_1c=ecoul_1c,VH_3c_list=vtriple)
 
   END SUBROUTINE init_coulomb_local
 
