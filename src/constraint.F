@@ -424,11 +424,14 @@ SUBROUTINE shake_3x3( molecule, particle_set, simpar, ishake )
         r23=r2-r3
 
 ! compute the tolerance:
-        sigma = dot_product(r12,r12) - g3x3_list ( iconst ) % dab * g3x3_list ( iconst ) % dab
+        sigma = dot_product(r12,r12) - g3x3_list ( iconst ) % dab *  &
+                                       g3x3_list ( iconst ) % dab
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r13,r13) -  g3x3_list ( iconst ) % dac * g3x3_list ( iconst ) % dac
+        sigma = dot_product(r13,r13) -  g3x3_list ( iconst ) % dac * & 
+                                        g3x3_list ( iconst ) % dac
         max_sigma=MAX(max_sigma,ABS(sigma))
-        sigma = dot_product(r23,r23) - g3x3_list ( iconst ) % dbc * g3x3_list ( iconst ) % dbc
+        sigma = dot_product(r23,r23) - g3x3_list ( iconst ) % dbc *  &
+                                       g3x3_list ( iconst ) % dbc
         max_sigma=MAX(max_sigma,ABS(sigma))
      END DO CONS
 
