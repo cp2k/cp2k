@@ -106,6 +106,7 @@ MODULE qmmm_init
   USE qmmm_input,                      ONLY: qmmm_namelist_read
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
+  USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
 
   IMPLICIT NONE
   PRIVATE
@@ -271,6 +272,11 @@ CONTAINS
                                      pw_env=qs_env%pw_env,&
                                      error=error)
 
+       CALL qmmm_pw_grid_init(qmmm_env=qmmm_env,&
+                              pw_env=qs_env%pw_env,&
+                              cell=qm_cell_small,&
+                              error=error)
+                              
        CALL qs_env_release(qs_env,error=error)
 
        globenv%program_name="QMMM"

@@ -41,6 +41,10 @@ MODULE qmmm_types
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type
+  USE pw_types,                        ONLY: pw_type,&
+                                             pw_p_type,&
+                                             pw_release
+  USE pw_pool_types, ONLY: pw_pool_p_type, pw_pool_type, pw_pools_dealloc
 
   IMPLICIT NONE
   PRIVATE
@@ -49,7 +53,7 @@ MODULE qmmm_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qmmm_types'
   INTEGER, SAVE, PRIVATE :: last_qmmm_env_id_nr=0
 
-  PUBLIC :: qmmm_env_type
+  PUBLIC :: qmmm_env_type, gridlevel_info_type
   PUBLIC :: qmmm_env_retain, qmmm_env_release, qmmm_env_create
 
 !***
@@ -78,6 +82,11 @@ MODULE qmmm_types
 !!
 !!   SOURCE
   !***************************************************************************
+  TYPE gridlevel_info_type
+     INTEGER                                                 :: auxbas_grid
+     INTEGER                                                 :: coarser_grid
+  END TYPE gridlevel_info_type
+
   TYPE qmmm_env_type
      INTEGER :: ref_count, id_nr
      CHARACTER(len=default_string_length)                    :: qmmm_coupl_type
@@ -90,7 +99,9 @@ MODULE qmmm_types
      INTEGER,        DIMENSION(:), POINTER                   :: mm_atom_index
      REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_atom_chrg
      REAL(KIND=dbl), DIMENSION(:), POINTER                   :: mm_el_pot_radius
+     TYPE(gridlevel_info_type)                               :: gridlevel_info
      TYPE(qmmm_gaussian_p_type), DIMENSION(:),POINTER        :: pgfs
+     TYPE(pw_pool_p_type), DIMENSION(:), POINTER             :: aug_pools
   END TYPE qmmm_env_type
 !!***
   !****************************************************************************
@@ -137,10 +148,13 @@ SUBROUTINE qmmm_env_create(qmmm_env, error)
      qmmm_env%id_nr=last_qmmm_env_id_nr
      NULLIFY(qmmm_env%qm_atom_index,qmmm_env%qm_subsys_index,&
              qmmm_env%mm_atom_index,qmmm_env%mm_atom_chrg,&
-             qmmm_env%pgfs, qmmm_env%maxradius)
+             qmmm_env%pgfs, qmmm_env%maxradius,&
+             qmmm_env%aug_pools )
      qmmm_env%qmmm_coupl_type=" "
      qmmm_env%num_qm_atoms=0
      qmmm_env%num_mm_atoms=0
+     qmmm_env%gridlevel_info%auxbas_grid  = 0
+     qmmm_env%gridlevel_info%coarser_grid = 0
   END IF
 END SUBROUTINE qmmm_env_create
 !***************************************************************************
@@ -251,6 +265,9 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
            DEALLOCATE(qmmm_env%pgfs,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(qmmm_env%aug_pools)) THEN
+           CALL pw_pools_dealloc(qmmm_env%aug_pools,error=error)
+        END IF
         DEALLOCATE(qmmm_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -258,6 +275,5 @@ SUBROUTINE qmmm_env_release(qmmm_env,error)
   NULLIFY(qmmm_env)
 END SUBROUTINE qmmm_env_release
 !***************************************************************************
-
 
 END MODULE qmmm_types

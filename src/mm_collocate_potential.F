@@ -55,6 +55,7 @@ MODULE mm_collocate_potential
                                              pw_pool_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_types,                        ONLY: pw_type
   USE realspace_grid_types,            ONLY: realspace_grid_p_type,&
                                              realspace_grid_type,&
                                              rs_get_loop_vars,&
@@ -103,15 +104,14 @@ CONTAINS
 !!     07.2004 created [tlaino]
 !!
 !!**************************************************************************
-  SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,rsgrid,cube_info,&
+  SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,ithread,xdat,ydat,zdat)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
-    TYPE(realspace_grid_type), &
-      INTENT(INOUT), TARGET                  :: rsgrid
+    TYPE(pw_type), POINTER                   :: pwgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace    
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
@@ -142,9 +142,9 @@ CONTAINS
     END IF
     
 !   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
-    ng(:) = rsgrid%npts(:)
-    grid => rsgrid%r(:,:,:)
+    dr(:) = pwgrid%pw_grid%dr(:)
+    ng(:) = pwgrid%pw_grid%npts(:)
+    grid => pwgrid%cr3d(:,:,:)
     gridbounds(1,1) = LBOUND(grid,1)
     gridbounds(2,1) = UBOUND(grid,1)
     gridbounds(1,2) = LBOUND(grid,2)
@@ -193,7 +193,7 @@ CONTAINS
 !!     integrate_gf_rspace_NoPBC
 !!
 !!   FUNCTION
-!!     Main driver to integrate gaussian functions on a grid function 
+!!     Main driver to integrate gaussian functions on a grid function   
 !!     without using periodic boundary conditions (NoPBC)
 !!     Computes Forces.
 !!
@@ -211,15 +211,14 @@ CONTAINS
 !!     07.2004 created [tlaino]
 !!
 !!**************************************************************************
-  SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,rsgrid,cube_info,&
+  SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
        eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,wrk,force)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                 :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)   :: rp
     REAL(KIND=dp), INTENT(IN)                 :: scale, W
-    TYPE(realspace_grid_type), &
-      INTENT(INOUT), TARGET                   :: rsgrid
+    TYPE(pw_type), POINTER                    :: pwgrid
     TYPE(cube_info_type), INTENT(IN)          :: cube_info
     REAL(KIND=dp), INTENT(IN)                 :: eps_mm_rspace    
     INTEGER, INTENT(IN), OPTIONAL             :: ithread
@@ -253,9 +252,9 @@ CONTAINS
     END IF
     
 !   *** properties of the grid ***
-    dr(:) = rsgrid%dr(:)
-    ng(:) = rsgrid%npts(:)
-    grid => rsgrid%r(:,:,:)
+    dr(:) = pwgrid%pw_grid%dr(:)
+    ng(:) = pwgrid%pw_grid%npts(:)
+    grid => pwgrid%cr3d(:,:,:)
     gridbounds(1,1) = LBOUND(grid,1)
     gridbounds(2,1) = UBOUND(grid,1)
     gridbounds(1,2) = LBOUND(grid,2)

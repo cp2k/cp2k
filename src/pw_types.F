@@ -69,6 +69,7 @@ MODULE pw_types
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: pw_prolongate, pw_inject, pw_compare_debug
+  PUBLIC :: pw_prolongate_NoPBC, pw_inject_NoPBC
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -3087,6 +3088,289 @@ SUBROUTINE pw_compare_debug(pw1,pw2,maxdiff,error)
   END IF
 END SUBROUTINE pw_compare_debug
 !***************************************************************************
+
+!!****f* pw_types/pw_prolongate_NoPBC [1.0] *
+!!
+!!   NAME
+!!     pw_prolongate_NoPBC
+!!
+!!   FUNCTION
+!!     Prolongates the values of a pw_type coarse grid to a pw_type fine grid
+!!     uses simple linear interpolation. First Order.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [tlaino]
+!!
+!!**************************************************************************
+  SUBROUTINE pw_prolongate_NoPBC(pw_coarse, pw_fine, error)
+    ! Arguments
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(pw_type), POINTER       :: pw_coarse
+    TYPE(pw_type), POINTER       :: pw_fine
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_prolongate_NoPBC', &
+         routineP = moduleN//':'//routineN
+    LOGICAL                                  :: failure
+    INTEGER                                  :: handle, i, j, k, stat
+    INTEGER, DIMENSION(3)                    :: lb, n, ub
+    REAL(KIND=dbl), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
+
+
+    CALL timeset ( 'pw_prolongate_NoPBC', 'I', '', handle )
+
+    ! only for the easiest case 
+    IF ( ANY((pw_coarse % pw_grid % npts -1)* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
+       CALL stop_program("pw_prolongate_NoPBC","sorry too difficult ")
+    ENDIF
+    WRITE(*,*)'coarse grid points  : ',pw_coarse % pw_grid% npts
+    WRITE(*,*)'       upper bounds : ',pw_coarse % pw_grid% bounds(2,:)
+    WRITE(*,*)'       lower bounds : ',pw_coarse % pw_grid% bounds(1,:)
+    WRITE(*,*)'fine   grid points: ',  pw_fine % pw_grid%npts
+    WRITE(*,*)'       upper bounds : ',pw_fine % pw_grid%bounds(2,:)
+    WRITE(*,*)'       lower bounds : ',pw_fine % pw_grid%bounds(1,:)
+    ! we use the bounds of the smaller grid
+    n   = pw_coarse % pw_grid %npts
+    lb  = pw_fine % pw_grid % bounds(1,:)
+    ub  = pw_fine % pw_grid % bounds(2,:)
+
+    ALLOCATE( tgr( lb(1):ub(1),&
+                   lb(2):ub(2),&
+                   lb(3):ub(3)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    tgr = 0.0_dbl
+    lb  = pw_coarse % pw_grid % bounds(1,:)
+    ub  = pw_coarse % pw_grid % bounds(2,:)
+
+    ! Copy the indentical points
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)
+              tgr (2*i,2*j,2*k ) = pw_coarse % cr3d (i,j,k)
+          ENDDO
+       ENDDO
+    ENDDO
+
+    ! Put values on the x edges
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)-1
+             tgr(2*i+1,2*j,2*k ) = 0.5_dbl* (tgr(2*i,   2*j, 2*k ) + &
+                                             tgr(2*i+2, 2*j, 2*k ))
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Put values on the y edges
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)
+             tgr(2*i,2*j+1,2*k ) = 0.5_dbl* (tgr(2*i, 2*j,   2*k ) +  &
+                                             tgr(2*i, 2*j+2, 2*k ))
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Put values on the z edges
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)
+             tgr(2*i,2*j,2*k+1 ) = 0.5_dbl* (tgr(2*i, 2*j, 2*k  ) +  &
+                                             tgr(2*i, 2*j, 2*k+2 ))
+          ENDDO
+       ENDDO
+    ENDDO
+
+    ! Put values on the xy faces
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)-1
+             tgr(2*i+1,2*j+1,2*k ) = 0.5_dbl* (tgr(2*i,   2*j+1, 2*k ) + &  
+                                               tgr(2*i+2, 2*j+1, 2*k ))
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Put values on the xz faces
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)-1
+             tgr(2*i+1,2*j,2*k+1 ) = 0.5_dbl* (tgr(2*i,   2*j, 2*k+1 ) + &
+                                               tgr(2*i+2, 2*j, 2*k+1 ))
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Put values on the yz faces
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)
+             tgr(2*i,2*j+1,2*k+1 ) = 0.5_dbl* (tgr(2*i, 2*j,   2*k+1 ) + &
+                                               tgr(2*i, 2*j+2, 2*k+1 ))
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Put values on the center
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)-1
+             tgr(2*i+1,2*j+1,2*k+1 ) = 0.5_dbl* (tgr(2*i ,  2*j+1, 2*k+1 ) + &
+                                                 tgr(2*i+2, 2*j+1, 2*k+1 ))
+          ENDDO
+       ENDDO
+    ENDDO
+    pw_fine % cr3d = pw_fine % cr3d + tgr
+    DEALLOCATE( tgr, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop ( 0.0_dbl, handle )    
+
+  END SUBROUTINE pw_prolongate_NoPBC
+
+!!****f* pw_types/pw_inject_NoPBC [1.0] *
+!!
+!!   NAME
+!!     pw_inject_NoPBC
+!!
+!!   FUNCTION
+!!     Injectes the values of a fine pw_type grid to a coarse pw_type grid
+!!     uses simple linear interpolation, and is the 'inverse' of the 
+!!     rs_prolongate_NoPBC
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [tlaino]
+!!
+!!**************************************************************************
+  SUBROUTINE pw_inject_NoPBC(pw_fine, pw_coarse, error)
+    ! Arguments
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                :: error
+    TYPE(pw_type), POINTER        :: pw_fine
+    TYPE(pw_type), POINTER        :: pw_coarse
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_inject_NoPBC', &
+         routineP = moduleN//':'//routineN
+    LOGICAL                                   :: failure
+    INTEGER                                   :: handle, i, j, k, stat
+    INTEGER, DIMENSION(3)                     :: lb, ub
+    REAL(KIND=dbl)                            :: dum
+    REAL(KIND=dbl), DIMENSION(:,:,:), ALLOCATABLE :: tgr 
+
+    CALL timeset ( 'pw_inject_NoPBC', 'I', '', handle )
+
+    ! only for the easiest case
+    IF ( ANY((pw_coarse % pw_grid % npts - 1 )* 2 .NE. (pw_fine % pw_grid % npts -1))) THEN
+       CALL stop_program("pw_inject_NoPBC","sorry too difficult ")
+    ENDIF
+    lb  = pw_fine % pw_grid % bounds(1,:)
+    ub  = pw_fine % pw_grid % bounds(2,:)
+
+    ALLOCATE( tgr( lb(1):ub(1),&
+                   lb(2):ub(2),&
+                   lb(3):ub(3)), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    tgr = pw_fine % cr3d
+    lb  = pw_coarse % pw_grid % bounds(1,:)
+    ub  = pw_coarse % pw_grid % bounds(2,:)
+
+    ! Values from the center
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)-1
+             dum = 0.5_dbl * tgr(2*i+1, 2*j+1, 2*k+1 )
+             tgr(2*i  , 2*j+1, 2*k+1 ) = tgr(2*i ,  2*j+1, 2*k+1 ) + dum
+             tgr(2*i+2, 2*j+1, 2*k+1 ) = tgr(2*i+2, 2*j+1, 2*k+1 ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the yz faces
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)
+             dum = 0.5_dbl * tgr(2*i  , 2*j+1, 2*k+1 )
+             tgr(2*i  , 2*j  , 2*k+1 ) = tgr(2*i  ,2*j  , 2*k+1 ) + dum
+             tgr(2*i  , 2*j+2, 2*k+1 ) = tgr(2*i  ,2*j+2, 2*k+1 ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the xz faces
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)-1
+             dum = 0.5_dbl * tgr(2*i+1, 2*j  , 2*k+1 )
+             tgr(2*i  , 2*j  , 2*k+1 ) = tgr(2*i  , 2*j  , 2*k+1 ) + dum
+             tgr(2*i+2, 2*j  , 2*k+1 ) = tgr(2*i+2, 2*j  , 2*k+1 ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the xy faces
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)-1
+             dum = 0.5_dbl * tgr(2*i+1, 2*j+1, 2*k   )
+             tgr(2*i  , 2*j+1, 2*k   ) = tgr(2*i  , 2*j+1, 2*k   ) + dum
+             tgr(2*i+2, 2*j+1, 2*k   ) = tgr(2*i+2, 2*j+1, 2*k   ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the z edges
+    DO k=lb(3),ub(3)-1
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)
+             dum = 0.5_dbl * tgr(2*i  , 2*j  , 2*k+1 )
+             tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
+             tgr(2*i  , 2*j  , 2*k+2 ) = tgr(2*i  , 2*j  , 2*k+2 ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the y edges
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)-1
+          DO i=lb(1),ub(1)
+             dum = 0.5_dbl * tgr(2*i  , 2*j+1, 2*k   )
+             tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
+             tgr(2*i  , 2*j+2, 2*k   ) = tgr(2*i  , 2*j+2, 2*k   ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Values from the x edges
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)-1
+             dum = 0.5_dbl * tgr(2*i+1, 2*j  , 2*k   )
+             tgr(2*i  , 2*j  , 2*k   ) = tgr(2*i  , 2*j  , 2*k   ) + dum
+             tgr(2*i+2, 2*j  , 2*k   ) = tgr(2*i+2, 2*j  , 2*k   ) + dum
+          ENDDO
+       ENDDO
+    ENDDO
+    ! Copy the indentical points
+    DO k=lb(3),ub(3)
+       DO j=lb(2),ub(2)
+          DO i=lb(1),ub(1)
+             pw_coarse % cr3d(i,j,k) = pw_coarse % cr3d(i,j,k) + tgr(2*i,2*j,2*k )
+          ENDDO
+       ENDDO
+    ENDDO
+    DEALLOCATE( tgr, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop ( 0.0_dbl, handle )
+    
+  END SUBROUTINE pw_inject_NoPBC
 
 END MODULE pw_types
 

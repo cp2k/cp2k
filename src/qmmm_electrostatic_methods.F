@@ -72,7 +72,9 @@ MODULE qmmm_electrostatic_methods
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
-                                             pw_pool_type
+                                             pw_pool_p_type,&
+                                             pw_pools_create_pws,&
+                                             pw_pools_give_back_pws
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -83,8 +85,7 @@ MODULE qmmm_electrostatic_methods
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
-                                             rs_pw_transfer,&
-                                             rs_prolongate_NoPBC
+                                             rs_pw_transfer
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -98,7 +99,9 @@ MODULE qmmm_electrostatic_methods
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE qmmm_gaussian_types,             ONLY: qmmm_gaussian_p_type,&
                                              qmmm_gaussian_type
-
+  USE pw_types,                        ONLY: pw_type,&
+                                             pw_zero,&
+                                             pw_prolongate_NoPBC
   IMPLICIT NONE
   PRIVATE
 
@@ -148,23 +151,23 @@ CONTAINS
          routineP = moduleN//':'//routineN    
     TYPE(qs_ks_qmmm_env_type), POINTER       :: ks_qmmm_env_loc
     LOGICAL :: failure
-    INTEGER :: handle, auxbas_grid
+    INTEGER :: handle
+    TYPE(pw_pool_p_type), POINTER,DIMENSION(:)     :: pw_pools
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-         POINTER                      :: rs_pools
     CHARACTER(LEN=80)  :: FileName
     CHARACTER(LEN=80)  :: Title
     ! Statements
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc,rs_pools)
+    NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     para_env=para_env,&
                     error=error)
-    CALL pw_env_get(pw_env,rs_pools=rs_pools, auxbas_grid=auxbas_grid,&
-         error=error)
+
+    CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
+
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
     Write(6,'(T3,A)')"Information on the QM/MM Electrostatic Potential:"
     !
@@ -195,11 +198,14 @@ CONTAINS
                                        mm_el_pot_radius=qmmm_env%mm_el_pot_radius,&
                                        mm_atom_index=qmmm_env%mm_atom_index,&
                                        num_mm_atoms=qmmm_env%num_mm_atoms,&
-                                       rs_pools=rs_pools,&
+                                       aug_pools=qmmm_env%aug_pools,&
                                        para_env=para_env,&
                                        eps_mm_rspace=qmmm_env%eps_mm_rspace,&
                                        cube_info=ks_qmmm_env_loc%cube_info,&
-                                       pgfs=qmmm_env%pgfs, auxbas_grid=auxbas_grid,&
+                                       pgfs=qmmm_env%pgfs,&
+                                       pw_pools=pw_pools,&
+                                       auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
+                                       coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                        error=error)
        qs_env%ks_qmmm_env => ks_qmmm_env_loc       
     CASE("NONE")
@@ -392,56 +398,52 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian(v_qmmm, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-       rs_pools, cube_info, para_env, eps_mm_rspace, auxbas_grid,&
-       pgfs, error)
+       aug_pools, cube_info, para_env, eps_mm_rspace, pgfs, pw_pools, auxbas_grid,&
+       coarser_grid, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
+    TYPE(pw_pool_p_type), POINTER, DIMENSION(:) :: pw_pools, aug_pools
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
-    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-         POINTER                      :: rs_pools
+    INTEGER, INTENT(IN) :: num_mm_atoms
     REAL(KIND=dbl), INTENT(IN) :: eps_mm_rspace
+    INTEGER, INTENT(IN) :: auxbas_grid, coarser_grid
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
     ! Local Variables
+    TYPE(pw_p_type), DIMENSION(:), pointer :: grids
     LOGICAL :: failure
-    INTEGER :: ngrids,igrid,stat, handle
+    INTEGER :: ngrids,igrid, handle
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian', &
          routineP = moduleN//':'//routineN
-    TYPE(realspace_grid_p_type), dimension(:), POINTER       :: tmp_grid
     ! Statements
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(mm_particles),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_charges),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(mm_atom_index),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(aug_pools),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pools),cp_failure_level,routineP,error,failure)
     !Statements
     CALL timeset(routineN,"I","",handle)
-    ngrids=size(rs_pools)
-    ALLOCATE(tmp_grid(ngrids),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ngrids=SIZE(pw_pools)
+    CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
-       NULLIFY(tmp_grid(igrid)%rs_grid)
-       CALL rs_pool_create_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid)
-       CALL rs_grid_zero(tmp_grid(igrid)%rs_grid)
+       CALL pw_zero(grids(igrid)%pw)
     END DO
  
-    CALL qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
+    CALL qmmm_elec_with_gaussian_low( v_qmmm, grids, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info,&
-         para_env, eps_mm_rspace, pgfs,auxbas_grid, error)
+         para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, pw_pools, aug_pools, &
+         error)
 
-    DO igrid=1,ngrids
-       CALL rs_pool_give_back_rs(rs_pools(igrid)%pool,tmp_grid(igrid)%rs_grid,&
-            error=error)
-    END DO
-    DEALLOCATE(tmp_grid,stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian
@@ -471,17 +473,19 @@ CONTAINS
 !!**************************************************************************
   SUBROUTINE qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
-         cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, error)
+         cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
+         pw_pools, aug_pools, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                :: error
+    TYPE(pw_pool_p_type), POINTER, DIMENSION(:) :: pw_pools, aug_pools
     TYPE(coeff_type), INTENT(INOUT)              :: v_qmmm
-    TYPE(realspace_grid_p_type), DIMENSION(:), POINTER           :: tmp_grid
+    TYPE(pw_p_type), DIMENSION(:), POINTER       :: tmp_grid
     TYPE(particle_type), DIMENSION(:), POINTER   :: mm_particles
     REAL(dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
-    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid
+    INTEGER, INTENT(IN) :: num_mm_atoms, auxbas_grid, coarser_grid
     TYPE(cube_info_type), DIMENSION(:), POINTER         :: cube_info
     REAL(KIND=dbl), INTENT(IN)            :: eps_mm_rspace
     TYPE(cp_para_env_type), POINTER       :: para_env
@@ -491,9 +495,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
          routineP = moduleN//':'//routineN
     LOGICAL :: failure
-    INTEGER :: stat, handle, ithread, ilevel, igrid, coarser_grid_level
+    INTEGER :: stat, handle, ithread, ilevel, igrid
     INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
-    INTEGER, dimension(3) :: ndim
+    INTEGER, DIMENSION(3) :: ndim, lb, ub
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp) :: alpha, height, ConsFac, W
     TYPE(qmmm_gaussian_type), POINTER :: pgf
@@ -505,9 +509,8 @@ CONTAINS
     ithread            = 0
     Icg                = 0
     ndim               = 0
-    coarser_grid_level = SIZE(tmp_grid)
-    DO igrid = auxbas_grid, coarser_grid_level
-       ndim = MAX(tmp_grid(igrid)%rs_grid%npts,ndim)
+    DO igrid = auxbas_grid, coarser_grid
+       ndim = MAX(tmp_grid(igrid)%pw%pw_grid%npts,ndim)
     END DO
     ALLOCATE (xdat(ndim(1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -525,7 +528,7 @@ CONTAINS
           ConsFac   = - pgf%A0 * mm_charges(LIndMM) + ConsFac
        END DO
     END DO
-    tmp_grid(coarser_grid_level)%rs_grid%r = ConsFac
+    tmp_grid(coarser_grid)%pw%cr3d = ConsFac
 
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
@@ -536,7 +539,7 @@ CONTAINS
           alpha     = alpha * alpha
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
-          IF (ilevel.EQ.coarser_grid_level) CYCLE Gaussian
+          IF (ilevel.EQ.coarser_grid) CYCLE Gaussian
           WRITE(*,'(5X,A,I5)')' Collocating Gaussian Number:',IGauss
           Atoms: DO Imm = 1, SIZE(pgf%mm_atom_index)
              Icg       =   Icg + 1
@@ -554,7 +557,7 @@ CONTAINS
                                             rp=ra,&
                                             scale=-1.0_dp,&
                                             W=W,&
-                                            rsgrid=tmp_grid(ilevel)%rs_grid,&
+                                            pwgrid=tmp_grid(ilevel)%pw,&
                                             cube_info=cube_info(ilevel),&
                                             eps_mm_rspace=eps_mm_rspace,&
                                             ithread=ithread, &
@@ -580,22 +583,43 @@ CONTAINS
 
     ! Long Range Part of the QM/MM Potential with Gaussians
     CALL qmmm_elec_with_gaussian_LR    (pgfs=pgfs,&
-                                        grid=tmp_grid(coarser_grid_level)%rs_grid,&
+                                        grid=tmp_grid(coarser_grid)%pw,&
                                         mm_charges=mm_charges,&
                                         mm_atom_index=mm_atom_index,&
                                         mm_particles=mm_particles,&
                                         mm_el_pot_radius=mm_el_pot_radius,&
                                         para_env=para_env,&
-                                        coarser_grid_level=coarser_grid_level,&
+                                        coarser_grid_level=coarser_grid,&
                                         error=error)
 
     ! RealSpace Interpolation
-    DO Ilevel = coarser_grid_level, auxbas_grid+1, -1
-       CALL rs_prolongate_NoPBC(tmp_grid(Ilevel  )%rs_grid,&
-                                tmp_grid(Ilevel-1)%rs_grid,&
-                                error)
-    END DO
-    CALL rs_pw_transfer(tmp_grid(auxbas_grid)%rs_grid, v_qmmm%pw,"FORWARD")
+
+    IF (.true.) THEN
+       ! Linear Interpolator
+       DO Ilevel = coarser_grid, auxbas_grid+1, -1
+          CALL pw_prolongate_NoPBC(tmp_grid(Ilevel  )%pw,&
+                                   tmp_grid(Ilevel-1)%pw,&
+                                   error)
+       END DO
+    ELSE
+       ! Spline Interpolator - Still to be completed... 
+       ! Fawzi?!?! Yuuuuuhuuuuuu?!?! 
+       !
+       !DO Ilevel = coarser_grid, auxbas_grid+1, -1
+       !   CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&
+       !                     tmp_grid(Ilevel-1)%pw,&
+       !                     pw_pools(Ilevel-1)%pool,&
+       !                     aug_pools(Ilevel-1)%pool,&
+       !                     error)
+       !END DO       
+    ENDIF
+    lb = v_qmmm%pw%pw_grid%bounds(1,:)
+    ub = v_qmmm%pw%pw_grid%bounds(2,:)
+
+    v_qmmm%pw%cr3d = tmp_grid(auxbas_grid)%pw%cr3d (lb(1):ub(1),&
+                                                    lb(2):ub(2),&
+                                                    lb(3):ub(3) )
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_elec_with_gaussian_low
@@ -631,7 +655,7 @@ CONTAINS
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                                  :: error
-    TYPE(realspace_grid_type), POINTER             :: grid
+    TYPE(pw_type), POINTER                         :: grid
     TYPE(particle_type), DIMENSION(:), POINTER     :: mm_particles
     REAL(KIND=dbl), DIMENSION(:), POINTER :: mm_charges, mm_el_pot_radius
     INTEGER, DIMENSION(:), POINTER   :: mm_atom_index
@@ -654,18 +678,15 @@ CONTAINS
     ! Statements
     CALL timeset(routineN,"I","",handle)
 
-    n1  = grid%npts(1)
-    n2  = grid%npts(2)
-    n3  = grid%npts(3)
-    dr1 = grid%dr(1) 
-    dr2 = grid%dr(2) 
-    dr3 = grid%dr(3) 
-    bo(1,1) = grid%lb(1)
-    bo(2,1) = grid%ub(1)
-    bo(1,2) = grid%lb(2)
-    bo(2,2) = grid%ub(2)
-    bo(1,3) = grid%lb(3)
-    bo(2,3) = grid%ub(3)
+    n1  = grid%pw_grid%npts(1)
+    n2  = grid%pw_grid%npts(2)
+    n3  = grid%pw_grid%npts(3)
+    dr1 = grid%pw_grid%dr(1) 
+    dr2 = grid%pw_grid%dr(2) 
+    dr3 = grid%pw_grid%dr(3) 
+    bo(1,:) = grid%pw_grid%bounds(1,:)
+    bo(2,:) = grid%pw_grid%bounds(2,:)
+
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
        r0      = pgf%Elp_Radius
@@ -710,7 +731,7 @@ CONTAINS
                       Gterm  = Gterm + W * EXP(-alpha*r2)
                    END DO Gaussian
                    Gterm = Gterm + pgf%A0 * qt
-                   grid%r(i,j,k) = grid%r(i,j,k)    + &
+                   grid%cr3d(i,j,k) = grid%cr3d(i,j,k)    + &
                                   (-1.0_dbl) * qt * &
                                   (rNexp - r0Nexp)/(rNexp1 - r0Nexp1) + Gterm
 

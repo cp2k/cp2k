@@ -77,7 +77,7 @@ MODULE pw_pool_types
                                              pw_create,&
                                              pw_release,&
                                              pw_type,&
-                                             pw_write
+                                             pw_write, pw_p_type
   USE timings,                         ONLY: print_stack,&
                                              timeset,&
                                              timestop
@@ -96,7 +96,8 @@ MODULE pw_pool_types
        pw_pool_init_coeff, pw_pool_flush_cache, pw_pool_write,&
        pw_pool_create_cr3d, pw_pool_give_back_cr3d
   PUBLIC :: pw_pools_init_coeffs, pw_pools_give_back_coeffs,&
-       pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache
+       pw_pools_copy, pw_pools_dealloc, pw_pools_flush_cache,&
+       pw_pools_create_pws, pw_pools_give_back_pws
 !!***
 !****************************************************************************
 
@@ -1070,6 +1071,120 @@ SUBROUTINE pw_pool_give_back_coeff(pool,coeff,accept_non_compatible,error)
      coeff%in_use=NOTHING
   END IF
 END SUBROUTINE pw_pool_give_back_coeff
+!***************************************************************************
+
+!!****f* pw_pool_types/pw_pools_create_pws [1.0] *
+!!
+!!   NAME
+!!     pw_pools_create_pws
+!!
+!!   FUNCTION
+!!     creates a multigrid structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the multigrid pool (i.e. an array of pw_pool)
+!!     - pws: the multigrid of coefficent you want to initialize
+!!     - use_data: which data it uses: REALDATA1D, COMPLEXDATA1D,
+!!       REALDATA3D, COMPLEXDATA3D
+!!     - mass_flag: whether to allocate mass coeff (mass_cr or mass_cc)
+!!       defaults to false
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     07.2004 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pools_create_pws(pools, pws, use_data,&
+     mass_flag, in_space, error)
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(pw_p_type), DIMENSION(:), &
+      pointer                                :: pws
+    INTEGER, INTENT(in)                      :: use_data
+    LOGICAL, INTENT(in), OPTIONAL            :: mass_flag
+    INTEGER, INTENT(in), OPTIONAL            :: in_space
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_create_pws', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i,stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  ALLOCATE(pws(SIZE(pools)),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(pools)
+        nullify(pws(i)%pw)
+        CALL pw_pool_create_pw(pools(i)%pool,pws(i)%pw,use_data,&
+             mass_flag=mass_flag,in_space=in_space,error=error)
+     END DO
+  END IF
+END SUBROUTINE pw_pools_create_pws
+!***************************************************************************
+
+!!****f* pw_pool_types/pw_pools_give_back_pws [1.0] *
+!!
+!!   NAME
+!!     pw_pools_give_back_pws
+!!
+!!   FUNCTION
+!!     returns the pw part of the coefficents into the pools
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pools: the pools that will cache the pws %pw
+!!     - pws: the coefficents to give back
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_pools_give_back_pws(pools, pws, error)
+    TYPE(pw_pool_p_type), DIMENSION(:), &
+      POINTER                                :: pools
+    TYPE(pw_p_type), DIMENSION(:), &
+      pointer                          :: pws
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pw_pools_give_back_pws', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i,stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(pools),cp_failure_level,routineP,error,failure)
+  CPPrecondition(associated(pws),cp_failure_level,routineP,error,failure)
+  CPPrecondition(SIZE(pws)==SIZE(pools),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(pools)
+        CALL pw_pool_give_back_pw(pools(i)%pool,pws(i)%pw,error=error)
+     END DO
+     DEALLOCATE(pws,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE pw_pools_give_back_pws
 !***************************************************************************
 
 !!****f* pw_pool_types/pw_pools_init_coeffs [1.0] *

@@ -259,6 +259,7 @@ OBJECTS_GENERIC =\
  qmmm_init.o\
  qmmm_input.o\
  qmmm_methods.o\
+ qmmm_pw_grid.o\
  qmmm_types.o\
  qs_charges_types.o\
  qs_collocate_density.o\
