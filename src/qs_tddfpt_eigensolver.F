@@ -462,11 +462,13 @@ CONTAINS
        !--------------------!
        CALL cp_fm_syevd(Atilde%matrix, Us%matrix, evals(:,iter))
        ! For debugging
-       WRITE (*,*)
-       DO i=1, n_ev
-          IF (ionode) WRITE (out_unit,*) evals(i,iter)
-       END DO
-       WRITE (*,*)
+       IF (ionode) THEN
+          WRITE (*,*)
+          DO i=1, n_ev
+             WRITE (out_unit,*) evals(i,iter)
+          END DO
+          WRITE (*,*)
+       END IF
 
        !-------------------!
        ! check convergence !
@@ -488,10 +490,10 @@ CONTAINS
        IF (mode == 'L') THEN
           n_kv = 1
        ELSE
-             must_improve = 0
-             DO i=1, n_ev
-                IF (evals_difference(i) > tddfpt_control%tolerance) must_improve(i) = 1
-             END DO
+          must_improve = 0
+          DO i=1, n_ev
+             IF (evals_difference(i) > tddfpt_control%tolerance) must_improve(i) = 1
+          END DO
 !!          must_improve = 1
           n_kv = SUM(must_improve)
           j = 1
