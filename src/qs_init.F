@@ -39,7 +39,7 @@ MODULE qs_init
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_create,&
                                              cp_fmstruct_release,&
                                              cp_fmstruct_retain

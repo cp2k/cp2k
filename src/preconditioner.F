@@ -17,59 +17,66 @@
 !******************************************************************************
 
 MODULE preconditioner
-
 ! *****************************************************************************
-  USE kinds, ONLY: wp => dp, wp_size => dp_size
-  USE termination,         ONLY: stop_memory, stop_program
-  USE timings,             ONLY: timeset, timestop
-  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
-  USE cp_para_env,       ONLY: cp_para_env_retain, cp_para_env_release,&
-       cp_para_env_from_globenv
-  USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_from_globenv
-
-  USE cp_full_matrix,     ONLY: cp_fm_init_random
-
-  USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
-                                 cp_full_matrix_p_type, &
-                                 cp_fm_set_all, cp_fm_syrk, &
-                                 cp_fm_create2, &
-                                 cp_fm_release, &
-                                 write_blacs_matrix, &
-                                 cp_fm_symm,cp_fm_gemm, &
-                                 blacs_make_basis,copy_blacs_to_blacs_matrix, &
-                                 cp_fm_trace, blacs_transpose, cp_fm_add, &
-                                 cp_fm_schur_product, &
-                                 blacs_cholesky_decompose, &
-                                 blacs_cholesky_invert, &
-                                 blacs_cholesky_reduce, &
-                                 blacs_syevx, blacs_syevd, &
-                                 blacs_scale_matrix, &
-                                 blacs_set_local_block, &
-                                 cp_sm_fm_multiply, &
-                                 copy_sparse_to_blacs_matrix, &
-                                 copy_blacs_to_sparse_matrix, &
-                                 blacs_cholesky_restore, &
-                                 replicate_blacs_matrix, &
-                                 blacs_column_copy, &
-                                 blacs_scale_and_d
-                                 
-  USE qs_mo_types,         ONLY: calculate_subspace_eigenvalues
-  USE global_types,        ONLY: global_environment_type
-  USE sparse_matrix_types, ONLY: real_matrix_type, &
-                                 replicate_matrix, &
-                                 get_matrix_info, &
-                                 get_block_node, &
-                                 add_block_node , &
-                                 real_block_node_type, &
-                                 first_block_node, &
-                                 next_block_node, &
-                                 deallocate_matrix, &
-                                 add_all_real_matrix_blocks, &
-                                 add_matrices
-
-  USE message_passing,     ONLY: mp_sum
-
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain
+  USE cp_fm_types,                     ONLY: cp_fm_init_random
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_sum
+  USE qs_blacs,                        ONLY: blacs_column_copy,&
+                                             blacs_make_basis,&
+                                             blacs_scale_and_d,&
+                                             blacs_scale_matrix,&
+                                             blacs_set_local_block,&
+                                             blacs_syevd,&
+                                             blacs_syevx,&
+                                             blacs_transpose,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_sparse_matrix,&
+                                             copy_sparse_to_blacs_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_schur_product,&
+                                             cp_fm_set_all,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_trace,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             replicate_blacs_matrix,&
+                                             write_blacs_matrix
+  USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
+  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
+                                             add_block_node,&
+                                             add_matrices,&
+                                             deallocate_matrix,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PUBLIC  :: preconditioner_type
@@ -683,10 +690,10 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
 
   CALL copy_sparse_to_blacs_matrix(matrix_h,fm_h)
   CALL copy_sparse_to_blacs_matrix(matrix_s,fm_s)
-  CALL blacs_cholesky_decompose(fm_s)
-  CALL blacs_cholesky_reduce(fm_h,fm_s)
+  CALL cp_fm_cholesky_decompose(fm_s)
+  CALL cp_fm_cholesky_reduce(fm_h,fm_s)
   CALL blacs_syevd(fm_h,preconditioner_env%full_matrix,evals)
-  CALL blacs_cholesky_restore(preconditioner_env%full_matrix,n,fm_s,fm_h,"SOLVE") 
+  CALL cp_fm_cholesky_restore(preconditioner_env%full_matrix,n,fm_s,fm_h,"SOLVE") 
   do i=1,n
 	evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
   enddo
@@ -747,8 +754,8 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 
 
   CALL copy_sparse_to_blacs_matrix(matrix_s,preconditioner_env%full_matrix)
-  CALL blacs_cholesky_decompose(preconditioner_env%full_matrix)
-  CALL blacs_cholesky_invert(preconditioner_env%full_matrix)
+  CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
+  CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
 END SUBROUTINE make_full_s_inverse
 SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
@@ -782,8 +789,8 @@ SUBROUTINE make_full_kinetic(preconditioner_env, matrix_t, matrix_s, &
   CALL add_matrices(matrix_t,1.0_wp,matrix_t,shift,matrix_s)
 
   CALL copy_sparse_to_blacs_matrix(matrix_t,preconditioner_env%full_matrix)
-  CALL blacs_cholesky_decompose(preconditioner_env%full_matrix)
-  CALL blacs_cholesky_invert(preconditioner_env%full_matrix)
+  CALL cp_fm_cholesky_decompose(preconditioner_env%full_matrix)
+  CALL cp_fm_cholesky_invert(preconditioner_env%full_matrix)
 
 END SUBROUTINE make_full_kinetic
 
@@ -877,20 +884,20 @@ SUBROUTINE make_full_s_half(preconditioner_env, matrix_h, matrix_s, &
 
   CALL copy_sparse_to_blacs_matrix(matrix_s,fm_y)
   CALL copy_blacs_to_blacs_matrix(fm_y,fm_z)
-  CALL blacs_cholesky_decompose(fm_z)
-  CALL blacs_cholesky_invert(fm_z)
+  CALL cp_fm_cholesky_decompose(fm_z)
+  CALL cp_fm_cholesky_invert(fm_z)
   CALL blacs_scale_and_d(fm_z,0.5_wp,0.5_wp)
   CALL blacs_scale_and_d(fm_y,0.5_wp,0.5_wp)
   
 
   do i=1,4
      CALL copy_blacs_to_blacs_matrix(fm_z,fm_zi)
-     CALL blacs_cholesky_decompose(fm_zi)
-     CALL blacs_cholesky_invert(fm_zi)
+     CALL cp_fm_cholesky_decompose(fm_zi)
+     CALL cp_fm_cholesky_invert(fm_zi)
 
      CALL copy_blacs_to_blacs_matrix(fm_y,fm_yi)
-     CALL blacs_cholesky_decompose(fm_yi)
-     CALL blacs_cholesky_invert(fm_yi)
+     CALL cp_fm_cholesky_decompose(fm_yi)
+     CALL cp_fm_cholesky_invert(fm_yi)
 
      CALL cp_fm_add(0.5_wp,fm_y,0.5_wp,fm_zi)
      CALL cp_fm_add(0.5_wp,fm_z,0.5_wp,fm_yi)
@@ -1114,10 +1121,10 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
 
   CALL copy_sparse_to_blacs_matrix(matrix_h,fm_h)
   CALL copy_sparse_to_blacs_matrix(matrix_s,fm_s)
-  CALL blacs_cholesky_decompose(fm_s)
-  CALL blacs_cholesky_reduce(fm_h,fm_s)
+  CALL cp_fm_cholesky_decompose(fm_s)
+  CALL cp_fm_cholesky_reduce(fm_h,fm_s)
   ! let's find a space of orbitals orthogonal to Uc0
-  CALL blacs_cholesky_restore(matrix_c0,k,fm_s,fm_wvec,"MULTIPLY") ! orthogonal c0
+  CALL cp_fm_cholesky_restore(matrix_c0,k,fm_s,fm_wvec,"MULTIPLY") ! orthogonal c0
   x=n-k ! size of the excited subspace
   NULLIFY(fm_xvec,fm_wxvec)
 
@@ -1150,8 +1157,8 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
                              context=preconditioner_env%ctxt, &
                              para_env=preconditioner_env%para_env)
   CALL cp_fm_gemm('T','N',x,x,n,1.0_wp,fm_xvec,fm_xvec,0.0_wp,fm_block)
-  CALL blacs_cholesky_decompose(fm_block)
-  CALL blacs_cholesky_restore(fm_xvec,x,fm_block,fm_wxvec,"SOLVE","RIGHT") 
+  CALL cp_fm_cholesky_decompose(fm_block)
+  CALL cp_fm_cholesky_restore(fm_xvec,x,fm_block,fm_wxvec,"SOLVE","RIGHT") 
   CALL copy_blacs_to_blacs_matrix(fm_wxvec,fm_xvec)
   ! get their H matrix subspace
   CALL cp_fm_gemm('N','N',n,x,n,1.0_wp,fm_h,fm_xvec,0.0_wp,fm_wxvec)
@@ -1173,7 +1180,7 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_h, matrix_s, &
 
   CALL cp_fm_gemm('T','N',n,n,n,1.0_wp,fm_h,fm_h,0.0_wp,preconditioner_env%full_matrix)
   ! and get inv(U)V
-  CALL blacs_cholesky_restore(fm_h,n,fm_s,preconditioner_env%full_matrix,"SOLVE")
+  CALL cp_fm_cholesky_restore(fm_h,n,fm_s,preconditioner_env%full_matrix,"SOLVE")
   preconditioner_env%all_evals(1:k)=preconditioner_env%subspace_evals(1:k)
   preconditioner_env%all_evals(k+1:n)=evals(1:x)
   DEALLOCATE(evals)

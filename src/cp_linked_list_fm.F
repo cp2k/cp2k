@@ -35,18 +35,31 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_linked_list_fm
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_fm_types,                     ONLY: cp_fm_write,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_output_handling
-  USE kinds, ONLY: wp=>dp
-  USE timings, ONLY: timeset, timestop
-  USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
-        cp_fm_write
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -1387,7 +1400,7 @@ SUBROUTINE cp_sll_fm_insert_ordered2(sll,el,compare_function,&
   type(cp_full_matrix_type), target :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+       USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
         cp_fm_write
        INTEGER :: compare_function
        type(cp_full_matrix_type), target :: el1,el2
@@ -1534,7 +1547,7 @@ FUNCTION cp_sll_fm_contains2(sll,el,compare_function,ordered,error)&
   type(cp_full_matrix_type), target :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+       USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
         cp_fm_write
        INTEGER :: compare_function
        type(cp_full_matrix_type), target :: el1,el2
@@ -1595,7 +1608,7 @@ END FUNCTION cp_sll_fm_contains2
 !  array= = "=>"
 !  arrayEl = "%matrix"
 !  USE = 
-!    "USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+!    "USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
 !             cp_fm_write"
 
 

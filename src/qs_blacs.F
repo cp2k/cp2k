@@ -38,24 +38,27 @@ MODULE qs_blacs
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_equivalent,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain,&
-                                             optimal_blacs_col_block_size,&
-                                             optimal_blacs_row_block_size
   USE cp_fm_basic_linalg,              ONLY: cp_fm_add,&
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
                                              cp_fm_syrk,&
                                              cp_fm_trace,&
+                                             cp_fm_triangular_multiply,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE cp_fm_vect,                      ONLY: cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc
-  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_equivalent,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -68,6 +71,8 @@ MODULE qs_blacs
                                              cp_fm_set_submatrix,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_create2,&
+                                             cp_fm_vect_dealloc
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_unit_nr,&
@@ -157,15 +162,15 @@ MODULE qs_blacs
             cp_fm_syrk, cp_fm_trace,&
             power_blacs_matrix,&
             symmetrise_blacs_matrix,&
-            add_blacs_to_block_diag_sm,  blacs_cholesky_decompose, &
-            blacs_cholesky_invert,  blacs_cholesky_reduce, &
-            blacs_cholesky_restore,  blacs_jacobi_davidson, &
+            add_blacs_to_block_diag_sm,  cp_fm_cholesky_decompose, &
+            cp_fm_cholesky_invert,  cp_fm_cholesky_reduce, &
+            cp_fm_cholesky_restore,  blacs_jacobi_davidson, &
             blacs_make_basis, &
             cp_fm_schur_product, &
             blacs_transpose,  blacs_scale_matrix, &
             cp_sm_fm_multiply, &
             cp_sm_plus_fm_fm_t, &
-            blacs_triangular_multiply
+            cp_fm_triangular_multiply
 
   PUBLIC :: blacs_jacobi,&
             blacs_block_jacobi_scaled,&
@@ -678,7 +683,7 @@ CONTAINS
     IF (use_sv) THEN
       CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
                                           overlap_vv)
-      CALL blacs_cholesky_decompose(overlap_vv)
+      CALL cp_fm_cholesky_decompose(overlap_vv)
       a => vmatrix%local_data
       vv => overlap_vv%local_data
       o => ortho%local_data
@@ -851,308 +856,6 @@ CONTAINS
 
   END SUBROUTINE blacs_replicated_copy
 
-!******************************************************************
-! used to replace the cholesky decomposition by the inverse
-!******************************************************************
-  SUBROUTINE blacs_cholesky_invert(matrix)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix
-
-    REAL(wp), DIMENSION(:,:), POINTER         :: a
-    INTEGER                                   :: info,handle
-    INTEGER                                   :: n
-    INTEGER, DIMENSION(9)                     :: desca
-    TYPE(cp_blacs_env_type), POINTER          :: context
-
-    CALL timeset("blacs_cholesky_invert","I","",handle)
-
-    context => matrix%matrix_struct%context
-    n = matrix%matrix_struct%nrow_global
-
-    a => matrix%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotri('U',n,a(1,1),1,1,desca,info)
-
-#else
-
-    CALL dpotri('U',n,a(1,1),n,info)
-
-#endif
-
-    IF (info.NE.0) THEN
-      CALL stop_program(" blacs_cholesky_invert","Error dpotri")
-    ENDIF
-
-
-    CALL timestop(0.0_wp,handle)
-
-  END  SUBROUTINE blacs_cholesky_invert
-
-
-
-
-!******************************************************************
-! used to replace a symmetric positive def. matrix by its cholesky
-! decomposition
-!******************************************************************
-
-  SUBROUTINE blacs_cholesky_decompose(matrix)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix
-
-    REAL(wp), DIMENSION(:,:), POINTER         :: a
-    INTEGER                                   :: info,handle
-    INTEGER                                   :: output_unit,source,n
-    LOGICAL                                   :: ionode
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    INTEGER, DIMENSION(9)                     :: desca
-
-    CALL timeset("blacs_cholesky_decompose","I","",handle)
-
-    context => matrix%matrix_struct%context
-    n = matrix%matrix_struct%nrow_global
-
-    a => matrix%local_data
-
-#if defined(__SCALAPACK)
-    desca(:) = matrix%matrix_struct%descriptor(:)
-    CALL pdpotrf('U',n,a(1,1),1,1,desca,info)
-
-#else
-
-    CALL dpotrf('U',n,a(1,1),n,info)
-
-#endif
-
-    IF (info.NE.0) THEN
-      CALL stop_program(" blacs_cholesky_decompose","Error dpotrf")
-    ENDIF
-
-
-    CALL timestop(0.0_wp,handle)
-
-  END  SUBROUTINE blacs_cholesky_decompose
-
-!******************************************************************
-! reduce a matrix pencil A,B to normal form
-! B has to be cholesky decomposed with  blacs_cholesky_decompose
-! before calling this routine
-! A,B -> inv(U^T)*A*inv(U),1 (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
-!******************************************************************
-
-  SUBROUTINE blacs_cholesky_reduce(matrix,matrixb)
-   TYPE(cp_full_matrix_type), POINTER           :: matrix,matrixb
-
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
-    INTEGER                                   :: info,itype,handle
-    INTEGER                                   :: n
-    INTEGER                                   :: nprow,npcol,myprow,mypcol
-    INTEGER, DIMENSION(9)                     :: desca,descb
-    REAL(wp)                                  :: scale
-    TYPE(cp_blacs_env_type), POINTER          :: context
-
-    CALL timeset("blacs_cholesky_reduce","I","",handle)
-
-    context => matrix%matrix_struct%context
-    n = matrix%matrix_struct%nrow_global
-    itype =1
-
-    a => matrix%local_data
-    b => matrixb%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix%matrix_struct%descriptor(:)
-    descb(:) = matrixb%matrix_struct%descriptor(:)
-
-    CALL pdsygst(itype,'U',n,a(1,1),1,1,desca,b(1,1),1,1,descb,scale,info)
-    IF (scale .NE. 1.0_wp) THEN
-       ! this is supposed to be one in current version of lapack
-       ! if not, eigenvalues have to be scaled by this number
-       CALL stop_program(" blacs_cholesky_reduce","scale not equal 1")
-    ENDIF
-#else
-
-    CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
-
-#endif
-
-    IF (info.NE.0) THEN
-      CALL stop_program(" blacs_cholesky_reduce","Error dsygst")
-    ENDIF
-
-
-    CALL timestop(0.0_wp,handle)
-
-  END  SUBROUTINE blacs_cholesky_reduce
-
-!******************************************************************
-!
-! op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
-! pos can be "LEFT" or "RIGHT" (U at the left or at the right)
-!
-!******************************************************************
-  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos)
-    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
-    INTEGER, INTENT(IN)                       :: neig
-    CHARACTER ( LEN = * ), INTENT ( IN )      :: op
-    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL      :: pos
-
-    REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
-    INTEGER                                   :: info,itype,handle
-    INTEGER                                   :: n
-    LOGICAL                                   :: ionode
-    REAL(wp)                                  :: alpha
-    INTEGER                                   :: myprow, mypcol, i
-    INTEGER, DIMENSION(9)                     :: desca,descb,descout
-    TYPE(cp_blacs_env_type), POINTER          :: context
-    CHARACTER                                 :: chol_pos
-
-    CALL timeset("blacs_cholesky_restore","I","",handle)
-
-    context => matrix%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
-    n = matrix%matrix_struct%nrow_global
-    itype = 1
-    IF (op .NE. "SOLVE" .AND. op .NE. "MULTIPLY") THEN
-       CALL stop_program("blacs_cholesky_restore","wrong argument op")
-    ENDIF
-
-    IF (PRESENT(pos)) THEN 
-       SELECT CASE(pos)
-       CASE("LEFT")
-         chol_pos='L'
-       CASE("RIGHT")
-         chol_pos='R'
-       CASE DEFAULT
-         CALL stop_program("choleksy_restore","wrong argument pos")
-       END SELECT
-    ELSE
-       chol_pos='L'
-    ENDIF
-
-    ! notice b is the cholesky guy
-    a => matrix%local_data
-    b => matrixb%local_data
-    out => matrixout%local_data
-
-#if defined(__SCALAPACK)
-
-    desca(:) = matrix%matrix_struct%descriptor(:)
-    descb(:) = matrixb%matrix_struct%descriptor(:)
-    descout(:) = matrixout%matrix_struct%descriptor(:)
-    alpha=1.0_wp
-    DO i=1,neig
-      CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
-    ENDDO
-    IF (op.EQ."SOLVE") THEN
-      CALL pdtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
-    ELSE
-      CALL pdtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
-    ENDIF
-#else
-
-    alpha=1.0_wp
-    CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
-    IF (op.EQ."SOLVE") THEN
-      CALL dtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
-    ELSE
-      CALL dtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
-    ENDIF
-
-#endif
-
-    CALL timestop(0.0_wp,handle)
-
-  END  SUBROUTINE blacs_cholesky_restore
-!!****f* qs_blacs/blacs_triangular_multiply [1.0] *
-!!
-!!   NAME
-!!     blacs_triangular_multiply
-!!
-!!   FUNCTION
-!!     multiplies in place by a triangular matrix:
-!!      b_matrix = alpha op(triangular_matrix) b_matrix
-!!     or (if side='R')
-!!      b_matrix = alpha b_matrix op(triangular_matrix)
-!!     op(triangular_matrix) is:
-!!      triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
-!!      triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
-!!      triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
-!!      triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
-!!
-!!   NOTES
-!!     needs an mpi env
-!!
-!!   INPUTS
-!!     - triangular_matrix: the triangular matrix that multiplies the other
-!!     - b_matrix: the matrix that gets multiplied and stores the result
-!!     - side: on which side of b_matrix stays op(triangular_matrix)
-!!       (defaults to 'L')
-!!     - transpose_tr: if the triangular matrix should be transposed
-!!       (defaults to false)
-!!     - invert_tr: if the triangular matrix should be inverted
-!!       (defaults to false)
-!!     - uplo_tr: if triangular_matrix is stored in the upper ('U') or
-!!       lower ('L') triangle (defaults to 'U')
-!!     - unit_diag_tr: if the diagonal elements of triangular_matrix should
-!!       be assumed to be 1 (defaults to false)
-!!     - n_rows: the number of rows of the result (defaults to 
-!!       size(matrix_b,1))
-!!     - n_cols: the number of columns of the result (defaults to
-!!       size(matrix_b,2))
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
-     transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
-     alpha,error)
-  TYPE(cp_full_matrix_type), POINTER :: triangular_matrix, b_matrix
-  CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
-  LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
-  INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
-  REAL(kind=wp), INTENT(in), OPTIONAL :: alpha
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-  LOGICAL :: failure, invert
-  CHARACTER(len=*), PARAMETER :: routineN='blacs_triangular_multiply',&
-        routineP=moduleN//':'//routineN
-  CHARACTER :: side_char, unit_diag,uplo
-  INTEGER :: handle, m,n
-  REAL(kind=wp) :: al
-  failure=.FALSE.
-  
-  CALL timeset(routineN//','//moduleN,"I","",handle)
-  side_char='L'
-  unit_diag='N'
-  uplo='U'
-  invert=.FALSE.
-  al=1.0_wp
-  IF (PRESENT(side)) side_char=side
-  IF (PRESENT(invert_tr)) invert=invert_tr
-  IF (PRESENT(uplo_tr)) uplo=uplo_tr
-  IF (PRESENT(unit_diag_tr)) THEN
-     IF (unit_diag_tr) THEN
-        unit_diag='U'
-     ELSE
-        unit_diag='N'
-     END IF
-  END IF
-  IF (PRESENT(alpha)) al=alpha
-
-  CALL cp_unimplemented_error(routineP, message="to do", error=error)
-  CALL timestop(0.0_wp,handle)     
-  END SUBROUTINE blacs_triangular_multiply
-!***************************************************************************
   SUBROUTINE blacs_column_copy(msource,mtarget,ncol,source_start,target_start)
     TYPE(cp_full_matrix_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol

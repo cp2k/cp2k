@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_fm_pool [1.0] *
+!!****h* cp2k/cp_fm_pool_types [1.0] *
 !!
 !!   NAME
-!!     cp_fm_pool
+!!     cp_fm_pool_types
 !!
 !!   FUNCTION
 !!     pool for full matrixes
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_fm_pool
+MODULE cp_fm_pool_types
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
@@ -35,11 +35,12 @@ MODULE cp_fm_pool
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_release,&
                                              cp_fmstruct_retain
-  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_release,&
+                                             cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
                                              cp_sll_fm_get_first_el,&
@@ -61,17 +62,18 @@ MODULE cp_fm_pool
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_pool'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_pool_types'
   INTEGER, SAVE, PRIVATE :: last_fm_pool_id_nr=0
 
   PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
   PUBLIC :: fm_pool_create, fm_pool_retain, fm_pool_release,&
        fm_pool_create_matrix, fm_pool_give_back_matrix,&
-       fm_pool_get_mstruct
+       fm_pool_get_mstruct, fm_pool_create_matrix_vect,&
+       fm_pool_give_back_matrix_vect
 !***
 !****************************************************************************
 
-!!****s* cp_fm_pool/cp_fm_pool_type [1.0] *
+!!****s* cp_fm_pool_types/cp_fm_pool_type [1.0] *
 !!
 !!   NAME
 !!     cp_fm_pool_type
@@ -105,7 +107,7 @@ MODULE cp_fm_pool
 !****************************************************************************
 
 
-!!****s* cp_fm_pool/cp_fm_pool_p_type [1.0] *
+!!****s* cp_fm_pool_types/cp_fm_pool_p_type [1.0] *
 !!
 !!   NAME
 !!     cp_fm_pool_p_type
@@ -135,7 +137,7 @@ MODULE cp_fm_pool
 
 CONTAINS
 
-!!****f* cp_fm_pool/fm_pool_create [1.0] *
+!!****f* cp_fm_pool_types/fm_pool_create [1.0] *
 !!
 !!   NAME
 !!     fm_pool_create
@@ -191,7 +193,7 @@ CONTAINS
   END SUBROUTINE fm_pool_create
 !***************************************************************************
 
-!!****f* cp_fm_pool/cp_fm_pool_retain [1.0] *
+!!****f* cp_fm_pool_types/cp_fm_pool_retain [1.0] *
 !!
 !!   NAME
 !!     cp_fm_pool_retain
@@ -232,7 +234,7 @@ CONTAINS
   END SUBROUTINE fm_pool_retain
 !***************************************************************************
 
-!!****f* cp_fm_pool/fm_pool_flush_cache [1.0] *
+!!****f* cp_fm_pool_types/fm_pool_flush_cache [1.0] *
 !!
 !!   NAME
 !!     fm_pool_flush_cache
@@ -279,7 +281,7 @@ CONTAINS
   END SUBROUTINE fm_pool_flush_cache
 !***************************************************************************
 
-!!****f* cp_fm_pool/cp_fm_pool_release [1.0] *
+!!****f* cp_fm_pool_types/cp_fm_pool_release [1.0] *
 !!
 !!   NAME
 !!     cp_fm_pool_release
@@ -329,17 +331,18 @@ CONTAINS
   END SUBROUTINE fm_pool_release
 !***************************************************************************
 
-!!****f* cp_fm_pool/fm_pool_create_matrix [1.0] *
+!!****f* cp_fm_pool_types/fm_pool_create_matrix [1.0] *
 !!
 !!   NAME
 !!     fm_pool_create_matrix
 !!
 !!   SYNOPSIS
-!!     Function fm_pool_create_matrix(pool, error) Result(res)
+!!     Subroutine fm_pool_create_matrix(pool, matrix, name, error)
 !!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Character(Len=*), Optional, Intent (IN):: name
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!       Type(cp_full_matrix_type), Pointer:: res
-!!     End Function fm_pool_create_matrix
+!!     End Subroutine fm_pool_create_matrix
 !!
 !!   FUNCTION
 !!     returns a matrix, allocating it if none is in the pool
@@ -349,6 +352,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - pool: the pool from where you get the matrix
+!!     - matrix: will contain the new matrix
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -359,10 +363,11 @@ CONTAINS
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  FUNCTION fm_pool_create_matrix(pool, error) RESULT(res)
+  SUBROUTINE fm_pool_create_matrix(pool, matrix,name,error)
     TYPE(cp_fm_pool_type), POINTER :: pool
+    TYPE(cp_full_matrix_type), POINTER :: matrix
+    CHARACTER(len=*), OPTIONAL, INTENT(in) :: name
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_full_matrix_type), POINTER :: res
 
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_matrix',&
@@ -374,20 +379,94 @@ CONTAINS
     CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        IF (ASSOCIATED(pool%cache)) THEN
-          res => cp_sll_fm_get_first_el(pool%cache)
+          matrix => cp_sll_fm_get_first_el(pool%cache)
           CALL cp_sll_fm_rm_first_el(pool%cache)
        ELSE
-          NULLIFY(res)
-          CALL cp_fm_create(res,matrix_struct=pool%matrix_struct,&
+          NULLIFY(matrix)
+          CALL cp_fm_create(matrix,matrix_struct=pool%matrix_struct,&
                error=error)
        END IF
+       IF (PRESENT(name)) THEN
+          matrix%name=name
+       ELSE
+          matrix%name="tmp_matrix "//ADJUSTL(cp_to_string(matrix%id_nr))
+       END IF
     END IF
-    CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
-    CPPostcondition(res%ref_count==1,cp_warning_level,routineP,error,failure)
-  END FUNCTION fm_pool_create_matrix
+    CPPostcondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+    CPPostcondition(matrix%ref_count==1,cp_warning_level,routineP,error,failure)
+  END SUBROUTINE fm_pool_create_matrix
 !***************************************************************************
 
-!!****f* cp_fm_pool/fm_pool_give_back_matrix [1.0] *
+!!****f* cp_fm_pool_types/fm_pool_create_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     fm_pool_create_matrix_vect
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pool_create_matrix_vect(pool, n_matrixes, matrixes,&
+!!         name, error)
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Integer, Intent (IN):: n_matrixes
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Character(Len=*), Intent (IN), Optional:: name
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pool_create_matrix_vect
+!!
+!!   FUNCTION
+!!     returns a vector of identical matrixes, allocating it if none
+!!     is in the pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pool: the pool from where you get the matrix
+!!     - n_matrixes: the number of matrixes in the vector
+!!     - matrixes: will contain the new matrix vector
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE fm_pool_create_matrix_vect(pool, n_matrixes, matrixes, name,&
+       error)
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    INTEGER, INTENT(in) :: n_matrixes
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+    CHARACTER(len=*), INTENT(in), OPTIONAL :: name
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_create_matrix_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(matrixes(n_matrixes), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       DO i=1,n_matrixes
+          NULLIFY(matrixes(i)%matrix)
+          IF (PRESENT(name)) THEN
+             CALL fm_pool_create_matrix(pool,matrixes(i)%matrix,&
+                  name=name//"-"//ADJUSTL(cp_to_string(i)),&
+                  error=error)
+          ELSE
+             CALL fm_pool_create_matrix(pool,matrixes(i)%matrix,error=error)
+          END IF
+       END DO
+    END IF
+  END SUBROUTINE fm_pool_create_matrix_vect
+!***************************************************************************
+
+!!****f* cp_fm_pool_types/fm_pool_give_back_matrix [1.0] *
 !!
 !!   NAME
 !!     fm_pool_give_back_matrix
@@ -403,8 +482,9 @@ CONTAINS
 !!     returns the matrix to the pool
 !!
 !!   NOTES
-!!     transfere the ownership of the matrix to the pool
+!!     transfers the ownership of the matrix to the pool
 !!     (it is as if you had called cp_fm_release)
+!!     Accept give_backs of non associated matrixes?
 !!
 !!   INPUTS
 !!     - pool: the pool where to cache the matrix
@@ -422,7 +502,6 @@ CONTAINS
   SUBROUTINE fm_pool_give_back_matrix(pool, matrix, error)
     TYPE(cp_fm_pool_type), POINTER :: pool
     TYPE(cp_full_matrix_type), POINTER :: matrix
-
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -450,7 +529,69 @@ CONTAINS
   END SUBROUTINE fm_pool_give_back_matrix
 !***************************************************************************
 
-!!****f* cp_fm_pool/fm_pool_get_mstruct [1.0] *
+!!****f* cp_fm_pool_types/fm_pool_give_back_matrix_vect [1.0] *
+!!
+!!   NAME
+!!     fm_pool_give_back_matrix_vect
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pool_give_back_matrix_vect(pool, matrixes, error)
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pool_give_back_matrix_vect
+!!
+!!   FUNCTION
+!!     returns the matrix to the pool
+!!
+!!   NOTES
+!!     transfers the ownership of the matrixes to the pool
+!!     and deallocates the array of matrixes
+!!     (it is as if you had called cp_fm_vect_dealloc)
+!!     Accept give_backs of non associated matrixes?
+!!
+!!   INPUTS
+!!     - pool: the pool where to cache the matrix
+!!     - matrixes: the matrixes to give back
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE fm_pool_give_back_matrix_vect(pool, matrixes, error)
+    TYPE(cp_fm_pool_type), POINTER :: pool
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='fm_pool_give_back_matrix_vect',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: stat,i
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrixes),cp_warning_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       DO i=1,SIZE(matrixes)
+          IF (ASSOCIATED(matrixes(i)%matrix)) THEN
+             CALL fm_pool_give_back_matrix(pool, matrixes(i)%matrix,&
+                  error=error)
+          END IF
+       END DO
+       DEALLOCATE(matrixes,stat=stat)
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    END IF
+    NULLIFY(matrixes)
+  END SUBROUTINE fm_pool_give_back_matrix_vect
+!***************************************************************************
+
+!!****f* cp_fm_pool_types/fm_pool_get_mstruct [1.0] *
 !!
 !!   NAME
 !!     fm_pool_get_mstruct
@@ -500,4 +641,4 @@ FUNCTION fm_pool_get_mstruct(pool,error) RESULT(res)
 END FUNCTION fm_pool_get_mstruct
 !***************************************************************************
 
-END MODULE cp_fm_pool
+END MODULE cp_fm_pool_types

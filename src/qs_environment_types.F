@@ -36,14 +36,14 @@ MODULE qs_environment_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_create,&
-                                             cp_fmstruct_release,&
-                                             cp_fmstruct_retain
-  USE cp_fm_pool,                      ONLY: cp_fm_pool_type,&
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_create,&
                                              fm_pool_release,&
                                              fm_pool_retain
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&

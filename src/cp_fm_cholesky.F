@@ -1,0 +1,371 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****h* cp2k/cp_fm_cholesky [1.0] *
+!!
+!!   NAME
+!!     cp_fm_cholesky
+!!
+!!   FUNCTION
+!!     various cholesky decomposition related routines
+!!
+!!   NOTES
+!!     -
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2002 created [fawzi]
+!!
+!!   SOURCE
+!****************************************************************************
+MODULE cp_fm_cholesky
+  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
+       cp_warning_level, cp_note_level, cp_to_string, cp_log
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
+       cp_error_dealloc_ref, cp_error_message, cp_assert,&
+       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
+       cp_error_get_logger
+  USE kinds, ONLY: wp=>dp
+  USE cp_para_types, ONLY: cp_para_env_type
+  USE cp_fm_types,                  ONLY: cp_fm_get_info,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE timings, ONLY: timeset, timestop
+  IMPLICIT NONE
+  PRIVATE
+
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_cholesky'
+
+  PUBLIC :: cp_fm_cholesky_decompose, cp_fm_cholesky_invert,&
+       cp_fm_cholesky_reduce, cp_fm_cholesky_restore
+
+!***
+!****************************************************************************
+CONTAINS
+
+!!****f* cp_log_handling/cp_fm_cholesky_decompose [1.0] *
+!!
+!!   NAME
+!!     cp_fm_cholesky_decompose
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_cholesky_decompose(matrix, error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_cholesky_decompose
+!!
+!!   FUNCTION
+!!     used to replace a symmetric positive def. matrix M with its cholesky
+!!     decomposition U: M = U^T * U, with U upper triangular
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     matrix: the matrix to replace with its cholesky decomposition
+!!     error: variable to control error logging, stopping,... 
+!!            see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [JVdV]
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_cholesky_decompose(matrix,error)
+   TYPE(cp_full_matrix_type), POINTER           :: matrix
+   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN="cp_fm_cholesky_decompose",&
+         routineP=moduleN//':'//routineN
+    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    INTEGER                                   :: info,handle
+    INTEGER                                   :: output_unit,source,n
+    LOGICAL                                   :: ionode
+    TYPE(cp_blacs_env_type), POINTER          :: context
+    INTEGER, DIMENSION(9)                     :: desca
+    LOGICAL                                   :: failure
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    context => matrix%matrix_struct%context
+    n = matrix%matrix_struct%nrow_global
+
+    a => matrix%local_data
+
+#if defined(__SCALAPACK)
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    CALL pdpotrf('U',n,a(1,1),1,1,desca,info)
+
+#else
+
+    CALL dpotrf('U',n,a(1,1),n,info)
+
+#endif
+
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE cp_fm_cholesky_decompose
+!***************************************************************************
+  
+!!****f* cp_fm_cholesky/cp_fm_cholesky_invert [1.0] *
+!!
+!!   NAME
+!!     cp_fm_cholesky_invert
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_cholesky_invert(matrix, error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_cholesky_invert
+!!
+!!   FUNCTION
+!!     used to replace the cholesky decomposition by the inverse
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     matrix: 
+!!     error : variable to control error logging, stopping,... 
+!!             see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [JVdV]
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_cholesky_invert(matrix, error)
+   TYPE(cp_full_matrix_type), POINTER           :: matrix
+   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_invert',&
+         routineP=moduleN//':'//routineN
+    REAL(wp), DIMENSION(:,:), POINTER         :: a
+    INTEGER                                   :: info,handle
+    INTEGER                                   :: n
+    INTEGER, DIMENSION(9)                     :: desca
+    TYPE(cp_blacs_env_type), POINTER          :: context
+    LOGICAL                                   :: failure
+
+    CALL timeset("cp_fm_cholesky_invert","I","",handle)
+    failure=.FALSE.
+
+    context => matrix%matrix_struct%context
+    n = matrix%matrix_struct%nrow_global
+
+    a => matrix%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    CALL pdpotri('U',n,a(1,1),1,1,desca,info)
+
+#else
+
+    CALL dpotri('U',n,a(1,1),n,info)
+
+#endif
+
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE cp_fm_cholesky_invert
+!***************************************************************************
+
+!!****f* cp_fm_cholesky/cp_fm_cholesky_invert [1.0] *
+!!
+!!   NAME
+!!     cp_fm_cholesky_invert
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_cholesky_invert(matrix, error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fm_cholesky_invert
+!!
+!!   FUNCTION
+!!     reduce a matrix pencil A,B to normal form
+!!     B has to be cholesky decomposed with  cp_fm_cholesky_decompose
+!!     before calling this routine
+!!     A,B -> inv(U^T)*A*inv(U),1
+!!     (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     matrix: the symmetric matrix A
+!!     matrixb: the cholesky decomposition of matrix B
+!!     error : variable to control error logging, stopping,... 
+!!             see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [JVdV]
+!!
+!!*** *********************************************************************
+  SUBROUTINE cp_fm_cholesky_reduce(matrix,matrixb, error)
+   TYPE(cp_full_matrix_type), POINTER           :: matrix,matrixb
+   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_reduce',&
+         routineP=moduleN//':'//routineN
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b
+    INTEGER                                   :: info,itype,handle
+    INTEGER                                   :: n
+    INTEGER                                   :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9)                     :: desca,descb
+    REAL(wp)                                  :: scale
+    TYPE(cp_blacs_env_type), POINTER          :: context
+    LOGICAL                                   :: failure
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure=.FALSE.
+    context => matrix%matrix_struct%context
+    n = matrix%matrix_struct%nrow_global
+    itype =1
+
+    a => matrix%local_data
+    b => matrixb%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    descb(:) = matrixb%matrix_struct%descriptor(:)
+
+    CALL pdsygst(itype,'U',n,a(1,1),1,1,desca,b(1,1),1,1,descb,scale,info)
+
+    ! this is supposed to be one in current version of lapack
+    ! if not, eigenvalues have to be scaled by this number
+    CALL cp_assert(scale == 1.0_wp, cp_failure_level,cp_assertion_failed,&
+         routineP,&
+         "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
+         CPSourceFileRef,&
+         error,failure)
+#else
+
+    CALL dsygst(itype,'U',n,a(1,1),n,b(1,1),n,info)
+
+#endif
+
+    CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE cp_fm_cholesky_reduce
+
+!******************************************************************
+!
+! op can be "SOLVE" (out = U^-1 * in ) or "MULTIPLY"   (out = U * in )
+! pos can be "LEFT" or "RIGHT" (U at the left or at the right)
+!
+! DEPRECATED, see cp_fm_basic_linalg:cp_fm_triangular_multiply
+!
+!******************************************************************
+  SUBROUTINE cp_fm_cholesky_restore(matrix,neig,matrixb,matrixout,op,pos,&
+       error)
+    TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
+    INTEGER, INTENT(IN)                         :: neig
+    CHARACTER ( LEN = * ), INTENT ( IN )        :: op
+    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: pos
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_cholesky_restore',&
+         routineP=moduleN//':'//routineN
+    REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
+    INTEGER                                   :: info,itype,handle
+    INTEGER                                   :: n
+    LOGICAL                                   :: ionode, failure
+    REAL(wp)                                  :: alpha
+    INTEGER                                   :: myprow, mypcol, i
+    INTEGER, DIMENSION(9)                     :: desca,descb,descout
+    TYPE(cp_blacs_env_type), POINTER          :: context
+    CHARACTER                                 :: chol_pos
+
+    CALL timeset("cp_fm_cholesky_restore","I","",handle)
+
+    failure=.FALSE.
+    context => matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    n = matrix%matrix_struct%nrow_global
+    itype = 1
+    CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "wrong argument op"//&
+         CPSourceFileRef,&
+         error,failure)
+
+    IF (PRESENT(pos)) THEN 
+       SELECT CASE(pos)
+       CASE("LEFT")
+         chol_pos='L'
+       CASE("RIGHT")
+         chol_pos='R'
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,&
+               cp_failure_level,cp_assertion_failed,routineP,&
+               "wrong argument pos"//&
+               CPSourceFileRef,&
+               error,failure)
+       END SELECT
+    ELSE
+       chol_pos='L'
+    ENDIF
+
+    ! notice b is the cholesky guy
+    a => matrix%local_data
+    b => matrixb%local_data
+    out => matrixout%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix%matrix_struct%descriptor(:)
+    descb(:) = matrixb%matrix_struct%descriptor(:)
+    descout(:) = matrixout%matrix_struct%descriptor(:)
+    alpha=1.0_wp
+    DO i=1,neig
+      CALL pdcopy(n,a(1,1),1,i,desca,1,out(1,1),1,i,descout,1)
+    ENDDO
+    IF (op.EQ."SOLVE") THEN
+      CALL pdtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+    ELSE
+      CALL pdtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),1,1,descb,out(1,1),1,1,descout)
+    ENDIF
+#else
+
+    alpha=1.0_wp
+    CALL dcopy(neig*n,a(1,1),1,out(1,1),1)
+    IF (op.EQ."SOLVE") THEN
+      CALL dtrsm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+    ELSE
+      CALL dtrmm(chol_pos,'U','N','N',n,neig,alpha,b(1,1),n,out(1,1),n)
+    ENDIF
+
+#endif
+
+    CALL timestop(0.0_wp,handle)
+
+  END  SUBROUTINE cp_fm_cholesky_restore
+
+END MODULE cp_fm_cholesky

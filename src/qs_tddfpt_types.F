@@ -26,7 +26,7 @@
 MODULE qs_tddfpt_types
 
   USE cp_error_handling, ONLY : cp_simple_assert
-  USE cp_full_matrix,    ONLY : cp_fm_set_all, cp_fm_release
+  USE cp_fm_types,    ONLY : cp_fm_set_all, cp_fm_release
   USE cp_log_handling,   ONLY : cp_to_string
   USE global_types,      ONLY : global_environment_type
   USE kinds,             ONLY : dbl, dp_size

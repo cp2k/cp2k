@@ -25,38 +25,84 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_p_types
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp, dbl
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  USE qs_blacs, ONLY: cp_fm_create2, cp_fm_release,&
-       cp_fm_gemm, cp_fm_add, cp_sm_fm_multiply, cp_fm_vect_create2,&
-       cp_fm_vect_dealloc, optimal_blacs_row_block_size, &
-       optimal_blacs_col_block_size, cp_full_matrix_p_type, cp_full_matrix_type,&
-       cp_sm_plus_fm_fm_t, cp_fm_symm, cp_fm_get_info,&
-       blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
-       blacs_cholesky_decompose, blacs_cholesky_restore, cp_fm_syrk,&
-       copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
-       replicate_blacs_matrix
-  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env
-  USE qs_mo_types, ONLY : get_mo_set
-  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
-  USE dft_types, ONLY: dft_control_type
-  USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&
-       cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
-       cp_sp_set_to, cp_sp_array_create
-  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
-       qs_ks_update_qs_env
-  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
-       get_matrix_info
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
+  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_sp_array_create,&
+                                             cp_sp_array_dealloc,&
+                                             cp_sp_create,&
+                                             cp_sp_multiplies_blacs,&
+                                             cp_sp_set_to
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             cp_fm_pool_type,&
+                                             fm_pool_create_matrix,&
+                                             fm_pool_create_matrix_vect,&
+                                             fm_pool_get_mstruct,&
+                                             fm_pool_give_back_matrix,&
+                                             fm_pool_give_back_matrix_vect
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_get
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
+                                             cp_fm_vect_create2,&
+                                             cp_fm_vect_dealloc
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dft_types,                       ONLY: dft_control_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             wp=>dp
+  USE qs_blacs,                        ONLY: blacs_scale_and_d,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_sparse_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size,&
+                                             replicate_blacs_matrix
+  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             qs_ks_update_qs_env
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
+                                             mo_set_type
+  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_p_env_type, p_env_init, qs_K_P_P1_env_type
@@ -160,7 +206,7 @@ CONTAINS
 !!     - K_P_P1_env: the environment that builds the second order
 !!       perturbation kernel.
 !!     - glob_env: the global environment
-!!     - orthogonal_orbitals: if the orbitals are 
+!!     - orthogonal_orbitals: if the orbitals are orthogonal 
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -194,12 +240,15 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(dft_control_type), POINTER  :: dft_control
     TYPE(cp_full_matrix_type), POINTER :: qs_env_c
+    TYPE(cp_fm_pool_type), POINTER :: ao_mo_fm_pool
+    TYPE(cp_f_matrix_struct_type), POINTER :: ao_mo_fm_struct
+    TYPE(cp_para_env_type), POINTER :: para_env
 
     ! code
 
     failure=.FALSE.
 
-    NULLIFY(atomic_kind_set, dft_control)
+    NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pool, para_env)
     NULLIFY(p_env%K_P_P1, &
             p_env%m_epsilon, &
             p_env%psi0d, &
@@ -212,6 +261,8 @@ CONTAINS
     p_env%ks_env => ks_env
     p_env%K_P_P1_env => K_P_P1_env
 
+    CALL get_qs_env(qs_env, ao_mo_fm_pool=ao_mo_fm_pool,para_env=para_env)
+
     n_spins = p_env%qs_env%dft_control%nspins
     DO spin=1, n_spins
 
@@ -219,41 +270,36 @@ CONTAINS
           CALL cp_fm_get_info(psi0d(spin)%matrix, &
                                      ncol_global=n_mo, nrow_global=n_ao)
        ELSE
-          CALL get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
-          CALL cp_fm_get_info(qs_env_c, &
-                                     ncol_global=n_mo, nrow_global=n_ao)
+       CALL get_mo_set(p_env%qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
+       CALL cp_fm_get_info(qs_env_c, &
+            ncol_global=n_mo, nrow_global=n_ao)
        END IF
        p_env%n_mo(spin) = n_mo
        p_env%n_ao(spin) = n_ao
-
-!!TC       call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
-!!TC                               dft_control=dft_control)
-!!TC       call get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
-!!TC       n_mo=n_mo/2-dft_control%charge ! lda closed shell only !
-!!TC       p_env%n_mo=n_mo
-!!TC       p_env%n_ao=n_ao
-
-       p_env%orthogonal_orbitals=.FALSE.
-       IF (PRESENT(orthogonal_orbitals)) &
-            p_env%orthogonal_orbitals=orthogonal_orbitals
-
     END DO
 
-    CALL cp_fm_vect_create2(p_env%S_psi0, n_spins, n_ao, n_mo,&
+    p_env%orthogonal_orbitals=.FALSE.
+    IF (PRESENT(orthogonal_orbitals)) &
+         p_env%orthogonal_orbitals=orthogonal_orbitals
+
+    CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%S_psi0,&
+                                    n_matrixes=n_spins,&
                                     name="p_env_S_psi0", &
-                                    globenv=glob_env, error=error)
-    CALL cp_fm_vect_create2(p_env%m_epsilon, n_spins, n_mo, n_mo,&
+                                    error=error)
+    CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%m_epsilon,&
+                                    n_matrixes=n_spins,&
                                     name="p_env_m_epsilon", &
-                                    globenv=glob_env, error=error)
+                                    error=error)
 
     IF (PRESENT(psi0d)) THEN
-       p_env%psi0d => psi0d
-    ELSE
-       ! what is that??
-       CALL cp_fm_vect_create2(p_env%psi0d, n_spins, n_mo, &
-                                       optimal_blacs_row_block_size,&
+       IF (ASSOCIATED(psi0d)) THEN
+          CALL cp_fm_vect_copy(psi0d,p_env%psi0d,error=error)
+       END IF
+    ELSE IF (.NOT.p_env%orthogonal_orbitals) THEN
+       CALL fm_pool_create_matrix_vect(ao_mo_fm_pool,matrixes=p_env%psi0d,&
+                                       n_matrixes=n_spins,&
                                        name="p_env_psi0d", &
-                                       globenv=glob_env, error=error)
+                                       error=error)
     END IF
 
     ! do still we need this?
@@ -261,7 +307,7 @@ CONTAINS
 
     p_env%initialized=.TRUE.
 
-    IF (PRESENT(psi0d)) CALL p_env_psi0_changed(p_env, glob_env, error=error)
+    IF (PRESENT(psi0d)) CALL p_env_psi0_changed(p_env, error=error)
     
   END SUBROUTINE p_env_init
 !***************************************************************************
@@ -331,7 +377,7 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment to set
-!!     - glob_env: the global environment for the calculations
+!!     - psi0: the value of psi0, if not given defaults to the qs_env mos
 !!     - Hrho_psi0d: is given, then the partial result Hrho_psi0d is stored in
 !!       that vector
 !!     - error: variable to control error logging, stopping,... 
@@ -345,73 +391,143 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE p_env_psi0_changed(p_env, glob_env, Hrho_psi0d, error)
+  SUBROUTINE p_env_psi0_changed(p_env, psi0, Hrho_psi0d, error)
 
     IMPLICIT NONE
 
     ! arguments
     TYPE(qs_p_env_type), INTENT(inout)                :: p_env
-    TYPE(global_environment_type), INTENT(in), TARGET :: glob_env
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in), TARGET, OPTIONAL :: psi0
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout), OPTIONAL :: Hrho_psi0d
     TYPE(cp_error_type), OPTIONAL, INTENT(inout)      :: error
 
     ! locals
     LOGICAL                                :: failure
-    INTEGER                                :: stat
+    INTEGER                                :: n_spins, spin, stat
     CHARACTER(len=*), PARAMETER            :: routineN = 'p_env_psi0_changed', &
                                               routineP = moduleN//':'//routineN
     TYPE(cp_full_matrix_type), POINTER       :: tmp
+    TYPE(cp_fm_pool_type), POINTER           :: ao_mo_fm_pool
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: my_psi0
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S
-    INTEGER                                :: n_spins, spin
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
+    TYPE(cp_para_env_type), POINTER :: para_env
 
     ! code
     failure=.FALSE.
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
 
-    NULLIFY(tmp)
+    NULLIFY(tmp, ao_mo_fm_pool,c,my_psi0, para_env)
+
+    n_spins = p_env%qs_env%dft_control%nspins
 
     IF (.NOT. failure) THEN
-       
-       n_spins = p_env%qs_env%dft_control%nspins
-       DO spin=1, n_spins
+       CALL get_qs_env(p_env%qs_env,ao_mo_fm_pool=ao_mo_fm_pool,&
+            c=c, S=S, para_env=para_env)
 
-          ! get from pool instead
-          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
-                                      routineP//": temporary matrix")
-
-          !-----------------------------------------------------------------------|
-          ! caluclates                                                            |
-          ! m_eplsilon = - psi0d^T times K times psi0d                            |
-          !            = - [K times psi0d]^T times psi0d (because K is symmetric) |
-          !-----------------------------------------------------------------------|
-          IF (p_env%orthogonal_orbitals) THEN
-             ! tmp = k times psi0d
-             CALL cp_sm_fm_multiply(p_env%qs_env%k(spin)%matrix, &
-                  p_env%psi0d(spin)%matrix, &
-                  tmp, p_env%n_ao(spin), &
-                  glob_env%para_env)             
-             ! m_epsilon = -1 times tmp^T times psi0d
-             CALL cp_fm_gemm('T', 'N', &
-                  p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
-                  -1.0_dbl, tmp, p_env%psi0d(spin)%matrix, &
-                  0.0_dbl, p_env%m_epsilon(spin)%matrix)
+       ! def my_psi0
+       IF (PRESENT(psi0)) THEN
+          CALL cp_fm_vect_copy(psi0,my_psi0,error=error)
+       ELSE
+          ALLOCATE(my_psi0(n_spins),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          IF (.NOT.failure) THEN
+             DO spin=1,n_spins
+                NULLIFY(my_psi0(spin)%matrix)
+                CALL get_mo_set(c(spin)%mo_set,&
+                     eigenvectors=my_psi0(spin)%matrix)
+             END DO
           END IF
+       END IF
 
-          !-------------------------------|
-          ! calculates S_psi0 = S * psi0d |
-          !-------------------------------|
-          CALL get_qs_env(p_env%qs_env, s=S)
-          CALL cp_sm_fm_multiply(S(spin)%matrix, &
-               p_env%psi0d(spin)%matrix, &
-               p_env%S_psi0(spin)%matrix, &
-               p_env%n_mo(spin), para_env=glob_env%para_env)
-       
-          CALL cp_fm_release(tmp); NULLIFY(tmp)
-
-       END DO
     END IF
 
+    IF (.NOT.failure) THEN
+       
+       ! def psi0d
+       IF (p_env%orthogonal_orbitals) THEN
+          
+          p_env%psi0d => my_psi0
+
+       ELSE
+
+          DO spin=1,n_spins
+             ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
+             ! could be optimized by compining next two calls
+             CALL cp_sm_fm_multiply(sparse_matrix=S(1)%matrix,&
+                  v_in=my_psi0(spin)%matrix,&
+                  v_out=p_env%S_psi0(spin)%matrix,&
+                  ncol=p_env%n_mo(spin), para_env=para_env, &
+                  alpha=-1.0_wp,error=error)
+             CALL cp_fm_gemm(transa='T',transb='N',n=p_env%n_mo(spin),&
+                  m=p_env%n_mo(spin),k=p_env%n_ao(spin),alpha=1.0_wp,&
+                  matrix_a=my_psi0(spin)%matrix, &
+                  matrix_b=p_env%S_psi0(spin)%matrix,&
+                  beta=0.0_wp,matrix_c=p_env%m_epsilon(spin)%matrix,&
+                  error=error)
+             CALL cp_fm_cholesky_decompose(p_env%m_epsilon(spin)%matrix,&
+                  error=error)
+             
+             ! psi0d=my_psi0 (my_psi0^T S my_psi0)^-1
+             ! faster using cp_fm_cholesky_invert ?
+             CALL copy_blacs_to_blacs_matrix(my_psi0(spin)%matrix,&
+                  p_env%psi0d(spin)%matrix, error=error)
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  invert_tr=.TRUE., n_rows=p_env%n_ao(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+             CALL cp_fm_triangular_multiply(&
+                  triangular_matrix=p_env%m_epsilon(spin)%matrix,&
+                  matrix_b=p_env%psi0d(spin)%matrix,side='R',&
+                  transpose_tr=.TRUE.,&
+                  invert_tr=.TRUE., n_rows=p_env%n_ao(spin),&
+                  n_cols=p_env%n_mo(spin),error=error)
+          END DO
+
+       END IF
+       
+       !-----------------------------------------------------------------------|
+       ! calculates                                                            |
+       ! m_epsilon = - psi0d^T times K times psi0d                             |
+       !           = - [K times psi0d]^T times psi0d (because K is symmetric)  |
+       !-----------------------------------------------------------------------|
+       DO spin=1, n_spins   
+          ! S_psi0 = k times psi0d
+          CALL cp_sm_fm_multiply(p_env%qs_env%k(spin)%matrix, &
+               p_env%psi0d(spin)%matrix, &
+               p_env%S_psi0(spin)%matrix, p_env%n_ao(spin), &
+               para_env)            
+          ! m_epsilon = -1 times S_psi0^T times psi0d
+          CALL cp_fm_gemm('T', 'N', &
+               p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
+               -1.0_dbl, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
+               0.0_dbl, p_env%m_epsilon(spin)%matrix)
+       END DO
+
+       !----------------------------------|
+       ! calculates S_psi0 = S * my_psi0  |
+       !----------------------------------|
+       ! calculating this reduces the mat mult without storing a full aoxao
+       ! matrix (for P). If nspin>1 you might consider calculating it on the
+       ! fly to spare some memory
+       CALL get_qs_env(p_env%qs_env, s=S)
+       DO spin=1,n_spins
+          CALL cp_sm_fm_multiply(S(1)%matrix, &
+               my_psi0(spin)%matrix, &
+               p_env%S_psi0(spin)%matrix, &
+               p_env%n_mo(spin), para_env=para_env)
+       END DO
+
+       ! releases my_psi0
+       IF (p_env%orthogonal_orbitals) THEN
+          NULLIFY(my_psi0)
+       ELSE
+          CALL cp_fm_vect_dealloc(my_psi0,error=error)
+       END IF
+
+    END IF
 
   END SUBROUTINE p_env_psi0_changed
 !***************************************************************************

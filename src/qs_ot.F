@@ -20,47 +20,54 @@
 !******************************************************************************
 
 MODULE qs_ot
-
 ! *****************************************************************************
-  USE kinds, ONLY: wp => dp, wp_size => dp_size
-  USE termination,         ONLY: stop_memory, stop_program
-  USE timings,             ONLY: timeset, timestop
-  USE qs_blacs,            ONLY: cp_full_matrix_type,cp_fm_get_info, &
-                                 cp_full_matrix_p_type, &
-                                 cp_fm_set_all, cp_fm_syrk, &
-                                 cp_fm_create2, &
-                                 cp_fm_release, &
-                                 cp_fm_symm,cp_fm_gemm, &
-                                 blacs_make_basis,copy_blacs_to_blacs_matrix, &
-                                 cp_fm_trace, blacs_transpose, cp_fm_add, &
-                                 cp_fm_schur_product, &
-                                 blacs_cholesky_decompose, &
-                                 blacs_cholesky_invert, &
-                                 blacs_cholesky_reduce, &
-                                 blacs_syevx, blacs_syevd, &
-                                 blacs_scale_matrix, &
-                                 blacs_set_local_block, &
-                                 cp_sm_fm_multiply, &
-                                 copy_sparse_to_blacs_matrix, &
-                                 copy_blacs_to_sparse_matrix, &
-                                 blacs_cholesky_restore, &
-                                 cp_fm_maxval, &
-                                 replicate_blacs_matrix
-
-  USE global_types,        ONLY: global_environment_type
-  USE sparse_matrix_types, ONLY: real_matrix_type, &
-                                 replicate_matrix, &
-                                 get_matrix_info, &
-                                 get_block_node, &
-                                 add_block_node , &
-                                 real_block_node_type, &
-                                 first_block_node, &
-                                 next_block_node, &
-                                 deallocate_matrix, &
-                                 add_all_real_matrix_blocks
-  USE preconditioner,      ONLY: preconditioner_type, & 
-                                 apply_preconditioner
-
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE preconditioner,                  ONLY: apply_preconditioner,&
+                                             preconditioner_type
+  USE qs_blacs,                        ONLY: blacs_make_basis,&
+                                             blacs_scale_matrix,&
+                                             blacs_set_local_block,&
+                                             blacs_syevd,&
+                                             blacs_syevx,&
+                                             blacs_transpose,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_sparse_matrix,&
+                                             copy_sparse_to_blacs_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_maxval,&
+                                             cp_fm_release,&
+                                             cp_fm_schur_product,&
+                                             cp_fm_set_all,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_trace,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             replicate_blacs_matrix
+  USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
+                                             add_block_node,&
+                                             deallocate_matrix,&
+                                             first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PUBLIC  :: qs_ot_type
   PUBLIC  :: qs_ot_allocate
@@ -663,8 +670,8 @@ SUBROUTINE qs_ot_get_derivative(matrix_hc,matrix_x,matrix_sx,matrix_gx, &
      CALL cp_fm_gemm('T','N',ortho_k,ortho_k,n,rone,&
                      qs_ot_env%matrix_sc0,matrix_target, &
                      rzero,qs_ot_env%matrix_os)
-     CALL blacs_cholesky_decompose(qs_ot_env%matrix_os)
-     CALL blacs_cholesky_invert(qs_ot_env%matrix_os)
+     CALL cp_fm_cholesky_decompose(qs_ot_env%matrix_os)
+     CALL cp_fm_cholesky_invert(qs_ot_env%matrix_os)
      qs_ot_env%os_valid=.true.
   ENDIF
 

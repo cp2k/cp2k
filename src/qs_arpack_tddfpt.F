@@ -27,21 +27,23 @@
 #include "cp_prep_globals.h"
 
 MODULE qs_arpack_tddfpt
-  
-  USE cp_error_handling,   ONLY : cp_simple_assert
-  USE cp_fm_utils,         ONLY : copy_rep_vec_to_fm, &
-                                  copy_fm_to_rep_vec
-  USE cp_full_matrix,      ONLY : cp_full_matrix_type, &
-                                  cp_fm_get_info
-  USE cp_log_handling,     ONLY : cp_fatal_level, cp_to_string
-  USE global_types,        ONLY : global_environment_type
-  USE kinds,               ONLY : dbl
-  USE qs_blacs,            ONLY : replicate_blacs_matrix, &
-                                  cp_fm_release
-  USE qs_p_types,          ONLY : qs_p_env_type
-  USE qs_p_utils,          ONLY : p_op_l1, p_op_l1_spin, p_op_l2
-  USE sparse_matrix_types, ONLY : real_matrix_type, copy_sparse_to_full_matrix
-
+  USE cp_error_handling,               ONLY: cp_simple_assert
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_full_matrix_type
+  USE cp_fm_utils,                     ONLY: copy_fm_to_rep_vec,&
+                                             copy_rep_vec_to_fm
+  USE cp_log_handling,                 ONLY: cp_fatal_level,&
+                                             cp_to_string
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE qs_blacs,                        ONLY: cp_fm_release,&
+                                             replicate_blacs_matrix
+  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_p_utils,                      ONLY: p_op_l1,&
+                                             p_op_l1_spin,&
+                                             p_op_l2
+  USE sparse_matrix_types,             ONLY: copy_sparse_to_full_matrix,&
+                                             real_matrix_type
   IMPLICIT NONE
   
   TYPE op_tddfpt_type

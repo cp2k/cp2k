@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_f_matrix_struct [1.0] *
+!!****h* cp2k/cp_fm_struct [1.0] *
 !!
 !!   NAME
-!!     cp_f_matrix_struct
+!!     cp_fm_struct
 !!
 !!   FUNCTION
 !!     represent the structure of a full matrix
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_f_matrix_struct
+MODULE cp_fm_struct
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
                                              cp_blacs_env_write
@@ -62,7 +62,7 @@ MODULE cp_f_matrix_struct
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_f_matrix_struct'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_struct'
   INTEGER,SAVE,PRIVATE :: last_fmstruct_id_nr=0
 
 ! the default blacs block sizes
@@ -455,7 +455,7 @@ FUNCTION cp_fmstruct_equivalent(fmstruct1,fmstruct2,error) RESULT(res)
 END FUNCTION cp_fmstruct_equivalent
 !***************************************************************************
 
-!!****f* cp_f_matrix_struct/cp_fmstruct_write [1.0] *
+!!****f* cp_fm_struct/cp_fmstruct_write [1.0] *
 !!
 !!   NAME
 !!     cp_fmstruct_write
@@ -504,7 +504,7 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
   IF (PRESENT(long_description)) l_desc=long_description
   IF (ASSOCIATED(fmstruct)) THEN
      WRITE (unit=unit_nr,&
-          fmt="('<cp_f_matrix_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
+          fmt="('<cp_fm_struct>:{ id_nr=',i10,', ref_count=',i10,',')",&
           iostat=iostat) fmstruct%id_nr, fmstruct%ref_count
      CPPostcondition(iostat==0,cp_warning_level,routineP,error,failure)
      WRITE (unit=unit_nr,fmt="(' nrow_global=',i8,', ncol_global=',i8,',')",&
@@ -578,12 +578,12 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
      WRITE (unit=unit_nr, fmt="(' descriptor=(',9i8,') }')",iostat=iostat)&
           fmstruct%descriptor
   ELSE
-     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_f_matrix_struct>:*null*"
+     WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_fm_struct>:*null*"
   END IF
 END SUBROUTINE cp_fmstruct_write
 !***************************************************************************
 
-!!****f* cp_f_matrix_struct/cp_fmstruct_get [1.0] *
+!!****f* cp_fm_struct/cp_fmstruct_get [1.0] *
 !!
 !!   NAME
 !!     cp_fmstruct_get
@@ -665,4 +665,4 @@ SUBROUTINE cp_fmstruct_get(fmstruct, para_env, context,&
 END SUBROUTINE cp_fmstruct_get
 !***************************************************************************
 
-END MODULE cp_f_matrix_struct
+END MODULE cp_fm_struct

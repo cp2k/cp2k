@@ -29,10 +29,10 @@
 
 MODULE qs_tddfpt_module
 
-  USE cp_f_matrix_struct,   ONLY : cp_f_matrix_struct_type, &
+  USE cp_fm_struct,   ONLY : cp_f_matrix_struct_type, &
                                    cp_fmstruct_create, cp_fmstruct_release, &
                                    optimal_blacs_col_block_size, optimal_blacs_row_block_size
-  USE cp_full_matrix,       ONLY : cp_full_matrix_type, cp_full_matrix_p_type, &
+  USE cp_fm_types,       ONLY : cp_full_matrix_type, cp_full_matrix_p_type, &
                                    cp_fm_create, cp_fm_release
   USE cp_fm_utils,          ONLY : copy_fm_col_to_fm
   USE global_types,         ONLY : global_environment_type

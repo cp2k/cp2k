@@ -25,50 +25,77 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_basic_linalg
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE global_types,        ONLY: global_environment_type
-  USE mathlib,             ONLY: symmetrize_matrix
-  USE util,                ONLY: sort
-  USE sparse_matrix_types, ONLY: first_block_node,&
-       get_block_node,&
-       get_matrix_info,&
-       next_block_node,&
-       real_block_node_type,&
-       real_matrix_type, &
-       sparse_times_replicated, &
-       sparse_plus_rep_rept
-  USE message_passing,     ONLY: mp_bcast,&
-       mp_max,&
-       mp_sum,&
-       mp_sync
-  USE string_utilities,    ONLY: compress
-  USE termination,         ONLY: stop_memory,&
-       stop_program
-  USE timings,             ONLY: timeset,&
-       timestop
-  USE cp_matrix_utils,   ONLY: cp_init, cp_dealloc_ref, cp_next, cp_get, &
-       cp_matrix_block_iterator
-  USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
-  USE cp_para_env,       ONLY: cp_para_env_retain, cp_para_env_release,&
-       cp_para_env_from_globenv
-  USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_create, start_blacs, finish_blacs, &
-       cp_blacs_env_from_globenv
-  USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
-       cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent
-  USE parallel, ONLY: cp2k_is_parallel
-  USE cp_full_matrix, ONLY:  cp_full_matrix_type, cp_full_matrix_p_type,&
-       cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
-       cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
-       cp_fm_set_submatrix, cp_fm_get_submatrix
-
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_from_globenv,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             finish_blacs,&
+                                             start_blacs
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_equivalent,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_create2,&
+                                             cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_init_random,&
+                                             cp_fm_release,&
+                                             cp_fm_retain,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_set_submatrix,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_dealloc_ref,&
+                                             cp_get,&
+                                             cp_init,&
+                                             cp_matrix_block_iterator,&
+                                             cp_next
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE parallel,                        ONLY: cp2k_is_parallel
+  USE sparse_matrix_types,             ONLY: first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type,&
+                                             sparse_plus_rep_rept,&
+                                             sparse_times_replicated
+  USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: sort
   IMPLICIT NONE
   PRIVATE
 
@@ -77,7 +104,7 @@ MODULE cp_fm_basic_linalg
 
   PUBLIC :: cp_fm_add, cp_sm_fm_multiply, cp_sm_plus_fm_fm_t,&
        cp_fm_gemm, cp_fm_symm, cp_fm_syrk, cp_fm_schur_product,&
-       cp_fm_trace
+       cp_fm_trace, cp_fm_triangular_multiply
 !!***
 !****************************************************************************
 CONTAINS
@@ -571,5 +598,148 @@ CONTAINS
   END SUBROUTINE cp_fm_trace
 
 ! *****************************************************************************
+
+
+!!****f* cp_fm_basic_linalg/cp_fm_triangular_multiply [1.0] *
+!!
+!!   NAME
+!!     cp_fm_triangular_multiply
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_triangular_multiply(triangular_matrix, matrix_b,&
+!!         side, transpose_tr, invert_tr, uplo_tr, unit_diag_tr, n_rows,&
+!!         n_cols, alpha, error)
+!!       Type(cp_full_matrix_type), Pointer:: triangular_matrix, matrix_b
+!!       Character, Intent (IN), Optional:: side, uplo_tr
+!!       Logical, Intent (IN), Optional:: transpose_tr, invert_tr,&
+!!         unit_diag_tr
+!!       Integer, Intent (IN), Optional:: n_rows, n_cols
+!!       Real(Kind=wp), Intent (IN), Optional:: alpha
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fm_triangular_multiply
+!!
+!!   FUNCTION
+!!     multiplies in place by a triangular matrix:
+!!      matrix_b = alpha op(triangular_matrix) matrix_b
+!!     or (if side='R')
+!!      matrix_b = alpha matrix_b op(triangular_matrix)
+!!     op(triangular_matrix) is:
+!!      triangular_matrix (if transpose_tr=.false. and invert_tr=.false.)
+!!      triangular_matrix^T (if transpose_tr=.true. and invert_tr=.false.)
+!!      triangular_matrix^(-1) (if transpose_tr=.false. and invert_tr=.true.)
+!!      triangular_matrix^(-T) (if transpose_tr=.true. and invert_tr=.true.)
+!!
+!!   NOTES
+!!     needs an mpi env
+!!
+!!   INPUTS
+!!     - triangular_matrix: the triangular matrix that multiplies the other
+!!     - matrix_b: the matrix that gets multiplied and stores the result
+!!     - side: on which side of matrix_b stays op(triangular_matrix)
+!!       (defaults to 'L')
+!!     - transpose_tr: if the triangular matrix should be transposed
+!!       (defaults to false)
+!!     - invert_tr: if the triangular matrix should be inverted
+!!       (defaults to false)
+!!     - uplo_tr: if triangular_matrix is stored in the upper ('U') or
+!!       lower ('L') triangle (defaults to 'U')
+!!     - unit_diag_tr: if the diagonal elements of triangular_matrix should
+!!       be assumed to be 1 (defaults to false)
+!!     - n_rows: the number of rows of the result (defaults to 
+!!       size(matrix_b,1))
+!!     - n_cols: the number of columns of the result (defaults to
+!!       size(matrix_b,2))
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
+     transpose_tr, invert_tr, uplo_tr,unit_diag_tr, n_rows, n_cols, &
+     alpha,error)
+  TYPE(cp_full_matrix_type), POINTER :: triangular_matrix, matrix_b
+  CHARACTER, INTENT(in), OPTIONAL :: side, uplo_tr
+  LOGICAL, INTENT(in), OPTIONAL :: transpose_tr, invert_tr, unit_diag_tr
+  INTEGER, INTENT(in), OPTIONAL :: n_rows, n_cols
+  REAL(kind=wp), INTENT(in), OPTIONAL :: alpha
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, invert
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_triangular_multiply',&
+        routineP=moduleN//':'//routineN
+  CHARACTER :: side_char, unit_diag,uplo, transa
+  INTEGER :: handle, m,n
+  REAL(kind=wp) :: al
+  failure=.FALSE.
+  
+  CALL timeset(routineN//','//moduleN,"I","",handle)
+  side_char='L'
+  unit_diag='N'
+  uplo='U'
+  transa='N'
+  invert=.FALSE.
+  al=1.0_wp
+  CALL cp_fm_get_info(matrix_b, nrow_global=m, ncol_global=n, error=error)
+  IF (PRESENT(side)) side_char=side
+  IF (PRESENT(invert_tr)) invert=invert_tr
+  IF (PRESENT(uplo_tr)) uplo=uplo_tr
+  IF (PRESENT(unit_diag_tr)) THEN
+     IF (unit_diag_tr) THEN
+        unit_diag='U'
+     ELSE
+        unit_diag='N'
+     END IF
+  END IF
+  IF (PRESENT(transpose_tr)) THEN
+     IF (transpose_tr) THEN
+        transa='T'
+     ELSE
+        transa='N'
+     END IF
+  END IF
+  IF (PRESENT(alpha)) al=alpha
+  IF (PRESENT(n_rows)) m=n_rows
+  IF (PRESENT(n_cols)) n=n_cols
+
+  IF (invert) THEN
+
+#if defined(__SCALAPACK)
+     CALL pdtrsm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),1,1,&
+          triangular_matrix%matrix_struct%descriptor,&
+          matrix_b%local_data(1,1),1,1,&
+          matrix_b%matrix_struct%descriptor(1))
+#else     
+     CALL dtrsm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),&
+          SIZE(triangular_matrix%local_data,1),&
+          matrix_b%local_data(1,1),SIZE(matrix_b%local_data,1))
+#endif
+
+  ELSE
+
+#if defined(__SCALAPACK)
+     CALL pdtrmm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),1,1,&
+          triangular_matrix%matrix_struct%descriptor,&
+          matrix_b%local_data(1,1),1,1,&
+          matrix_b%matrix_struct%descriptor(1))
+#else     
+     CALL dtrmm(side_char,uplo,transa,unit_diag,m,n,al,&
+          triangular_matrix%local_data(1,1),&
+          SIZE(triangular_matrix%local_data,1),&
+          matrix_b%local_data(1,1),SIZE(matrix_b%local_data,1))
+#endif
+
+  END IF
+
+  CALL timestop(0.0_wp,handle)     
+  END SUBROUTINE cp_fm_triangular_multiply
+!***************************************************************************
 
 END MODULE cp_fm_basic_linalg

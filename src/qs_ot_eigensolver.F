@@ -20,42 +20,42 @@
 !******************************************************************************
 
 MODULE qs_ot_eigensolver
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp
-  USE global_types,             ONLY: global_environment_type
-
-  USE qs_blacs,                 ONLY: cp_fm_create2,&
-                                      cp_fm_add, &
-                                      cp_fm_trace, &
-                                      cp_fm_gemm,&
-                                      cp_full_matrix_type,&
-                                      cp_fm_symm,&
-                                      blacs_make_basis, &
-                                      blacs_column_copy, &
-                                      cp_fm_get_info,&
-                                      blacs_cholesky_decompose, &
-                                      blacs_cholesky_invert, &
-                                      cp_fm_release, &
-                                      cp_fm_set_all, &
-                                      copy_blacs_to_blacs_matrix, &
-                                      cp_sm_fm_multiply, &
-                                      write_blacs_matrix
-  USE sparse_matrix_types,      ONLY: real_matrix_type
-  USE termination,              ONLY: stop_memory,&
-                                      stop_program
-  USE timings,                  ONLY: timeset,&
-                                      timestop
-  USE qs_ot,                    ONLY: qs_ot_type,qs_ot_allocate, &
-                                      qs_ot_destroy,qs_ot_init,  &
-                                      qs_ot_get_orbitals,        & 
-                                      qs_ot_get_derivative,      &
-                                      qs_ot_get_p,               &
-                                      qs_ot_new_preconditioner
-  USE qs_ot_minimizer,          ONLY: ot_mini
-  USE preconditioner,           ONLY: preconditioner_type,preconditioner_in_use
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp
+  USE preconditioner,                  ONLY: preconditioner_in_use,&
+                                             preconditioner_type
+  USE qs_blacs,                        ONLY: blacs_column_copy,&
+                                             blacs_make_basis,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_invert,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_set_all,&
+                                             cp_fm_symm,&
+                                             cp_fm_trace,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             write_blacs_matrix
+  USE qs_ot,                           ONLY: qs_ot_allocate,&
+                                             qs_ot_destroy,&
+                                             qs_ot_get_derivative,&
+                                             qs_ot_get_orbitals,&
+                                             qs_ot_get_p,&
+                                             qs_ot_init,&
+                                             qs_ot_new_preconditioner,&
+                                             qs_ot_type
+  USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE sparse_matrix_types,             ONLY: real_matrix_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
 
@@ -170,8 +170,8 @@ CONTAINS
 
         CALL cp_fm_gemm('T','N',ortho_space_k,ortho_space_k,n,rone,matrix_s_ortho, &
                         matrix_s_ortho, rzero,matrix_os_ortho)
-        CALL blacs_cholesky_decompose(matrix_os_ortho)
-        CALL blacs_cholesky_invert(matrix_os_ortho)
+        CALL cp_fm_cholesky_decompose(matrix_os_ortho)
+        CALL cp_fm_cholesky_invert(matrix_os_ortho)
          
         CALL cp_fm_gemm('T','N',ortho_space_k,k,n,rone,matrix_s_ortho,matrix_c, &
                         rzero,matrix_buf1_ortho)

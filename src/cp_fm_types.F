@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_full_matrix [1.0] *
+!!****h* cp2k/cp_fm_types [1.0] *
 !!
 !!   NAME
-!!     cp_full_matrix
+!!     cp_fm_types
 !!
 !!   FUNCTION
 !!     represent a full matrix distribued on many processors
@@ -28,7 +28,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_full_matrix
+MODULE cp_fm_types
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -47,7 +47,7 @@ MODULE cp_full_matrix
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_create,&
                                              cp_fmstruct_equivalent,&
                                              cp_fmstruct_release,&
@@ -88,7 +88,7 @@ MODULE cp_full_matrix
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_full_matrix'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_types'
 
   INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
 
@@ -469,7 +469,7 @@ CONTAINS
 !!****
   SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha)
     
-    implicit none
+    IMPLICIT NONE
 
     ! arguments
     TYPE(cp_full_matrix_type), POINTER          :: matrix
@@ -994,7 +994,7 @@ CONTAINS
 
   END SUBROUTINE cp_fm_maxval
 
-!!****f* cp_full_matrix/cp_fm_write [1.0] *
+!!****f* cp_fm_types/cp_fm_write [1.0] *
 !!
 !!   NAME
 !!     cp_fm_write
@@ -1042,7 +1042,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER, SAVE :: uniquing_nr=0
     INTEGER :: iostat
-    type(cp_logger_type), pointer :: logger
+    TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
     failure=.FALSE.; loc=.FALSE.
 
@@ -1052,7 +1052,7 @@ CONTAINS
     IF (ASSOCIATED(matrix)) THEN
        IF (loc .OR. para_env%mepos==para_env%source) THEN
           WRITE (unit=unit_nr,&
-               fmt="(' <cp_full_matrix>:{ id_nr=',i10,' ref_count=',i10,',')",&
+               fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
                iostat=iostat) matrix%id_nr, matrix%ref_count
           WRITE (unit=unit_nr,&
                fmt="(' name=',a,',')",&
@@ -1109,10 +1109,10 @@ CONTAINS
           END IF
        END IF
     ELSE
-       WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_full_matrix>:*null*"
+       WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_fm_types>:*null*"
     END IF
   END SUBROUTINE cp_fm_write
 !***************************************************************************
 
 
-END MODULE cp_full_matrix
+END MODULE cp_fm_types

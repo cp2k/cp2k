@@ -30,44 +30,73 @@
 !!
 !!****
 MODULE qs_p_utils
-
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds,                ONLY : dbl
-  USE qs_blacs
-  USE qs_environment_types, ONLY : qs_environment_type, get_qs_env
-  USE qs_p_types,           ONLY : qs_p_env_type
-  USE qs_p_build_kernel, ONLY: kpp1_calculate
-  USE kinds, ONLY: wp=>dp
-  USE global_types, ONLY: global_environment_type
-  USE timings, ONLY: timeset, timestop
-  USE qs_blacs, ONLY: cp_fm_create2, cp_fm_release,&
-       cp_fm_gemm, cp_fm_add, cp_sm_fm_multiply, cp_fm_vect_create2,&
-       cp_fm_vect_dealloc, optimal_blacs_row_block_size, &
-       optimal_blacs_col_block_size, cp_full_matrix_p_type, cp_full_matrix_type,&
-       cp_sm_plus_fm_fm_t, cp_fm_symm, cp_fm_get_info,&
-       blacs_scale_and_d, copy_blacs_to_sparse_matrix,&
-       blacs_cholesky_decompose, blacs_cholesky_restore, cp_fm_syrk,&
-       copy_blacs_to_blacs_matrix,blacs_triangular_multiply, &
-       replicate_blacs_matrix
-  USE qs_environment_types, ONLY: qs_environment_type
-  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind_set
-  USE dft_types, ONLY: dft_control_type
-  USE cp_block_matrix, ONLY: cp_block_matrix_p_type, cp_block_matrix_type,&
-       cp_sp_create, cp_sp_multiplies_blacs, cp_sp_array_dealloc,&
-       cp_sp_set_to, cp_sp_array_create
-  USE qs_build_ks_matrix, ONLY: qs_ks_env_type, qs_ks_did_change, &
-       qs_ks_update_qs_env
-  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
-       get_matrix_info
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE cp_b_matrix_structure, ONLY: cp_b_matrix_struct_type
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set
+  USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_sp_array_create,&
+                                             cp_sp_array_dealloc,&
+                                             cp_sp_create,&
+                                             cp_sp_multiplies_blacs,&
+                                             cp_sp_set_to
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dft_types,                       ONLY: dft_control_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl,&
+                                             wp=>dp
+  USE qs_blacs,                        ONLY: blacs_scale_and_d,&
+                                             copy_blacs_to_blacs_matrix,&
+                                             copy_blacs_to_sparse_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_restore,&
+                                             cp_fm_create2,&
+                                             cp_fm_gemm,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_triangular_multiply,&
+                                             cp_fm_vect_create2,&
+                                             cp_fm_vect_dealloc,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type,&
+                                             cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size,&
+                                             replicate_blacs_matrix
+  USE qs_build_ks_matrix,              ONLY: qs_ks_did_change,&
+                                             qs_ks_env_type,&
+                                             qs_ks_update_qs_env
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE qs_p_build_kernel,               ONLY: kpp1_calculate
+  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE sparse_matrix_types,             ONLY: get_matrix_info,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_p_utils'
@@ -275,9 +304,9 @@ CONTAINS
 !!!            target_m(1)%matrix, alpha=alpha,&
 !!!            beta=beta)
        n_spins = p_env%qs_env%dft_control%nspins
-       do spin=1, n_spins
+       DO spin=1, n_spins
           
-       end do
+       END DO
     END IF
 
   END SUBROUTINE p_op_l2
@@ -449,10 +478,10 @@ CONTAINS
 !!          CALL cp_fm_gemm('N', 'T', p_env%n_ao(spin), cols, p_env%n_ao(spin), -1.0_dbl, &
 !!                          p_env%S_psi0(spin)%matrix, tmp, &
 !!                          1.0_dbl, v(spin)%matrix)
-          call cp_fm_gemm('N', 'T', p_env%n_mo(spin), cols, p_env%n_ao(spin), &
+          CALL cp_fm_gemm('N', 'T', p_env%n_mo(spin), cols, p_env%n_ao(spin), &
                           1.0_dbl, p_env%psi0d(spin)%matrix, v(spin)%matrix, &
                           0.0_dbl, tmp);
-          call cp_fm_gemm('N', 'N', p_env%n_ao(spin), cols, p_env%n_mo(spin), &
+          CALL cp_fm_gemm('N', 'N', p_env%n_ao(spin), cols, p_env%n_mo(spin), &
                           -1.0_dbl, p_env%S_psi0(spin)%matrix, tmp, &
                           1.0_dbl, v(spin)%matrix)
        END IF

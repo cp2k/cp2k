@@ -41,14 +41,14 @@ MODULE cp_fm_vect
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
                                              cp_fmstruct_create,&
                                              cp_fmstruct_equivalent,&
                                              cp_fmstruct_release,&
                                              cp_fmstruct_retain,&
                                              optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
-  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_create2,&
                                              cp_fm_get_info,&
                                              cp_fm_get_submatrix,&
@@ -81,22 +81,20 @@ MODULE cp_fm_vect
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_vect'
 
-  PUBLIC :: cp_fm_vect_create2, cp_fm_vect_dealloc
+  PUBLIC :: cp_fm_vect_create2, cp_fm_vect_dealloc, cp_fm_vect_copy
 !***
 !****************************************************************************
 CONTAINS
 
-!!****f* qs_blacs/cp_fm_vect_create2 [1.0] *
+!!****f* cp_fm_vect/cp_fm_vect_create2 [1.0] *
 !!
 !!   NAME
 !!     cp_fm_vect_create2
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_vect_create2(blacs_matrixes, n_matrixes,&
-!!         nrow_global, ncol_global, globenv, name, nrow_block, ncol_block,&
-!!         error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer::&
-!!         blacs_matrixes
+!!     Subroutine cp_fm_vect_create2(matrixes, n_matrixes, nrow_global,&
+!!         ncol_global, globenv, name, nrow_block, ncol_block, error)
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
 !!       Type(global_environment_type), Intent (IN):: globenv
 !!       Character(Len=*), Intent (IN):: name
 !!       Integer, Intent (IN):: n_matrixes, nrow_global, ncol_global
@@ -111,7 +109,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - blacs_matrixes: a pointer that will point to the array of matrixes
+!!     - matrixes: a pointer that will point to the array of matrixes
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -122,10 +120,10 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_fm_vect_create2(blacs_matrixes,n_matrixes,&
+  SUBROUTINE cp_fm_vect_create2(matrixes,n_matrixes,&
        nrow_global,ncol_global,globenv,name,&
        nrow_block,ncol_block,error)
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: blacs_matrixes
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
     TYPE(global_environment_type), INTENT(in):: globenv
     CHARACTER(len=*), INTENT(in) :: name
     INTEGER, INTENT(in) :: n_matrixes, nrow_global, ncol_global
@@ -133,7 +131,7 @@ CONTAINS
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='blacs_matrixes',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_create2',&
          routineP=moduleN//':'//routineN
     INTEGER :: i, stat, row_bl, col_bl
     TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
@@ -147,7 +145,7 @@ CONTAINS
     IF (PRESENT(nrow_block)) row_bl=nrow_block
     IF (PRESENT(ncol_block)) col_bl=ncol_block
 
-    ALLOCATE(blacs_matrixes(n_matrixes),stat=stat)
+    ALLOCATE(matrixes(n_matrixes),stat=stat)
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
@@ -155,7 +153,7 @@ CONTAINS
             ncol_block=col_bl, context=blacs_env,&
             para_env=para_env)
        DO i=1,n_matrixes
-          CALL cp_fm_create(blacs_matrixes(i)%matrix,&
+          CALL cp_fm_create(matrixes(i)%matrix,&
                matrix_struct=matrix_struct, name=name//cp_to_string(i),&
                error=error)
        END DO
@@ -164,15 +162,14 @@ CONTAINS
   END SUBROUTINE cp_fm_vect_create2
 !***************************************************************************
 
-!!****f* qs_blacs/cp_fm_vect_dealloc [1.0] *
+!!****f* cp_fm_vect/cp_fm_vect_dealloc [1.0] *
 !!
 !!   NAME
 !!     cp_fm_vect_dealloc
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fm_vect_dealloc(blacs_matrixes, error)
-!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer::&
-!!         blacs_matrixes
+!!     Subroutine cp_fm_vect_dealloc(matrixes, error)
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_fm_vect_dealloc
 !!
@@ -183,7 +180,7 @@ CONTAINS
 !!     -
 !!
 !!   INPUTS
-!!     - blacs_matrixes: the array of matrixes to deallocate
+!!     - matrixes: the array of matrixes to deallocate
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -194,24 +191,77 @@ CONTAINS
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_fm_vect_dealloc(blacs_matrixes, error)
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: blacs_matrixes
+  SUBROUTINE cp_fm_vect_dealloc(matrixes, error)
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='blacs_matrixes',&
+    CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_dealloc',&
          routineP=moduleN//':'//routineN
     INTEGER :: stat, i
     failure=.FALSE.
 
-    IF (ASSOCIATED(blacs_matrixes)) THEN
-       DO i=1,SIZE(blacs_matrixes)
-          CALL cp_fm_release(blacs_matrixes(i)%matrix)
+    IF (ASSOCIATED(matrixes)) THEN
+       DO i=1,SIZE(matrixes)
+          CALL cp_fm_release(matrixes(i)%matrix,error=error)
        END DO
-       DEALLOCATE(blacs_matrixes,stat=stat)
+       DEALLOCATE(matrixes,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
     END IF
   END SUBROUTINE cp_fm_vect_dealloc
+!***************************************************************************
+
+!!****f* cp_fm_vect/cp_fm_vect_copy[1.0] *
+!!
+!!   NAME
+!!     cp_fm_vect_copy
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_vect_copy(matrixes, copy, error)
+!!       Type(cp_full_matrix_p_type), Dimension(:), Intent (IN):: matrixes
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: copy
+!!     End Subroutine cp_fm_vect_copy
+!!
+!!   FUNCTION
+!!     Does a shallow copy of an array of full matrices (i.e. just retains 
+!!     the matrices)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrixes: the matrixes to copy
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     09.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in) :: matrixes
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: copy
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_copy',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat,i
+  failure=.FALSE.
+  
+  ALLOCATE(copy(SIZE(matrixes)),stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     DO i=1,SIZE(matrixes)
+        copy(i)%matrix => matrixes(i)%matrix
+        CALL cp_fm_retain(matrixes(i)%matrix,error=error)
+     END DO
+  END IF
+END SUBROUTINE cp_fm_vect_copy
 !***************************************************************************
 
 END MODULE cp_fm_vect

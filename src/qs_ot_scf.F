@@ -18,31 +18,34 @@
 !******************************************************************************
 
 MODULE qs_ot_scf
-
 ! *****************************************************************************
-
-  USE kinds,                    ONLY: int_size, wp => dp
-  USE global_types,             ONLY: global_environment_type
-  USE termination,              ONLY: stop_memory,&
-                                      stop_program
-  USE timings,                  ONLY: timeset,&
-                                      timestop
-
-  USE qs_blacs,                 ONLY: cp_fm_set_all, &
-                                      copy_blacs_to_blacs_matrix, &
-                                      cp_sm_fm_multiply, &
-                                      cp_fm_add
-  USE cp_full_matrix,           ONLY: cp_full_matrix_type, cp_fm_get_info
-  USE sparse_matrix_types,      ONLY: real_matrix_type
-  USE qs_ot,                    ONLY: qs_ot_type,qs_ot_allocate, &
-                                      qs_ot_destroy,qs_ot_init,qs_ot_get_p, &
-                                      qs_ot_get_orbitals
-  USE qs_ot_minimizer,               ONLY: ot_mini
-
-  USE qs_parser,         ONLY: close_file,&
-       open_file, finish_parser, read_object, start_parser,&
-       test_object
-
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_full_matrix_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp
+  USE qs_blacs,                        ONLY: copy_blacs_to_blacs_matrix,&
+                                             cp_fm_add,&
+                                             cp_fm_set_all,&
+                                             cp_sm_fm_multiply
+  USE qs_ot,                           ONLY: qs_ot_allocate,&
+                                             qs_ot_destroy,&
+                                             qs_ot_get_orbitals,&
+                                             qs_ot_get_p,&
+                                             qs_ot_init,&
+                                             qs_ot_type
+  USE qs_ot_minimizer,                 ONLY: ot_mini
+  USE qs_parser,                       ONLY: close_file,&
+                                             finish_parser,&
+                                             open_file,&
+                                             read_object,&
+                                             start_parser,&
+                                             test_object
+  USE sparse_matrix_types,             ONLY: real_matrix_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
 

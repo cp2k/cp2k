@@ -64,7 +64,7 @@
  'type1in':'type(cp_full_matrix_type), target',
  'type1out':'type(cp_full_matrix_type), pointer',
  'USE':
-"""USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
+"""USE cp_fm_types, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
         cp_fm_write""",
  'defines':
 """! less not much meningful...

@@ -70,10 +70,10 @@ MODULE qs_scf
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
-                                             cp_fmstruct_get
-  USE cp_fm_pool,                      ONLY: cp_fm_pool_type,&
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_type,&
                                              fm_pool_get_mstruct
+  USE cp_fm_struct,                    ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_get
   USE cp_lbfgs_optimizer_gerd_f,       ONLY: cp_lbfgs_opt_gerd_f_type,&
                                              cp_opt_gerd_f_dealloc_ref,&
                                              cp_opt_gerd_f_init,&
@@ -145,9 +145,6 @@ MODULE qs_scf
                                              setup_op_symv
   USE qs_blacs,                        ONLY: blacs_add_to_element,&
                                              blacs_block_jacobi_classic,&
-                                             blacs_cholesky_decompose,&
-                                             blacs_cholesky_reduce,&
-                                             blacs_cholesky_restore,&
                                              blacs_get_element,&
                                              blacs_make_basis,&
                                              blacs_syevx,&
@@ -155,6 +152,9 @@ MODULE qs_scf
                                              copy_blacs_to_sparse_matrix,&
                                              copy_sparse_to_blacs_matrix,&
                                              cp_fm_add,&
+                                             cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore,&
                                              cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
@@ -1071,7 +1071,7 @@ CONTAINS
      IF (scf_control%use_cholesky .OR. scf_control%use_arpack) THEN
        ndep=0
        CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho)
-       CALL blacs_cholesky_decompose(ortho)
+       CALL cp_fm_cholesky_decompose(ortho)
      ELSE
        CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,globenv,&
             scf_control%eps_eigval,scf_control%work_syevx)
@@ -1180,20 +1180,20 @@ CONTAINS
 
     IF (use_cholesky) THEN
 
-       CALL blacs_cholesky_reduce(ks,ortho)
+       CALL cp_fm_cholesky_reduce(ks,ortho)
        CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+       CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
        ncv = nmo + 64
-       CALL blacs_cholesky_reduce(ks,ortho)
+       CALL cp_fm_cholesky_reduce(ks,ortho)
        
        CALL setup_op_symv(arpack_op, ks, work, .FALSE.)
        CALL arpack_diag_sy(work,mo_eigenvalues,nmo,ncv,.FALSE.,globenv, &
                            op_symv=arpack_op)
 
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+       CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
 
     ELSE
 
