@@ -59,7 +59,7 @@ CONTAINS
 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(qs_environment_type), POINTER  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "prepare_gapw_den"
 
@@ -70,7 +70,7 @@ CONTAINS
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(grid_atom_type),      POINTER       :: grid_atom
     TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
-    INTEGER                                  :: ispin, ikind, natom, &
+    INTEGER                                  :: handle,ispin, ikind, natom, &
                                                 nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
@@ -79,6 +79,8 @@ CONTAINS
                                                 tot_rs_int
     REAL(dp), DIMENSION(:), POINTER          :: rho1_h_tot,rho1_s_tot
 !******************************************************************************
+
+    CALL timeset("prepare_gapw_den","I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
@@ -116,6 +118,7 @@ CONTAINS
 !     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
       CALL calculate_rho0_atom(qs_env,rho0_mpole,atom_list,grid_atom,&
                                paw_atom,natom,ikind,harmonics,rho0_h_tot,rho0_s_tot)
+
     ENDDO
 
     DO ispin = 1,nspins
@@ -125,6 +128,7 @@ CONTAINS
 
     rho0_mpole%total_rho0_h = -rho0_h_tot 
     rho0_mpole%total_rho0_s = -rho0_s_tot
+
 
 !   Put the rho0_soft on the global grid
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
@@ -142,6 +146,8 @@ CONTAINS
 
    qs_charges%total_rho0_soft_rspace = tot_rs_int
    qs_charges%total_rho0_hard_lebedev = rho0_h_tot
+
+   CALL timestop(0.0_dp,handle)
 
  END SUBROUTINE  prepare_gapw_den
 !******************************************************************************

@@ -39,7 +39,7 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE vxc_of_r(xc_control,derivative_set,nspins,na,rho,drho,locpot,error)
+  SUBROUTINE vxc_of_r(xc_control,derivative_set,nspins,na,rho,drho,ir,locpot,error)
 
     TYPE(xc_control_type)               :: xc_control
     TYPE(xc_derivative_set_type), &
@@ -47,7 +47,8 @@ CONTAINS
     INTEGER                             :: nspins,na
     REAL(dp), DIMENSION(:,:), &
                              POINTER    :: rho
-    REAL(dp), DIMENSION(:,:,:), &
+    INTEGER, INTENT(IN), OPTIONAL       :: ir
+    REAL(dp), DIMENSION(:,:,:,:), &
                      OPTIONAL, POINTER  :: drho
     REAL(dp), DIMENSION(:,:), OPTIONAL :: locpot
     TYPE(cp_error_type), INTENT(inout), &
@@ -60,7 +61,7 @@ CONTAINS
     LOGICAL, DIMENSION(3)               :: grad_funct
     LOGICAL                             :: docalc( 3 ),cross_term,&
                                            gradient_f,lsd
-    INTEGER  :: i,ifun,ind(100),lp,npot,order
+    INTEGER  :: i,ia,ifun,ind(100),istat,lp,npot,order
 
 !******************************************************************************
 
@@ -77,11 +78,17 @@ CONTAINS
    docalc ( : ) = ( INDEX ( funct(:), "NONE" ) == 0 )
    CALL xc_set(xc_control%density_cut, xc_control%gradient_cut)
    IF(lsd) THEN
-      rhoa => rho(:,1)
-      rhob => rho(:,2)
+      ALLOCATE(rhoa(na),rhob(na),STAT=istat)
+      DO ia = 1,na
+        rhoa(ia) = rho(ia,1)
+        rhob(ia) = rho(ia,2)
+      END DO
       IF(PRESENT(drho)) THEN
-        drhoa => drho(:,4,1) 
-        drhob => drho(:,4,2)
+        ALLOCATE(drhoa(na),drhob(na),STAT=istat)
+        DO ia = 1,na
+          drhoa(ia) = drho(4,ia,ir,1) 
+          drhob(ia) = drho(4,ia,ir,2)
+        END DO
       END IF
       DO ifun=1, 3
         IF (docalc(ifun)) THEN
@@ -104,10 +111,20 @@ CONTAINS
           END IF
         END IF
       END DO
-   ELSE
-      rhoa => rho(:,1)
+      DEALLOCATE(rhoa,rhob,STAT=istat)
       IF(PRESENT(drho)) THEN
-        drhoa => drho(:,4,1)
+        DEALLOCATE(drhoa,drhob,STAT=istat)
+      END IF
+   ELSE
+      ALLOCATE(rhoa(na),STAT=istat)
+      DO ia = 1,na
+        rhoa(ia) = rho(ia,1)
+      END DO
+      IF(PRESENT(drho)) THEN
+        ALLOCATE(drhoa(na),STAT=istat) 
+        DO ia = 1,na
+          drhoa(ia) = drho(4,ia,ir,1)
+        END DO
       ENDIF
       DO ifun=1, 3
         IF (docalc(ifun)) THEN
@@ -131,6 +148,10 @@ CONTAINS
           END IF
         END IF
       END DO
+      DEALLOCATE (rhoa,STAT=istat)
+      IF(PRESENT(drho)) THEN
+        DEALLOCATE(drhoa,STAT=istat)
+      END IF
     END IF
 
   END SUBROUTINE vxc_of_r

@@ -85,7 +85,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "update_ks_atom"
 
-    INTEGER :: i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
+    INTEGER :: handle, i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
                kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
                maxsoc, natom, nkind, nlist, nnode, nnode_c, &
@@ -122,6 +122,8 @@ CONTAINS
     TYPE(rho_atom_type), POINTER             :: rho_at
 
 !******************************************************************************
+
+    CALL timeset("update_ks_atom","I"," ",handle)
 
     NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb,sac_oce,sbc_oce)
     NULLIFY(orb_basis,ecoul_1c)
@@ -357,6 +359,7 @@ CONTAINS
     DEALLOCATE (C_coeff_s)
     IF(forces) DEALLOCATE (atom_of_kind)
 
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE update_ks_atom
 !******************************************************************************
@@ -575,7 +578,6 @@ CONTAINS
 
 !   *** factor 2 because only half of the pairs with ia =/ ja are  considered
     ieqj = 2.0_dp
-!   iatom == jatom
     IF(ia == ja) ieqj = 1.0_dp
 
     NULLIFY(int_hard, int_soft, PC_h, PC_s, dCPC_h, dCPC_s)
@@ -666,8 +668,6 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-!       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
-!       force(dir-1,1) = force(dir-1,1) + 2.0_dp * trace
        force(dir-1,3) = force(dir-1,3) - ieqj * trace
        force(dir-1,1) = force(dir-1,1) + ieqj * trace
 
@@ -678,8 +678,6 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-!       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
-!       force(dir-1,1) = force(dir-1,1) - 2.0_dp * trace
        force(dir-1,3) = force(dir-1,3) +  ieqj * trace
        force(dir-1,1) = force(dir-1,1) -  ieqj * trace
 
@@ -747,8 +745,6 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_h,nsp,int_hard,nsp,nsp,nsp)
 
-!       force(dir-1,3) = force(dir-1,3) - 2.0_dp * trace
-!       force(dir-1,2) = force(dir-1,2) + 2.0_dp * trace
        force(dir-1,3) = force(dir-1,3) -  ieqj * trace
        force(dir-1,2) = force(dir-1,2) +  ieqj * trace
 
@@ -759,8 +755,6 @@ CONTAINS
 
        trace = trace_r_AxB(dCPC_s,nsp,int_soft,nsp,nsp,nsp)
 
-!       force(dir-1,3) = force(dir-1,3) + 2.0_dp * trace
-!       force(dir-1,2) = force(dir-1,2) - 2.0_dp * trace
        force(dir-1,3) = force(dir-1,3) +  ieqj * trace
        force(dir-1,2) = force(dir-1,2) -  ieqj * trace
 

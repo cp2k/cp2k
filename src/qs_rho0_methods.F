@@ -457,7 +457,7 @@ MODULE qs_rho0_methods
     END DO
 
 !dbg
-!    rho0_mpole%zet0_h = 10._dp
+    rho0_mpole%zet0_h = 10._dp
 !dbg
 
     rho0_mpole%zet0_s = 0.25_dp/rho0_mpole%zet0_h

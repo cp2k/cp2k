@@ -42,7 +42,7 @@ MODULE qs_grid_atom
                                         wr, wa,&
                                         cos_theta, sin_theta,&
                                         usin_theta, cos_phi, sin_phi,&
-                                        theta, cotan_phi, phi
+                                        theta, cotan_theta, phi
      REAL(dp), DIMENSION(:,:), &
                              POINTER :: rad2l,oorad2l
 
@@ -99,7 +99,7 @@ MODULE qs_grid_atom
     NULLIFY (grid_atom%usin_theta)
     NULLIFY (grid_atom%cos_phi)
     NULLIFY (grid_atom%sin_phi)
-    NULLIFY (grid_atom%cotan_phi)
+    NULLIFY (grid_atom%cotan_theta)
     NULLIFY (grid_atom%theta)
     NULLIFY (grid_atom%phi)
     NULLIFY (grid_atom%rad2l)
@@ -181,10 +181,10 @@ MODULE qs_grid_atom
                                      "grid_atom%sin_phi")
       END IF
 
-      IF (ASSOCIATED(grid_atom%cotan_phi)) THEN
-         DEALLOCATE (grid_atom%cotan_phi,STAT=istat)
+      IF (ASSOCIATED(grid_atom%cotan_theta)) THEN
+         DEALLOCATE (grid_atom%cotan_theta,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "grid_atom%cotan_phi")
+                                     "grid_atom%cotan_theta")
       END IF
 
       IF (ASSOCIATED(grid_atom%theta)) THEN
@@ -250,7 +250,7 @@ MODULE qs_grid_atom
       CALL reallocate(grid_atom%usin_theta,1,na)
       CALL reallocate(grid_atom%cos_phi,1,na)
       CALL reallocate(grid_atom%sin_phi,1,na)
-      CALL reallocate(grid_atom%cotan_phi,1,na)
+      CALL reallocate(grid_atom%cotan_theta,1,na)
       CALL reallocate(grid_atom%theta,1,na)
       CALL reallocate(grid_atom%phi,1,na)
       CALL reallocate(grid_atom%rad2l,1,nr,0,llmax+1)

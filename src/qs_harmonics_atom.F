@@ -28,11 +28,13 @@ MODULE qs_harmonics_atom
   USE mathconstants,                   ONLY: degree, pi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: indso,&
-                                             nsoset,&
-                                             soset
+                                             nsoset,nso,&
+                                             soset,& 
+                                             ncoset,nco,indco
+  USE orbital_transformation_matrices, ONLY: orbtramat
   USE spherical_harmonics,             ONLY: clebsch_gordon,&
                                              clebsch_gordon_init,&
-                                             y_lm
+                                             y_lm,dPof1!,drvy_lm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -48,12 +50,14 @@ MODULE qs_harmonics_atom
 
      INTEGER                              :: max_s_harm, &
                                              max_iso_not0, &
-                                             maxcg, ngrid
-     INTEGER, DIMENSION(:,:,:), POINTER   :: ncg
+                                             maxcg, maxcg_d, ngrid
+     INTEGER, DIMENSION(:,:,:), POINTER   :: ncg, ncg_dxyz
      INTEGER, DIMENSION(:,:,:,:), POINTER :: ind_cg_a,ind_cg_b
-     REAL(dp), DIMENSION(:,:),    POINTER :: slm
-     REAL(dp), DIMENSION(:,:,:),  POINTER :: dslm
+     INTEGER, DIMENSION(:,:,:,:), POINTER :: ind_cg_a_dxyz,ind_cg_b_dxyz
+     REAL(dp), DIMENSION(:,:),    POINTER :: a, slm
+     REAL(dp), DIMENSION(:,:,:),  POINTER :: dslm, dslm_dxyz
      REAL(dp), DIMENSION(:,:,:),  POINTER :: my_CG
+     REAL(dp), DIMENSION(:,:,:,:),  POINTER :: my_CG_dxyz
      REAL(dp), DIMENSION(:), POINTER      :: slm_int
 
   END TYPE harmonics_atom_type
@@ -103,11 +107,17 @@ MODULE qs_harmonics_atom
 
     NULLIFY(harmonics%ind_cg_a)
     NULLIFY(harmonics%ind_cg_b)
+    NULLIFY(harmonics%ind_cg_a_dxyz)
+    NULLIFY(harmonics%ind_cg_b_dxyz)
     NULLIFY(harmonics%slm)
     NULLIFY(harmonics%dslm)
+    NULLIFY(harmonics%dslm_dxyz)
     NULLIFY(harmonics%slm_int)
     NULLIFY(harmonics%ncg)
+    NULLIFY(harmonics%ncg_dxyz)
     NULLIFY(harmonics%my_CG)
+    NULLIFY(harmonics%my_CG_dxyz)
+    NULLIFY(harmonics%a)
 
   END SUBROUTINE allocate_harmonics_atom
 
@@ -137,20 +147,41 @@ MODULE qs_harmonics_atom
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%ind_cg_a")
       ENDIF
+
       IF(ASSOCIATED(harmonics%ind_cg_b)) THEN
         DEALLOCATE (harmonics%ind_cg_b,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%ind_cg_b")
       ENDIF
+
+      IF(ASSOCIATED(harmonics%ind_cg_a_dxyz)) THEN
+        DEALLOCATE (harmonics%ind_cg_a_dxyz,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%ind_cg_a_dxyz")
+      ENDIF
+
+      IF(ASSOCIATED(harmonics%ind_cg_b_dxyz)) THEN
+        DEALLOCATE (harmonics%ind_cg_b_dxyz,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%ind_cg_b_dxyz")
+      ENDIF
+
       IF(ASSOCIATED(harmonics%slm)) THEN
         DEALLOCATE (harmonics%slm,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%slm")
       ENDIF
+
       IF(ASSOCIATED(harmonics%dslm)) THEN
         DEALLOCATE (harmonics%dslm,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%dslm")
+      ENDIF
+
+      IF(ASSOCIATED(harmonics%dslm_dxyz)) THEN
+        DEALLOCATE (harmonics%dslm_dxyz,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%dslm_dxyz")
       ENDIF
 
       IF(ASSOCIATED(harmonics%slm_int)) THEN
@@ -164,11 +195,30 @@ MODULE qs_harmonics_atom
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%ncg")
       ENDIF
+      IF(ASSOCIATED(harmonics%ncg_dxyz)) THEN
+        DEALLOCATE (harmonics%ncg_dxyz,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%ncg_dxyz")
+      ENDIF
+
       IF(ASSOCIATED(harmonics%my_CG)) THEN
         DEALLOCATE (harmonics%my_CG,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics%my_CG")
       ENDIF
+
+      IF(ASSOCIATED(harmonics%my_CG_dxyz)) THEN
+        DEALLOCATE (harmonics%my_CG_dxyz,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%my_CG_dxyz")
+      ENDIF
+
+      IF(ASSOCIATED(harmonics%a)) THEN
+        DEALLOCATE (harmonics%a,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                     "harmonics%a")
+      ENDIF
+
       DEALLOCATE (harmonics,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "harmonics")
@@ -184,7 +234,7 @@ MODULE qs_harmonics_atom
 
   SUBROUTINE create_harmonics_atom(harmonics,orb_basis,my_CG,na,&
                                    llmax,max_s_harm,ll,wa,&
-                                   ang1,cos_ang2,cotan_ang2,globenv)
+                                   azi,cos_pol,cotan_pol,globenv)
 
     TYPE(harmonics_atom_type), POINTER     :: harmonics
     TYPE(gto_basis_set_type), POINTER      :: orb_basis
@@ -192,25 +242,28 @@ MODULE qs_harmonics_atom
     INTEGER,  INTENT(IN)                   :: ll,na,llmax,max_s_harm 
     TYPE(global_environment_type)          :: globenv
     REAL(dp), DIMENSION(:), INTENT(IN)     :: wa
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: ang1
-    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_ang2, cotan_ang2
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: azi
+    REAL(dp), DIMENSION(:), INTENT(IN)     :: cos_pol, cotan_pol
 
     CHARACTER(len=*), PARAMETER :: routine_name = 'create_harmonics_atom', &
       routineP = module_name//':'//routine_name
 
     REAL(dp), DIMENSION(:), POINTER      :: y , slm_int
-    REAL(dp), DIMENSION(:,:), POINTER    :: slm
-    REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm
+    REAL(dp), DIMENSION(:,:), POINTER    :: dy, slm,dc
+    REAL(dp), DIMENSION(:,:,:), POINTER  :: dslm, dslm_dxyz
     INTEGER, DIMENSION(:), POINTER       :: lmax, lmin
-    INTEGER, DIMENSION(:), ALLOCATABLE :: ind_cg_a,ind_cg_b
+    INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a,ind_cg_b
+    INTEGER, DIMENSION(:), ALLOCATABLE   :: ind_cg_a_d,ind_cg_b_d
 
-    INTEGER   :: i, ia, ia_bar, incg, is1, is2, iso, iso_mm, &
+    INTEGER   :: i, ia, ia_bar, incg, incg_d, is1, is2, iso, iso_mm, &
                  iso_mm1, iso_mp1, iso1, iso2, ja, l, l1, l2, &
-                 m, mm, maxcg, maxl, maxs, nset,max_iso_not0
-    REAL(dp)  :: abs_m, ang1_bar, l_r, m_r
+                 m, mm, maxcg, maxcg_d, maxl, maxs, nset,max_iso_not0,&
+                 lx, ly, lz, n, ic, is
+    REAL(dp)  :: abs_m, azi_bar, int, int1, int2, int3, l_r, m_r, rx, ry, rz, drx, dry, drz
+    REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
 ! *****************************************************************************
 
-    NULLIFY (y,slm,dslm)
+    NULLIFY (y,dy,slm,dslm,dslm_dxyz,dc)
 
     IF (ASSOCIATED(harmonics)) THEN
       CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin, &
@@ -220,8 +273,9 @@ MODULE qs_harmonics_atom
       harmonics%ngrid = na
       maxs = nsoset(maxl)
 
-      NULLIFY(harmonics%my_CG)
+      NULLIFY(harmonics%my_CG,harmonics%my_CG_dxyz)
       CALL reallocate(harmonics%my_CG,1,maxs,1,maxs,1,max_s_harm)
+      CALL reallocate(harmonics%my_CG_dxyz,1,3,1,maxs,1,maxs,1,max_s_harm)
       DO i = 1,max_s_harm
         DO is1 = 1, maxs
           harmonics%my_CG(1:maxs,is1,i) =  my_CG(1:maxs,is1,i)
@@ -232,12 +286,18 @@ MODULE qs_harmonics_atom
 !       and their derivatives 
       call reallocate(harmonics%slm,1,na,1,max_s_harm)
       call reallocate(harmonics%dslm,1,2,1,na,1,max_s_harm)
+      CALL reallocate(harmonics%dslm_dxyz,1,3,1,na,1,max_s_harm)
       call reallocate(harmonics%ncg,1,max_s_harm,1,nset,1,nset)
+      call reallocate(harmonics%ncg_dxyz,1,max_s_harm,1,nset,1,nset)
+      CALL reallocate(harmonics%a,1,3,1,na)
       call reallocate(y,1,na)
+      CALL reallocate(dy,1,3,1,na)
+      CALL reallocate(dc,1,nco(6),1,3)
       CALL reallocate(harmonics%slm_int,1,max_s_harm)
 
       slm => harmonics%slm
       dslm => harmonics%dslm
+      dslm_dxyz => harmonics%dslm_dxyz
       slm_int => harmonics%slm_int
       slm_int = 0.0_dp
 
@@ -248,43 +308,130 @@ MODULE qs_harmonics_atom
 
         CALL y_lm(lebedev_grid(ll)%r,y,l,m)
         slm(1:na,iso) = y(1:na)
+!        CALL drvy_lm(lebedev_grid(ll)%r,dy,l,m)
 
         DO i = 1,na
+!           dslm_dxyz(1:3,i,iso) = dy(1:3,i)
            slm_int(iso) = slm_int(iso) + slm(i,iso)*wa(i)
         END DO ! i
 
       END DO  ! iso
 
+      DO i = 1,3
+        harmonics%a(i,1:na) = lebedev_grid(ll)%r(i,1:na)
+      END DO
+
+      DO ia = 1,na
+        DO l = 0,indso(1,max_s_harm)
+          DO ic = 1,nco(l)
+            lx = indco(1,ic+ncoset(l-1))
+            ly = indco(2,ic+ncoset(l-1))
+            lz = indco(3,ic+ncoset(l-1))
+
+            IF (lx == 0) THEN
+              rx = 1.0_dp
+              drx = 0.0_dp
+            ELSE IF (lx == 1) THEN
+              rx = lebedev_grid(ll)%r(1,ia)
+              drx = 1.0_dp
+            ELSE
+              rx = lebedev_grid(ll)%r(1,ia)**lx
+              drx = REAL(lx,dp)*lebedev_grid(ll)%r(1,ia)**(lx - 1)
+            END IF
+            IF (ly == 0) THEN
+              ry = 1.0_dp
+              dry = 0.0_dp
+            ELSE IF (ly == 1) THEN
+              ry = lebedev_grid(ll)%r(2,ia)
+              dry = 1.0_dp
+            ELSE
+              ry = lebedev_grid(ll)%r(2,ia)**ly
+              dry = REAL(ly,dp)*lebedev_grid(ll)%r(2,ia)**(ly - 1)
+            END IF
+            IF (lz == 0) THEN
+              rz = 1.0_dp
+              drz = 0.0_dp
+            ELSE IF (lz == 1) THEN
+              rz = lebedev_grid(ll)%r(3,ia)
+              drz = 1.0_dp
+            ELSE
+              rz = lebedev_grid(ll)%r(3,ia)**lz
+              drz = REAL(lz,dp)*lebedev_grid(ll)%r(3,ia)**(lz - 1)
+            END IF
+            dc(ic,1) = drx*ry*rz
+            dc(ic,2) = rx*dry*rz
+            dc(ic,3) = rx*ry*drz
+          END DO
+          n = nsoset(l-1)
+          DO is = 1,nso(l)
+            iso = is + n
+            dslm_dxyz(1:3,ia,iso) = 0.0_dp
+            DO ic=1,nco(l)
+              dslm_dxyz(1,ia,iso) = dslm_dxyz(1,ia,iso) +&
+                               orbtramat(l)%slm(is,ic)*dc(ic,1)
+              dslm_dxyz(2,ia,iso) = dslm_dxyz(2,ia,iso) +&
+                               orbtramat(l)%slm(is,ic)*dc(ic,2)
+              dslm_dxyz(3,ia,iso) = dslm_dxyz(3,ia,iso) +&
+                               orbtramat(l)%slm(is,ic)*dc(ic,3)
+            END DO
+          END DO
+        END DO  ! l   
+      END DO
+
+
+      harmonics%my_CG_dxyz = 0.0_dp
+      DO iso1 = 1,maxs
+        DO iso2 = 1,maxs
+          int1 = 0.0_dp
+          int2 = 0.0_dp
+          int3 = 0.0_dp
+          DO ia = 1,na
+            int1 = int1 + wa(ia)* &
+              (dslm_dxyz(1,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(1,ia,iso2))
+            int2 = int2 + wa(ia)* &
+              (dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(2,ia,iso2))
+            int3 = int3 + wa(ia)* &
+              (dslm_dxyz(3,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(3,ia,iso2))
+          END DO
+          DO iso = 1,max_s_harm
+            rx = 0.0_dp
+            drx = 0.0_dp
+            ry = 0.0_dp
+            dry = 0.0_dp
+            rz = 0.0_dp
+            drz = 0.0_dp
+            DO ia = 1,na
+              rx = rx + wa(ia)*slm(ia,iso)*&
+                (dslm_dxyz(1,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(1,ia,iso2))
+              drx = drx + wa(ia)*slm(ia,iso)
+              ry = ry + wa(ia)*slm(ia,iso)*&
+                (dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(2,ia,iso2))
+              dry = dry + wa(ia)*slm(ia,iso)
+              rz = rz + wa(ia)*slm(ia,iso)*&
+                (dslm_dxyz(3,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(3,ia,iso2))
+              drz = drz + wa(ia)*slm(ia,iso)
+            END DO
+
+              harmonics%my_CG_dxyz(1,iso1,iso2,iso)=rx
+
+              harmonics%my_CG_dxyz(2,iso1,iso2,iso)=ry
+
+              harmonics%my_CG_dxyz(3,iso1,iso2,iso)=rz
+
+          END DO
+        END DO
+      END DO
+
+!  WRITE(*,*) indso(1,12), indso(2,12) 
+!  DO i =1, na
+!   WRITE(*,'(I4,4f20.10)')  i, slm(i,7),dslm_dxyz(1,i,7),dslm_dxyz(2,i,7),dslm_dxyz(3,i,7)
+!  end do
+
+! STOP 'dslm'
 ! Calculate the derivatives of theharminics with respect of the 2 angles
 ! the first angle is acos(lebedev_grid(ll)%r(3))
 ! the second angle is atan(lebedev_grid(ll)%r(2)/lebedev_grid(ll)%r(1))
 
-!dbg
-!      DO iso = 1,max_s_harm
-!        l = indso(1,iso)
-!        m = indso(2,iso)
-!        l_r = REAL(l,dp)
-!        m_r = REAL(m,dp)
-!        DO ia = 1,na
-!          IF(ABS(COS( (m_r+1._dp) * ang1(ia) )) < 1.E-8_dp) THEN
-!            DO ja = 1,na
-!              IF (ABS(COS( (m_r+1._dp) * ang1(ja))) > 1.E-8_dp .AND. &
-!                ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
-!                ang1_bar = ang1(ja)
-!                ia_bar = ja
-!    WRITE(*,'(4I3,4f20.10)') l, m+1, ia, ja, &
-!            ang1(ia)*degree,ang1(ja)*degree,cos_ang2(ia),cos_ang2(ja)
-!                GOTO 10
-!              END IF
-!            END DO
-!              WRITE(*,'(3I3)') l, m+1, ia
-!              STOP 'non trovato'
-!10          CONTINUE
-!          END IF
-!        END DO
-!      END DO
-!  STOP 'ia ja'
-!dbg
 
       DO iso = 1,max_s_harm
 
@@ -294,160 +441,207 @@ MODULE qs_harmonics_atom
         m_r = REAL(m,dp)
 
 
-!  First Angle
+!  Derivative with respect to the azimuthal angle
         IF(m==0) THEN
-          harmonics%dslm(1,1:na,iso) = 0.0_dp
+          harmonics%dslm(2,1:na,iso) = 0.0_dp
         ELSE
           iso_mm = soset(l,-m)
-          harmonics%dslm(1,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
+          harmonics%dslm(2,1:na,iso) = - m_r * harmonics%slm(1:na,iso_mm)
         END IF
 
-! Second Angle
+! Derivative with respect to the polar angle
         IF(m > 0) THEN
 
-          harmonics%dslm(2,1:na,iso) = m_r * cotan_ang2(1:na)*&
-                                       harmonics%slm(1:na,iso)
-          IF(m /= l) THEN
-            iso_mp1 = soset(l,m+1)
-            DO ia = 1,na 
-              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp ) THEN
-                harmonics%dslm(2,ia,iso) = 0.0_dp
-              ELSE IF(ABS(COS( (m_r+1._dp) * ang1(ia) )) < 1.E-8_dp) THEN
+          DO ia = 1,na 
 
-!               Find a point where COS((m_r+1)*ang1) is different from zero
-                DO ja = 1,na
-                  IF (ABS(COS( (m_r+1._dp) * ang1(ja))) > 1.E-8_dp .AND. &
-                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
-                    ang1_bar = ang1(ja)
-                    ia_bar = ja
-                    EXIT
-                  END IF
-                END DO 
+            IF (m == 1 .AND. ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
+              harmonics%dslm(1,ia,iso) = -SQRT( (2.0_dp*l_r) / (2.0_dp*pi*l_r*(l_r+1.0_dp) ) )*&
+                             COS( azi(ia) )*SIGN( 1.0_dp,cos_pol(ia) ) * dPof1( cos_pol(ia),l )
+            ELSEIF( ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
+              harmonics%dslm(1,ia,iso) = 0.0_dp
+            ELSE
+              harmonics%dslm(1,ia,iso) = m_r * cotan_pol(ia)*harmonics%slm(ia,iso)
+            END IF
 
+            IF(m /= l) THEN
+              iso_mp1 = soset(l,m+1)
+              iso_mm1 = soset(l,-m-1)
 
-                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
-                    COS( m_r * ang1(ia) )/COS( (m_r+1._dp) * ang1_bar ) * &
-                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) ) * harmonics%slm(ia_bar,iso_mp1)
-              ELSE
-                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
-                    COS( m_r * ang1(ia) )/COS( (m_r+1._dp) * ang1(ia) )*&
-                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) ) * harmonics%slm(ia,iso_mp1)
-              END IF
-            END DO
-          END IF
+              harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
+                    (COS( azi(ia) )*harmonics%slm(ia,iso_mp1) +&
+                     SIN( azi(ia) )*harmonics%slm(ia,iso_mm1))*&
+                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) )
+
+            END IF
+          END DO
 
         ELSEIF(m == 0) THEN
           IF(l == 0) THEN
-            harmonics%dslm(2,1:na,iso) = 0.0_dp
+            harmonics%dslm(1,1:na,iso) = 0.0_dp
           ELSE 
             iso_mp1 = soset(l,1)
+            iso_mm1 = soset(l,-1)
             DO ia = 1,na
-              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp ) THEN
-                harmonics%dslm(2,ia,iso) = 0.0_dp
-              ELSE IF(ABS(COS( ang1(ia))) < 1.E-8_dp) THEN
 
-!               Find a point where COS((m_r+1)*ang1) is different from zero
-                DO ja = 1,na
-                  IF (ABS(COS( ang1(ja))) > 1.E-8_dp .AND. &
-                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
-                    ang1_bar = ang1(ja)
-                    ia_bar = ja
-                    EXIT
-                  END IF
-                END DO 
-
-                harmonics%dslm(2,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
-                                  harmonics%slm(ia_bar,iso_mp1)/COS(ang1_bar)
+              IF(ABS(COS( azi(ia))) < 1.E-8_dp) THEN
+                harmonics%dslm(1,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
+                                  harmonics%slm(ia,iso_mm1)*SIN(azi(ia))
               ELSE
-                harmonics%dslm(2,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
-                                  harmonics%slm(ia,iso_mp1)/COS(ang1(ia))
+                harmonics%dslm(1,ia,iso) = SQRT(0.5_dp * l_r * (l_r+1._dp) )*&
+                                  harmonics%slm(ia,iso_mp1)/COS(azi(ia))
               END IF
             END DO
           END IF
         ELSE
+
           abs_m = ABS(m_r) 
-          harmonics%dslm(2,1:na,iso) = abs_m * cotan_ang2(1:na)*&
-                                      harmonics%slm(1:na,iso)
-          IF(m /= -l) THEN
-            iso_mm1 = soset(l,m-1)
-            DO ia = 1,na
-              IF(ABS(lebedev_grid(ll)%r(2,ia)) < 1.E-8_dp .OR.&
-                                  ABS(SIN( ang1(ia) )) < 1.E-8_dp) THEN 
-                 harmonics%dslm(2,ia,iso) = 0.0_dp
-              ELSE IF(ABS(SIN( abs_m * ang1(ia) )) < 1.E-8_dp) THEN
-!                 Nothing
-              ELSE IF(ABS(SIN((abs_m+1.0_dp) * ang1(ia) )) < 1.E-8_dp) THEN
-!               Find a point where SIN((m_r+1)*ang1) is different from zero
-                DO ja = 1,na
-                  IF (ABS(SIN(  (abs_m+1.0_dp) * ang1(ja))) > 1.E-8_dp .AND. &
-                       ABS(cos_ang2(ia)-cos_ang2(ja)) < 1.E-8_dp) THEN
-                    ang1_bar = ang1(ja)
-                    ia_bar = ja
-                    EXIT
-                  END IF
-                END DO 
-                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
-                   SIN( abs_m * ang1(ia) )/SIN( (abs_m+1.0_dp) * ang1_bar )*&
-                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )* harmonics%slm(ia_bar,iso_mm1)
-              ELSE
-                harmonics%dslm(2,ia,iso) = harmonics%dslm(2,ia,iso) +&
-                   SIN( abs_m * ang1(ia) )/SIN( (abs_m+1.0_dp) * ang1(ia) )*&
-                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )* harmonics%slm(ia,iso_mm1)
-              END IF
-            END DO
-          END IF
+          DO ia = 1,na 
+            IF (ABS(m) == 1 .AND. ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
+              harmonics%dslm(1,ia,iso) = -SQRT( (2.0_dp*l_r) / (2.0_dp*pi*l_r*( l_r+1.0_dp ) ))*&
+                           SIN( azi(ia) )*SIGN( 1.0_dp,cos_pol(ia) ) * dPof1( cos_pol(ia),l )
+            ELSEIF( ABS(cos_pol(ia)-1.0_dp) < 1.E-8_dp ) THEN
+              harmonics%dslm(1,ia,iso) = 0.0_dp
+            ELSE
+              harmonics%dslm(1,ia,iso) = abs_m * cotan_pol(ia)*&
+                                           harmonics%slm(ia,iso)
+            END IF
+            IF(m /= -l) THEN
+              iso_mm1 = soset(l,m-1)
+              iso_mm1 = soset(l,-m+1)
+
+              harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
+                   (COS(  azi(ia) ) * harmonics%slm(ia,iso_mm1) -&
+                    SIN( azi(ia) )* harmonics%slm(ia,iso_mp1) ) *&
+                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )
+
+            END IF
+          END DO
 
         END IF
 
       END DO 
 
+!      DO iso = 1,max_s_harm
+!        l = indso(1,iso)
+!        m = indso(2,iso)
+!        DO ia = 1,na
+!          WRITE(25,'(2I4,2f12.5,3f20.16)') l,m,ACOS(cos_pol(ia)),azi(ia),&
+!                    harmonics%slm(ia,iso),&
+!                    harmonics%dslm(1,ia,iso),harmonics%dslm(2,ia,iso)
+!        END DO 
+!      END DO
+
 !  STOP 'dslm'
 !   *** Assign indexes for the non null CG coefficients ***      
       mm = nsoset(maxl)*nsoset(maxl)
-      ALLOCATE (ind_cg_a(mm))
-      ALLOCATE (ind_cg_b(mm))
+      ALLOCATE (ind_cg_a(mm),ind_cg_a_d(mm))
+      ALLOCATE (ind_cg_b(mm),ind_cg_b_d(mm))
 
       NULLIFY(harmonics%ind_cg_a,harmonics%ind_cg_b)
-            CALL reallocate(harmonics%ind_cg_a,&
+      NULLIFY(harmonics%ind_cg_a_dxyz,harmonics%ind_cg_b_dxyz)
+      CALL reallocate(harmonics%ind_cg_a,&
                         1,mm,1,max_s_harm,1,nset,1,nset)
-            CALL reallocate(harmonics%ind_cg_b,&
+      CALL reallocate(harmonics%ind_cg_b,&
                         1,mm,1,max_s_harm,1,nset,1,nset)
+      CALL reallocate(harmonics%ind_cg_a_dxyz,&
+                        1,mm,1,max_s_harm,1,nset,1,nset)
+      CALL reallocate(harmonics%ind_cg_b_dxyz,&
+                        1,mm,1,max_s_harm,1,nset,1,nset)
+
       maxcg = 0
+      maxcg_d = 0
       max_iso_not0 = 0
       DO is1 = 1,nset
         DO is2 = 1,nset
           DO iso = 1,max_s_harm
             incg = 0
+            incg_d = 0
             ind_cg_a = 0
             ind_cg_b = 0
+            ind_cg_a_d = 0
+            ind_cg_b_d = 0
             DO l1 = lmin(is1),lmax(is1)
               DO iso1 = nsoset(l1-1)+1,nsoset(l1)
                 DO l2 = lmin(is2), lmax(is2)
                   IF(l1+l2 > llmax) CYCLE
                   DO iso2 = nsoset(l2-1)+1,nsoset(l2)
-                    IF(abs(my_CG(iso1,iso2,iso)) .LT. 1.E-8_dp) CYCLE
-                    incg = incg + 1
-                    ind_cg_a(incg) = iso1
-                    ind_cg_b(incg) = iso2
-                    max_iso_not0 = MAX(max_iso_not0,iso)
+                    IF(abs(my_CG(iso1,iso2,iso)) > 1.E-8_dp) THEN
+                      incg = incg + 1
+                      ind_cg_a(incg) = iso1
+                      ind_cg_b(incg) = iso2
+                      max_iso_not0 = MAX(max_iso_not0,iso)
+                    END IF
+                    rx = abs(harmonics%my_CG_dxyz(1,iso1,iso2,iso))+&
+                         abs(harmonics%my_CG_dxyz(2,iso1,iso2,iso))+&
+                         abs(harmonics%my_CG_dxyz(3,iso1,iso2,iso))
+                    IF(rx > 1.E-8_dp) THEN
+                      incg_d = incg_d + 1
+                      ind_cg_a_d(incg_d) = iso1
+                      ind_cg_b_d(incg_d) = iso2
+                    END IF
                   END DO
                 END DO
               END DO
             END DO
             maxcg = max(maxcg,incg)
+            maxcg_d = MAX(maxcg_d,incg_d)
 
             harmonics%ind_cg_a(1:incg,iso,is1,is2) = &
                                     ind_cg_a(1:incg)
             harmonics%ind_cg_b(1:incg,iso,is1,is2) = &
                                     ind_cg_b(1:incg)
             harmonics%ncg(iso,is1,is2) = incg 
+
+            harmonics%ind_cg_a_dxyz(1:incg_d,iso,is1,is2) = &
+                                            ind_cg_a_d(1:incg_d)
+            harmonics%ind_cg_b_dxyz(1:incg_d,iso,is1,is2) = &
+                                            ind_cg_b_d(1:incg_d)
+            harmonics%ncg_dxyz(iso,is1,is2) = incg_d
+
           END DO
         END DO ! is2
       END DO ! is1
       harmonics%maxcg =  maxcg
+      harmonics%maxcg_d =  maxcg_d
       harmonics%max_iso_not0 = max_iso_not0
       DEALLOCATE(ind_cg_a)
       DEALLOCATE(ind_cg_b)
+      DEALLOCATE(ind_cg_a_d)
+      DEALLOCATE(ind_cg_b_d)
+
+
+!dbg
+!      ALLOCATE(ss(na,max_s_harm,max_s_harm))
+!      ss = 0.0_dp
+!      DO is1 = 1,nset
+!        DO is2 = 1,nset
+!          DO iso = 1,max_iso_not0
+!            DO i = 1,harmonics%ncg_dxyz(iso,is1,is2)
+!              iso1 = harmonics%ind_cg_a_dxyz(i,iso,is1,is2)
+!              iso2 = harmonics%ind_cg_b_dxyz(i,iso,is1,is2)
+!              l1 = indso(1,iso1) + indso(1,iso2)
+!   DO iso1 = 1,maxs
+!   DO iso2 = 1,maxs
+!              ss(1:na,iso1,iso2) = ss(1:na,iso1,iso2)+&
+!                        harmonics%my_CG_dxyz(2,iso1,iso2,iso)*slm(1:na,iso)
+!              ss(1:na,iso1,iso2) = ss(1:na,iso1,iso2)+&
+!                            my_CG(iso1,iso2,iso)*slm(1:na,iso)
+!            END DO
+!   END DO
+!   END DO
+!          END DO
+!        END DO
+!      END DO 
+!          iso1 = 6
+!          iso2 = 8
+!          DO ia = 1,na
+!            rx = dslm_dxyz(2,ia,iso1)*slm(ia,iso2)+slm(ia,iso1)*dslm_dxyz(2,ia,iso2)
+!             rx = slm(ia,iso1)*slm(ia,iso2)
+!            WRITE(*,*) ia,rx,ss(ia,iso1,iso2)
+!          END DO
+!  DEALLOCATE(ss)
+!  stop 'ss'
+
 
     ELSE
       CALL stop_program(routine_name,module_name,__LINE__,&

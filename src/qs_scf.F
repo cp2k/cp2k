@@ -742,7 +742,9 @@ CONTAINS
        IF(gapw) THEN
           WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
-              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c
+              "GAPW| local Eh = 1 center integrals:           ",energy%hartree_1c,&
+              "GAPW| local Eh = 2 center integrals:           ",energy%hartree_2c,&
+              "GAPW| local Eh = 3 centers integrals:          ",energy%hartree_3c
        END IF
        IF  (qs_env%qmmm) THEN
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&

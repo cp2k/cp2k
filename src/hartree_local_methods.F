@@ -53,6 +53,8 @@ MODULE  hartree_local_methods
   USE qs_util,                         ONLY: trace_r_AxB
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -299,7 +301,7 @@ MODULE  hartree_local_methods
     REAL(dp), DIMENSION(:,:,:),  POINTER       :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER        :: my_CG
 
-    INTEGER                                    :: iat, iatom, icg, ikind, &
+    INTEGER                                    :: handle, iat, iatom, icg, ikind, &
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
                                                   is1, is2, iso, iso1, iso2, ispin,  &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
@@ -310,6 +312,8 @@ MODULE  hartree_local_methods
     LOGICAL                                    :: paw_atom
 
 !   -----------------------------------------------------------------------------
+
+    CALL timeset("Vh_1c_gg_integrals","I","",handle)
 
     NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
@@ -557,6 +561,8 @@ MODULE  hartree_local_methods
 
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
+
+   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE Vh_1c_gg_integrals
 
