@@ -41,6 +41,8 @@ MODULE realspace_grid_types
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -75,11 +77,15 @@ MODULE realspace_grid_types
   PUBLIC :: rs_grid_allocate, rs_grid_deallocate, &
             rs_grid_setup, rs_pw_transfer, rs_grid_zero, rs_grid_to_cube, &
             rs_pw_to_cube, rs_grid_write
+  PUBLIC :: rs_grid_create, rs_grid_retain, rs_grid_release
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="realspace_grid_types"
+  INTEGER, SAVE, PRIVATE :: last_rs_id=0
 
   TYPE realspace_grid_type
-     INTEGER :: identifier                               ! tag of this grid
+     INTEGER :: identifier                               ! tag of the pw_grid
+     INTEGER :: id_nr                                    ! unique identifier of rs
+     INTEGER :: ref_count                                ! reference count
      INTEGER :: ngpts                                    ! # grid points
      INTEGER, DIMENSION (3) :: npts                      ! # grid points per dimension
      INTEGER, DIMENSION (3) :: lb                        ! lower bounds
@@ -293,6 +299,9 @@ SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, iounit )
 !-----------------------------------------------------------------------------!
    rs % dr = pw_grid%dr
    rs % identifier = pw_grid % identifier
+   last_rs_id = last_rs_id+1
+   rs % id_nr = last_rs_id
+   rs % ref_count = 1
    IF ( pw_grid % para % mode == 0 ) THEN
      ! The corresponding group has dimension 1 
      ! All operations will be done localy
@@ -1039,6 +1048,170 @@ SUBROUTINE rs_grid_write(rs,unit_nr,error)
        CPSourceFileRef,&
        error=error)
 END SUBROUTINE rs_grid_write
+!***************************************************************************
+
+!!****f* realspace_grid_types/rs_grid_create [1.0] *
+!!
+!!   NAME
+!!     rs_grid_create
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_grid_create(rs_grid, pw_grid, nsmax, error)
+!!       Type(realspace_grid_type), Pointer:: rs_grid
+!!       Type(pw_grid_type), Pointer:: pw_grid
+!!       Integer, Dimension(3), Intent (IN):: nsmax
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine rs_grid_create
+!!
+!!   FUNCTION
+!!     allocates and initialize an rs grid
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs_grid: the rs grid that is created
+!!     - pw_grid: the corresponding pw_grid
+!!     - nsmax: maximum boxsize of nonzero values ? still relevant with 
+!!       multigrids?
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
+  TYPE(realspace_grid_type), POINTER :: rs_grid
+  TYPE ( pw_grid_type ), POINTER :: pw_grid
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: nsmax 
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_create',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_logger_type), POINTER :: logger
+  INTEGER :: stat, iounit
+
+  failure=.FALSE.
+  logger => cp_error_get_logger(error)
+  
+  CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
+  
+  ALLOCATE(rs_grid,stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  IF (.NOT. failure) THEN
+     IF (logger%print_keys%pw_grid_information) THEN
+        CALL rs_grid_setup(rs_grid, pw_grid, nsmax, &
+             iounit=cp_logger_get_default_unit_nr(logger,local=.FALSE.))
+     ELSE
+        CALL rs_grid_setup(rs_grid, pw_grid, nsmax)
+     END IF
+     CALL rs_grid_allocate(rs_grid)
+  END IF
+END SUBROUTINE rs_grid_create
+!***************************************************************************
+
+!!****f* realspace_grid_types/rs_grid_retain [1.0] *
+!!
+!!   NAME
+!!     rs_grid_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_grid_retain(rs_grid, error)
+!!       Type(realspace_grid_type), Pointer:: rs_grid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine rs_grid_retain
+!!
+!!   FUNCTION
+!!     retains the given rs grid (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs_grid: the grid to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_retain(rs_grid, error)
+  TYPE(realspace_grid_type), POINTER :: rs_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(rs_grid),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+     rs_grid%ref_count=rs_grid%ref_count+1
+  END IF
+END SUBROUTINE rs_grid_retain
+!***************************************************************************
+
+!!****f* realspace_grid_types/rs_grid_release [1.0] *
+!!
+!!   NAME
+!!     rs_grid_release
+!!
+!!   SYNOPSIS
+!!     Subroutine rs_grid_release(rs_grid, error)
+!!       Type(realspace_grid_type), Pointer:: rs_grid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine rs_grid_release
+!!
+!!   FUNCTION
+!!     releases the given rs grid (see doc/ReferenceCounting.html)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - rs_grid: the rs grid to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE rs_grid_release(rs_grid,error)
+  TYPE(realspace_grid_type), POINTER :: rs_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='rs_grid_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  IF (ASSOCIATED(rs_grid)) THEN
+     CPPreconditionNoFail(rs_grid%ref_count>0,cp_failure_level,routineP,error)
+     IF (rs_grid%ref_count==0) THEN
+        CALL rs_grid_deallocate(rs_grid)
+        DEALLOCATE(rs_grid, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+END SUBROUTINE rs_grid_release
 !***************************************************************************
 
 END MODULE realspace_grid_types
