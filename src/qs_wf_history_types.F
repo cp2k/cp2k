@@ -22,6 +22,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     12.2002 created [fawzi]
+!!     02.2005 wf_mol added [MI]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -38,6 +39,8 @@ MODULE qs_wf_history_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_mol_set_release,&
+                                             kg_fm_p_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
@@ -46,7 +49,7 @@ MODULE qs_wf_history_types
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   PRIVATE
 
@@ -80,6 +83,7 @@ MODULE qs_wf_history_types
 !!
 !!   ATTRIBUTES
 !!     - wf: the wavefunctions
+!!     - wf_mol: the wavefunctions in a block diagonal form
 !!     - rho_r: the density in r space
 !!     - rho_g: the density in g space
 !!     - rho_ao: the density in ao space
@@ -93,11 +97,13 @@ MODULE qs_wf_history_types
 !!
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
+!!     02.2005 wf_mol added [MI]
 !!
 !!   SOURCE
 !***************************************************************************
   TYPE qs_wf_snapshot_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: wf
+     TYPE(kg_fm_p_type),  POINTER              :: wf_mol 
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_r
      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g
      TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: rho_ao
@@ -255,6 +261,7 @@ END SUBROUTINE wfs_retain
 !!
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
+!!     02.2005 wf_mol added [MI]
 !!
 !!*** **********************************************************************
 SUBROUTINE wfs_release(snapshot,error)
@@ -265,7 +272,7 @@ SUBROUTINE wfs_release(snapshot,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'wfs_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat
+    INTEGER                                  :: i, icount, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -280,6 +287,9 @@ SUBROUTINE wfs_release(snapshot,error)
            END DO
            DEALLOCATE(snapshot%wf,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        IF (ASSOCIATED(snapshot%wf_mol)) THEN
+           CALL kg_fm_mol_set_release(snapshot%wf_mol,error)
         END IF
         IF (ASSOCIATED(snapshot%rho_ao)) THEN
            CALL deallocate_matrix_set(snapshot%rho_ao)

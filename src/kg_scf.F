@@ -121,9 +121,9 @@ MODULE kg_scf
                                              special_diag_method_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr
-  USE qs_wf_history_methods,           ONLY: wfi_get_method_label
-                                             !wfi_extrapolate,&
-!                                             wfi_update
+  USE qs_wf_history_methods,           ONLY: wfi_get_method_label,&
+                                             wfi_extrapolate,&
+                                             wfi_update
   USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
 !  USE simulation_cell,                 ONLY: cell_type
@@ -346,7 +346,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(cp_logger_type), POINTER              :: logger
     TYPE(dft_control_type), POINTER            :: dft_control
-    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
+    TYPE(kg_fm_p_type), POINTER                :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER          :: kg_sub_pw_env
     TYPE(qs_charges_type), POINTER             :: qs_charges
     TYPE(qs_energy_type), POINTER              :: energy
@@ -370,7 +370,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
-    NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm_set)
+    NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
@@ -415,10 +415,10 @@ CONTAINS
                     qs_charges=qs_charges,&
                     rho=rho)
 
-    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set)
-    nmolecule_kind = SIZE(kg_fm_set%kg_fm_mol_set,1)
-    nelectron_global = kg_fm_set%nelectron_global
-    nmolecule_global = kg_fm_set%nmolecule_global
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+    nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set,1)
+    nelectron_global = kg_fm%nelectron_global
+    nmolecule_global = kg_fm%nmolecule_global
 
 
     matrix_p => rho%rho_ao
@@ -492,7 +492,7 @@ CONTAINS
          IF (istat /= 0) CALL stop_memory(routineP,"orthonormality",nmolecule_global*dp_size)
  
          orthonormality = 0.0_dp
-         CALL fm_mol_orthonormality(orthonormality,kg_fm_set%kg_fm_mol_set,&
+         CALL fm_mol_orthonormality(orthonormality,kg_fm%kg_fm_mol_set,&
                                     matrix_s(1)%matrix,dft_control%nspins)
          CALL mp_sum(orthonormality,qs_env%para_env%group)
 
@@ -539,7 +539,7 @@ CONTAINS
              diis_error = 0.0_dp
 
              CALL kg_diis_step_A(scf_env%scf_diis_buffer,ib,nb,&
-                                 kg_fm_set%kg_fm_mol_set,&
+                                 kg_fm%kg_fm_mol_set,&
                                  diis_m1_global,&
                                  dft_control%nspins,diis_error,&
                                  matrix_ks,&
@@ -617,7 +617,7 @@ CONTAINS
            scf_env%iter_delta=0.0_dp
 
            CALL kg_diis_step_B(scf_env%scf_diis_buffer,ib,nb,&
-                               kg_fm_set,&
+                               kg_fm,&
                                scf_control,diis_ev_global,&
                                dft_control%nspins,&
                                matrix_ks,scf_env%p_mix_new,&
@@ -702,7 +702,8 @@ CONTAINS
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 ! ** Updates the molecular rho for each molecule independently ***
        CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-       CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
+       CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+       CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm%kg_fm_mol_set, error=error)
 
        CALL timestop(0.0_dp,handle2)
 
@@ -737,13 +738,16 @@ CONTAINS
 !            id_nr=1)
 !    END IF
 !
-!!   *** add the converged wavefunction to the wavefunction history
-!!   should possibly be moved down after de-mixing
-!    IF (ASSOCIATED(qs_env%wf_history)) THEN
-!        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
-!               error=error)
-!    END IF
-!
+    ! Retrieve the last kg_fm_set
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
+
+!   *** add the converged wavefunction to the wavefunction history
+!   should possibly be moved down after de-mixing
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
+                        kg_fm_mol_set=kg_fm%kg_fm_mol_set,error=error)
+    END IF
+
 !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
        CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
@@ -764,7 +768,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
 ! ** Updates the molecular rho for each molecule independently ***
     CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-    CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
+    CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env,  kg_fm%kg_fm_mol_set , error=error)
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -1680,23 +1684,14 @@ CONTAINS
 
     IF (.NOT. failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
-!       IF (ASSOCIATED(qs_env%wf_history)) THEN
-!          CALL wfi_extrapolate(globenv,qs_env%wf_history, &
-!               qs_env=qs_env, dt=1.0_dp, &
-!               extrapolation_method_nr=extrapolation_method_nr,&
-!               orthogonal_wf=orthogonal_wf, error=error)
-!          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
-!          IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr.AND. &
-!                          .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
-!             DO ispin=1,SIZE(qs_env%c)
-!                CALL get_mo_set(qs_env%c(ispin)%mo_set, &
-!                     mo_coeff=mo_coeff, nmo=nmo)
-!                CALL qs_env_reorthogonalize_vectors(qs_env, &
-!                     v_matrix=mo_coeff, ispin=ispin, n_col=nmo,&
-!                     error=error)
-!             END DO
-!          END IF
-!       END IF
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
+          CALL wfi_extrapolate(globenv,qs_env%wf_history, &
+               qs_env=qs_env, dt=1.0_dp, &
+               extrapolation_method_nr=extrapolation_method_nr,&
+               orthogonal_wf=orthogonal_wf, kg_gpw=.TRUE. ,&
+               kg_fm_mol_set=kg_fm_mol_set, error=error)
+          ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
+       END IF
        IF (ionode) &
        WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T3,A)")&
          "Extrapolation method: "//&
@@ -1709,7 +1704,7 @@ CONTAINS
                error=error)
 ! ** Updates the molecular rho for each molecule independently ***
          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-         CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
+         CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_fm_mol_set, error=error)
 
        END IF
     END IF

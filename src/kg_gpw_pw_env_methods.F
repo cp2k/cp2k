@@ -66,8 +66,7 @@ MODULE kg_gpw_pw_env_methods
   USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
                                              fm_mol_blocks_type,&
-                                             kg_fm_mol_set_type,&
-                                             kg_fm_p_type
+                                             kg_fm_mol_set_type
   USE kg_gpw_pw_env_types,             ONLY: get_molbox_env,&
                                              get_rho_mol_block,&
                                              kg_molbox_env_type,&
@@ -165,7 +164,7 @@ CONTAINS
  
   SUBROUTINE build_molbox_env(molbox_env,fm_mol,qs_env,error)
 
-    TYPE(kg_molbox_env_type), POINTER          :: molbox_env
+    TYPE(kg_molbox_env_type) , TARGET          :: molbox_env
     TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol
     TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -190,6 +189,7 @@ CONTAINS
     TYPE(fm_mol_blocks_type), DIMENSION(:),&
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: fm_mol_iblock
+   TYPE(kg_molbox_env_type), POINTER          :: molbox_env_p
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -289,18 +289,18 @@ CONTAINS
     cell_mol%h_inv(:,:) = 0.0_dp
 
     num_pe = para_env%num_pe
-
-    CALL get_molbox_env(molbox_env=molbox_env,pw_env_mol=new_pw_mol)
+    molbox_env_p => molbox_env
+    CALL get_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
     IF (.NOT.ASSOCIATED(new_pw_mol)) THEN
        CALL pw_env_create(new_pw_mol,error=error)
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,error=error)
-       CALL set_molbox_env(molbox_env=molbox_env,pw_env_mol=new_pw_mol)
+       CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
        CALL pw_env_release(new_pw_mol,error=error)
     ELSE
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,error=error)
     END IF
 
-    CALL set_molbox_env(molbox_env=molbox_env,cell_mol=cell_mol)
+    CALL set_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol)
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
       length = cell_mol%hmat( i,i )
@@ -317,12 +317,12 @@ CONTAINS
 
    ! init auxbas_grid
 
-    CALL get_molbox_env(molbox_env=molbox_env,pw_env_mol=new_pw_mol)
+    CALL get_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol)
     DO i=1,ngrid_level
       IF (cutoff(i) == dft_control%qs_control%cutoff) new_pw_mol%auxbas_grid=i
     END DO
 
-    CALL get_molbox_env(molbox_env=molbox_env,cell_mol=cell_mol)
+    CALL get_molbox_env(molbox_env=molbox_env_p,cell_mol=cell_mol)
    ! complete init of green's function
     CALL pw_green_fn_rebuild(cell_mol%green,&
             new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
@@ -330,7 +330,7 @@ CONTAINS
    ! And now initialize the rho sructure for each molecule
     NULLIFY(rho_mol_blocks)
     CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
-    CALL set_molbox_env(molbox_env=molbox_env,rho_mol_blocks=rho_mol_blocks)
+    CALL set_molbox_env(molbox_env=molbox_env_p,rho_mol_blocks=rho_mol_blocks)
 
     CALL timestop(0.0_dp,handle)
 
@@ -1078,11 +1078,12 @@ CONTAINS
 !!        Creation (MI)
 !!
 !!*** *************************************************************************
-  SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_env,error)
+  SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_fm_mol_set,error)
 
     TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
     TYPE(qs_environment_type), POINTER           :: qs_env
-    TYPE(kg_environment_type), POINTER           :: kg_env
+    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
+      POINTER                                    :: kg_fm_mol_set
 
 
     TYPE(cp_error_type), INTENT(inout), &
@@ -1102,7 +1103,6 @@ CONTAINS
       POINTER                                    :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER            :: mol_block
     TYPE(kg_fm_mol_set_type), POINTER            :: fm_mol_set
-    TYPE(kg_fm_p_type),  POINTER                 :: kg_fm
     TYPE(kg_molbox_env_type), POINTER            :: molbox_env
     TYPE(pw_env_type) , POINTER                  :: pw_env_mol
     TYPE(pw_pool_type), POINTER                  :: auxbas_pw_pool
@@ -1115,11 +1115,10 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(dft_control, kg_fm, rho_struct)
+    NULLIFY(dft_control, rho_struct)
     CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct)
     nspins=dft_control%nspins
 
-    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
 
     CPPrecondition(kg_sub_pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
@@ -1129,7 +1128,7 @@ CONTAINS
       DO imolecule_kind = 1,nmolecule_kind
 
         NULLIFY(fm_mol_set,fm_mol_blocks)
-        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+        fm_mol_set => kg_fm_mol_set(imolecule_kind)
         CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
                                fm_mol_blocks=fm_mol_blocks)
 

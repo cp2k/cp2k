@@ -241,11 +241,12 @@ MODULE kg_gpw_fm_mol_types
              get_fm_mol_block, get_kg_fm_mol_set,&
              get_mol_mo_set,init_mol_mo_set, &
              kg_fm_mol_set_create, kg_fm_mol_set_release, &
-             kg_fm_mol_set_retain, set_kg_fm_mol_set, set_mol_mo_set
+             kg_fm_mol_set_retain, kg_gpw_fm_mol_to_fm_mol, & 
+             set_kg_fm_mol_set, set_mol_mo_set
 
 ! *** Public data types ***
 
-  PUBLIC :: fm_mol_blocks_type, kg_fm_mol_set_type, &
+  PUBLIC :: fm_mol_blocks_type, kg_fm_mol_set_distroy, kg_fm_mol_set_type, &
             kg_fm_p_type, mol_mo_set_type, mol_mo_set_p_type 
 
 !!***
@@ -257,7 +258,7 @@ CONTAINS
 
   SUBROUTINE  allocate_fm_mol_blocks(kg_fm_mol_set,nmol,error)
 
-    TYPE(kg_fm_mol_set_type), POINTER         :: kg_fm_mol_set
+    TYPE(kg_fm_mol_set_type)                  :: kg_fm_mol_set
     INTEGER                                   :: nmol
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
@@ -435,7 +436,86 @@ CONTAINS
   END SUBROUTINE init_mol_mo_set
 
 ! *****************************************************************************
+  SUBROUTINE kg_gpw_fm_mol_to_fm_mol(fm_mol_set_a,fm_mol_set_b,error)
 
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                 :: fm_mol_set_a
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                 :: fm_mol_set_b
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_fm_mol_to_fm_mol',&
+      routineP = module_name//':'//routineN
+
+    INTEGER :: i, imol, ispin, istat, n_ao, n_mo(2), natom, nmol, nmolecule_kind, nspins
+    LOGICAL :: failure
+
+    TYPE(fm_mol_blocks_type), POINTER         :: mol_block_a,&
+                                                 mol_block_b
+    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol
+    nmolecule_kind=SIZE(fm_mol_set_a,1)
+    CPPostcondition(SIZE(fm_mol_set_b)==nmolecule_kind,cp_failure_level,routineP,error,failure)
+
+    IF(.NOT. failure) THEN
+      DO i = 1,nmolecule_kind
+        fm_mol_set_b(i)%maxocc = fm_mol_set_a(i)%maxocc 
+        fm_mol_set_b(i)%multiplicity = fm_mol_set_a(i)%multiplicity
+        fm_mol_set_b(i)%natom = fm_mol_set_a(i)%natom
+        fm_mol_set_b(i)%n_ao = fm_mol_set_a(i)%n_ao
+        fm_mol_set_b(i)%n_mo = fm_mol_set_a(i)%n_mo 
+        fm_mol_set_b(i)%nelectron_spin = fm_mol_set_a(i)%nelectron_spin
+        fm_mol_set_b(i)%nmol_kind_global = fm_mol_set_a(i)%nmol_kind_global 
+        fm_mol_set_b(i)%nmolecule_local = fm_mol_set_a(i)%nmolecule_local
+
+        n_ao = fm_mol_set_a(i)%n_ao
+        n_mo = fm_mol_set_a(i)%n_mo
+        nmol = SIZE(fm_mol_set_a(i)%fm_mol_blocks)
+        natom = fm_mol_set_a(i)%natom
+        CALL allocate_fm_mol_blocks(fm_mol_set_b(i),nmol,error)
+        DO imol = 1,nmol
+          mol_block_a => fm_mol_set_a(i)%fm_mol_blocks(imol)
+          nspins = SIZE(mol_block_a%mos,1)
+          mol_block_b => fm_mol_set_b(i)%fm_mol_blocks(imol)
+          DO ispin = 1,nspins
+            ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%mo_set,STAT=istat)
+            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+            mol_block_b%mos(ispin)%mo_set%nmo =  n_mo(ispin)
+            mol_block_b%mos(ispin)%mo_set%nao = n_ao
+            mol_block_b%mos(ispin)%mo_set%maxocc =&
+                        mol_block_a%mos(ispin)%mo_set%maxocc
+            mol_block_b%mos(ispin)%mo_set%nelectron =&
+                        mol_block_a%mos(ispin)%mo_set%nelectron
+            mol_block_b%mos(ispin)%mo_set%homo = &
+                        mol_block_a%mos(ispin)%mo_set%homo 
+            mol_block_b%mos(ispin)%mo_set%lfomo = &
+                        mol_block_a%mos(ispin)%mo_set%lfomo 
+
+            ALLOCATE (fm_mol_set_b(i)%fm_mol_blocks(imol)%mos(ispin)%&
+                      mo_set%mo(n_ao,n_mo(ispin)),STAT=istat)
+            CALL DCOPY(n_ao*n_mo(ispin),mol_block_a%mos(ispin)%mo_set%mo(1,1),1,&
+                                        mol_block_b%mos(ispin)%mo_set%mo(1,1),1)
+          END DO  ! ispin
+           
+          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ifirst_ao(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          fm_mol_set_b(i)%fm_mol_blocks(imol)%ifirst_ao(1:natom) = mol_block_a%ifirst_ao(1:natom)
+          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%ilast_ao(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          fm_mol_set_b(i)%fm_mol_blocks(imol)%ilast_ao(1:natom) = mol_block_a%ilast_ao(1:natom)
+          ALLOCATE(fm_mol_set_b(i)%fm_mol_blocks(imol)%index_atom(natom),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          fm_mol_set_b(i)%fm_mol_blocks(imol)%index_atom(1:natom) =&
+                                              mol_block_a%index_atom(1:natom)
+        END DO  ! imol
+
+      END DO  ! i 
+    END IF
+
+  END SUBROUTINE kg_gpw_fm_mol_to_fm_mol
+
+! *****************************************************************************
   SUBROUTINE  kg_fm_mol_set_create(kg_fm,nmolecule_kind,error)
 
 !   Purpose: 

@@ -108,7 +108,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    TYPE(kg_fm_mol_set_type), TARGET           :: fm_mol_set
     TYPE(molecule_kind_type), POINTER          :: molecule_kind 
     TYPE(distribution_1d_type), POINTER        :: local_molecules
     TYPE(molecule_type), DIMENSION(:), &
@@ -127,7 +127,6 @@ CONTAINS
       routineP = module_name//':'//routineN
 
     TYPE(molecule_type), POINTER              :: molecule
-    TYPE(fm_mol_blocks_type), POINTER         :: fm_mol_block
 
     INTEGER  :: iao, iat, iatom, iglobal, ikind, imol, ispin, istat, &
                multiplicity, n_ao, n_mo(2), natom, nelectron,&
@@ -136,10 +135,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER            :: index_mol_local
     INTEGER, DIMENSION(:), POINTER            :: molecule_list
     LOGICAL                                   :: failure
+    TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_set_p
 
     failure = .FALSE.
  
-    NULLIFY(molecule_list, index_mol_local, fm_mol_block, molecule)
+    NULLIFY(molecule_list, index_mol_local, molecule)
 
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
                             molecule_list=molecule_list,&
@@ -208,8 +208,8 @@ CONTAINS
         n_mo(1) = n_ao
         IF (n_mo(2) /= 0) n_mo(2) = n_ao
      END IF
- 
-     CALL set_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+     fm_mol_set_p => fm_mol_set
+     CALL set_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set_p,&
                            nmol_kind_global=nmol_global,&
                            nmolecule_local=nmol_local,&
                            natom = natom, n_ao=n_ao,&
@@ -220,36 +220,36 @@ CONTAINS
 
      nelectron_global = nelectron_global + nmol_local * nelectron
      DO imol = 1,nmol_local
-        fm_mol_block => fm_mol_set%fm_mol_blocks(imol)
         iglobal = index_mol_local(imol)
-        fm_mol_block%imol_global = iglobal
+        fm_mol_set%fm_mol_blocks(imol)%imol_global = iglobal
         molecule => molecule_set(iglobal)
-        ALLOCATE(fm_mol_block%mos(nspins),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%mos(nspins),STAT=istat)
         DO ispin = 1,nspins
-          NULLIFY(fm_mol_block%mos(ispin)%mo_set)
-          CALL allocate_mol_mo_set(fm_mol_block%mos(ispin)%mo_set,n_ao,n_mo(ispin),&
+          NULLIFY(fm_mol_set%fm_mol_blocks(imol)%mos(ispin)%mo_set)
+          CALL allocate_mol_mo_set(fm_mol_set%fm_mol_blocks(imol)%mos(ispin)%mo_set,&
+                                   n_ao,n_mo(ispin),&
                                    maxocc,nelectron_spin(ispin),error=error)
-          CALL init_mol_mo_set(fm_mol_block%mos(ispin)%mo_set,n_ao,&
+          CALL init_mol_mo_set(fm_mol_set%fm_mol_blocks(imol)%mos(ispin)%mo_set,n_ao,&
                                n_mo(ispin),error=error)
         END DO
-        ALLOCATE(fm_mol_block%ortho(n_ao,n_ao),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ortho(n_ao,n_ao),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "ortho",n_ao*n_ao*dp_size)
 
-        ALLOCATE(fm_mol_block%index_atom(natom),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%index_atom(natom),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "index_atom",natom*int_size)
-        ALLOCATE(fm_mol_block%index_kind(natom),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%index_kind(natom),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "index_kind",natom*int_size)
-        ALLOCATE(fm_mol_block%ifirst_ao(natom),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ifirst_ao(natom),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "ifirst_ao",natom*int_size)
-        ALLOCATE(fm_mol_block%ilast_ao(natom),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%ilast_ao(natom),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "ilast_ao",natom*int_size)
 
-        ALLOCATE(fm_mol_block%work(n_ao,n_ao),STAT=istat)
+        ALLOCATE(fm_mol_set%fm_mol_blocks(imol)%work(n_ao,n_ao),STAT=istat)
         IF(istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
                                         "work",n_ao*n_ao*dp_size)
 
@@ -258,11 +258,11 @@ CONTAINS
           iatom = molecule%first_atom +iat -1
           CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
                                kind_number=ikind,nsgf=nsgf)
-          fm_mol_block%index_atom(iat) = iatom
-          fm_mol_block%index_kind(iat) = ikind
-          fm_mol_block%ifirst_ao(iat)  = iao + 1
+          fm_mol_set%fm_mol_blocks(imol)%index_atom(iat) = iatom
+          fm_mol_set%fm_mol_blocks(imol)%index_kind(iat) = ikind
+          fm_mol_set%fm_mol_blocks(imol)%ifirst_ao(iat)  = iao + 1
           iao = iao + nsgf
-          fm_mol_block%ilast_ao(iat)  = iao
+          fm_mol_set%fm_mol_blocks(imol)%ilast_ao(iat)  = iao
         END DO
 
      END DO

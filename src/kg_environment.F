@@ -491,9 +491,9 @@ CONTAINS
 !   the stored snapshots has to be added
     CALL wfi_create(wf_history,&
                     interpolation_method_nr = &
-                      dft_control%qs_control%wf_interpolation_method_nr,&
+                    dft_control%qs_control%wf_interpolation_method_nr,&
                     extrapolation_order = &
-                      dft_control%qs_control%wf_extrapolation_order,&
+                    dft_control%qs_control%wf_extrapolation_order,&
                     error=error)
 
     CALL allocate_qs_energy ( qs_energy )
@@ -584,8 +584,8 @@ CONTAINS
     nelectron_global = 0
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
-      fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
-      CALL build_local_fm_mol(fm_mol_set,molecule_kind,&
+      CALL build_local_fm_mol(kg_fm%kg_fm_mol_set(imolecule_kind),&
+                              molecule_kind,&
                               imolecule_kind,distribution_1d,&
                               molecule_set,particle_set,&
                               nspins,nmo_eq_nao,added_mos,&
@@ -593,7 +593,9 @@ CONTAINS
                               nelectron_global)
       ! Initialize the local cell and the pw_env for each molecule kind
       molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
-      CALL build_molbox_env(molbox_env,fm_mol_set,qs_env,error=error)
+      fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
+      CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
+                            fm_mol_set,qs_env,error=error)
     END DO
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)
