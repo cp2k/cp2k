@@ -1822,7 +1822,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   !-----------------------------------------------------------------------------
   ! 8. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
   !-----------------------------------------------------------------------------
-  DO i=1,topology%nmol_type
+!gt  DO i=1,topology%nmol_type
+    DO i=1,topology%nmol
     molecule => molecule_set(i)
     CALL get_molecule(molecule,molecule_kind=molecule_kind)
     CALL get_molecule_kind(molecule_kind=molecule_kind,&
