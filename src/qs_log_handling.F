@@ -194,7 +194,7 @@ contains
     integer ::oErr, unitNr
     if (.not. associated(qs_default_logger)) then
        print *, 'ERROR: qs_default_logger is not associated'
-       print *, 'ERROR: did you call qs_init_default_loggers at startup??'
+       print *, "ERROR: did you call qs_init_default_loggers at startup?"
     end if
     if (qs_would_log(logger,level,fromWhere)) then
        select case (level)
@@ -237,7 +237,8 @@ contains
 !! asks the logging level of the given logger.
 !!
 !! This routine might change/disappear!!
-  pure function qs_get_log_level(logger)
+  !pure
+  function qs_get_log_level(logger)
     integer :: qs_get_log_level
     type(qs_logger), intent(in) :: logger
     qs_get_log_level=logger%printLevel
@@ -255,7 +256,8 @@ contains
 !! asks the unit number of the given logger.
 !!
 !! This routine might change/disappear!!
-  pure function qs_get_log_unitnr(logger)
+  !pure 
+  function qs_get_log_unitnr(logger)
     integer :: qs_get_log_unitnr
     type(qs_logger), intent(in) :: logger
     qs_get_log_unitnr=logger%unitNr
