@@ -105,7 +105,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -159,7 +159,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
     INTEGER, INTENT(IN), OPTIONAL            :: order
 
     INTEGER                                  :: error, m, m1, m2, mp, mt, &
@@ -215,7 +215,7 @@ CONTAINS
   SUBROUTINE lyp_u_0 ( rho, grho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: ax, bx, ecx, f24, g, lda, &
@@ -252,7 +252,7 @@ CONTAINS
   SUBROUTINE lyp_u_1 ( rho, grho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: ax, bx, dax, dbx, dlda, ecx, &
@@ -294,7 +294,7 @@ CONTAINS
   SUBROUTINE lyp_u_2 ( rho, grho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: ax, bx, d2ab, d2ax, d2bx, &
@@ -347,7 +347,7 @@ CONTAINS
   SUBROUTINE lyp_u_3 ( rho, grho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rho, grho, r13
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
     REAL(dbl)                                :: ax, bx, d2ab, d2ax, d2bx, &
@@ -413,7 +413,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(:), INTENT(OUT)     :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)     :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -444,7 +444,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -477,7 +477,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
 
@@ -512,7 +512,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: rhoa, rhob, grhoa, grhob, &
                                                 r13a, r13b
-    REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:, :), INTENT(INOUT)  :: pot
 
     INTEGER                                  :: ip, npoints
 
