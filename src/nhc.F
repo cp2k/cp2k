@@ -130,8 +130,10 @@ SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
 
     IF ( simpar % pol_option == 'GLOBAL' )  THEN
       DO i = 1, ncoef
-        nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
-        nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
+        DO j = 1, SIZE ( nhc % p_kin, 1 )
+          nhc % p_kin ( j, i ) % point => nhc % s_kin ( 1 )
+          nhc % p_scale ( j, i ) % point => nhc % v_scale ( 1 )
+        END DO
       END DO
     ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
       number = 0
