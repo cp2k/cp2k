@@ -68,18 +68,18 @@ MODULE qs_blacs
        cp_blacs_env_from_globenv
   USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
+       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
        cp_fmstruct_equivalent
   USE parallel, ONLY: cp2k_is_parallel
   USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
        cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
        cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
        cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
        cp_fm_maxval
-  use cp_fm_basic_linalg, only: cp_fm_add, cp_sm_fm_multiply, &
+  USE cp_fm_basic_linalg, ONLY: cp_fm_add, cp_sm_fm_multiply, &
        cp_sm_plus_fm_fm_t, cp_fm_gemm, cp_fm_symm,&
        cp_fm_syrk, cp_fm_schur_product, cp_fm_trace
-  use cp_fm_vect, only: cp_fm_vect_create2, cp_fm_vect_dealloc
+  USE cp_fm_vect, ONLY: cp_fm_vect_create2, cp_fm_vect_dealloc
 
   IMPLICIT NONE
 
@@ -964,7 +964,7 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     CHARACTER ( LEN = * ), INTENT ( IN )      :: op
-    CHARACTER ( LEN = * ), INTENT ( IN ), optional      :: pos
+    CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL      :: pos
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
     INTEGER                                   :: info,itype,handle
