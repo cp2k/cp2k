@@ -134,7 +134,7 @@ MODULE  hartree_local_3centers
     TYPE(rho_atom_coeff), DIMENSION(:), &
         POINTER                                :: int_local_h,int_local_s
     REAL(dp) :: alpha_core, c1, dab, fac, ieqj, rab(3), rab2, rac(3), rac2, &
-                rbc(3), rbc2,  rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
+                rbc(3), rbc2, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: normhard, ff
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
@@ -180,16 +180,14 @@ MODULE  hartree_local_3centers
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
-    fac = 1.0_dp
+
+    ! TRIPLETS don't need a coulomb contribution
     IF (my_tddft) THEN
-       IF (qs_env%dft_control%nspins == 1) THEN
-          IF (qs_env%dft_control%tddfpt_control%res_etype == tddfpt_singlet) THEN
-             fac = 2.0_dp
-          ELSE
-             fac = 0.0_dp
-          END IF
-       END IF
+       IF ((qs_env%dft_control%nspins == 1) &
+         .AND. (qs_env%dft_control%tddfpt_control%res_etype /= tddfpt_singlet)) RETURN
     END IF
+
+    fac = 1.0_dp
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
@@ -531,8 +529,7 @@ MODULE  hartree_local_3centers
             DO kkind=1,nkind
 
               CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=kkind,&
-                                  l0_ikind=l0_kkind,&
-                                  rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
+                                  l0_ikind=l0_kkind, r_V0hmV0s=r_V0)
 
               nchan0_car = ncoset(l0_kkind)
 

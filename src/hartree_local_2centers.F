@@ -22,6 +22,7 @@ MODULE  hartree_local_2centers
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
@@ -146,6 +147,10 @@ MODULE  hartree_local_2centers
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
+    IF (my_tddft) THEN
+       IF (qs_env%dft_control%nspins==1 .AND. &
+            qs_env%dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+    END IF
 
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,&

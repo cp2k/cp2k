@@ -22,7 +22,8 @@ MODULE  hartree_local_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             gapw_control_type
+                                             gapw_control_type,&
+                                             tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE global_types,                    ONLY: global_environment_type
@@ -350,6 +351,10 @@ MODULE  hartree_local_methods
 
     nkind = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
+
+    IF (my_tddft) THEN
+       IF (nspins==1.AND.dft_control%tddfpt_control%res_etype/=tddfpt_singlet) RETURN
+    END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
