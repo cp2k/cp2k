@@ -144,6 +144,8 @@ OBJECTS_GENERIC =\
  parser.o\
  particle_lists.o\
  particle_types.o\
+ perdew_wang_functional.o\
+ perdew_zunger_functional.o\
  periodic_table.o\
  physcon.o\
  pme.o\

@@ -898,7 +898,7 @@ CONTAINS
              sqrt(1+a**2*x**2)-a1*x**2*a**3/sqrt(1+a**2*x**2)**3+12*b1*x**2)
       END DO
     END IF
-    IF ( m >= 2 ) THEN
+    IF ( m >= 3 ) THEN
       DO ip=1,SIZE(s)
         x = s(ip)
         s2 = (-4*a1*a**3/sqrt(1+a**2*x**2)**3*x+3*a1*x**3*a**5/         &

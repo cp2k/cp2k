@@ -922,6 +922,7 @@ CONTAINS
     INTEGER :: ip
     REAL(dbl) :: p, q, x, as, sas, asp, asp2, asp3, bs, ys, sbs, sbs3, sbs5
     REAL(dbl) :: w1, w2, a1, a2
+    REAL(dbl) :: t0, s1, s2
 
     p = 0.0055_dbl*b*b
     q = 0.0253_dbl*b
@@ -960,11 +961,33 @@ CONTAINS
          fs(ip,2) = 2._dbl*p*x*ys - p*q*x*x*asp*ys*ys - a1/(1+a2*x)**2
          fs(ip,3) = 2._dbl*p*ys - p*q*x*w1*ys*ys + &
                     2._dbl*p*q*q*x*x*asp*asp*ys*ys*ys + 2._dbl*a1*a2/(1+a2*x)**3
-         fs(ip,4) = -2._dbl*p*q*asp*ys*ys+p*q*x*(5._dbl*asp2-x*asp3)*ys*ys - &
-                    p*q*w1*ys*ys + 2._dbl*p*q*q*x*asp*w1*ys*ys*ys - &
-                    6._dbl*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
-                    4._dbl*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
-                    6._dbl * a1*a2*a2/(1+a2*x)**4
+
+      s2 = -6*p/(1+q*x*log(b*x+sqrt(1+b**2*x**2)))**2*(q*log(b*x+sqrt(1+b**2*x**2))+&
+           q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)/(b*x+sqrt(1+b**2*x**2)))+12*p*x/&
+           (1+q*x*log(b*x+sqrt(1+b**2*x**2)))**3*(q*log(b*x+sqrt(1+b**2*x**2))+&
+           q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)/(b*x+sqrt(1+b**2*x**2)))**2
+      s1 = s2-6*p*x/(1+q*x*log(b*x+sqrt(1+b**2*x**2)))**2*(2*q*(b+1/sqrt(1+b**2*x**2)*b**2*x)/&
+           (b*x+sqrt(1+b**2*x**2))+q*x*(-1/sqrt(1+b**2*x**2)**3*b**4*x**2+1/sqrt(1+b**2*x**2)*b**2)/&
+           (b*x+sqrt(1+b**2*x**2))-q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)**2/&
+           (b*x+sqrt(1+b**2*x**2))**2)-6*p*x**2/(1+q*x*log(b*x+sqrt(1+b**2*x**2)))**4&
+           *(q*log(b*x+sqrt(1+b**2*x**2))+q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)/(b*x+sqrt(1+b**2*x**2)))**3
+      s2 = s1+6*p*x**2/(1+q*x*log(b*x+sqrt(1+b**2*x**2)))**3*(q*log(b*x+sqrt(1+b**2*x**2))+&
+           q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)/(b*x+sqrt(1+b**2*x**2)))*(2*q*(b+1/sqrt(1+b**2*x**2)*b**2*x)&
+           /(b*x+sqrt(1+b**2*x**2))+q*x*(-1/sqrt(1+b**2*x**2)**3*b**4*x**2+1/sqrt(1+b**2*x**2)*&
+           b**2)/(b*x+sqrt(1+b**2*x**2))-q*x*(b+1/sqrt(1+b**2*x**2)*b**2*x)**2/(b*x+sqrt(1+b**2*x**2))**2)
+      t0 = s2-p*x**2/(1+q*x*log(b*x+sqrt(1+b**2*x**2)))**2*(3*q*(-1/sqrt(1+b**2*x**2)**3*b**4*x**2+&
+           1/sqrt(1+b**2*x**2)*b**2)/(b*x+sqrt(1+b**2*x**2))-3*q*(b+1/sqrt(1+b**2*x**2)*b**2*x)**2/&
+           (b*x+sqrt(1+b**2*x**2))**2+q*x*(3/sqrt(1+b**2*x**2)**5*b**6*x**3-3/sqrt(1+b**2*x**2)**3*b**4*x)/&
+           (b*x+sqrt(1+b**2*x**2))-3*q*x*(-1/sqrt(1+b**2*x**2)**3*b**4*x**2+1/sqrt(1+b**2*x**2)*b**2)/&
+           (b*x+sqrt(1+b**2*x**2))**2*(b+1/sqrt(1+b**2*x**2)*b**2*x)+2*q*x*(b+1/sqrt(1+b**2*x**2)*&
+           b**2*x)**3/(b*x+sqrt(1+b**2*x**2))**3)-6*a1/(1+a2*x)**3*a2**2+6*a1*x/(1+a2*x)**4*a2**3
+
+         fs(ip,4) = t0
+!deb     fs(ip,4) = -2._dbl*p*q*asp*ys*ys+p*q*x*(5._dbl*asp2-x*asp3)*ys*ys - &
+!deb                p*q*w1*ys*ys + 2._dbl*p*q*q*x*asp*w1*ys*ys*ys - &
+!deb                6._dbl*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
+!deb                4._dbl*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
+!deb                6._dbl * a1*a2*a2/(1+a2*x)**4
       CASE DEFAULT
          CALL stop_program("efactor_t92","Illegal order")
       END SELECT

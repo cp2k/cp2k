@@ -39,7 +39,7 @@ MODULE functionals_utilities
                           f53 = 5.0_dbl*f13
 
   PUBLIC :: set_util, setup_calculation, calc_rs, calc_rho13, calc_fx, &
-            calc_wave_vector, calc_srs
+            calc_wave_vector, calc_srs, calc_rs_d, calc_z
 
   REAL(dbl) :: eps_rho
 
@@ -335,6 +335,59 @@ CONTAINS
 
   END SUBROUTINE calc_fx
 
+! *****************************************************************************
+
+  SUBROUTINE calc_rs_d(rho, rs, order)
+
+    IMPLICIT NONE
+
+    REAL(DBL), DIMENSION(1:), INTENT(IN) :: rho
+    REAL(DBL), DIMENSION(1:,0:), INTENT(OUT) :: rs
+    INTEGER, INTENT(IN) :: order
+
+    CALL calc_rs(rho, rs(:,0))
+    IF (order >= 1) rs(:,1) = (-1._dbl/3._dbl) * rs(:,0) / rho(:)
+    IF (order >= 2) rs(:,2) = (-4._dbl/3._dbl) * rs(:,1) / rho(:)
+    IF (order >= 3) rs(:,3) = (-7._dbl/3._dbl) * rs(:,2) / rho(:) 
+
+  END SUBROUTINE calc_rs_d
+
+! *****************************************************************************
+
+  SUBROUTINE calc_z ( a, b, z, order )
+
+    IMPLICIT NONE
+
+    REAL(DBL), INTENT(IN) :: a, b
+    REAL(DBL), DIMENSION(0:,0:), INTENT(OUT) :: z
+    INTEGER, INTENT(IN) :: order
+
+    REAL(DBL) :: c,d
+
+    c = a+b
+
+    z(0,0) = (a-b)/c
+    IF (order >= 1) THEN
+       d = c**2
+       z(1,0) = 2._dbl*b/d
+       z(0,1) = -2._dbl*a/d
+    END IF
+    IF (order >= 2) THEN
+       d = c**3
+       z(2,0) = -4._dbl*b/d
+       z(1,1) = 2._dbl*(a-b)/d
+       z(0,2) = 4._dbl*a/d
+    END IF
+    IF (order >= 3) THEN
+       d = c**4
+       z(3,0) = 12._dbl*b/d
+       z(2,1) = -4._dbl*(a-2._dbl*b)/d
+       z(1,2) = -4._dbl*(2._dbl*a-b)/d
+       z(0,3) = -12._dbl*a/d
+    END IF
+
+  END SUBROUTINE calc_z
+    
 ! *****************************************************************************
 
 END MODULE functionals_utilities

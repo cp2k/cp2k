@@ -16,6 +16,30 @@
 !!   MODIFICATION HISTORY
 !!     none
 !!
+!!   NOTES
+!!     List of functionals
+!!      1    X-Alpha
+!!      2    Pade-XC-LDA
+!!      3    VWN-Correlation LDA
+!!      4    Thomas-Fermi
+!!      5    Perdew-Wang Correlation LDA 
+!!      6    Perdew-Zunger Correlation LDA 
+!!      7    Thomas-Fermi-von Weizsaecker 
+!!      8    OL1 Kinetic energy functional
+!!      9    OL2 Kinetic energy functional
+!!     10    LLP Kinetic energy functional
+!!     11    PW86 Kinetic energy functional
+!!     12    PW91 Kinetic energy functional
+!!     13    LC Kinetic energy functional
+!!     14    T92 Kinetic energy functional
+!!     15    Becke 1988 Exchange
+!!     16    Perdew-Wang 86 Exchange
+!!     17    Perdew-Wang 91 Exchange
+!!     18    Perdew-Burke-Ernzerhof Correlation
+!!     19    PBE Correlation (Zhang Parameters)
+!!     20    OPTX Handy Exchange
+!!     21    Lee-Yang-Parr
+!!
 !!*****
 !******************************************************************************
 
@@ -34,6 +58,8 @@ MODULE functionals_tests
   USE tfw_functional, ONLY : tfw
   USE termination, ONLY : stop_memory, stop_program
   USE vwn_functional, ONLY : vwn
+  USE perdew_wang_functional, ONLY : perdew_wang
+  USE perdew_zunger_functional, ONLY : perdew_zunger
 
   IMPLICIT NONE
 
@@ -53,6 +79,16 @@ MODULE functionals_tests
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: relerr, abserr
 
   INTEGER :: iw
+
+  INTEGER, PARAMETER :: nfun = 21  ! number of implemented functionals
+
+  INTERFACE funlda
+    MODULE PROCEDURE fun_lda, fun_lsd, fun_init, fun_info
+  END INTERFACE
+
+  INTERFACE fungga
+    MODULE PROCEDURE funggau, funggap, fun_init, fun_info
+  END INTERFACE
 
 ! *****************************************************************************
 
@@ -80,8 +116,8 @@ SUBROUTINE functional_test ( globenv )
 
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
-  INTEGER :: i, nfun, j, ia, ir
-  REAL(dbl) :: drho
+  INTEGER :: i, j, ia, ir, funtype
+  REAL(dbl) :: drho, r
   CHARACTER (LEN=80) :: fun_string
   LOGICAL :: crossterm
 
@@ -99,56 +135,22 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhoref(1)=1.E-10_dbl
-     DO i=2,n
-       rhoref(i)=rhoref(i-1)*5._dbl
+     r=0.01
+     DO i=1,n
+       r = r + (i-1)*10._dbl/n
+       rhoref(i)=3.e3 * EXP(-r)
      END DO
      !
-     nfun = 4
      DO i = 1, nfun
-
-       SELECT CASE (i)
-       CASE (1)
-         WRITE (iw,'(/,A)') " *** X-ALPHA FUNCTIONAL "
-         CALL xalpha ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL xalpha ( epsilon )
-         CALL xalpha ( rhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL xalpha ( rho, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL xalpha ( rho, potm, 3 )
-       CASE (2)
-         WRITE (iw,'(/,A)') " *** PADE FUNCTIONAL "
-         CALL pade ( epsilon )
-         CALL pade ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string) 
-         CALL pade ( rhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL pade ( rho, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL pade ( rho, potm, 3 )
-       CASE (3)
-         WRITE (iw,'(/,A)') " *** VWN FUNCTIONAL "
-         CALL vwn ( epsilon )
-         CALL vwn ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL vwn ( rhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL vwn ( rho, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL vwn ( rho, potm, 3 )
-       CASE (4)
-         WRITE (iw,'(/,A)') " *** THOMAS-FERMI FUNCTIONAL "
-         CALL thomas_fermi ( epsilon )
-         CALL thomas_fermi ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL thomas_fermi ( rhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL thomas_fermi ( rho, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL thomas_fermi ( rho, potm, 3 )
-       END SELECT
+       CALL funlda ( i, epsilon, funtype, crossterm )
+       IF ( funtype /= 1 .AND. funtype /= 3 ) CYCLE
+       CALL funlda ( i, reference=fun_string )
+       WRITE (iw,'(A80)') ADJUSTR(fun_string)
+       CALL funlda ( i, rhoref, pot, 3 )
+       rho = rhoref + rrho*rhoref
+       CALL funlda ( i, rho, potp, 3 )
+       rho = rhoref - rrho*rhoref
+       CALL funlda ( i, rho, potm, 3 )
        !
        CALL testder (" First Derivative ",pot(:,1),potp(:,0),potm(:,0),rhoref)
        CALL testder (" Second Derivative ",pot(:,2),potp(:,1),potm(:,1),rhoref)
@@ -162,213 +164,27 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LDA FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhoref(1)=1.E-5_dbl
-     grhoref(1)=1.E-6_dbl
-     DO i=2,n
-       rhoref(i)=rhoref(i-1)*2._dbl
-       grhoref(i)=grhoref(i-1)*3._dbl
+     r=0.01
+     DO i=1,n
+       r = r + (i-1)*7._dbl/n
+       rhoref(i)=3.e3 * EXP(-r)
+       grhoref(i)=7.e3 * EXP(-r)
      END DO
      !
-     nfun = 14
      DO i = 1, nfun
-       SELECT CASE (i)
-       CASE (1)
-         WRITE (iw,'(/,A)') " *** Thomas-Fermi-von Weizsaecker Functional"
-         CALL tfw ( epsilon )
-         CALL tfw ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL tfw ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL tfw ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL tfw ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL tfw ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL tfw ( rhoref, grho, potgm, 3 )
-       CASE (2)
-         WRITE (iw,'(/,A)') " *** Ou-Yang-Levi Functional 1"
-         CALL ol1 ( epsilon )
-         CALL ol1 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ol1 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL ol1 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL ol1 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL ol1 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL ol1 ( rhoref, grho, potgm, 3 )
-       CASE (3)
-         WRITE (iw,'(/,A)') " *** Ou-Yang-Levi Functional 2"
-         CALL ol2 ( epsilon )
-         CALL ol2 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ol2 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL ol2 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL ol2 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL ol2 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL ol2 ( rhoref, grho, potgm, 3 )
-       CASE (4)
-         WRITE (iw,'(/,A)') " *** Lee-Lee-Parr Functional"
-         CALL llp ( epsilon )
-         CALL llp ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL llp ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL llp ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL llp ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL llp ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL llp ( rhoref, grho, potgm, 3 )
-       CASE (5)
-         WRITE (iw,'(/,A)') " *** Kinetic energy Perdew-Wang 86 "
-         CALL ke_pw86 ( epsilon )
-         CALL ke_pw86 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ke_pw86 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL ke_pw86 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL ke_pw86 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL ke_pw86 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL ke_pw86 ( rhoref, grho, potgm, 3 )
-       CASE (6)
-         WRITE (iw,'(/,A)') " *** Kinetic energy Perdew-Wang 91 "
-         CALL ke_pw91 ( epsilon )
-         CALL ke_pw91 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ke_pw91 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL ke_pw91 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL ke_pw91 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL ke_pw91 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL ke_pw91 ( rhoref, grho, potgm, 3 )
-       CASE (7)
-         WRITE (iw,'(/,A)') " *** Lembarki-Chermette Functional"
-         CALL lc ( epsilon )
-         CALL lc ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL lc ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL lc ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL lc ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL lc ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL lc ( rhoref, grho, potgm, 3 )
-       CASE (8)
-         WRITE (iw,'(/,A)') " *** Becke 1988 Functional"
-         CALL b88 ( epsilon )
-         CALL b88 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL b88 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL b88 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL b88 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL b88 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL b88 ( rhoref, grho, potgm, 3 )
-       CASE (9)
-         WRITE (iw,'(/,A)') " *** Perdew-Wang 1986 Exchange Functional"
-         CALL x_pw86 ( epsilon )
-         CALL x_pw86 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL x_pw86 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL x_pw86 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL x_pw86 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL x_pw86 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL x_pw86 ( rhoref, grho, potgm, 3 )
-       CASE (10)
-         WRITE (iw,'(/,A)') " *** Perdew-Wang 1991 Exchange Functional"
-         CALL x_pw91 ( epsilon )
-         CALL x_pw91 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL x_pw91 ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL x_pw91 ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL x_pw91 ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL x_pw91 ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL x_pw91 ( rhoref, grho, potgm, 3 )
-       CASE (11)
-         WRITE (iw,'(/,A)') " *** Perdew-Burke-Ernzerhof Exchange Functional"
-         CALL pbex ( epsilon )
-         CALL pbex ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL pbex ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL pbex ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL pbex ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL pbex ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL pbex ( rhoref, grho, potgm, 3 )
-       CASE (12)
-         WRITE (iw,'(/,A)') " *** PBE Exchange Functional (Zang Parameter)"
-         CALL revpbex ( epsilon )
-         CALL revpbex ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL revpbex ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL revpbex ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL revpbex ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL revpbex ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL revpbex ( rhoref, grho, potgm, 3 )
-       CASE (13)
-         WRITE (iw,'(/,A)') " *** OPTX (Handy) Exchange Functional"
-         CALL optx ( epsilon )
-         CALL optx ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL optx ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL optx ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL optx ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL optx ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL optx ( rhoref, grho, potgm, 3 )
-       CASE (14)
-         WRITE (iw,'(/,A)') " *** Lee-Yang-Parr Correlation Functional"
-         CALL lyp ( epsilon )
-         CALL lyp ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL lyp ( rhoref, grhoref, pot, 3 )
-         rho = rhoref + rrho*rhoref
-         CALL lyp ( rho, grhoref, potp, 3 )
-         rho = rhoref - rrho*rhoref
-         CALL lyp ( rho, grhoref, potm, 3 )
-         grho = grhoref + rrho*grhoref
-         CALL lyp ( rhoref, grho, potgp, 3 )
-         grho = grhoref - rrho*grhoref
-         CALL lyp ( rhoref, grho, potgm, 3 )
-       END SELECT
+       CALL fungga ( i, epsilon, funtype, crossterm )
+       IF ( funtype /= 11 .AND. funtype /= 13 ) CYCLE
+       CALL fungga ( i, reference=fun_string )
+       WRITE (iw,'(A80)') ADJUSTR(fun_string)
+       CALL fungga ( i, rhoref, grhoref, pot, 3 )
+       rho = rhoref + rrho*rhoref
+       CALL fungga ( i, rho, grhoref, potp, 3 )
+       rho = rhoref - rrho*rhoref
+       CALL fungga ( i, rho, grhoref, potm, 3 )
+       grho = grhoref + rrho*grhoref
+       CALL fungga ( i, rhoref, grho, potgp, 3 )
+       grho = grhoref - rrho*grhoref
+       CALL fungga ( i, rhoref, grho, potgm, 3 )
        !
        CALL testder (" First Derivative R",pot(:,1),potp(:,0),potm(:,0),rhoref)
        CALL testder (" First Derivative G",pot(:,2),potgp(:,0),potgm(:,0),grhoref)
@@ -388,80 +204,32 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhorefa(1)=1.E-10_dbl
-     DO i=2,n
-       rhorefa(i)=rhorefa(i-1)*5._dbl
-     END DO
-     rhorefb(1)=5.E-10_dbl
-     DO i=2,n/2
-       rhorefb(i)=rhorefb(i-1)*6._dbl
-     END DO
-     DO i=n/2+1,n
-       rhorefb(i)=rhorefb(i-1)*5._dbl
+     r=0.05
+     DO i=1,n
+       r = r + (i-1)*7._dbl/n
+       rhorefa(i)=5.e3 * EXP(-r)
+       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
      END DO
      rhoref = 2._dbl*rhorefa
      !
-     nfun = 3
      DO i = 1, nfun
-       SELECT CASE (i)
-       CASE (1)
-         WRITE (iw,'(/,A)') " *** X-ALPHA FUNCTIONAL "
-         CALL xalpha ( epsilon )
-         CALL xalpha ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL xalpha ( rhoref, potx(:,1:1), 0 )
-         CALL xalpha ( rhorefa, rhorefa, potx(:,2:2), 0 )
-         CALL xalpha ( rhorefa, rhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL xalpha ( rhoa, rhob, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL xalpha ( rhoa, rhob, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL xalpha ( rhoa, rhob, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL xalpha ( rhoa, rhob, potmb, 3 )
-         crossterm = .FALSE.
-       CASE (2)
-         WRITE (iw,'(/,A)') " *** PADE FUNCTIONAL "
-         CALL pade ( epsilon )
-         CALL pade ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL pade ( rhorefa, rhorefb, pot, 3 )
-         CALL pade ( rhoref, potx(:,1:1), 0 )
-         CALL pade ( rhorefa, rhorefa, potx(:,2:2), 0 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL pade ( rhoa, rhob, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL pade ( rhoa, rhob, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL pade ( rhoa, rhob, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL pade ( rhoa, rhob, potmb, 3 )
-         crossterm = .TRUE.
-       CASE (3)
-         WRITE (iw,'(/,A)') " *** THOMAS-FERMI FUNCTIONAL "
-         CALL thomas_fermi ( epsilon )
-         CALL thomas_fermi ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL thomas_fermi ( rhoref, potx(:,1:1), 0 )
-         CALL thomas_fermi ( rhorefa, rhorefa, potx(:,2:2), 0 )
-         CALL thomas_fermi ( rhorefa, rhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL thomas_fermi ( rhoa, rhob, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL thomas_fermi ( rhoa, rhob, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL thomas_fermi ( rhoa, rhob, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL thomas_fermi ( rhoa, rhob, potmb, 3 )
-         crossterm = .FALSE.
-       END SELECT
+       CALL funlda ( i, epsilon, funtype, crossterm )
+       IF ( funtype /= 2 .AND. funtype /= 3 ) CYCLE
+       CALL funlda ( i, reference=fun_string )
+       WRITE (iw,'(A80)') ADJUSTR(fun_string)
+       CALL funlda ( i, rhoref, potx(:,1:1), 0 )
+       CALL funlda ( i, rhorefa, rhorefa, potx(:,2:2), 0 )
+       CALL funlda ( i, rhorefa, rhorefb, pot, 3 )
+       rhoa = rhorefa + rrho*rhorefa
+       rhob = rhorefb
+       CALL funlda ( i, rhoa, rhob, potpa, 3 )
+       rhoa = rhorefa - rrho*rhorefa
+       CALL funlda ( i, rhoa, rhob, potma, 3 )
+       rhoa = rhorefa
+       rhob = rhorefb + rrho*rhorefb
+       CALL funlda ( i, rhoa, rhob, potpb, 3 )
+       rhob = rhorefb - rrho*rhorefb
+       CALL funlda ( i, rhoa, rhob, potmb, 3 )
        !
        IF ( crossterm ) THEN
           abserr(:) = ABS(potx(:,1)-potx(:,2))
@@ -499,379 +267,43 @@ SUBROUTINE functional_test ( globenv )
      WRITE (iw,'(/,A,/)') " *** TEST OF GGA-LSD FUNCTIONALS *** "
      WRITE (iw,'(A,E10.3)') " Relative step size for finite difference ",rrho
      !
-     rhorefa(1)=1.E-10_dbl
-     grhorefa(1)=1.E-11_dbl
-     grhorefb(1)=1.E-11_dbl
-     DO i=2,n
-       rhorefa(i)=rhorefa(i-1)*5._dbl
-       grhorefa(i)=grhorefa(i-1)*6._dbl
-       grhorefb(i)=grhorefb(i-1)*6.77_dbl
-     END DO
-     rhorefb(1)=5.E-10_dbl
-     DO i=2,n/2
-       rhorefb(i)=rhorefb(i-1)*5._dbl
-     END DO
-     DO i=n/2+1,n
-       rhorefb(i)=rhorefb(i-1)*5._dbl
+     r=0.01
+     DO i=1,n
+       r = r + (i-1)*7._dbl/n
+       rhorefa(i)=3.e3 * EXP(-r)
+       grhorefa(i)=7.e3 * EXP(-r)
+       rhorefb(i)=3.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
+       grhorefb(i)=7.e3 * EXP(-r)*(1._dbl-0.1*sin(r))
      END DO
      rhoref = 2._dbl*rhorefa
      grhoref= 2._dbl*grhorefa
      !
-     nfun = 13
      DO i = 1, nfun
-       SELECT CASE (i)
-       CASE (1)
-         WRITE (iw,'(/,A)') " *** Thomas-Fermi-von Weizsaecker Functional"
-         CALL tfw ( epsilon )
-         CALL tfw ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL tfw ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL tfw ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL tfw ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL tfw ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL tfw ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL tfw ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL tfw ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL tfw ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL tfw ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL tfw ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL tfw ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (2)
-         WRITE (iw,'(/,A)') " *** Ou-Yang-Levi Functional 1"
-         CALL ol1 ( epsilon )
-         CALL ol1 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ol1 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL ol1 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL ol1 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL ol1 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL ol1 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL ol1 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL ol1 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL ol1 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL ol1 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL ol1 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL ol1 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (3)
-         WRITE (iw,'(/,A)') " *** Ou-Yang-Levi Functional 2"
-         CALL ol2 ( epsilon )
-         CALL ol2 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ol2 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL ol2 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL ol2 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL ol2 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL ol2 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL ol2 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL ol2 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL ol2 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL ol2 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL ol2 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL ol2 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (4)
-         WRITE (iw,'(/,A)') " *** Lee-Lee-Parr Functional"
-         CALL llp ( epsilon )
-         CALL llp ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL llp ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL llp ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL llp ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL llp ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL llp ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL llp ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL llp ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL llp ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL llp ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL llp ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL llp ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (5)
-         WRITE (iw,'(/,A)') " *** Kinetic energy Perdew-Wang 86 "
-         CALL ke_pw86 ( epsilon )
-         CALL ke_pw86 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ke_pw86 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL ke_pw86 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL ke_pw86 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL ke_pw86 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL ke_pw86 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL ke_pw86 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL ke_pw86 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL ke_pw86 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL ke_pw86 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL ke_pw86 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL ke_pw86 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (6)
-         WRITE (iw,'(/,A)') " *** Kinetic energy Perdew-Wang 91 "
-         CALL ke_pw91 ( epsilon )
-         CALL ke_pw91 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL ke_pw91 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL ke_pw91 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL ke_pw91 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL ke_pw91 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL ke_pw91 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL ke_pw91 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL ke_pw91 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL ke_pw91 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL ke_pw91 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL ke_pw91 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL ke_pw91 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (7)
-         WRITE (iw,'(/,A)') " *** Lembarki-Chermette Functional"
-         CALL lc ( epsilon )
-         CALL lc ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL lc ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL lc ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL lc ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL lc ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL lc ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL lc ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL lc ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL lc ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL lc ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL lc ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL lc ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (8)
-         WRITE (iw,'(/,A)') " *** Becke 1988 Functional"
-         CALL b88 ( epsilon )
-         CALL b88 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL b88 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL b88 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL b88 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL b88 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL b88 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL b88 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL b88 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL b88 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL b88 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL b88 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL b88 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (9)
-         WRITE (iw,'(/,A)') " *** Perdew-Wang 1986 Exchange Functional"
-         CALL x_pw86 ( epsilon )
-         CALL x_pw86 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL x_pw86 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL x_pw86 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL x_pw86 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL x_pw86 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL x_pw86 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL x_pw86 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL x_pw86 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL x_pw86 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL x_pw86 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL x_pw86 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL x_pw86 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (10)
-         WRITE (iw,'(/,A)') " *** Perdew-Wang 1991 Exchange Functional"
-         CALL x_pw91 ( epsilon )
-         CALL x_pw91 ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL x_pw91 ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL x_pw91 ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL x_pw91 ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL x_pw91 ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL x_pw91 ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL x_pw91 ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL x_pw91 ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL x_pw91 ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL x_pw91 ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL x_pw91 ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL x_pw91 ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (11)
-         WRITE (iw,'(/,A)') " *** PBE Exchange Functional"
-         CALL pbex ( epsilon )
-         CALL pbex ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL pbex ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL pbex ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL pbex ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL pbex ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL pbex ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL pbex ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL pbex ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL pbex ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL pbex ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL pbex ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL pbex ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (12)
-         WRITE (iw,'(/,A)') " *** PBE Exchange Functional (Zang Parameter)"
-         CALL revpbex ( epsilon )
-         CALL revpbex ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL revpbex ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL revpbex ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL revpbex ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL revpbex ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL revpbex ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL revpbex ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL revpbex ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL revpbex ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL revpbex ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL revpbex ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL revpbex ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       CASE (13)
-         WRITE (iw,'(/,A)') " *** OPTX (Handy) Exchange Functional"
-         CALL optx ( epsilon )
-         CALL optx ( reference=fun_string )
-         WRITE (iw,'(A80)') ADJUSTR(fun_string)
-         CALL optx ( rhoref, grhoref, potx(:,1:1), 0 )
-         CALL optx ( rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
-         CALL optx ( rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
-         rhoa = rhorefa + rrho*rhorefa
-         rhob = rhorefb
-         CALL optx ( rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
-         rhoa = rhorefa - rrho*rhorefa
-         CALL optx ( rhoa, rhob, grhorefa, grhorefb, potma, 3 )
-         rhoa = rhorefa
-         rhob = rhorefb + rrho*rhorefb
-         CALL optx ( rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
-         rhob = rhorefb - rrho*rhorefb
-         CALL optx ( rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
-         grhoa = grhorefa + rrho*grhorefa
-         CALL optx ( rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
-         grhoa = grhorefa - rrho*grhorefa
-         CALL optx ( rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
-         grhob = grhorefb + rrho*grhorefb
-         CALL optx ( rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
-         grhob = grhorefb - rrho*grhorefb
-         CALL optx ( rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
-         crossterm = .FALSE.
-       END SELECT
+       CALL fungga ( i, epsilon, funtype, crossterm )
+       IF ( funtype /= 12 .AND. funtype /= 13 ) CYCLE
+       CALL fungga ( i, reference=fun_string )
+       WRITE (iw,'(A80)') ADJUSTR(fun_string)
+       CALL fungga ( i, rhoref, grhoref, potx(:,1:1), 0 )
+       CALL fungga ( i, rhorefa, rhorefa, grhorefa, grhorefa, potx(:,2:2), 0 )
+       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhorefb, pot, 3 )
+       rhoa = rhorefa + rrho*rhorefa
+       rhob = rhorefb
+       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpa, 3 )
+       rhoa = rhorefa - rrho*rhorefa
+       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potma, 3 )
+       rhoa = rhorefa
+       rhob = rhorefb + rrho*rhorefb
+       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potpb, 3 )
+       rhob = rhorefb - rrho*rhorefb
+       CALL fungga ( i, rhoa, rhob, grhorefa, grhorefb, potmb, 3 )
+       grhoa = grhorefa + rrho*grhorefa
+       CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgpa, 3 )
+       grhoa = grhorefa - rrho*grhorefa
+       CALL fungga ( i, rhorefa, rhorefb, grhoa, grhorefb, potgma, 3 )
+       grhob = grhorefb + rrho*grhorefb
+       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgpb, 3 )
+       grhob = grhorefb - rrho*grhorefb
+       CALL fungga ( i, rhorefa, rhorefb, grhorefa, grhob, potgmb, 3 )
        !
        abserr(:) = ABS(potx(:,1)-potx(:,2))
        relerr(:) = abserr(:)/ABS(potx(:,1))
@@ -929,7 +361,7 @@ SUBROUTINE output(iw,rhoref,pot,abserr,relerr,message)
   ia=MAXVAL(MAXLOC(abserr))
   ir=MAXVAL(MAXLOC(relerr))
   IF ( relerr(ir) > 1.e-6_dbl ) THEN
-    WRITE (iw,'(/,A)') message
+    WRITE (iw,'(A)') message
     WRITE (iw,'("AERR:",G14.6,5X,G14.8,5X,G16.8,5X,G16.8)') &
                rhoref(ia),pot(ia),abserr(ia),relerr(ia)
     WRITE (iw,'("RERR:",G14.6,5X,G14.8,5X,G16.8,5X,G16.8)') &
@@ -1072,6 +504,298 @@ SUBROUTINE deallocate_arrays
      IF ( ierr /= 0 ) CALL stop_memory ( "functional_test", "potgmb" )
      !
 END SUBROUTINE deallocate_arrays
+
+! *****************************************************************************
+
+SUBROUTINE fun_init ( fun, cutoff, funtype, crossterm )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), INTENT(IN) :: cutoff
+    INTEGER, INTENT(OUT) :: funtype
+    LOGICAL, INTENT(OUT) :: crossterm
+
+!
+!   funtype : 0 nothing implemented
+!             1 LDA implemented
+!             2 LSD implemented
+!             3 LDA+LSD implemented
+!            11 GGA/LDA implemented
+!            12 GGA/LSD implemented
+!            13 GGA/LDA+LSD implemented
+!
+
+    SELECT CASE (fun)
+    CASE (1)
+      CALL xalpha ( cutoff, 2._dbl/3._dbl )
+      crossterm=.FALSE.
+      funtype=3
+    CASE (2)
+      CALL pade ( cutoff )
+      crossterm=.TRUE.
+      funtype=3
+    CASE (3)
+      CALL vwn ( cutoff )
+      crossterm=.TRUE.
+      funtype=1
+    CASE (4)
+      CALL thomas_fermi ( cutoff )
+      crossterm=.FALSE.
+      funtype=3
+    CASE (5)
+      CALL perdew_wang ( "PWO", cutoff )
+      crossterm=.TRUE.
+      funtype=3
+    CASE (6)
+      CALL perdew_zunger ( "DMC", cutoff )
+      crossterm=.TRUE.
+      funtype=1
+    CASE (7)
+      CALL tfw ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (8)
+      CALL ol1 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (9)
+      CALL ol2 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (10)
+      CALL llp ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (11)
+      CALL ke_pw86 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (12)
+      CALL ke_pw91 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (13)
+      CALL lc ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (14)
+      CALL t92 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (15)
+      CALL b88 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (16)
+      CALL x_pw86 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (17)
+      CALL x_pw91 ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (18)
+      CALL pbex ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (19)
+      CALL revpbex ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (20)
+      CALL optx ( cutoff )
+      crossterm=.FALSE.
+      funtype=13
+    CASE (21)
+      CALL lyp ( cutoff )
+      crossterm=.TRUE.
+      funtype=11
+    END SELECT
+
+END SUBROUTINE fun_init
+
+SUBROUTINE fun_info ( fun, reference, shortform )
+
+    INTEGER, INTENT(IN) :: fun
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: reference
+    CHARACTER (LEN=*), INTENT(OUT), OPTIONAL :: shortform
+
+    SELECT CASE (fun)
+    CASE (1)
+      CALL xalpha ( reference, shortform )
+    CASE (2)
+      CALL pade ( reference, shortform )
+    CASE (3)
+      CALL vwn ( reference, shortform )
+    CASE (4)
+      CALL thomas_fermi ( reference, shortform )
+    CASE (5)
+      CALL perdew_wang ( reference, shortform )
+    CASE (6)
+      CALL perdew_zunger ( reference, shortform )
+    CASE (7)
+      CALL tfw ( reference, shortform )
+    CASE (8)
+      CALL ol1 ( reference, shortform )
+    CASE (9)
+      CALL ol2 ( reference, shortform )
+    CASE (10)
+      CALL llp ( reference, shortform )
+    CASE (11)
+      CALL ke_pw86 ( reference, shortform )
+    CASE (12)
+      CALL ke_pw91 ( reference, shortform )
+    CASE (13)
+      CALL lc ( reference, shortform )
+    CASE (14)
+      CALL t92 ( reference, shortform )
+    CASE (15)
+      CALL b88 ( reference, shortform )
+    CASE (16)
+      CALL x_pw86 ( reference, shortform )
+    CASE (17)
+      CALL x_pw91 ( reference, shortform )
+    CASE (18)
+      CALL pbex ( reference, shortform )
+    CASE (19)
+      CALL revpbex ( reference, shortform )
+    CASE (20)
+      CALL optx ( reference, shortform )
+    CASE (21)
+      CALL lyp ( reference, shortform )
+    END SELECT
+
+END SUBROUTINE fun_info
+
+SUBROUTINE fun_lda ( fun, rho, pot, order )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    SELECT CASE (fun)
+    CASE (1)
+      CALL xalpha ( rho, pot, order )
+    CASE (2)
+      CALL pade ( rho, pot, order )
+    CASE (3)
+      CALL vwn ( rho, pot, order )
+    CASE (4)
+      CALL thomas_fermi ( rho, pot, order )
+    CASE (5)
+      CALL perdew_wang ( rho, pot, order )
+    CASE (6)
+      CALL perdew_zunger ( rho, pot, order )
+    CASE DEFAULT
+    END SELECT
+
+END SUBROUTINE fun_lda
+
+SUBROUTINE fun_lsd ( fun, rhoa, rhob, pot, order )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    SELECT CASE (fun)
+    CASE (1)
+      CALL xalpha ( rhoa, rhob, pot, order )
+    CASE (2)
+      CALL pade ( rhoa, rhob, pot, order )
+    CASE (4)
+      CALL thomas_fermi ( rhoa, rhob, pot, order )
+    CASE (5)
+      CALL perdew_wang ( rhoa, rhob, pot, order )
+    CASE DEFAULT
+    END SELECT
+
+END SUBROUTINE fun_lsd
+
+SUBROUTINE funggau ( fun, rho, grho, pot, order )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, grho
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    SELECT CASE (fun)
+    CASE (7)
+      CALL tfw ( rho, grho, pot, order )
+    CASE (8)
+      CALL ol1 ( rho, grho, pot, order )
+    CASE (9)
+      CALL ol2 ( rho, grho, pot, order )
+    CASE (10)
+      CALL llp ( rho, grho, pot, order )
+    CASE (11)
+      CALL ke_pw86 ( rho, grho, pot, order )
+    CASE (12)
+      CALL ke_pw91 ( rho, grho, pot, order )
+    CASE (13)
+      CALL lc ( rho, grho, pot, order )
+    CASE (14)
+      CALL t92 ( rho, grho, pot, order )
+    CASE (15)
+      CALL b88 ( rho, grho, pot, order )
+    CASE (16)
+      CALL x_pw86 ( rho, grho, pot, order )
+    CASE (17)
+      CALL x_pw91 ( rho, grho, pot, order )
+    CASE (18)
+      CALL pbex ( rho, grho, pot, order )
+    CASE (19)
+      CALL revpbex ( rho, grho, pot, order )
+    CASE (20)
+      CALL optx ( rho, grho, pot, order )
+    CASE (21)
+      CALL lyp ( rho, grho, pot, order )
+    CASE DEFAULT
+    END SELECT
+
+END SUBROUTINE funggau
+
+SUBROUTINE funggap ( fun, rhoa, rhob, grhoa, grhob, pot, order )
+
+    INTEGER, INTENT(IN) :: fun
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
+    REAL(dbl), DIMENSION(:), INTENT(IN)  :: grhoa, grhob
+    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    INTEGER, INTENT(IN), OPTIONAL :: order
+
+    SELECT CASE (fun)
+    CASE (7)
+      CALL tfw ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (8)
+      CALL ol1 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (9)
+      CALL ol2 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (10)
+      CALL llp ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (11)
+      CALL ke_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (12)
+      CALL ke_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (13)
+      CALL lc ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (14)
+      CALL t92 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (15)
+      CALL b88 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (16)
+      CALL x_pw86 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (17)
+      CALL x_pw91 ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (18)
+      CALL pbex ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (19)
+      CALL revpbex ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE (20)
+      CALL optx ( rhoa, rhob, grhoa, grhob, pot, order )
+    CASE DEFAULT
+    END SELECT
+
+END SUBROUTINE funggap
 
 ! *****************************************************************************
 

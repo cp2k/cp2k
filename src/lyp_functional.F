@@ -119,7 +119,7 @@ CONTAINS
     
     CALL calc_rho13 ( rho, r13 )
     IF ( calc(0) ) THEN
-       CALL lyp_u_0 ( rho, r13, grho, pot(:,1) )
+       CALL lyp_u_0 ( rho, grho, r13, pot(:,1) )
     END IF
     IF ( calc(1) ) THEN
        m1=mx(1,1)
@@ -204,7 +204,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE lyp_u_0 ( rho, r13, grho, pot )
+  SUBROUTINE lyp_u_0 ( rho, grho, r13, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, r13, grho
     REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
@@ -231,8 +231,7 @@ CONTAINS
          lda = -a*odx * (1._dbl+b*cf*ecx)
          ax  = a*b*x**5*ecx*odx
          bx  = 1._dbl+7*f13*(c*x+d*x*odx)
-!deb     pot(ip) = lda*rho(ip) + f24*g*g*ax*bx
-         pot(ip) = f24*g*g*ax*bx
+         pot(ip) = lda*rho(ip) + f24*g*g*ax*bx
       END IF
 
     END DO
@@ -269,11 +268,10 @@ CONTAINS
          lda = -a*odx * (1._dbl+b*cf*ecx)
          dlda = a*b*cf*c*ecx*odx+a*(1+b*cf*ecx)*odx**2*d
          ax  = a*b*x**5*ecx*odx
-         dax = 5._dbl*a*b*x**4*ecx*odx-a*b*x**5*c*ecx*odx-a*b*x**4*ecx*odx*odx*d
+         dax = a*b*(5._dbl*x**4*ecx*odx-x**5*c*ecx*odx-x**5*ecx*odx*odx*d)
          bx  = 1._dbl+7*f13*(c*x+d*x*odx)
          dbx = 7*f13*(c+d*odx-d**2*x*odx**2)
-!deb     pot(ip,1) = lda - f13*dlda*x - f24*f13*x**4*g*g*(dax*bx+ax*dbx)
-         pot(ip,1) = -f24*f13*x**4*g*g*(dax*bx+ax*dbx)
+         pot(ip,1) = lda - f13*dlda*x - f24*f13*x**4*g*g*(dax*bx+ax*dbx)
          pot(ip,2) = 2*f24*g*ax*bx
       END IF
 
@@ -289,7 +287,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
     INTEGER :: ip, npoints
-    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx
+    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx, dab, d2ab
     REAL(dbl) :: d2lda, d2ax, d2bx, f24
 !   ---------------------------------------------------------------------------
 
@@ -315,7 +313,7 @@ CONTAINS
          d2lda = -2*a*odx*odx*odx*(1+b*cf*ecx)*d*d-2*a*odx*odx*b*cf*c*ecx*d-&
                  a*odx*b*cf*c*c*ecx
          ax  = a*b*x**5*ecx*odx
-         dax = 5._dbl*a*b*x**4*ecx*odx-a*b*x**5*c*ecx*odx-a*b*x**4*ecx*odx*odx*d
+         dax = a*b*(5._dbl*x**4*ecx*odx-x**5*c*ecx*odx-x**5*ecx*odx*odx*d)
          d2ax = 20._dbl*a*b*x**3*ecx*odx-10._dbl*a*b*x**4*c*ecx*odx-&
                 10._dbl*a*b*x**4*ecx*odx*odx*d+a*b*x**5*c*c*ecx*odx+&
                 2._dbl*a*b*x**5*c*ecx*odx*odx*d+&
@@ -323,9 +321,11 @@ CONTAINS
          bx  = 1._dbl+7._dbl/3._dbl*(c*x+d*x*odx)
          dbx = 7./3.*(c+d*odx-d**2*x*odx**2)
          d2bx = 14./3.*d*d*(-odx**2+d*x*odx**3)
-         pot(ip,1) = f13*x**4*(-f23*dlda+f13*x*d2lda+f24*f43*x**3*g*g*&
-                     (dax*bx+ax*dbx)+f24*f13*x**4*g*g*(d2ax*bx+2._dbl*dax*dbx+ax*d2bx))
-         pot(ip,2) = -f23*f24*x**4*g*(dax*bx+ax*dbx)
+         dab = dax*bx+ax*dbx
+         d2ab = d2ax*bx+2*dax*dbx+ax*d2bx
+         pot(ip,1) = f13*x**4*(-f23*dlda+f13*x*d2lda+&
+                     f24*f43*x**3*g*g*dab+f24*f13*x**4*g*g*d2ab)
+         pot(ip,2) = -f23*f24*x**4*g*dab
          pot(ip,3) = 2._dbl*f24*ax*bx
       END IF
 
@@ -341,7 +341,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
 
     INTEGER :: ip, npoints
-    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx
+    REAL(dbl) :: odx, ecx, x, g, lda, dlda, ax, bx, dax, dbx, dab, d2ab, d3ab
     REAL(dbl) :: d2lda, d2ax, d2bx, d3lda, d3ax, d3bx, f24
 !   ---------------------------------------------------------------------------
 
@@ -370,7 +370,7 @@ CONTAINS
          d3lda = 6*a*odx**4*(1+b*cf*ecx)*d**3+6*a*odx**3*b*cf*c*ecx*d**2+&
                  3*a*odx**2*b*cf*c**2*ecx*d+a*odx*b*cf*c**3*ecx
          ax  = a*b*x**5*ecx*odx
-         dax = 5._dbl*a*b*x**4*ecx*odx-a*b*x**5*c*ecx*odx-a*b*x**4*ecx*odx*odx*d
+         dax = a*b*(5._dbl*x**4*ecx*odx-x**5*c*ecx*odx-x**5*ecx*odx*odx*d)
          d2ax = 20._dbl*a*b*x**3*ecx*odx-10._dbl*a*b*x**4*c*ecx*odx-&
                 10._dbl*a*b*x**4*ecx*odx*odx*d+a*b*x**5*c*c*ecx*odx+&
                 2._dbl*a*b*x**5*c*ecx*odx*odx*d+&
@@ -384,13 +384,13 @@ CONTAINS
          dbx = 7./3.*(c+d*odx-d**2*x*odx**2)
          d2bx = 14./3.*d*d*(-odx**2+d*x*odx**3)
          d3bx = 14*d**3*(odx**3-d*x*odx**4)
-         pot(ip,1) = 8/27*x**7*dlda - 3/27*x**8*d2lda - 1/27*x**9*d3lda &
-                     - f24*f13*f13*f13*g*g*x/(rho(ip)*rho(ip)*rho(ip))*&
-                     (28._dbl*(dax*bx+ax*dbx)+12._dbl*x*(d2ax*bx+2._dbl*dax*dbx+ax*d2bx)+&
-                     x*x*(d3ax*bx+3._dbl*d2ax*dbx+3._dbl*dax*d2bx+ax*d3bx))
-         pot(ip,2) = f24*f23*g*x/rho(ip)*(f43/rho(ip)*(dax*bx+ax*dbx)+&
-                     f13*x/rho(ip)*(d2ax*bx+2._dbl*dax*dbx+ax*d2bx))
-         pot(ip,3) = -f24*f23*x/rho(ip)*(dax*bx+ax*dbx)
+         dab = dax*bx+ax*dbx
+         d2ab = d2ax*bx+2*dax*dbx+ax*d2bx
+         d3ab = d3ax*bx+3*d2ax*dbx+3*dax*d2bx+ax*d3bx
+         pot(ip,1) = x**7/27*(8*dlda - 3*x*d2lda - x*x*d3lda) &
+                     + f24/27*g*g* ( -28*x**10*dab - 12*x**11*d2ab - x**12*d3ab )
+         pot(ip,2) = f24*f23*g*x**7*(f43*dab+f13*x*d2ab)
+         pot(ip,3) = -f24*f23*x**4*dab
          pot(ip,4) = 0.0_dbl
       END IF
 
