@@ -1859,8 +1859,8 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
-    INTEGER                                  :: atom_a, atom_b, group, i, &
-                                                iab, ilist, inode, ipe, mype, &
+    INTEGER                                  :: atom_a, atom_b, group, iab, &
+                                                ilist, inode, ipe, mype, &
                                                 nlist, nneighbor, nnode, npe, &
                                                 output_unit
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b
