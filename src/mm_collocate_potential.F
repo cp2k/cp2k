@@ -143,7 +143,7 @@ CONTAINS
     
 !   *** properties of the grid ***
     dr(:) =  pwgrid%pw_grid%dr(:)
-    grid  => pwgrid%cr3d(:,:,:)
+    grid  => pwgrid%cr3d
     bo    =  pwgrid%pw_grid%bounds_local
     gbo   =  pwgrid%pw_grid%bounds
 
