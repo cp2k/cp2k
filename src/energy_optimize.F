@@ -229,10 +229,12 @@
       END IF
       ihist=0
       jhist=0
-      DO i = 1,ncoef 
-        hess_r(i)=1.0_dbl                                               
-        hess_i(i)=1.0_dbl                                               
+      DO i = 2,ncoef 
+        hess_r(i)=1.0_dbl/struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
+        hess_i(i)=1.0_dbl /struc % coef_pos (1) % pw % pw_grid % gsq ( i )   
       END DO  
+      hess_r(1) = 1.0_dbl
+      hess_i(1) = 1.0_dbl
     ENDIF
     DO i = 1, ncoef
       cr (i) = REAL ( struc % coef_pos (1) %pw %cc (i))
