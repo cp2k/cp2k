@@ -1077,7 +1077,6 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
         END DO
      END IF
 
-     CALL xc_rho_set_release(rho_set1,error=error)
      CALL xc_dset_release(dSet1, error=error)
 
      CALL xc_vxc_pw_create(vxc_rho=vxc_rho,vxc_tau=vxc_tau,&
@@ -1103,9 +1102,36 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                     DO i=bo(1,1),bo(2,1)
                        IF (ABS(pot(i,j,k))>10.0_dbl) THEN
                           WRITE(cp_logger_get_default_unit_nr(logger),&
-                               "('vxc_',i1,'(',i6,',',i6,',',i6,')=',f15.8)")&
-                               ispin,i,j,k,pot(i,j,k)
-                          !                       pot(i,j,k)=0.0_dbl
+                                  "('vxc_',i1,'(',i6,',',i6,',',i6,')=',f15.8)",&
+                                  advance="no") ispin,i,j,k,pot(i,j,k)
+                          IF (rho_set1%has%rho_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('rho=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%rhoa(i,j,k), rho_set1%rhob(i,j,k)
+                          ELSE IF (rho_set1%has%rho) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('rho=',f15.8)",advance="no") rho_set1%rho(i,j,k)
+                          END IF
+                          IF (rho_set1%has%norm_drho_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('ndrho=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%norm_drhoa(i,j,k), &
+                                  rho_set1%norm_drhob(i,j,k)
+                          ELSE IF (rho_set1%has%norm_drho) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('ndrho=',f15.8)",advance="no") rho_set1%norm_drho(i,j,k)
+                          END IF
+                          IF (rho_set1%has%tau_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('tau=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%tau_a(i,j,k), &
+                                  rho_set1%tau_b(i,j,k)
+                          ELSE IF (rho_set1%has%tau) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('tau=',f15.8)",advance="no") rho_set1%tau(i,j,k)
+                          END IF
+                          WRITE(cp_logger_get_default_unit_nr(logger),&
+                               "()")
                        END IF
                     END DO
                  END DO
@@ -1127,9 +1153,35 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
                     DO i=bo(1,1),bo(2,1)
                        IF (ABS(pot(i,j,k))>10.0_dbl) THEN
                           WRITE(cp_logger_get_default_unit_nr(logger),&
-                               "('vxc_tau_',i1,'(',i6,',',i6,',',i6,')=',f15.8)")&
-                               ispin,i,j,k,pot(i,j,k)
-                          !                       pot(i,j,k)=0.0_dbl
+                                  "('vxc_tau_',i1,'(',i6,',',i6,',',i6,')=',f15.8)",&
+                                  advance="no") ispin,i,j,k,pot(i,j,k)
+                          IF (rho_set1%has%rho_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('rho=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%rhoa(i,j,k), rho_set1%rhob(i,j,k)
+                          ELSE IF (rho_set1%has%rho) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('rho=',f15.8)",advance="no") rho_set1%rho(i,j,k)
+                          END IF
+                          IF (rho_set1%has%norm_drho_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('ndrho=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%norm_drhoa(i,j,k), &
+                                  rho_set1%norm_drhob(i,j,k)
+                          ELSE IF (rho_set1%has%norm_drho) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('ndrho=',f15.8)",advance="no") rho_set1%norm_drho(i,j,k)
+                          END IF
+                          IF (rho_set1%has%tau_spin) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('tau=(',f15.8,',',f15.8,')')",advance="no")&
+                                  rho_set1%tau_a(i,j,k), &
+                                  rho_set1%tau_b(i,j,k)
+                          ELSE IF (rho_set1%has%tau) THEN
+                             WRITE(cp_logger_get_default_unit_nr(logger),&
+                                  "('tau=',f15.8)",advance="no") rho_set1%tau(i,j,k)
+                          END IF
+                          WRITE(cp_logger_get_default_unit_nr(logger),"()")
                        END IF
                     END DO
                  END DO
@@ -1137,6 +1189,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
            END DO
         END IF
      END IF
+     CALL xc_rho_set_release(rho_set1,error=error)
   END IF
 END SUBROUTINE xc_vxc_pw_create_debug
 !***************************************************************************

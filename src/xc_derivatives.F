@@ -90,6 +90,8 @@ MODULE xc_derivatives
   USE xc_thomas_fermi_new,             ONLY: thomas_fermi_info,&
                                              thomas_fermi_lda_eval,&
                                              thomas_fermi_lsd_eval
+  USE xc_tpss,                         ONLY: my_tpss_lda_eval => tpss_lda_eval,&
+                                             my_tpss_lda_info => tpss_lda_info
   USE xc_tpss_p,                       ONLY: tpss_lsd_eval,&
                                              tpss_lsd_info
   USE xc_tpss_u,                       ONLY: tpss_lda_eval,&
@@ -390,6 +392,9 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         ELSE
            CALL tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
         END IF
+     CASE("MY_TPSS")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL my_tpss_lda_info(reference,shortform,needs,max_deriv,error=error)
      CASE("NONE")
         IF (PRESENT(reference)) reference=""
         IF (PRESENT(shortform)) shortform=""
@@ -634,6 +639,9 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         ELSE
            CALL tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
         END IF
+     CASE("MY_TPSS")
+        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
+        CALL my_tpss_lda_eval(rho_set,deriv_set,deriv_order,error=error)
      CASE("NONE")
         !
      CASE default
