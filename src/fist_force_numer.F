@@ -48,9 +48,7 @@ MODULE fist_force_numer
                                              HALFSPACE
   USE pw_pool_types,                  ONLY : pw_pool_type
   USE pme,                            ONLY: pme_evaluate
-  USE qs_neighbor_lists,              ONLY: allocate_subcell,&
-                                             deallocate_subcell,&
-                                             local_atoms_type,&
+  USE qs_neighbor_lists,              ONLY: local_atoms_type,&
                                              subcell_type
   USE qs_neighbor_list_types,         ONLY: first_list,&
                                             first_node,&
@@ -2761,7 +2759,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
     REAL(dbl), DIMENSION(3)                  :: dra, drb, fr, rab
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: h_inv, hmat
   INTEGER :: isos
-  REAL ( dbl ) :: qi, qj, rcut
+  REAL ( dbl ) :: qi, qj
   TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ),  POINTER    :: nonbonded
   TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
   TYPE(neighbor_list_type), POINTER        :: neighbor_list
@@ -2858,7 +2856,7 @@ END SUBROUTINE potential_nonbond
 ! *****************************************************************************
   SUBROUTINE force_nonbond_numer (atomic_kind_set,particle_set,&
                                   local_particles, ewald_env, cell, &
-                                  potparm, rcut, delta, f_numer,    &
+                                  potparm, delta, f_numer,    &
                                   energy_numer, globenv)
 
 !   Purpose: Build all the required neighbor lists for FIST.
@@ -2878,7 +2876,6 @@ END SUBROUTINE potential_nonbond
     TYPE ( fist_nonbond_env_type ), POINTER  :: fist_nonbond_env
     TYPE(global_environment_type), &
       INTENT(IN)                                     :: globenv
-    REAL ( dbl ), INTENT ( IN ), DIMENSION ( :, : ) ::  rcut ( :, : )
     REAL ( dbl ), INTENT ( IN ) :: delta
     REAL ( dbl ), INTENT ( OUT ) ::  energy_numer
     REAL ( dbl ), INTENT ( OUT ) :: f_numer ( :, : )
@@ -2981,7 +2978,7 @@ END SUBROUTINE potential_nonbond
 
 !   *** evaluate the forces ***
     CALL force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
-                                  potparm, rcut, energy_numer, f_numer, delta,   &
+                                  potparm, energy_numer, f_numer, delta,   &
                                   maxatom_local )
 
     f_numer = f_numer/(2.0_dbl*delta)
@@ -3018,7 +3015,7 @@ END SUBROUTINE potential_nonbond
 ! *****************************************************************************
 
   SUBROUTINE force_nonbond_evaluate ( particle_set, atom, ewald_env, cell, &
-                                      potparm, rcut, energy_numer, f_numer,    &
+                                      potparm, energy_numer, f_numer,    &
                                       numerical_shift, maxatom_local )
 
 !   Purpose: Build simple pair neighbor lists.
@@ -3037,7 +3034,6 @@ END SUBROUTINE potential_nonbond
     REAL ( dbl ), INTENT ( OUT )                     :: energy_numer    
     REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ) :: f_numer
     REAL ( dbl ), INTENT ( IN )                      :: numerical_shift
-    REAL ( dbl ), INTENT ( IN ) , DIMENSION ( :, : ) :: rcut
 
 ! locals
     CHARACTER(LEN=*), PARAMETER :: routine_name = "force_nonbond_evaluate"
@@ -3047,10 +3043,10 @@ END SUBROUTINE potential_nonbond
     INTEGER, DIMENSION(3)                    ::  cell_b, ncell, &
                                                  periodic
     LOGICAL                                  :: include_ab, exclude_flag
-    REAL(dbl)                                 :: rab2, rab2_max, &
-                                                subcells, qi, qj
+    REAL(dbl)                                 :: rab2, rab2_max,&
+                                                 qi, qj
     REAL(dbl), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
-                                                sb, sb_max, sb_min, sb_pbc
+                                                sb, sb_max, sb_min, sb_pbc, abc
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -3068,8 +3064,8 @@ END SUBROUTINE potential_nonbond
 !   *** Load informations about the simulation cell ***
 
     CALL get_cell(cell=cell,&
-                  periodic=periodic,&
-                  subcells=subcells )
+                  abc = abc, &
+                  periodic=periodic)
 
 !   *** Loop over all atomic kind pairs ***
 
@@ -3087,21 +3083,14 @@ END SUBROUTINE potential_nonbond
 
 !       *** Calculate the square of the maximum interaction distance ***
 
-        rab_max = rcut(ikind,jkind)
-        rab2_max = rab_max*rab_max
-
-        r(:) = rab_max
-        sab_max(:) = real_to_scaled(r(:),cell)
-
 
         rab2_max = potparm ( ikind, jkind ) % rcutsq 
-
         r(:) = SQRT ( rab2_max )
-        sab_max(:) = real_to_scaled(r(:),cell)
+        sab_max(:) = r(:)/abc(:)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
 
-!       *** No subcells will be considered in the debug ****
+!       *** No subcells will be considered in the debug for safety check****
 
 !         *** Case 1: No subcell grid is needed ***
 
@@ -3155,7 +3144,7 @@ END SUBROUTINE potential_nonbond
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                      IF (rab2 < potparm ( ikind, jkind ) % rcutsq ) THEN
+                      IF (rab2 < rab2_max ) THEN
                         IF (rab2 > 1.0E-6_dbl) THEN
                           sab(:) = real_to_scaled(rab(:),cell)
                           exclude_flag = .FALSE.
@@ -3245,6 +3234,7 @@ SUBROUTINE finite_difference_evaluate ( ewald_env, potparm, rab,              &
                     f_numer(id,atom_b) = f_numer(id,atom_b) - (energy_plus-energy_minus)
                     delta = 0.0_dbl
                  END DO DIM_LOOP
+! compute energy
                  IF (qi==0.AND.qj==0) THEN
                    CALL potential_f ( rab2, potparm, qi, qj, &
                       ikind, jkind, energy )

@@ -121,7 +121,6 @@ SUBROUTINE  debug_control ( force_env, globenv )
   TYPE ( debug_variables_type ) :: dbg
   TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( spline_environment_type ), POINTER :: spline_env
-  REAL ( dbl ), POINTER, DIMENSION ( :, : ) :: rcut
   REAL ( dbl ) :: delta, energy_numer, cutoff, ecut
   REAL ( dbl ) :: e_numer, pv_test ( 3, 3 )
   REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
@@ -140,7 +139,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
                       fist_nonbond_env = fist_nonbond_env, cell = cell )
 
 
-  CALL fist_nonbond_env_get ( fist_nonbond_env, spline_env = spline_env, rlist_cutsq = rcut )
+  CALL fist_nonbond_env_get ( fist_nonbond_env, spline_env = spline_env )
   potparm => spline_env % potparm
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
   isos = 0
@@ -221,7 +220,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
         WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
      END IF
      CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
-                                ewald_env, cell, potparm, rcut, delta, f_numer, &
+                                ewald_env, cell, potparm, delta, f_numer, &
                                 energy_numer, globenv )
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' E ANA NON-BONDED = ', dbg % pot_nonbond

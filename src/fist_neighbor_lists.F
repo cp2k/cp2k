@@ -271,7 +271,7 @@ CONTAINS
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
-                                                sb, sb_max, sb_min, sb_pbc
+                                                sb, sb_max, sb_min, sb_pbc, abc
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
@@ -309,6 +309,7 @@ CONTAINS
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
                   subcells=subcells,&
+                  abc = abc,        &
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
@@ -341,7 +342,7 @@ CONTAINS
         rab2_max = rab_max*rab_max
 
         r(:) = rab_max
-        sab_max(:) = real_to_scaled(r(:),cell)
+        sab_max(:) = r(:)/abc(:)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
         nsubcell(:) = MAX(1,NINT(0.5_dp*subcells/sab_max(:)))
@@ -350,13 +351,13 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
-          r(:) = scaled_to_real(s(:),cell)
+          r(:) = s(:) * abc ( : )
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
 
         CALL allocate_neighbor_list_set(neighbor_list_set=&
-                                          ab(iab)%neighbor_list_set,&
+                                        ab(iab)%neighbor_list_set,&
                                         r_max=rab_max)
         neighbor_list_set => ab(iab)%neighbor_list_set
 
@@ -457,7 +458,7 @@ CONTAINS
             i = MIN(INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp),nsubcell(1))
             j = MIN(INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp),nsubcell(2))
             k = MIN(INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp),nsubcell(3))
-            subcell(i,j,k)%natom =  subcell(i,j,k)%natom + 1
+            subcell(i,j,k)%natom  = subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
                                    atom=atom_a,&
@@ -504,7 +505,7 @@ CONTAINS
                       loop_i: DO i=1,nsubcell(1)
 
                         IF (subcell(i,j,k)%natom == 0) CYCLE
-
+ 
                         IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
                         IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
 

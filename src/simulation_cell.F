@@ -491,9 +491,18 @@ CONTAINS
       s(1) = cell%h_inv(1,1)*r(1) + cell%h_inv(1,2)*r(2) + cell%h_inv(1,3)*r(3)
       s(2) = cell%h_inv(2,1)*r(1) + cell%h_inv(2,2)*r(2) + cell%h_inv(2,3)*r(3)
       s(3) = cell%h_inv(3,1)*r(1) + cell%h_inv(3,2)*r(2) + cell%h_inv(3,3)*r(3)
-      s(1) = s(1) - cell%perd(1)*ANINT(s(1))
-      s(2) = s(2) - cell%perd(2)*ANINT(s(2))
-      s(3) = s(3) - cell%perd(3)*ANINT(s(3))
+      IF ( ABS ( s ( 1 ) ) > 0.5_dp ) THEN
+         s(1) = s(1) - cell%perd(1) * INT(s(1)+SIGN(0.5_dp,s(1)))
+      END IF
+      IF ( ABS ( s ( 2 ) ) > 0.5_dp ) THEN
+         s(2) = s(2) - cell%perd(2) * INT(s(2)+SIGN(0.5_dp,s(2)))
+      END IF
+      IF ( ABS ( s ( 3 ) ) > 0.5_dp ) THEN
+         s(3) = s(3) - cell%perd(3) * INT(s(3)+SIGN(0.5_dp,s(3)))
+      END IF
+!      s(1) = s(1) - cell%perd(1)*ANINT(s(1))
+!      s(2) = s(2) - cell%perd(2)*ANINT(s(2))
+!      s(3) = s(3) - cell%perd(3)*ANINT(s(3))
       r_pbc(1) = cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
       r_pbc(2) = cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
       r_pbc(3) = cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
