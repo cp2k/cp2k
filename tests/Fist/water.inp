@@ -23,8 +23,8 @@
 
 &EWALD
  units angstrom
- ewald_type ewald
- ewald_param .44 21 6
+ ewald_type spme
+ ewald_param .44 20 6
 &END
 
 &FORCE_FIELD
