@@ -1,0 +1,13 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = f95 -free
+FC_fixed = f95 -fixed
+LD       = f95
+AR       = ar -r
+CPPFLAGS = -C -D__DEC -D__FFTSG -D__FFTW -P
+FCFLAGS  = -C -D__DEC -D__FFTSG -D__FFTW -automatic -g -u -fpe0 -synchronous_exceptions
+LDFLAGS  = $(FCFLAGS) -L$(HOME)/fftw/tc2k/lib
+LIBS     = -ldxml -lfftw
+
+OBJECTS_ARCHITECTURE = machine_dec.o
