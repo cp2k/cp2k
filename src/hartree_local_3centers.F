@@ -264,6 +264,9 @@ MODULE  hartree_local_3centers
     ALLOCATE(hab(1,1))
     NULLIFY(Int_ab_sum,Int_dab_sum,Int_adb_sum,Int_abc)
     ALLOCATE(Int_ab_sum(1,1))
+    CPC_ab = 0.0_dp
+    hab    = 0.0_dp
+    Int_ab_sum = 0.0_dp
 
     ALLOCATE(int_tmpp(maxco_global,maxco_global,maxch0),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
