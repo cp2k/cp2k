@@ -36,7 +36,8 @@ MODULE cp_control_utils
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine
+                                             xc_test_lsd_f_routine,&
+                                             xc_debug_new_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_check,&
@@ -313,6 +314,9 @@ CONTAINS
              CASE ("TEST_LSD")
                 dft_control % xc_control % functional_routine = &
                      xc_test_lsd_f_routine
+             CASE ("DEBUG","DEBUG_NEW")
+                dft_control % xc_control % functional_routine = &
+                     xc_debug_new_routine                
              CASE DEFAULT
                 CALL stop_parser(routine=routine,message="INVALID_KEYWORD for FUNCTIONAL_ROUTINE "//str1)
              END SELECT
@@ -952,6 +956,9 @@ CONTAINS
                      reference=reference, error=sub_error)
                 CALL cp_error_check(sub_error,failure)
 
+                WRITE (output_unit, fmt="(' FUNCTIONAL| ROUTINE=',a)")&
+                     TRIM(xc_get_routine_label(dft_control % xc_control&
+                     % functional_routine))
                 WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
                      TRIM(dft_control % xc_control % functionals(i))
                 IF (failure) THEN
@@ -1190,6 +1197,58 @@ FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
      WRITE (res,"('UKN',i6)") xc_deriv_method_id
   END SELECT
 END FUNCTION xc_get_deriv_method_label
+!***************************************************************************
+
+!!****f* cp_control_types/xc_get_routine_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_routine_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the functional routine used in the xc 
+!!     calculation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_functional_routine_id: the id that represent the functional 
+!!       routine
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_routine_label(xc_functional_routine_id,error) RESULT(res)
+    INTEGER, INTENT(in)                      :: xc_functional_routine_id
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=20)                        :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'xc_get_routine_label', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  
+  SELECT CASE(xc_functional_routine_id)
+  CASE(xc_old_f_routine)
+     res="OLD"
+  CASE(xc_new_f_routine)
+     res="NEW"
+  CASE(xc_test_f_routine)
+     res="TEST (new vs old)"
+  CASE(xc_test_lsd_f_routine)
+     res="TEST_LSD"
+  CASE(xc_debug_new_routine)
+     res="DEBUG_NEW"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_functional_routine_id
+  END SELECT
+END FUNCTION xc_get_routine_label
 !***************************************************************************
 
 END MODULE cp_control_utils

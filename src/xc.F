@@ -44,7 +44,8 @@ MODULE xc
                                              xc_rho_spline2_smooth,&
                                              xc_rho_spline3_smooth,&
                                              xc_test_f_routine,&
-                                             xc_test_lsd_f_routine
+                                             xc_test_lsd_f_routine,&
+                                             xc_debug_new_routine
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -330,6 +331,10 @@ CONTAINS
                cell=cell, pw_pool=pw_pool, error=error)
        CASE(xc_new_f_routine)
           CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
+               vxc=my_vxc, exc=exc, dft_control=dft_control,&
+               cell=cell, pw_pool=pw_pool, error=error)
+       CASE(xc_debug_new_routine)
+          CALL xc_calculate_pw_debug(rho_r=my_rho_r, rho_g=my_rho_g,&
                vxc=my_vxc, exc=exc, dft_control=dft_control,&
                cell=cell, pw_pool=pw_pool, error=error)
        CASE(xc_test_f_routine)
@@ -843,6 +848,163 @@ END SUBROUTINE xc_calculate_pw_test
      
   END IF
 END SUBROUTINE xc_calculate_pw_test_lsd
+!***************************************************************************
+
+!!****f* xc/calculate_pw_debug [1.0] *
+!!
+!!   NAME
+!!     calculate_pw_debug
+!!
+!!   FUNCTION
+!!     calculates vxc outputting the yz plane of rho, the various components
+!!     of the the derivatives and vxc
+!!
+!!   NOTES
+!!     for debugging only.
+!!
+!!   INPUTS
+!!     - rho_r: the value of the density in the real space
+!!     - rho_g: value of the density in the g space (needs to be associated
+!!       only for gradient corrections)
+!!     - vxc: will contain the resulting xc potential, has to be 
+!!       already allocated
+!!     - exc: the xc energy
+!!     - dft_control: varius parameter (number of spin...)
+!!     - pw_pool: the pool for the grids
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!*** **********************************************************************
+SUBROUTINE xc_calculate_pw_debug(rho_r,rho_g,vxc,exc,dft_control,&
+     cell,pw_pool,error)
+  TYPE(pw_p_type), DIMENSION(:), &
+       INTENT(inout), TARGET                  :: rho_r
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho_g
+  TYPE(pw_p_type), DIMENSION(:), &
+       INTENT(inout)                          :: vxc
+  REAL(KIND=dp), INTENT(out)               :: exc
+  TYPE(dft_control_type), POINTER          :: dft_control
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(pw_pool_type), POINTER              :: pw_pool
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_pw_debug', &
+       routineP = moduleN//':'//routineN
+
+  CHARACTER(len=80)                        :: filename
+  CHARACTER(len=MAX_LABEL_LENGTH), &
+       DIMENSION(:), POINTER                  :: split_desc
+  COMPLEX(kind=dp)                         :: tmp_c
+  INTEGER                                  :: i, ii, ispin, j, k, stat
+  INTEGER, DIMENSION(2, 3)                 :: bo
+  LOGICAL                                  :: failure
+  REAL(kind=dp)                            :: diff, exc2, maxdiff, tmp
+  REAL(kind=dp), DIMENSION(:, :, :), &
+       POINTER                                :: pot, pot2, pot3
+  TYPE(cp_sll_xc_deriv_type), POINTER      :: deriv_iter
+  TYPE(pw_p_type), DIMENSION(:), POINTER   :: rho2_g, rho2_r, vxc2
+  TYPE(xc_derivative_set_type), POINTER    :: dSet1, dSet2
+  TYPE(xc_derivative_type), POINTER        :: deriv, deriv2, deriv3
+  TYPE(xc_rho_set_type), POINTER           :: rho_set1, rho_set2
+
+  failure=.FALSE.
+  NULLIFY(vxc2,dSet1,dSet2,rho_set1,rho_set2,split_desc,pot,pot3,pot3,&
+       deriv,deriv2,deriv3)
+
+  IF (.NOT. failure) THEN
+     bo = rho_r(1)%pw%pw_grid%bounds_local
+
+     CALL xc_create_rho_set_and_dset(rho_r=rho_r, rho_g=rho_g,&
+          dft_control=dft_control,&
+          cell=cell, pw_pool=pw_pool,rho_set=rho_set1,&
+          deriv_set=dSet1, deriv_order=1, error=error)
+
+     ! outputs 0,:,: plane
+     IF (bo(1,1)<=0.AND.0<=bo(2,1)) THEN
+        IF (rho_set1%has%rho_spin) THEN
+           OPEN(unit=120,file="rhoa.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%rhoa
+           WRITE(unit=120) pot(0,:,:)
+           CLOSE(unit=120)
+           OPEN(unit=120,file="rhob.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%rhob
+           WRITE(unit=120) pot(0,:,:) 
+           CLOSE(unit=120)
+        END IF
+        IF (rho_set1%has%norm_drho) THEN
+           OPEN(unit=120,file="ndrho.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%norm_drho
+           WRITE(unit=120) pot(0,:,:) 
+           CLOSE(unit=120)
+        END IF
+        IF (rho_set1%has%norm_drho_spin) THEN
+           OPEN(unit=120,file="ndrhoa.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%norm_drhoa
+           WRITE(unit=120) pot(0,:,:) 
+           CLOSE(unit=120)
+           OPEN(unit=120,file="ndrhob.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%norm_drhob
+           WRITE(unit=120) pot(0,:,:) 
+           CLOSE(unit=120)
+        END IF
+        IF (rho_set1%has%rho) THEN
+           OPEN(unit=120,file="rho.bindata",status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => rho_set1%rho
+           WRITE(unit=120) pot(0,:,:)
+           CLOSE(unit=120)
+        END IF
+
+        deriv_iter => dSet1%derivs
+        DO WHILE (cp_sll_xc_deriv_next(deriv_iter,el_att=deriv,error=error))
+           CALL xc_derivative_get(deriv,&
+                split_desc=split_desc,deriv_data=pot,&
+                error=error)
+           SELECT CASE (SIZE(split_desc))
+           CASE(0)
+              filename="e_0.bindata"
+           CASE(1)
+              filename="e_"//TRIM(split_desc(1))//".bindata"
+           CASE default
+              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+           END SELECT
+           OPEN (unit=120,file=TRIM(filename),status="unknown",&
+                access='sequential',&
+                form="unformatted")
+           WRITE (unit=120) pot(0,:,:)
+           CLOSE (unit=120)
+        END DO
+     END IF
+
+     CALL xc_rho_set_release(rho_set1,error=error)
+     CALL xc_dset_release(dSet1, error=error)
+
+     CALL xc_calculate_pw_new(rho_r=rho_r, rho_g=rho_g,&
+          vxc=vxc, exc=exc, dft_control=dft_control,&
+          cell=cell, pw_pool=pw_pool, error=error)
+
+     ! outputs 0,:,: plane
+     IF (bo(1,1)<=0.AND.0<=bo(2,1)) THEN
+        DO ispin=1,SIZE(vxc)
+           WRITE (filename,"('vxc-',i1,'.bindata')") ispin
+           OPEN(unit=120,file=filename,status="unknown",access='sequential',&
+                form="unformatted",action="write")
+           pot => vxc(ispin)%pw%cr3d
+           WRITE(unit=120) pot(0,:,:)
+           CLOSE(unit=120)
+        END DO
+     END IF
+  END IF
+END SUBROUTINE xc_calculate_pw_debug
 !***************************************************************************
 
 ! debugging only, leaks
@@ -2345,10 +2507,10 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
            END DO
         END IF
 
-        CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,&
-             rho_cutoff=dft_control%xc_control%density_cut,&
-             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-             error=error)
+!FM        CALL smooth_cutoff(pot=deriv_data,rho=rho,rhoa=rhoa,rhob=rhob,&
+!FM             rho_cutoff=dft_control%xc_control%density_cut,&
+!FM             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+!FM             error=error)
 
         IF (ASSOCIATED(drho).AND.ASSOCIATED(drho(1)%array)) THEN
            CPPrecondition(ASSOCIATED(deriv_data),cp_failure_level,routineP,error,failure)
@@ -2394,16 +2556,16 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
      END IF
 
      DO ispin=1,nspins
-        IF (n_deriv>0) THEN
-           ! smooth cutoff
-           deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
-           CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
-                error=error)
-           CALL smooth_cutoff(pot=vxc(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
-                rho_cutoff=dft_control%xc_control%density_cut,&
-                rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-                e_0=deriv_data,error=error)
-        END IF
+!FM        IF (n_deriv>0) THEN
+!FM           ! smooth cutoff
+!FM           deriv_att => xc_dset_get_derivative(deriv_set, "", error=error)
+!FM           CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,&
+!FM                error=error)
+!FM           CALL smooth_cutoff(pot=vxc(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
+!FM                rho_cutoff=dft_control%xc_control%density_cut,&
+!FM                rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+!FM                e_0=deriv_data,error=error)
+!FM        END IF
 
         IF (lsd) THEN
            IF (ispin==1) THEN
@@ -2459,10 +2621,10 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
               vxc_to_deriv(ispin)%pw => tmp_r
               NULLIFY(tmp_r,deriv_att%deriv_data)
 
-              CALL smooth_cutoff(pot=vxc_to_deriv(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
-                   rho_cutoff=dft_control%xc_control%density_cut,&
-                   rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
-                   error=error)
+!FM              CALL smooth_cutoff(pot=vxc_to_deriv(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
+!FM                   rho_cutoff=dft_control%xc_control%density_cut,&
+!FM                   rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+!FM                   error=error)
 
               DO idir=1,3
                  CPPrecondition(ASSOCIATED(drho_spin(idir)%array),cp_failure_level,routineP,error,failure)
@@ -2624,6 +2786,12 @@ SUBROUTINE xc_calculate_pw_new(rho_r,rho_g,vxc,exc,dft_control,&
            CALL pw_transfer ( vxc_g,vxc(ispin)%pw )
            CALL pw_pool_give_back_pw(pw_pool,vxc_g)
         END IF
+
+        CALL smooth_cutoff(pot=vxc(ispin)%pw%cr3d,rho=rho,rhoa=rhoa,rhob=rhob,&
+             rho_cutoff=dft_control%xc_control%density_cut*&
+             dft_control%xc_control%density_smooth_cut_range,&
+             rho_smooth_cutoff_range=dft_control%xc_control%density_smooth_cut_range,&
+             error=error)
 
         ! final smoothing if rho was smoothed
         IF (dft_control%xc_rho_smooth_id/=xc_rho_no_smooth) THEN
