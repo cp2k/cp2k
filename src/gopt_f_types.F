@@ -68,6 +68,7 @@ MODULE gopt_f_types
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
   INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1
+  INTEGER, PUBLIC, PARAMETER :: default_bfgs_method_id=2
   PUBLIC :: gopt_f_type
   PUBLIC :: cp_eval_at, gopt_f_eval_at, gopt_f_create, gopt_f_retain,&
        gopt_f_release, gopt_f_create_x0
@@ -143,7 +144,6 @@ MODULE gopt_f_types
      INTEGER :: id_nr,ref_count,method_id,max_h_rank, max_f_per_iter, max_iter
      REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error,&
                         max_dr,max_force,rms_dr,rms_force
-     CHARACTER(LEN=4) :: method
      LOGICAL :: fix_atoms,hesrest
   END TYPE gopt_param_type
 !!***
@@ -519,13 +519,12 @@ SUBROUTINE gopt_param_create(gopt_param,error)
      last_gopt_param_id=last_gopt_param_id+1
      gopt_param%id_nr=last_gopt_param_id
      gopt_param%ref_count=1
-     gopt_param%method_id=default_lbfgs_method_id
+     gopt_param%method_id=default_bfgs_method_id
      gopt_param%max_h_rank=5
-     gopt_param%max_f_per_iter=20
+     gopt_param%max_f_per_iter=3
      gopt_param%max_iter=200
-     gopt_param%wanted_proj_gradient=1.0e-5_dp
+     gopt_param%wanted_proj_gradient=1.0e-3_dp
      gopt_param%wanted_rel_f_error=1.0e5_dp
-     gopt_param%method='BFGS'
      gopt_param%hesrest=.FALSE.
      gopt_param%fix_atoms = .FALSE.
      gopt_param%max_dr = 0.0030_dp
@@ -570,7 +569,7 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: test_result
-    CHARACTER(LEN=60)                        :: keyword
+    CHARACTER(LEN=60)                        :: keyword,keyword2
     LOGICAL                                  :: failure, section_found
 
   failure=.FALSE.
@@ -600,7 +599,15 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
            CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
            SELECT CASE (TRIM(keyword))
            CASE ('OPTIMIZER')
-              CALL read_object(gopt_param%method)
+              CALL read_object(keyword2)
+              SELECT CASE (TRIM(keyword2))
+              CASE ('BFGS')
+                 gopt_param%method_id=default_bfgs_method_id
+              CASE ('LBFGS')
+                 gopt_param%method_id=default_lbfgs_method_id
+              CASE DEFAULT
+                 CALL stop_parser(routine=routineP,message="INVALID OPTIMIZER TYPE")
+              END SELECT 
            CASE ('MAX_ITER')
               CALL read_object(gopt_param%max_iter)
            CASE ('MAX_H_RANK')

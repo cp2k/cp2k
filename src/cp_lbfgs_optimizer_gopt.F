@@ -48,7 +48,8 @@ MODULE cp_lbfgs_optimizer_gopt
                                              cp_logger_type,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_para_env,                     ONLY: cp_para_env_release
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gopt_f_types,                    ONLY: gopt_f_eval_at,&
                                              gopt_f_release,&
@@ -279,6 +280,7 @@ CONTAINS
        IF (PRESENT(m)) optimizer%m=m
        optimizer%master= 0
        optimizer%para_env => para_env
+       CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct
        CALL gopt_f_retain(obj_funct, error=error)
        optimizer%max_f_per_iter=20
@@ -615,8 +617,9 @@ END SUBROUTINE cp_opt_gopt_release
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure, is_master, justEntred
+    REAL(kind=dp)                            :: l_f,l_last_f,l_projected_gradient
 
-    CALL timeset(routineN//','//moduleN,'I',"",handle)
+    CALL timeset(routineN,'I',"",handle)
 
     failure=.FALSE.
     justEntred=.TRUE.
@@ -625,7 +628,6 @@ END SUBROUTINE cp_opt_gopt_release
 
     CPPrecondition(ASSOCIATED(optimizer),cp_failure_level,routineP,error,failure)
     CPPrecondition(optimizer%ref_count>0,cp_failure_level,routineP,error,failure)
-
     IF (optimizer%status>=4) THEN
        CALL cp_assert(.FALSE.,level=cp_warning_level,&
             error_nr=cp_assertion_failed,fromWhere=routineP,&
@@ -765,8 +767,11 @@ END SUBROUTINE cp_opt_gopt_release
             optimizer%para_env%group)
        CALL cp_opt_gopt_bcast_res(optimizer,&
             n_iter=optimizer%n_iter,&
-            f=optimizer%f, last_f=optimizer%last_f,&
-            projected_gradient=optimizer%projected_gradient)
+            f=l_f, last_f=l_last_f,&
+            projected_gradient=l_projected_gradient)
+       optimizer%f=l_f
+       optimizer%last_f=l_last_f
+       optimizer%projected_gradient=l_projected_gradient
     END IF
     IF (PRESENT(f)) f=optimizer%f
     IF (PRESENT(last_f)) last_f=optimizer%last_f

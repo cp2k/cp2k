@@ -58,7 +58,9 @@ MODULE geo_opt
                                              gopt_f_type,&
                                              gopt_param_read,&
                                              gopt_param_release,&
-                                             gopt_param_type
+                                             gopt_param_type, &
+                                             default_lbfgs_method_id, &
+                                             default_bfgs_method_id
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_bcast
   USE particle_list_types,             ONLY: particle_list_type
@@ -97,11 +99,14 @@ MODULE geo_opt
 
      CALL gopt_param_read(gopt_param, globenv, error=error)
      
-     IF (gopt_param%method == "BFGS") THEN
+     SELECT CASE (gopt_param%method_id)
+     CASE (default_bfgs_method_id)
        CALL geoopt_bfgs(force_env,globenv,gopt_param)
-     ELSE
+     CASE (default_lbfgs_method_id)
        CALL gopt_do_opt(force_env,gopt_param,globenv,error=error)
-     END IF  
+     CASE DEFAULT
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+     END SELECT
 
      CALL gopt_param_release(gopt_param, error=error)
 
