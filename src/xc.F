@@ -316,7 +316,7 @@ CONTAINS
 !FM       END DO
 !FM
 !FM       PRINT *, "about to calculate xc (old)"
-       CALL xc_calculate_pw_old(rho_r=my_rho_r, rho_g=my_rho_g,&
+       CALL xc_calculate_pw_new(rho_r=my_rho_r, rho_g=my_rho_g,&
             vxc=my_vxc, exc=exc, dft_control=dft_control,&
             cell=cell, pw_pool=pw_pool, error=error)
 !FM       PRINT *, "did calculate xc (old)"

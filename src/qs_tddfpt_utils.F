@@ -333,7 +333,7 @@ CONTAINS
           sorter_start%value=evd
           NULLIFY(sorter_start%next)
          
-          DO i=n_orbits, 1, -1
+          DO i=n_orbits, MAX(n_orbits-n_ev+1,1), -1
              DO j=1, MIN(n_ev, n_lumos)
 
                 IF (i==n_orbits .AND. j==1) CYCLE ! already in list
