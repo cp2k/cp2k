@@ -601,8 +601,7 @@ SUBROUTINE val_write(val,unit_nr,error)
               ELSE
                  l=l+LEN_TRIM(val%c_val(i))+3
               END IF
-              WRITE(unit=unit_nr,fmt="(' ',a,a,a)",advance="NO")&
-                   '"',TRIM(val%c_val(i)),'"'
+              WRITE(unit=unit_nr,fmt='(a)',advance="NO") TRIM(val%c_val(i))
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -618,8 +617,7 @@ SUBROUTINE val_write(val,unit_nr,error)
               ELSE
                  l=l+LEN_TRIM(c_string)+3
               END IF
-              WRITE(unit=unit_nr,fmt="(' ',a,a,a)",advance="NO")&
-                   '"',TRIM(c_string),'"'
+              WRITE(unit=unit_nr,fmt="(' ',a)",advance="NO") TRIM(c_string)
            END DO
         ELSE
            CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)

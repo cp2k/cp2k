@@ -807,17 +807,14 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
       END IF
  
       IF (keyword%type_of_var==enum_t) THEN
-            WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords:'
+            WRITE(unit_nr,'(a)',advance='NO') '<TR><TD WIDTH="10%"><TD>  valid keywords: '
             l=17
             DO i=1,SIZE(keyword%enum%c_vals)
                c_string=keyword%enum%c_vals(i)
-               IF (l+LEN_TRIM(c_string)>72.and.l>14) THEN
-                  WRITE (unit_nr,"(/,'    ')",advance='NO')
-                  l=4
-               END IF
-               WRITE (unit_nr,"(' ',a,a,a,':',i6)",advance='NO') '"',&
-                       TRIM(c_string),'"',keyword%enum%i_vals(i)
-               l=LEN_TRIM(c_string)+10
+               WRITE (unit_nr,'(a)',advance='NO') TRIM(c_string)
+               IF (i .NE. SIZE(keyword%enum%c_vals)) THEN 
+                  WRITE (unit_nr,'(a)',advance='NO') ', '
+               ENDIF
             END DO
             WRITE (unit_nr,"()")
             IF (.NOT.keyword%enum%strict) THEN
@@ -825,9 +822,12 @@ SUBROUTINE keyword_describe_html(keyword, unit_nr, error)
             END IF
       END IF
       IF (SIZE(keyword%names)>1) THEN
-          WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD>variants    : '
+          WRITE(unit_nr,"(a)",advance="NO") '<TR><TD WIDTH="10%"><TD>variants: '
           DO i=2,SIZE(keyword%names)
-             WRITE(unit_nr,"(a,' ')",advance="NO") keyword%names(i)
+             WRITE(unit_nr,"(a)",advance="NO") TRIM(keyword%names(i))
+             IF (i .NE. SIZE(keyword%names)) THEN 
+                 WRITE (unit_nr,'(a)',advance='NO') ', '
+             ENDIF
           END DO
       ENDIF
     ENDIF
