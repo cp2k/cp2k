@@ -59,6 +59,7 @@ MODULE pw_env_methods
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info
+  USE orbital_pointers,                 ONLY: init_orbital_pointers
   USE pw_env_types,                    ONLY: pw_env_type
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
@@ -481,6 +482,8 @@ SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
   CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
   ! derivatives need l+1
   maxlgto = maxlgto + 1
+  ! be sure coset is set as it should for exp_radius_very_extended
+  CALL init_orbital_pointers(maxlgto)
 
   minexpval = 1.E10_dp
   mincoreval = 1.E10_dp
