@@ -619,7 +619,7 @@ CONTAINS
              DO i=block_iterator%block_row,nblock_row
                 block_iterator%block_node => &
                      first_block_node(block_iterator%matrix,&
-                     block_iterator%block_row)
+                     i)
                 IF (ASSOCIATED(block_iterator%block_node)) THEN
                    block_iterator%block_row=i
                    EXIT
