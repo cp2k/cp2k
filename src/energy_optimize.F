@@ -149,7 +149,7 @@
 
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist
+  INTEGER, SAVE :: ihist, jhist
   REAL(dbl) :: eold,cons,fconv,tol, deltae, tol1, tol2, ivol
   REAL (dbl), SAVE :: step
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: agrad, bgrad              
@@ -228,6 +228,7 @@
          IF ( isos /= 0 )  CALL stop_memory ( 'minimizer', 'ci', ncoef )
       END IF
       ihist=0
+      jhist=0
       DO i = 1,ncoef 
         hess_r(i)=1.0_dbl                                               
         hess_i(i)=1.0_dbl                                               
@@ -242,7 +243,7 @@
     CALL diis( cr, fr, energy_min % sd_delta, &
               fconv, hess_r, er_hist, cr_hist, nhist, ihist)
     CALL diis( ci, fi, energy_min % sd_delta, &
-              fconv, hess_i, ei_hist, ci_hist, nhist, ihist)
+              fconv, hess_i, ei_hist, ci_hist, nhist, jhist)
     DO I = 1, ncoef
       struc % coef_pos (1) %pw %cc (i) =  CMPLX ( (cr ( i )), (ci (i)), dbl )
       struc % coef_force (1) %pw %cc (i) = CMPLX ( (fr ( i )), (fi (i)), dbl )
