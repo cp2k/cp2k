@@ -905,7 +905,7 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
 
            IF (ASSOCIATED(sm_struct%last_row)) THEN
               WRITE(unit=unit_nr,&
-                   fmt="(' last_row=(',i,' elements),')")&
+                   fmt="(' last_row=(',i6,' elements),')")&
                    SIZE(sm_struct%last_row)
            ELSE
               WRITE(unit=unit_nr,fmt="(' last_row=*null*,')")
@@ -913,8 +913,9 @@ SUBROUTINE sm_struct_write(sm_struct, unit_nr, local, short_description, error)
 
            IF (ASSOCIATED(sm_struct%para_env)) THEN
               WRITE(unit=unit_nr,&
-                   fmt="(' para_env=*associated*,')")&
-                   SIZE(sm_struct%last_row)
+                   fmt="(' para_env=*associated*,')")
+!!              &
+!!                   SIZE(sm_struct%last_row)
            ELSE
               WRITE(unit=unit_nr,fmt="(' para_env=*null*,')")
            END IF
