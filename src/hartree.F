@@ -69,6 +69,7 @@ SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress 
 !------------------------------------------------------------------------------
   
   CALL timeset ( 'HARTREE', 'I', ' ', handle )
+  NULLIFY (vh)
 
   IF ( PRESENT ( vhartree ) ) THEN
     vh => vhartree
