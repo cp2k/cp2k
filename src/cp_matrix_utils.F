@@ -29,7 +29,8 @@
 MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_i_guarantee_size,&
                                              cp_2d_logical_guarantee_size,&
-                                             cp_2d_r_output
+                                             cp_2d_r_output,&
+                                             cp_2d_r_write
   USE cp_b_matrix_structure,           ONLY: cp_b_distribution_type,&
                                              cp_b_matrix_struct_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -37,6 +38,7 @@ MODULE cp_matrix_utils
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
                                              cp_error_init,&
                                              cp_error_message,&
                                              cp_error_propagate_error,&
@@ -57,6 +59,7 @@ MODULE cp_matrix_utils
                                              sm_struct_retain
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
+  USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix
   USE message_passing,                 ONLY: mp_sum
   USE sparse_matrix_types,             ONLY: add_block_node,&
@@ -609,7 +612,7 @@ CONTAINS
        IF (block_iterator%block_row > 0) THEN
           IF (ASSOCIATED(block_iterator%block_node)) THEN
              block_iterator%block_node => next_block_node(block_iterator%block_node)
-          else
+          ELSE
              block_iterator%block_node => first_block_node(block_iterator%matrix,&
                   block_iterator%block_row)
           END IF
@@ -1408,9 +1411,11 @@ END SUBROUTINE cp_sm_output
 !!     cp_sm_write
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_sm_write(matrix, unit_nr, error)
+!!     Subroutine cp_sm_write(matrix, unit_nr, long_description, local,&
+!!         error)
 !!       Type(real_matrix_type), Pointer:: matrix
 !!       Integer, Intent (IN):: unit_nr
+!!       Logical, Intent (IN), Optional:: long_description, local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_write
 !!
@@ -1431,21 +1436,71 @@ END SUBROUTINE cp_sm_output
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_sm_write(matrix,unit_nr,error)
+SUBROUTINE cp_sm_write(matrix,unit_nr,long_description,local,error)
   TYPE(real_matrix_type), POINTER :: matrix
   INTEGER, INTENT(in) :: unit_nr
+  LOGICAL, INTENT(in), OPTIONAL :: long_description, local
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  LOGICAL :: failure
+  LOGICAL :: failure, my_long_description, my_local
   CHARACTER(len=*), PARAMETER :: routineN='cp_sm_write',&
         routineP=moduleN//':'//routineN
+  INTEGER :: iblock_row, iblock_col
+  TYPE(real_block_node_type), POINTER :: block_node
+  REAL(wp), DIMENSION(:,:), POINTER :: matrix_block
+  CHARACTER(LEN=80) :: matrix_name
+  CHARACTER(len=40) :: matrix_symmetry
+  TYPE(cp_logger_type), POINTER :: logger
 
   failure=.FALSE.
+  logger => cp_error_get_logger(error)
+  my_local=.FALSE.
+  my_long_description=.FALSE.
+  IF (PRESENT(local)) my_local=local
+  IF (PRESENT(long_description)) my_long_description=long_description
+  IF (.not.my_local) my_local=(logger%para_env%mepos==logger%para_env%source)
   
-  IF (.NOT. failure) THEN
-     CALL cp_unimplemented_error(routineP, &
-          message="write to implement with the new structure",&
-          error=error)
+  IF (ASSOCIATED(matrix)) THEN
+     IF (my_local) THEN
+        CALL get_matrix_info(matrix, matrix_name=matrix_name, &
+             matrix_symmetry=matrix_symmetry)
+        WRITE(unit=unit_nr,fmt="(' <real_matrix_type>{ name=',a)")&
+             TRIM(matrix_name)
+        WRITE(unit=unit_nr,fmt="(' symmetry=',a)")&
+             TRIM(matrix_symmetry)
+        DO iblock_row=1,matrix%nblock_row
+           block_node => first_block_node(matrix,iblock_row)
+           DO WHILE (ASSOCIATED(block_node))
+
+              CALL get_block_node(block_node=block_node,&
+                BLOCK=matrix_block,block_col=iblock_col)
+              IF (ASSOCIATED(matrix_block)) THEN
+                 IF (my_long_description) THEN
+                    WRITE (unit=unit_nr,fmt="(' block(',i6,',',i6,')=')")&
+                         iblock_row,iblock_col
+                    CALL cp_2d_r_write(matrix_block,unit_nr=unit_nr,error=error)
+                 ELSE
+                    WRITE (unit=unit_nr,&
+                         fmt="(' block(',i6,',',i6,')=array(',i6,',',i6,')')")&
+                         iblock_row,iblock_col,&
+                         SIZE(matrix_block,1),SIZE(matrix_block,2)
+                 END IF
+              ELSE
+                 WRITE (unit=unit_nr,fmt="(' block(',i6,',',i6,')=*null*')")&
+                      iblock_row,iblock_col
+              END IF
+              
+              block_node => next_block_node(block_node)
+           END DO
+        END DO
+        WRITE(unit=unit_nr,fmt="(' }')")
+        CALL m_flush(unit_nr)
+     END IF
+  ELSE
+     IF (my_local) THEN
+        WRITE(unit=unit_nr,fmt="(' <real_matrix_type *null*>')")
+        CALL m_flush(unit_nr)
+     END IF
   END IF
 END SUBROUTINE cp_sm_write
 !***************************************************************************
