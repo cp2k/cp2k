@@ -1192,7 +1192,7 @@ SUBROUTINE get_nhc_energies ( nhc, nhc_pot, nhc_kin )
       END DO
    END DO
 #if defined(__parallel)
-   IF (nhc_part%dis_type=='DIS_REP') THEN
+   IF (nhc%dis_type=='DIS_REP') THEN
       CALL mp_sum(nhc_kin,int_group)
       CALL mp_sum(nhc_pot,int_group)
    END IF
