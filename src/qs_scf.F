@@ -60,7 +60,8 @@ MODULE qs_scf
                                       coeff_copy,&
                                       coeff_transform_space,&
                                       coeff_type,&
-                                      coeff_zero
+                                      coeff_zero,&
+                                      coeff_sumup
   USE cube_utils,               ONLY: cube_info_type,&
                                       destroy_cube_info,&
                                       init_cube_info
@@ -197,6 +198,7 @@ MODULE qs_scf
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
   TYPE(pw_grid_type), DIMENSION(:), POINTER     :: pw_grid
 
+  TYPE(coeff_type)          :: rho_core
   TYPE(coeff_type)          :: drho_rspace,v_rspace_old,vxcg_rspace,&
                                work_gspace,work_rspace
   TYPE(gridlevel_info_type) :: gridlevel_info
@@ -346,6 +348,9 @@ CONTAINS
     CALL init_scf_run(mo_set,context,qs_env,globenv)
 
     call pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
+
+    CALL calculate_rho_core(rho_core,cube_info(1),l_info,&
+                            total_rho_core_rspace,qs_env,globenv)
     
     etotal = 0.0_wp
     iscf = 0
@@ -594,8 +599,8 @@ CONTAINS
     CALL pw_fft_wrap(rho_rspace(1)%pw,rho_gspace(1)%pw,&
                      debug=(globenv%print%level == DEBUG))
 
-    CALL calculate_rho_core(rho_gspace(1),cube_info(1),l_info,&
-                            total_rho_core_rspace,qs_env,globenv)
+! add the core density to the electronic density
+    CALL coeff_sumup(rho_core,rho_gspace(1))
 
     total_rho_gspace = calculate_total_rho(rho_gspace(1))
 
@@ -741,6 +746,8 @@ CONTAINS
     work_gspace%pw%in_space = RECIPROCALSPACE
     CALL coeff_allocate(v_rspace_old,pw_grid(1),REALDATA3D)
     v_rspace_old%pw%in_space = REALSPACE
+    CALL coeff_allocate(rho_core,pw_grid(1),COMPLEXDATA1D)
+    rho_core%pw%in_space = RECIPROCALSPACE
 
     IF (gradient_functional) THEN
       DO i=1,3

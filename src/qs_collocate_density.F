@@ -112,9 +112,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_core(rho,cube_info,l_info,total_rho,qs_env,globenv)
+  SUBROUTINE calculate_rho_core(rho_core,cube_info,l_info,total_rho,qs_env,globenv)
 
-    TYPE(coeff_type), INTENT(INOUT)           :: rho
+    TYPE(coeff_type), INTENT(OUT)             :: rho_core
     TYPE(cube_info_type), INTENT(IN)          :: cube_info
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(l_info_type), INTENT(IN)             :: l_info
@@ -138,7 +138,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER                :: atom_list
     TYPE(realspace_grid_type)                     :: rs_rho
     INTEGER, DIMENSION(3)                         :: nsmax
-    TYPE(coeff_type)                              :: rhoc_r, rhoc_g
+    TYPE(coeff_type)                              :: rhoc_r
 
 !   ---------------------------------------------------------------------------
 
@@ -154,7 +154,7 @@ CONTAINS
     ! gives the minimum thickness of a slice (or related quantity)
     ! is not yet used in rs_grid_setup
     nsmax(:)=100
-    call rs_grid_setup(rs_rho,rho%pw%pw_grid,nsmax)
+    call rs_grid_setup(rs_rho,rho_core%pw%pw_grid,nsmax)
     call rs_grid_allocate(rs_rho)
     call rs_grid_zero(rs_rho)
 
@@ -191,7 +191,7 @@ CONTAINS
 
     END DO
 
-    CALL coeff_allocate(rhoc_r,rho%pw%pw_grid,REALDATA3D)
+    CALL coeff_allocate(rhoc_r,rho_core%pw%pw_grid,REALDATA3D)
     rhoc_r%pw%in_space = REALSPACE
 
     call rs_pw_transfer(rs_rho,rhoc_r%pw,"FORWARD")
@@ -199,14 +199,9 @@ CONTAINS
 
     total_rho = calculate_total_rho(rhoc_r)
 
-    CALL coeff_allocate(rhoc_g,rho%pw%pw_grid,COMPLEXDATA1D)
-    rhoc_g%pw%in_space = RECIPROCALSPACE
-
-    CALL coeff_transform_space(rhoc_r,rhoc_g)
-    CALL coeff_sumup(rhoc_g,rho)
+    CALL coeff_transform_space(rhoc_r,rho_core)
 
     CALL coeff_deallocate(rhoc_r)
-    CALL coeff_deallocate(rhoc_g)
 
     CALL timestop(0.0_wp,handle)
 
