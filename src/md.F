@@ -90,6 +90,7 @@ MODULE md
 
   TYPE simulation_parameters_type
      INTEGER :: nsteps
+     REAL ( dbl ) :: walltime ! target maximum wall time of a simulation (alternative to nsteps)
      REAL ( dbl ) :: dt
      REAL ( dbl ) :: temp_ext
      REAL ( dbl ) :: temp_tol
@@ -253,6 +254,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % cmass_storage = 'GLOBAL'
   simpar % nhcopt_coef = 'GLOBAL'
   simpar % nsteps = 0
+  simpar % walltime = -1.0_dbl ! default: don't care
   simpar % dt = 0.0_dbl
   simpar % temp_ext = 0.0_dbl
   simpar % temp_tol = 0.0_dbl
@@ -345,6 +347,9 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'STEPS' )
            CALL get_next ( simpar % nsteps )
+
+        CASE ( 'WALLTI' ) ! WALLTIME
+           CALL get_next ( simpar % walltime )
 
         CASE ( 'VERLET' )
            CALL get_next ( simpar % verlet_skin )
@@ -680,6 +685,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           ADJUSTR ( simpar % read_type )
      WRITE ( iw, '( A,T71,I10 )' ) ' MD| Number of Time Steps ', &
           simpar % nsteps
+     WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Target Walltime [sec]', &
+          simpar % walltime
      WRITE ( iw, '( A,A2,A,T71,F10.2 )' ) ' MD| Time Step [',simpar % units % time,'] ', simpar % dt
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature [K] ', &
           simpar % temp_ext

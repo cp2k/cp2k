@@ -123,7 +123,8 @@ CONTAINS
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
-                                                time_iter_stop
+                                                time_iter_stop,  &
+                                                md_run_start_time
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
@@ -147,6 +148,10 @@ CONTAINS
     CALL write_checkpoint_information("entering "//routine_name,globenv)
 
     CALL timeset(routine_name,"I","",handle)
+
+    ! will be used to stop if a maximum walltime is given
+    md_run_start_time=m_walltime()
+
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,virial,itimes,used_time,subsys,nhc_part,nhc_baro,nhc_coef)
@@ -297,7 +302,16 @@ CONTAINS
       IF (MODULO(itimes,mdio%idump) == 0) THEN
         CALL dump_variables(md_env,mdio%dump_file_name,error)
       END IF
+
+      ! test for EXIT_MD to exit
       CALL external_control(force_env,should_stop,error=error)
+      IF (should_stop) EXIT
+
+      ! test if we have used more walltime than allowed      
+      IF (simpar%walltime > 0.0_dp .AND. simpar%walltime < m_walltime()-md_run_start_time) THEN
+          should_stop=.TRUE.
+      ENDIF
+      CALL mp_bcast(should_stop,globenv%para_env%source,globenv%para_env%group) ! sync values of should_stop
       IF (should_stop) EXIT
     END DO 
 
