@@ -74,6 +74,7 @@ MODULE ai_verfc
 ! rpgf{a,b} : Radius of the primitive Gaussian-type function a or b.
 ! zet{a,b}  : Exponents of the Gaussian-type functions a or b.
 ! zetp      : Reciprocal of the sum of the exponents of orbital a and b.
+! zetw        : Reciprocal of the sum of the exponents of orbital a, b and c.
 
 ! *****************************************************************************
 
@@ -82,6 +83,7 @@ MODULE ai_verfc
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
+  USE termination,                     ONLY: stop_memory
 
   IMPLICIT NONE
 
@@ -98,10 +100,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE verfc(la_max,zeta,rpgfa,la_min,&
-                   lb_max,zetb,rpgfb,lb_min,&
+  SUBROUTINE verfc(la_max,npgfa,zeta,rpgfa,la_min,&
+                   lb_max,npgfb,zetb,rpgfb,lb_min,&
                    zetc,rpgfc,zc,cerf,&
-                   rab,rab2,rac,rac2,rbc,rbc2,vabc)
+                   rab,rab2,rac,rac2,rbc,rbc2,vabc,maxder,vabc_plus)
 
 !   Purpose: Calculation of the primitive three-center nuclear potential
 !            integrals <a|Z*erfc(r)/r|b> over Cartesian Gaussian-type
@@ -111,11 +113,11 @@ CONTAINS
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN)                      :: la_max
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
     INTEGER, INTENT(IN)                      :: la_min, lb_max
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
-    INTEGER, INTENT(IN)                      :: lb_min
+    INTEGER, INTENT(IN)                      :: lb_min, npgfb
     REAL(KIND=dp), INTENT(IN)                :: zetc, rpgfc, zc, cerf
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: rab2
@@ -125,22 +127,40 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rbc2
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: vabc
+    INTEGER, INTENT(IN)                      :: maxder
+    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
+
+    CHARACTER(LEN=*), PARAMETER   :: routine_name = "verfc"
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, i, &
                                                 ipgf, j, jpgf, la, la_start, &
                                                 lb, n, na, nb, nmax
+    INTEGER                                  :: istat,maxder_local, nap, nbp
     REAL(KIND=dp)                            :: dab, dac, dbc, f0, f1, f2, &
                                                 f3, f4, ferf, fnuc, fx, fy, &
                                                 fz, rcp2, t, zetp, zetq, zetw
-    REAL(KIND=dp), &
-      DIMENSION(0:la_max+lb_max)             :: f
+    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: f
     REAL(KIND=dp), DIMENSION(3)              :: rap, rbp, rcp, rpw
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lb_max), la_max+lb_max+1)       :: verf, vnuc
+    REAL(KIND=dp), DIMENSION(:,:,:),&
+                               ALLOCATABLE   :: verf, vnuc
 
 !   ---------------------------------------------------------------------------
 
+
     nmax = la_max + lb_max + 1
+    ALLOCATE(verf(ncoset(la_max),ncoset(lb_max), la_max+lb_max+1),STAT=istat)
+    ALLOCATE(vnuc(ncoset(la_max),ncoset(lb_max), la_max+lb_max+1),STAT=istat)
+    ALLOCATE(f(0:la_max+lb_max),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"allocate verf vnuc f",&
+          2*nmax*ncoset(la_max)*ncoset(lb_max)+la_max+lb_max+1)
+    END IF
+
+    verf = 0.0_dp
+    vnuc = 0.0_dp
+
+    maxder_local = 0
+    IF(maxder > 0) maxder_local = maxder
 
 !   *** Calculate the distances of the centers a, b and c ***
 
@@ -151,25 +171,29 @@ CONTAINS
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
 
     na = 0
+    nap = 0
 
-    DO ipgf=1,SIZE(zeta)
+    DO ipgf=1,npgfa
 
 !     *** Screening ***
 
       IF (rpgfa(ipgf) + rpgfc < dac) THEN
-        na = na + ncoset(la_max)
+        na = na + ncoset(la_max-maxder_local)
+        nap = nap + ncoset(la_max)
         CYCLE
       END IF
 
       nb = 0
+      nbp = 0
 
-      DO jpgf=1,SIZE(zetb)
+      DO jpgf=1,npgfb
 
 !       *** Screening ***
 
         IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
             (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-          nb = nb + ncoset(lb_max)
+          nb = nb + ncoset(lb_max-maxder_local)
+          nbp = nbp + ncoset(lb_max)
           CYCLE
         END IF
 
@@ -820,20 +844,36 @@ CONTAINS
 !       *** Add the contribution of the current pair ***
 !       *** of primitive Gaussian-type functions     ***
 
-        DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
-          DO i=ncoset(la_min-1)+1,ncoset(la_max)
+        DO j=ncoset(lb_min-1)+1,ncoset(lb_max-maxder_local)
+          DO i=ncoset(la_min-1)+1,ncoset(la_max-maxder_local)
             vabc(na+i,nb+j) = vabc(na+i,nb+j) -&
                               zc*vnuc(i,j,1) + cerf*verf(i,j,1)
           END DO
         END DO
 
-        nb = nb + ncoset(lb_max)
+        IF(maxder> 0) THEN
+          DO j=ncoset(lb_min-1)+1,ncoset(lb_max)
+            DO i=ncoset(la_min-1)+1,ncoset(la_max)
+              vabc_plus(nap+i,nbp+j) = vabc_plus(nap+i,nbp+j) -&
+                              zc*vnuc(i,j,1) + cerf*verf(i,j,1)
+            END DO
+          END DO
+        END IF
+        nb = nb + ncoset(lb_max - maxder_local)
+        nbp = nbp + ncoset(lb_max)
 
       END DO
 
-      na = na + ncoset(la_max)
+      na = na + ncoset(la_max - maxder_local)
+      nap = nap + ncoset(la_max)
 
     END DO
+
+    DEALLOCATE(verf,vnuc,f,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"deallocate verf vnuc f")
+    END IF
+
 
   END SUBROUTINE verfc
 

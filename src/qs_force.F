@@ -202,6 +202,7 @@ CONTAINS
       CALL mp_sum(force(ikind)%kinetic,globenv%group)
       CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
       CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
+      CALL mp_sum(force(ikind)%all_potential,globenv%group)
       CALL mp_sum(force(ikind)%core_overlap,globenv%group)
       CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
@@ -212,6 +213,7 @@ CONTAINS
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&
                                 force(ikind)%gth_ppnl(:,:) +&
+                                force(ikind)%all_potential(:,:) +&
                                 force(ikind)%kinetic(:,:) +&
                                 force(ikind)%overlap(:,:) +&
                                 force(ikind)%rho_core(:,:) +&
@@ -337,10 +339,14 @@ CONTAINS
           iatom,ikind,"       kinetic",qs_force(ikind)%kinetic(1:3,i),&
           iatom,ikind,"       gth_ppl",qs_force(ikind)%gth_ppl(1:3,i),&
           iatom,ikind,"      gth_ppnl",qs_force(ikind)%gth_ppnl(1:3,i),&
+          iatom,ikind," all_potential",qs_force(ikind)%all_potential(1:3,i),&
           iatom,ikind,"  core_overlap",qs_force(ikind)%core_overlap(1:3,i),&
           iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
           iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
           iatom,ikind,"      vhxc_atom",qs_force(ikind)%vhxc_atom(1:3,i),&
+          iatom,ikind,"    g0s_Vh_elec",qs_force(ikind)%g0s_Vh_elec(1:3,i),& 
+          iatom,ikind,"     hartree_2c",qs_force(ikind)%hartree_2c(1:3,i),& 
+          iatom,ikind,"     hartree_3c",qs_force(ikind)%hartree_3c(1:3,i),&
           iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
           grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
       END DO

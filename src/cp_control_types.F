@@ -57,7 +57,7 @@ MODULE cp_control_types
 ! *** Control parameters for GAPW method within QUICKSTEP ***
 
   TYPE gapw_control_type
-    REAL(KIND = dp)                 :: eps_fit,eps_iso
+    REAL(KIND = dp)                 :: eps_fit,eps_iso,eps_Vrho0
     INTEGER                         :: ladd_rho0,lmax_rho0,&
                                        lmax_sphere, quadrature
     CHARACTER(LEN=30)               :: quadrature_name

@@ -224,7 +224,7 @@ contains
     print_key%projectors = key_value(level,(/f,t,t/))
     print_key%potential_energy_matrix = key_value(level,(/f,f,f/))
     print_key%pw_grid_information = key_value(level,(/f,t,t/))
-    print_key%rho0_information = key_value(level,(/f,f,t/))
+    print_key%rho0_information = key_value(level,(/f,t,t/))
     print_key%sab_orb_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%sac_ppl_neighbor_lists = key_value(level,(/f,f,t/))
     print_key%sac_ppnl_neighbor_lists = key_value(level,(/f,f,t/))

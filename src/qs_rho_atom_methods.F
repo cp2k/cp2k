@@ -154,7 +154,7 @@ MODULE qs_rho_atom_methods
 
     ALLOCATE(g1(nr),g2(nr),gg(nr,0:2*maxl),dgg(nr,0:2*maxl),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "g1,g2,gg,dgg")
+                                     "g1,g2,gg,dgg",2*nr+2*nr*(2*maxl+1))
 
 !******************************************************************************
 
@@ -298,12 +298,12 @@ MODULE qs_rho_atom_methods
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
     INTEGER :: i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
-      jatom, jkind, katom, kkind, kneighbor, knode, max_gau, max_nsgf, &
+      jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: a_list
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: new_atom_b, paw_atom
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h_a, C_coeff_h_b, &
                                                 C_coeff_s_a, C_coeff_s_b, PC
@@ -425,7 +425,7 @@ MODULE qs_rho_atom_methods
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
                                  atom=iatom,&
                                  nnode=nnode)
-
+          last_jatom = 0
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
@@ -433,6 +433,15 @@ MODULE qs_rho_atom_methods
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
                                    r=rab)
+
+            IF (jatom /= last_jatom) THEN
+              new_atom_b = .TRUE.
+              last_jatom = jatom
+            ELSE
+              new_atom_b = .FALSE.
+              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+              CYCLE
+            END IF
 
             IF (iatom <= jatom) THEN
                irow = iatom

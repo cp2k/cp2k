@@ -89,7 +89,8 @@ MODULE qs_core_hamiltonian
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE external_potential_types,        ONLY: get_potential,&
+  USE external_potential_types,        ONLY: all_potential_type,&
+                                             get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -103,6 +104,8 @@ MODULE qs_core_hamiltonian
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE qs_all_potential,                 ONLY: all_integrals,&
+                                             vall_type 
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -176,6 +179,7 @@ MODULE qs_core_hamiltonian
       INTEGER, DIMENSION(:), POINTER             :: nprj_ppnl
     END TYPE vppnl_type
 
+
 ! *** Public subroutines ***
 
   PUBLIC :: build_core_hamiltonian_matrix
@@ -213,6 +217,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER     :: atomic_kind
     TYPE(distribution_2d_type), POINTER :: distribution_2d
     TYPE(gth_potential_type), POINTER   :: gth_potential
+    TYPE(all_potential_type), POINTER   :: all_potential
     TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
     TYPE(qlist_type), POINTER            :: sac_ppnl_neighbor
     TYPE(neighbor_list_type), POINTER   :: sab_orb_neighbor_list,&
@@ -241,7 +246,8 @@ CONTAINS
                           maxppnl,maxsgf,n,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
                           nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number
-    LOGICAL            :: build_kinetic_energy_matrix,gth_potential_present,&
+    LOGICAL            :: all_potential_present,&
+                          build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
                           oce_present, rho0_present
@@ -256,8 +262,10 @@ CONTAINS
     TYPE(block_p_type), DIMENSION(:,:), POINTER  :: sintt,tintt
     TYPE(vppl_type), DIMENSION(:), POINTER       :: vppl
     TYPE(vppnl_type), DIMENSION(:), POINTER      :: vppnl
+    TYPE(vall_type), DIMENSION(:), POINTER       :: vall
     TYPE(vppl_type), DIMENSION(:,:), POINTER     :: vpplt
     TYPE(vppnl_type), DIMENSION(:,:), POINTER    :: vppnlt
+    TYPE(vall_type), DIMENSION(:,:), POINTER     :: vallt
     TYPE(qlist_type), DIMENSION(:,:,:), POINTER   :: neighbor_att
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER     :: hab,pab,sab,work
@@ -275,7 +283,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_ppl,&
                                                              sac_ppnl,sbc_ppnl,&
-                                                             sac_oce,sac_3c
+                                                             sac_oce,sac_3c,sbc_3c
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,matrix_p,matrix_s, &
@@ -322,6 +330,7 @@ CONTAINS
     NULLIFY (sbc_ppnl)
     NULLIFY (sac_oce)
     NULLIFY (sac_3c)
+    NULLIFY (sbc_3c)
     NULLIFY (scf_control)
     NULLIFY (sdabt)
     NULLIFY (matrix_t)
@@ -345,6 +354,7 @@ CONTAINS
                     sac_oce=sac_oce,&
                     VH_3c_list=VH_3c_list,&
                     sac_3c=sac_3c,&
+                    sbc_3c=sbc_3c,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d)
 
@@ -506,6 +516,7 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              gth_potential_present=gth_potential_present,&
+                             all_potential_present=all_potential_present, &
                              maxco=maxco,&
                              maxlgto=maxlgto,&
                              maxlppl=maxlppl,&
@@ -655,6 +666,40 @@ CONTAINS
 
     END IF
 
+    IF (all_potential_present) THEN
+
+      ALLOCATE(vallt(nkind,0:nthread-1),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vallt",nkind*int_size)
+
+      DO kkind=1,nkind
+
+        atomic_kind => atomic_kind_set(kkind)
+
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             all_potential=all_potential)
+
+        DO j=0,nthread-1
+          NULLIFY(vallt(kkind,j)%neighbor)
+          NULLIFY(vallt(kkind,j)%force_c)
+          NULLIFY(vallt(kkind,j)%index_c)
+          IF (ASSOCIATED(all_potential)) THEN
+            CALL get_potential(potential=all_potential,&
+              alpha_core_charge=vallt(kkind,j)%alpha_c,&
+              zeff=vallt(kkind,j)%zeta_c,&
+              ccore_charge=vallt(kkind,j)%core_charge,&
+              core_charge_radius=vallt(kkind,j)%core_radius)
+          ELSE
+            vallt(kkind,j)%alpha_c = 0.0_dp
+            vallt(kkind,j)%zeta_c = 0.0_dp
+            vallt(kkind,j)%core_charge = 0.0_dp
+            vallt(kkind,j)%core_radius = 0.0_dp
+          END IF 
+        END DO  ! j
+      END DO  ! kkind
+
+    END IF
+
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -718,14 +763,14 @@ CONTAINS
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
-!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work,oceh,oces) &
+!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,vall,ai_work,oceh,oces) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,matrix_w,globenv,matrix_p,matrix_h,matrix_t,iab) &
-!$OMP shared(oce,sac_oce,sac_3c,VH_3c_list,oce_present)&
+!$OMP shared(oce,sac_oce,sac_3c,sbc_3c,VH_3c_list,oce_present)&
 !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
-!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
+!$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list) &
 !$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,qs_env)
         ithread = 0
@@ -749,7 +794,9 @@ CONTAINS
           oceh => oceht(:,ithread)
           oces => ocest(:,ithread)
         END IF
-
+        IF (all_potential_present) THEN
+          vall => vallt(:,ithread)
+        END IF
         ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -1068,6 +1115,13 @@ CONTAINS
 
           END IF
 
+          IF(all_potential_present) THEN
+            DO kkind = 1,nkind
+              IF(ASSOCIATED(VH_3c_list(kkind,iatom)%neighbor)) &
+                 vall(kkind)%neighbor =>  VH_3c_list(kkind,iatom)%neighbor
+            END DO !  kkind
+          END IF
+
           last_jatom = 0
 
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
@@ -1078,15 +1132,15 @@ CONTAINS
                                    neighbor=jatom,&
                                    r=rab)
 
-            IF(oce_present) THEN
-!           *** Calculate the coefficients of the one center expansions ***
-              CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
-                              oceh,oces,nder,ai_work,ldai)
-            ENDIF
-
             IF (jatom /= last_jatom) THEN
               new_atom_b = .TRUE.
               last_jatom = jatom
+
+              IF(oce_present) THEN
+!             *** Calculate the coefficients of the one center expansions ***
+                CALL set_up_oce(qs_env,oce,ikind,iatom,jkind,jatom,rab,&
+                              oceh,oces,nder,ai_work,ldai)
+              ENDIF
             ELSE
               new_atom_b = .FALSE.
             END IF
@@ -1657,6 +1711,50 @@ CONTAINS
 
                 END IF ! ppnl
 
+                IF (all_potential_present .AND. new_atom_b) THEN
+
+                  IF(calculate_forces) THEN
+
+                    CALL all_integrals(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
+                                 rab,dab,jkind,jatom,nkind,sbc_3c,vall,&
+                                 hab,nder,pab,force_a,force_b)
+
+!$OMP critical (qs_core_force_all_potential)
+                    force(ikind)%all_potential(:,atom_a) = &
+                        force(ikind)%all_potential(:,atom_a) + f0*force_a(:)
+                    force(jkind)%all_potential(:,atom_b) = & 
+                        force(jkind)%all_potential(:,atom_b) + f0*force_b(:)
+!$OMP end critical (qs_core_force_all_potential)
+
+                    DO kkind = 1,nkind
+                      IF (.NOT. ASSOCIATED(vall(kkind)%force_c)) CYCLE
+                      nnode_c = SIZE(vall(kkind)%index_c,1)
+                      DO knode = 1,nnode_c
+                        katom = vall(kkind)%index_c(knode)
+                        atom_c = atom_of_kind(katom)
+!$OMP critical (qs_core_force_all_potential)
+                        force(kkind)%all_potential(:,atom_c) = & 
+                          force(kkind)%all_potential(:,atom_c) - &
+                          f0*(force_a(:) + force_b(:))
+!$OMP end critical (qs_core_force_all_potential)
+                      END DO  ! knode
+                    END DO  ! kkind
+
+                  ELSE
+
+                    CALL all_integrals(la_max(iset),la_min(iset),npgfa(iset),&
+                                 rpgfa(:,iset),zeta(:,iset),&
+                                 lb_max(jset),lb_min(jset),npgfb(jset),&
+                                 rpgfb(:,jset),zetb(:,jset),&
+                                 rab,dab,jkind,jatom,nkind,sbc_3c,vall,&
+                                 hab,nder)
+                  END IF
+
+                END IF  ! all_potential
+
 !               *** Contraction step (core Hamiltonian matrix) ***
 
                 CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
@@ -1766,6 +1864,16 @@ CONTAINS
             END DO
           END IF
 
+          IF (all_potential_present) THEN
+            DO kkind=1,nkind
+              IF (ASSOCIATED(vall(kkind)%neighbor)) THEN
+                NULLIFY (vall(kkind)%neighbor)
+                NULLIFY (vall(kkind)%force_c)
+                NULLIFY (vall(kkind)%index_c)
+              END IF
+            END DO 
+          END IF
+
         END DO ! iatom => atom A
 
         DEALLOCATE (ai_work,STAT=istat)
@@ -1809,6 +1917,19 @@ CONTAINS
       DEALLOCATE (vppnlt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                        "vppnlt")
+    END IF
+
+    IF (all_potential_present) THEN
+      DO kkind=1,nkind
+        DO j =0,nthread-1
+          NULLIFY (vallt(kkind,j)%neighbor)
+          NULLIFY (vallt(kkind,j)%force_c)
+          NULLIFY (vallt(kkind,j)%index_c)
+        END DO
+      END DO
+      DEALLOCATE (vallt,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "vallt")
     END IF
 
     DEALLOCATE (habt,STAT=istat)

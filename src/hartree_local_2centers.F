@@ -109,7 +109,7 @@ MODULE  hartree_local_2centers
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
     REAL(dp) :: ene_2c, force_a(3), ieqj, ra(3), rab(3), rab2, rb(3),&
-                r0_h_a, r0_h_b, r0_s_a, r0_s_b,  z0_h, z0_s
+                r0cut_a, r0cut_b,  z0_h, z0_s
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h_a,QN_s_a,&
                                                   QN_h_b,QN_s_b
@@ -177,8 +177,7 @@ MODULE  hartree_local_2centers
     DO ikind = 1,nkind
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,&
-                              l0_ikind=l0_a,&
-                              rpgf0_h=r0_h_a,rpgf0_s=r0_s_a)
+                              l0_ikind=l0_a,r_V0hmV0s=r0cut_a)
 
       DO jkind = 1,nkind
 
@@ -195,10 +194,7 @@ MODULE  hartree_local_2centers
         END IF
 
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=jkind,&
-                         l0_ikind=l0_b,rpgf0_h=r0_h_b,rpgf0_s=r0_s_b)
-!dbg
-!     WRITE(*,*) 'sab par ' , ikind, jkind, ab
-!     WRITE(*,*) 'nlist ', nlist
+                         l0_ikind=l0_b,r_V0hmV0s=r0cut_b)!,&
 
         DO ilist = 1,nlist
 
@@ -209,17 +205,10 @@ MODULE  hartree_local_2centers
           ra(:) = pbc(particle_set(iatom)%r,cell)
 
           sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
-!dbg
-!     WRITE(*,*) 'ilist ' , ilist, nnode
 
           NULLIFY(QN_h_a,QN_s_a)
           CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=iatom,&
                                Qlm_car_h=QN_h_a,Qlm_car_s=QN_s_a)
-!dbg
-
-!     WRITE(*,*) 'par a ', l0_a,r0_h_a,r0_s_a
-!     WRITE(*,*) 'QN_s_a', QN_s_a
-!     WRITE(*,*) 'QN_h_a', QN_h_a
 
           DO inode=1,nnode
 
@@ -240,18 +229,10 @@ MODULE  hartree_local_2centers
             CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=jatom,&
                                  Qlm_car_s=QN_s_b, Qlm_car_h=QN_h_b)
 
-!dbg maxder
-!     WRITE(*,*) 'atoms ',  iatom, jatom, ieqj
-!     WRITE(*,*) rab
-!     WRITE(*,*) 'par b ', l0_b,r0_h_b,r0_s_b
-!     WRITE(*,*) 'QN_s_b', QN_s_b
-!     WRITE(*,*) 'QN_h_b', QN_h_b
-!     stop 'list'
-
             IF(calculate_forces) THEN
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-                       l0_a,r0_h_a,r0_s_a,QN_h_a,QN_s_a,&
-                       l0_b,r0_h_b,r0_s_b,QN_h_b,QN_s_b,&
+                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        maxder,force_a)
 
@@ -266,17 +247,16 @@ MODULE  hartree_local_2centers
               END DO 
 
             ELSE
+
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-                       l0_a,r0_h_a,r0_s_a,QN_h_a,QN_s_a,&
-                       l0_b,r0_h_b,r0_s_b,QN_h_b,QN_s_b,&
+                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        maxder,force_a)
             END IF 
 
 !           *** sum up in the energy of hartree local from 2 centers terms
             energy%hartree_2c = energy%hartree_2c + 0.5_dp*ieqj*ene_2c
-!dbg contribution
-!     WRITE(*,*) 'ene ', 0.5_dp*ieqj*ene_2c
             sab_2c_neighbor_node => next(sab_2c_neighbor_node)
           END DO  ! inode
 
@@ -286,8 +266,6 @@ MODULE  hartree_local_2centers
       END DO  ! jkind
 
     END DO  ! ikind
-!dbg
-!    STOP 'energy '
 
     CALL mp_sum(energy%hartree_2c,para_env%group)
 
@@ -308,8 +286,6 @@ MODULE  hartree_local_2centers
        CALL  get_gto_basis_set(gto_basis_set=orb_basis,&
                                  nset =nset,maxso=maxso)
        nsotot = maxso * nset
-!dbg
-!    WRITE(*,*) 'ikind', ikind
 
        IF(.NOT. paw_atom) CYCLE
 
@@ -321,8 +297,7 @@ MODULE  hartree_local_2centers
 
        DO iat = 1,nat
          iatom = atom_list(iat)
-! dbg 
-! WRITE(*,*) 'iat ', iat, 'iatom', iatom
+
 !        *** IF PARALLEL sum up the contributions to aVh2c0b(iatom) coming from
 !        *** pair-interactions calculated on different processors
          CALL mp_sum(Isum_a_car(:,iatom),para_env%group)
@@ -347,8 +322,6 @@ MODULE  hartree_local_2centers
                    SQRT(fourpi*dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)/&
                    dfac(2*lshell+1))
              END DO  ! ico
-! dbg
-!    WRITE(*,*) 'Isum_sph ', iso , Isum_a_sph(iso)
            END DO  ! iso
          END DO  ! lshell
 
@@ -379,15 +352,15 @@ MODULE  hartree_local_2centers
 !******************************************************************************
  
   SUBROUTINE sumup_2c_integrals(z0_h,z0_s,ng0_h,ng0_s,&
-                       l0_a,r0_h_a,r0_s_a,QN_h_a,QN_s_a,&
-                       l0_b,r0_h_b,r0_s_b,QN_h_b,QN_s_b,&
+                       l0_a,r0_a,QN_h_a,QN_s_a,&
+                       l0_b,r0_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a,maxder,force_a) !IntxQN_da)
 
     INTEGER, INTENT(IN)                :: l0_a, l0_b
     INTEGER, INTENT(IN)                :: maxder
     REAL(dp), INTENT(IN)               :: z0_h,z0_s
-    REAL(dp), INTENT(IN)               :: r0_h_a,r0_s_a 
-    REAL(dp), INTENT(IN)               :: r0_h_b,r0_s_b 
+    REAL(dp), INTENT(IN)               :: r0_a
+    REAL(dp), INTENT(IN)               :: r0_b 
     REAL(dp), INTENT(IN)               :: ieqj,rab2
     REAL(dp)               :: ene_2c
     REAL(dp), DIMENSION(3), INTENT(IN) :: rab
@@ -425,8 +398,8 @@ MODULE  hartree_local_2centers
       ene_2c = 0.0_dp
       force_a(1:3) = 0.0_dp 
       zeta(1)  = z0_h
-      rad_a(1) = r0_h_a
-      rad_b(1) = r0_h_b      
+      rad_a(1) = r0_a
+      rad_b(1) = r0_b      
       zx2 = z0_h*2.0_dp
       CALL coulomb2(l0_a+1,1,zeta,rad_a,0,l0_b,1,zeta,rad_b,0,&
                     rab,rab2,vab,maxder=maxder,vac_plus=vab_plus)
@@ -473,8 +446,8 @@ MODULE  hartree_local_2centers
       END DO  ! idir
 
       zeta(1)  = z0_s
-      rad_a(1) = r0_s_a
-      rad_b(1) = r0_s_b      
+      rad_a(1) = r0_a
+      rad_b(1) = r0_b      
       zx2 = z0_s * 2.0_dp
       CALL coulomb2(l0_a+1,1,zeta,rad_a,0,l0_b,1,zeta,rad_b,0,&
                     rab,rab2,vab,maxder=maxder,vac_plus=vab_plus)
@@ -522,15 +495,20 @@ MODULE  hartree_local_2centers
       END DO  ! idir
 
     ELSE
+  WRITE(*,'(4f16.8)')r0_a ,r0_b, r0_a +r0_b,sqrt(rab2)
 
       ene_2c = 0.0_dp
 
       zeta(1)  = z0_h
-      rad_a(1) = r0_h_a
-      rad_b(1) = r0_h_b      
+      rad_a(1) = r0_a
+      rad_b(1) = r0_b      
       CALL coulomb2(l0_a,1,zeta,rad_a,0,l0_b,1,zeta,rad_b,0,&
                     rab,rab2,vab)
-
+!  DO icoa = 1,ncoset(l0_a)
+!   DO icob = 1,ncoset(l0_b)
+!   WRITE(*,*) icoa, icob,vab(icoa,icob)
+!   END DO
+!  END DO
       DO icoa = 1,nch_a
         l = indco(1,icoa)+indco(2,icoa)+indco(3,icoa)
 
@@ -549,8 +527,8 @@ MODULE  hartree_local_2centers
       ene_hard = ene_2c
 ! dbg
       zeta(1)  = z0_s
-      rad_a(1) = r0_s_a
-      rad_b(1) = r0_s_b      
+      rad_a(1) = r0_a
+      rad_b(1) = r0_b      
       CALL coulomb2(l0_a,1,zeta,rad_a,0,l0_b,1,zeta,rad_b,0,&
                     rab,rab2,vab)
 

@@ -32,7 +32,8 @@ MODULE qs_force_types
   PRIVATE
 
   TYPE qs_force_type
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: core_overlap,&
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: all_potential,&
+                                         core_overlap,&
                                          gth_ppl,&
                                          gth_ppnl,&
                                          kinetic,&
@@ -94,6 +95,10 @@ CONTAINS
 
     DO ikind=1,nkind
       n = natom_of_kind(ikind)
+      ALLOCATE (qs_force(ikind)%all_potential(3,n),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"qs_force(ikind)%all_potential",3*n*dp_size)
+      END IF
       ALLOCATE (qs_force(ikind)%core_overlap(3,n),STAT=istat)
       IF (istat /= 0) THEN
         CALL stop_memory(routine,"qs_force(ikind)%core_overlap",3*n*dp_size)
@@ -178,6 +183,13 @@ CONTAINS
     nkind = SIZE(qs_force)
 
     DO ikind=1,nkind
+
+      IF (ASSOCIATED(qs_force(ikind)%all_potential)) THEN
+        DEALLOCATE (qs_force(ikind)%all_potential,STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine,"qs_force%all_potential")
+        END IF
+      END IF
 
       IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
         DEALLOCATE (qs_force(ikind)%core_overlap,STAT=istat)
@@ -303,6 +315,7 @@ CONTAINS
     END IF
 
     DO ikind=1,SIZE(qs_force)
+      qs_force(ikind)%all_potential(:,:) = 0.0_dp
       qs_force(ikind)%core_overlap(:,:) = 0.0_dp
       qs_force(ikind)%gth_ppl(:,:) = 0.0_dp
       qs_force(ikind)%gth_ppnl(:,:) = 0.0_dp

@@ -51,7 +51,7 @@ MODULE qs_local_rho_types
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "qs_local_rho_types"
 
-! *** Define multipole type ***
+! *** Define rhoz and local_rho types ***
 
   TYPE  rhoz_type
     REAL(dp)                             ::  one_atom

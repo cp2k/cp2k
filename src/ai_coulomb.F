@@ -39,6 +39,7 @@ MODULE ai_coulomb
 ! l{a,b,c}_max: Maximum angular momentum quantum number of shell a, b or c.
 ! l{a,b,c}_min: Minimum angular momentum quantum number of shell a, b or c.
 ! ncoset      : Number of orbitals in a Cartesian orbital set.
+! npgf{a,b}   : Degree of contraction of shell a or b.
 ! rab         : Distance vector between the atomic centers a and b.
 ! rab2        : Square of the distance between the atomic centers a and b.
 ! rac         : Distance vector between the atomic centers a and c.
@@ -97,20 +98,29 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
     REAL(KIND=dp), DIMENSION(:,:), OPTIONAL  ::vac_plus
 
+    CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb2"
+
     INTEGER                                  :: ax, ay, az, coc, cocx, cocy, &
-                                                cocz, cx, cy, cz, i, ipgf, j, &
+                                                cocz, cx, cy, cz, i, ipgf, istat, j, &
                                                 jpgf, la, lc, n, na, nc, nmax
     INTEGER                                  :: maxder_local, nap
     REAL(KIND=dp)                            :: dac, f0, f1, f2, f3, f4, f5, &
                                                 f6, fcx, fcy, fcz, rho, t, &
                                                 zetp, zetq, zetw
     REAL(KIND=dp), &
-      DIMENSION(0:la_max+lc_max)             :: f
+      DIMENSION(:), ALLOCATABLE              :: f
     REAL(KIND=dp), DIMENSION(3)              :: raw, rcw
-    REAL(KIND=dp), DIMENSION(ncoset(la_max),&
-      ncoset(lc_max), la_max+lc_max+1)       :: v
+    REAL(KIND=dp), DIMENSION(:,:,:),&
+      ALLOCATABLE                            :: v
 
 !   ---------------------------------------------------------------------------
+
+    ALLOCATE(v(ncoset(la_max),ncoset(lc_max), la_max+lc_max+1),STAT=istat)
+    ALLOCATE(f(0:la_max+lc_max),STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"allocate v, f")
+    END IF
+    v = 0.0_dp
 
     maxder_local = 0
     IF(PRESENT(maxder)) THEN
@@ -137,15 +147,15 @@ CONTAINS
 
 !       *** Screening ***
 
-!        IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
-!          DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max)
-!            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
-!              vac(i,j) = 0.0_dp
-!            END DO
-!          END DO
-!          nc = nc + ncoset(lc_max)
-!          CYCLE
-!        END IF
+        IF (rpgfa(ipgf) + rpgfc(jpgf) < dac) THEN
+          DO j=nc+ncoset(lc_min-1)+1,nc+ncoset(lc_max)
+            DO i=na+ncoset(la_min-1)+1,na+ncoset(la_max-maxder_local)
+              vac(i,j) = 0.0_dp
+            END DO
+          END DO
+          nc = nc + ncoset(lc_max)
+          CYCLE
+        END IF
 
 !       *** Calculate some prefactors ***
 
@@ -418,6 +428,11 @@ CONTAINS
 
     END DO
 
+    DEALLOCATE(v,f,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,"deallocate v f")
+    END IF
+
   END SUBROUTINE coulomb2
 
 ! *****************************************************************************
@@ -455,8 +470,8 @@ CONTAINS
       INTENT(INOUT)                          :: vabc
     REAL(KIND=dp), DIMENSION(:,:,:), &
       INTENT(OUT)                            :: int_abc
-    INTEGER, INTENT(IN)            :: maxder
-    REAL(KIND=dp), DIMENSION(:,:)  :: vabc_plus
+    INTEGER, INTENT(IN)                      :: maxder
+    REAL(KIND=dp), DIMENSION(:,:)            :: vabc_plus
 
     CHARACTER(LEN=*), PARAMETER   :: routine_name = "coulomb3"
 
@@ -479,8 +494,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),STAT=istat)
-!    ALLOCATE(v(1000,1000,1000,1000),STAT=istat)
+    ALLOCATE(v(ncoset(la_max),ncoset(lb_max),ncoset(lc_max),la_max+lb_max+lc_max+1),&
+             STAT=istat)
     ALLOCATE(f(0:la_max+lb_max+lc_max),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,"allocate v, f")
@@ -510,12 +525,11 @@ CONTAINS
     DO ipgf=1,npgfa
 
 !     *** Screening ***
-
-!      IF (rpgfa(ipgf) + rpgfc < dac) THEN
-!        na = na + ncoset(la_max - maxder_local)
-!        nap = nap + ncoset(la_max)
-!        CYCLE
-!      END IF
+      IF (rpgfa(ipgf) + rpgfc < dac) THEN
+        na = na + ncoset(la_max - maxder_local)
+        nap = nap + ncoset(la_max)
+        CYCLE
+      END IF
 
       nb = 0
       nbp = 0
@@ -523,13 +537,12 @@ CONTAINS
       DO jpgf=1,npgfb
 
 !       *** Screening ***
-
-!        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
-!            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
-!          nb = nb + ncoset(lb_max - maxder_local)
-!          nbp = nbp + ncoset(lb_max)
-!          CYCLE
-!        END IF
+        IF ((rpgfb(jpgf) + rpgfc < dbc).OR.&
+            (rpgfa(ipgf) + rpgfb(jpgf) < dab)) THEN
+          nb = nb + ncoset(lb_max - maxder_local)
+          nbp = nbp + ncoset(lb_max)
+          CYCLE
+        END IF
 
 !       *** Calculate some prefactors ***
 

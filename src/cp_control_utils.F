@@ -120,16 +120,17 @@ INTEGER, PARAMETER, PRIVATE :: qs_key_REL_CUTOFF=18
 INTEGER, PARAMETER, PRIVATE :: qs_key_NGRID=19
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSFIT=20
 INTEGER, PARAMETER, PRIVATE :: qs_key_EPSISO=21
-INTEGER, PARAMETER, PRIVATE :: qs_key_QUADRATURE=22
-INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=23
-INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=24
-INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=25
-INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=26
-INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=27
-INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=28
-INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=29
-INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=30
-INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 30
+INTEGER, PARAMETER, PRIVATE :: qs_key_EPSRHO0=22
+INTEGER, PARAMETER, PRIVATE :: qs_key_QUADRATURE=23
+INTEGER, PARAMETER, PRIVATE :: qs_key_LMAXN0=24
+INTEGER, PARAMETER, PRIVATE :: qs_key_LADDN0=25
+INTEGER, PARAMETER, PRIVATE :: qs_key_PAO=26
+INTEGER, PARAMETER, PRIVATE :: qs_key_PW_GRID=27
+INTEGER, PARAMETER, PRIVATE :: qs_key_RS_GRID=28
+INTEGER, PARAMETER, PRIVATE :: qs_key_EXTRAPOLATION=29
+INTEGER, PARAMETER, PRIVATE :: qs_key_METHOD=30
+INTEGER, PARAMETER, PRIVATE :: qs_key_MULLIKEN_RESTRAINT=31
+INTEGER, PARAMETER, PRIVATE :: N_qs_keywords = 32
 TYPE(keyword_type), PRIVATE, DIMENSION(1:N_qs_keywords) :: qs_keywords
 
 
@@ -225,6 +226,10 @@ CONTAINS
                                        "EPSISO real",&
                                        "GAPW : precision to determine an isolated projector",&
                                        "","","")
+     qs_keywords(qs_key_EPSRHO0)=keyword_type("EPSRHO0", &
+                                       "EPSRHO0 real",&
+                                       "GAPW : precision to determine the range of V(rho0-rho0soft)",&
+                                       "EPSVRHO0","","")
      qs_keywords(qs_key_QUADRATURE)=keyword_type("QUADRATURE", &
                                        "QUADRATURE {GC_SIMPLE|GC_TRANSFORMED|GC_LOG}",&
                                        "GAPW: algorithm to construct the atomic radial grids",&
@@ -647,6 +652,7 @@ CONTAINS
 
     qs_control%gapw_control%eps_fit =  1.0E-4_dp
     qs_control%gapw_control%eps_iso =  1.0E-12_dp
+    qs_control%gapw_control%eps_Vrho0  = 5.0E-7_dp
     qs_control%gapw_control%ladd_rho0 = 99
     qs_control%gapw_control%lmax_rho0 = 2
     qs_control%gapw_control%lmax_sphere = 8 
@@ -805,6 +811,9 @@ CONTAINS
           CASE (qs_key_EPSISO)
             CALL read_object(value)
             qs_control%gapw_control%eps_iso = value
+          CASE (qs_key_EPSRHO0)
+            CALL read_object(value)
+            qs_control%gapw_control%eps_Vrho0 = value
           CASE (qs_key_QUADRATURE)
             CALL read_object(string,lower_to_upper=.TRUE.)
             SELECT CASE (string)

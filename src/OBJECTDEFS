@@ -261,6 +261,7 @@ OBJECTS_GENERIC =\
  qmmm_methods.o\
  qmmm_pw_grid.o\
  qmmm_types.o\
+ qs_all_potential.o\
  qs_charges_types.o\
  qs_collocate_density.o\
  qs_conductivity.o\

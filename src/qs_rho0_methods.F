@@ -351,7 +351,7 @@ MODULE qs_rho0_methods
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     REAL(dp)                                 :: alpha_core,&
-                                                ecut, eps_fit, eps_orb,&
+                                                ecut, eps_fit, eps_Vrho0,&
                                                 gcut, radius, rhoz_tot,&
                                                 rc_orb, rc_min
     INTEGER  ::  iat, iatom, ikind, l, laddg, lmaxg, max_nr, maxl, maxso, nat, &
@@ -375,7 +375,7 @@ MODULE qs_rho0_methods
 
     ecut = dft_control%qs_control%cutoff 
     nkind = SIZE(atomic_kind_set,1)
-    eps_orb = dft_control%qs_control%eps_pgf_orb
+    eps_Vrho0 = dft_control%qs_control%gapw_control%eps_Vrho0
 
 !   Initialize rhoz total to zero
 !   in gapw rhoz is calculated on local the lebedev grids
@@ -452,6 +452,7 @@ MODULE qs_rho0_methods
 !     Calculate the core density rhoz 
 !                  exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
 !     on the logarithmic radial grid
+!     WARNING: alpha_core_charge = alpha_c**2 
       CALL calculate_rhoz(rhoz_set(ikind),grid_atom,alpha_core,zeff,&
             nat,qs_charges%total_rho_core_rspace,harmonics)
 
@@ -497,7 +498,7 @@ MODULE qs_rho0_methods
                            grid_atom=grid_atom)
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
 
-      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_orb,.true.)
+      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,.true.)
     END DO
 
     rhoz_tot = qs_charges%total_rho_core_rspace
@@ -513,18 +514,18 @@ MODULE qs_rho0_methods
       CALL write_rho0_info(rho0_mpole,cell,globenv)
     END IF
 
-  END SUBROUTINE init_rho0
+    END SUBROUTINE init_rho0
 
 ! *****************************************************************************
 
   SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
-                                    eps_orb,calculate_V0hmV0s)
+                                  eps_Vrho0,calculate_V0hmV0s)
 
     TYPE(rho0_mpole_type), POINTER      :: rho0_mpole
     TYPE(grid_atom_type), POINTER       :: grid_atom
-    INTEGER                             :: ik
-    REAL(dp)                            :: eps_orb
-    LOGICAL                             :: calculate_V0hmV0s
+    INTEGER , INTENT(IN)                :: ik
+    REAL(dp), INTENT(IN)                :: eps_Vrho0
+    LOGICAL , INTENT(IN)                :: calculate_V0hmV0s
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "interaction_radii_g0"
 
@@ -548,8 +549,8 @@ MODULE qs_rho0_methods
     r_h = 0.0_dp
     r_s = 0.0_dp
     DO l = 0,lmax
-      r_h = max(r_h, exp_radius(l,z_h,eps_orb,n_h(l)))
-      r_s = max(r_s, exp_radius(l,z_s,eps_orb,n_s(l)))
+      r_h = max(r_h, exp_radius(l,z_h,eps_Vrho0,n_h(l)))
+      r_s = max(r_s, exp_radius(l,z_s,eps_Vrho0,n_s(l)))
     END DO
 
     rho0_mpole%mp_gau(ik)%rpgf0_h = r_h
@@ -584,7 +585,7 @@ MODULE qs_rho0_methods
           V_s = grid_atom%oorad2l(ir,l+1)*I_up_s + &
               grid_atom%rad2l(ir,l)*I_down_s
 
-          IF(abs(V_h-V_s)<eps_orb .AND.grid_atom%rad(ir)>0.7_dp ) THEN
+          IF(abs(V_h-V_s)<eps_Vrho0 .AND.grid_atom%rad(ir)>0.7_dp ) THEN
             r_hms = MAX(r_hms,grid_atom%rad(ir))
             exit
           END IF

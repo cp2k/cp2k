@@ -87,12 +87,12 @@ CONTAINS
 
     INTEGER :: i, ia_kind, iab, iatom, ibc, ikind, ilist, inode, &
                istat, ja_kind, jatom, jkind, ka_kind, katom, &
-               kkind, kneighbor, knode, max_gau, max_nsgf, &
+               kkind, kneighbor, knode, last_jatom, max_gau, max_nsgf, &
                maxsoc, natom, nkind, nlist, nnode, nnode_c, &
                nsetc, nsgfa, nsgfb, nsoctot
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: paw_atom, new_atom_b
     REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
@@ -192,11 +192,26 @@ CONTAINS
           CALL get_neighbor_list(neighbor_list=sab_orb_neighbor_list_local,&
                                  atom=iatom,&
                                  nnode=nnode)
+
+          last_jatom = 0
+
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom)
+
+            IF (jatom /= last_jatom) THEN
+              new_atom_b = .TRUE.
+              last_jatom = jatom
+            ELSE
+              new_atom_b = .FALSE.
+            END IF
+
+            IF (.NOT. new_atom_b) THEN
+              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+              CYCLE
+            END IF
 
             NULLIFY(h_block, p_block)
             IF (iatom <= jatom) THEN

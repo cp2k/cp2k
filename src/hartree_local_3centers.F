@@ -27,7 +27,7 @@ MODULE  hartree_local_3centers
                                              cp_error_message,&
                                              cp_error_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: dp,dp_size,&
                                              int_size
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
                                              get_ecoul_1c
@@ -149,8 +149,8 @@ MODULE  hartree_local_3centers
 
     INTEGER :: ab, bc, handle, iatom,  i_atom, i, ic, ico, icol, idir, ifs1, ifs2, ikind,&
                ilist, inode, irow, iset1, iset2, is, iso, istat, jatom, j_atom, jkind, &
-               katom, kat, k_atom, kkind, kneighbor, knode, l0_kkind, lmax_0, lshell, &
-               lx, ly, lz, m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
+               katom, kat, k_atom, kkind, kneighbor, knode, l0_kkind, last_jatom, lmax_0, &
+               lshell, lx, ly, lz, m1, m2, maxch0, maxco_global, maxcoa, maxcob, maxder, &
                maxsoc, maxsgf, maxsgf_set, nkind, nat, natom, nchan0_car,&
                nchan0_sph, nco1, nco2, ncotota, ncototb, nlist, nnode, nnode_c,&
                ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, nsototc, nz1, nz2
@@ -160,7 +160,7 @@ MODULE  hartree_local_3centers
                                                   npgfa,npgfb,nsgfa_set,nsgfb_set
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
-    LOGICAL                                    :: paw_atom
+    LOGICAL                                    :: new_atom_b, paw_atom
     INTEGER  :: ic1, ic2, ip1,ip2, n1, n2, nn1, nn2,jc
     REAL(dp) ::  e3c
 !   ---------------------------------------------------------------------------
@@ -286,6 +286,7 @@ MODULE  hartree_local_3centers
 
           ra(:) = pbc(particle_set(iatom)%r,cell)
 
+          last_jatom = 0
           sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
           DO inode=1,nnode
@@ -293,6 +294,16 @@ MODULE  hartree_local_3centers
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom,&
                                    r=rab)
+
+            IF (jatom /= last_jatom) THEN
+              new_atom_b = .TRUE.
+              last_jatom = jatom
+            ELSE
+              new_atom_b = .FALSE.
+              sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+              CYCLE
+            END IF
+
 !DBG
 !      WRITE(*,*) 'pair atoms', iatom, jatom
             rab2  = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -716,10 +727,6 @@ MODULE  hartree_local_3centers
        DO kat = 1,nat
          katom = atom_list(kat)
 
-         NULLIFY(Qlm)
-         CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=katom, Qlm_tot=Qlm)
-
-
          NULLIFY(aVh3c0b)
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=katom,aVh3c0b=aVh3c0b)
          aVh3c0b = 0.0_dp
@@ -728,6 +735,8 @@ MODULE  hartree_local_3centers
 !        ab pairs handled by different processors
          CALL mp_sum(sum_ab_car(:,katom),para_env%group)
 ! dbg
+!    NULLIFY(Qlm)
+!    CALL  get_rho0_mpole(rho0_mpole=rho0_mpole, iat=katom, Qlm_tot=Qlm)
 !    WRITE(*,*) 'katom ', katom
 !    DO ico =1,nchan0_car
 !             WRITE(*,*) 'int_sum_car ', ico, sum_ab_car(ico,katom)
@@ -748,7 +757,7 @@ MODULE  hartree_local_3centers
                    dfac(2*lshell+1))
              END DO  ! ico
 !    WRITE(*,*) 'int_sum_sph ', iso , sum_ab_sph(iso), sum_ab_sph(iso)*Qlm(iso)
-     e3c = e3c + sum_ab_sph(iso)*Qlm(iso)
+!     e3c = e3c + sum_ab_sph(iso)*Qlm(iso)
            END DO  ! iso
          END DO  ! lshell
 
@@ -766,9 +775,13 @@ MODULE  hartree_local_3centers
 !dbg
 
 100 CONTINUE
-    DEALLOCATE(sum_ab_car,sum_ab_sph)
-  WRITE(*,*) 'energy%hartree_3c', energy%hartree_3c, e3c
-!stop '3c'
+    DEALLOCATE(sum_ab_car,sum_ab_sph,STAT=istat)
+    IF (istat /= 0) THEN
+      CALL stop_memory(routine_name,module_name,__LINE__,&
+                       "sum_ab_car,sum_ab_sph")
+    END IF
+!  WRITE(*,*) 'energy%hartree_3c', energy%hartree_3c, e3c
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE integrate_a_vhg0_b
@@ -827,7 +840,7 @@ MODULE  hartree_local_3centers
     ALLOCATE(int_tmp(nco1,nco2,nch0),STAT=istat)
     int_tmp = 0.0_dp
     IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,"int_tmp")
+      CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp",nco1*nco2*nch0*dp_size)
     END IF
 
 !dbg
@@ -837,7 +850,8 @@ MODULE  hartree_local_3centers
 !    ALLOCATE(int_tmp_sph(nco1,nco2,nch0_sph),STAT=istat)
 !    int_tmp_sph = 0.0_dp
 !    IF (istat /= 0) THEN
-!      CALL stop_memory(routine_name,"vabc_sph,int_tmp_sph")
+!      CALL stop_memory(routine_name,module_name,__LINE__,"vabc_sph,int_tmp_sph",&
+!                       nco1*nco2+nco1*nco2*nch0_sph)
 !    END IF
 !dbg
 
@@ -851,7 +865,8 @@ MODULE  hartree_local_3centers
       n2_plus = nz2*ncoset(l2_max+1)
       ALLOCATE(vabc_plus(n1_plus,n2_plus),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,"vabc_plus")
+        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",&
+                         n1_plus*n2_plus*dp_size)
       END IF
 
       vabc_plus = 0.0_dp
@@ -865,7 +880,7 @@ MODULE  hartree_local_3centers
 
       ALLOCATE(vabc_plus(1,1),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine_name,"vabc_plus")
+        CALL stop_memory(routine_name,module_name,__LINE__,"vabc_plus",1*dp_size)
       END IF
       vabc_plus = 0.0_dp
 
@@ -1035,13 +1050,13 @@ MODULE  hartree_local_3centers
                 END IF
 
                 IF(l2m(idir) < 0) THEN
-                  vdabc(idx_1,idx_2,idir) = &
+                  vadbc(idx_1,idx_2,idir) = &
                      z2x2*(vabc_plus(idx_1p_L,idx_2_L)+&
                          r12(idir)*vabc(idx_1,idx_2))
                 ELSE
                   ico2m = coset(l2m(1),l2m(2),l2m(3))
                   idx_2m_L = ico2m + (ipgf2-1)*n2L
-                  vdabc(idx_1,idx_2,idir) = &
+                  vadbc(idx_1,idx_2,idir) = &
                      z2x2*(vabc_plus(idx_1p_L,idx_2_L)+&
                          r12(idir)*vabc(idx_1,idx_2))&
                     -l2(idir)*vabc_plus(idx_1_L,idx_2m_L)
@@ -1060,13 +1075,13 @@ MODULE  hartree_local_3centers
     DEALLOCATE(int_tmp, STAT=istat)
     DEALLOCATE(vabc_plus,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routine_name,"int_tmp,vabc_plus")
+       CALL stop_memory(routine_name,module_name,__LINE__,"int_tmp,vabc_plus")
     END IF
 
 !dbg
 !    DEALLOCATE(int_tmp_sph,vabc_sph, STAT=istat)
 !    IF (istat /= 0) THEN
-!       CALL stop_memory(routine_name,"vabc_sph,int_tmp_sph")
+!       CALL stop_memory(routine_name,module_name,__LINE__,"vabc_sph,int_tmp_sph")
 !    END IF
 !dbg
 
