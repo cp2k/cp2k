@@ -711,7 +711,7 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "TOTAL NUMBERS AND MAXIMUM NUMBERS"
 
-      WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
+      WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T71,I10))")&
         "Total number of",&
         "- Atomic kinds:                  ",nkind,&
         "- Atoms:                         ",natom,&
@@ -722,15 +722,14 @@ CONTAINS
         "- Spherical basis functions:     ",nsgf
 
       IF ((maxlppl > -1).OR.(maxlppnl > -1)) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
-          "Maximum angular momentum quantum number of the",&
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,(T30,A,T75,I6))")&
+          "Maximum angular momentum of the",&
           "- Orbital basis functions:                   ",maxlgto,&
           "- Local part of the GTH pseudopotential:     ",maxlppl,&
           "- Non-local part of the GTH pseudopotential: ",maxlppnl
       ELSE
-        WRITE (UNIT=output_unit,FMT="(/,T3,A,/,/,(T3,A,I6))")&
-          "Maximum angular momentum quantum number of the",&
-          "- Orbital basis functions: ",maxlgto
+        WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6))")&
+          "Maximum angular momentum of the orbital basis functions: ",maxlgto
       END IF
 
     END IF
@@ -739,5 +738,4 @@ CONTAINS
 
 ! *****************************************************************************
 
-!*************************************************************
 END MODULE qs_environment

@@ -353,6 +353,9 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
   ! rebuild pw_env
   NULLIFY(dft_control)
   CALL get_qs_env(qs_env, pw_env=new_pw_env, dft_control=dft_control)
+
+  IF ( dft_control%qs_control%semi_empirical ) RETURN
+
   IF (.NOT.ASSOCIATED(new_pw_env)) THEN
      CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
      CALL set_qs_env(qs_env,pw_env=new_pw_env)

@@ -252,7 +252,11 @@ MODULE qs_environment_types
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,matrix_ks,matrix_s,kinetic,matrix_w
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,&
+                                                             matrix_ks,&
+                                                             matrix_s,&
+                                                             kinetic,&
+                                                             matrix_w
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env

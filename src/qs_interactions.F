@@ -459,8 +459,8 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
 
     IF (globenv%print%core_charge_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-        "RADII OF THE CORE CHARGE DISTRIBUTIONS IN "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: CORE CHARGE DISTRIBUTIONS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -472,17 +472,17 @@ CONTAINS
         IF (ASSOCIATED(all_potential)) THEN
           CALL get_potential(potential=all_potential,&
                              core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length
         ELSE IF (ASSOCIATED(elp_potential)) THEN
           CALL get_potential(potential=elp_potential,&
                              core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length
         ELSE IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              core_charge_radius=core_charge_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,core_charge_radius/unit_of_length
         END IF
       END DO
@@ -546,8 +546,8 @@ CONTAINS
 !   *** Print the kind radii ***
 
     IF (globenv%print%kind_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-        "RADII OF THE "//TRIM(bas)//" BASIS IN "//TRIM(unit_of_length_name),&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
         "Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -571,11 +571,11 @@ CONTAINS
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,kind_radius/unit_of_length
         ELSE
-           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
-              ikind,name,"no associated basis"
+           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
+              ikind,name,"no basis"
         END IF
       END DO
     END IF
@@ -583,8 +583,8 @@ CONTAINS
 !   *** Print the shell set radii ***
 
     IF (globenv%print%set_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T18,A,T28,A)")&
-        "RADII OF THE SHELL SETS OF THE "//TRIM(bas)//" BASIS IN "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,,T51,A,T57,A,T65,A,T75,A)")&
+        "RADII: SHELL SETS OF "//TRIM(bas)//" BASIS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -610,11 +610,11 @@ CONTAINS
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,(T16,I5,T23,F12.6))")&
+          WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))")&
             ikind,name,(iset,set_radius(iset)/unit_of_length,iset=1,nset)
         ELSE
-           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
-              ikind,name,"no associated basis"
+           WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
+              ikind,name,"no basis"
         END IF
       END DO
     END IF
@@ -622,8 +622,8 @@ CONTAINS
 !   *** Print the primitive Gaussian function radii ***
 
     IF (globenv%print%pgf_radii) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T18,A,T28,A)")&
-        "RADII OF THE PRIMITIVE GAUSSIAN FUNCTIONS OF THE "//TRIM(bas)//" BASIS IN "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T51,A,T57,A,T65,A,T75,A)")&
+        "RADII: PRIMITIVE GAUSSIANS OF "//TRIM(bas)//" BASIS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Set","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -652,13 +652,13 @@ CONTAINS
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
           DO iset=1,nset
-            WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,I5,(T23,F12.6))")&
+            WRITE (UNIT=output_unit,FMT="(T50,I5,T57,A5,T63,I5,(T69,F12.6))")&
               ikind,name,iset,&
               (pgf_radius(ipgf,iset)/unit_of_length,ipgf=1,npgf(iset))
           END DO
         ELSE
-           WRITE (UNIT=output_unit,FMT="(/,T2,I5,3X,A5,T16,A20)")&
-              ikind,name,"no associated basis"
+           WRITE (UNIT=output_unit,FMT="(T50,I5,T58,A5,T73,A8)")&
+              ikind,name,"no basis"
         END IF
       END DO
     END IF
@@ -701,8 +701,8 @@ CONTAINS
                     unit_of_length_name=unit_of_length_name)
       output_unit = globenv%scr
       nkind = SIZE(atomic_kind_set)
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-        "RADII OF THE LOCAL PART OF THE GTH/ELP PSEUDOPOTENTIAL IN "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: LOCAL PART OF GTH/ELP PP in "//&
         TRIM(unit_of_length_name),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -713,12 +713,12 @@ CONTAINS
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              ppl_radius=ppl_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppl_radius/unit_of_length
         ELSE IF (ASSOCIATED(elp_potential)) THEN
           CALL get_potential(potential=elp_potential,&
                              ppl_radius=ppl_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppl_radius/unit_of_length
         END IF
       END DO
@@ -761,8 +761,8 @@ CONTAINS
                     unit_of_length_name=unit_of_length_name)
       output_unit = globenv%scr
       nkind = SIZE(atomic_kind_set)
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-        "RADII OF THE NON-LOCAL PART OF THE GTH PSEUDOPOTENTIAL IN "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: NON-LOCAL PART OF GTH PP in "//&
         TRIM(unit_of_length_name),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -772,7 +772,7 @@ CONTAINS
         IF (ASSOCIATED(gth_potential)) THEN
           CALL get_potential(potential=gth_potential,&
                              ppnl_radius=ppnl_radius)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,ppnl_radius/unit_of_length
         END IF
       END DO
@@ -811,8 +811,8 @@ CONTAINS
                     unit_of_length_name=unit_of_length_name)
       output_unit = globenv%scr
       nkind = SIZE(atomic_kind_set)
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T10,A,T22,A,/)")&
-        "RADII OF THE ONE CENTER PROJECTORS "//&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: ONE CENTER PROJECTORS in "//&
         TRIM(unit_of_length_name),"Kind","Label","Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
@@ -823,7 +823,7 @@ CONTAINS
         IF (paw_atom) THEN
           CALL get_paw_proj_set(paw_proj_set=paw_proj_set,&
                                 rcprj=rcprj)
-          WRITE (UNIT=output_unit,FMT="(T2,I5,3X,A5,2X,F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
             ikind,name,rcprj/unit_of_length
         END IF
       END DO
