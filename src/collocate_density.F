@@ -394,10 +394,10 @@ CONTAINS
 
     COMPLEX(wp), DIMENSION(3) :: phasefactor
     REAL(wp), DIMENSION(3)    :: dg,expfactor,fap,fbp,rap,rbp,rp
+    INTEGER, DIMENSION(3)     :: lb_cube,ub_cube
 
     COMPLEX(wp), DIMENSION(:), POINTER :: rag,rbg
     REAL(wp), DIMENSION(:), POINTER    :: g
-    INTEGER, DIMENSION(:), POINTER     :: lb_cube,ub_cube
 
     COMPLEX(wp), DIMENSION(:,:,:,:), POINTER :: cubeaxis
 
@@ -421,11 +421,11 @@ CONTAINS
     fbp(:) = twozetp*rbp(:)
 
     prefactor = scale*SQRT((pi*rzetp)**3)*EXP(-zeta*f*rab2)
-    phasefactor(:) = EXP(CMPLX(0.0_wp,-rp(:)*dg(:)))
+    phasefactor(:) = EXP(CMPLX(0.0_wp,-rp(:)*dg(:),wp))
     expfactor(:) = EXP(-0.25*rzetp*dg(:)*dg(:))
 
-    lb_cube => pw%pw_grid%bounds(1,:)
-    ub_cube => pw%pw_grid%bounds(2,:)
+    lb_cube(:) = pw%pw_grid%bounds(1,:)
+    ub_cube(:) = pw%pw_grid%bounds(2,:)
 
     lb_cube_min = MINVAL(lb_cube(:))
     ub_cube_max = MAXVAL(ub_cube(:))
@@ -448,7 +448,7 @@ CONTAINS
       IF (la_max > 0) THEN
         DO ig=lb_cube(i),ub_cube(i)
           g(ig) = REAL(ig,wp)*dg(i)
-          rag(ig) = CMPLX(fap(i),-g(ig))
+          rag(ig) = CMPLX(fap(i),-g(ig),wp)
           cubeaxis(ig,i,1,0) = rag(ig)*cubeaxis(ig,i,0,0)
         END DO
         DO la=2,la_max
@@ -461,7 +461,7 @@ CONTAINS
         IF (lb_max > 0) THEN
           fa = twozetp
           DO ig=lb_cube(i),ub_cube(i)
-            rbg(ig) = CMPLX(fbp(i),-g(ig))
+            rbg(ig) = CMPLX(fbp(i),-g(ig),wp)
             cubeaxis(ig,i,0,1) = rbg(ig)*cubeaxis(ig,i,0,0)
             cubeaxis(ig,i,1,1) = rbg(ig)*cubeaxis(ig,i,1,0) +&
                                  fa*cubeaxis(ig,i,0,0)
@@ -492,7 +492,7 @@ CONTAINS
         IF (lb_max > 0) THEN
           DO ig=lb_cube(i),ub_cube(i)
             g(ig) = REAL(ig,wp)*dg(i)
-            rbg(ig) = CMPLX(fbp(i),-g(ig))
+            rbg(ig) = CMPLX(fbp(i),-g(ig),wp)
             cubeaxis(ig,i,0,1) = rbg(ig)*cubeaxis(ig,i,0,0)
           END DO
           DO lb=2,lb_max
@@ -578,11 +578,10 @@ CONTAINS
     INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
                 lb_cube_min,ub_cube_max
 
-    REAL(wp), DIMENSION(3) :: rap,rbp,roffset,rp
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ub_cube
+    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp
+    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
 
-    REAL(wp), DIMENSION(:), POINTER       :: dr,rag,rbg,rpg
-    INTEGER, DIMENSION(:), POINTER        :: ng
+    REAL(wp), DIMENSION(:), POINTER       :: rag,rbg,rpg
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
     REAL(wp), DIMENSION(:,:,:,:), POINTER :: cubeaxis
@@ -605,8 +604,9 @@ CONTAINS
     npgf_product = npgf_product + (ncoset(la_max) - ncoset(la_min-1))*&
                                   (ncoset(lb_max) - ncoset(lb_min-1))
 
-    dr => pw%pw_grid%dr(:)
-    ng => pw%pw_grid%npts(:)
+    dr(:) = pw%pw_grid%dr(:)
+    ng(:) = pw%pw_grid%npts(:)
+    ub_grid(:) = pw%pw_grid%bounds(2,:)
     grid => pw%cr3d(:,:,:)
 
     rap(:) = f*rab(:)

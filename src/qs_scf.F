@@ -25,7 +25,7 @@ MODULE qs_scf
 
   USE kinds, ONLY: wp => dp
 
-  USE atomic_kinds,          ONLY: kind_info,nkind
+  USE atomic_kinds,          ONLY: gth_potential_present,kind_info,nkind
   USE atoms,                 ONLY: atom_info
   USE basis_set_types,       ONLY: gto_basis_set_type,maxlcgf
   USE blacs,                 ONLY: allocate_blacs_matrix,&
@@ -52,7 +52,7 @@ MODULE qs_scf
                                    calculate_ecore_self
   USE core_hamiltonian,      ONLY: build_core_hamiltonian_matrix,h,s
   USE diis,                  ONLY: eps_diis,max_diis,scf_diis
-  USE functionals,           ONLY: init_functionals,vwn_c,vwn_x
+  USE functionals
   USE global_types,          ONLY: global_environment_type
   USE input_utilities,       ONLY: finish_input_session,&
                                    read_object,&
@@ -71,6 +71,7 @@ MODULE qs_scf
                                    symmetrise_diagonal_blocks
   USE memory_utilities,      ONLY: reallocate
   USE message_passing,       ONLY: mp_max,mp_sum,mp_sync
+  USE method_specifications, ONLY: xc_info
   USE mo_types,              ONLY: allocate_mo_set,&
                                    mo_set_type,&
                                    read_mo_set,&
@@ -92,8 +93,9 @@ MODULE qs_scf
 
   PRIVATE
 
-  TYPE(coeff_type)           :: rho_gspace,rho_rspace,v_rspace
   TYPE(blacs_matrix_type)    :: ortho,scf_work1,scf_work2
+  TYPE(coeff_type)           :: drho_rspace,rho_gspace,rho_rspace,v_rspace,&
+                                vxcg_rspace,work_gspace,work_rspace
   TYPE(mo_set_type)          :: alpha_mo
   TYPE(real_matrix_set_type) :: ks,p
   TYPE(pw_grid_type)         :: pw_grid
@@ -120,6 +122,10 @@ MODULE qs_scf
                        ncol_block = 32,&
                        nprow = 0,&
                        npcol = 0
+
+  TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
+
+  REAL(wp), DIMENSION(:,:), POINTER :: g_vector
 
 ! *** Public variables ***
 
@@ -336,9 +342,14 @@ CONTAINS
         "Number of collocated products (r-space):",nproduct
     END IF
 
+    IF (xc_info%gradient_functional) THEN
+      CALL calculate_nabla_rho_elec(globenv)
+      CALL coeff_zero(vxcg_rspace)
+    END IF
+
     CALL coeff_zero(v_rspace)
 
-    CALL calculate_xc_potential(rho_rspace,v_rspace,globenv)
+    CALL calculate_xc_potential(globenv)
 
     CALL calculate_rho_core(rho_rspace,total_rho_rspace,globenv)
 
@@ -360,7 +371,7 @@ CONTAINS
         "Total charge density (g-space):     ",total_rho_gspace
     END IF
 
-    CALL calculate_hartree_potential(rho_gspace,globenv)
+    CALL calculate_hartree_potential(globenv)
 
     etotal = ecore_overlap + ecore_self + ecore + ehartree + ex + ec
 
@@ -373,12 +384,12 @@ CONTAINS
         "Exchange-correlation energy:                   ",ex + ec
     END IF
 
-    CALL pw_fft_wrap(rho_gspace%pw,rho_rspace%pw,&
+    CALL pw_fft_wrap(rho_gspace%pw,work_rspace%pw,&
                      debug=(globenv%print%level == DEBUG))
 
     v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%pw_grid%dvol*&
                               (v_rspace%pw%cr3d(:,:,:) +&
-                               rho_rspace%pw%cr3d(:,:,:))
+                               work_rspace%pw%cr3d(:,:,:))
 
     CALL copy_matrix(h%matrix,ks%matrix)
 
@@ -398,13 +409,17 @@ CONTAINS
   SUBROUTINE init_grid(globenv)
 
     USE cell_parameters, ONLY: abc,cell,cutoff
+    USE mathconstants,   ONLY: twopi
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
-    INTEGER :: handle,output_unit
+    INTEGER :: handle,i,ig,jg,output_unit
     LOGICAL :: ionode
+
+    REAL(wp), DIMENSION(3) :: dg,dr
+    INTEGER, DIMENSION(3)  :: lb_grid,ng,ub_grid
 
 !   ---------------------------------------------------------------------------
 
@@ -426,14 +441,52 @@ CONTAINS
                          orthorhombic=.TRUE.)
     END IF
 
+    CALL coeff_allocate(work_rspace,pw_grid,REALDATA3D)
+    work_rspace%pw%in_space = REALSPACE
+
+    CALL coeff_allocate(work_gspace,pw_grid,COMPLEXDATA3D)
+    work_gspace%pw%in_space = RECIPROCALSPACE
+
     CALL coeff_allocate(rho_rspace,pw_grid,REALDATA3D)
     rho_rspace%pw%in_space = REALSPACE
+
+    IF (xc_info%gradient_functional) THEN
+      DO i=1,3
+        CALL coeff_allocate(nabla_rho_rspace(i),pw_grid,REALDATA3D)
+        nabla_rho_rspace(i)%pw%in_space = REALSPACE
+      END DO
+      CALL coeff_allocate(drho_rspace,pw_grid,REALDATA3D)
+      drho_rspace%pw%in_space = REALSPACE
+      CALL coeff_allocate(vxcg_rspace,pw_grid,REALDATA3D)
+      vxcg_rspace%pw%in_space = REALSPACE
+    END IF
 
     CALL coeff_allocate(rho_gspace,pw_grid,COMPLEXDATA3D)
     rho_gspace%pw%in_space = RECIPROCALSPACE
 
     CALL coeff_allocate(v_rspace,pw_grid,REALDATA3D)
     v_rspace%pw%in_space = REALSPACE
+
+!   *** Build g vectors ***
+
+    dr(:) = rho_rspace%pw%pw_grid%dr(:)
+    ng(:) = rho_rspace%pw%pw_grid%npts(:)
+    dg(:) = twopi/(ng(:)*dr(:))
+    lb_grid(:) = rho_rspace%pw%pw_grid%bounds(1,:)
+    ub_grid(:) = rho_rspace%pw%pw_grid%bounds(2,:)
+
+    g_vector => reallocate(g_vector,1,MAXVAL(ng(:)),1,3)
+
+    DO i=1,3
+      DO ig=lb_grid(i),ub_grid(i)
+        IF (ig < 0) THEN
+          jg = ig + 1 + ng(i)
+        ELSE
+          jg = ig + 1
+        END IF
+        g_vector(jg,i) = REAL(ig,wp)*dg(i)
+      END DO
+    END DO
 
     CALL timestop(0.0_wp,handle)
 
@@ -536,14 +589,15 @@ CONTAINS
 
     CALL copy_sparse_to_blacs_matrix(h%matrix,scf_work1,context,globenv)
 
-!   *** Redistribute the core Hamiltonian matrix ***
+!   *** Redistribute the core Hamiltonian matrix in ***
+!   *** order to eliminate redundant atomic blocks  ***
 
-!MK IF (gpw) THEN
+    IF ((globenv%num_pe > 1).AND.gth_potential_present) THEN
       CALL deallocate_matrix(h%matrix)
       CALL replicate_matrix_structure(s%matrix,h%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
       CALL copy_blacs_to_sparse_matrix(scf_work1,h%matrix,context,globenv)
-!MK END IF
+    END IF
 
     NULLIFY (ks%matrix)
     CALL replicate_matrix_structure(h%matrix,ks%matrix,"KOHN-SHAM MATRIX")
@@ -792,23 +846,19 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_hartree_potential(rho,globenv)
+  SUBROUTINE calculate_hartree_potential(globenv)
 
-    USE mathconstants, ONLY: fourpi,twopi
+    USE mathconstants, ONLY: fourpi
 
-    TYPE(coeff_type), TARGET, INTENT(INOUT)   :: rho
     TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
     COMPLEX(wp) :: vhartree
     REAL(wp)    :: g2,gx,gy,gz
-    INTEGER     :: handle,i,ig,j,jg,k,kg
+    INTEGER     :: handle,ig,jg,kg
 
-    REAL(wp), DIMENSION(3) :: dg
-
-    REAL(wp), DIMENSION(:), POINTER :: dr
-    INTEGER, DIMENSION(:), POINTER  :: lb_grid,ng,ub_grid
+    INTEGER, DIMENSION(3) :: ng
 
     COMPLEX(wp), DIMENSION(:,:,:), POINTER :: grid
 
@@ -816,50 +866,30 @@ CONTAINS
 
     CALL timeset("calculate_hartree_potential","I","",handle)
 
-    dr => rho%pw%pw_grid%dr(:)
-    ng => rho%pw%pw_grid%npts(:)
-    lb_grid => rho%pw%pw_grid%bounds(1,:)
-    ub_grid => rho%pw%pw_grid%bounds(2,:)
+    ng(:) = rho_gspace%pw%pw_grid%npts(:)
 
-    dg(:) = twopi/(ng(:)*dr(:))
-
-    grid => rho%pw%cc3d(:,:,:)
+    grid => rho_gspace%pw%cc3d(:,:,:)
 
     ehartree = 0.0_wp
 
-    DO kg=lb_grid(3),ub_grid(3)
-      IF (kg < 0) THEN
-        k = kg + 1 + ng(3)
-      ELSE
-        k = kg + 1
-      END IF
-      gz = REAL(kg,wp)*dg(3)
-      DO jg=lb_grid(2),ub_grid(2)
-        IF (jg < 0) THEN
-          j = jg + 1 + ng(2)
-        ELSE
-          j = jg + 1
-        END IF
-        gy = REAL(jg,wp)*dg(2)
-        DO ig=lb_grid(1),ub_grid(1)
-          IF (ig < 0) THEN
-            i = ig + 1 + ng(1)
-          ELSE
-            i = ig + 1
-          END IF
-          gx = REAL(ig,wp)*dg(1)
+    DO kg=1,ng(3)
+      gz = g_vector(kg,3)
+      DO jg=1,ng(2)
+        gy = g_vector(jg,2)
+        DO ig=1,ng(1)
+          gx = g_vector(ig,1)
           g2 = gx*gx + gy*gy + gz*gz
           IF (g2 > 1.0E-12_wp) THEN
-            vhartree = fourpi*grid(i,j,k)/g2
-            ehartree = ehartree + REAL(grid(i,j,k))*REAL(vhartree) +&
-                                  AIMAG(grid(i,j,k))*AIMAG(vhartree)
-            grid(i,j,k) = vhartree
+            vhartree = fourpi*grid(ig,jg,kg)/g2
+            ehartree = ehartree + REAL(grid(ig,jg,kg))*REAL(vhartree) +&
+                                  AIMAG(grid(ig,jg,kg))*AIMAG(vhartree)
+            grid(ig,jg,kg) = vhartree
           END IF
         END DO
       END DO
     END DO
 
-    ehartree = 0.5_wp*rho%pw%pw_grid%vol*ehartree
+    ehartree = 0.5_wp*rho_gspace%pw%pw_grid%vol*ehartree
 
     CALL timestop(0.0_wp,handle)
 
@@ -867,54 +897,249 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_xc_potential(rho,vxc,globenv)
+  SUBROUTINE calculate_nabla_rho_elec(globenv)
+
+    USE print_keys, ONLY: DEBUG
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(coeff_type), TARGET, INTENT(IN)      :: rho
-    TYPE(coeff_type), TARGET, INTENT(INOUT)   :: vxc
 
 !   *** Local variables ***
 
-    INTEGER :: handle,k,kg
+    COMPLEX(wp) :: c
+    INTEGER     :: handle,i,ig,jg,kg
 
-    INTEGER, DIMENSION(:), POINTER  :: lb_grid,ng,ub_grid
+    INTEGER, DIMENSION(3) :: ng
+
+    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: rho,work
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_drho_elec","I","",handle)
+
+    CALL pw_fft_wrap(rho_rspace%pw,rho_gspace%pw,&
+                     debug=(globenv%print%level == DEBUG))
+
+    ng(:) = rho_rspace%pw%pw_grid%npts(:)
+
+    drho_rspace%pw%cr3d(:,:,:) = 0.0_wp
+
+    rho => rho_gspace%pw%cc3d(:,:,:)
+    work => work_gspace%pw%cc3d(:,:,:)
+
+    DO i=1,3
+
+      SELECT CASE (i)
+      CASE (1)
+        DO kg=1,ng(3)
+          DO jg=1,ng(2)
+            DO ig=1,ng(1)
+              c = CMPLX(0.0_wp,g_vector(ig,1),wp)
+              work(ig,jg,kg) = c*rho(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      CASE (2)
+        DO kg=1,ng(3)
+          DO jg=1,ng(2)
+            c = CMPLX(0.0_wp,g_vector(jg,2),wp)
+            DO ig=1,ng(1)
+              work(ig,jg,kg) = c*rho(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      CASE (3)
+        DO kg=1,ng(3)
+          c = CMPLX(0.0_wp,g_vector(kg,3),wp)
+          DO jg=1,ng(2)
+            DO ig=1,ng(1)
+              work(ig,jg,kg) = c*rho(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      END SELECT
+
+      CALL pw_fft_wrap(work_gspace%pw,nabla_rho_rspace(i)%pw,&
+                       debug=(globenv%print%level == DEBUG))
+
+      drho_rspace%pw%cr3d(:,:,:) = drho_rspace%pw%cr3d(:,:,:) +&
+                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)*&
+                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)
+
+    END DO
+
+    drho_rspace%pw%cr3d(:,:,:) = SQRT(drho_rspace%pw%cr3d(:,:,:))
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_nabla_rho_elec
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_xc_potential(globenv)
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: handle,kg
+
+    INTEGER, DIMENSION(3) :: ng
+
+    REAL(wp), DIMENSION(:,:,:), POINTER :: drho,rho,vxc,vxcg
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_xc_potential","I","",handle)
 
-    ng => rho%pw%pw_grid%npts(:)
-    lb_grid => rho%pw%pw_grid%bounds(1,:)
-    ub_grid => rho%pw%pw_grid%bounds(2,:)
+    ng(:) = rho_rspace%pw%pw_grid%npts(3)
+
+    rho => rho_rspace%pw%cr3d(:,:,:)
+    drho => drho_rspace%pw%cr3d(:,:,:)
+    vxc => v_rspace%pw%cr3d(:,:,:)
+    vxcg => vxcg_rspace%pw%cr3d(:,:,:)
 
     ex = 0.0_wp
     ec = 0.0_wp
 
-    DO kg=lb_grid(3),ub_grid(3)
+    DO kg=1,ng(3)
 
-      IF (kg < 0) THEN
-        k = kg + 1 + ng(3)
-      ELSE
-        k = kg + 1
-      END IF
+      IF (globenv%mepos /= MODULO(kg,globenv%num_pe)) CYCLE
 
-      IF (globenv%mepos /= MODULO(k,globenv%num_pe)) CYCLE
+!     *** Exchange functionals ***
 
-      CALL vwn_x(rho%pw%cr3d(:,:,kg),ex,vxc%pw%cr3d(:,:,kg))
-      CALL vwn_c(rho%pw%cr3d(:,:,kg),ec,vxc%pw%cr3d(:,:,kg))
+      SELECT CASE (xc_info%x_functional)
+      CASE ("Becke88")
+        CALL becke88(rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("PBE")
+        CALL pbe_x(rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("Perdew86")
+        CALL perdew86_x(rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("Slater")
+        CALL slater(rho(:,:,kg),ex,vxc(:,:,kg))
+      CASE ("VWN")
+        CALL vwn_x(rho(:,:,kg),ex,vxc(:,:,kg))
+      END SELECT
+
+!     *** Correlation functionals ***
+
+      SELECT CASE (xc_info%c_functional)
+      CASE ("LYP")
+        CALL lyp(rho(:,:,kg),drho(:,:,kg),ec,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("PBE")
+        CALL pbe_c(rho(:,:,kg),drho(:,:,kg),ec,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("Perdew86")
+        CALL perdew86_c(rho(:,:,kg),drho(:,:,kg),ec,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("VWN")
+        CALL vwn_c(rho(:,:,kg),ec,vxc(:,:,kg))
+      END SELECT
+
+!     *** Combined exchange-correlation functionals ***
+
+      SELECT CASE (xc_info%x_functional)
+      CASE ("HCTH/93")
+        CALL hcth(93,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("HCTH/120")
+        CALL hcth(120,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("HCTH/147")
+        CALL hcth(147,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("HCTH/407")
+        CALL hcth(407,rho(:,:,kg),drho(:,:,kg),ex,vxc(:,:,kg),vxcg(:,:,kg))
+      CASE ("Pade")
+        CALL pade(rho(:,:,kg),ex,vxc(:,:,kg))
+      END SELECT
 
     END DO
 
-    CALL mp_sum(vxc%pw%cr3d,globenv%group)
+    CALL mp_sum(vxc,globenv%group)
+    CALL mp_sum(vxcg,globenv%group)
     CALL mp_sum(ex,globenv%group)
     CALL mp_sum(ec,globenv%group)
 
-    ex = rho%pw%pw_grid%dvol*ex
-    ec = rho%pw%pw_grid%dvol*ec
+    ex = rho_rspace%pw%pw_grid%dvol*ex
+    ec = rho_rspace%pw%pw_grid%dvol*ec
+
+    IF (xc_info%gradient_functional) THEN
+      CALL calculate_nabla_vxcg(globenv)
+    END IF
 
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_xc_potential
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_nabla_vxcg(globenv)
+
+    USE print_keys, ONLY: DEBUG
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    COMPLEX(wp) :: c
+    INTEGER     :: handle,i,ig,jg,kg
+
+    INTEGER, DIMENSION(3) :: ng
+
+    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: work
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_nabla_vxcg","I","",handle)
+
+    ng(:) = rho_rspace%pw%pw_grid%npts(:)
+
+    work => work_gspace%pw%cc3d(:,:,:)
+
+    DO i=1,3
+
+      work_rspace%pw%cr3d(:,:,:) = vxcg_rspace%pw%cr3d(:,:,:)*&
+                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)
+
+      CALL pw_fft_wrap(work_rspace%pw,work_gspace%pw,&
+                       debug=(globenv%print%level == DEBUG))
+
+      SELECT CASE (i)
+      CASE (1)
+        DO kg=1,ng(3)
+          DO jg=1,ng(2)
+            DO ig=1,ng(1)
+              c = CMPLX(0.0_wp,g_vector(ig,1),wp)
+              work(ig,jg,kg) = c*work(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      CASE (2)
+        DO kg=1,ng(3)
+          DO jg=1,ng(2)
+            c = CMPLX(0.0_wp,g_vector(jg,2),wp)
+            DO ig=1,ng(1)
+              work(ig,jg,kg) = c*work(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      CASE (3)
+        DO kg=1,ng(3)
+          c = CMPLX(0.0_wp,g_vector(kg,3),wp)
+          DO jg=1,ng(2)
+            DO ig=1,ng(1)
+              work(ig,jg,kg) = c*work(ig,jg,kg)
+            END DO
+          END DO
+        END DO
+      END SELECT
+
+      CALL pw_fft_wrap(work_gspace%pw,work_rspace%pw,&
+                       debug=(globenv%print%level == DEBUG))
+
+      v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%cr3d(:,:,:) -&
+                                work_rspace%pw%cr3d(:,:,:)
+
+    END DO
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE calculate_nabla_vxcg
 
 ! *****************************************************************************
 

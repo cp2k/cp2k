@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/functionals [1.0] *
+!!****** cp2k/functionals [1.1] *
 !!
 !!   NAME
 !!     functionals
@@ -15,7 +15,7 @@
 !!     Matthias Krack (03.03.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - HCTH functional added (01.08.2001, MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -26,7 +26,7 @@ MODULE functionals
 
 ! Index:
 
-! SUBROUTINE init_functionals(xalpha)
+! SUBROUTINE init_functionals(rho_threshold,xalpha)
 ! SUBROUTINE becke88_0(rho,drho,ex,vx,vxg)
 ! SUBROUTINE becke88_1(rho,drho,ex,vx,vxg,weight)
 ! SUBROUTINE becke88_2(rho,drho,ex,vx,vxg,weight)
@@ -36,6 +36,10 @@ MODULE functionals
 ! SUBROUTINE becke88_sp_1(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 ! SUBROUTINE becke88_sp_2(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 ! SUBROUTINE becke88_sp_3(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
+! SUBROUTINE hcth_0(iparset,rho,drho,exc,vxc,vxcg)
+! SUBROUTINE hcth_1(iparset,rho,drho,exc,vxc,vxcg,weight)
+! SUBROUTINE hcth_2(iparset,rho,drho,exc,vxc,vxcg,weight)
+! SUBROUTINE hcth_3(iparset,rho,drho,exc,vxc,vxcg,weight)
 ! SUBROUTINE lyp_0(rho,drho,ec,vc,vcg)
 ! SUBROUTINE lyp_1(rho,drho,ec,vc,vcg,weight)
 ! SUBROUTINE lyp_2(rho,drho,ec,vc,vcg,weight)
@@ -87,33 +91,39 @@ MODULE functionals
                          f16 = 0.5_wp*f13,&
                          f23 = 2.0_wp*f13,&
                          f43 = 4.0_wp*f13,&
-                         f76 = 7.0_wp*f16
-
-! *** Density values smaller than the threshold value are set to zero ***
-
-  REAL(wp), PARAMETER :: eps_rho = 1.0E-12_wp
+                         f76 = 7.0_wp*f16,&
+                         f83 = 8.0_wp*f13
 
 ! *** Type to hold XC functional infos ***
 
   TYPE xc_type
-     CHARACTER ( LEN = 256 ) :: x_functional, c_functional
-     LOGICAL :: gradient_functional, smooth_gradient
+    CHARACTER(LEN=60) :: c_functional,x_functional
+    LOGICAL           :: gradient_functional,smooth_gradient
   END TYPE xc_type
 
 ! *** Global variables ***
 
   REAL(wp) :: beta_pbe,cf,c_perdew86,cx_slater_e,cx_slater_v,cx_vwn_e,&
-              cx_vwn_v,gamma_pbe,r2kf,r2ks,rsfac
+              cx_vwn_v,eps_rho,gamma_pbe,pi,r2kf,r2ks,rsfac,two13
+
+! *** Public subroutines ***
+
+  PUBLIC :: becke88,hcth,init_functionals,lyp,pade,pbe_c,pbe_x,perdew86_x,&
+            perdew86_c,slater,vwn_c,vwn_x
+
+! *** Public data types ***
 
   PUBLIC :: xc_type
-  PUBLIC :: becke88,init_functionals,lyp,pade,pbe_c,pbe_x,perdew86_x,&
-            perdew86_c,slater,vwn_c,vwn_x
 
 ! *****************************************************************************
 
   INTERFACE becke88
     MODULE PROCEDURE becke88_0,becke88_1,becke88_2,becke88_3,&
                      becke88_sp_0,becke88_sp_1,becke88_sp_2,becke88_sp_3
+  END INTERFACE
+
+  INTERFACE hcth
+    MODULE PROCEDURE hcth_0,hcth_1,hcth_2,hcth_3
   END INTERFACE
 
   INTERFACE lyp
@@ -158,25 +168,31 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_functionals(xalpha)
+  SUBROUTINE init_functionals(rho_threshold,xalpha)
 
 !   Purpose: Initialize the constants used for the calculation of the
 !            exchange-correlation functionals. The default value for
 !            xalpha is 2/3.
 
 !   History: - Creation (16.03.2000, Matthias Krack)
+!            - Optional parameter rho_threshold added (02.08.2001, MK)
 
 !   ***************************************************************************
 
-    USE mathconstants, ONLY: pi
-
-    REAL(wp), OPTIONAL, INTENT(IN) :: xalpha
-
-!   *** Local parameters ***
-
-!MK REAL(wp), PARAMETER :: pi = 3.14159265358979323846264338328_wp
+    REAL(wp), OPTIONAL, INTENT(IN) :: rho_threshold,xalpha
 
 !   ---------------------------------------------------------------------------
+
+    pi = 2.0_wp*ACOS(0.0_wp)
+    two13 = 2.0_wp**f13
+
+!   *** Density values smaller than the threshold value are set to zero ***
+
+    IF (PRESENT(rho_threshold)) THEN
+      eps_rho = rho_threshold
+    ELSE
+      eps_rho = 1.0E-12_wp
+    END IF
 
 !   *** Coefficient of the Thomas-Fermi kinetic-energy density ***
 
@@ -240,14 +256,14 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: drhos,f,rhos13,rhos43,rhos,x,x2,y,z
+    REAL(wp) :: drhos,f,rho13,rho43,rhos13,rhos43,rhos,s,s2,y,z
 
 !   ---------------------------------------------------------------------------
 
-    CALL vwn_x_0(rho,ex,vx)
-
     IF (rho < eps_rho) THEN
 
+      ex = 0.0_wp
+      vx = 0.0_wp
       vxg = 0.0_wp
 
     ELSE
@@ -258,21 +274,28 @@ CONTAINS
       rhos13 = rhos**f13
       rhos43 = rhos13*rhos
 
-      x = drhos/rhos43
-      x2 = x*x
+      rho13 = rho**f13
+      rho43 = rho13*rho
 
-!     *** Calculate the area sinus hyperbolicus: y = arsinh(x) ***
+!     *** LSDA exchange part (VWN) ***
 
-      y = LOG(x + SQRT(x2 + 1.0_wp))
+      ex = cx_vwn_e*rho43
+      vx = cx_vwn_v*rho13
 
-      f = 1.0_wp/(1.0_wp + 6.0_wp*beta*x*y)
+!     *** GGA part ***
 
-      ex = ex - 2.0_wp*beta*drhos*x*f
+      s = drhos/rhos43
+      s2 = s*s
 
-      z = 6.0_wp*beta*x*f*(y + x/SQRT(1.0_wp + x2))
+!     *** Calculate the area sinus hyperbolicus: y = arsinh(s) ***
 
-      vx = vx - f43*beta*rhos13*x2*f*(z - 1.0_wp)
+      y = LOG(s + SQRT(s2 + 1.0_wp))
 
+      f = 1.0_wp/(1.0_wp + 6.0_wp*beta*s*y)
+      z = 6.0_wp*beta*s*f*(y + s/SQRT(1.0_wp + s2))
+
+      ex = ex - 2.0_wp*beta*drhos*s*f
+      vx = vx - f43*beta*rhos13*s2*f*(z - 1.0_wp)
       vxg = -0.5_wp*beta*f*(2.0_wp - z)/rhos43
 
     END IF
@@ -283,19 +306,9 @@ CONTAINS
 
   SUBROUTINE becke88_1(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for a closed shell density.
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (03.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -329,19 +342,9 @@ CONTAINS
 
   SUBROUTINE becke88_2(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for a closed shell density.
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (03.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(inOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -380,19 +383,9 @@ CONTAINS
 
   SUBROUTINE becke88_3(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for a closed shell density.
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (03.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -454,28 +447,25 @@ CONTAINS
 
 !   *** Local variables ***
 
-    REAL(wp) :: f,rhos13,rhos43,x,x2,y,z
+    REAL(wp) :: f,rhos13,rhos43,s,s2,y,z
 
 !   ---------------------------------------------------------------------------
 
     rhos13 = rhos**f13
     rhos43 = rhos13*rhos
 
-    x = drhos/rhos43
-    x2 = x*x
+    s = drhos/rhos43
+    s2 = s*s
 
-!   *** Calculate the area sinus hyperbolicus: y = arsinh(x) ***
+!   *** Calculate the area sinus hyperbolicus: y = arsinh(s) ***
 
-    y = LOG(x + SQRT(x2 + 1.0_wp))
+    y = LOG(s + SQRT(s2 + 1.0_wp))
 
-    f = 1.0_wp/(1.0_wp + 6.0_wp*beta*x*y)
+    f = 1.0_wp/(1.0_wp + 6.0_wp*beta*s*y)
+    z = 6.0_wp*beta*s*f*(y + s/SQRT(1.0_wp + s2))
 
-    exs = -beta*drhos*x*f
-
-    z = 6.0_wp*beta*x*f*(y + x/SQRT(1.0_wp + x2))
-
-    vxs = -f43*beta*rhos13*x2*f*(z - 1.0_wp)
-
+    exs = -beta*drhos*s*f
+    vxs = -f43*beta*rhos13*s2*f*(z - 1.0_wp)
     vxgs = -beta*f*(2.0_wp - z)/rhos43
 
   END SUBROUTINE becke88_sp
@@ -483,15 +473,6 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE becke88_sp_0(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb)
-
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for an open shell density (spin-polarized).
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (08.03.2000, Matthias Krack)
-
-!   ***************************************************************************
 
     REAL(wp), INTENT(IN)  :: drhoa,drhob,rhoa,rhob
     REAL(wp), INTENT(OUT) :: ex,vxa,vxb,vxga,vxgb
@@ -526,19 +507,9 @@ CONTAINS
 
   SUBROUTINE becke88_sp_1(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for an open shell density (spin-polarized).
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (08.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drhoa,drhob,rhoa,rhob
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vxa,vxb,vxga,vxgb
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -551,11 +522,10 @@ CONTAINS
     n1 = MIN(SIZE(rhoa(:),1),SIZE(rhob(:),1),&
              SIZE(drhoa(:),1),SIZE(drhob(:),1))
 
-
     IF (PRESENT(weight)) THEN
       DO i=1,n1
         CALL becke88_sp_0(rhoa(i),rhob(i),drhoa(i),drhob(i),&
-                        ex0,vxa0,vxb0,vxga0,vxgb0)
+                          ex0,vxa0,vxb0,vxga0,vxgb0)
         ex = ex + weight(i)*ex0
         vxa(i) = vxa(i) + weight(i)*vxa0
         vxb(i) = vxb(i) + weight(i)*vxb0
@@ -565,7 +535,7 @@ CONTAINS
     ELSE
       DO i=1,n1
         CALL becke88_sp_0(rhoa(i),rhob(i),drhoa(i),drhob(i),&
-                        ex0,vxa0,vxb0,vxga0,vxgb0)
+                          ex0,vxa0,vxb0,vxga0,vxgb0)
         ex = ex + ex0
         vxa(i) = vxa(i) + vxa0
         vxb(i) = vxb(i) + vxb0
@@ -580,19 +550,9 @@ CONTAINS
 
   SUBROUTINE becke88_sp_2(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for an open shell density (spin-polarized).
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (08.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drhoa,drhob,rhoa,rhob
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vxa,vxb,vxga,vxgb
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -611,7 +571,7 @@ CONTAINS
       DO i=1,n2
         DO j=1,n1
           CALL becke88_sp_0(rhoa(j,i),rhob(j,i),drhoa(j,i),drhob(j,i),&
-                          ex0,vxa0,vxb0,vxga0,vxgb0)
+                            ex0,vxa0,vxb0,vxga0,vxgb0)
           ex = ex + weight(j,i)*ex0
           vxa(j,i) = vxa(j,i) + weight(j,i)*vxa0
           vxb(j,i) = vxb(j,i) + weight(j,i)*vxb0
@@ -623,7 +583,7 @@ CONTAINS
       DO i=1,n2
         DO j=1,n1
           CALL becke88_sp_0(rhoa(j,i),rhob(j,i),drhoa(j,i),drhob(j,i),&
-                          ex0,vxa0,vxb0,vxga0,vxgb0)
+                            ex0,vxa0,vxb0,vxga0,vxgb0)
           ex = ex + ex0
           vxa(j,i) = vxa(j,i) + vxa0
           vxb(j,i) = vxb(j,i) + vxb0
@@ -639,19 +599,9 @@ CONTAINS
 
   SUBROUTINE becke88_sp_3(rhoa,rhob,drhoa,drhob,ex,vxa,vxb,vxga,vxgb,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Becke (1988) for an open shell density (spin-polarized).
-
-!   Literature: A. D. Becke, Phys. Rev. A 38, 3098 (1988)
-
-!   History: - Creation (08.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drhoa,drhob,rhoa,rhob
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vxa,vxb,vxga,vxgb
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drhoa,drhob,rhoa,rhob
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxa,vxb,vxga,vxgb
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -672,8 +622,8 @@ CONTAINS
       DO i=1,n3
         DO j=1,n2
           DO k=1,n1
-            CALL becke88_sp_0(rhoa(k,j,i),rhob(k,j,i),drhoa(k,j,i),drhob(k,j,i),&
-                            ex0,vxa0,vxb0,vxga0,vxgb0)
+            CALL becke88_sp_0(rhoa(k,j,i),rhob(k,j,i),drhoa(k,j,i),&
+                              drhob(k,j,i),ex0,vxa0,vxb0,vxga0,vxgb0)
             ex = ex + weight(k,j,i)*ex0
             vxa(k,j,i) = vxa(k,j,i) + weight(k,j,i)*vxa0
             vxb(k,j,i) = vxb(k,j,i) + weight(k,j,i)*vxb0
@@ -686,8 +636,8 @@ CONTAINS
       DO i=1,n3
         DO j=1,n2
           DO k=1,n1
-            CALL becke88_sp_0(rhoa(k,j,i),rhob(k,j,i),drhoa(k,j,i),drhob(k,j,i),&
-                            ex0,vxa0,vxb0,vxga0,vxgb0)
+            CALL becke88_sp_0(rhoa(k,j,i),rhob(k,j,i),drhoa(k,j,i),&
+                              drhob(k,j,i),ex0,vxa0,vxb0,vxga0,vxgb0)
             ex = ex + ex0
             vxa(k,j,i) = vxa(k,j,i) + vxa0
             vxb(k,j,i) = vxb(k,j,i) + vxb0
@@ -699,6 +649,375 @@ CONTAINS
     END IF
 
   END SUBROUTINE becke88_sp_3
+
+! *****************************************************************************
+
+  SUBROUTINE hcth_0(iparset,rho,drho,exc,vxc,vxcg)
+
+!   Purpose: Calculate the gradient-corrected exchange energy and potential
+!            of Hamprecht, Cohen, Tozer, and Handy (HCTH) for a closed shell
+!            density.
+
+!   Literature: - F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
+!                 J. Chem. Phys. 109, 6264 (1998) -> HCTH/93
+!               - A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik,
+!                 J. Chem. Phys. 112, 1670 (2000) -> HCTH/120 and HCTH/147
+!               - A. D. Boese and N. C. Handy,
+!                 J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
+!               - J. P. Perdew and Y. Wang,
+!                 Phys. Rev. B 45, 13244 (1992) -> PW92
+
+!   History: - Creation (27.07.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    INTEGER, INTENT(IN)   :: iparset
+    REAL(wp), INTENT(IN)  :: drho,rho
+    REAL(wp), INTENT(OUT) :: exc,vxc,vxcg
+
+!   *** Local parameters ***
+
+!   *** LSDA correlation parametrisation (PW92) ***
+
+    REAL(wp), PARAMETER :: a0 = 0.031091_wp,&
+                           a1 = 0.015545_wp,&
+                           alpha0 = 0.21370_wp,&
+                           alpha1 = 0.20548_wp
+
+    REAL(wp), DIMENSION(4), PARAMETER :: beta0 = (/ 7.59570_wp,&
+                                                    3.58760_wp,&
+                                                    1.63820_wp,&
+                                                    0.49294_wp/),&
+                                         beta1 = (/14.11890_wp,&
+                                                    6.19770_wp,&
+                                                    3.36620_wp,&
+                                                    0.62517_wp/)
+
+!   *** GGA parametrisation (HCTH/iparset) ***
+
+    REAL(wp), PARAMETER :: gamma_cab = 0.006_wp,&
+                           gamma_css = 0.200_wp,&
+                           gamma_xss = 0.004_wp
+
+!   *** Local variables ***
+
+    REAL(wp) :: dgcabddrho,dgcabdrho,dgcabds,dgcssddrho,dgcssdrho,dgcssds,&
+                dgdrs,dgxssddrho,dgxssdrho,dgxssds,drsdrho,drhos,ecab,ecss,&
+                exss,g,gcab,gcss,gs2,gxss,p,q,rho13,rho43,rhos13,rhos43,rhos,&
+                rs,rs12,s,s2,u,vcab,vcss,vxss,x,y
+
+    REAL(wp), DIMENSION(0:4) :: ccab,ccss,cxss
+
+!   ---------------------------------------------------------------------------
+
+    IF (rho < eps_rho) THEN
+
+      exc = 0.0_wp
+      vxc = 0.0_wp
+      vxcg = 0.0_wp
+
+    ELSE
+
+!     *** Load the HCTH parameter set HCTH/iparset ***
+
+      SELECT CASE (iparset)
+      CASE (93)
+        cxss(0) =  0.109320E+01_wp
+        ccss(0) =  0.222601E+00_wp
+        ccab(0) =  0.729974E+00_wp
+        cxss(1) = -0.744056E+00_wp
+        ccss(1) = -0.338622E-01_wp
+        ccab(1) =  0.335287E+01_wp
+        cxss(2) =  0.559920E+01_wp
+        ccss(2) = -0.125170E-01_wp
+        ccab(2) = -0.115430E+02_wp
+        cxss(3) = -0.678549E+01_wp
+        ccss(3) = -0.802496E+00_wp
+        ccab(3) =  0.808564E+01_wp
+        cxss(4) =  0.449357E+01_wp
+        ccss(4) =  0.155396E+01_wp
+        ccab(4) = -0.447857E+01_wp
+      CASE (120)
+        cxss(0) =  0.109163E+01_wp
+        ccss(0) =  0.489508E+00_wp
+        ccab(0) =  0.514730E+00_wp
+        cxss(1) = -0.747215E+00_wp
+        ccss(1) = -0.260699E+00_wp
+        ccab(1) =  0.692982E+01_wp
+        cxss(2) =  0.507833E+01_wp
+        ccss(2) =  0.432917E+00_wp
+        ccab(2) = -0.247073E+02_wp
+        cxss(3) = -0.410746E+01_wp
+        ccss(3) = -0.199247E+01_wp
+        ccab(3) =  0.231098E+02_wp
+        cxss(4) =  0.117173E+01_wp
+        ccss(4) =  0.248531E+01_wp
+        ccab(4) = -0.113234E+02_wp
+      CASE (147)
+        cxss(0) =  0.109025E+01_wp
+        ccss(0) =  0.562576E+00_wp
+        ccab(0) =  0.542352E+00_wp
+        cxss(1) = -0.799194E+00_wp
+        ccss(1) =  0.171436E-01_wp
+        ccab(1) =  0.701464E+01_wp
+        cxss(2) =  0.557212E+01_wp
+        ccss(2) = -0.130636E+01_wp
+        ccab(2) = -0.283822E+02_wp
+        cxss(3) = -0.586760E+01_wp
+        ccss(3) =  0.105747E+01_wp
+        ccab(3) =  0.350329E+02_wp
+        cxss(4) =  0.304544E+01_wp
+        ccss(4) =  0.885429E+00_wp
+        ccab(4) = -0.204284E+02_wp
+      CASE (407)
+        cxss(0) =  0.108184E+01_wp
+        ccss(0) =  0.118777E+01_wp
+        ccab(0) =  0.589076E+00_wp
+        cxss(1) = -0.518339E+00_wp
+        ccss(1) = -0.240292E+01_wp
+        ccab(1) =  0.442374E+01_wp
+        cxss(2) =  0.342562E+01_wp
+        ccss(2) =  0.561741E+01_wp
+        ccab(2) = -0.192218E+02_wp
+        cxss(3) = -0.262901E+01_wp
+        ccss(3) = -0.917923E+01_wp
+        ccab(3) =  0.425721E+02_wp
+        cxss(4) =  0.228855E+01_wp
+        ccss(4) =  0.624798E+01_wp
+        ccab(4) = -0.420052E+02_wp
+      CASE DEFAULT
+        STOP "in SUBROUTINE hcth_0: Invalid HCTH parameter set requested"
+      END SELECT
+
+!     *** rho_sigma = rho/2 = rho_alpha = rho_beta (same for |nabla rho|) ***
+
+      rhos = 0.5_wp*rho
+      drhos = 0.5_wp*drho
+
+      rhos13 = rhos**f13
+      rhos43 = rhos13*rhos
+
+      rho13 = two13*rhos13
+      rho43 = rho13*rho
+
+!     *** LSDA exchange part (VWN) ***
+
+      exss = cx_vwn_e*rho43
+      vxss = cx_vwn_v*rho13
+
+!     *** LSDA correlation part (PW92) ***
+
+!     *** G(rho_sigma,0) => spin polarisation zeta = 1 ***
+
+      rs = rsfac/rhos13
+      rs12 = SQRT(rs)
+      q = 2.0_wp*a1*(beta1(1) + (beta1(2) + (beta1(3) +&
+                     beta1(4)*rs12)*rs12)*rs12)*rs12
+      p = 1.0_wp + 1.0_wp/q
+      x = -2.0_wp*a1*(1.0_wp + alpha1*rs)
+      y = LOG(p)
+      g = x*y
+      dgdrs = -2.0_wp*a1*alpha1*y -&
+               x*a1*(beta1(1)/rs12 + 2.0_wp*beta1(2) +&
+                     3.0_wp*beta1(3)*rs12 + 4.0_wp*beta1(4)*rs)/(p*q*q)
+      drsdrho = -f13*rs/rho
+      ecss = rho*g
+      vcss = g + rho*dgdrs*drsdrho
+
+!     *** G(rho_alpha,rho_beta) => spin polarisation zeta = 0 ***
+
+      rs = rsfac/rho13
+      rs12 = SQRT(rs)
+      q = 2.0_wp*a0*(beta0(1) + (beta0(2) + (beta0(3) +&
+                     beta0(4)*rs12)*rs12)*rs12)*rs12
+      p = 1.0_wp + 1.0_wp/q
+      x = -2.0_wp*a0*(1.0_wp + alpha0*rs)
+      y = LOG(p)
+      g = x*y
+      dgdrs = -2.0_wp*a0*alpha0*y -&
+               x*a0*(beta0(1)/rs12 + 2.0_wp*beta0(2) +&
+                     3.0_wp*beta0(3)*rs12 + 4.0_wp*beta0(4)*rs)/(p*q*q)
+      drsdrho = -f13*rs/rho
+      ecab = rho*g - ecss
+      vcab = g + rho*dgdrs*drsdrho - vcss
+
+!     *** GGA part (HCTH) ***
+
+      s = drhos/rhos43
+      s2 = s*s
+      x = -f83/rho
+      y = 2.0_wp/(drho*drho)
+
+!     *** g_x(rho_sigma,rho_sigma) ***
+
+      gs2 = gamma_xss*s2
+      q = 1.0_wp/(1.0_wp + gs2)
+      u = gs2*q
+      gxss = cxss(0) + (cxss(1) + (cxss(2) + (cxss(3) + cxss(4)*u)*u)*u)*u
+      dgxssds = q*(cxss(1) + (2.0_wp*cxss(2) + (3.0_wp*cxss(3) +&
+                   4.0_wp*cxss(4)*u)*u)*u)*u
+      dgxssdrho = x*dgxssds
+      dgxssddrho = y*dgxssds
+
+!     *** g_c(rho_sigma,rho_sigma) ***
+
+      gs2 = gamma_css*s2
+      q = 1.0_wp/(1.0_wp + gs2)
+      u = gs2*q
+      gcss = ccss(0) + (ccss(1) + (ccss(2) + (ccss(3) + ccss(4)*u)*u)*u)*u
+      dgcssds = q*(ccss(1) + (2.0_wp*ccss(2) + (3.0_wp*ccss(3) +&
+                   4.0_wp*ccss(4)*u)*u)*u)*u
+      dgcssdrho = x*dgcssds
+      dgcssddrho = y*dgcssds
+
+!     *** g_c(rho_alpha,rho_beta) ***
+
+      gs2 = gamma_cab*s2
+      q = 1.0_wp/(1.0_wp + gs2)
+      u = gs2*q
+      gcab = ccab(0) + (ccab(1) + (ccab(2) + (ccab(3) + ccab(4)*u)*u)*u)*u
+      dgcabds = q*(ccab(1) + (2.0_wp*ccab(2) + (3.0_wp*ccab(3) +&
+                   4.0_wp*ccab(4)*u)*u)*u)*u
+      dgcabdrho = x*dgcabds
+      dgcabddrho = y*dgcabds
+
+!     *** Finally collect all contributions ***
+
+      exc = exss*gxss + ecss*gcss + ecab*gcab
+      vxc = vxss*gxss + exss*dgxssdrho +&
+            vcss*gcss + ecss*dgcssdrho +&
+            vcab*gcab + ecab*dgcabdrho
+      vxcg = exss*dgxssddrho + ecss*dgcssddrho + ecab*dgcabddrho
+
+    END IF
+
+  END SUBROUTINE hcth_0
+
+! *****************************************************************************
+
+  SUBROUTINE hcth_1(iparset,rho,drho,exc,vxc,vxcg,weight)
+
+    INTEGER, INTENT(IN)                          :: iparset
+    REAL(wp), INTENT(INOUT)                      :: exc
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
+
+!   *** Local variables ***
+
+    REAL(wp) :: exc0,vxc0,vxcg0
+    INTEGER  :: i,n1
+
+!   ---------------------------------------------------------------------------
+
+    n1 = SIZE(rho(:),1)
+
+    IF (PRESENT(weight)) THEN
+      DO i=1,n1
+        CALL hcth_0(iparset,rho(i),drho(i),exc0,vxc0,vxcg0)
+        exc = exc + weight(i)*exc0
+        vxc(i) = vxc(i) + weight(i)*vxc0
+        vxcg(i) = vxcg(i) + weight(i)*vxcg0
+      END DO
+    ELSE
+      DO i=1,n1
+        CALL hcth_0(iparset,rho(i),drho(i),exc0,vxc0,vxcg0)
+        exc = exc + exc0
+        vxc(i) = vxc(i) + vxc0
+        vxcg(i) = vxcg(i) + vxcg0
+      END DO
+    END IF
+
+  END SUBROUTINE hcth_1
+
+! *****************************************************************************
+
+  SUBROUTINE hcth_2(iparset,rho,drho,exc,vxc,vxcg,weight)
+
+    INTEGER, INTENT(IN)                            :: iparset
+    REAL(wp), INTENT(INOUT)                        :: exc
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
+
+!   *** Local variables ***
+
+    REAL(wp) :: exc0,vxc0,vxcg0
+    INTEGER  :: i,j,n1,n2
+
+!   ---------------------------------------------------------------------------
+
+    n1 = SIZE(rho(:,:),1)
+    n2 = SIZE(rho(:,:),2)
+
+    IF (PRESENT(weight)) THEN
+      DO i=1,n2
+        DO j=1,n1
+          CALL hcth_0(iparset,rho(j,i),drho(j,i),exc0,vxc0,vxcg0)
+          exc = exc + weight(j,i)*exc0
+          vxc(j,i) = vxc(j,i) + weight(j,i)*vxc0
+          vxcg(j,i) = vxcg(j,i) + weight(j,i)*vxcg0
+        END DO
+      END DO
+    ELSE
+      DO i=1,n2
+        DO j=1,n1
+          CALL hcth_0(iparset,rho(j,i),drho(j,i),exc0,vxc0,vxcg0)
+          exc = exc + exc0
+          vxc(j,i) = vxc(j,i) + vxc0
+          vxcg(j,i) = vxcg(j,i) + vxcg0
+        END DO
+      END DO
+    END IF
+
+  END SUBROUTINE hcth_2
+
+! *****************************************************************************
+
+  SUBROUTINE hcth_3(iparset,rho,drho,exc,vxc,vxcg,weight)
+
+    INTEGER, INTENT(IN)                              :: iparset
+    REAL(wp), INTENT(INOUT)                          :: exc
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc,vxcg
+    REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
+
+!   *** Local variables ***
+
+    REAL(wp) :: exc0,vxc0,vxcg0
+    INTEGER  :: i,j,k,n1,n2,n3
+
+!   ---------------------------------------------------------------------------
+
+    n1 = SIZE(rho(:,:,:),1)
+    n2 = SIZE(rho(:,:,:),2)
+    n3 = SIZE(rho(:,:,:),3)
+
+    IF (PRESENT(weight)) THEN
+      DO i=1,n3
+        DO j=1,n2
+          DO k=1,n1
+            CALL hcth_0(iparset,rho(k,j,i),drho(k,j,i),exc0,vxc0,vxcg0)
+            exc = exc + weight(k,j,i)*exc0
+            vxc(k,j,i) = vxc(k,j,i) + weight(k,j,i)*vxc0
+            vxcg(k,j,i) = vxcg(k,j,i) + weight(k,j,i)*vxcg0
+          END DO
+        END DO
+      END DO
+    ELSE
+      DO i=1,n3
+        DO j=1,n2
+          DO k=1,n1
+            CALL hcth_0(iparset,rho(k,j,i),drho(k,j,i),exc0,vxc0,vxcg0)
+            exc = exc + exc0
+            vxc(k,j,i) = vxc(k,j,i) + vxc0
+            vxcg(k,j,i) = vxcg(k,j,i) + vxcg0
+          END DO
+        END DO
+      END DO
+    END IF
+
+  END SUBROUTINE hcth_3
 
 ! *****************************************************************************
 
@@ -763,11 +1082,9 @@ CONTAINS
       domega = f13*omega*((c + doq)*rhom13 - 5.0_wp)/rho
 
       ec = a*(b*omega*(f*drho2/72.0_wp - cf*rho83) - rho/q)
-
       vc = -a*((96.0_wp*d*rhom13 + 72.0_wp)/(q*q) -&
                b*((7.0_wp*omega*ddelta + f*domega)*drho2 -&
                   8.0_wp*cf*rho53*(24.0_wp*omega + 9.0_wp*rho*domega)))/72.0_wp
-
       vcg = a*b*omega*f/36.0_wp
 
     END IF
@@ -778,22 +1095,9 @@ CONTAINS
 
   SUBROUTINE lyp_1(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Lee, Yang, and Parr (LYP, 1988) for a closed shell density.
-
-!   Literature: - C. Lee, W. Yang, R. G. Parr,
-!                 Phys. Rev. B 37, 785 (1988)
-!               - B. Miehlich, A. Savin, H. Stoll, H. Preuss,
-!                 Chem. Phys. Lett. 157, 200 (1989)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                      :: ec
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -827,22 +1131,9 @@ CONTAINS
 
   SUBROUTINE lyp_2(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Lee, Yang, and Parr (LYP, 1988) for a closed shell density.
-
-!   Literature: - C. Lee, W. Yang, R. G. Parr,
-!                 Phys. Rev. B 37, 785 (1988)
-!               - B. Miehlich, A. Savin, H. Stoll, H. Preuss,
-!                 Chem. Phys. Lett. 157, 200 (1989)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                        :: ec
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -881,22 +1172,9 @@ CONTAINS
 
   SUBROUTINE lyp_3(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Lee, Yang, and Parr (LYP, 1988) for a closed shell density.
-
-!   Literature: - C. Lee, W. Yang, R. G. Parr,
-!                 Phys. Rev. B 37, 785 (1988)
-!               - B. Miehlich, A. Savin, H. Stoll, H. Preuss,
-!                 Chem. Phys. Lett. 157, 200 (1989)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                          :: ec
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -983,15 +1261,13 @@ CONTAINS
 
       p = a0 + (a1 + (a2 + a3*rs)*rs)*rs
       q = (b1 + (b2 + (b3 + b4*rs)*rs)*rs)*rs
-
       epade = -p/q
-
-      exc = epade*rho
 
       dp = a1 + (2.0_wp*a2 + 3.0_wp*a3*rs)*rs
       dq = b1 + (2.0_wp*b2 + (3.0_wp*b3 + 4.0_wp*b4*rs)*rs)*rs
 
-      vxc = epade + f13*rs*(dp*q - p*dq)/(q*q)
+      exc = epade*rho
+      vxc = epade + f13*rs*(dp*q - p*dq)/q**2
 
     END IF
 
@@ -1001,20 +1277,9 @@ CONTAINS
 
   SUBROUTINE pade_1(rho,exc,vxc,weight)
 
-!   Purpose: Calculate the correlation energy and potential using the Pade
-!            approximation of Goedecker, Teter and Hutter for LDA.
-
-!   Literature: S. Goedecker, M. Teter and J. Hutter,
-!               Phys. Rev. B 54, 1703 (1996)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: rho
-    REAL(wp),               INTENT(INOUT) :: exc
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vxc
-
+    REAL(wp), INTENT(INOUT)                      :: exc
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vxc
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1046,20 +1311,9 @@ CONTAINS
 
   SUBROUTINE pade_2(rho,exc,vxc,weight)
 
-!   Purpose: Calculate the correlation energy and potential using the Pade
-!            approximation of Goedecker, Teter and Hutter for LDA.
-
-!   Literature: S. Goedecker, M. Teter and J. Hutter,
-!               Phys. Rev. B 54, 1703 (1996)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: rho
-    REAL(wp),                 INTENT(INOUT) :: exc
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vxc
-
+    REAL(wp), INTENT(INOUT)                        :: exc
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vxc
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1096,20 +1350,9 @@ CONTAINS
 
   SUBROUTINE pade_3(rho,exc,vxc,weight)
 
-!   Purpose: Calculate the correlation energy and potential using the Pade
-!            approximation of Goedecker, Teter and Hutter for LDA.
-
-!   Literature: S. Goedecker, M. Teter and J. Hutter,
-!               Phys. Rev. B 54, 1703 (1996)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: rho
-    REAL(wp),                   INTENT(INOUT) :: exc
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vxc
-
+    REAL(wp), INTENT(INOUT)                          :: exc
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vxc
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1200,8 +1443,6 @@ CONTAINS
 
       h = gamma_pbe*LOG(p)
 
-      ec = ec + rho*h
-
       dpdt = 2.0_wp*bog*t*(1.0_wp + 2.0_wp*at2)*q2
       dtdr = -f76*t/rho
       dpda = -bog*at2*t2*t2*(2.0_wp + at2)*q2
@@ -1209,12 +1450,11 @@ CONTAINS
       dedr = (vc - e)/rho
       dpdr = dpdt*dtdr + dpda*dade*dedr
       dhdr = gamma_pbe*dpdr/p
-
-      vc = vc + h + rho*dhdr
-
-      dtddr = t/(drho*drho)
+      dtddr = t/drho**2
       dhddr = gamma_pbe*dpdt*dtddr/p
 
+      ec = ec + rho*h
+      vc = vc + h + rho*dhdr
       vcg = rho*dhddr
 
     END IF
@@ -1225,20 +1465,9 @@ CONTAINS
 
   SUBROUTINE pbe_c_1(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                      :: ec
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1272,20 +1501,9 @@ CONTAINS
 
   SUBROUTINE pbe_c_2(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                        :: ec
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1324,20 +1542,9 @@ CONTAINS
 
   SUBROUTINE pbe_c_3(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                          :: ec
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1424,9 +1631,7 @@ CONTAINS
       dfx = 2.0_wp*mu*s*p*p
 
       ex = cx_vwn_e*rho43*fx
-
       vx = cx_vwn_v*rho13*(fx - s*dfx)
-
       vxg = cx_vwn_e*r2kf*dfx/drho
 
     END IF
@@ -1437,20 +1642,9 @@ CONTAINS
 
   SUBROUTINE pbe_x_1(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (20.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1484,20 +1678,9 @@ CONTAINS
 
   SUBROUTINE pbe_x_2(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (20.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1536,20 +1719,9 @@ CONTAINS
 
   SUBROUTINE pbe_x_3(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew, Burke and Ernzerhof (1996) for a closed shell density.
-
-!   Literature: J. P. Perdew, K. Burke and M. Ernzerhof,
-!               Phys. Rev. Lett., 77, 3865 (1996)
-
-!   History: - Creation (20.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1657,7 +1829,6 @@ CONTAINS
 
         vc = vc - ephi*drho2*rhom76*rhom76*((f43 - f76*phi)*crho +&
                                             f13*rs*(phi + 1.0_wp)*dcrho)
-
         vcg = -ephi*rhom43*(phi - 2.0_wp)*crho
 
       ELSE
@@ -1674,20 +1845,9 @@ CONTAINS
 
   SUBROUTINE perdew86_c_1(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew, Phys. Rev. B, 33, 8822 (1986)
-!               Erratum: Phys. Rev. B, 34, 7406 (1986)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                      :: ec
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1721,20 +1881,9 @@ CONTAINS
 
   SUBROUTINE perdew86_c_2(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew, Phys. Rev. B, 33, 8822 (1986)
-!               Erratum: Phys. Rev. B, 34, 7406 (1986)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                        :: ec
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1773,20 +1922,9 @@ CONTAINS
 
   SUBROUTINE perdew86_c_3(rho,drho,ec,vc,vcg,weight)
 
-!   Purpose: Calculate the gradient-corrected correlation energy and potential
-!            of Perdew (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew, Phys. Rev. B, 33, 8822 (1986)
-!               Erratum: Phys. Rev. B, 34, 7406 (1986)
-
-!   History: - Creation (16.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vc,vcg
-
+    REAL(wp), INTENT(INOUT)                          :: ec
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc,vcg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1886,9 +2024,7 @@ CONTAINS
       END IF
 
       ex = cx_vwn_e*rho43*fx
-
       vx = cx_vwn_v*rho13*(fx - s*dfx)
-
       vxg = cx_vwn_e*r2kf*dfx/drho
 
     END IF
@@ -1899,19 +2035,9 @@ CONTAINS
 
   SUBROUTINE perdew86_x_1(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew and Wang (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew and Y. Wang, Phys. Rev. B, 33, 8800 (1986)
-
-!   History: - Creation (17.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: drho,rho
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1945,19 +2071,9 @@ CONTAINS
 
   SUBROUTINE perdew86_x_2(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew and Wang (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew and Y. Wang, Phys. Rev. B, 33, 8800 (1986)
-
-!   History: - Creation (17.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -1996,19 +2112,9 @@ CONTAINS
 
   SUBROUTINE perdew86_x_3(rho,drho,ex,vx,vxg,weight)
 
-!   Purpose: Calculate the gradient-corrected exchange energy and potential
-!            of Perdew and Wang (1986) for a closed shell density.
-
-!   Literature: J. P. Perdew and Y. Wang, Phys. Rev. B, 33, 8800 (1986)
-
-!   History: - Creation (17.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: drho,rho
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vx,vxg
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: drho,rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx,vxg
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2090,19 +2196,9 @@ CONTAINS
 
   SUBROUTINE slater_1(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential using the X_alpha
-!            approximation of Slater for a closed shell density.
-
-!   Literature: J. C. Slater, Phys. Rev. 81, 385 (1951)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: rho
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2134,19 +2230,9 @@ CONTAINS
 
   SUBROUTINE slater_2(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential using the X_alpha
-!            approximation of Slater for a closed shell density.
-
-!   Literature: J. C. Slater, Phys. Rev. 81, 385 (1951)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: rho
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2183,19 +2269,9 @@ CONTAINS
 
   SUBROUTINE slater_3(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential using the X_alpha
-!            approximation of Slater for a closed shell density.
-
-!   Literature: J. C. Slater, Phys. Rev. 81, 385 (1951)
-
-!   History: - Creation (11.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: rho
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2252,8 +2328,8 @@ CONTAINS
 
 !   *** Local parameters (paramagnetic parameter set of VWN) ***
 
-    REAL(wp), PARAMETER :: ap = 0.0621814_wp,&
-                           bp = 3.72744_wp,&
+    REAL(wp), PARAMETER :: ap =  0.0621814_wp,&
+                           bp =  3.72744_wp,&
                            cp = 12.9352_wp,&
                            xp = -0.10498_wp
 
@@ -2286,11 +2362,9 @@ CONTAINS
                        ((xp2 + cp)*LOG(pp/xmxp2) +&
                         2.0_wp*bp*(xp2 - cp)*ATAN(qp/(2.0_wp*x + bp))/qp)/&
                        (xp2 + bp*xp + cp))
-
-      ec = ecp*rho
-
       decp = 0.5_wp*f13*ap*((1.0_wp + bp/xmxp)*x2/pp - 1.0)
 
+      ec = ecp*rho
       vc = ecp + decp
 
     END IF
@@ -2301,20 +2375,9 @@ CONTAINS
 
   SUBROUTINE vwn_c_1(rho,ec,vc,weight)
 
-!   Purpose: Calculate the correlation energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (12.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: rho
-    REAL(wp),               INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vc
-
+    REAL(wp), INTENT(INOUT)                      :: ec
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vc
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2346,20 +2409,9 @@ CONTAINS
 
   SUBROUTINE vwn_c_2(rho,ec,vc,weight)
 
-!   Purpose: Calculate the correlation energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (12.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: rho
-    REAL(wp),                 INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vc
-
+    REAL(wp), INTENT(INOUT)                        :: ec
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vc
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2396,20 +2448,9 @@ CONTAINS
 
   SUBROUTINE vwn_c_3(rho,ec,vc,weight)
 
-!   Purpose: Calculate the correlation energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (12.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: rho
-    REAL(wp),                   INTENT(INOUT) :: ec
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vc
-
+    REAL(wp), INTENT(INOUT)                          :: ec
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vc
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2490,20 +2531,9 @@ CONTAINS
 
   SUBROUTINE vwn_x_1(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:), INTENT(IN)    :: rho
-    REAL(wp),               INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                      :: ex
+    REAL(wp), DIMENSION(:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2535,20 +2565,9 @@ CONTAINS
 
   SUBROUTINE vwn_x_2(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:), INTENT(IN)    :: rho
-    REAL(wp),                 INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                        :: ex
+    REAL(wp), DIMENSION(:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***
@@ -2585,20 +2604,9 @@ CONTAINS
 
   SUBROUTINE vwn_x_3(rho,ex,vx,weight)
 
-!   Purpose: Calculate the exchange energy and potential of Vosko, Wilk and
-!            Nusair (VWN, 1980) for a closed shell density.
-
-!   Literature: S. H. Vosko, L. Wilk and M. Nusair,
-!               Can. J. Phys. 58, 1200 (1980)
-
-!   History: - Creation (22.03.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), DIMENSION(:,:,:), INTENT(IN)    :: rho
-    REAL(wp),                   INTENT(INOUT) :: ex
-    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT) :: vx
-
+    REAL(wp), INTENT(INOUT)                          :: ex
+    REAL(wp), DIMENSION(:,:,:), INTENT(IN)           :: rho
+    REAL(wp), DIMENSION(:,:,:), INTENT(INOUT)        :: vx
     REAL(wp), DIMENSION(:,:,:), OPTIONAL, INTENT(IN) :: weight
 
 !   *** Local variables ***

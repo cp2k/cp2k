@@ -274,11 +274,10 @@ CONTAINS
     INTEGER  :: ax,ay,az,bx,by,bz,handle,i,ico,ig,j,jco,jg,k,kg,la,lb,&
                 lb_cube_min,ub_cube_max
 
-    REAL(wp), DIMENSION(3) :: rap,rbp,roffset,rp
-    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ub_cube
+    REAL(wp), DIMENSION(3) :: dr,rap,rbp,roffset,rp
+    INTEGER, DIMENSION(3)  :: cubecenter,lb_cube,ng,ub_cube,ub_grid
 
-    REAL(wp), DIMENSION(:), POINTER       :: dr,rag,rbg,rpg
-    INTEGER, DIMENSION(:), POINTER        :: ng
+    REAL(wp), DIMENSION(:), POINTER       :: rag,rbg,rpg
     INTEGER, DIMENSION(:,:), POINTER      :: map
     REAL(wp), DIMENSION(:,:,:), POINTER   :: grid
     REAL(wp), DIMENSION(:,:,:,:), POINTER :: cubeaxis
@@ -301,8 +300,9 @@ CONTAINS
     npgf_product = npgf_product + (ncoset(la_max) - ncoset(la_min-1))*&
                                   (ncoset(lb_max) - ncoset(lb_min-1))
 
-    dr => pw%pw_grid%dr(:)
-    ng => pw%pw_grid%npts(:)
+    dr(:) = pw%pw_grid%dr(:)
+    ng(:) = pw%pw_grid%npts(:)
+    ub_grid(:) = pw%pw_grid%bounds(2,:)
     grid => pw%cr3d(:,:,:)
 
     rap(:) = f*rab(:)
