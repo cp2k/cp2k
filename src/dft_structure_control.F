@@ -38,7 +38,7 @@ MODULE dft_structure_control
        initialize_velocities, thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
        molecule_type
-  USE pair_potential_types, ONLY : pair_potential_type, &
+  USE pair_potential_types, ONLY : pair_potential_type
   USE pair_potential, ONLY : get_potrange, spline_nonbond_control
   USE particle_types, ONLY : particle_type
   USE potential_types, ONLY : potential_type, potential_allocate, &

@@ -773,8 +773,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_program
-
     REAL(KIND = dp), INTENT(IN) :: alpha,prefactor,threshold
     INTEGER, INTENT(IN)  :: l
     REAL(KIND = dp), INTENT(IN), OPTIONAL :: epsin

@@ -885,8 +885,8 @@ CONTAINS
 
     DEALLOCATE (pabt,workt,ntasks,tasks,tasks_local,ival,latom,&
         dist_ab,dab_local,asets,atasks,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,&
-        &tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
+    IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
+        "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
     IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical&
          .AND. rebuild) THEN

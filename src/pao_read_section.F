@@ -67,6 +67,12 @@ MODULE pao_read_section
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE pao_plain_rot_tests, ONLY: pao_test_plain_rot
+  USE pao_types_tests, ONLY: cp_test_pao_types
+  USE cp_sll_int_tests, ONLY: cp_test_int_sll
+  !use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
+  USE cp_lbfgs_optimizer_tests, ONLY: cp_lbfgs_e_rosen_test
+
   IMPLICIT NONE
   PRIVATE
 
@@ -251,12 +257,6 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION cp_test_pao(global_env,error) RESULT(res)  
-  USE pao_plain_rot_tests, ONLY: pao_test_plain_rot
-  USE pao_types_tests, ONLY: cp_test_pao_types
-  USE cp_sll_int_tests, ONLY: cp_test_int_sll
-  !use cp_sll_int_ptr_tests, only: cp_test_int_ptr_sll
-  USE cp_lbfgs_optimizer_tests, ONLY: cp_lbfgs_e_rosen_test
-
   TYPE(global_environment_type) :: global_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   LOGICAL :: res

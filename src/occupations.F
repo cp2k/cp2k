@@ -26,8 +26,9 @@ MODULE occupations
   USE mathconstants, ONLY : pi
   USE termination, ONLY : stop_program
   USE wf_types, ONLY : wf_type, wf_spinset_type, wf_kset_type
-  USE cp_control_types, ONLY : dft_control_type
-  
+  USE dft_types, ONLY : dft_control_type
+  USE kpoints, ONLY : kset
+
   IMPLICIT NONE
   
   PRIVATE
@@ -134,8 +135,6 @@ END SUBROUTINE occupations_assign
 !******************************************************************************
 
 FUNCTION occupations_fsum_spin ( psi_s, efermi ) RESULT ( nelectrons_integrated )
-  
-  USE kpoints, ONLY : kset
   
   IMPLICIT NONE
   

@@ -207,15 +207,9 @@ SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
        t38,t39,t42,t44,t51,t58,t60,t64,t66,t67,t71,t75,t78,t82,t84,t86,&
        t87,t90,t91,t93,t94,t98,t117,t146,t151,t155,t159,t161,t168,t173,t181
   INTEGER :: stat
-  REAL(kind=dp), PARAMETER :: t_2_3=2.0_dp/3.0_dp,&
-       t_4_3=4.0_dp/3.0_dp, t_1_9=1.0_dp/9.0_dp,&
-       t_2_9=2.0_dp/9.0_dp*t_4_3, t_4_27=4.0_dp/27.0_dp
 
   failure=.false.
   nullify(bo)
-  t1 = 2.0_dp ** (0.1e1_dp / 0.3e1_dp)
-  t2 = t1 ** 2
-  t7 = beta * t1
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -223,8 +217,7 @@ SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
   CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      CALL xc_rho_set_get(rho_set,rho_1_3=rho_1_3,rho=rho,&
-          norm_drho=norm_drho,rho_cutoff=epsilon_rho,&
-          drho_cutoff=epsilon_norm_drho,local_bounds=bo, error=error)
+          norm_drho=norm_drho,local_bounds=bo, error=error)
      npoints=(bo(2,1)-bo(1,1))*(bo(2,2)-bo(1,2))*(bo(2,3)-bo(1,3))
 
      ! meaningful default for the arrays we don't need: let us make compiler
@@ -287,7 +280,6 @@ SUBROUTINE xb88_lda_eval(rho_set,deriv_set,grad_deriv,error)
              message="derivatives bigger than 3 not implemented", &
              error=error, error_level=cp_failure_level)
      END IF
-     t3 = 1.5_dp*(0.75*pi)**(1.0_dp/3.0_dp) * t2
 
      CALL xb88_lda_calc(rho=rho, rho_1_3=rho_1_3, norm_drho=norm_drho,&
           e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,e_rho_rho=e_rho_rho,&
@@ -515,7 +507,6 @@ SUBROUTINE xb88_lsd_eval(rho_set,deriv_set,grad_deriv,error)
 
   failure=.false.
   NULLIFY(deriv, bo)
-  c=3.0_dp/2.0_dp*(3.0_dp/4.0_dp*Pi)**(1.0_dp/3.0_dp)
 
   CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
   CPPrecondition(rho_set%ref_count>0,cp_failure_level,routineP,error,failure)

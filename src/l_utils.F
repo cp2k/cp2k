@@ -1,5 +1,5 @@
 ! ***************************************************************
-MODULE L_UTILS
+MODULE l_utils
    USE kinds,                 ONLY: dp
    USE termination,           ONLY: stop_memory,stop_program
    USE timings,               ONLY: timeset,timestop

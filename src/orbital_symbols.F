@@ -20,6 +20,8 @@
 !******************************************************************************
 
 MODULE orbital_symbols
+  USE termination, ONLY: stop_program
+
 
 ! *****************************************************************************
 
@@ -57,8 +59,6 @@ CONTAINS
 !   History: - Creation (07.07.99, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_program
 
     INTEGER, INTENT(IN) :: n
 
@@ -132,8 +132,6 @@ CONTAINS
 !   n: Principle quantum number n of the orbital.
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_program
 
     INTEGER, INTENT(IN) :: l,m,n
 

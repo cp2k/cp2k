@@ -31,6 +31,8 @@ MODULE mathlib
 
   USE output_utilities, ONLY: print_message,print_warning
   USE termination,      ONLY: stop_memory,stop_program
+  USE mathconstants, ONLY: fac
+  USE termination, ONLY: get_error_unit
 
   IMPLICIT NONE
 
@@ -194,8 +196,6 @@ CONTAINS
 !   History: - Creation (08.03.1999, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE mathconstants, ONLY: fac
 
     INTEGER, INTENT(IN) :: k,n
 
@@ -635,7 +635,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE termination, ONLY: get_error_unit
 
     REAL(KIND = dp), INTENT(OUT) :: error
 

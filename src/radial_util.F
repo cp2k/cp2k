@@ -22,9 +22,9 @@
 MODULE radial_util
 
   USE kinds, ONLY : dbl
-
   USE radial_grids, ONLY : radial_grid_type
   USE termination, ONLY : stop_memory
+  USE mathconstants, ONLY : pi
 
   IMPLICIT NONE
 
@@ -263,8 +263,6 @@ END SUBROUTINE radial_diff_r
 !!
 !!****
   SUBROUTINE radial_normalize(f, rg)
-
-    USE mathconstants, ONLY : pi
 
     IMPLICIT NONE
 

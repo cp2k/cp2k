@@ -35,6 +35,11 @@ MODULE orbital_transformation_matrices
                    dp_size
 
   USE orbital_pointers, ONLY: co,nco,nso
+  USE global_types,     ONLY: global_environment_type
+  USE mathconstants,    ONLY: dfac,fac,pi
+  USE mathlib !,          ONLY: OPERATOR(.over.)
+  USE termination,      ONLY: stop_memory
+  USE orbital_symbols, ONLY: cgf_symbol,sgf_symbol
 
   IMPLICIT NONE
 
@@ -86,11 +91,6 @@ CONTAINS
 !!   SOURCE
 !!
   SUBROUTINE init_spherical_harmonics(maxl,globenv)
-
-    USE global_types,     ONLY: global_environment_type
-    USE mathconstants,    ONLY: dfac,fac,pi
-    USE mathlib !,          ONLY: OPERATOR(.over.)
-    USE termination,      ONLY: stop_memory
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     INTEGER, INTENT(IN)                       :: maxl
@@ -307,8 +307,6 @@ CONTAINS
 !   matrix  : Matrix to be printed.
 
 !   ---------------------------------------------------------------------------
-
-    USE orbital_symbols, ONLY: cgf_symbol,sgf_symbol
 
     CHARACTER(LEN=*), INTENT(IN) :: headline
     INTEGER, INTENT(IN)          :: l,lunit

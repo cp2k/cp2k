@@ -30,6 +30,8 @@ MODULE ai_derivatives
 ! *****************************************************************************
 
   USE kinds, ONLY: dp
+  USE orbital_pointers, ONLY: coset,ncoset
+
 
   IMPLICIT NONE
 
@@ -54,8 +56,6 @@ CONTAINS
 !   History: - Creation (05.10.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE orbital_pointers, ONLY: coset,ncoset
 
     REAL(KIND = dp), INTENT(IN)                  :: dab
     INTEGER, INTENT(IN)                   :: la_max,la_min,lb_max,lb_min

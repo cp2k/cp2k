@@ -60,7 +60,7 @@ CONTAINS
 
 SUBROUTINE cp_blacs_gridinit(context,order,nprow,npcol)
    INTEGER, INTENT(INOUT) :: context
-   CHARACTER*1, INTENT(IN):: order
+   CHARACTER(len=1), INTENT(IN):: order
    INTEGER, INTENT(IN)    :: nprow, npcol
 #if defined(__BLACS)
    CALL blacs_gridinit(context,order,nprow,npcol)
@@ -120,7 +120,7 @@ END SUBROUTINE cp_blacs_pinfo
 
 SUBROUTINE cp_blacs_zgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   COMPLEX(dbl), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
@@ -129,7 +129,7 @@ SUBROUTINE cp_blacs_zgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
 END SUBROUTINE
 SUBROUTINE cp_blacs_zgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   COMPLEX(dbl), DIMENSION(LDA,*) :: A
@@ -139,7 +139,7 @@ SUBROUTINE cp_blacs_zgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
 END SUBROUTINE
 SUBROUTINE cp_blacs_zgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   COMPLEX(dbl)            :: A
 #if defined(__BLACS)
@@ -148,7 +148,7 @@ SUBROUTINE cp_blacs_zgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
 END SUBROUTINE
 SUBROUTINE cp_blacs_zgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   COMPLEX(dbl)            :: A
@@ -159,7 +159,7 @@ END SUBROUTINE
 
 SUBROUTINE cp_blacs_dgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   REAL(dbl), DIMENSION(LDA,*) :: A
 #if defined(__BLACS)
@@ -168,7 +168,7 @@ SUBROUTINE cp_blacs_dgebs2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA 
 END SUBROUTINE
 SUBROUTINE cp_blacs_dgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   REAL(dbl), DIMENSION(LDA,*) :: A
@@ -178,7 +178,7 @@ SUBROUTINE cp_blacs_dgebr2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
 END SUBROUTINE
 SUBROUTINE cp_blacs_dgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   REAL(dbl)               :: A
 #if defined(__BLACS)
@@ -187,7 +187,7 @@ SUBROUTINE cp_blacs_dgebs2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA
 END SUBROUTINE
 SUBROUTINE cp_blacs_dgebr2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RSRC, CSRC )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RSRC,CSRC
   REAL(dbl)               :: A
@@ -198,7 +198,7 @@ END SUBROUTINE
 
 SUBROUTINE cp_blacs_igsum2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RDEST, CDEST )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RDEST,CDEST
   INTEGER, DIMENSION(LDA,*) :: A
@@ -208,7 +208,7 @@ SUBROUTINE cp_blacs_igsum2d_array(ICONTXT, SCOPE, TOP,             M, N, A, LDA,
 END SUBROUTINE
 SUBROUTINE cp_blacs_igsum2d_scalar(ICONTXT, SCOPE, TOP,             M, N, A, LDA, RDEST, CDEST )
   INTEGER, INTENT(IN)     :: ICONTXT
-  CHARACTER*1, INTENT(IN) :: SCOPE,TOP
+  CHARACTER(len=1), INTENT(IN) :: SCOPE,TOP
   INTEGER, INTENT(IN)     :: M,N,LDA
   INTEGER, INTENT(IN)     :: RDEST,CDEST
   INTEGER                 :: A

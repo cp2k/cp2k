@@ -35,7 +35,9 @@ MODULE wfs
   USE termination, ONLY : stop_program
   USE wf_types, ONLY : wf_type, wf_spinset_type, wf_kset_type, &
        wf_allocate_eigenvalues
-  
+  USE kpoints, ONLY : kset
+  USE eigenvalueproblems, ONLY : diagonalise
+      
   IMPLICIT NONE
   
   PRIVATE
@@ -267,8 +269,6 @@ END SUBROUTINE wf_h_psi
 
 SUBROUTINE wf_steepest_descent ( vloc, psi, wavepar )
   
-  USE kpoints, ONLY : kset
-  
   IMPLICIT NONE
   
 ! Arguments
@@ -430,8 +430,6 @@ END FUNCTION wf_innerproduct_s1s2
 !******************************************************************************
 
 SUBROUTINE wf_subspace_rotate ( psi_ks, vloc, xkpt, wavepar )
-  
-  USE eigenvalueproblems, ONLY : diagonalise
   
   IMPLICIT NONE
   
@@ -596,8 +594,6 @@ END SUBROUTINE wf_write_restart
 !******************************************************************************
 
 SUBROUTINE wf_occupation_update ( psi, dft_control, wavepar )
-  
-  USE kpoints, ONLY : kset
   
   IMPLICIT NONE
   

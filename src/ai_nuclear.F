@@ -47,6 +47,9 @@ MODULE ai_nuclear
 ! *****************************************************************************
 
   USE kinds, ONLY: dp
+  USE gamma,            ONLY: fgamma
+  USE mathconstants,    ONLY: pi
+  USE orbital_pointers, ONLY: coset,ncoset
 
   IMPLICIT NONE
 
@@ -73,10 +76,6 @@ CONTAINS
 !   History: - Creation (26.09.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE gamma,            ONLY: fgamma
-    USE mathconstants,    ONLY: pi
-    USE orbital_pointers, ONLY: coset,ncoset
 
     REAL(KIND = dp), INTENT(IN)                    :: rab2,zc
     INTEGER, INTENT(IN)                     :: la_max,la_min,lb_max,lb_min

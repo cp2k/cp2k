@@ -1092,7 +1092,9 @@
         INTEGER :: iis(48), nca, n, l, k, i, j, k2, il, ni, li, info
         REAL (dbl) :: vr(3), origin(3), xb(3), vc(3,48), vs
         LOGICAL :: oksym, nodupli
-        CHARACTER :: icst(7)*12, pgrp(32)*5, pgrd(32)*3
+        CHARACTER(len=12) :: icst(7)
+        CHARACTER(len=5) :: pgrp(32)
+        CHARACTER(len=3) :: pgrd(32)
 !------------------------------------------------------------------------------!
         DATA icst/'TRICLINIC', 'MONOCLINIC', 'ORTHORHOMBIC', 'TETRAGONAL', &
           'CUBIC', 'TRIGONAL', 'HEXAGONAL'/
