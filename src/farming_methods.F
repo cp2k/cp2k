@@ -85,6 +85,17 @@ CONTAINS
                CALL stop_parser(routine=routineN,message="specify one of GROUP_SIZE or NGROUPS ")
             CALL read_object(farming_env%ngroup_wish)
             farming_env%ngroup_wish_set=.TRUE.
+          !
+          ! allows strictly setting the size of the different partitions, up to the user to do the
+          ! right thing for the allocated number of CPUs
+          !
+          CASE ("GROUP_PARTITION")
+            IF (.NOT. farming_env%ngroup_wish_set) &
+               CALL stop_parser(routine=routineN,message="specify NGROUPS before GROUP_PARTITION")
+            ALLOCATE(farming_env%group_partition(0:farming_env%ngroup_wish-1))
+            DO I=0,farming_env%ngroup_wish-1
+               CALL read_object(farming_env%group_partition(I)) 
+            ENDDO
           CASE DEFAULT
             CALL stop_parser(routine=routineN,message="INVALID_KEYWORD "&
                  //keyword)
@@ -143,6 +154,32 @@ CONTAINS
            ENDIF
         ENDDO
         CALL finish_parser()
+    ENDIF
+
+    IF (globenv%ionode .AND. .NOT. failure) THEN
+        write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
+        IF (farming_env%ngroup_wish_set) THEN
+           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
+           IF (ASSOCIATED(farming_env%group_partition)) THEN
+              write(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| User partition:"
+              DO i=0,SIZE(farming_env%group_partition)-1
+                 IF (MODULO(i,4)==0) write(globenv%scr,*)
+                 write(globenv%scr,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
+              END DO
+              write(globenv%scr,*)
+              IF (SUM(farming_env%group_partition).NE.globenv%num_pe) THEN
+                 write(globenv%scr,FMT="(T2,A,T61,I10,T71,I10)") &
+                     "FARMING| WARNING : partition CPUs not equal actual number ", &
+                     globenv%num_pe, SUM(farming_env%group_partition)
+                 write(globenv%scr,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
+                 DEALLOCATE(farming_env%group_partition)
+              ENDIF
+           ENDIF
+        ENDIF
+        IF (farming_env%group_size_wish_set) THEN
+           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
+                 farming_env%group_size_wish
+        ENDIF
     ENDIF
 
   END SUBROUTINE

@@ -2234,6 +2234,8 @@ END SUBROUTINE mp_waitall
 !!                           output : the number of the group the proc belongs to (0..ngroups-1)
 !!     - subgroup_min_size: the minimum size of the subgroup
 !!     - n_subgroups: the number of subgroups wanted
+!!     - group_partition: n_subgroups sized array containing the number of cpus wanted per group.
+!!                        should match the total number of cpus (only used if present and associated) (0..ngroups-1)
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -2244,18 +2246,19 @@ END SUBROUTINE mp_waitall
 !!
 !!*** **********************************************************************
 SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
-                    subgroup_min_size, n_subgroups)
+                    subgroup_min_size, n_subgroups, group_partition)
     INTEGER, INTENT(in)                      :: comm
     INTEGER, INTENT(out)                     :: sub_comm
     INTEGER, INTENT(out)                     :: ngroups ! actual number of groups
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     INTEGER, INTENT(in), OPTIONAL            :: subgroup_min_size
     INTEGER, INTENT(in), OPTIONAL            :: n_subgroups
+    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: group_partition
 
     CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_split', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: color, i, ierr, j, mepos, my_n_subgroups, &
+    INTEGER :: color, i, ierr, j, k, mepos, my_n_subgroups, &
       my_subgroup_min_size, nnodes, nrest_proc, pos, stat, subgroup_size, &
       tmp_comm
 
@@ -2299,6 +2302,22 @@ SUBROUTINE mp_comm_split(comm,sub_comm,ngroups, group_distribution, &
        ! if part of the rest, join the last group
        IF ( group_distribution(i) >= ngroups ) group_distribution(i)=ngroups-1
     ENDDO
+    ! even the user gave a partition, see if we can use it to overwrite this choice
+    IF (PRESENT(group_partition)) THEN
+       IF (ASSOCIATED(group_partition)) THEN
+          IF (ALL(group_partition>0) .AND. SUM(group_partition).EQ.nnodes .AND. ngroups == SIZE(group_partition)) THEN
+             k=0
+             DO i=0,SIZE(group_partition)-1
+                DO j=1,group_partition(i)
+                   group_distribution(k)=i
+                   k=k+1
+                ENDDO
+             ENDDO
+          ELSE
+             ! just ignore silently as we have reasonable defaults. Probably a warning would not be to bad         
+          ENDIF 
+       ENDIF
+    ENDIF
     color=group_distribution(mepos)
     CALL mpi_comm_split(comm,color,0,sub_comm,ierr)
     IF (ierr/=mpi_success) CALL mp_stop(ierr,"in "//routineP//" split")

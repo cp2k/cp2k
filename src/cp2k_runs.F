@@ -21,7 +21,8 @@ MODULE cp2k_runs
   USE timings,                         ONLY: trace_debug
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE farming_methods,                 ONLY: farming_parse_input
-  USE farming_types,                   ONLY: farming_env_type
+  USE farming_types,                   ONLY: farming_env_type, &
+                                             deallocate_farming_env
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_calculate_energy, &
                                              force_env_release
@@ -244,16 +245,6 @@ CONTAINS
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
     CALL farming_parse_input(farming_env,globenv,error)
-    IF (globenv%ionode) THEN
-        write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
-        IF (farming_env%ngroup_wish_set) THEN
-           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
-        ENDIF
-        IF (farming_env%group_size_wish_set) THEN
-           write(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
-                 farming_env%group_size_wish
-        ENDIF
-    ENDIF
 
     ! split the current communicator 
     ALLOCATE(group_distribution(0:globenv%num_pe-1),STAT=stat) 
@@ -263,7 +254,7 @@ CONTAINS
                subgroup_min_size=farming_env%group_size_wish)
     ELSE IF (farming_env%ngroup_wish_set) THEN
        CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
-               n_subgroups=farming_env%ngroup_wish)
+               n_subgroups=farming_env%ngroup_wish,group_partition=farming_env%group_partition)
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
@@ -301,13 +292,7 @@ CONTAINS
                         file_position="APPEND",&
                         unit_number=output_unit)
               ELSE
-                !  write(output_file,'(A12,I5.5,A2,I5.5)') "FARMING_OUT_",i,"_P",new_rank
-                !  CALL open_file(file_name=TRIM(output_file),&
-                !        file_action="WRITE",&
-                !        file_status="UNKNOWN",&
-                !        unit_number=output_unit)
-                !  write(output_unit,*) "--- this file should remain empty ---"
-                output_unit=-1 ! this should never be used by cp2k_run (-1 would be as good)
+                output_unit=-1 ! this should never be used by cp2k_run
               ENDIF
           
               IF (globenv%ionode) write(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
@@ -338,6 +323,9 @@ CONTAINS
     CALL mp_comm_free(new_group)
     DEALLOCATE(group_distribution,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    ! clean the farming env
+    CALL deallocate_farming_env(farming_env)
 
     CALL mp_sync(globenv%group)
 
