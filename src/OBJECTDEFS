@@ -230,7 +230,7 @@ OBJECTS_GENERIC =\
  structure_factor_types.o\
  structure_factors.o\
  structure_types.o\
- tbmd.o\
+ tbmd_module.o\
  tbmd_debug.o\
  tbmd_force.o\
  tbmd_initialize.o\
@@ -246,7 +246,7 @@ OBJECTS_GENERIC =\
  unit.o\
  util.o\
  vwn_functional.o\
- wave.o\
+ wave_module.o\
  wf_types.o\
  xalpha_functional.o\
  xc.o
