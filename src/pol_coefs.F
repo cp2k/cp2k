@@ -149,11 +149,13 @@ MODULE pol_coefs
    LOGICAL, intent (in) :: flag
 
 ! locals
-  INTEGER ::  ncoef, ikind, ipart, ii, iat, icoef, icgf, ncgf, natoms, ios
+  INTEGER ::  ncoef, ikind, ipart, ii, iat, icoef, icgf, natoms, ios
+  INTEGER ::  nset, iset, ishell, first_cgf, last_cgf
 
    ncoef = size (ao % cr)
 
    IF (flag) THEN
+      NULLIFY (ao % kind_info )
       IF (.NOT.ASSOCIATED(ao % kind_info)) THEN         
          ALLOCATE (ao % kind_info (ncoef), STAT = ios)
       END IF
@@ -162,35 +164,44 @@ MODULE pol_coefs
    DO ikind = 1 , size (ki)
    
       natoms = ki (ikind ) % natom
+
       DO ii = 1, natoms
  
-        ipart = ki(ikind)%atom_list(ii)        
-        ncgf = ki(ikind) % orb_basis_set % ncgf 
+        ipart = ki(ikind) % atom_list(ii)        
+        nset = ki(ikind) % orb_basis_set % nset 
 
-        DO icgf = 1, ncgf
-           icoef  = part ( ipart ) % coef_list( icgf )
-           ao % coef_to_basis_set ( icoef ) = ikind 
-           ao % coef_to_part ( icoef ) = ipart 
+        DO iset = 1, nset
 
-           IF (flag) THEN
-             ao % kind_info (icoef) % orb_basis_set => ki (ikind) % orb_basis_set
-             ao % kind_info (icoef) % orb_basis_set_name = ki (ikind) % orb_basis_set_name
-             ao % kind_info (icoef) % number_of_grid_points = &
-                  ki (ikind) % number_of_grid_points
-             ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
-             ao % kind_info (icoef) % natom = ki (ikind) % natom
-             ao % kind_info (icoef) % z = ki (ikind) % z
-             IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
-               ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
-             END IF
-             DO iat = 1, natoms
-                ao % kind_info (icoef) % atom_list (iat) = ki (ikind) % atom_list (iat)
-             END DO
-           END IF
-         ENDDO                                
+           DO ishell=1,ki(ikind) % orb_basis_set % nshell(iset)
 
+              first_cgf = ki(ikind) % orb_basis_set %first_cgf(ishell,iset)
+              last_cgf = ki(ikind) % orb_basis_set %last_cgf(ishell,iset)
+              
+              DO icgf = first_cgf, last_cgf
+                 icoef  = part ( ipart ) % coef_list( icgf )
+                 ao % coef_to_basis ( icoef ) = ikind 
+                 ao % coef_to_set ( icoef ) = iset 
+                 ao % coef_to_part ( icoef ) = ipart 
+
+                 IF (flag) THEN
+                   ao % kind_info (icoef) % orb_basis_set => ki (ikind) % orb_basis_set
+                   ao % kind_info (icoef) % orb_basis_set_name = ki (ikind) % orb_basis_set_name
+                   ao % kind_info (icoef) % number_of_grid_points = &
+                        ki (ikind) % number_of_grid_points
+                   ao % kind_info (icoef) % element_symbol = ki (ikind) % element_symbol
+                   ao % kind_info (icoef) % natom = ki (ikind) % natom
+                   ao % kind_info (icoef) % z = ki (ikind) % z
+                   IF (.NOT.ASSOCIATED(ao % kind_info (icoef) % atom_list)) THEN         
+                     ALLOCATE (ao % kind_info (icoef) % atom_list (natoms) , STAT = ios)
+                   END IF
+                   DO iat = 1, natoms
+                      ao % kind_info (icoef) % atom_list (iat) = ki (ikind) % atom_list (iat)
+                   END DO
+                 END IF
+               END DO                                
+            END DO
+         END DO
       END DO
-
    END DO
 
  END SUBROUTINE get_kind_and_part_index
