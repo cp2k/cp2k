@@ -696,7 +696,7 @@ CONTAINS
         IF (ppnl_present) THEN
           vppnl => vppnlt(:,ithread)
         END IF
-        ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
+        ALLOCATE (ai_work(ldai,ldai,MAX(1,ncoset(maxlppl)),ncoset(nder+1)),STAT=istat)
         IF (istat /= 0) THEN
           CALL stop_memory(routine_name,module_name,__LINE__,&
                            "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)

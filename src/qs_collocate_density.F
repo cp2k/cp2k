@@ -277,8 +277,10 @@ CONTAINS
     
     END DO
 
-    DEALLOCATE ( tasks, STAT=ierr )
-    IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
+    IF (ASSOCIATED(tasks)) THEN
+      DEALLOCATE (tasks,STAT=ierr)
+      IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "tasks" )
+    END IF
     DEALLOCATE ( pab, STAT=ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "calculate_rho_core", "pab" )
 

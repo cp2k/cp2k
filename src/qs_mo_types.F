@@ -587,7 +587,7 @@ CONTAINS
 
       nmo=mo_array(ispin)%mo_set%nmo
 
-      IF (globenv%ionode) THEN
+      IF (globenv%ionode.AND.(nmo > 0)) THEN
         WRITE (restart_unit) nmo,&
                              mo_array(ispin)%mo_set%homo,&
                              mo_array(ispin)%mo_set%lfomo,&

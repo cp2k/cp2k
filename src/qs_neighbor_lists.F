@@ -345,15 +345,17 @@ CONTAINS
 
       END IF
 
-      IF (ASSOCIATED(gth_potential)) THEN
-        CALL get_potential(potential=gth_potential,&
-                           ppl_present=ppl_present(ikind),&
-                           ppl_radius=ppl_radius(ikind),&
-                           ppnl_present=ppnl_present(ikind),&
-                           ppnl_radius=ppnl_radius(ikind))
-      ELSE
-        ppl_present(ikind) = .FALSE.
-        ppnl_present(ikind) = .FALSE.
+      IF (gth_potential_present) THEN
+        IF (ASSOCIATED(gth_potential)) THEN
+          CALL get_potential(potential=gth_potential,&
+                             ppl_present=ppl_present(ikind),&
+                             ppl_radius=ppl_radius(ikind),&
+                             ppnl_present=ppnl_present(ikind),&
+                             ppnl_radius=ppnl_radius(ikind))
+        ELSE
+          ppl_present(ikind) = .FALSE.
+          ppnl_present(ikind) = .FALSE.
+        END IF
       END IF
 
     END DO
