@@ -3,7 +3,20 @@
 import sys
 from sys import argv
 
-def parseInterface(iFile):
+def parseInterface(iFile,logFile=sys.stdout):
+    """Returns a dictionary with the interface contained in the file iFile.
+    
+    iFile should be a file object (stream).
+    The result is a dictionary of the following kind: 
+    {'interface':{
+      'interface1':{
+        'name':'interface1','kind':'interface','expansion':
+            'Interface Interface1\n  Module procedure func1\nEnd Interface'
+        },'interface2':{...}
+      },
+      'type':{...},'function':,{...},'subroutine':,{...},'module':,{...}
+    }
+    """
     import re
     import exceptions
     # removed the |(!?[ \t]*contains)
@@ -51,26 +64,29 @@ def parseInterface(iFile):
 		    if not result.has_key(stack[0]["kind"]): result[stack[0]["kind"]]={}
 		    kind_table=result[stack[0]["kind"]]
 		    if kind_table.has_key(stack[0]["name"]):
-			e=SyntaxWarning("double definition of '"+name+"' ignored")
+			e=SyntaxWarning("double definition of '"+stack[0]["name"]+"' ignored")
 			del stack[0]
 			raise e
 		    kind_table[stack[0]["name"]]=stack[0] # put only the expansion??
 		else:
-		    print "ignoring group ",stack[0]
+		    logFile.write("ignoring group "+str(stack[0])+"\n")
 		del stack[0]
 	    else:
 		raise SyntaxError("inconsistent parse '"+str(match.groups())+"'")
 	except SyntaxError, e:
 	    e.lineno=lineNr
 	    e.text=line
-	    print "stack=",stack
+	    logFile.write("stack="+str(stack)+"\n")
 	    raise
 	except Warning, w:
-	    print "ignoring warning at line "+lineNr+" of file "+iFile.name
-	    print w
+	    logFile.write("ignoring warning at line %d of file %s\n" %
+                          (lineNr,iFile.name))
+	    logFile.write(str(w))
     return result
 
-def writeSynopsis(objDef,outfile):
+def writeSynopsis(objDef,outfile,logFile=sys.stdout):
+    """Writes out the synopsis (i.e. objDef['expansion']) removing empty lines.
+    """
     if objDef.has_key("expansion") and objDef["expansion"]:
 	outfile.write("!!   SYNOPSIS\n")
 	wasEmptyLine=1
@@ -89,9 +105,22 @@ def writeSynopsis(objDef,outfile):
 	if not wasEmptyLine:
 	    outfile.write("!!\n")
     else:
-	print "no expansion for ",objDef
+	logFile.write("no expansion for "+str(objDef)+"\n")
 
-def insertSynopsis(defs,infile,outfile):
+def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
+    """Writes the file infile to outfile inserting the synopsis defined in defs.
+    
+    infile and outfile should be file objects (streams).
+    defs is a dictionary of the following form:
+    {
+        'funct1':{'expansion':
+            'Function funct1()\n  integer :: funct1\nEnd function\n'}
+        'funct2':{...}
+        ...
+    }
+    
+    If there is a new synopsis, the old one is removed from the robDoc comment.
+    """
     import re
     import exceptions
     roboCommentRe=re.compile("[ \t]*!!(\*\*\*(\*?)|[ \t]*(NAME|COPYRIGHT|SYNOPSIS|USAGE|SOURCE|FUNCTION|DESCRIPTION|PURPOSE|AUTHOR|CREATION[ \t]+DATE|HISTORY|MODIFICATION[ \t]+HISTORY|INPUTS|ARGUMENTS|PARAMETERS|OUTPUT|SIDE[ \t]+EFFECTS|SWITCHES|RESULT|RETURN[ \t]+VALUE|EXAMPLE|OPTIONS|NOTES|DIAGNOSTICS|WARNINGS|ERRORS|BUGS|TODO|IDEAS|PORTABILITY|SEE[ \t]+ALSO|METHODS|NEW[ \t]+METHODS|ATTRIBUTES|NEW[ \t]+ATTRIBUTES|TAGS|COMMANDS|DERIVED[ \t]+FROM|DERIVED[ \t]+BY|USES|CHILDREN|USED[ \t]+BY|PARENTS|SOURCE)[ \t]*$|[ \t]*([a-zA-Z0-9_]+)|(.?))")
@@ -118,7 +147,7 @@ def insertSynopsis(defs,infile,outfile):
 			    status=0
 			    raise e
 			elif defs[name]:
-			    writeSynopsis(defs[name],outfile)
+			    writeSynopsis(defs[name],outfile,logFile)
 		    status=0
 		elif status==2: # searching for name
 		    status=1
@@ -146,10 +175,10 @@ def insertSynopsis(defs,infile,outfile):
 		    status=2
 		    outfile.write(line.lstrip())
 		elif match.groups()[directivePos]=="SYNOPSIS":
-		    print "found synopsis at line",lineNr
+		    # print "found synopsis at line",lineNr
 		    if status==3 or status==4:
 			status=4
-			print "skipping synopsis"
+			# print "skipping synopsis"
 		    elif status==2:
 			status=1
 			outfile.write(line.lstrip())
@@ -176,27 +205,30 @@ def insertSynopsis(defs,infile,outfile):
 	    e.text=line
 	    raise
 	except Warning, w:
-	    print "ignoring warning at line "+str(lineNr)+" of file "+ infile.name
-	    print w
+	    logFile.write("ignoring warning at line %d of file '%s'\n"%
+                          (lineNr,infile.name))
+	    logFile.write(str(w)+"\n")
 
-
-if len(sys.argv)<4:
-    print "usage:", sys.argv[0]," interface_dir out_dir sourcefile1.F [sourcefile2.F ...]"
-else:
-    interfaceDir=sys.argv[1]
-    outDir=sys.argv[2]
-    for sourceFilePath in sys.argv[3:]:
+def addSynopsisInDir(interfaceDir, outDir,filePaths,logFile=sys.stdout):
+    """Add the synopsis to the files in filePaths, reading the interfaces from interfaceDir, and writing them to outDir.
+    
+    interfaceDir should be the path of the directory where the .int interface files are.
+    outDir should be the path of an existing directory.
+    filepath should be a list the the path of the source files to be processed (with extension)
+    """
+    fileMapping={}
+    for sourceFilePath in filePaths:
         import string, os.path
         try:
             fileName=os.path.basename(sourceFilePath)
             fileName=fileName[:string.rfind(fileName,".")]
             interfaceFilePath=interfaceDir+"/"+fileName+".int"
             outFilePath=outDir+"/"+os.path.basename(sourceFilePath)
-            print "=== began brocessing of",sourceFilePath
+            logFile.write("=== began brocessing of"+sourceFilePath+"\n")
             ifile = open(interfaceFilePath,'r')
             sfile = open(sourceFilePath,'r')
             outfile= open(outFilePath,'w')
-            rawDefs=parseInterface(ifile)
+            rawDefs=parseInterface(ifile,logFile)
             defs={}
             #print "rawDefs=",rawDefs
             for kind in ["function","subroutine"]:
@@ -207,15 +239,25 @@ else:
                         else:
                             defs[key]=rawDefs[kind][key]
             #print "def=",defs
-            insertSynopsis(defs,sfile,outfile)
+            insertSynopsis(defs,sfile,outfile,logFile)
+            fileMapping[sfile]=outfile
         except:
             import sys, traceback
-            print '-'*60
-            traceback.print_exc(file=sys.stdout)
-            print '-'*60
+            logFile.write('-'*60+"\n")
+            traceback.print_exc(file=logFile)
+            logFile.write('-'*60+"\n")
             if os.access(outFilePath,os.F_OK):
                 try:
                     os.rename(outFilePath,outFilePath+".err")
                 except:
-                    print "+++ error renaming",outFilePath
-    
+                    logFile.write("+++ error renaming"+outFilePath+"\n")
+    return fileMapping
+
+if __name__ == '__main__':
+    if len(sys.argv)<4:
+        print "usage:", sys.argv[0]," interface_dir out_dir sourcefile1.F [sourcefile2.F ...]"
+    else:
+        interfaceDir=sys.argv[1]
+        outDir=sys.argv[2]
+        addSynopsisInDir(interfaceDir, outDir,sys.argv[3:],sys.stdout)
+
