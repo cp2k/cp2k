@@ -994,8 +994,6 @@ SUBROUTINE get_molecule_structure_topology ( molname, mol_setup )
         mol_setup(imol) %molpar%ntorsions = 0
         mol_setup(imol) %molpar%ndcon = 0
         mol_setup(imol) %molpar%n3x3con = 0
-        mol_setup(imol) %molpar%nbasis_pol = 0
-        mol_setup(imol) %molpar%nbasis_rho0 = 0
 
         ! atoms
         IF ( solvent ) THEN

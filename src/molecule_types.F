@@ -32,7 +32,7 @@ MODULE molecule_types
        linklist_g3x3_constraints, linklist_neighbor, linklist_exclusion, &
        particle_node_type, localization_list, linklist_images
   PUBLIC :: particle_type, particle_prop_type
-  PUBLIC :: molecule_type, molecule_parameter_type, read_basis_type
+  PUBLIC :: molecule_type, molecule_parameter_type
   PUBLIC :: intra_parameters_type
   PUBLIC :: topology_type
 
@@ -138,13 +138,6 @@ MODULE molecule_types
      REAL ( dbl ), POINTER :: constraint_distance ( : )
   END TYPE intra_parameters_type
 
-  TYPE read_basis_type
-    CHARACTER (len=20) :: aname
-    CHARACTER (len=20) :: libname
-    REAL(dbl) :: eps
-    INTEGER :: nmax
-  END TYPE read_basis_type
-
   TYPE molecule_parameter_type
      CHARACTER ( LEN = 20 ) :: name
      INTEGER :: natom
@@ -163,10 +156,6 @@ MODULE molecule_types
      INTEGER, POINTER :: ndc ( :, : )
      INTEGER :: n3x3con
      INTEGER, POINTER :: n3x3c ( :, : )
-     INTEGER :: nbasis_pol
-     TYPE(read_basis_type), POINTER :: pol_basis(:)
-     INTEGER :: nbasis_rho0
-     TYPE(read_basis_type), POINTER :: rho0_basis(:)
   END TYPE molecule_parameter_type
 
   TYPE molecule_type
