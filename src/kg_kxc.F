@@ -252,10 +252,8 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control )
      CALL stop_program(routineP, "not yet implemented")
   END IF
 
-  CALL xc_derivative_set_create(derivative_set, ntot)
-  CALL xc_calc_derivatives(derivative_set, &
-                           dft_control%xc_control, order, &
-                           rgrid)
+  CALL xc_derivative_set_create(derivative_set, dft_control%xc_control, ntot)
+  CALL xc_calc_derivatives(derivative_set, order, rgrid)
   ! copy back to structure
   IF ( spezgrid ) THEN
      ! transform to lower cutoff

@@ -24,6 +24,7 @@ module xc_derivative_types
   use cp_error_handling,  only: cp_error_type, cp_a_l, cp_assert, cp_error_get_logger
   use cp_log_handling,    only: cp_logger_type, cp_failure_level, cp_warning_level, &
                                 cp_to_string, cp_logger_get_default_unit_nr
+  use dft_types,          only: xc_control_type
   use xc_derivative_desc, only: MAX_DERIVATIVE_DESC_LENGTH, &
                                 standardize_dervitative_desc
 
@@ -70,6 +71,7 @@ module xc_derivative_types
   !!****
   type xc_derivative_set_type
      integer                           :: ref_count, id_nr, npoints
+     type(xc_control_type)             :: xc_control
      type(xc_derivative_type), pointer :: first
      real(KIND = dp), dimension(:,:), pointer :: data
   end type xc_derivative_set_type
@@ -163,10 +165,11 @@ contains
   !!                 see module cp_error_handling 
   !!
   !!*** **********************************************************************
-  subroutine xc_derivative_set_create(derivative_set, npoints, error)
+  subroutine xc_derivative_set_create(derivative_set, xc_control, npoints, error)
 
     ! arguments
     type(xc_derivative_set_type), pointer        :: derivative_set
+    type(xc_control_type), intent(in)            :: xc_control
     integer, intent(in)                          :: npoints
     type(cp_error_type), optional, intent(inout) :: error
 
@@ -189,11 +192,11 @@ contains
     if (.not. failure) then
        nullify(derivative_set%first)
        nullify(derivative_set%data)
-       derivative_set%ref_count = 1
-       derivative_set%id_nr     = derivative_set_id_nr
-       derivative_set_id_nr     = derivative_set_id_nr + 1
-       derivative_set%npoints   = 0
-       derivative_set%npoints   = npoints
+       derivative_set%ref_count  = 1
+       derivative_set%id_nr      = derivative_set_id_nr
+       derivative_set_id_nr      = derivative_set_id_nr + 1
+       derivative_set%npoints    = npoints
+       derivative_set%xc_control = xc_control
     end if
 
   end subroutine xc_derivative_set_create

@@ -74,7 +74,6 @@ contains
   !!****
   subroutine xc_calc_derivatives(&
        derivative_set, &
-       xc_control, &
        order, &
        rhoa, rhob, &
        drhoa, drhob, &
@@ -84,7 +83,6 @@ contains
 
     ! arguments
     type(xc_derivative_set_type), pointer        :: derivative_set
-    type(xc_control_type), intent(in)            :: xc_control
     integer, intent(in)                          :: order
     real(KIND = dp), dimension(:), intent(in)    :: rhoa
     real(KIND = dp), dimension(:), intent(in), optional :: rhob, drhoa, drhob
@@ -108,7 +106,7 @@ contains
     !-------------!
     CPPrecondition(associated(derivative_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(abs(order)<3,cp_failure_level,routineP,error,failure)
-    if (any(xc_control%gradient_functionals)) then
+    if (any(derivative_set%xc_control%gradient_functionals)) then
        CPPrecondition(present(drhoa),cp_failure_level,routineP,error,failure)
        if (do_lsd) then
           CPPrecondition(present(drhob),cp_failure_level,routineP,error,failure)
@@ -121,8 +119,8 @@ contains
        ! allocate the data array !
        !-------------------------!
        if (.not.failure) then
-          npot = xc_get_pot_size(do_lsd, any(xc_control%gradient_functionals), &
-                                 do_lsd .and. any(xc_control%crossterms), order)
+          npot = xc_get_pot_size(do_lsd, any(derivative_set%xc_control%gradient_functionals), &
+                                 do_lsd .and. any(derivative_set%xc_control%crossterms), order)
           ! for compatability 0:npot-1 later simply npot
           allocate(derivative_set%data(derivative_set%npoints,0:npot-1), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -131,20 +129,20 @@ contains
        !-------------------------!
        ! call the (old) routines !
        !-------------------------!
-       call xc_set(xc_control%density_cut, xc_control%gradient_cut)
-       if (any(xc_control%gradient_functionals)) then
+       call xc_set(derivative_set%xc_control%density_cut, derivative_set%xc_control%gradient_cut)
+       if (any(derivative_set%xc_control%gradient_functionals)) then
           if (do_lsd) then
-             call xc_lsd ( xc_control%functionals, &
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
+             call xc_lsd ( derivative_set%xc_control%functionals, &
+                           derivative_set%xc_control%gradient_functionals, &
+                           derivative_set%xc_control%crossterms, &
                            rhoa(:), rhob(:), &
                            derivative_set, order, &
                            drho_a=drhoa(:), drho_b=drhob(:), &
                            error=error )
           else
-             call xc_lda ( xc_control%functionals,&
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
+             call xc_lda ( derivative_set%xc_control%functionals,&
+                           derivative_set%xc_control%gradient_functionals, &
+                           derivative_set%xc_control%crossterms, &
                            rhoa(:),  &
                            derivative_set, order=order, &
                            drho=drhoa(:), &
@@ -152,23 +150,21 @@ contains
           end if
        else
           if (do_lsd) then
-             call xc_lsd ( xc_control%functionals, &
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
+             call xc_lsd ( derivative_set%xc_control%functionals, &
+                           derivative_set%xc_control%gradient_functionals, &
+                           derivative_set%xc_control%crossterms, &
                            rhoa(:), rhob(:), &
                            derivative_set, order, &
                            error=error )
           else
-             call xc_lda ( xc_control%functionals,&
-                           xc_control%gradient_functionals, &
-                           xc_control%crossterms, &
+             call xc_lda ( derivative_set%xc_control%functionals,&
+                           derivative_set%xc_control%gradient_functionals, &
+                           derivative_set%xc_control%crossterms, &
                            rhoa(:), &
                            derivative_set, order, &
                            error=error )
           end if
        end if
-
-       
        
     end if
 
