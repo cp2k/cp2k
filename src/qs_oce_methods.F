@@ -290,7 +290,7 @@ CONTAINS
                       0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
-                      1.0_dp,cprj_s,SIZE(cprj_s,1),&
+                      1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
                       0.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1)) 
 
@@ -300,7 +300,7 @@ CONTAINS
                       0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
-                      1.0_dp,cprj_s,SIZE(cprj_s,1),&
+                      1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
                       0.0_dp,oceh(ider)%block(1,isgfb),SIZE(oces(ider)%block,1))
           ENDDO
@@ -313,7 +313,7 @@ CONTAINS
                       0.0_dp,spa_sb(1,isgfb),SIZE(spa_sb,1))
 
             CALL dgemm("T","N",nsoatot,nsgfb(jset),np_sph,&
-                      1.0_dp,cprj_s,SIZE(cprj_s,1),&
+                      1.0_dp,cprj_s(1,1),SIZE(cprj_s,1),&
                       spa_sb(1,isgfb),SIZE(spa_sb,1),&
                       0.0_dp,oceh(ider)%block(1,isgfb),SIZE(oceh(ider)%block,1))
 

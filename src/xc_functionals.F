@@ -617,13 +617,11 @@ CONTAINS
 
     INTEGER                                  :: i
     LOGICAL                                  :: failure, moved
-    TYPE(cp_logger_type), POINTER            :: logger
 
 !FM to be removed
 !FM to be removed
 
      failure=.FALSE.
-     logger => cp_error_get_logger(error)
 
      SELECT CASE ( tag )
 

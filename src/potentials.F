@@ -76,9 +76,9 @@ SUBROUTINE potential_update ( n, vloc, dft_control, tprint )
         CALL zero ( vloc )
      END DO
      
-     v_xc => vloc ( densityset )
+!     v_xc => vloc ( densityset )
      v_hartree => vloc ( densityset )
-     v_ext => vloc ( densityset )
+!     v_ext => vloc ( densityset )
      
 ! Sum up the spin densities into the total electron density
      CALL coeff_allocate ( n_total, n ( densityset ) % dpart ( 1, 1 ) )

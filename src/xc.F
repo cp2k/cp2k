@@ -1176,13 +1176,12 @@ END SUBROUTINE xc_vxc_pw_create_debug
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: drho_r
-    TYPE(pw_type), POINTER                   :: my_rho_g, my_rho_r, tmp_g, &
-                                                tmp_r
+    TYPE(pw_type), POINTER                   :: my_rho_g, my_rho_r, tmp_g
     TYPE(xc_derivative_set_type), POINTER    :: derivative_set
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(tmp_g, tmp_r, my_rho_g, my_rho_r, drho_r, derivative_set)
+    NULLIFY(tmp_g,  my_rho_g, my_rho_r, drho_r, derivative_set)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     DO idir=1,3
        NULLIFY(drho_r_att(idir)%pw)
@@ -1556,7 +1555,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
     REAL(KIND=dp)                            :: alpha, eps_rho
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drgrid, rgrid
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type), DIMENSION(3)            :: drho_r_att
     TYPE(pw_p_type), DIMENSION(:, :), &
       POINTER                                :: drho_r
@@ -1567,7 +1565,6 @@ END SUBROUTINE xc_vxc_pw_create_debug
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r, drho_r, derivative_set)
-    logger => cp_error_get_logger(error)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     DO idir=1,3
        NULLIFY(drho_r_att(idir)%pw)
@@ -2093,13 +2090,11 @@ END SUBROUTINE xc_vxc_pw_create_debug
     INTEGER                                  :: handle, i, nspins
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure, lsd
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(xc_control_type), POINTER           :: xc_control
     TYPE(xc_rho_cflags_type)                 :: needs
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     xc_control => dft_control%xc_control
 
     CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -2454,7 +2449,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
                                                 rhob, tmp_cr3d
     TYPE(cp_3d_r_p_type), DIMENSION(:), &
       POINTER                                :: drho, drho_spin, drhoa, drhob
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_sll_xc_deriv_type), POINTER      :: pos
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_p_type), DIMENSION(2)            :: vxc_to_deriv
@@ -2468,7 +2462,6 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,dft_control,&
   failure=.FALSE.
   NULLIFY(tmp_g, tmp_r, tmp_r2, vxc_g, norm_drho_spin, norm_drho, drho_spin, drhoa,&
        drhob, pos,deriv_set,rho_set)
-  logger => cp_error_get_logger(error)
   nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
   DO idir=1,3
      NULLIFY(pw_to_deriv(idir)%pw, pw_to_deriv_rho(idir)%pw)
@@ -3368,7 +3361,6 @@ END FUNCTION xc_exc_calc
                                                 failure, use_crossterms
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: drgrid, rgrid
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_type), POINTER                   :: tmp_g
     TYPE(xc_control_type)                    :: xc_control
 
@@ -3377,7 +3369,6 @@ END FUNCTION xc_exc_calc
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     NULLIFY(tmp_g)
     NULLIFY(drho_r, spin_pot, grad_pot, ndiag_term)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
@@ -3816,7 +3807,6 @@ END FUNCTION xc_exc_calc
     LOGICAL                                  :: do_lsd, do_restricted_tddfpt, &
                                                 failure
     REAL(KIND=dp)                            :: diag_factor
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pw_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: drho1_r, v_r_to_deriv
     TYPE(pw_type), POINTER                   :: tmp_g, tmp_r, v_deriv_g
@@ -3825,7 +3815,6 @@ END FUNCTION xc_exc_calc
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     NULLIFY(tmp_g, tmp_r, v_deriv_g)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
 

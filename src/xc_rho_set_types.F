@@ -1586,7 +1586,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
+!JV    logger => cp_error_get_logger(error)
     dr=deriv%pw_grid%dr
     npoints=deriv%pw_grid%npts
     NULLIFY(atom_list,atomic_kinds,particles)
@@ -1765,7 +1765,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_list_type), POINTER        :: particles
 
-    logger => cp_error_get_logger(error)
+!JV    logger => cp_error_get_logger(error)
     dr=energy%pw_grid%dr
     npoints=energy%pw_grid%npts
     failure=.FALSE.
