@@ -99,7 +99,7 @@ CONTAINS
 
     INTEGER                                  :: dump_unit, handle, i, j, size1, size2
     INTEGER                                  :: nhc_len, num_nhc, isos, numneed
-    INTEGER                                  :: tot_nhcneed, iproc, counter, index
+    INTEGER                                  :: tot_nhcneed, iproc, counter
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger, new_logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -107,7 +107,7 @@ CONTAINS
     TYPE(lnhc_parameters_type), POINTER      :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), POINTER   :: npt( :, : )
-    INTEGER, POINTER :: nhc_per_proc ( : )
+    INTEGER, POINTER :: nhc_per_proc ( : ),index(:)
     REAL ( dbl ), POINTER, DIMENSION ( : ) :: eta, veta, fnhc, mnhc, work
 
 !   ---------------------------------------------------------------------------
@@ -160,6 +160,7 @@ CONTAINS
    tot_nhcneed = SUM ( nhc_per_proc )
  ENDIF
 
+  NULLIFY(work,index)
   
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -170,14 +171,15 @@ CONTAINS
                                'failed to allocate eta')
   DO iproc=1,para_env%num_pe
     CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(index,1,nhc_per_proc(iproc)/nhc_len)
     IF(para_env%mepos == (iproc-1)) THEN
-      index=0
+      index(:)=0
       counter=0
       DO i=1,nhc_len
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%eta
-          index = nhc_part ( 1 ) % index ( j )
+          index(j) = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -185,13 +187,16 @@ CONTAINS
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
-    DO i=1,nhc_per_proc(iproc)
-      eta((index-1)*nhc_len+i) = work(i)
+    counter=0
+    DO i=1,nhc_len
+      DO j=1,nhc_per_proc(iproc)/nhc_len
+        counter = counter+1
+        eta((index(j)-1)*nhc_len+i) = work(counter)
+      END DO
     END DO
   END DO
-  DEALLOCATE ( work, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate work')
+
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! nhc_part % veta   
@@ -201,14 +206,15 @@ CONTAINS
                                'failed to allocate veta')
   DO iproc=1,para_env%num_pe
     CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
-      index=0
+      index(:)=0
       counter=0
       DO i=1,nhc_len
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%v
-          index = nhc_part ( 1 ) % index ( j )
+          index(j) = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -216,13 +222,16 @@ CONTAINS
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
-    DO i=1,nhc_per_proc(iproc)
-      veta((index-1)*nhc_len+i) = work(i)
+    counter=0
+    DO i=1,nhc_len
+      DO j=1,nhc_per_proc(iproc)/nhc_len
+        counter = counter+1
+        veta((index(j)-1)*nhc_len+i) = work(counter)
+      END DO
     END DO
   END DO
-  DEALLOCATE ( work, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate work')
+
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! nhc_part % force
@@ -232,14 +241,15 @@ CONTAINS
                                'failed to allocate fnhc')
   DO iproc=1,para_env%num_pe
     CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
-      index=0
+      index(:)=0
       counter=0
       DO i=1,nhc_len
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%f
-          index = nhc_part ( 1 ) % index ( j )
+          index(j) = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -247,13 +257,16 @@ CONTAINS
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
-    DO i=1,nhc_per_proc(iproc)
-      fnhc((index-1)*nhc_len+i) = work(i)
+    counter=0
+    DO i=1,nhc_len
+      DO j=1,nhc_per_proc(iproc)/nhc_len
+        counter = counter+1
+        fnhc((index(j)-1)*nhc_len+i) = work(counter)
+      END DO
     END DO
   END DO
-  DEALLOCATE ( work, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
-                               'failed to deallocate work')
+
+
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! nhc_part % mass
@@ -263,14 +276,15 @@ CONTAINS
                                'failed to allocate mnhc')
   DO iproc=1,para_env%num_pe
     CALL reallocate(work,1,nhc_per_proc(iproc))
+    CALL reallocate(index,1,nhc_per_proc(iproc))
     IF(para_env%mepos == (iproc-1)) THEN
-      index=0
+      index(:)=0
       counter=0
       DO i=1,nhc_len
         DO j=1,num_nhc
           counter=counter+1
           work(counter)=nhc_part(1)%nvt(i,j)%mass
-          index = nhc_part ( 1 ) % index ( j )
+          index(j) = nhc_part ( 1 ) % index ( j )
         END DO
       END DO
     ELSE
@@ -278,13 +292,27 @@ CONTAINS
     END IF
     CALL mp_bcast(work,iproc-1,para_env%group)
     CALL mp_bcast(index,iproc-1,para_env%group)
-    DO i=1,nhc_per_proc(iproc)
-      fnhc((index-1)*nhc_len+i) = work(i)
+    counter=0
+    DO i=1,nhc_len
+      DO j=1,nhc_per_proc(iproc)/nhc_len
+        counter = counter+1
+        mnhc((index(j)-1)*nhc_len+i) = work(counter)
+      END DO
     END DO
   END DO
+
+
+
   DEALLOCATE ( work, STAT = isos )
   IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                'failed to deallocate work')
+  DEALLOCATE ( index, STAT = isos )
+  IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
+                               'failed to deallocate index')
+
+
+
+
 
   IF ( ( nhc_part ( 1 ) % dis_type=='DIS_REP' ) .OR.  &
        ( nhc_part ( 1 ) % dis_type == 'NONE') ) THEN
