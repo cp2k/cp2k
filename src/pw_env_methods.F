@@ -30,6 +30,8 @@ MODULE pw_env_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -61,7 +63,8 @@ MODULE pw_env_methods
   USE dft_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type,&
-                                             init_gaussian_gridlevel
+                                             init_gaussian_gridlevel, &
+                                             gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
   USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn_init
@@ -92,6 +95,7 @@ MODULE pw_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_interactions,                 ONLY: exp_radius
   USE qs_mo_types,                     ONLY: get_mo_set
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory
@@ -199,7 +203,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  INTEGER, PARAMETER :: maxgridpoints = 100 ! should be be avoided (see later)
+  REAL(wp), PARAMETER :: safety_factor = 1.2 ! should be be avoided (see later)
   LOGICAL :: failure, pw_grid_information
   CHARACTER(len=*), PARAMETER :: routineN='pw_env_rebuild',&
        routineP=moduleN//':'//routineN
@@ -215,6 +219,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   TYPE(cp_rs_pool_p_type),DIMENSION(:), POINTER :: rs_pools
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_logger_type), POINTER :: logger
+  TYPE(atomic_kind_type), POINTER :: atomic_kind
+  TYPE(gto_basis_set_type), POINTER :: orb_basis_set 
+  INTEGER ikind,jkind,nkind,iset,jset,ipgf,jpgf
+  INTEGER, DIMENSION(:), POINTER ::  npgfa,npgfb,nshella,nshellb
+  INTEGER, DIMENSION(:,:), POINTER :: lshella,lshellb
+  INTEGER  :: nseta,nsetb,lgrid_level
+  REAL(wp), DIMENSION(:,:), POINTER :: zeta,zetb
+  REAL(wp) :: zetp,alpha
+  INTEGER :: ishell,jshell,la,lb
 
   CALL timeset(routineN,"I","",handle)
 
@@ -337,15 +350,71 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ALLOCATE (pw_env%cube_info(ngrid_level),STAT=istat)
      IF (istat /= 0) CALL stop_memory(routineP,"cube_info",0)
 
+     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+     nkind=SIZE(atomic_kind_set)
+
      cmax = 0
+     ! try to predict the maximum radius of the gaussians to be mapped on the grid
+     ! up to now, it is not yet very good 
      DO igrid_level=1,ngrid_level
-        maxradius = maxgridpoints*MAXVAL(pw_pools(igrid_level)%pool%pw_grid%dr)
+        maxradius=0.0_wp
+        DO ikind=1,nkind
+           CALL get_atomic_kind(atomic_kind=atomic_kind_set(ikind), orb_basis_set=orb_basis_set, &
+                                alpha_core_charge=alpha)
+           ! this is to be sure that the core charge is mapped ok
+           ! right now, the core is mapped on the auxiliary basis, this should, at a give point be changed
+           ! so that also for the core a multigrid is used
+           maxradius=MAX(maxradius,exp_radius( 0, alpha, dft_control%qs_control%eps_rho_rspace, 10.0_wp))
+           CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                  npgf=npgfa, nset=nseta, zet=zeta,l=lshella,nshell=nshella)
+
+           DO jkind=1,nkind
+              CALL get_atomic_kind(atomic_kind=atomic_kind_set(jkind), orb_basis_set=orb_basis_set)
+              CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
+                                     npgf=npgfb, nset=nsetb, zet=zetb, l=lshellb, nshell=nshellb)
+              DO iset=1,nseta
+              DO ipgf=1,npgfa(iset)
+              DO ishell=1,nshella(iset)
+                 ! for calculate wavefunction
+                 zetp = zeta(ipgf,iset)
+                 la = lshella(ishell,iset)
+                 lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+                 IF (lgrid_level .eq. igrid_level) THEN
+                    maxradius=MAX(maxradius,exp_radius( la, zetp, &
+                                  dft_control%qs_control%eps_rho_rspace, 1.0_wp))
+                 ENDIF
+                 DO jset=1,nsetb
+                 DO jpgf=1,npgfb(jset)
+                 DO jshell=1,nshellb(jset)
+                    zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+                    lb = lshellb(jshell,jset)+la
+                    lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+                    IF (lgrid_level .eq. igrid_level) THEN
+                       ! density
+                       maxradius=MAX(maxradius,exp_radius( lb, zetp, &
+                                     dft_control%qs_control%eps_rho_rspace, 1.0_wp))
+                       ! potential
+                       maxradius=MAX(maxradius,exp_radius( lb, zetp, &
+                                     dft_control%qs_control%eps_gvg_rspace, 1.0_wp))
+                    ENDIF
+                 ENDDO
+                 ENDDO
+                 ENDDO
+              ENDDO
+              ENDDO
+              ENDDO
+         ENDDO
+        ENDDO
+        ! safety first, not very efficient, nor general
+        ! one could possibly decide that this *is* the maximum allowed radius
+        maxradius = maxradius * safety_factor 
+        ! write(6,*) igrid_level,maxradius, CEILING(maxradius/MINVAL(pw_pools(igrid_level)%pool%pw_grid%dr(:)))
+
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
              maxradius,cmaxl)
         cmax = MAX(cmax,cmaxl)
      END DO
-
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
           maxlgto=maxlgto)
