@@ -117,6 +117,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   REAL ( dbl ) :: pot_nonbond                                                
   REAL ( dbl ) :: pot_overlap, pot_electrostatics 
   REAL ( dbl ) :: pot_thk                                                
+  REAL ( dbl ) :: e0, e1, e2                                                
   REAL ( dbl ) :: e_gsq                                                
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fe_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
@@ -142,6 +143,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   isos = 0
   pot_overlap = 0._dbl
   pot_electrostatics = 0._dbl
+  e0 = 0._dbl
+  e1 = 0._dbl
+  e2 = 0._dbl
   pot_nonbond = 0._dbl
   pot_thk = 0
 
@@ -159,7 +163,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
   END IF
 
-  IF ( first_time ) THEN
+  IF ( first_time.OR.box_change ) THEN
 !
 ! Setting up PLANEWAVES
 !
@@ -251,6 +255,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   thermo % pot = 0.0_dbl
   thermo % e_class = 0.0_dbl
   thermo % e_electro = 0.0_dbl
+  thermo % e_electro_0 = 0.0_dbl
+  thermo % e_electro_1 = 0.0_dbl
+  thermo % e_electro_2 = 0.0_dbl
   thermo % e_overlap = 0.0_dbl
   thermo % e_thk = 0.0_dbl
   thermo % pv = 0.0_dbl
@@ -289,10 +296,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
          ALLOCATE ( fthk_coef ( ncoef ), STAT=isos )
   IF ( isos /= 0 ) &
     CALL stop_memory ( 'force_control', 'fthk_coef',  ncoef )
+!DBG
+!    do i = 1, nproj
+!     proj% ao% norm (i) = 1
+!    end do
+!DBG
+   
 ! get electrostatics forces   
 
     CALL electrostatics ( dg_atom, coef_pos % pw, part, box, small_grid, big_grid,  &
-                          ewald_param, pot_electrostatics, fe_coef, fe_part )
+                          ewald_param, pot_electrostatics, e0, e1, e2, fe_coef, fe_part )
  
 ! get projectors and projector forces
    
@@ -314,8 +327,10 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 ! get real-space non-bonded forces:
 !
   f_nonbond = zero
-  CALL force_nonbond ( ewald_param, pnode, box, potparm, &
-                       pot_nonbond, f_nonbond, pv_nonbond )
+  IF ( fc_global % program_name == 'POL' )  THEN
+     CALL force_nonbond ( ewald_param, pnode, box, potparm, &
+                         pot_nonbond, f_nonbond, pv_nonbond )
+  END IF
 
 !
 ! add up all the potential energies
@@ -365,6 +380,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   thermo % e_class = pot_nonbond
   thermo % e_electro = pot_electrostatics
+  thermo % e_electro_0 = e0
+  thermo % e_electro_1 = e1
+  thermo % e_electro_2 = e2
   thermo % e_overlap = pot_overlap
   thermo % e_thk = pot_thk
   thermo % pot = pot_nonbond + pot_electrostatics + pot_overlap + pot_thk
