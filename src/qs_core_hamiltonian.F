@@ -503,14 +503,6 @@ CONTAINS
 !$  nthread = omp_get_max_threads()
 !MK
     ldai = ncoset(maxl+nder+1)
-    ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
-    END IF
-#if defined(__AIX) && defined(__INIT_WITH_NANS)
-    ai_work = nans_dp
-#endif
 
     CALL reallocate(habt,1,ldsab,1,ldsab*maxder,0,nthread-1)
     CALL reallocate(sabt,1,ldsab,1,ldsab*maxblock,0,nthread-1)
@@ -676,10 +668,10 @@ CONTAINS
 !$OMP private(rab2,dab,sgfa,jset,ncob,sgfb,f,katom,rbc,rbc2,dbc,atom_c,jco,ico,rprjc) &
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b) &
-!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl) &
+!$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,ai_work) &
 !$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
-!$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b) &
+!$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,w,globenv,p,h,t,iab) &
 !$OMP shared(build_kinetic_energy_matrix,s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,sac_ppnl,ppnl_present) &
@@ -702,6 +694,14 @@ CONTAINS
         IF (ppnl_present) THEN
           vppnl => vppnlt(:,ithread)
         END IF
+        ALLOCATE (ai_work(ldai,ldai,ncoset(maxlppl),ncoset(nder+1)),STAT=istat)
+        IF (istat /= 0) THEN
+          CALL stop_memory(routine_name,module_name,__LINE__,&
+                           "ai_work",ldai*ldai*ncoset(maxlppl)*ncoset(nder+1)*dp_size)
+        END IF
+#if defined(__AIX) && defined(__INIT_WITH_NANS)
+        ai_work = nans_dp
+#endif
 
 !$OMP do
         DO ilist=1,nlist
@@ -1690,6 +1690,11 @@ CONTAINS
           END IF
 
         END DO ! iatom => atom A
+
+        DEALLOCATE (ai_work,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                         "ai_work")
+
 !$OMP end parallel
 
       END DO ! jkind
@@ -1730,9 +1735,6 @@ CONTAINS
                                        "vppnlt")
     END IF
 
-    DEALLOCATE (ai_work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "ai_work")
     DEALLOCATE (habt,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "hab")
