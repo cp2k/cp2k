@@ -8,13 +8,17 @@
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        1                     total number of steps
+  steps:        0                     total number of steps
   timestep:     2.5 fs                 time step [fs]
   temperature:  298                    temperature [K]
   restart:      init                   start type (init,pos,posvel)
   print  files        100
   print  screen       1
 &END
+
+&PRINT
+ V_QMMM
+&END 
 
 &QMMM
 QM_ATOMS 3
@@ -23,10 +27,10 @@ H 2
 O 1
 1 
 ECOUPL GAUSS
-ABC_QM  5.0 5.0 5.0
+ABC_QM  10.0 10.0 10.0
 RADIUS
-O 1.7
-H 1.4
+O 0.7
+H 0.4
 END
 &END
 
@@ -86,6 +90,7 @@ H  19.9908902622388958 10.0115791753817565 10.9191166153261410   H2O
 
 &QS
  CUTOFF       200
+ COMMENSURATE
 &END
 
 &SCF
