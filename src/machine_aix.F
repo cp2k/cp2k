@@ -182,7 +182,22 @@ END SUBROUTINE m_datum
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
+#if defined(__OSX)
+    !
+    ! This is a hack to by-pass the problem of the xlf compiler
+    ! on OS/X..
+    !
+    CHARACTER(LEN=200)                       :: cmdstr
+    INTEGER                                  :: pid
 
+    CALL m_getpid(pid)
+
+    WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
+      "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
+      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
+
+    CALL system(cmdstr)
+#else
 !   ---------------------------------------------------------------------------
 ! here there is definitely a problem with integer sizes. 
 ! they should be the C integer size, which is not really know
@@ -210,7 +225,7 @@ END SUBROUTINE m_datum
     ELSE
         WRITE(6,*) checkpoint,res8%usmblks+res8%uordblks,"/",res8%arena
     ENDIF
-
+#endif
   END SUBROUTINE print_memory
 
 ! *****************************************************************************
