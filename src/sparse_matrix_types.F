@@ -34,6 +34,7 @@ MODULE sparse_matrix_types
                          timestop
   USE global_types,        ONLY: global_environment_type
   USE message_passing,     ONLY: mp_sum
+  use cp_mpi_env, only: cp_mpi_env_type, cp_mpi_get_from_glob
 
   IMPLICIT NONE
 
@@ -745,11 +746,12 @@ CONTAINS
 ! it is still assumed that the diagonal blocks are symmetric (and hence full)
 ! Joost VandeVondele july 2002
 ! *****************************************************************************
-  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,globenv)
+  SUBROUTINE sparse_times_replicated(sparse_matrix,rep_v_in,rep_v_out,ncol,nblock,mpi_env,block_owner)
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
-    TYPE(global_environment_type), INTENT(IN)      :: globenv
+    TYPE(cp_mpi_env_type), INTENT(IN) :: mpi_env
+    integer, dimension(:,:), optional :: block_owner
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
@@ -761,6 +763,7 @@ CONTAINS
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
+    logical :: owner, symmetric
     REAL(wp) :: flops
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -773,18 +776,20 @@ CONTAINS
       CALL stop_program(routine,"The input matrix pointer is not associated")
     END IF
 
-    if (sparse_matrix%symmetry .ne. "symmetric") then
-      CALL stop_program(routine,"not tested "//sparse_matrix%symmetry)
-    endif
+    if (sparse_matrix%symmetry == "symmetric") then
+       symmetric=.true.
+    else
+       symmetric=.false.
+    end if
 
-    if (sparse_matrix%nrow .ne. sparse_matrix%ncol) then
-      CALL stop_program(routine,"not implemented")
-    endif
+    if (symmetric .and. (sparse_matrix%nrow .ne. sparse_matrix%ncol)) then
+       CALL stop_program(routine,"error nonsquare symmetric matrix")
+    end if
     if (sparse_matrix%ncol .ne. size(rep_v_in,2)) then
       CALL stop_program(routine,"n x n * n x k ?")
     endif
 
-    CALL dcopy(sparse_matrix%ncol*nblock,0.0_wp,0,rep_v_out,1)
+    CALL dcopy(sparse_matrix%nrow*nblock,0.0_wp,0,rep_v_out,1)
 
     CALL timeset("sparse_times_replicated_local","I","Gflops",handle)
     flops=0.0_wp
@@ -800,30 +805,39 @@ CONTAINS
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
                             block=sparse_block)
-
-        ! write(17+globenv%mepos,*) maxval(abs(sparse_block))
-
-        sbnrow=sparse_matrix%last_row(iblock_row)-sparse_matrix%first_row(iblock_row)+1
-        sbncol=sparse_matrix%last_col(iblock_col)-sparse_matrix%first_col(iblock_col)+1
-
-        flops=flops+2.0_wp*sbnrow*sbncol*ncol
-        CALL DGEMM('N','T',ncol,sbnrow,sbncol,1.0_wp, &
-                           rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
-                           nblock, &
-                           sparse_block(1,1),sbnrow, &
-                    1.0_wp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
-                           nblock)
-
-        if (iblock_col .ne. iblock_row .and. sparse_matrix%symmetry.eq."symmetric") then
+        
+        owner=.true.
+        if (present(block_owner)) then
+           owner = (block_owner(iblock_row,iblock_col)==mpi_env%mepos)
+        end if
+        
+        if (owner) then
+           ! write(17+mpi_env%mepos,*) maxval(abs(sparse_block))
+           
+           sbnrow=sparse_matrix%last_row(iblock_row)- &
+                sparse_matrix%first_row(iblock_row)+1
+           sbncol=sparse_matrix%last_col(iblock_col)- &
+                sparse_matrix%first_col(iblock_col)+1
 
            flops=flops+2.0_wp*sbnrow*sbncol*ncol
-           CALL DGEMM('N','N',ncol,sbncol,sbnrow,1.0_wp, &
-                           rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
-                           nblock, &
-                           sparse_block(1,1),sbnrow, &
-                    1.0_wp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
-                           nblock)
-        endif
+           CALL DGEMM('N','T',ncol,sbnrow,sbncol,1.0_wp, &
+                rep_v_in (1,sparse_matrix%first_col(iblock_col)), &
+                nblock, &
+                sparse_block(1,1),sbnrow, &
+                1.0_wp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
+                nblock)
+           
+           if (iblock_col .ne. iblock_row .and. symmetric) then
+              
+              flops=flops+2.0_wp*sbnrow*sbncol*ncol
+              CALL DGEMM('N','N',ncol,sbncol,sbnrow,1.0_wp, &
+                   rep_v_in (1,sparse_matrix%first_row(iblock_row)), &
+                   nblock, &
+                   sparse_block(1,1),sbnrow, &
+                   1.0_wp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
+                   nblock)
+           endif
+        end if
 
         block_node => next_block_node(block_node)
 
@@ -834,7 +848,7 @@ CONTAINS
     CALL timestop(flops,handle)
 
 #if defined(__parallel)
-    CALL mp_sum(rep_v_out,globenv%group)
+    CALL mp_sum(rep_v_out,mpi_env%group)
 #endif
 
   END SUBROUTINE sparse_times_replicated
