@@ -26,7 +26,8 @@ MODULE topology_psf
   USE input_types,                      ONLY : setup_parameters_type
   USE kinds,                            ONLY : dbl
   USE message_passing,                  ONLY : mp_bcast
-  USE molecule_types,                   ONLY : molecule_type
+  USE molecule_types,                   ONLY : init_molecule_type,&
+                                               molecule_type
   USE nrutil,                           ONLY : swap
   USE parser,                           ONLY : parser_init, &
                                                parser_end, &
@@ -151,6 +152,7 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       ('read_topology_psf','atm_mass',nphi)
     !Read in the atom info
     DO iatom=1,natom
+      ilen = 20
       CALL read_line
       CALL get_next(i)
       CALL get_next(atm_mol_name(iatom),ilen)
@@ -160,7 +162,7 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       CALL get_next(atm_name2(iatom),ilen)
       CALL get_next(atm_charge(iatom))
       CALL get_next(atm_mass(iatom))
-      !WRITE(iw,*) i,atm_res_name(iatom),atm_res_num(iatom),&
+      !WRITE(iw,*) "F ",i,atm_res_name(iatom),atm_res_num(iatom),&
       !            atm_res_name(iatom),atm_name1(iatom),atm_name2(iatom),&
       !            atm_charge(iatom),atm_mass(iatom)
     END DO
@@ -193,10 +195,8 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
       CALL read_line
       i=0
       DO WHILE ((i<4).AND.((ibond+i)<=nbond))
-        !WRITE(iw,*) "AAAA ",ibond,i,ibond+i
         CALL get_next(bond_a(ibond+i))
         CALL get_next(bond_b(ibond+i))
-        !WRITE(iw,*) ibond+i,bond_a(ibond+i),bond_b(ibond+i)
         i=i+1
       END DO
     END DO
@@ -235,8 +235,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
         CALL get_next(theta_a(itheta+i))
         CALL get_next(theta_b(itheta+i))
         CALL get_next(theta_c(itheta+i))
-        !WRITE(iw,*) itheta+i,theta_a(itheta+i),&
-        !            theta_b(itheta+i),theta_c(itheta+i)
         i=i+1
       END DO
     END DO
@@ -279,8 +277,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
         CALL get_next(phi_b(iphi+i))
         CALL get_next(phi_c(iphi+i))
         CALL get_next(phi_d(iphi+i))
-        !WRITE(iw,*) iphi+i,phi_a(iphi+i),&
-        !            phi_b(iphi+i),phi_c(iphi+i),phi_d(iphi+i)
         i=i+1
       END DO
     END DO
@@ -327,7 +323,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
   DO WHILE (i<nbond)
     search = bond_a(i)
     CALL find_boundary(bond_a,nbond,first,last,search)
-    !WRITE(iw,*) "find boundary ",search,i,first,last
     IF(.NOT.(first==last)) THEN
       DO j=first,last
         DO k=first,last
@@ -354,7 +349,6 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Everything down here should be generic----------------------------------------
-  WRITE(iw,*) 'calling topology_generate_molecule'
   CALL topology_generate_molecule(natom,atm_res_name,nbond,bond_a,bond_b,&
                                   map_mol_typ,map_mol_num)
 !------------------------------------------------------------------------------
@@ -368,16 +362,15 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
   END IF
 !------------------------------------------------------------------------------
   DO i=1,nmol_typ
+    CALL init_molecule_type(mol_setup(i))
     CALL find_boundary(map_mol_typ,natom,first,last,i)
     mol_setup(i)%molpar%name = atm_res_name(first)
     mol_setup(i)%num_mol=MAXVAL(map_mol_num)
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    !--------------------------------------------------------------------------
     !set nhcopt
     mol_setup(i)%nhcopt = "GLOBAL"
     !--------------------------------------------------------------------------
+    !Need to be generalized!!!
     !Figure out the number of atoms and atom types-----------------------------
     j = last - first + 1
     j = j / map_mol_num(last)
@@ -405,6 +398,9 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     IF(ierror/=0) CALL stop_memory &
       ('read_topology_psf','acharge',mol_setup(i)%molpar%natom)
     DO j=1,mol_setup(i)%molpar%natom
+      mol_setup(i)%molpar%aname(j)   = ''
+      mol_setup(i)%molpar%aweight(j) = 0.0
+      mol_setup(i)%molpar%acharge(j) = 0.0
       !Stuff the aname,alabel,aweight,acharge
       mol_setup(i)%molpar%aname(j)   = atm_name2(first+j-1)
       mol_setup(i)%molpar%aweight(j) = atm_mass(first+j-1)
@@ -542,44 +538,18 @@ SUBROUTINE read_topology_psf (mol_setup,setup,globenv)
     !---------------------------------------------------------------------------
   END DO
 
-  DEALLOCATE(atm_mol_name,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_mol_name')
-  DEALLOCATE(atm_res_num,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_res_num')
-  DEALLOCATE(atm_res_name,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_res_name')
-  DEALLOCATE(atm_name1,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_name1')
-  DEALLOCATE(atm_name2,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_name2')
-  DEALLOCATE(atm_charge,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_charge')
-  DEALLOCATE(atm_mass,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm_mass')
-  DEALLOCATE(map_mol_typ,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_typ')
-  DEALLOCATE(map_mol_num,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_num')
-  DEALLOCATE(bond_a,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_a')
-  DEALLOCATE(bond_b,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_b')
-  DEALLOCATE(theta_a,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_a')
-  DEALLOCATE(theta_b,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_b')
-  DEALLOCATE(theta_c,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_c')
-  DEALLOCATE(phi_a,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_a')
-  DEALLOCATE(phi_b,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_b')
-  DEALLOCATE(phi_c,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_c')
-  DEALLOCATE(phi_d,STAT=ierror)
-  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_d')
-
-  !CALL stop_program ( "read_topology_psf", "checkme")
+  DEALLOCATE(atm_mol_name,atm_res_num,atm_res_name,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm1')
+  DEALLOCATE(atm_name1,atm_name2,atm_charge,atm_mass,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','atm2')
+  DEALLOCATE(map_mol_typ,map_mol_num,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','map_mol_')
+  DEALLOCATE(bond_a,bond_b,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','bond_')
+  DEALLOCATE(theta_a,theta_b,theta_c,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','theta_')
+  DEALLOCATE(phi_a,phi_b,phi_c,phi_d,STAT=ierror)
+  IF ( ierror /= 0 ) CALL stop_memory ('read_molecule_section','phi_')
 
 END SUBROUTINE read_topology_psf
 
