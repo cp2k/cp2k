@@ -31,7 +31,7 @@
  NEV        2
  REORTHO    2
  KERNEL     Y
- RES_E_TYPE singlets
+ RES_ETYPE singlets
  FUNCTIONAL PADE
 &END
 
