@@ -591,6 +591,8 @@ SUBROUTINE mp_comm_dup ( comm1, comm2 )
 #if defined(__parallel)
   CALL mpi_comm_dup ( comm1, comm2, ierr )
   IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_dup @ mp_comm_dup" )
+#else
+  comm2=comm1
 #endif
 
 END SUBROUTINE mp_comm_dup
@@ -913,6 +915,8 @@ SUBROUTINE mp_alltoall_c22v ( sb, scount, sdispl, rb, rcount, rdispl, group )
   mp_perf ( 6 ) % msg_size = mp_perf ( 6 ) % msg_size + msglen * 2 * reallen
   t_end = m_cputime ( )
   mp_perf ( 6 ) % time = mp_perf ( 6 ) % time + ( t_end - t_start )
+#else
+  rb=sb
 #endif
 
 END SUBROUTINE mp_alltoall_c22v
@@ -2140,6 +2144,8 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   t_end = m_cputime ( )
   mp_perf ( 8 ) % time = mp_perf ( 8 ) % time + ( t_end - t_start )
 #else
+  send_request=0
+  recv_request=0 
   msgout = msgin
 #endif
 END SUBROUTINE mp_isendrecv_rm2
