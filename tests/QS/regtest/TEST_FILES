@@ -123,3 +123,6 @@ H-2.inp            1
 H2O-debug-1.inp    1
 H2O-debug-2.inp    1
 H2O-debug-3.inp    1
+# test mulliken constraints
+C2H4-init.inp      1
+C2H4.inp           1
