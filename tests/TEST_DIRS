@@ -1,0 +1,3 @@
+# directories in this file will be scanned for a TEST_FILES entry, and used in regression testing of cp2k
+QS
+QS/regtest

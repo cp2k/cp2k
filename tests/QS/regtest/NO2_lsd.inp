@@ -1,0 +1,47 @@
+&CP2K
+ PROGRAM      Quickstep
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&DFT
+ FUNCTIONAL   Pade
+ LSD
+&END
+
+&QS
+ CUTOFF       200
+&END
+
+&SCF
+ GUESS        ATOMIC
+ MIXING       0.4
+ EPS_DIIS     0.4
+ EPS_SCF      3.0E-6
+ MAX_SCF      150
+&END
+
+&PRINT MEDIUM
+ HOMOS 1
+ LUMOS 1
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q6
+&END
+&KIND N
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH-PADE-q5
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          5.0  5.0  5.0
+&END
+
+&COORD
+O  3.71590        2.5        2.5
+O  1.65536    3.37465        2.5
+N  2.5 2.5 2.5
+&END
