@@ -19,7 +19,10 @@ MODULE pol_force_pw
 
   USE atomic_kinds, ONLY : kind_info_type
   USE dg_types, ONLY : dg_type
-  USE coefficient_types, ONLY : coeff_type
+  USE coefficient_types, ONLY : coeff_type,  coeff_allocate, &
+       coeff_deallocate, coeff_zero, coeff_transform_space, &
+       PW_COMPLEXDATA3D, PW_REALDATA3D, &
+       PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
   USE empirical_parameters, ONLY : empirical_parameter_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE ewalds, ONLY : ewald_evaluate, ewald_setup
@@ -43,11 +46,15 @@ MODULE pol_force_pw
   USE pol_overlap_pw, ONLY : force_overlap
   USE pol_projectors_pw, ONLY : projectors, pol_projector_type
   USE pol_thk_pw, ONLY : force_thk
+!dbg
+  USE pol_fo_kernel_pw, ONLY : force_fo_kernel
+!dbg
   USE pol_grids, ONLY : pol_grids_allocate, pol_grids_count, &
        pol_grids_map, pol_grids_initialize, assign_coefs_to_grids, &
        pol_grids_ref_grid
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_grids, ONLY : pw_grid_change
+  USE pw_types, ONLY : REALSPACE, RECIPROCALSPACE, NOSPACE
   USE simulation_cell, ONLY : cell_type, get_hinv
   USE termination, ONLY : stop_program, stop_memory
   USE timings, ONLY : timeset, timestop
@@ -135,6 +142,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_g, pv_bc, ident
   LOGICAL :: first_time
   REAL ( dbl ) :: max_cut, cutoff_radius_max
+  TYPE ( coeff_type ) :: rho0
   TYPE ( pol_projector_type ), ALLOCATABLE :: fproj_part ( : )
   
 
@@ -344,9 +352,16 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
          ALLOCATE ( fthk_coef ( ncoef ), STAT=isos )
   IF ( isos /= 0 ) &
     CALL stop_memory ( 'pol_force_control_pw', 'fthk_coef',  ncoef )
+
+! allocate rho0 (total reference density-to be used for thk calculations_
+
+  CALL coeff_allocate ( rho0 , coef_pos % pw % pw_grid, use_data = PW_COMPLEXDATA1D )
+  rho0 % pw % in_space = RECIPROCALSPACE
+  CALL coeff_zero ( rho0 )
+
 ! get electrostatics forces   
 
-  CALL electrostatics ( dg_atom, coef_pos % pw, part, box, small_grid, big_grid,  &
+  CALL electrostatics ( dg_atom, coef_pos % pw, rho0, part, box, small_grid, big_grid,  &
                        ewald_param, pot_electrostatics, e0, e1, e2, fe_coef, fe_part )
  
 ! get projectors and projector forces
@@ -361,10 +376,17 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
                        fo_coef, fo_part, fproj_part, e_ovl_ii, e_ovl_ij )
 
 ! get first order hk contribution
-
-  CALL force_thk ( dg_proj, proj % ao, coef_pos % pw % pw_grid, part, box,  &
-                    empparm, small_grid, big_grid, pot_thk, fthk_coef, fthk_part, &
-                    fproj_part ) 
+!dbg
+! force_fo_kernel calculates the contribution due to first-order SR kernel K1
+! where the K1 is explcitily calculated as a function of rho0
+!
+! CALL force_thk ( dg_proj, proj % ao, coef_pos % pw % pw_grid, part, box,  &
+!                   empparm, small_grid, big_grid, pot_thk, fthk_coef, fthk_part, &
+!                   fproj_part ) 
+!
+ CALL force_fo_kernel ( dg_atom, coef_pos % pw, rho0,  part, box,  &
+                        small_grid, big_grid, pot_thk, fthk_coef, fthk_part)  
+!DBG
 
 ! get real-space non-bonded forces:
 !
@@ -537,6 +559,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   IF ( isos /= 0 ) CALL stop_memory ( 'pol_force_control_pw', 'fproj_part' )
   IF ( ALLOCATED ( fg_coulomb ) ) DEALLOCATE ( fg_coulomb, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'pol_force_control_pw', 'fg_coulomb' )
+  CALL coeff_deallocate ( rho0 )
 
   CALL timestop ( zero, handle )
 
