@@ -84,10 +84,10 @@ PROGRAM cp2k
      DO i=1,m_iargc()
         CALL m_getarg(i,arg_att)
         SELECT CASE(arg_att)
-        CASE("-check","--check-input")
+        CASE("--check","-c")
            check=.TRUE.
            echo_input=.false.
-        CASE("-CHECK","--CHECK-INPUT")
+        CASE("--echo","-e")
            check=.TRUE.
            echo_input=.true.
         CASE("--html-manual")
@@ -108,18 +108,23 @@ PROGRAM cp2k
         END IF
      ELSE IF (usage) THEN
         IF (para_env%source==para_env%mepos) THEN
-           CALL m_getarg(0,arg_att)
-           WRITE (output_unit,"(a)") trim(arg_att)
-           WRITE (output_unit,"('           [--html-manual] [-check|-CHECK|--check-input|--CHECK-INPUT]')")
-           WRITE (output_unit,"('           [-h|-help|--help] input_file',/)")
-           WRITE (output_unit,"('runs the cp2k simulation program see <http://cp2k.berlios.de>.')")
-           WRITE (output_unit,"(' --html-manual',/,"//&
-                "'   writes a html manual of the input in the current directory')")
-           WRITE (output_unit,"(' -check -CHECK --check-input --CHECK-INPUT',/,"//&
-                "'   just checks the input without running the program',/"//&
-                "'   The upcase versions write the input with all the defaults made explicit')")
-           WRITE (output_unit,"(' -h -help --help',/,"//&
-                "'   writes out this message')")
+           CALL m_getarg(0,arg_att) ! actually this is non-standard
+           WRITE (output_unit,'(T5,a)') ''    
+           WRITE (output_unit,'(T5,a)') ''    
+           WRITE (output_unit,'(a)') trim(arg_att)//' [-c|--check] [-e|--echo] [-h|--help] [--html-manual] [input_file]'
+           WRITE (output_unit,'(T5,a)') ''    
+           WRITE (output_unit,'(T5,a)') 'Starts the CP2K simulation program, see <http://cp2k.berlios.de/>.'
+           WRITE (output_unit,'(T5,a)') ''    
+           WRITE (output_unit,'(T5,a)') 'Without options, a simulation is performed using [input_file]'
+           WRITE (output_unit,'(T5,a)') 'or "input" by default.'    
+           WRITE (output_unit,'(T5,a)') ''    
+           WRITE (output_unit,'(T5,a)') 'The switches skip the simulation but : '    
+           WRITE (output_unit,'(T5,A)') '--check, -c    : '//'perform a syntax check of [input_file].'
+           WRITE (output_unit,'(T5,A)') '--echo , -e    : '//'echos [input_file], and makes all defaults explicit.'
+           WRITE (output_unit,'(T5,A)') '--help, -h     : '//'writes this message'
+           WRITE (output_unit,'(T5,A)') '--html-manual  : '//'writes a html reference manual of the input.' 
+           WRITE (output_unit,'(T5,A)') '                 '//'in the current directory.'
+           WRITE (output_unit,'(T5,a)') ''    
         END IF
      ELSE IF (check) then
         CALL check_input(input_file_name,"__STD_OUT__",echo_input=echo_input,&
