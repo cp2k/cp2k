@@ -73,21 +73,21 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
-     grid_s, grid_b, ewald_param )
+SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
+                    ewald_param, vg_coulomb, fg_coulomb, pv_g )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( dg_type ), INTENT ( IN ), TARGET :: dg
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: fg_coulomb
-  REAL ( dbl ), INTENT ( OUT ) :: vg_coulomb
-  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ) :: pv_g
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_s
   TYPE ( pw_grid_type ), INTENT ( IN ) :: grid_b
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  REAL ( dbl ), INTENT ( OUT ) :: vg_coulomb
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: fg_coulomb
+  REAL ( dbl ), DIMENSION ( :, : ), INTENT ( OUT ), OPTIONAL :: pv_g
 
 ! Locals
   INTEGER :: handle, i, j, p1, p2, npart, ipart, jpart
@@ -170,16 +170,18 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
 !------------- STRESS TENSOR CALCULATION ------------
 
-  DO i = 1, 3
-    DO j = i, 3
-       f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
+  IF ( PRESENT ( pv_g ) ) THEN
+    DO i = 1, 3
+      DO j = i, 3
+         f_stress ( i, j ) = pw_integral_a2b ( dphi_g ( i ) % pw, &
                                              dphi_g ( j ) % pw )
-       f_stress ( j, i ) = f_stress ( i, j )
+         f_stress ( j, i ) = f_stress ( i, j )
+      END DO
     END DO
-  END DO
-  ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg % dg_rho0 % zet ( 1 ) ) ** 2
-  f_stress = -ffa * f_stress
-  pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+    ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg % dg_rho0 % zet ( 1 ) ) ** 2
+    f_stress = -ffa * f_stress
+    pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
+  ENDIF
 
 !--------END OF STRESS TENSOR CALCULATION -----------
 
@@ -197,33 +199,34 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 !----------------- FORCE CALCULATION ----------------
 
 ! initialize the forces
-  fg_coulomb = 0._dbl
-  dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
+  IF ( PRESENT ( fg_coulomb ) ) THEN
+    fg_coulomb = 0._dbl
+    dvols = rhos1 % pw % pw_grid % dvol * inv_fourpi_eps0
 
-  ipart = 0
-  jpart = 0
-  DO
+    ipart = 0
+    jpart = 0
+    DO
 
-     CALL set_list ( part, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
-     IF ( p1 == 0 .AND. p2 == 0 ) EXIT
+       CALL set_list ( part, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
+       IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
      ! calculate function on small boxes (we use double packing in FFT)
-     CALL get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
+       CALL get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
 
      ! sum boxes on real space grids (big box)
-     CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
-     fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
-     fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
-     fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
-     IF ( p2 /= 0 ) THEN
-        CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
-        fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
-        fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
-        fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
-     END IF
+       CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
+       fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
+       fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
+       fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
+       IF ( p2 /= 0 ) THEN
+          CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
+          fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
+          fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
+          fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols
+       END IF
 
-  END DO
-
+    END DO
+  ENDIF
 !--------------END OF FORCE CALCULATION -------------
 
 !------------------CLEANING UP ----------------------
