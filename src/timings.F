@@ -33,6 +33,14 @@ MODULE timings
 
   PRIVATE
 
+  INTERFACE timeset
+    MODULE PROCEDURE timeset_full, timeset_short
+  END INTERFACE 
+
+  INTERFACE timestop
+    MODULE PROCEDURE timestop_full, timestop_short
+  END INTERFACE 
+
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack,&
             use_HPM
 
@@ -148,7 +156,13 @@ END SUBROUTINE
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE timeset ( name, ct, pu, handle )
+SUBROUTINE timeset_short(name, handle ) ! provide the usual shortcut
+   CHARACTER ( LEN = * ), INTENT ( IN ) :: name
+   INTEGER :: handle
+   CALL timeset_full(name, "I", "", handle)
+END SUBROUTINE timeset_short
+
+SUBROUTINE timeset_full ( name, ct, pu, handle )
 
   IMPLICIT NONE
 
@@ -236,11 +250,11 @@ SUBROUTINE timeset ( name, ct, pu, handle )
      TRIM( timer_env_stack(stack_pointer)%routine_stack ( stack_size )),"       start"
   IF ( timer_env_stack(stack_pointer)%trace ) CALL print_memory(TRIM(mystring))
 
-END SUBROUTINE timeset
+END SUBROUTINE timeset_full
 
 !!*****
 !******************************************************************************
-!!****** timings/timeset [1.0] *
+!!****** timings/timestop [1.0] *
 !!
 !!   NAME
 !!     timeset
@@ -257,7 +271,12 @@ END SUBROUTINE timeset
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE timestop ( perf, handle )
+SUBROUTINE timestop_short( handle ) ! provide the usual shortcut
+   INTEGER :: handle
+   CALL timestop_full(0.0_dbl,handle)
+END SUBROUTINE timestop_short
+
+SUBROUTINE timestop_full ( perf, handle )
 
   IMPLICIT NONE
 
@@ -334,7 +353,7 @@ SUBROUTINE timestop ( perf, handle )
      timer_env_stack(stack_pointer)%stack_size = timer_env_stack(stack_pointer)%stack_size - 1
   END IF
 
-END SUBROUTINE timestop
+END SUBROUTINE timestop_full
 
 !!*****
 !******************************************************************************

@@ -390,7 +390,7 @@ CONTAINS
     LOGICAL, SAVE                            :: FIRST = .TRUE.
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: buff
 
-    CALL timeset("cp_fm_init_random","I","",handle)
+    CALL timeset("cp_fm_init_random",handle)
     IF (FIRST) THEN
        ISEED(1)=4
        ISEED(2)=3
@@ -418,7 +418,7 @@ CONTAINS
     ! write(6,*) matrix%local_data
     DEALLOCATE(buff)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_init_random
 
@@ -821,7 +821,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: full_block
     TYPE(cp_para_env_type), POINTER          :: para_env
 
-    CALL timeset(routineN,"I","",handle)
+    CALL timeset(routineN,handle)
 
     i0=1; j0=1; tr_a=.FALSE.
     failure=.FALSE.
@@ -895,7 +895,7 @@ CONTAINS
        CALL mp_sum(target_m,para_env%group)
     END IF
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_get_submatrix
 
@@ -1008,7 +1008,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxabsval","I","",handle)
+    CALL timeset("cp_fm_maxabsval",handle)
 
     my_block => matrix%local_data
 
@@ -1017,7 +1017,7 @@ CONTAINS
 
     CALL mp_max(a_max,matrix%matrix_struct%para_env%group)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE cp_fm_maxabsval
 
@@ -1055,7 +1055,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("cp_fm_maxabsrownorm","I","",handle)
+    CALL timeset("cp_fm_maxabsrownorm",handle)
 
     my_block => matrix%local_data
     CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
@@ -1073,7 +1073,7 @@ CONTAINS
     a_max = MAXVAL(values)
     DEALLOCATE(values)
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
   END SUBROUTINE
 
 !!****f* cp_fm_types/cp_fm_write [1.0] *
