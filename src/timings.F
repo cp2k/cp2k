@@ -323,16 +323,18 @@ SUBROUTINE trace_debug ( set, iw )
 
   IMPLICIT NONE
 
-! Arguments
+! Arguments 
   CHARACTER (len=*) :: set
+  CHARACTER (len=5) :: set2
   INTEGER, OPTIONAL :: iw
 
 ! Locals
   INTEGER :: numtask, taskid, groupid
+  ! this is needed on SUN if the trace_debug("start") is used in the call (i.e. explicit string)
+  set2=TRIM(set)
+  CALL uppercase(set2)
 
-  CALL uppercase(set)
-
-  SELECT CASE (set)
+  SELECT CASE (set2)
   CASE ("START")
     trace = .TRUE.
   CASE ("STOP")
