@@ -3644,10 +3644,10 @@ SUBROUTINE dcsrch (f, g, stp, ftol, gtol, xtol, stpmin, stpmax, &
 
 END SUBROUTINE dcsrch
 !====================== The end of dcsrch ==============================
-SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
+SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dpv, brackt, &
      stpmin, stpmax)
     real(dbl)                                :: stx, fx, dx, sty, fy, dy, &
-                                                stp, fp, dp
+                                                stp, fp, dpv
     LOGICAL                                  :: brackt
     real(dbl)                                :: stpmin, stpmax
 
@@ -3680,7 +3680,7 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
 !
 !     The subroutine statement is
 !
-!       subroutine dcstep(stx,fx,dx,sty,fy,dy,stp,fp,dp,brackt,
+!       subroutine dcstep(stx,fx,dx,sty,fy,dy,stp,fp,dpv,brackt,
 !                         stpmin,stpmax)
 !
 !     where
@@ -3724,9 +3724,9 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
 !         On entry fp is the function at stp
 !         On exit fp is unchanged.
 !
-!       dp is a double precision variable.
-!         On entry dp is the the derivative of the function at stp.
-!         On exit dp is unchanged.
+!       dpv is a double precision variable.
+!         On entry dpv is the the derivative of the function at stp.
+!         On exit dpv is unchanged.
 !
 !       brackt is an logical variable.
 !         On entry brackt specifies if a minimizer has been bracketed.
@@ -3752,18 +3752,18 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
 !
 !     **********
 
-  sgnd = dp * (dx / ABS (dx) )  
+  sgnd = dpv * (dx / ABS (dx) )  
   !     First case: A higher function value. The minimum is bracketed.
   !     If the cubic step is closer to stx than the quadratic step, the
   !     cubic step is taken, otherwise the average of the cubic and
   !     quadratic steps is taken.
   IF (fp.gt.fx) THEN  
-     theta = three * (fx - fp) / (stp - stx) + dx + dp  
-     s = MAX (ABS (theta), ABS (dx), ABS (dp) )  
-     gamma = s * SQRT ( (theta / s) **2 - (dx / s) * (dp / s) )  
+     theta = three * (fx - fp) / (stp - stx) + dx + dpv  
+     s = MAX (ABS (theta), ABS (dx), ABS (dpv) )  
+     gamma = s * SQRT ( (theta / s) **2 - (dx / s) * (dpv / s) )  
      IF (stp.lt.stx) gamma = - gamma  
      p = (gamma - dx) + theta  
-     q = ( (gamma - dx) + gamma) + dp  
+     q = ( (gamma - dx) + gamma) + dpv  
      r = p / q  
      stpc = stx + r * (stp - stx)  
      stpq = stx + ( (dx / ( (fx - fp) / (stp - stx) + dx) ) / two) &
@@ -3781,15 +3781,15 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
      !     stp than the secant step, the cubic step is taken, otherwise the
      !     secant step is taken.
   ELSEIF (sgnd.lt.zero) THEN  
-     theta = three * (fx - fp) / (stp - stx) + dx + dp  
-     s = MAX (ABS (theta), ABS (dx), ABS (dp) )  
-     gamma = s * SQRT ( (theta / s) **2 - (dx / s) * (dp / s) )  
+     theta = three * (fx - fp) / (stp - stx) + dx + dpv  
+     s = MAX (ABS (theta), ABS (dx), ABS (dpv) )  
+     gamma = s * SQRT ( (theta / s) **2 - (dx / s) * (dpv / s) )  
      IF (stp.gt.stx) gamma = - gamma  
-     p = (gamma - dp) + theta  
-     q = ( (gamma - dp) + gamma) + dx  
+     p = (gamma - dpv) + theta  
+     q = ( (gamma - dpv) + gamma) + dx  
      r = p / q  
      stpc = stp + r * (stx - stp)  
-     stpq = stp + (dp / (dp - dx) ) * (stx - stp)  
+     stpq = stp + (dpv / (dpv - dx) ) * (stx - stp)  
      IF (ABS (stpc - stp) .gt.ABS (stpq - stp) ) THEN  
         stpf = stpc  
      ELSE  
@@ -3802,22 +3802,22 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
      !     and the magnitude of the derivative decreases.
 
 
-  ELSEIF (ABS (dp) .lt.ABS (dx) ) THEN  
+  ELSEIF (ABS (dpv) .lt.ABS (dx) ) THEN  
      !        The cubic step is computed only if the cubic tends to infinity
      !        in the direction of the step or if the minimum of the cubic
      !        is beyond stp. Otherwise the cubic step is defined to be the
      !        secant step.
-     theta = three * (fx - fp) / (stp - stx) + dx + dp  
+     theta = three * (fx - fp) / (stp - stx) + dx + dpv  
 
 
-     s = MAX (ABS (theta), ABS (dx), ABS (dp) )  
+     s = MAX (ABS (theta), ABS (dx), ABS (dpv) )  
      !        The case gamma = 0 only arises if the cubic does not tend
      !        to infinity in the direction of the step.
      gamma = s * SQRT (MAX (zero, (theta / s) **2 - (dx / s) &
-          * (dp / s) ) )
+          * (dpv / s) ) )
      IF (stp.gt.stx) gamma = - gamma  
-     p = (gamma - dp) + theta  
-     q = (gamma + (dx - dp) ) + gamma  
+     p = (gamma - dpv) + theta  
+     q = (gamma + (dx - dpv) ) + gamma  
      r = p / q  
      IF (r.lt.zero.and.gamma.ne.zero) THEN  
         stpc = stp + r * (stx - stp)  
@@ -3827,7 +3827,7 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
         stpc = stpmin  
      ENDIF
 
-     stpq = stp + (dp / (dp - dx) ) * (stx - stp)  
+     stpq = stp + (dpv / (dpv - dx) ) * (stx - stp)  
 
 
      IF (brackt) THEN  
@@ -3866,12 +3866,12 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
      !     stpmin or stpmax, otherwise the cubic step is taken.
   ELSE  
      IF (brackt) THEN  
-        theta = three * (fp - fy) / (sty - stp) + dy + dp  
-        s = MAX (ABS (theta), ABS (dy), ABS (dp) )  
-        gamma = s * SQRT ( (theta / s) **2 - (dy / s) * (dp / s) )  
+        theta = three * (fp - fy) / (sty - stp) + dy + dpv  
+        s = MAX (ABS (theta), ABS (dy), ABS (dpv) )  
+        gamma = s * SQRT ( (theta / s) **2 - (dy / s) * (dpv / s) )  
         IF (stp.gt.sty) gamma = - gamma  
-        p = (gamma - dp) + theta  
-        q = ( (gamma - dp) + gamma) + dy  
+        p = (gamma - dpv) + theta  
+        q = ( (gamma - dpv) + gamma) + dy  
         r = p / q  
         stpc = stp + r * (sty - stp)  
         stpf = stpc  
@@ -3887,7 +3887,7 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
   IF (fp.gt.fx) THEN  
      sty = stp  
      fy = fp  
-     dy = dp  
+     dy = dpv  
   ELSE  
      IF (sgnd.lt.zero) THEN  
         sty = stx  
@@ -3896,7 +3896,7 @@ SUBROUTINE dcstep (stx, fx, dx, sty, fy, dy, stp, fp, dp, brackt, &
      ENDIF
      stx = stp  
      fx = fp  
-     dx = dp  
+     dx = dpv  
 
 
   ENDIF

@@ -31,7 +31,7 @@ MODULE input_cp2k
        cp_error_dealloc_ref, cp_error_message, cp_assert,&
        cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
        cp_error_get_logger, cp_a_l, cp_error_check
-  USE kinds, ONLY: dp, dbl
+  USE kinds, ONLY: dp
   USE cp_para_types, ONLY: cp_para_env_type
   USE timings, ONLY: timeset, timestop
   USE input_section_types, ONLY: section_type, section_create, &

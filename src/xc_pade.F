@@ -476,11 +476,11 @@ CONTAINS
     REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: depade, dp, dq, epade, p, q
+    REAL(dbl)                                :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,p,q,epade,dp,dq,depade)
+!$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -489,9 +489,9 @@ CONTAINS
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
 
-         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
-         depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
+         depade = f13 * rs(ip) * (dpv*q - p*dq) / (q*q)
 
          pot(ip) = pot(ip) + epade + depade
 
@@ -509,11 +509,11 @@ CONTAINS
     REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot0, pot1
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: depade, dp, dq, epade, p, q
+    REAL(dbl)                                :: depade, dpv, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,p,q,epade,dp,dq,depade)
+!$omp parallel do private(ip,p,q,epade,dpv,dq,depade)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -522,9 +522,9 @@ CONTAINS
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
          epade = -p/q
 
-         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
-         depade = f13 * rs(ip) * (dp*q - p*dq) / (q*q)
+         depade = f13 * rs(ip) * (dpv*q - p*dq) / (q*q)
 
          pot0(ip) = pot0(ip) + epade * rho(ip)
          pot1(ip) = pot1(ip) + epade + depade
@@ -543,12 +543,12 @@ CONTAINS
     REAL(dbl), DIMENSION(*), INTENT(INOUT)   :: pot
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: d2p, d2q, dp, dq, p, q, rsr, &
+    REAL(dbl)                                :: d2p, d2q, dpv, dq, p, q, rsr, &
                                                 t1, t2, t3
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,rsr,t1,t2,t3)
+!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,rsr,t1,t2,t3)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -556,16 +556,16 @@ CONTAINS
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
 
          d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
          d2q = 2.0_dbl*b2 + (6.0_dbl*b3 + 12.0_dbl*b4*rs(ip))*rs(ip)
 
          rsr = rs(ip)/rho(ip)
-         t1 = (p*dq - dp*q)/(q*q)
+         t1 = (p*dq - dpv*q)/(q*q)
          t2 = (d2p*q - p*d2q)/(q*q)
-         t3 = (p*dq*dq - dp*q*dq)/(q*q*q)
+         t3 = (p*dq*dq - dpv*q*dq)/(q*q*q)
 
          pot(ip) = pot(ip) - f13 * ( f23*t1 + f13*t2*rs(ip) + f23*t3*rs(ip) ) * rsr
 
@@ -584,12 +584,12 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: ab1, ab2, ab3, d2p, d2q, d3p, &
-                                                d3q, dp, dq, p, q, rsr1, &
+                                                d3q, dpv, dq, p, q, rsr1, &
                                                 rsr2, rsr3
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
+!$omp parallel do private(ip,p,q,dpv,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
 
     DO ip = 1, n
       IF ( rho(ip) > eps_rho ) THEN
@@ -597,7 +597,7 @@ CONTAINS
          p = a0 + (a1 + (a2 + a3*rs(ip))*rs(ip))*rs(ip)
          q = (b1 + (b2 + (b3 + b4*rs(ip))*rs(ip))*rs(ip))*rs(ip)
 
-         dp = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
+         dpv = a1 + (2.0_dbl*a2 + 3.0_dbl*a3*rs(ip))*rs(ip)
          dq = b1 + (2.0_dbl*b2 + (3.0_dbl*b3 + 4.0_dbl*b4*rs(ip))*rs(ip))*rs(ip)
 
          d2p = 2.0_dbl*a2 + 6.0_dbl*a3*rs(ip)
@@ -606,9 +606,9 @@ CONTAINS
          d3p = 6.0_dbl*a3
          d3q = 6.0_dbl*b3 + 24.0_dbl*b4*rs(ip)
 
-         ab1 = (dp*q - p*dq)/(q*q)
-         ab2 = (d2p*q*q - p*q*d2q - 2._dbl*dp*q*dq + 2._dbl*p*dq*dq)/(q*q*q)
-         ab3 = (d3p*q*q - p*q*d3q - 3._dbl*dp*q*d2q + 3._dbl*p*dq*d2q)/(q*q*q)
+         ab1 = (dpv*q - p*dq)/(q*q)
+         ab2 = (d2p*q*q - p*q*d2q - 2._dbl*dpv*q*dq + 2._dbl*p*dq*dq)/(q*q*q)
+         ab3 = (d3p*q*q - p*q*d3q - 3._dbl*dpv*q*d2q + 3._dbl*p*dq*d2q)/(q*q*q)
          ab3 = ab3 - 3._dbl*ab2*dq/q
          rsr1 = rs(ip) / (rho(ip)*rho(ip))
          rsr2 = f13*f13*rs(ip) * rsr1
@@ -664,7 +664,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
     REAL(dbl), INTENT(INOUT)                 :: pota, potb
 
-    REAL(dbl)                                :: dc, dp, dq, dr, dx, fa0, fa1, &
+    REAL(dbl)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
                                                 fa2, fa3, fb1, fb2, fb3, fb4, &
                                                 p, q, rhoab, xp, xq
 
@@ -685,13 +685,13 @@ CONTAINS
 
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
+         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
                      4.0_dbl*fb4*rs)*rs)*rs
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dr = (dp*q - p*dq)/(q*q)
+         dr = (dpv*q - p*dq)/(q*q)
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
          dc = f13*rs*dr - p/q
 
@@ -710,7 +710,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
     REAL(dbl), INTENT(INOUT)                 :: pot0, pota, potb
 
-    REAL(dbl)                                :: dc, dp, dq, dr, dx, fa0, fa1, &
+    REAL(dbl)                                :: dc, dpv, dq, dr, dx, fa0, fa1, &
                                                 fa2, fa3, fb1, fb2, fb3, fb4, &
                                                 p, q, rhoab, xp, xq
 
@@ -731,13 +731,13 @@ CONTAINS
 
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
+         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
                      4.0_dbl*fb4*rs)*rs)*rs
          xp = da0 + (da1 + (da2 + da3*rs)*rs)*rs
          xq = (db1 + (db2 + (db3 + db4*rs)*rs)*rs)*rs
 
-         dr = (dp*q - p*dq)/(q*q)
+         dr = (dpv*q - p*dq)/(q*q)
          dx = 2._dbl*(xp*q - p*xq)/(q*q)*fx(2)/rhoab
          dc = f13*rs*dr - p/q
 
@@ -757,7 +757,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
     REAL(dbl), INTENT(INOUT)                 :: potaa, potab, potbb
 
-    REAL(dbl)                                :: d2p, d2q, dp, dq, dr, drr, &
+    REAL(dbl)                                :: d2p, d2q, dpv, dq, dr, drr, &
                                                 dx, dxp, dxq, dxr, dxx, fa0, &
                                                 fa1, fa2, fa3, fb1, fb2, fb3, &
                                                 fb4, or, p, q, rhoab, xp, xq, &
@@ -781,7 +781,7 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
+         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
                      4.0_dbl*fb4*rs)*rs)*rs
 
@@ -795,11 +795,11 @@ CONTAINS
          dxq = db1 + (2.0_dbl*db2 + (3.0_dbl*db3 + &
                      4.0_dbl*db4*rs)*rs)*rs
 
-         dr = (dp*q - p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         dr = (dpv*q - p*dq)/(q*q)
+         drr = (d2p*q*q-p*q*d2q-2._dbl*dpv*q*dq+2._dbl*p*dq*dq)/(q*q*q)
          dx = (xp*q - p*xq)/(q*q)
          dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
-         dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2._dbl*dpv*q*xq+2._dbl*p*dq*xq)/(q*q*q)
 
          or = 1._dbl/rhoab
          yt = rhob*or
@@ -830,7 +830,7 @@ CONTAINS
     REAL(dbl), DIMENSION(:), INTENT(IN)      :: fx
     REAL(dbl), INTENT(INOUT)                 :: potaaa, potaab, potabb, potbbb
 
-    REAL(dbl) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dp, dq, dr, drr, drrr, dx, &
+    REAL(dbl) :: d2p, d2q, d2xp, d2xq, d3p, d3q, dpv, dq, dr, drr, drrr, dx, &
       dxp, dxq, dxr, dxrr, dxx, dxxr, dxxx, fa0, fa1, fa2, fa3, fb1, fb2, &
       fb3, fb4, or, p, q, rhoab, xp, xq, xt, yt
 
@@ -854,7 +854,7 @@ CONTAINS
          p = fa0 + (fa1 + (fa2 + fa3*rs)*rs)*rs
          q = (fb1 + (fb2 + (fb3 + fb4*rs)*rs)*rs)*rs
 
-         dp = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
+         dpv = fa1 + (2.0_dbl*fa2 + 3.0_dbl*fa3*rs)*rs
          dq = fb1 + (2.0_dbl*fb2 + (3.0_dbl*fb3 + &
                      4.0_dbl*fb4*rs)*rs)*rs
 
@@ -874,18 +874,18 @@ CONTAINS
          d2xp = 2.0_dbl*da2 + 6.0_dbl*da3*rs
          d2xq = 2.0_dbl*db2 + (6.0_dbl*db3 + 12.0_dbl*db4*rs)*rs
 
-         dr = (dp*q - p*dq)/(q*q)
-         drr = (d2p*q*q-p*q*d2q-2._dbl*dp*q*dq+2._dbl*p*dq*dq)/(q*q*q)
-         drrr = (d3p*q*q*q-3._dbl*d2p*dq*q*q+6._dbl*dp*dq*dq*q-3._dbl*dp*d2q*q*q - &
+         dr = (dpv*q - p*dq)/(q*q)
+         drr = (d2p*q*q-p*q*d2q-2._dbl*dpv*q*dq+2._dbl*p*dq*dq)/(q*q*q)
+         drrr = (d3p*q*q*q-3._dbl*d2p*dq*q*q+6._dbl*dpv*dq*dq*q-3._dbl*dpv*d2q*q*q - &
                 6._dbl*p*dq*dq*dq+6._dbl*p*dq*d2q*q-p*d3q*q*q)/(q*q*q*q)
          dx = (xp*q - p*xq)/(q*q)
          dxx = 2._dbl*xq*(p*xq - xp*q)/(q*q*q)
          dxxx = 6._dbl*xq*(q*xp*xq-p*xq*xq)/(q*q*q*q)
-         dxr = (dxp*q*q+dp*xq*q-xp*dq*q-p*dxq*q-2._dbl*dp*q*xq+2._dbl*p*dq*xq)/(q*q*q)
-         dxxr = 2._dbl*(2._dbl*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dp-xq*q*q*dxp + &
+         dxr = (dxp*q*q+dpv*xq*q-xp*dq*q-p*dxq*q-2._dbl*dpv*q*xq+2._dbl*p*dq*xq)/(q*q*q)
+         dxxr = 2._dbl*(2._dbl*dxq*q*p*xq-dxq*q*q*xp+xq*xq*q*dpv-xq*q*q*dxp + &
                 2._dbl*xq*q*xp*dq-3._dbl*xq*xq*dq*p)/(q*q*q*q)
          dxrr = (q*q*q*d2xp-2._dbl*q*q*dxp*dq-q*q*xp*d2q-q*q*d2p*xq - &
-                2._dbl*q*q*dp*dxq-q*q*p*d2xq+4._dbl*dq*q*dp*xq+4._dbl*dq*q*p*dxq + &
+                2._dbl*q*q*dpv*dxq-q*q*p*d2xq+4._dbl*dq*q*dpv*xq+4._dbl*dq*q*p*dxq + &
                 2._dbl*dq*dq*q*xp-6._dbl*dq*dq*p*xq+2._dbl*d2q*q*p*xq)/(q*q*q*q)
 
          or = 1._dbl/rhoab

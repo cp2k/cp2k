@@ -243,7 +243,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
      CASE("TEMPERATURE","TEMPCONTROL")
         meta_env%tempcontrol=.true.
         CALL read_object(meta_env%temp_wanted)
-        meta_env%toll_temp=meta_env%temp_wanted/sqrt(dble(meta_env%n_colvar))
+        meta_env%toll_temp=meta_env%temp_wanted/sqrt(REAL(meta_env%n_colvar,dp))
      END SELECT
   END DO
   CALL finish_parser()
@@ -341,8 +341,8 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
      ENDDO
      !  velocity rescaling on the s0
      if(meta_env%tempcontrol)then
-       ekin_w=0.5_dp*meta_env%temp_wanted/FACTEM*dble(meta_env%n_colvar)
-       tol_ekin=0.5_dp*meta_env%toll_temp/FACTEM*dble(meta_env%n_colvar)
+       ekin_w=0.5_dp*meta_env%temp_wanted/FACTEM*REAL(meta_env%n_colvar,dp)
+       tol_ekin=0.5_dp*meta_env%toll_temp/FACTEM*REAL(meta_env%n_colvar,dp)
        if(abs(ekin_w-meta_env%ekin_s)> tol_ekin)then
          fac_t=sqrt(ekin_w/max(meta_env%ekin_s,1.D-8))
          DO i_c=1,meta_env%n_colvar

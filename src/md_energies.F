@@ -41,7 +41,7 @@ MODULE md_energies
                                              use_qmmm, &
                                              use_list_force
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp, dbl
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: mdio_parameters_type,&
@@ -71,8 +71,8 @@ MODULE md_energies
   CHARACTER(LEN=*), PARAMETER :: module_name = "md_energies"
 
   TYPE average_quantities_type
-     REAL ( dbl ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dbl ) :: aveal, avebe, avega, avepress, avekinc, avetempc
+     REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
+     REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc
   END TYPE average_quantities_type
 
  
@@ -189,8 +189,8 @@ END SUBROUTINE set_energies
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE ( virial_type ), POINTER            :: virial
-    REAL ( dbl ) :: abc ( 3 ), cell_angle ( 3 )
-    REAL ( dbl ) :: pv_scalar, econs
+    REAL ( dp ) :: abc ( 3 ), cell_angle ( 3 )
+    REAL ( dp ) :: pv_scalar, econs
     INTEGER :: i
 
 !   ---------------------------------------------------------------------------
@@ -217,11 +217,11 @@ END SUBROUTINE set_energies
 
 ! computing the scalar pressure
       IF ( virial % pv_availability ) THEN
-        pv_scalar = 0._dbl
+        pv_scalar = 0._dp
         DO i = 1, 3
           pv_scalar = pv_scalar + virial%pv_total(i,i)
         END DO
-        pv_scalar = pv_scalar/3._dbl/cell%deth
+        pv_scalar = pv_scalar/3._dp/cell%deth
         pv_scalar = pv_scalar * unit % bar
       ENDIF
 
@@ -355,28 +355,28 @@ END SUBROUTINE set_energies
           averages%aveal = cell_angle ( 3 )
           averages%avebe = cell_angle ( 2 )
           averages%avega = cell_angle ( 1 )
-          econs_avg =  0._dbl
+          econs_avg =  0._dp
        CASE DEFAULT
           IF ( virial % pv_availability ) &
-          averages%avepress = (averages%avepress*REAL(delta_t-1,dbl)+pv_scalar)/ &
-          REAL ( delta_t, dbl )
-          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dbl)+temp)/ &
-               REAL(delta_t,dbl)
-          averages%avepot = (averages%avepot*REAL(delta_t-1,dbl)+epot)/ &
-               REAL(delta_t,dbl)
-          averages%avekin = (averages%avekin*REAL(delta_t-1,dbl)+ekin)/ &
-               REAL(delta_t,dbl)
-          averages%avevol = (averages%avevol*REAL(delta_t-1,dbl)+cell%deth)/ &
-               REAL(delta_t,dbl)
-          averages%aveca = (averages%aveca*REAL(delta_t-1,dbl)+abc(1))/REAL(delta_t,dbl)
-          averages%avecb = (averages%avecb*REAL(delta_t-1,dbl)+abc(2))/REAL(delta_t,dbl)
-          averages%avecc = (averages%avecc*REAL(delta_t-1,dbl)+abc(3))/REAL(delta_t,dbl)
-          averages%aveal = (averages%aveal*REAL(delta_t-1,dbl)+cell_angle(3))/ &
-               REAL(delta_t,dbl)
-          averages%avebe = (averages%avebe*REAL(delta_t-1,dbl)+cell_angle(2))/ &
-               REAL(delta_t,dbl)
-          averages%avega = (averages%avega*REAL(delta_t-1,dbl)+cell_angle(1))/ &
-          REAL(delta_t,dbl)
+          averages%avepress = (averages%avepress*REAL(delta_t-1,dp)+pv_scalar)/ &
+          REAL ( delta_t, dp )
+          averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
+               REAL(delta_t,dp)
+          averages%avepot = (averages%avepot*REAL(delta_t-1,dp)+epot)/ &
+               REAL(delta_t,dp)
+          averages%avekin = (averages%avekin*REAL(delta_t-1,dp)+ekin)/ &
+               REAL(delta_t,dp)
+          averages%avevol = (averages%avevol*REAL(delta_t-1,dp)+cell%deth)/ &
+               REAL(delta_t,dp)
+          averages%aveca = (averages%aveca*REAL(delta_t-1,dp)+abc(1))/REAL(delta_t,dp)
+          averages%avecb = (averages%avecb*REAL(delta_t-1,dp)+abc(2))/REAL(delta_t,dp)
+          averages%avecc = (averages%avecc*REAL(delta_t-1,dp)+abc(3))/REAL(delta_t,dp)
+          averages%aveal = (averages%aveal*REAL(delta_t-1,dp)+cell_angle(3))/ &
+               REAL(delta_t,dp)
+          averages%avebe = (averages%avebe*REAL(delta_t-1,dp)+cell_angle(2))/ &
+               REAL(delta_t,dp)
+          averages%avega = (averages%avega*REAL(delta_t-1,dp)+cell_angle(1))/ &
+          REAL(delta_t,dp)
           econs_avg = econs_avg + abs((cons-constant)/constant)
        END SELECT
 !
@@ -395,7 +395,7 @@ END SUBROUTINE set_energies
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
-                econs, econs_avg/REAL( delta_t,dbl)
+                econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &
                adjustl(unit % e_label), '= ', epot, averages%avepot
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' KINETIC ENERGY', &
@@ -454,7 +454,7 @@ END SUBROUTINE set_energies
         IF (MODULO(itimes,iener) == 0) THEN
           WRITE (ene,"(I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12)")&
             itimes,t,ekin,temp,epot,&
-            econs, econs_avg/REAL(delta_t,dbl)
+            econs, econs_avg/REAL(delta_t,dp)
           CALL m_flush(ene)
         END IF
 

@@ -286,13 +286,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), optional :: error
 
     INTEGER                                  :: ip
-    REAL(dbl)                                :: cr, dcr, dp, dphig, dphir, &
+    REAL(dbl)                                :: cr, dcr, dpv, dphig, dphir, &
                                                 dq, ep, ff, g, or, p, phi, q, &
                                                 r, x
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,g,r,x,or,p,dp,q,dq,cr,dcr,dphig,phi,dphir,ep,ff)
+!$omp parallel do private(ip,g,r,x,or,p,dpv,q,dq,cr,dcr,dphig,phi,dphir,ep,ff)
     DO ip = 1, npoints
 
       IF ( rho(ip) > eps_rho ) THEN
@@ -301,11 +301,11 @@ CONTAINS
          x = r*frs
          or = 1._dbl/rho(ip)
          p = pc2+a*r+b*r*r
-         dp = a+2._dbl*b*r
+         dpv = a+2._dbl*b*r
          q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
          dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
          cr= pc1 + p/q
-         dcr = (dp*q-p*dq)/(q*q) * (-f13*r*or)
+         dcr = (dpv*q-p*dq)/(q*q) * (-f13*r*or)
          dphig = fpe*pci/cr * SQRT(x)*or
          phi = dphig * g
          dphir = -phi*(dcr/cr + f76*or)
@@ -332,13 +332,13 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(dbl)                                :: cr, d2cr, d2p, d2phir, d2q, &
-                                                dcr, dp, dphig, dphigr, &
+                                                dcr, dpv, dphig, dphigr, &
                                                 dphir, dq, ep, g, or, p, phi, &
                                                 q, r, x
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,x,r,cr,phi,ep,g,or,p,q,dp,dq,dphir,dcr) &
+!$omp parallel do private(ip,x,r,cr,phi,ep,g,or,p,q,dpv,dq,dphir,dcr) &
 !$omp             private(dphig,dphigr,d2phir,d2cr,d2p,d2q)
     DO ip = 1, npoints
 
@@ -348,15 +348,15 @@ CONTAINS
          x = r*frs
          or = 1._dbl/rho(ip)
          p = pc2+a*r+b*r*r
-         dp = a+2._dbl*b*r
+         dpv = a+2._dbl*b*r
          d2p = 2._dbl*b
          q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
          dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
          d2q = 2._dbl*d+6.e4_dbl*b*r
          cr= pc1 + p/q
-         dcr = (dp*q-p*dq)/(q*q) * (-f13*r*or)
-         d2cr = (d2p*q*q-p*q*d2q-2*dp*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &
-                (dp*q-p*dq)/(q*q) * f13*f43*r*or*or
+         dcr = (dpv*q-p*dq)/(q*q) * (-f13*r*or)
+         d2cr = (d2p*q*q-p*q*d2q-2*dpv*dq*q+2*p*dq*dq)/(q*q*q)*(f13*r*or)**2 + &
+                (dpv*q-p*dq)/(q*q) * f13*f43*r*or*or
          dphig = fpe*pci/cr * SQRT(x)*or
          phi = dphig * g
          dphir = -phi*(dcr/cr + f76*or)
@@ -393,12 +393,12 @@ CONTAINS
 
     INTEGER                                  :: ip
     REAL(dbl) :: cr, d2cr, d2p, d2phir, d2phirg, d2pq, d2q, d2z, d3cr, &
-      d3phir, d3pq, d3q, d3z, dcr, dp, dphig, dphigr, dphir, dpq, dq, dz, ep, &
+      d3phir, d3pq, d3q, d3z, dcr, dpv, dphig, dphigr, dphir, dpq, dq, dz, ep, &
       g, or, oz, p, phi, pq, q, r, x
 
 !   ---------------------------------------------------------------------------
 
-!$omp parallel do private(ip,x, r, cr, phi, ep, g, or, p, q, dp, dq, dphir, dcr, dphig) &
+!$omp parallel do private(ip,x, r, cr, phi, ep, g, or, p, q, dpv, dq, dphir, dcr, dphig) &
 !$omp             private(dphigr, d2phir, d3phir, d2cr, d3cr, d2p, d2q, d2phirg, d3q) &
 !$omp             private(pq, dpq, d2pq, d3pq, oz, dz, d2z, d3z)
     DO ip = 1, npoints
@@ -409,16 +409,16 @@ CONTAINS
          x = r*frs
          or = 1._dbl/rho(ip)
          p = pc2+a*r+b*r*r
-         dp = a+2._dbl*b*r
+         dpv = a+2._dbl*b*r
          d2p = 2._dbl*b
          q = 1._dbl+c*r+d*r*r+1.e4_dbl*b*r*r*r
          dq = c+2._dbl*d*r+3.e4_dbl*b*r*r
          d2q = 2._dbl*d+6.e4*b*r
          d3q = 6.e4*b
          pq = p/q
-         dpq = (dp*q-p*dq)/(q*q)
-         d2pq = (d2p*q*q-2*dp*dq*q+2*p*dq*dq-p*d2q*q)/(q*q*q)
-         d3pq = -(3*d2p*dq*q*q-6*dp*dq*dq*q+3*dp*d2q*q*q+6*p*dq*dq*dq-6*p*dq*d2q*q &
+         dpq = (dpv*q-p*dq)/(q*q)
+         d2pq = (d2p*q*q-2*dpv*dq*q+2*p*dq*dq-p*d2q*q)/(q*q*q)
+         d3pq = -(3*d2p*dq*q*q-6*dpv*dq*dq*q+3*dpv*d2q*q*q+6*p*dq*dq*dq-6*p*dq*d2q*q &
                   +p*d3q*q*q)/(q*q*q*q)
          cr= pc1 + pq
          dcr = dpq*(-f13*r*or)

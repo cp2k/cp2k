@@ -2537,8 +2537,8 @@ SUBROUTINE pbe_lsd_calc(rhoa, rhob, norm_drho, norm_drhoa, norm_drhob,&
               t475 = t1 * t474
               chirhoarhoa = -0.2e1_dp * t150 + 0.2e1_dp * t475
               t480 = t149 ** 2
-              rsrhoarhoa = -t6 / t152 / t8 * t76 / t480 / 0.18e2_dp + dble&
-                   (t6) * t154 * t474 / 0.6e1_dp
+              rsrhoarhoa = -t6 / t152 / t8 * t76 / t480 / 0.18e2_dp + &
+                            t6 * t154 * t474 / 0.6e1_dp
               t490 = rsrhoa * t161
               t495 = t12 / t160 / t20
               t496 = t172 ** 2

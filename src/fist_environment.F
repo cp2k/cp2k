@@ -50,7 +50,7 @@ MODULE fist_environment
                                              allocate_fist_energy
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_type, &
                                              fist_nonbond_env_release
-  USE kinds,                           ONLY: dbl,dp,&
+  USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -201,7 +201,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL fist_nonbond_env_release ( fist_nonbond_env, error )
   CALL cp_subsys_release(subsystem,error=error)
 
-  CALL timestop(0.0_dbl,handle)
+  CALL timestop(0.0_dp,handle)
  
   END SUBROUTINE fist_init
 

@@ -45,7 +45,7 @@ MODULE ewald_pw_types
                                              dg_release
   USE ewald_environment_types,         ONLY: ewald_environment_type, &
                                              ewald_env_get
-  USE kinds,                           ONLY: dbl,dp_size, &
+  USE kinds,                           ONLY: dbl, &
                                              default_string_length
   USE mathconstants,                   ONLY: zero, pi
   USE pw_grid_types,                   ONLY: pw_grid_type, &
