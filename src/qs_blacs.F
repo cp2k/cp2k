@@ -19,6 +19,7 @@
 !!   MODIFICATION HISTORY
 !!     1) Changed the size work array for syevx (Joost VandeVondele 28.02.02)
 !!     1) Introduced some cholesky guys         (Joost VandeVondele    05.02)
+!!     2) Introduced a symmetric matrix x distributed vector multiply ( JVdV)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -98,6 +99,11 @@ MODULE qs_blacs
             blacs_add,&
             blacs_add_to_element,&
             blacs_gemm,&
+            blacs_vector_symv,&
+            copy_vector_to_blacs, &
+            copy_blacs_to_vector, &
+            blacs_find_vector_distribution,&
+            blacs_daxpy, &
             blacs_get_element,&
             blacs_maxval,&
             blacs_set_all,&
@@ -468,6 +474,255 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_gemm
+
+  SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2,context,globenv)
+    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(global_environment_type)          :: globenv
+    INTEGER, INTENT(IN)                    :: context
+    INTEGER, INTENT(IN)                    :: c1,c2
+    REAL(wp), INTENT(IN)                   :: alpha
+
+    INTEGER :: nprow,npcol,myprow,mypcol,n,source
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+    INTEGER, DIMENSION(9) :: desca
+
+    n = matrix_a%nrow_global
+    source = globenv%source
+
+#if defined(__parallel)
+    desca(:)=matrix_a%descriptor(:)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix_a%p(myprow,mypcol)%block
+    CALL PDAXPY(n,alpha,a,1,c1,desca,1,a,1,c2,desca,1)
+#else    
+    a => matrix_a%p(source,source)%block
+    CALL DAXPY(n,alpha,a(1,c1),1,a(1,c2),1)
+#endif
+
+  END SUBROUTINE
+
+!
+! decides what fraction of the vector has to be on the local pe,
+! giving each pe about the same amount of data (that is nloc elements),
+! in this way we can map more easily to the blacs distribution
+! the size of the vector is determined from matrix_a
+! columns of matrix_a should represent a vector 
+! notice that it is the blacs layout that defines how the vector is distributed
+! and what element of the vector actually is where 
+
+  SUBROUTINE blacs_find_vector_distribution(matrix_a,nloc,context,globenv)
+    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(global_environment_type), INTENT(IN)      :: globenv
+    INTEGER, INTENT(IN)                    :: context
+    INTEGER, INTENT(OUT)                   :: nloc
+    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,nloc
+
+    n = matrix_a%nrow_global
+
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    nloc_blacs = matrix_a%p(myprow,mypcol)%nrow_local
+    nloc = nloc_blacs / npcol
+    if (mypcol.eq.0) then
+         nloc = nloc_blacs - (npcol - 1) * nloc
+    endif
+#else
+    nloc   = n
+#endif
+
+  END SUBROUTINE blacs_find_vector_distribution
+!
+! copy a blacs vector to a distributed vector
+! has obviously to be consistent with find_vector_distribution
+! see notes at blacs_vector_symv
+! use_col_nr specifies the column of the matrix_a to use.
+! this is the global col index 
+!
+  SUBROUTINE copy_blacs_to_vector(matrix_a,use_col_nr,v,context,globenv)
+    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(global_environment_type)          :: globenv
+    INTEGER, INTENT(IN)                    :: context
+    INTEGER, INTENT(IN)                    :: use_col_nr
+    REAL(wp), POINTER, DIMENSION(:)        :: v
+    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
+    INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
+    INTEGER :: ndata,offset
+    INTEGER, DIMENSION(9) :: desca
+
+    n = matrix_a%nrow_global
+    source = globenv%source
+
+#if defined (__parallel)
+    desca(:) = matrix_a%descriptor(:)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    irow_global=1
+    icol_global=use_col_nr
+    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
+                 irow_local,icol_local,iprow,ipcol)
+
+    nloc_blacs = matrix_a%p(myprow,mypcol)%nrow_local
+    nloc  = nloc_blacs / npcol                  ! all cols
+    nloc0 = nloc_blacs - (npcol - 1) * nloc     ! col zero
+
+    do i=0,npcol-1
+
+       ndata=nloc
+       if (i.eq.0) ndata=nloc0
+
+       if (mypcol.eq.ipcol) then ! get your part of the data
+          offset=nloc0+1+(i-1)*nloc
+          if (i.eq.0) offset=1
+
+          if (mypcol.eq.i) then
+             CALL DCOPY(ndata,matrix_a%p(myprow,mypcol)%block(offset,icol_local),1,&
+                        v,1)
+          else
+             CALL DGESD2D(context,ndata,1,   &
+             matrix_a%p(myprow,mypcol)%block(offset,icol_local),  &
+             ndata,myprow,i)
+          endif
+       else
+          if (mypcol.eq.i) then
+             CALL DGERV2D(context,ndata,1,   &
+             v, &
+             ndata,myprow,ipcol)
+          endif
+       endif
+    enddo
+#else
+    nloc = n
+    if (matrix_a%p(source,source)%ncol_local.lt.use_col_nr) then
+       call stop_program("copy_blacs_to_vector","hmm",globenv)
+    endif
+    CALL DCOPY(nloc,matrix_a%p(source,source)%block(1,use_col_nr),1,v,1)
+#endif
+
+  END SUBROUTINE copy_blacs_to_vector
+
+! 
+! copy a full distributed vector into a blacs vector
+! has obviously to be consistent with find_vector_distribution
+! see notes at blacs_vector_symv
+! 
+  SUBROUTINE copy_vector_to_blacs(v,matrix_a,use_col_nr,context,globenv)
+    TYPE(blacs_matrix_type), POINTER       :: matrix_a
+    TYPE(global_environment_type)          :: globenv
+    INTEGER, INTENT(IN)                    :: context
+    INTEGER, INTENT(IN)                    :: use_col_nr
+    REAL(wp), POINTER, DIMENSION(:)        :: v
+    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
+    INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
+    INTEGER :: ndata,offset
+    INTEGER, DIMENSION(9) :: desca
+
+    n = matrix_a%nrow_global
+    source = globenv%source
+
+#if defined (__parallel)
+    desca(:) = matrix_a%descriptor(:)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    irow_global=1
+    icol_global=use_col_nr
+    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
+                 irow_local,icol_local,iprow,ipcol)
+
+
+    nloc_blacs = matrix_a%p(myprow,mypcol)%nrow_local
+    nloc  = nloc_blacs / npcol                  ! all cols
+    nloc0 = nloc_blacs - (npcol - 1) * nloc     ! col zero
+
+    do i=0,npcol-1
+
+       ndata=nloc
+       if (i.eq.0) ndata=nloc0
+
+       if (mypcol.eq.ipcol) then ! get your part of the data
+          offset=nloc0+1+(i-1)*nloc
+          if (i.eq.0) offset=1
+
+          if (mypcol.eq.i) then
+             CALL DCOPY(ndata,v,1,matrix_a%p(myprow,mypcol)%block(offset,icol_local),1)
+          else
+             CALL DGERV2D(context,ndata,1,   &
+             matrix_a%p(myprow,mypcol)%block(offset,icol_local),  &
+             ndata,myprow,i)
+          endif
+       else
+          if (mypcol.eq.i) then
+             CALL DGESD2D(context,ndata,1,   &
+             v, &
+             ndata,myprow,ipcol)
+          endif
+       endif
+    enddo
+#else
+    nloc = n
+    if (matrix_a%p(source,source)%ncol_local.lt.use_col_nr) then
+       call stop_program("copy_vector_to_blacs","hmm",globenv)
+    endif
+    CALL DCOPY(nloc,v,1,matrix_a%p(source,source)%block(1,use_col_nr),1)
+#endif
+
+  END SUBROUTINE copy_vector_to_blacs
+
+! *****************************************************************************
+! computes the product of an upper symmetric blacs matrix with vin 
+! and stores the result in vout ! vin (vout) is a distributed vector, 
+! (so that every pe has a part of vin, not necessarily the blacs way thus)
+! it is not evident where a given vector element v_i will be 
+! (i.e. pe and v(xxx) ) since this is determined by the blacs ordering
+! of matrix elements
+!
+! this routine needs a matrix_buf, i.e. a blacs matrix with at least two columns
+! that will be overwritten by the results (i.e. first column vin, second column
+! vout )
+! *****************************************************************************
+
+  SUBROUTINE blacs_vector_symv(matrix_a,vin,vout,matrix_buf,context,globenv)
+! *****************************************************************************
+
+    TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_buf
+    TYPE(global_environment_type)             :: globenv
+    INTEGER, INTENT(IN)                       :: context
+    REAL(wp), DIMENSION(:), POINTER           :: vin,vout
+
+!   *** Local variables ***
+
+    INTEGER :: handle,source,n,inc
+    REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    REAL(wp) :: alpha,beta
+    INTEGER :: nprow,npcol,myprow,mypcol
+    INTEGER, DIMENSION(9) :: desca,descb
+
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("blacs_vector_symv","I","",handle)
+
+    source = globenv%source
+    alpha=1.0D0
+    beta=0.0D0
+    inc=1
+
+    n   = matrix_a%nrow_global
+#if defined(__parallel)
+    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    a => matrix_a%p(myprow,mypcol)%block
+    desca(:) = matrix_a%descriptor(:)
+    b => matrix_buf%p(myprow,mypcol)%block
+    descb(:) = matrix_buf%descriptor(:)
+    call copy_vector_to_blacs(vin,matrix_buf,1,context,globenv)
+    call pdsymv('U',n,alpha,a,1,1,desca,b,1,1,descb,inc,beta,b,1,2,descb,inc)
+    call copy_blacs_to_vector(matrix_buf,2,vout,context,globenv)
+#else
+    a => matrix_a%p(source,source)%block
+    call dsymv('U',n,alpha,a,n,vin,inc,beta,vout,inc)
+#endif
+
+    CALL timestop(0.0_wp,handle)
+
+    END SUBROUTINE blacs_vector_symv
+
 
 ! *****************************************************************************
 
@@ -2397,7 +2652,6 @@ CONTAINS
 
   END SUBROUTINE symmetrise_blacs_matrix
 
-! *****************************************************************************
 
   SUBROUTINE write_blacs_matrix(matrix,lunit,context,globenv)
 
