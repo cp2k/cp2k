@@ -78,11 +78,15 @@ SUBROUTINE initialize_particle_type ( atom_names, simpar, mol_setup, &
      part(iat) % r(3) = ainp % c(3,iat)
   END DO
 
+  part ( : ) % v ( 1 ) =  0._dbl
+  part ( : ) % v ( 2 ) =  0._dbl
+  part ( : ) % v ( 3 ) =  0._dbl
+
   IF ( ( simpar%read_type=='POSVEL' ) .OR. ( simpar%read_type=='ALL' ) ) THEN
      DO iat = 1, natoms
-        part(iat) %v(1) = ainp%v(1,iat)
-        part(iat) %v(2) = ainp%v(2,iat)
-        part(iat) %v(3) = ainp%v(3,iat)
+        part ( iat ) % v ( 1 ) = ainp % v ( 1, iat )
+        part ( iat ) % v ( 2 ) = ainp % v ( 2, iat )
+        part ( iat ) % v ( 3 ) = ainp % v ( 3, iat )
      END DO
   END IF
 

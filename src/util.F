@@ -56,7 +56,6 @@ SUBROUTINE sort2 ( arr, n, index )
   REAL ( dbl ) :: a, temp
 
 !------------------------------------------------------------------------------
-
   DO i = 1, n
      index(i) = i
   END DO

@@ -49,10 +49,10 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
     ENDIF
     IF ( TSCAL ) THEN
       IF ( LOT == NFFT ) THEN
-        CALL dscal ( 2 * LOT * N, SCALE, Z ( 1, 1 ), 1 )
+        CALL DSCAL ( 2 * LOT * N, SCALE, Z ( 1, 1 ), 1 )
       ELSE
         DO I = 1, N
-          CALL dscal ( 2 * NFFT, SCALE, Z ( LOT * ( I - 1 ) + 1, 1 ), 1 )
+          CALL DSCAL ( 2 * NFFT, SCALE, Z ( LOT * ( I - 1 ) + 1, 1 ), 1 )
         END DO
       END IF
     END IF

@@ -52,7 +52,7 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &cntl ... &end                                                   I
 !!I                                                                           I
-!!I simulation       [md,pimd,debug]                                          I
+!!I simulation       [md,pimd,debug,min,amoeba]                               I
 !!I printlevel       globenv%print_level                                      I
 !!I units            [kelvin,atomic]                                          I
 !!I periodic         [0,1][0,1][0,1]                                          I

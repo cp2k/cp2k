@@ -14,27 +14,30 @@
 !!
 !!   MODIFICATION HISTORY
 !!     cjm, FEB 20 2001:  added subroutine assign_extended_parameters
-!!
+!!     cjm, MAY 03 2001:  reorganized and added separtate routines for
+!!                        nhc_part, nhc_baro, nhc_ao, npt
 !!   SOURCE
 !******************************************************************************
 
 MODULE initialize_extended_types
 
   USE atoms_input, ONLY : system_type
+  USE coefficient_types, ONLY : coeff_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
   USE molecule_types, ONLY : molecule_structure_type, molecule_type
   USE message_passing, ONLY : mp_sum
-  USE nhc, ONLY : nhc_control_particles, nhc_control_barostat
-  USE nose, ONLY : initial_nhc, lnhc_parameters_type, initial_npt, &
+  USE nhc, ONLY : nhc_particle_setup, nhc_barostat_setup, nhc_pol_setup
+  USE nose, ONLY : initialize_nhc, lnhc_parameters_type, initialize_npt, &
                    npt_info_type
   USE simulation_cell, ONLY : cell_type
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
 
-  PUBLIC :: initialize_extended_system, assign_extended_parameters
+  PUBLIC :: initialize_nhc_part, initialize_nhc_baro, initialize_npt_type, &
+            initialize_nhc_pol, assign_extended_parameters
   PRIVATE
 
 !!*****
@@ -43,10 +46,10 @@ MODULE initialize_extended_types
 CONTAINS
 
 !******************************************************************************
-!!****** initialize_extended_types/initialize_extended_system [1.0] *
+!!****** initialize_extended_types/initialize_npt_type [1.0] *
 !!
 !!   NAME
-!!     initialize_extended_types
+!!     initialize_npt_type
 !!
 !!   FUNCTION
 !!
@@ -54,60 +57,24 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     cjm FEB-20-2001:  Only initializes when restart type
-!!     is init, pos, posvel
+!!    
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initialize_extended_system ( box, simpar, molecule, mol_setup, &
-     globenv, nhc_part, nhc_baro, npt_info )
+SUBROUTINE initialize_npt_type ( simpar, globenv, npt_info, box )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
-  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
-       molecule
-  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
-  TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc_part
-  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc_baro
   TYPE ( npt_info_type ), DIMENSION ( :, : ), POINTER :: npt_info
+  TYPE ( cell_type ), INTENT (inout) :: box
 ! locals
   INTEGER :: isos
 
 !------------------------------------------------------------------------------
-
-! fire up the thermostats, if not NVE
-  CALL nhc_control_particles ( simpar, molecule, mol_setup, nhc_part, globenv )
-
-! fire up the thermostats, if NPT
-  CALL nhc_control_barostat ( simpar, nhc_baro, globenv )
-
-  IF ( simpar % read_type /= 'ALL' ) THEN
-
-! Initializing thermostat forces and velocities for the Nose-Hoover
-! Chain variables
-
-     CALL initial_nhc ( nhc_part, simpar % tau_nhc,  &
-                           simpar % temp_ext, globenv )
-
-     CALL initial_nhc ( nhc_baro, simpar % tau_nhc,  &
-                 simpar % temp_ext, globenv )
-  END IF
-
-
-! compute the total number of degrees of freedom for temperature
-
-! Initialize simpar%nfree to dim (because at this point no
-! assumptions have been made about thermostatting options
-! and COM is ALWAYS zeroed in this code.  If there are
-! multiple thermostats etc...simpar%nfree will be set
-! to zero in nhc_control.f)
-  simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
-
 
 ! first allocating the npt_info_type
   SELECT CASE ( simpar % ensemble )
@@ -127,13 +94,161 @@ SUBROUTINE initialize_extended_system ( box, simpar, molecule, mol_setup, &
           'failed to allocate npt_info')
   END SELECT
 
-  CALL get_nfree ( simpar, molecule, globenv )
-
   IF ( simpar % read_type /= 'ALL' ) &
-  CALL initial_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
+  CALL initialize_npt ( npt_info, simpar % tau_cell, simpar % temp_ext,  &
                      box % deth, simpar % nfree, simpar % ensemble, globenv )
 
-END SUBROUTINE initialize_extended_system
+END SUBROUTINE initialize_npt_type
+
+!******************************************************************************
+!!****** initialize_extended_types/initialize_nhc_pol [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc_pol
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!    
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_nhc_pol ( simpar, coeff, globenv, nhc )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
+! locals
+  INTEGER :: isos
+
+!------------------------------------------------------------------------------
+
+! fire up the thermostats
+  CALL nhc_pol_setup ( simpar, coeff, nhc, globenv )
+
+  IF ( simpar % pol_read_type /= 'ALL' ) THEN
+
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+      IF ( nhc % nhc_len /= 0 ) CALL initialize_nhc ( nhc, simpar % pol_tau_nhc,  &
+                                      simpar % pol_temp, globenv )
+  END IF
+
+END SUBROUTINE initialize_nhc_pol
+
+!******************************************************************************
+!!****** initialize_extended_types/initialize_nhc_baro [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc_baro
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!    
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
+! locals
+  INTEGER :: isos
+
+!------------------------------------------------------------------------------
+
+! fire up the thermostats, if NPT
+  CALL nhc_barostat_setup ( simpar, nhc, globenv )
+
+  IF ( simpar % read_type /= 'ALL' ) THEN
+
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+      IF ( nhc % nhc_len /= 0 ) &
+       CALL initialize_nhc ( nhc, simpar % tau_nhc,  &
+                       simpar % temp_ext, globenv )
+  END IF
+
+END SUBROUTINE initialize_nhc_baro
+
+!******************************************************************************
+!!****** initialize_extended_types/initialize_nhc_part [1.0] *
+!!
+!!   NAME
+!!     initialize_nhc_part
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+
+SUBROUTINE initialize_nhc_part ( box, simpar, molecule, mol_setup, &
+     globenv, nhc )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( molecule_structure_type ), DIMENSION ( : ), INTENT ( INOUT ) :: &
+       molecule
+  TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( INOUT ) :: mol_setup
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+  TYPE ( lnhc_parameters_type ),  INTENT ( INOUT ) :: nhc
+! locals
+  INTEGER :: isos
+
+!------------------------------------------------------------------------------
+
+! Initialize simpar%nfree to dim (because at this point no
+! assumptions have been made about thermostatting options
+! and COM is ALWAYS zeroed in this code.  If there are
+! multiple thermostats etc...simpar % nfree will be set
+! to zero in nhc_particle_setup.f)
+
+  simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
+
+! fire up the thermostats, if not NVE
+  CALL nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
+
+  IF ( simpar % read_type /= 'ALL' ) THEN
+
+! Initializing thermostat forces and velocities for the Nose-Hoover
+! Chain variables
+     IF ( nhc % nhc_len /= 0 ) &
+       CALL initialize_nhc ( nhc, simpar % tau_nhc,  &
+                        simpar % temp_ext, globenv )
+
+  ENDIF
+
+! compute the total number of degrees of freedom for temperature
+
+
+  CALL get_nfree ( simpar, molecule, globenv )
+
+END SUBROUTINE initialize_nhc_part
 
 !!*****
 !******************************************************************************
@@ -274,8 +389,6 @@ SUBROUTINE assign_extended_parameters ( deth, ensemble, ainp, npt,  &
   ENDIF
 ! assign npt % eps
   IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
-
-
 
 
 END SUBROUTINE assign_extended_parameters

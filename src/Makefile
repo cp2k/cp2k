@@ -1,9 +1,9 @@
 .SUFFIXES: .F .d .o
 
-CP2KHOME  = $(HOME)/CP2K/
+CP2KHOME  = $(HOME)/CP2K
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
 VERSION   = sopt
-SMAKE     = make -r
+SMAKE     = gmake -r
 PMAKE     = $(SMAKE) -j 1
 LIB1      = cp2klib
 
@@ -81,7 +81,7 @@ $(PROG): $(OBJECTS)
 	$(CPP) $(CPPFLAGS) $< $*.f
 	$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	@rm -f $*.f $*.d.old
+	@rm -f $*.d.old
 
 parallel_include.o: parallel_include.F
 	$(FC_fixed) -c $(FCFLAGS) $<
@@ -89,7 +89,7 @@ parallel_include.o: parallel_include.F
 parallel_include.d: parallel_include.F
 	$(CPP) $(CPPFLAGS) $< $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	@rm -f $*.f $*.d.old
+	@rm -f $*.d.old
 
 clean:
 	rm -f *.o *.mod F*.f

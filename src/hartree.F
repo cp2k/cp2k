@@ -56,8 +56,8 @@ CONTAINS
 SUBROUTINE calculate_hartree ( density, ehartree, vhartree, dvhartree, h_stress )
   
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: density
-  REAL ( dbl ), INTENT ( OUT ) :: ehartree
+  TYPE ( coeff_type ), INTENT ( IN ) :: density
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: ehartree
   TYPE ( coeff_type ), TARGET, INTENT ( OUT ), OPTIONAL :: vhartree
   TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
@@ -114,9 +114,9 @@ SUBROUTINE poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress )
   IMPLICIT NONE
   
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ) :: density
-  REAL ( dbl ), INTENT ( OUT ) :: ehartree
-  TYPE ( coeff_type ), INTENT ( OUT ) :: vhartree
+  TYPE ( coeff_type ), INTENT ( IN ) :: density
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: ehartree
+  TYPE ( coeff_type ), INTENT ( OUT ), OPTIONAL :: vhartree
   TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
   

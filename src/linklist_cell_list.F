@@ -46,7 +46,7 @@ CONTAINS
 ! used in the construction of all neighbor lists
 
 SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
-     box, cell_ll, start_list, neighbor, globenv )
+     box, cell_ll, start_list, neighbor, globenv, list_type )
 
   IMPLICIT NONE
 
@@ -62,6 +62,7 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   INTEGER, INTENT ( IN ), DIMENSION ( : ) :: n_cell
   INTEGER, INTENT ( IN ) :: natom_types
   CHARACTER ( LEN = * ), INTENT ( IN ) :: tag
+  INTEGER, INTENT(IN) :: list_type
 
 ! Locals
   TYPE ( cell_atoms_linklist_type ), POINTER :: loc_ll
@@ -216,6 +217,8 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
   DO i = 1, natoms
      itype = part(i) % prop % ptype
 
+     IF (itype > natom_types) CYCLE
+
 ! pbc so that particles outside the central box are also mapped
 !    onto proper cells
      r(1) = part(i) % r(1)
@@ -258,7 +261,12 @@ SUBROUTINE cell_list ( natom_types, n_cell, rcut, tag, pnode, part, &
         END IF
      END DO
      loc_ll % atom = i
-     part(i) % cell => cell_ll(bin(1),bin(2),bin(3))
+     SELECT CASE (list_type)
+     CASE (1)
+       part(i) % cell => cell_ll(bin(1),bin(2),bin(3))
+     CASE (2)
+       part(i) % cell_ol => cell_ll(bin(1),bin(2),bin(3))
+     END SELECT
   END DO
 
 ! linked list that forms a list of all neighboring cells (done only once)

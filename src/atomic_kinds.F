@@ -76,6 +76,7 @@ MODULE atomic_kinds
                                                 core_charge_radius,mass,&
                                                 prj_paw_radius
     INTEGER                                  :: natom,z,zeff
+    INTEGER                                  :: number_of_grid_points
     INTEGER, DIMENSION(:), POINTER           :: atom_list,elec_conf
   END TYPE kind_info_type
 

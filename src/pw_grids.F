@@ -405,7 +405,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     IF ( pw_grid % grid_span /= ref_grid % grid_span ) THEN
       CALL stop_program ( "pw_grid_setup", "Incompatible grid types" )
     END IF
-    IF ( pw_grid % spherical .EQV. ref_grid % spherical ) THEN
+    IF ( pw_grid % spherical .NEQV. ref_grid % spherical ) THEN
       CALL stop_program ( "pw_grid_setup", "Incompatible cutoff schemes" )
     END IF
   END IF

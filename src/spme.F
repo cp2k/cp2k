@@ -26,7 +26,7 @@ MODULE spme
       PW_REALDATA3D, PW_COMPLEXDATA1D, &
       PW_REALSPACE, PW_RECIPROCALSPACE
   USE dg_types, ONLY : dg_type
-  USE dgs, ONLY : dg_sum_patch, dg_sum_patch_force
+  USE dgs, ONLY : dg_sum_patch, dg_sum_patch_force_3d
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE greens_fn, ONLY : greens_function_type
   USE hartree, ONLY : calculate_hartree
@@ -215,7 +215,7 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
      CALL get_patch ( part, box, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
-     CALL dg_sum_patch_force ( drpot, rhos, centre(:,p1), fat )
+     CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
      fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
      fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
      fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
@@ -609,7 +609,7 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
 
 ! Locals
   INTEGER :: i, j, l, m
-  REAL ( dbl ), DIMENSION ( n, -(n-1):n-1, 0:n-1 ) :: a
+  REAL ( dbl ), DIMENSION ( n, -n:n, 0:n-1 ) :: a
   REAL ( dbl ) :: b
 
 !------------------------------------------------------------------------------
@@ -639,10 +639,6 @@ SUBROUTINE spme_coeff_calculate ( n, coeff )
       coeff ( j, i ) = a ( n, j, i )
     END DO
   END DO
-!!!!!!!!!
-!This seems to cause the SGI compiler to work correctly!!!!!
-  write(*,*)
-!!!!!!!!!
 
 END SUBROUTINE spme_coeff_calculate
 

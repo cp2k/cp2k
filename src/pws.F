@@ -110,9 +110,9 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( coeff_type ), INTENT ( INOUT ), TARGET :: density
-  REAL ( dbl ) , INTENT ( OUT ) :: ehartree
-  TYPE ( coeff_type ), INTENT ( OUT ) :: vhartree
+  TYPE ( coeff_type ), INTENT ( IN ) :: density
+  REAL ( dbl ) , INTENT ( OUT ), OPTIONAL :: ehartree
+  TYPE ( coeff_type ), INTENT ( OUT ), TARGET, OPTIONAL :: vhartree
   TYPE ( coeff_type ), DIMENSION ( 3 ), INTENT ( OUT ), OPTIONAL :: dvhartree
   REAL ( dbl ), DIMENSION ( 3, 3 ), INTENT ( OUT ), OPTIONAL :: h_stress
 
@@ -121,35 +121,40 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
   TYPE ( pw_type ) :: rhog, dvg ( 3 )
   REAL ( dbl ) :: ffa
   INTEGER, DIMENSION ( 3 ) :: n
-  INTEGER :: i, gpt, alpha, beta
+  INTEGER :: i, gpt, alpha, beta, ng
 
 !------------------------------------------------------------------------------
-
-  pw_grid => density % pw % pw_grid
 
   IF ( .NOT. ASSOCIATED ( gf ) ) THEN
     CALL stop_program ( "pw_poisson_solver", "init_pw_poisson_solver "// &
       "has to be used before pw_poisson_solver" )
   END IF
 
-  ! density in G space
-  CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
-  rhog % in_space = RECIPROCALSPACE
 
-  ! update the greens function
-  CALL pw_green_fn ( gf )
+  IF ( PRESENT ( vhartree ) ) THEN
+    pw_grid => vhartree % pw % pw_grid
+! density in G space
+    CALL pw_allocate ( rhog, pw_grid, COMPLEXDATA1D )
+    rhog % in_space = RECIPROCALSPACE
 
-  SELECT CASE ( gf % method )
-  CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
-    CALL pw_transfer ( density % pw, rhog )
-    rhog % cc = rhog % cc * gf % influence_function % cr
-    CALL pw_transfer ( rhog, vhartree % pw )
-  CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
-     CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
-  CASE DEFAULT
-     CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
-  END SELECT
+! update the greens function
+    CALL pw_green_fn ( gf )
+    ng = SIZE ( pw_grid % gsq )
+    SELECT CASE ( gf % method )
+    CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )
+      CALL pw_transfer ( density % pw, rhog )
+      rhog % cc ( 1 : ng )  = rhog % cc ( 1 : ng ) *  &
+                              gf % influence_function % cr  ( 1 : ng )
+      CALL pw_transfer ( rhog, vhartree % pw )
+    CASE ( HOCKNEY2D, HOCKNEY1D, HOCKNEY0D )
+       CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
+    CASE DEFAULT
+       CALL stop_program ( "pw_poisson_solver", " Method not implemented ")
+    END SELECT
+  ENDIF
 
+  ! do we need to calculate the energy
+  IF ( PRESENT ( ehartree ) ) &
   ehartree = 0.5_dbl * pw_integral_ab ( density % pw, vhartree % pw )
 
   ! do we need to calculate the derivative of the potential?
@@ -193,6 +198,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
     END DO
   END IF
 
+  IF ( PRESENT ( vhartree ) ) &
   CALL pw_deallocate ( rhog )
 
 END SUBROUTINE pw_poisson_solver

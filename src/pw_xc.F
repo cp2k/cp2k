@@ -32,9 +32,9 @@ MODULE pw_xc
             NOSPACE, REALSPACE, RECIPROCALSPACE
   USE functionals, ONLY : xc_type, becke88, lyp, pade, pbe_c, pbe_x, &
                           perdew86_x, perdew86_c, slater, vwn_c, vwn_x
-
+  
   IMPLICIT NONE
-
+  
   INTERFACE pw_calculate_xc
      MODULE PROCEDURE pw_calculate_xcns, pw_calculate_xcspin
   END INTERFACE

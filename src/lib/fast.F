@@ -24,16 +24,43 @@ SUBROUTINE rankup ( n, za, cmat, zb, ex, ey, ez, scr )
   n3 = n2 * n ( 3 )
   scr ( 1:n2 ) = CMPLX ( 0._dbl, KIND = dbl )
 #if defined (__sp_lib) 
-  CALL cgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
-  CALL cscal ( n3, za, cmat, 1 )
-  CALL cgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
+  CALL CGERU ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
+  CALL CSCAL ( n3, za, cmat, 1 )
+  CALL CGERU ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
 #else
-  CALL zgeru ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
-  CALL zscal ( n3, za, cmat, 1 )
-  CALL zgeru ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
+  CALL ZGERU ( n ( 1 ), n ( 2 ), zb, ex, 1, ey, 1, scr, n ( 1 ) )
+  CALL ZSCAL ( n3, za, cmat, 1 )
+  CALL ZGERU ( n2, n ( 3 ), cone, scr, 1, ez, 1, cmat, n2 )
 #endif
 
 END SUBROUTINE rankup 
+
+!-----------------------------------------------------------------------------!
+
+SUBROUTINE vc_x_vc ( n, cvec2, cvec )
+!
+! cden(i) <- cden(i) * cden2(i)
+!
+  IMPLICIT NONE
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+
+  INTEGER, INTENT ( IN ) :: n
+  REAL ( dbl ), INTENT ( IN ) :: cvec2 (2,*)
+  REAL ( dbl ), INTENT ( INOUT ) :: cvec (2,*)
+
+  INTEGER :: i
+  REAL ( dbl ) :: re_c, im_c, re_c2, im_c2
+
+  DO i = 1, n
+    re_c = cvec ( 1, i )
+    im_c = cvec ( 2, i )
+    re_c2 = cvec2 ( 1, i )
+    im_c2 = cvec2 ( 2, i )
+    cvec ( 1, i ) = re_c * re_c2 - im_c * im_c2
+    cvec ( 2, i ) = im_c * re_c2 + re_c * im_c2
+  END DO
+
+END SUBROUTINE vc_x_vc 
 
 !-----------------------------------------------------------------------------!
 

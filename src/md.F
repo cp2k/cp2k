@@ -39,20 +39,21 @@ MODULE md
   TYPE simulation_parameters_type
      INTEGER :: nsteps
      REAL ( dbl ) :: dt
-     REAL ( dbl ) :: temp_ext
+     REAL ( dbl ) :: temp_ext, pol_temp
      REAL ( dbl ) :: p_ext
-     CHARACTER ( LEN = 20 ) :: ensemble
-     CHARACTER ( LEN = 20 ) :: read_type
+     CHARACTER ( LEN = 20 ) :: ensemble, pol_ensemble
+     CHARACTER ( LEN = 20 ) :: read_type, pol_read_type
      CHARACTER ( LEN = 20 ) :: program
+     CHARACTER ( LEN = 20 ) :: pol_option
      LOGICAL :: constraint
-     INTEGER :: nfree
-     INTEGER :: nc
-     INTEGER :: nyosh
-     INTEGER :: nhclen
+     INTEGER :: nfree, pol_nfree
+     INTEGER :: nc, pol_nc
+     INTEGER :: nyosh, pol_nyosh
+     INTEGER :: nhclen, pol_nhclen
      INTEGER, DIMENSION ( 3 ) :: n_cell
-     REAL ( dbl ) :: tau_nhc
+     REAL ( dbl ) :: tau_nhc, pol_tau_nhc
      REAL ( dbl ) :: tau_cell
-     REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
+     REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh, pol_dt_yosh
      REAL ( dbl ) :: shake_tol
      REAL ( dbl ) :: verlet_skin
      TYPE ( pimd_parameters_type ) :: pimd_params
@@ -98,14 +99,22 @@ CONTAINS
 !!I SECTION: &md ... &end                                                     I
 !!I                                                                           I
 !!I ensemble:    [nve,nvt]               ensemble type                        I
+!!I pol ensemble:    [nve,nvt]           ensemble type                        I
 !!I steps:       n                       total number of steps                I
 !!I timestep:    dt                      time step [fs]                       I
 !!I temperature: T                       temperature [K]                      I
+!!I coef temperature: T                  temperature [K]                      I
 !!I restart:     [pos,posvel]            start type                           I
 !!I constraints: [on,off]                constraints                          I
 !!I shake:       eps                     convergence for Shake algorithm      I
 !!I verlet_skin  vs                      buffer size for Verlet lists         I
 !!I cells        x y z                   Number of cells in each direction    I
+!!I Pol_Nose_parameter   &               parameter of Nose-Hoover-chains      I
+!!I   option:    pol_option &               thermostat option                 I
+!!I   length:    nhclen   &                 length of thermostat              I
+!!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
+!!I   mts:       nc       &                 number of multiple time steps     I
+!!I   timecon:   tau_nhc                    NHC time constant                 I
 !!I Nose_parameter        &              parameter of Nose-Hoover-chains      I
 !!I   length:    nhclen   &                 length of thermostat              I
 !!I   Yoshida:   nyosh    &                 order of Yoshida integrator       I
@@ -155,17 +164,25 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
 !..defaults
   simpar % ensemble = 'NVE'
+  simpar % pol_ensemble = 'NVE'
+  simpar % pol_option = 'GLOBAL'
   simpar % nsteps = 0
   simpar % dt = 0.0_dbl
   simpar % temp_ext = 0.0_dbl
+  simpar % pol_temp = 0.0_dbl
   simpar % p_ext = 0.0_dbl
   simpar % read_type = 'POS'
+  simpar % pol_read_type = 'INIT'
   simpar % constraint = .FALSE.
   simpar % shake_tol = 1.0E-6_dbl
   simpar % nhclen = 1
+  simpar % pol_nhclen = 1
+  simpar % pol_nc = 1
   simpar % nc = 1
   simpar % n_cell = 1
   simpar % nyosh = 1
+  simpar % pol_nyosh = 1
+  simpar % pol_tau_nhc = 1000.0_dbl
   simpar % tau_nhc = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
@@ -214,6 +231,12 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL uppercase ( string )
            simpar % ensemble = string ( 1:ilen )
 
+        CASE ( 'POL_E' )
+           ilen = 0
+           CALL cfield ( string, ilen )
+           CALL uppercase ( string )
+           simpar % pol_ensemble = string ( 1:ilen )
+
         CASE ( 'STEPS' )
            simpar % nsteps = get_int()
 
@@ -231,11 +254,20 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         CASE ( 'TEMPER' )
            simpar % temp_ext = get_real()
 
+        CASE ( 'POL_T' )
+           simpar % pol_temp = get_real()
+
         CASE ( 'RESTAR' )
            ilen = 0
            CALL cfield ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type = string ( 1:ilen )
+
+        CASE ( 'POLRES' )
+           ilen = 0
+           CALL cfield ( string, ilen )
+           CALL uppercase ( string )
+           simpar % pol_read_type = string ( 1:ilen )
 
         CASE ( 'CONSTR' )
            ilen = 0
@@ -246,6 +278,34 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'SHAKE' )
            simpar % shake_tol = get_real()
+
+        CASE ( 'POL_N' )
+           DO WHILE ( test_next() == 'C' )
+
+              ilen = 6
+              CALL cfield ( string, ilen )
+              CALL uppercase ( string )
+
+              SELECT CASE ( string )
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser ( 'read_md_section%nose', &
+                      'unknown suboption' )
+              CASE ( 'OPTION' )
+                 ilen = 0
+                 CALL cfield ( string, ilen )
+                 CALL uppercase ( string )
+                 simpar % pol_option = string ( 1:ilen )
+              CASE ( 'LENGTH' )
+                 simpar % pol_nhclen = get_int()
+              CASE ( 'YOSHID' )
+                 simpar % pol_nyosh = get_int()
+              CASE ( 'TIMECO' )
+                 simpar % pol_tau_nhc = get_real()
+              CASE ( 'MTS' )
+                 simpar % pol_nc = get_int()
+              END SELECT
+           END DO
 
         CASE ( 'NOSE_P' )
            DO WHILE ( test_next() == 'C' )
@@ -414,6 +474,21 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
         WRITE ( iw, '( A,T71,G10.4 )' ) ' MD| Tolerance for shake ', &
              simpar % shake_tol
      END IF
+     IF ( simpar % pol_ensemble /= 'NVE' )  THEN
+       WRITE ( iw, '( A,T61,A )' ) ' MD| Pol Ensemble Type ', &
+              ADJUSTR ( simpar % pol_ensemble )
+       WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Pol Temperature [K] ', &
+              simpar % pol_temp
+       WRITE ( iw, '( A )' ) ' MD| Pol Nose-Hoover-Chain parameters '
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Pol Nose-Hoover-Chain length ', &
+            simpar % pol_nhclen
+       WRITE ( iw, '( A,T71,F10.4 )' ) &
+            ' MD| Pol Nose-Hoover-Chain time constant [fs] ', simpar % pol_tau_nhc
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Pol Order of Yoshida integrator ', &
+            simpar % pol_nyosh
+       WRITE ( iw, '( A,T77,I4 )' ) ' MD| Pol Number of multiple time steps', &
+            simpar % pol_nc
+     ENDIF
      WRITE ( iw, '( A,T63,i10,A )' ) ' MD| Print MD information every', &
           mdio % iscreen, ' step(s)'
      WRITE ( iw, '( A,T20,A,T71,A )' ) ' MD| File type', &
@@ -488,16 +563,19 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 ! initializing velocities
   IF (mdpar % ionode) THEN
      DO i = 1, natoms
-        part(i) % v(1) = gasdev(mdpar % idum)
-        part(i) % v(2) = gasdev(mdpar % idum)
-        part(i) % v(3) = gasdev(mdpar % idum)
+        part ( i ) % v ( 1 ) = gasdev ( mdpar % idum )
+        part ( i ) % v ( 2 ) = gasdev ( mdpar % idum )
+        part ( i ) % v ( 3 ) = gasdev ( mdpar % idum )
      END DO
      akin = 0.0_dbl
      DO i = 1, natoms
-        mass = part(i) % prop % mass
-        akin = akin + 0.5_dbl*(mass*part(i) % v(1)*part(i) % v(1))
-        akin = akin + 0.5_dbl*(mass*part(i) % v(2)*part(i) % v(2))
-        akin = akin + 0.5_dbl*(mass*part(i) % v(3)*part(i) % v(3))
+        mass = part ( i ) % prop % mass
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 1 ) * part ( i ) % v ( 1 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 2 ) * part ( i ) % v ( 2 ) )
+        akin = akin + 0.5_dbl *  &
+         ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
      END DO
 
      temp = 2.0_dbl * akin / REAL ( simpar % nfree, dbl )

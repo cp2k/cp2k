@@ -235,7 +235,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
 ! Locals
   INTEGER :: ierror, ilen, iw, source, group, icount, nmol_type, ios
   INTEGER :: i, j, imol, na, nat, j1, j2, nf, nt, ie, ia, i1, i2, i3, i4
-  INTEGER :: isos, nbasis, ndrho, allgrp
+  INTEGER :: isos, nbasis, ndrho, allgrp, npol, nrho0
   CHARACTER ( LEN = 20 ) :: libstring, string, string2, at1, at2, at3, at4
   CHARACTER ( LEN = 6 ) :: label
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: molname
@@ -277,10 +277,12 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
            mol_setup(imol) %molpar%ntorsions = 0
            mol_setup(imol) %molpar%ndcon = 0
            mol_setup(imol) %molpar%n3x3con = 0
+           mol_setup(imol) %molpar%nbasis_pol = 0
+           mol_setup(imol) %molpar%nbasis_rho0 = 0
 
            DO
               CALL read_line
-              ilen = 6
+              ilen = 8
               CALL cfield(string2,ilen)
               CALL uppercase ( string2 )
 
@@ -387,6 +389,39 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
                        mol_setup(imol) %molpar%n3x3c(3,i) = get_int()
                     END DO
                  END IF
+		 
+              CASE ('RHO0_SET')
+	      
+                 na = mol_setup(imol) %molpar%natom  
+		 IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%rho0_basis)) THEN
+		    ALLOCATE (mol_setup(imol)%molpar%rho0_basis(na),STAT=ios)
+		       IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'rho0_basis',  na )
+                 END IF
+                 nrho0 = mol_setup(imol)%molpar%nbasis_rho0  + 1     
+	         mol_setup(imol)%molpar%nbasis_rho0 = nrho0
+                 ilen=0
+                 CALL cfield(mol_setup(imol)%molpar%rho0_basis(nrho0)%aname,ilen)
+                 ilen=0
+                 CALL cfield(mol_setup(imol)%molpar%rho0_basis(nrho0)%libname,ilen)
+	         mol_setup(imol)%molpar%rho0_basis(nrho0)%nmax=get_int()
+		 mol_setup(imol)%molpar%rho0_basis(nrho0)%eps=get_real()
+
+              CASE ('POL_SET')
+                 na = mol_setup(imol) %molpar%natom  
+		 IF (.NOT. ASSOCIATED (mol_setup(imol)%molpar%pol_basis)) THEN
+		    ALLOCATE (mol_setup(imol)%molpar%pol_basis(na),STAT=ios)
+		       IF ( ios /= 0 ) CALL stop_memory &
+                         ( 'read_molecule_section', 'pol_basis',  na )
+                 END IF
+                 npol = mol_setup(imol)%molpar%nbasis_pol + 1     
+	         mol_setup(imol)%molpar%nbasis_pol = npol
+                 ilen=0
+                 CALL cfield(mol_setup(imol)%molpar%pol_basis(npol)%aname,ilen)
+                 ilen=0
+                 CALL cfield(mol_setup(imol)%molpar%pol_basis(npol)%libname,ilen)
+	         mol_setup(imol)%molpar%pol_basis(npol)%nmax=get_int()
+		 mol_setup(imol)%molpar%pol_basis(npol)%eps=get_real()
 
               CASE ( 'END')
                  ilen = 0
@@ -554,6 +589,41 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
               IF ( isos /= 0 ) CALL stop_memory ( 'read_molecule_section', &
                    'tuple' )
            END IF
+	   
+           na = mol_setup(imol) %molpar%nbasis_rho0
+           IF (na>0) THEN
+              WRITE ( iw, '( A,T71,I10 )' ) &
+                   ' MOLECULE| Number of effective densities', &
+                   mol_setup(imol) %molpar%nbasis_rho0
+	       DO i = 1, mol_setup(imol)%molpar%nbasis_rho0
+                  WRITE (iw,'(A,T61,A)') ' MOLECULE| name of rho0 basis set ', &
+                   mol_setup(imol)%molpar%rho0_basis(i)%aname
+                  WRITE (iw,'(A,T61,A)') ' MOLECULE| library for basis set ', &
+                   mol_setup(imol)%molpar%rho0_basis(i)%libname   
+                  WRITE (iw,'(A,T71,I10)') ' MOLECULE| max grid points ', &
+                   mol_setup(imol)%molpar%rho0_basis(i)%nmax  
+                  WRITE (iw,'(A,T68,F12.6)') ' MOLECULE| epsilon ', &
+                   mol_setup(imol)%molpar%rho0_basis(i)%eps   
+	       END DO
+           END IF
+
+           na = mol_setup(imol) %molpar%nbasis_pol
+           IF (na>0) THEN
+              WRITE ( iw, '( A,T71,I10 )' ) &
+                   ' MOLECULE| Number of polarization densities', &
+                   mol_setup(imol) %molpar%nbasis_pol
+		  DO i = 1, mol_setup(imol)%molpar%nbasis_pol
+                  WRITE (iw,'(A,T61,A)') ' MOLECULE| name of polarizable basis set ', &
+                   mol_setup(imol)%molpar%pol_basis(i)%aname
+                  WRITE (iw,'(A,T61,A)') ' MOLECULE| library for basis set ', &
+                   mol_setup(imol)%molpar%pol_basis(i)%libname   
+                  WRITE (iw,'(A,T71,I10)') ' MOLECULE| max grid points ', &
+                   mol_setup(imol)%molpar%pol_basis(i)%nmax  
+                  WRITE (iw,'(A,T68,F12.6)') ' MOLECULE| epsilon ', &
+                   mol_setup(imol)%molpar%pol_basis(i)%eps   
+	       END DO
+           END IF
+
            WRITE ( iw,'( )' )
         END DO
      END IF

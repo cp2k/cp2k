@@ -15,12 +15,14 @@
 !!   MODIFICATION HISTORY
 !!     CJM, 20-Feb-01
 !!     JGH (10-Mar-2001) 
+!!     CJM (10-Apr-2001) 
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE nhc
 
+  USE coefficient_types, ONLY : coeff_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type
@@ -33,16 +35,123 @@ MODULE nhc
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nhc_control_particles, nhc_control_barostat
-
-  REAL ( dbl ), TARGET :: scale
+  PUBLIC :: nhc_particle_setup, nhc_barostat_setup, nhc_pol_setup
 
 !!*****
 !******************************************************************************
 
 CONTAINS
 !******************************************************************************
-!!****** nhc/nhc_control_barostat [1.0] *
+!!****** nhc/nhc_pol_setup [1.0] *
+!!
+!!   NAME
+!!     nhc_pol_setup
+!!
+!!   FUNCTION
+!!     Creates the thermostatting for polarization degrees of freedom
+!!
+!!   AUTHOR
+!!     CJM 10-Apr-01
+!!
+!!   MODIFICATION HISTORY
+!!     NONE  
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE nhc_pol_setup ( simpar, coeff, nhc, globenv )
+! creates the thermostatting maps use global_mod
+  IMPLICIT NONE
+! begin global declaratation
+  TYPE ( simulation_parameters_type ), INTENT ( INOUT ) :: simpar
+  TYPE ( coeff_type ), INTENT ( IN ) :: coeff
+  TYPE ( lnhc_parameters_type ), INTENT ( OUT ) :: nhc
+  TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
+! begin local definitions
+  INTEGER :: i, iw
+  INTEGER :: isos, number
+!
+  iw = globenv % scr
+!
+  SELECT CASE ( simpar % pol_ensemble ( 1 : 3 ) )
+  CASE  DEFAULT
+    ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+       'failed to allocate nhc%nvt' )
+    nhc % nyosh = 0
+    nhc % nc = 0
+    nhc % nhc_len = 0
+    nhc % num_nhc = 0
+  CASE ( 'NVT', 'NPT' )
+    nhc % nyosh = simpar % pol_nyosh
+    nhc % nc = simpar % pol_nc
+    nhc % nhc_len = simpar % pol_nhclen
+    IF ( simpar % pol_option == 'GLOBAL' )  THEN
+      number = 1
+      nhc % num_nhc = 1
+    ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
+      number = SIZE ( coeff % ao % cr )
+      nhc % num_nhc = number
+    ENDIF
+
+! Now we can allocate the target array s_kin and p_kin
+
+    ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
+    IF ( isos /= 0 ) CALL stop_program ( 'nhc_ao_setup', &
+      'failed to allocate nhc%s_kin' )
+    ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+      'failed to allocate nhc%v_scale' )
+    ALLOCATE ( nhc % p_kin ( 1, number ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+      'failed to allocate nhc%p_kin' )
+    ALLOCATE ( nhc % p_scale ( 1, number ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+      'failed to allocate nhc%p_scale')
+
+! Begin the mapping loop
+
+    IF ( simpar % pol_option == 'GLOBAL' )  THEN
+      DO i = 1, number
+        nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
+        nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
+      END DO
+    ELSEIF ( simpar % pol_option == 'MASSIVE' )  THEN
+      DO i = 1, number
+        nhc % p_kin ( 1, i ) % point => nhc % s_kin ( i )
+        nhc % p_scale ( 1, i ) % point => nhc % v_scale ( i )
+      END DO
+    ENDIF
+
+
+    ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_ao_setup', &
+       'failed to allocate nhc%nvt' )
+!
+! Now that we know how many there are stick this into nhc % static % nkt
+! (number of degrees of freedom times k_B T )
+
+    DO i = 1, nhc % num_nhc
+      nhc % nvt ( 1, i ) % nkt = simpar % pol_temp * number
+    END DO
+
+! getting the number of degrees of freedom times k_B T for the rest of the chain
+
+    DO i = 2, nhc % nhc_len
+      nhc % nvt ( i, : ) % nkt = simpar % pol_temp
+    END DO
+
+! Set up the Yoshida weights
+   
+    ALLOCATE (nhc % dt_yosh (1 : nhc % nyosh ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_pol_setup', &
+      'failed to allocate nhc%dt_yosh')
+    CALL yoshida_coef( nhc, simpar % dt )
+  END SELECT
+
+
+END SUBROUTINE nhc_pol_setup
+!******************************************************************************
+!!****** nhc/nhc_barostat_setup [1.0] *
 !!
 !!   NAME
 !!     nhc_barostat
@@ -60,7 +169,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE nhc_control_barostat ( simpar, nhc, globenv )
+SUBROUTINE nhc_barostat_setup ( simpar, nhc, globenv )
 ! creates the thermostatting maps use global_mod
   IMPLICIT NONE
 ! begin global declaratation
@@ -69,14 +178,14 @@ SUBROUTINE nhc_control_barostat ( simpar, nhc, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 ! begin local definitions
   INTEGER :: i, iw
-  INTEGER :: isos, ncoef
+  INTEGER :: isos, number
 !
   iw = globenv % scr
 !
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
        'failed to allocate nhc%nvt' )
     nhc % nyosh = 0
     nhc % nc = 0
@@ -93,44 +202,42 @@ SUBROUTINE nhc_control_barostat ( simpar, nhc, globenv )
     nhc % num_nhc = 1
 
     IF ( simpar % ensemble == 'NPT_F' ) THEN
-      ncoef = 9
+      number = 9
     ELSE
-      ncoef = 1
+      number = 1
     ENDIF
 
 ! Now we can allocate the target array s_kin and p_kin
 
     ALLOCATE ( nhc % s_kin ( nhc % num_nhc ), STAT = isos)
-    IF ( isos /= 0 ) CALL stop_program ( 'nhc_control', &
+    IF ( isos /= 0 ) CALL stop_program ( 'nhc_barostat_setup', &
       'failed to allocate nhc%s_kin' )
     ALLOCATE ( nhc % v_scale ( nhc % num_nhc ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
       'failed to allocate nhc%v_scale' )
-    ALLOCATE ( nhc % p_kin ( 1, ncoef ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    ALLOCATE ( nhc % p_kin ( 1, number ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
       'failed to allocate nhc%p_kin' )
-    ALLOCATE ( nhc % p_scale ( 1, ncoef ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    ALLOCATE ( nhc % p_scale ( 1, number ), STAT = isos )
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
       'failed to allocate nhc%p_scale')
-! initialize variable 'scale' for the 'none' option
-    scale = 1._dbl
 
 ! Begin the mapping loop
 
-    DO i = 1, ncoef
+    DO i = 1, number
       nhc % p_kin ( 1, i ) % point => nhc % s_kin ( 1 )
       nhc % p_scale ( 1, i ) % point => nhc % v_scale ( 1 )
     END DO
 
     ALLOCATE ( nhc % nvt ( nhc % nhc_len, nhc % num_nhc ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
        'failed to allocate nhc%nvt' )
 !
 ! Now that we know how many there are stick this into nhc % static % nkt
 ! (number of degrees of freedom times k_B T )
 
     DO i = 1, nhc % num_nhc
-      nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ncoef
+      nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * number
     END DO
 
 ! getting the number of degrees of freedom times k_B T for the rest of the chain
@@ -142,18 +249,18 @@ SUBROUTINE nhc_control_barostat ( simpar, nhc, globenv )
 ! Set up the Yoshida weights
 
     ALLOCATE (nhc % dt_yosh (1 : nhc % nyosh ), STAT = isos )
-    IF (isos/=0) CALL stop_program('nhc_control', &
+    IF (isos/=0) CALL stop_program('nhc_barostat_setup', &
       'failed to allocate nhc%dt_yosh')
     CALL yoshida_coef( nhc, simpar % dt )
   END SELECT
 
 
-END SUBROUTINE nhc_control_barostat
+END SUBROUTINE nhc_barostat_setup
 !******************************************************************************
-!!****** nhc/nhc_control_particles [1.0] *
+!!****** nhc/nhc_particle_setup [1.0] *
 !!
 !!   NAME
-!!     nhc_control_particles
+!!     nhc_particle_setup
 !!
 !!   FUNCTION
 !!     Creates the thermostatting maps
@@ -169,7 +276,7 @@ END SUBROUTINE nhc_control_barostat
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
+SUBROUTINE nhc_particle_setup ( simpar, molecule, mol_setup, nhc, globenv )
 
   IMPLICIT NONE
 
@@ -191,6 +298,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: const_mol, tot_const
   INTEGER, DIMENSION ( : ), ALLOCATABLE :: natoms_mol, mol_off
   INTEGER, DIMENSION ( :, : ), ALLOCATABLE :: point
+  REAL ( dbl ), SAVE, TARGET :: scale
   LOGICAL :: match, noneflag, nointer
 
 !------------------------------------------------------------------------------
@@ -200,7 +308,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
   SELECT CASE ( simpar % ensemble ( 1 : 3 ) )
     CASE ( 'NVE' )
      ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%nvt', 0 )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%nvt', 0 )
      nhc % nyosh = 0
      nhc % nc = 0
      nhc % nhc_len = 0
@@ -210,23 +318,23 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
      nhc%nc = simpar%nc
      nhc%nhc_len = simpar%nhclen
 
-! allocating the temporary arrays mnum and tnum, and nfree
+! allocating the temporary arrays mnum and tnum
      nmol_type = size(mol_setup)
      nmol = size(molecule)
      ALLOCATE (mnum(nmol_type ),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'mnum', nmol_type )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'mnum', nmol_type )
      ALLOCATE (tnum(nmol_type ),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'tnum', nmol_type )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'tnum', nmol_type )
      ALLOCATE (const_mol(nmol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'const_mol', nmol )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'const_mol', nmol )
      ALLOCATE (tot_const(nmol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'tot_const', nmol )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'tot_const', nmol )
      ALLOCATE (natoms_mol(nmol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'natoms_mol', nmol )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'natoms_mol', nmol )
      ALLOCATE (point(2,nmol),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','point', 2 * nmol )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup','point', 2 * nmol )
      ALLOCATE (mol_off(nmol_type+1),STAT=isos)
-     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','mol_off', nmol_type + 1 )
+     IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup','mol_off', nmol_type + 1 )
 
 ! Counting the total number of thermostats
      number = 0
@@ -279,7 +387,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
        END IF
     END DO
     IF ( number == 0 ) THEN
-       CALL stop_program ( 'nhc_control', "Number of NHC = 0 -> use NVE" )
+       CALL stop_program ( 'nhc_paticle_setup', "Number of NHC = 0 -> use NVE" )
     END IF
 
 !
@@ -304,7 +412,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
            ELSE IF (mol_setup(j)%nhcopt=="MASSIVE") THEN
               number = number + 3*mol_setup(j) %molpar%natom
            ELSE
-              CALL stop_program ( 'nhc_control', '' )
+              CALL stop_program ( 'nhc_particle_setup', '' )
            END IF
         END DO
      ELSE
@@ -365,22 +473,22 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
     SELECT CASE (simpar%ensemble(1:3))
     CASE ( 'NPT' )
        ALLOCATE (deg_of_freedom(number+1),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
+       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
           'deg_of_freedom', number + 1 )
     CASE DEFAULT
        ALLOCATE (deg_of_freedom(number),STAT=isos)
-       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
+       IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
           'deg_of_freedom', number )
     END SELECT
 
     ALLOCATE (nhc%s_kin(number),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%s_kin', number )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%s_kin', number )
     ALLOCATE (nhc%v_scale(number),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%v_scale', number )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%v_scale', number )
     ALLOCATE (nhc%p_kin(3,natoms),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'nhc%p_kin', 3 * natoms )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'nhc%p_kin', 3 * natoms )
     ALLOCATE (nhc%p_scale(3,natoms),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
        'nhc%p_scale', 3 * natoms )
 
 ! Check to see if there is at least one global thermostatting option defined
@@ -518,7 +626,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
 ! doing massive thermostat option
         ELSE IF ( mol_setup ( j ) % nhcopt == "MASSIVE" ) THEN
            IF ( tot_const ( i ) > 0 ) THEN
-              CALL stop_program ( 'nhc_control', &
+              CALL stop_program ( 'nhc_particle_setup', &
                    "Massive thermostats with constraints not possible" )
            END IF
            DO ii = point(1,i), point(2,i)
@@ -666,7 +774,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
 ! doing massive thermostat option
         ELSE IF ( mol_setup ( i ) % nhcopt == "MASSIVE" ) THEN
            IF ( tot_const ( i ) > 0 ) THEN
-              CALL stop_program ( 'nhc_control', &
+              CALL stop_program ( 'nhc_particle_setup', &
                    "Massive thermostats with constraints not possible" )
            END IF
            DO ii = point(1,i), point(2,i)
@@ -694,20 +802,20 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
 
 ! deallocating the temporary arrays mnum and tnum
     DEALLOCATE (mnum,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','mnum' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup','mnum' )
     DEALLOCATE (tnum,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','tnum' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup','tnum' )
     DEALLOCATE (const_mol,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'const_mol' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'const_mol' )
     DEALLOCATE (tot_const,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'tot_const' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'tot_const' )
     DEALLOCATE (natoms_mol,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'natoms_mol' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'natoms_mol' )
     DEALLOCATE (mol_off,STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', 'mol_off' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', 'mol_off' )
 
     ALLOCATE (nhc%nvt(nhc%nhc_len,number),STAT=isos)
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control','nhc%nvt', 0 )
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup','nhc%nvt', 0 )
 
 ! Sum up the number of degrees of freedom on each thermostat.
 ! first: initialize the target
@@ -744,6 +852,7 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
 
 ! re-initializing simpar%nfree to zero because of multiple thermostats
      simpar % nfree = 0._dbl
+
      DO i = 1, number
         nhc % nvt ( 1, i ) % nkt = simpar % temp_ext * ( nhc % s_kin ( i ) - &
         deg_of_freedom ( i ) )
@@ -759,14 +868,14 @@ SUBROUTINE nhc_control_particles ( simpar, molecule, mol_setup, nhc, globenv )
 
 ! Set up the Yoshida weights
     ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_control', &
+    IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
        'nhc%dt_yosh', nhc % nyosh )
     CALL yoshida_coef ( nhc, simpar % dt )
 
   END SELECT
 
 
-END SUBROUTINE nhc_control_particles
+END SUBROUTINE nhc_particle_setup
 
 !!*****
 !******************************************************************************

@@ -13,8 +13,8 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
-!!
+!!    gloria  8 may 2001 : linklist_verlet_list : added argument list_type,
+!!    adapt the routine to be used as well for the overlaps lists
 !!   SOURCE
 !******************************************************************************
 
@@ -63,7 +63,7 @@ MODULE linklist_utilities
   END FUNCTION get_match
 !------------------------------------------------------------------------------!
   SUBROUTINE update_verlet_list(n_images,part,j,pnode,hmat,h_inv,perd, &
-                          distsq,current_neighbor)
+                          distsq,current_neighbor,list_type)
     IMPLICIT NONE
     TYPE (particle_type ), INTENT ( IN ), TARGET :: part
     TYPE (particle_node_type ), INTENT ( INOUT ) :: pnode
@@ -72,10 +72,13 @@ MODULE linklist_utilities
     REAL ( dbl ), INTENT ( IN ) :: hmat(3,3), h_inv(3,3), perd(3)
     REAL ( dbl ), INTENT ( IN ) :: distsq
     TYPE (linklist_neighbor), POINTER :: current_neighbor
+    INTEGER, intent (in) :: list_type
 ! locals
     REAL ( dbl ), DIMENSION (3) :: rij, s
     REAL ( dbl ) :: rijsq
     INTEGER :: isos
+! initialize rijsq to large positive numer
+    rijsq = 1.e10_dbl
 
     rij(1) = part % r(1) - pnode % p % r(1)
     rij(2) = part % r(2) - pnode % p % r(2)
@@ -105,7 +108,14 @@ MODULE linklist_utilities
 ! position in the link_list point to the jth atom
 !
     IF (rijsq<=distsq.OR.MAXVAL(n_images) /= 0 ) THEN
-      pnode%nneighbor = pnode%nneighbor + 1
+    
+      SELECT CASE (list_type)
+         CASE (1)
+         pnode%nneighbor = pnode%nneighbor + 1
+         CASE (2)
+         pnode%nsneighbor = pnode%nsneighbor + 1
+      END SELECT	 
+
       current_neighbor%p => part
       current_neighbor%index = j
       current_neighbor%nimages = 0

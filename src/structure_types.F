@@ -14,6 +14,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     Harald Forbert (Dec-2000): Add ll-data to structure_type
+!!     CJM 14-April-2001 : added coeff_type to structure_type
 !!
 !!   SOURCE
 !******************************************************************************
@@ -21,6 +22,8 @@
 MODULE structure_types
 
   USE kinds, ONLY : dbl
+  USE atomic_kinds, ONLY :  kind_info_type
+  USE coefficient_types, ONLY : coeff_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
@@ -46,7 +49,7 @@ MODULE structure_types
      REAL ( dbl ) :: ismeff
      REAL ( dbl ), DIMENSION ( 2 , 2 ) :: harmonic_prop
   END TYPE pimd_data_type
-  
+
   TYPE structure_type
      CHARACTER ( LEN = 30 ) :: name
      TYPE ( cell_type ) :: box
@@ -54,8 +57,13 @@ MODULE structure_types
      TYPE ( particle_type ), POINTER :: part ( : )
      TYPE ( particle_node_type ), POINTER :: pnode ( : )
      TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
-     TYPE ( linklist_internal_data_type) :: ll_data
+     TYPE ( linklist_internal_data_type), POINTER :: ll_data ( : )
      TYPE ( pimd_data_type ) :: pimd_data
+     TYPE ( kind_info_type ), POINTER :: rho0_basis_info ( : )
+     TYPE ( kind_info_type ), POINTER :: drho_basis_info ( : )
+     TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_pos         
+     TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_vel         
+     TYPE ( coeff_type ), POINTER, DIMENSION ( : )  :: coef_force         
   END TYPE structure_type
 
   TYPE interaction_type

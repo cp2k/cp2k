@@ -38,7 +38,7 @@ MODULE method_specifications
 ! *** Public subroutines ***
 
   PUBLIC :: read_method_specifications,&
-            write_method_specifications
+            write_method_specifications, get_maxder
 
 ! *****************************************************************************
 
@@ -179,6 +179,12 @@ CONTAINS
 
   END SUBROUTINE write_method_specifications
 
+! *****************************************************************************
+  SUBROUTINE get_maxder(maxder_index)
+    IMPLICIT NONE
+    INTEGER, INTENT(in), OPTIONAL :: maxder_index  ! maxder  
+    IF (PRESENT(maxder_index)) maxder = maxder_index       
+  END SUBROUTINE get_maxder                    
 ! *****************************************************************************
 
 END MODULE method_specifications

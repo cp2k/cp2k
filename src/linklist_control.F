@@ -21,6 +21,7 @@
 
 MODULE linklist_control
 
+  USE atomic_kinds, ONLY : kind_info_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklist_cell_list, ONLY : cell_list
@@ -29,6 +30,7 @@ MODULE linklist_control
        neighbor_cells_type
   USE linklist_utilities, ONLY : startlist_images_type
   USE linklist_verlet_list, ONLY : verlet_list
+  USE linklist_overlap_list, ONLY : overlap_list
   USE molecule_types, ONLY : particle_node_type,linklist_neighbor, &
        linklist_exclusion, linklist_images
   USE message_passing, ONLY : mp_max
@@ -124,6 +126,8 @@ SUBROUTINE set_ll_parm ( internal_data, globenv_in, vskin, natype, rcut, &
         internal_data%list_type = 0
      CASE ( 'NONBOND')
         internal_data%list_type = 1
+     CASE ( 'OVERLAP')
+        internal_data%list_type = 2
      END SELECT
   END IF
 
@@ -151,7 +155,7 @@ END SUBROUTINE get_ll_parm
 ! if any particle has moved by 0.5*skin_length from the previous
 ! list_update, then the list routine is called.
 !
-SUBROUTINE list_control ( internal_data, pnode, part, box )
+SUBROUTINE list_control ( internal_data, pnode, part, box, ki )
 
   IMPLICIT NONE
 
@@ -160,6 +164,7 @@ SUBROUTINE list_control ( internal_data, pnode, part, box )
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( INOUT ) :: part
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( INOUT ) :: pnode
   TYPE ( cell_type ), INTENT ( IN ) :: box
+  TYPE (kind_info_type), INTENT (IN), DIMENSION (:), OPTIONAL :: ki
 
 ! Locals
   REAL ( dbl ), DIMENSION (3) :: disp_vec
@@ -215,14 +220,35 @@ SUBROUTINE list_control ( internal_data, pnode, part, box )
         CALL cell_list(internal_data%natom_types,internal_data%pp_cell,&
              internal_data%rlist_cut,string,pnode,part, &
              box,internal_data%pp_cell_ll,internal_data%pp_startlist_cell,&
-             internal_data%pp_neighbor, internal_data%globenv_ll)
+             internal_data%pp_neighbor, internal_data%globenv_ll, &
+	     internal_data%list_type)
 
         CALL verlet_list(internal_data%natom_types,internal_data%pp_images,&
              internal_data%pp_cell,pnode,part,box, &
              internal_data%verlet_skin,internal_data%rlist_cut,&
              internal_data%rlist_cutsq,internal_data%pp_neighbor,&
              internal_data%pp_cell_ll,internal_data%pp_startlist_nl,&
-             internal_data%pp_startlist_im, internal_data%globenv_ll)
+             internal_data%pp_startlist_im, internal_data%globenv_ll, &
+	     internal_data%list_type)
+
+     CASE ( 2 )
+
+        string = ' cell_index: overlap neighbor list'
+
+        CALL cell_list(internal_data%natom_types,internal_data%pp_cell,&
+             internal_data%rlist_cut,string,pnode,part, &
+             box,internal_data%pp_cell_ll,internal_data%pp_startlist_cell,&
+             internal_data%pp_neighbor, internal_data%globenv_ll, & 
+	     internal_data%list_type)
+
+        CALL overlap_list(internal_data%pp_images,&
+             internal_data%pp_cell,pnode,part,box, ki, &
+             internal_data%verlet_skin,internal_data%rlist_cut,&
+             internal_data%rlist_cutsq,internal_data%pp_neighbor,&
+             internal_data%pp_cell_ll,internal_data%pp_startlist_nl,&
+             internal_data%pp_startlist_im, internal_data%globenv_ll, &
+	     internal_data%list_type)
+
      END SELECT
 
      iw = internal_data%globenv_ll % scr

@@ -145,7 +145,7 @@ FUNCTION ener_coul ( pot, qi, qj, r, ewald_param )
 !------------------------------------------------------------------------------
 
   SELECT CASE( ewald_param % ewald_type )
-  CASE( 'EWALD', 'PME' )
+  CASE( 'EWALD', 'PME', 'SPME' )
      ener_coul = ifourpi / ewald_param % eps0 * qi * qj &
           * erfc ( ewald_param % alpha * r ) / r - pot % e_cutoff_coul
   CASE( 'NONE')
@@ -274,7 +274,7 @@ SUBROUTINE potential_s ( rijsq, potparm, iatom, jatom, energy, fscalar )
 
   energy = splineh ( spline_table ( spltab ( iatom, jatom ) ), rijsq, fscalar )
   fscalar = -2.0_dbl * fscalar
-
+  
 END SUBROUTINE potential_s
 
 !******************************************************************************

@@ -13,14 +13,15 @@
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     CJM 20-Feb-2001: Now npt_ifo is allocated to zero when
-!!     not used
+!!     CJM 20-Feb-2001: Now npt_ifo is allocated to zero when not used
+!!     CJM 11-apr-2001: adding routines to thermostat ao_type 
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE nose
-
+ 
+  USE ao_types, ONLY : ao_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE molecule_types, ONLY : particle_node_type
@@ -32,7 +33,7 @@ MODULE nose
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: lnhc, initial_npt, initial_nhc
+  PUBLIC :: lnhc, initialize_npt, initialize_nhc
   PUBLIC :: lnhc_parameters_type, nhc_info_type, npt_info_type
   PUBLIC :: yoshida_coef
   PUBLIC :: particle_kinetic_type, particle_scale_type
@@ -72,13 +73,137 @@ MODULE nose
   END TYPE lnhc_parameters_type
 
   INTERFACE lnhc
-     MODULE PROCEDURE lnhc_particles, lnhc_barostat
+     MODULE PROCEDURE lnhc_particles, lnhc_barostat, lnhc_ao
   END INTERFACE
 
 !!*****
 !******************************************************************************
 
 CONTAINS
+!******************************************************************************
+!!****** nose/lnhc_ao [1.0] *
+!!
+!!   NAME
+!!     lnhc_ao
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!    CJM
+!!
+!!   CREATION DATE
+!!     11-Apr-2001
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE lnhc_ao ( nhc, ao, group )
+  IMPLICIT NONE
+! Arguments
+  TYPE ( lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
+  TYPE ( ao_type ), INTENT ( INOUT ) :: ao
+  INTEGER, INTENT ( IN ) :: group
+
+! Locals
+  INTEGER :: i, j, nnodes, inc, iyosh, n, inhc, handle, nx1, nx2, ncoef
+  REAL ( dbl ) :: scale, flops
+
+  CALL timeset('LNHC','I','Mflops',handle)
+  flops = 0._dbl
+
+  nx1 = SIZE ( nhc % nvt ( :, 1 ) )
+  nx2 = SIZE ( nhc % nvt ( 1, : ) )
+
+! get force on first thermostat for all the chains in the system.
+  nhc % v_scale = 1.0_dbl
+  nhc % s_kin = 0.0_dbl
+  ncoef  = SIZE ( ao % cr)
+  DO i = 1, ncoef 
+    nhc % p_kin(1,i) % point  = nhc % p_kin(1,i) % point + &
+      ao % mass ( i ) * ao % cr ( i )  * ao % cr ( i ) 
+  END DO
+
+! force on the first bead in every thermostat chain (f1=sum(m*v**2)-ncoef*KbT)
+  DO n = 1, nhc % num_nhc
+    nhc % nvt ( 1, n ) % f = ( nhc % s_kin ( n ) - nhc % nvt ( 1, n ) % nkt )/ &
+                               nhc % nvt ( 1, n ) % mass
+  END DO
+
+! perform multiple time stepping using Yoshida
+NCLOOP: DO inc = 1, nhc % nc
+YOSH:     DO iyosh = 1, nhc % nyosh
+!
+! update velocity on the last thermostat in the chain    ! O1
+       nhc % nvt ( nhc % nhc_len, : ) % v = nhc % nvt (nhc % nhc_len, : ) % v + &
+         nhc % nvt (nhc % nhc_len, : ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh )
+!
+! update velocity of other thermostats on chain (from nhc_len-1 to 1)  ! O2
+      DO n = 1, nhc % num_nhc
+        DO inhc = nhc % nhc_len - 1, 1, -1
+          scale = exp (-0.125_dbl * nhc % nvt ( inhc+1, n )% v * &
+                 nhc % dt_yosh ( iyosh ) )
+          nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale     ! scale
+          nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v + &
+            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+          nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc , n ) % v * scale    ! scale
+        END DO
+      END DO
+
+! the core of the operator ----- START------
+! update nhc positions
+      nhc % nvt ( :, : ) % eta = nhc % nvt ( :, : ) % eta + &
+        0.5_dbl * nhc % nvt ( :, : ) % v * nhc % dt_yosh ( iyosh )
+! now accumulate the scale factor for particle velocities
+      DO n = 1, nhc % num_nhc
+        nhc % v_scale ( n ) = nhc % v_scale ( n ) * &
+        exp ( -0.5_dbl * nhc % dt_yosh ( &
+             iyosh ) * nhc % nvt ( 1, n ) % v )
+      END DO
+! the core of the operator ------ END ------
+
+! update the force on first thermostat again (since coefficient velocities 
+! have changed)
+      DO n = 1, nhc % num_nhc
+        nhc % nvt ( 1, n ) % f = ( nhc % s_kin ( n ) * nhc % v_scale ( n ) &
+          * nhc % v_scale ( n ) - nhc % nvt ( 1, n ) % nkt ) &
+          /nhc % nvt ( 1, n ) % mass
+      END DO
+
+! update velocity of other thermostats on chain (from 1 to nhc_len-1)  ! O2
+      DO inhc = 1, nhc % nhc_len - 1
+        DO n = 1, nhc % num_nhc
+          scale = exp( -0.125_dbl *nhc % nvt ( inhc+1, n ) % v * & 
+            nhc % dt_yosh ( iyosh ) ) 
+          nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v * scale ! scale
+          nhc % nvt ( inhc, n ) % v = nhc % nvt( inhc, n ) % v + &
+            nhc % nvt ( inhc, n ) % f * 0.25_dbl * nhc % dt_yosh ( iyosh ) ! shift
+          nhc % nvt ( inhc, n ) % v = nhc % nvt ( inhc, n ) % v * scale ! scale
+        END DO
+! updating the forces on all  the thermostats
+        DO n = 1, nhc % num_nhc
+          nhc % nvt ( inhc+1, n ) % f =  & 
+	 (nhc % nvt ( inhc, n ) % mass * nhc % nvt ( inhc, n ) % v &
+         *nhc % nvt ( inhc, n ) % v-nhc % nvt ( inhc + 1, n ) % nkt ) / &
+          nhc % nvt ( inhc + 1, n ) % mass
+        END DO
+      END DO
+! update velocity on last thermostat                                  ! O1
+      nhc % nvt ( nhc % nhc_len, : ) % v = &
+      nhc % nvt ( nhc % nhc_len, : ) % v + &
+      nhc % nvt ( nhc % nhc_len, : ) % f * &
+       0.25_dbl * nhc % dt_yosh ( iyosh )
+    END DO YOSH
+  END DO NCLOOP
+! now scale the coefficients velocities
+  DO i = 1, ncoef
+    ao % cr ( i ) = ao % cr ( i ) * nhc % p_scale ( 1, i ) % point 
+  END DO
+!
+  CALL timestop(flops,handle)
+END SUBROUTINE lnhc_ao
+
 !******************************************************************************
 !!****** nose/lnhc_barostat [1.0] *
 !!
@@ -380,10 +505,10 @@ SUBROUTINE lnhc_particles ( nhc, pnode, group )
 END SUBROUTINE lnhc_particles
 
 !******************************************************************************
-!!****** nose/initial_nhc [1.0] *
+!!****** nose/initialize_nhc [1.0] *
 !!
 !!   NAME
-!!     initial_nhc
+!!     initialize_nhc
 !!
 !!   FUNCTION
 !!     Initializes the NHC velocities to the Maxwellian distribution
@@ -399,7 +524,7 @@ END SUBROUTINE lnhc_particles
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initial_nhc(nhc,tau_nhc,temp_ext, globenv )
+SUBROUTINE initialize_nhc(nhc,tau_nhc,temp_ext, globenv )
   IMPLICIT NONE
   TYPE (lnhc_parameters_type ), INTENT ( INOUT ) :: nhc
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
@@ -453,14 +578,14 @@ SUBROUTINE initial_nhc(nhc,tau_nhc,temp_ext, globenv )
      END DO
   END DO
 
-END SUBROUTINE initial_nhc
+END SUBROUTINE initialize_nhc
 
 !!*****
 !******************************************************************************
-!!****** nose/initial_npt [1.0] *
+!!****** nose/initialize_npt [1.0] *
 !!
 !!   NAME
-!!     initial_npt
+!!     initialize_npt
 !!
 !!   FUNCTION
 !!     Initializes the NHC velocities to the Maxwellian distribution
@@ -476,7 +601,7 @@ END SUBROUTINE initial_nhc
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE initial_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
+SUBROUTINE initialize_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
      globenv )
 
   IMPLICIT NONE
@@ -547,7 +672,7 @@ SUBROUTINE initial_npt ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
 ! initialize the position
   IF ( ensemble == 'NPT_I' ) npt ( :, : ) % eps = LOG ( deth ) / 3.0_dbl
 
-END SUBROUTINE initial_npt
+END SUBROUTINE initialize_npt
 
 !!*****
 !******************************************************************************

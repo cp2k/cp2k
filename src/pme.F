@@ -1,4 +1,6 @@
 !-----------------------------------------------------------------------------!
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
@@ -25,13 +27,12 @@ MODULE pme
        PW_COMPLEXDATA3D, PW_REALDATA3D, &
        PW_REALSPACE, PW_COMPLEXDATA1D, PW_RECIPROCALSPACE
   USE dgs, ONLY : dg_get_strucfac, dg_get_patch, dg_sum_patch, &
-       dg_sum_patch_force
+       dg_sum_patch_force_3d
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE hartree, ONLY : calculate_hartree
   USE kinds, ONLY: dbl, sgl, dp_size, sp_size
   USE mathconstants, ONLY : fourpi, pi
-  USE particle_lists, ONLY : particle_list_type
   USE particle_types, ONLY : particle_type
   USE pw_grid_types, ONLY : pw_grid_type
   USE pws, ONLY : pw_poisson_solver, init_pw_poisson_solver, pw_integral_a2b
@@ -164,7 +165,6 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
   CALL calculate_hartree ( rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
 
-  CALL coeff_deallocate ( phi_r )
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -183,6 +183,8 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
   pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
 !--------END OF STRESS TENSOR CALCULATION -----------
+
+  CALL coeff_deallocate ( phi_r )
 
   CALL rs_grid_setup ( drpot, grid_b , grid_s % npts)
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
@@ -212,12 +214,12 @@ SUBROUTINE pme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
      CALL get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
 
      ! sum boxes on real space grids (big box)
-     CALL dg_sum_patch_force ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
+     CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
      fg_coulomb ( 1, p1 ) = fg_coulomb ( 1, p1 ) - fat ( 1 ) * dvols
      fg_coulomb ( 2, p1 ) = fg_coulomb ( 2, p1 ) - fat ( 2 ) * dvols
      fg_coulomb ( 3, p1 ) = fg_coulomb ( 3, p1 ) - fat ( 3 ) * dvols
      IF ( p2 /= 0 ) THEN
-        CALL dg_sum_patch_force ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
+        CALL dg_sum_patch_force_3d ( drpot, rhos2, exp_igr % centre ( :, p2 ), fat )
         fg_coulomb ( 1, p2 ) = fg_coulomb ( 1, p2 ) - fat ( 1 ) * dvols
         fg_coulomb ( 2, p2 ) = fg_coulomb ( 2, p2 ) - fat ( 2 ) * dvols
         fg_coulomb ( 3, p2 ) = fg_coulomb ( 3, p2 ) - fat ( 3 ) * dvols

@@ -20,7 +20,8 @@
 
 MODULE dgs
 
-  USE coefficient_types, ONLY : coeff_type
+  USE coefficient_types, ONLY : coeff_type, PW_REALDATA1D,  &
+        PW_COMPLEXDATA1D, PW_REALDATA3D, PW_COMPLEXDATA3D
   USE fft_tools, ONLY : fft_radix_operations, fft3d, FWFFT, BWFFT, &
        FFT_RADIX_ALLOWED, FFT_RADIX_DISALLOWED, FFT_RADIX_NEXT, &
        FFT_RADIX_CLOSEST
@@ -40,15 +41,20 @@ MODULE dgs
 
   PRIVATE
   PUBLIC :: dg_get_patch, dg_get_delta
-  PUBLIC :: dg_grid_setup, dg_find_max_cutoff, dg_sum_patch, &
-       dg_sum_patch_force, dg_get_strucfac, dg_grid_change
+  PUBLIC :: dg_pol_grid_setup, dg_pme_grid_setup, dg_find_max_cutoff,  &
+       dg_sum_patch, dg_sum_patch_force_3d, dg_sum_patch_force_1d,  &
+       dg_get_strucfac, dg_grid_change, dg_find_cutoff
 
   INTERFACE dg_sum_patch
      MODULE PROCEDURE dg_sum_patch_coef, dg_sum_patch_arr
   END INTERFACE
 
-  INTERFACE dg_sum_patch_force
-     MODULE PROCEDURE dg_sum_patch_force_coef, dg_sum_patch_force_arr
+  INTERFACE dg_sum_patch_force_3d
+     MODULE PROCEDURE dg_sum_patch_force_coef_3d, dg_sum_patch_force_arr_3d
+  END INTERFACE
+
+  INTERFACE dg_sum_patch_force_1d
+     MODULE PROCEDURE dg_sum_patch_force_coef_1d, dg_sum_patch_force_arr_1d
   END INTERFACE
 
   INTERFACE dg_get_patch
@@ -59,8 +65,12 @@ MODULE dgs
      MODULE PROCEDURE dg_add_patch_simple, dg_add_patch_folded
   END INTERFACE
 
-  INTERFACE dg_int_patch
-     MODULE PROCEDURE dg_int_patch_simple, dg_int_patch_folded
+  INTERFACE dg_int_patch_3d
+     MODULE PROCEDURE dg_int_patch_simple_3d, dg_int_patch_folded_3d
+  END INTERFACE
+
+  INTERFACE dg_int_patch_1d
+     MODULE PROCEDURE dg_int_patch_simple_1d, dg_int_patch_folded_1d
   END INTERFACE
 
 !!*****
@@ -70,7 +80,7 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
+SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
      dg_gaussian_type, dg_glopar )
 
   IMPLICIT NONE
@@ -129,9 +139,112 @@ SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
 
   CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
 
-END SUBROUTINE dg_grid_setup
+END SUBROUTINE dg_pme_grid_setup
 
 !******************************************************************************
+SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
+                 grid_s, grid_b, dg_glopar, grid_ref )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
+  TYPE ( cell_type ), INTENT ( IN ) :: box_b
+  REAL ( dbl )      , INTENT ( IN ) :: cutoff_radius
+  TYPE ( global_environment_type ), INTENT ( IN ) :: dg_glopar
+  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
+  TYPE ( pw_grid_type ), INTENT ( IN ), OPTIONAL :: grid_ref
+
+! Locals
+  REAL ( dbl ) :: cutoff, ecut
+  TYPE ( cell_type ) :: unit_box, box_s
+
+!------------------------------------------------------------------------------
+
+  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
+
+! If necessary set up grid with respect to the reference grid
+
+  ecut = 0.5_dbl * cutoff * cutoff
+
+  IF ( PRESENT ( grid_ref ) ) THEN
+     CALL pw_grid_setup ( box_b, grid_b, ecut, dg_glopar % group, &
+                         ref_grid = grid_ref )
+  ELSE
+     CALL pw_grid_setup ( box_b, grid_b, ecut, dg_glopar % group )
+  ENDIF
+
+  CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
+
+  CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
+
+  CALL pw_grid_setup ( box_s, grid_s )
+
+END SUBROUTINE dg_pol_grid_setup
+
+!******************************************************************************
+SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
+                            grid_b, cutoff )
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
+  TYPE ( cell_type ), INTENT ( IN ) :: box_b
+  TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
+  REAL ( dbl )      , INTENT ( IN ) :: cutoff_radius
+  REAL ( dbl )      , INTENT ( OUT ) :: cutoff
+
+! Locals
+  INTEGER :: nout ( 3 )
+  REAL ( dbl ) :: dr ( 3 )
+  REAL ( dbl ) :: cell_lengths ( 3 )
+
+
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
+       operation = FFT_RADIX_NEXT )
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 2 ), &
+       operation = FFT_RADIX_NEXT )
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
+       operation = FFT_RADIX_NEXT )
+
+  CALL get_cell_param ( box_b, cell_lengths )
+  CALL dg_pol_get_spacing ( nout, cutoff_radius, dr )
+  CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
+
+  grid_b % bounds ( 1, : ) = - grid_b % npts / 2
+  grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
+  grid_b % grid_span = HALFSPACE
+  grid_s % bounds ( 1, : ) =   -nout ( : ) / 2
+  grid_s % bounds ( 2, : ) = ( +nout ( : ) - 1 ) / 2
+  grid_s % grid_span = HALFSPACE
+  grid_s % npts = nout
+
+  CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
+
+END SUBROUTINE  dg_find_cutoff 
+!******************************************************************************
+
+SUBROUTINE dg_pol_get_spacing ( npts, cutoff_radius, dr )
+
+  IMPLICIT NONE
+
+! Arguments
+  REAL ( dbl ), INTENT ( IN ) :: cutoff_radius
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
+
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: dr
+
+! Locals
+  REAL ( dbl ) :: alphasq, norm
+
+!------------------------------------------------------------------------------
+
+  dr ( : ) = cutoff_radius  / ( REAL ( npts ( : ), dbl ) / 2.0_dbl )                                           
+          
+ END SUBROUTINE dg_pol_get_spacing
+
+!******************************************************************************
+
 
 SUBROUTINE dg_grid_change ( box_b, grid_b, grid_s )
 
@@ -467,7 +580,6 @@ SUBROUTINE dg_sum_patch_coef ( rs, rhos, center )
   END IF
 
 END SUBROUTINE dg_sum_patch_coef
-
 !******************************************************************************
 
 SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
@@ -487,7 +599,6 @@ SUBROUTINE dg_sum_patch_arr ( rs, rhos, center )
   LOGICAL :: folded
 
 !------------------------------------------------------------------------------
-
   nb => rs % npts
   ns ( 1 ) = SIZE ( rhos, 1 )
   ns ( 2 ) = SIZE ( rhos, 2 )
@@ -549,7 +660,7 @@ END SUBROUTINE dg_sum_patch_arr
 
 !******************************************************************************
 
-SUBROUTINE dg_sum_patch_force_arr ( drpot, rhos, center, force )
+SUBROUTINE dg_sum_patch_force_arr_3d ( drpot, rhos, center, force )
 
   IMPLICIT NONE
 
@@ -618,22 +729,104 @@ SUBROUTINE dg_sum_patch_force_arr ( drpot, rhos, center, force )
   END DO
 
   IF ( folded ) THEN
-    CALL dg_int_patch ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
+    CALL dg_int_patch_3d ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
          rhos, force, ns, &
          drpot ( 1 ) % px, drpot ( 1 ) % py, drpot ( 1 ) % pz )
   ELSE
     nc ( 1 ) = drpot ( 1 ) % px ( 1 ) - 1
     nc ( 2 ) = drpot ( 1 ) % py ( 1 ) - 1
     nc ( 3 ) = drpot ( 1 ) % pz ( 1 ) - 1
-    CALL dg_int_patch ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
+    CALL dg_int_patch_3d ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
          rhos, force, ns, nc )
   END IF
 
-END SUBROUTINE dg_sum_patch_force_arr
+END SUBROUTINE dg_sum_patch_force_arr_3d
 
 !******************************************************************************
 
-SUBROUTINE dg_sum_patch_force_coef ( drpot, rhos, center, force )
+SUBROUTINE dg_sum_patch_force_arr_1d ( drpot, rhos, center, force )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( realspace_grid_type ), TARGET, &
+                                INTENT ( INOUT ) :: drpot
+  REAL ( dbl ), DIMENSION ( :,:,: ), INTENT ( IN ) :: rhos
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
+  REAL ( dbl ), INTENT ( OUT ) :: force
+
+! Locals
+  INTEGER, DIMENSION ( : ), POINTER :: nb
+  INTEGER, DIMENSION ( 3 ) :: ns, lb, ub
+  INTEGER, DIMENSION ( 3 ) :: nc
+  INTEGER :: i, ii, ia
+  LOGICAL :: folded
+
+!------------------------------------------------------------------------------
+
+  nb => drpot % npts
+  ns ( 1 ) = SIZE ( rhos, 1 )
+  ns ( 2 ) = SIZE ( rhos, 2 )
+  ns ( 3 ) = SIZE ( rhos, 3 )
+  lb = -(ns-1) / 2
+  ub = lb + ns - 1
+  folded = .FALSE.
+
+  DO i = lb ( 1 ), ub ( 1 )
+    ia = i - lb ( 1 ) + 1
+    ii = center ( 1 ) + i - drpot % lb ( 1 )
+    IF ( ii < 0 ) THEN
+      drpot % px ( ia ) = ii + nb ( 1 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 1 ) ) THEN
+      drpot % px ( ia ) = ii - nb ( 1 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % px ( ia ) = ii + 1
+    ENDIF
+  END DO
+  DO i = lb ( 2 ), ub ( 2 )
+    ia = i - lb ( 2 ) + 1
+    ii = center ( 2 ) + i - drpot % lb ( 2 )
+    IF ( ii < 0 ) THEN
+      drpot % py ( ia ) = ii + nb ( 2 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 2 ) ) THEN
+      drpot % py ( ia ) = ii - nb ( 2 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % py ( ia ) = ii + 1
+    ENDIF
+  END DO
+  DO i = lb ( 3 ), ub ( 3 )
+    ia = i - lb ( 3 ) + 1
+    ii = center ( 3 ) + i - drpot % lb ( 3 )
+    IF ( ii < 0 ) THEN
+      drpot % pz ( ia ) = ii + nb ( 3 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 3 ) ) THEN
+      drpot % pz ( ia ) = ii - nb ( 3 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % pz ( ia ) = ii + 1
+    ENDIF
+  END DO
+
+  IF ( folded ) THEN
+    CALL dg_int_patch_1d ( drpot % r, rhos, force, ns, &
+         drpot % px, drpot % py, drpot % pz )
+  ELSE
+    nc ( 1 ) = drpot % px ( 1 ) - 1
+    nc ( 2 ) = drpot % py ( 1 ) - 1
+    nc ( 3 ) = drpot % pz ( 1 ) - 1
+    CALL dg_int_patch_1d ( drpot % r, rhos, force, ns, nc )
+  END IF
+
+END SUBROUTINE dg_sum_patch_force_arr_1d
+
+!******************************************************************************
+
+SUBROUTINE dg_sum_patch_force_coef_3d ( drpot, rhos, center, force )
 
   IMPLICIT NONE
 
@@ -698,18 +891,96 @@ SUBROUTINE dg_sum_patch_force_coef ( drpot, rhos, center, force )
   END DO
 
   IF ( folded ) THEN
-    CALL dg_int_patch ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
+    CALL dg_int_patch_3d ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
          rhos % pw % cr3d, force, ns, &
          drpot ( 1 ) % px, drpot ( 1 ) % py, drpot ( 1 ) % pz )
   ELSE
     nc ( 1 ) = drpot ( 1 ) % px ( 1 ) - 1
     nc ( 2 ) = drpot ( 1 ) % py ( 1 ) - 1
     nc ( 3 ) = drpot ( 1 ) % pz ( 1 ) - 1
-    CALL dg_int_patch ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
+    CALL dg_int_patch_3d ( drpot ( 1 ) % r, drpot ( 2 ) % r, drpot ( 3 ) % r, &
          rhos % pw % cr3d, force, ns, nc )
   END IF
 
-END SUBROUTINE dg_sum_patch_force_coef
+END SUBROUTINE dg_sum_patch_force_coef_3d
+
+!******************************************************************************
+
+SUBROUTINE dg_sum_patch_force_coef_1d ( drpot, rhos, center, force )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( realspace_grid_type ), TARGET, INTENT ( INOUT ) :: drpot
+  TYPE ( coeff_type ), TARGET, INTENT ( IN ) :: rhos
+  INTEGER, DIMENSION ( 3 ), INTENT ( IN ) :: center
+  REAL ( dbl ), INTENT ( OUT ) :: force
+
+! Locals
+  INTEGER, DIMENSION ( :, : ), POINTER :: bs
+  INTEGER, DIMENSION ( : ), POINTER :: nb
+  INTEGER, DIMENSION ( : ), POINTER :: ns
+  INTEGER, DIMENSION ( 3 ) :: nc
+  INTEGER :: i, j, k, ii, ia
+  LOGICAL :: folded
+
+!------------------------------------------------------------------------------
+  bs => rhos % pw % pw_grid % bounds
+  nb => drpot % npts
+  ns => rhos % pw % pw_grid % npts
+  folded = .FALSE.
+
+  DO i = bs ( 1, 1 ), bs ( 2, 1 )
+    ia = i - bs ( 1, 1 ) + 1
+    ii = center ( 1 ) + i - drpot % lb_local ( 1 )
+    IF ( ii < 0 ) THEN
+      drpot % px ( ia ) = ii + nb ( 1 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 1 ) ) THEN
+      drpot % px ( ia ) = ii - nb ( 1 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % px ( ia ) = ii + 1
+    ENDIF
+  END DO
+  DO i = bs ( 1, 2 ), bs ( 2, 2 )
+    ia = i - bs ( 1, 2 ) + 1
+    ii = center ( 2 ) + i - drpot % lb_local ( 2 )
+    IF ( ii < 0 ) THEN
+      drpot % py ( ia ) = ii + nb ( 2 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 2 ) ) THEN
+      drpot % py ( ia ) = ii - nb ( 2 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % py ( ia ) = ii + 1
+    ENDIF
+  END DO
+  DO i = bs ( 1, 3 ), bs ( 2, 3 )
+    ia = i - bs ( 1, 3 ) + 1
+    ii = center ( 3 ) + i - drpot % lb_local ( 3 )
+    IF ( ii < 0 ) THEN
+      drpot % pz ( ia ) = ii + nb ( 3 ) + 1
+      folded = .TRUE.
+    ELSEIF ( ii >= nb ( 3 ) ) THEN
+      drpot % pz ( ia ) = ii - nb ( 3 ) + 1
+      folded = .TRUE.
+    ELSE
+      drpot % pz ( ia ) = ii + 1
+    ENDIF
+  END DO
+
+  IF ( folded ) THEN
+    CALL dg_int_patch_1d ( drpot % r, rhos % pw % cr3d, force, ns, &
+         drpot % px, drpot % py, drpot % pz )
+  ELSE
+    nc ( 1 ) = drpot % px ( 1 ) - 1
+    nc ( 2 ) = drpot % py ( 1 ) - 1
+    nc ( 3 ) = drpot % pz ( 1 ) - 1
+    CALL dg_int_patch_1d ( drpot % r, rhos % pw % cr3d, force, ns, nc )
+  END IF
+
+END SUBROUTINE dg_sum_patch_force_coef_1d
 
 !******************************************************************************
 
@@ -740,7 +1011,7 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
     n1 = SIZE ( cd, 1 )
     n2 = SIZE ( cd, 2 )
     n3 = SIZE ( cd, 3 )
-    IF ( n1 /= nd(1) .OR. n1 /= nd(1) .OR. n1 /= nd(1) ) THEN
+    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
       DEALLOCATE ( zs, STAT = ierr )
       IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
       DEALLOCATE ( cd, STAT = ierr )
@@ -748,20 +1019,23 @@ SUBROUTINE dg_get_patch_1 ( rho0, rhos1, charge1, ex1, ey1, ez1 )
     ENDIF
   ENDIF
   IF ( .NOT. ALLOCATED ( cd ) ) THEN
-    ALLOCATE ( zs ( nd(1)*nd(2) ), STAT = ierr )
+    ALLOCATE ( zs ( nd ( 1 ) * nd ( 2 ) ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
-    zs = 0._dbl
-    ALLOCATE ( cd ( nd(1),nd(2),nd(3) ), STAT = ierr )
-    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd",n)
-    cd = 0._dbl
+    zs=0._dbl
+    ALLOCATE ( cd ( nd ( 1 ), nd ( 2 ), nd ( 3 ) ), STAT = ierr )
+    IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch", "cd", n )
+    cd=0._dbl
   ENDIF
 
   za = CMPLX ( 0._dbl, 0._dbl, dbl )
   zb = CMPLX ( charge1, 0._dbl, dbl )
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
-  CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+  IF ( rho0 % pw % in_use == PW_REALDATA3D ) &
+      CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+  IF ( rho0 % pw % in_use == PW_COMPLEXDATA3D ) &
+      CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
-  CALL copy_cr ( n, cd, rhos1%pw%cr3d )
+  CALL copy_cr ( n, cd, rhos1 % pw % cr3d )
 
 END SUBROUTINE dg_get_patch_1
 
@@ -795,7 +1069,7 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
     n1 = SIZE ( cd, 1 )
     n2 = SIZE ( cd, 2 )
     n3 = SIZE ( cd, 3 )
-    IF ( n1 /= nd(1) .OR. n1 /= nd(1) .OR. n1 /= nd(1) ) THEN
+    IF ( n1 /= nd ( 1 ) .OR. n2 /= nd ( 2 ) .OR. n3 /= nd ( 3 ) ) THEN
       DEALLOCATE ( zs, STAT = ierr )
       IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs")
       DEALLOCATE ( cd, STAT = ierr )
@@ -805,10 +1079,10 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   IF ( .NOT. ALLOCATED ( cd ) ) THEN
     ALLOCATE ( zs ( nd(1)*nd(2) ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","zs",nd(1)*nd(2))
-    zs = 0._dbl
+    zs=0._dbl
     ALLOCATE ( cd ( nd(1),nd(2),nd(3) ), STAT = ierr )
     IF ( ierr /= 0 ) call stop_memory ( "dg_get_patch","cd",n)
-    cd = 0._dbl
+    cd=0._dbl
   ENDIF
 
   za = CMPLX ( 0._dbl, 0._dbl, dbl )
@@ -817,9 +1091,12 @@ SUBROUTINE dg_get_patch_2 ( rho0, rhos1, rhos2, charge1, charge2, &
   za = CMPLX ( 0._dbl, 1._dbl, dbl )
   zb = CMPLX ( charge1, 0._dbl, dbl )
   CALL rankup ( nd, za, cd, zb, ex1, ey1, ez1, zs )
-  CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+  IF ( rho0 % pw % in_use == PW_REALDATA3D ) &
+      CALL vr_x_vc ( n, rho0 % pw % cr3d, cd )
+  IF ( rho0 % pw % in_use == PW_COMPLEXDATA3D ) &
+      CALL vc_x_vc ( n, rho0 % pw % cc3d, cd )
   CALL fft3d ( BWFFT, nd, cd )
-  CALL copy_cri ( n, cd, rhos1%pw%cr3d, rhos2%pw%cr3d )
+  CALL copy_cri ( n, cd, rhos1 % pw % cr3d, rhos2 % pw % cr3d )
 
 END SUBROUTINE dg_get_patch_2
 
@@ -884,7 +1161,7 @@ END SUBROUTINE dg_add_patch_folded
 
 !******************************************************************************
 
-SUBROUTINE dg_int_patch_simple ( rbx, rby, rbz, rs, f, ns, nc )
+SUBROUTINE dg_int_patch_simple_3d ( rbx, rby, rbz, rs, f, ns, nc )
 
   IMPLICIT NONE
 
@@ -914,11 +1191,44 @@ SUBROUTINE dg_int_patch_simple ( rbx, rby, rbz, rs, f, ns, nc )
     END DO
   END DO
 
-END SUBROUTINE dg_int_patch_simple
+END SUBROUTINE dg_int_patch_simple_3d
 
 !******************************************************************************
 
-SUBROUTINE dg_int_patch_folded ( rbx, rby, rbz, rs, f, ns, px, py, pz )
+SUBROUTINE dg_int_patch_simple_1d ( rb, rs, f, ns, nc )
+
+  IMPLICIT NONE
+
+! Arguments
+  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rb
+  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rs
+  REAL ( dbl ), INTENT ( OUT ) :: f
+  INTEGER, INTENT ( IN ) :: ns ( 3 ), nc ( 3 )
+
+! LOCAL
+  INTEGER :: i, j, k, ii, jj, kk
+  REAL ( dbl ) :: s
+
+!------------------------------------------------------------------------------
+
+  f = 0._dbl
+  DO k = 1, ns ( 3 )
+    kk = nc ( 3 ) + k
+    DO j = 1, ns ( 2 )
+      jj = nc ( 2 ) + j
+      DO i = 1, ns ( 1 )
+        ii = nc ( 1 ) + i
+        s = rs ( i, j, k )
+        f = f  + s * rb ( ii, jj, kk )
+      END DO
+    END DO
+  END DO
+
+END SUBROUTINE dg_int_patch_simple_1d
+
+!******************************************************************************
+
+SUBROUTINE dg_int_patch_folded_3d ( rbx, rby, rbz, rs, f, ns, px, py, pz )
 
   IMPLICIT NONE
 
@@ -949,7 +1259,41 @@ SUBROUTINE dg_int_patch_folded ( rbx, rby, rbz, rs, f, ns, px, py, pz )
     END DO
   END DO
 
-END SUBROUTINE dg_int_patch_folded
+END SUBROUTINE dg_int_patch_folded_3d
+
+!******************************************************************************
+
+SUBROUTINE dg_int_patch_folded_1d ( rb, rs, f, ns, px, py, pz )
+
+  IMPLICIT NONE
+
+! Arguments
+  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rb
+  REAL ( dbl ), DIMENSION (:,:,:), INTENT ( IN ) :: rs
+  REAL ( dbl ), INTENT ( INOUT ) :: f
+  INTEGER, INTENT ( IN ) :: ns ( 3 )
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: px, py, pz
+
+! LOCAL
+  INTEGER :: i, j, k, ii, jj, kk
+  REAL ( dbl ) :: s
+
+!------------------------------------------------------------------------------
+
+  f = 0._dbl
+  DO k = 1, ns ( 3 )
+    kk = pz ( k )
+    DO j = 1, ns ( 2 )
+      jj = py ( j )
+      DO i = 1, ns ( 1 )
+        ii = px ( i )
+        s = rs ( i, j, k )
+        f = f + s * rb ( ii, jj, kk )
+      END DO
+    END DO
+  END DO
+
+END SUBROUTINE dg_int_patch_folded_1d
 
 !******************************************************************************
 

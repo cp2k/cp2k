@@ -17,10 +17,20 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE amoeba
+ MODULE amoeba
 
   USE kinds, ONLY : dbl
   USE nrutil, ONLY : assert_eq, imaxloc, iminloc, nrerror, swap
+  USE structure_types, ONLY : structure_type
+  USE pair_potential, ONLY : potentialparm_type
+  USE particle_types, ONLY : particle_prop_type
+  USE md, ONLY : simulation_parameters_type, thermodynamic_type
+  USE fit_parameters_types, ONLY : fit_parameter_type, linklist_parameters_type, &
+                                   fit_info_type
+  USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE global_types, ONLY : global_environment_type
+  USE simulation_cell, ONLY : cell_type
+
 
   IMPLICIT NONE
 
@@ -49,29 +59,68 @@ CONTAINS
 !   NUMERICAL RECIPIES SUBROUTINE AMOEBA ADAPTED FOR USE IN CP2K              !
 !-----------------------------------------------------------------------------!
 
-SUBROUTINE amoeba_evaluate ( p, y, ftol, rtol, func, itmax )
+  SUBROUTINE amoeba_evaluate ( p, y, rtol, struc, thermo, potparm, simpar, &
+           fit_param, box_ref, finfo, param, pstat, ewald_param, globenv, func )
 
   IMPLICIT NONE
 
 ! Arguments
   REAL (dbl), DIMENSION (:,:), INTENT (INOUT) :: p
   REAL (dbl), DIMENSION (:), INTENT (INOUT) :: y
-  REAL (dbl), INTENT (IN) :: ftol
   REAL (dbl), INTENT ( OUT ) :: rtol
-  INTEGER, INTENT ( IN ) :: itmax
+  TYPE (structure_type), INTENT (INOUT) :: struc
+  TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
+  TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
+  TYPE (simulation_parameters_type), INTENT (IN) :: simpar
+  TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
+  TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
+  TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
+  TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param 
+  TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
 
 ! Interface
   INTERFACE
-     FUNCTION func ( x )
-       USE kinds, ONLY : dbl
-       IMPLICIT NONE
-       REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: x
-       REAL ( dbl ) :: func
+     FUNCTION func ( x ,struc,potparm,thermo,simpar,fit_param,box_ref,&
+       finfo,param,pstat,ewald_param, globenv)
+       
+      USE kinds, ONLY : dbl
+      USE structure_types, ONLY : structure_type
+      USE pair_potential, ONLY : potentialparm_type
+      USE particle_types, ONLY : particle_prop_type
+      USE md, ONLY : simulation_parameters_type, thermodynamic_type
+      USE fit_parameters_types, ONLY : fit_parameter_type, linklist_parameters_type, &
+                                       fit_info_type
+      USE ewald_parameters_types, ONLY : ewald_parameters_type
+      USE global_types, ONLY : global_environment_type
+      USE simulation_cell, ONLY : cell_type
+
+  
+      IMPLICIT NONE
+      TYPE (structure_type), INTENT (INOUT) :: struc
+      TYPE (potentialparm_type), DIMENSION (:,:), INTENT (INOUT) :: potparm
+      TYPE (thermodynamic_type), INTENT (INOUT) :: thermo
+      TYPE (simulation_parameters_type), INTENT (IN) :: simpar
+      REAL (dbl), INTENT (IN), DIMENSION (:) :: x
+      TYPE (fit_parameter_type), INTENT(INOUT) :: fit_param
+      TYPE (cell_type) , POINTER, DIMENSION (:) :: box_ref
+      TYPE (fit_info_type), DIMENSION (:,:), POINTER :: finfo
+      TYPE (linklist_parameters_type ), INTENT(INOUT), DIMENSION ( :, : ) :: param 
+      TYPE (particle_prop_type ), DIMENSION ( : ), POINTER :: pstat 
+      TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param  
+      TYPE ( global_environment_type), INTENT ( IN ) :: globenv
+      REAL ( dbl ) :: func
      END FUNCTION func
+
   END INTERFACE
 
-  INTEGER :: ihi, ndim
-  REAL (dbl), DIMENSION (size(p,2)) :: psum
+  INTEGER :: ihi, ndim, itmax
+  REAL (dbl), DIMENSION (size(p,2)) :: psum 
+  REAL  (dbl) :: ftol
+
+  ftol = fit_param % max_tol
+  itmax = fit_param % iwrite
 
   CALL amoeba_private()
 
@@ -114,7 +163,8 @@ CONTAINS
           IF (ytry>=ysave) THEN
              p(:,:) = 0.5_dbl*(p(:,:)+spread(p(ilo,:),1,size(p,1)))
              DO i = 1, ndim + 1
-                IF (i/=ilo) y(i) = func(p(i,:))
+                IF (i/=ilo) y(i) = func(p(i,:),struc,potparm,thermo,simpar,fit_param,&
+                 box_ref,finfo,param, pstat, ewald_param, globenv)
              END DO
              iter = iter + ndim
              psum(:) = sum(p(:,:),dim=1)
@@ -134,7 +184,8 @@ CONTAINS
     fac1 = (1.0_dbl-fac)/ndim
     fac2 = fac1 - fac
     ptry(:) = psum(:)*fac1 - p(ihi,:)*fac2
-    ytry = func(ptry)
+    ytry = func(ptry,struc,potparm,thermo,simpar,fit_param,&
+               box_ref,finfo,param, pstat, ewald_param, globenv)
     IF (ytry<y(ihi)) THEN
        y(ihi) = ytry
        psum(:) = psum(:) - p(ihi,:) + ptry(:)

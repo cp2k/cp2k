@@ -78,7 +78,7 @@ PROGRAM cp2k
      CALL stop_program ( "cp2k", "No valid program name given "&
                          //globenv % program_name )
 
-  CASE ( "FIST", "TBMD", "WAVE" )
+  CASE ( "FIST", "TBMD", "WAVE", "FIT", "POL" )
 
      CALL control ( globenv )
 

@@ -235,7 +235,6 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   n1 = n(1)
   n2 = n(2)
   n3 = n(3)
-
   IF ( PRESENT ( zg_out ) ) THEN
      fft_in_place = .false.
      zgout => zg_out

@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****s* cp2k/pw_types [1.0] *
+!!***** cp2k/pw_types [1.0] *
 !!
 !!   NAME
 !!     pw_types
@@ -593,7 +593,8 @@ END SUBROUTINE pw_transfer
 !!     apsi
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     CJM (23-May-01)  : check for pw_grid % identifier, allow copy if 
+!!       in_use == COMPLEXDATA1D and in_space == RECIPROCALSPACE
 !!
 !!   NOTES
 !!     Currently only adding of respective types allowed,
@@ -611,33 +612,59 @@ SUBROUTINE pw_add ( pw1, pw2, pw3 )
   TYPE ( pw_type ), INTENT ( INOUT ) :: pw3
   
 ! Local
-  INTEGER :: handle
+  INTEGER :: handle, ng3, ng2, ng1, ng
   REAL ( dbl ) :: flop
   
 !------------------------------------------------------------------------------
   
   CALL timeset ( 'PW_ADD', 'I', 'Mflops', handle )
+  IF ( pw3 % pw_grid % identifier /= pw2 % pw_grid % identifier .OR. &
+       pw3 % pw_grid % identifier /= pw1 % pw_grid % identifier  ) THEN
 
-  IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
-       pw3 % in_use == REALDATA1D ) THEN
-     pw3 % cr = pw1 % cr + pw2 % cr
-     flop = REAL ( SIZE ( pw2 % cr ), dbl )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
-       pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
-     pw3 % cc = pw1 % cc + pw2 % cc
-     flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
-  ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
-       pw3 % in_use == REALDATA3D ) THEN
-     pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
-     flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
-  ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
-       pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
-     pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
-     flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
-  ELSE
-     CALL stop_program ( "pw_add", "no suitable data field" )
+    IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+         pw2 % in_use == COMPLEXDATA1D .AND. &
+         pw3 % in_use == COMPLEXDATA1D .AND. &
+         pw1 % in_space == RECIPROCALSPACE .AND. &
+         pw2 % in_space == RECIPROCALSPACE ) THEN
+       ng1 = SIZE ( pw1 % cc )
+       ng2 = SIZE ( pw2 % cc )
+       ng3 = SIZE ( pw3 % cc )
+       IF ( ( ng3 < ng2 ) .OR. ( ng3 < ng1 ) ) &
+       CALL stop_program ( "pw_add", &
+          "final data field smaller than component data fields" )
+       ng = MIN ( ng1, ng2 )
+       pw3 % cc ( 1:ng ) = pw2 % cc ( 1:ng ) + pw1 % cc ( 1:ng )
+       IF ( ng1 > ng )  pw3 % cc ( ng+1:ng1 ) = pw1 % cc ( ng+1:ng1 )
+       IF ( ng2 > ng )  pw3 % cc ( ng+1:ng2 ) = pw2 % cc ( ng+1:ng2 )
+       IF ( ( ng3 > ng1 ) .AND. ( ng3 > ng2 ) ) THEN 
+         ng = MAX ( ng1, ng2 )
+         pw3 % cc ( ng+1:ng3 ) = CMPLX ( 0._dbl, 0._dbl, dbl )
+       ENDIF
+       flop = ng3
+    ELSE
+       CALL stop_program ( "pw_add", "no suitable data field" )
+    END IF
+  ELSE 
+    IF ( pw1 % in_use == REALDATA1D .AND. pw2 % in_use == REALDATA1D .AND. &
+         pw3 % in_use == REALDATA1D ) THEN
+       pw3 % cr = pw1 % cr + pw2 % cr
+       flop = REAL ( SIZE ( pw2 % cr ), dbl )
+    ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
+         pw2 % in_use == COMPLEXDATA1D .AND. pw3 % in_use == COMPLEXDATA1D ) THEN
+       pw3 % cc = pw1 % cc + pw2 % cc
+       flop = REAL ( 2 * SIZE ( pw2 % cc ), dbl )
+    ELSE IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D .AND. &
+         pw3 % in_use == REALDATA3D ) THEN
+       pw3 % cr3d = pw1 % cr3d + pw2 % cr3d
+       flop = REAL ( SIZE ( pw2 % cr3d ), dbl )
+    ELSE IF ( pw1 % in_use == COMPLEXDATA3D .AND. &
+         pw2 % in_use == COMPLEXDATA3D .AND. pw3 % in_use == COMPLEXDATA3D ) THEN
+       pw3 % cc3d = pw1 % cc3d + pw2 % cc3d
+       flop = REAL ( 2 * SIZE ( pw2 % cc3d ), dbl )
+    ELSE
+       CALL stop_program ( "pw_add", "no suitable data field" )
+    END IF
   END IF
-
   flop = flop * 1.e-6_dbl
   CALL timestop ( flop, handle )
   

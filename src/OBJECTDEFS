@@ -6,6 +6,7 @@ OBJECTS_GENERIC =\
  ai_overlap_ppl.o\
  ai_verfc.o\
  amoeba.o\
+ ao_types.o\
  atom_module.o\
  atomic_kinds.o\
  atoms.o\
@@ -16,6 +17,7 @@ OBJECTS_GENERIC =\
  brillouin.o\
  cell_parameters.o\
  cntl_input.o\
+ coefficient_lists.o\
  coefficient_types.o\
  coefficients.o\
  collocate_density.o\
@@ -42,6 +44,7 @@ OBJECTS_GENERIC =\
  ewald_parameters_types.o\
  ewalds.o\
  external_potential_types.o\
+ extended_system_types.o\
  fermi.o\
  fft_tools.o\
  fftessl_lib.o\
@@ -53,9 +56,16 @@ OBJECTS_GENERIC =\
  fist_force_numer.o\
  fist_intra_force.o\
  fist_nonbond_force.o\
+ fit_force_control.o\
+ fit_input.o\
+ fit_module.o\
+ fit_parameters_types.o\
+ fit_types.o\
+ fit_utilities.o\
  force_control.o\
  force_fields.o\
  functionals.o\
+ function_amoeba.o\
  gamma.o\
  global_types.o\
  greens_fn.o\
@@ -64,7 +74,7 @@ OBJECTS_GENERIC =\
  initialize_extended_types.o\
  initialize_molecule_types.o\
  initialize_particle_types.o\
- initialize_pimd_types.o \
+ initialize_pimd_types.o\
  input_types.o\
  input_utilities.o\
  integrate_potential.o\
@@ -77,9 +87,11 @@ OBJECTS_GENERIC =\
  kpoints.o\
  lapack.o\
  library_tests.o\
+ linear_systems.o\
  linklist_cell_list.o\
  linklist_cell_types.o\
  linklist_control.o\
+ linklist_overlap_list.o\
  linklist_types.o\
  linklist_utilities.o\
  linklist_verlet_list.o\
@@ -117,6 +129,11 @@ OBJECTS_GENERIC =\
  periodic_table.o\
  physcon.o\
  pme.o\
+ pol_coefs.o\
+ pol_electrostatics.o\
+ pol_force.o\
+ pol_grids.o\
+ pol_setup.o\
  potential_types.o\
  potentials.o\
  print_keys.o\
@@ -132,8 +149,8 @@ OBJECTS_GENERIC =\
  radial_poisson.o\
  radial_solver.o\
  radial_util.o\
- read_pimd.o\
  readin.o\
+ read_pimd.o\
  realspace_grid_types.o\
  simulation_cell.o\
  slater_koster.o\
@@ -156,7 +173,7 @@ OBJECTS_GENERIC =\
  termination.o\
  timesl.o\
  timings.o\
- transformations.o \
+ transformations.o\
  unit.o\
  util.o\
  wf_types.o\

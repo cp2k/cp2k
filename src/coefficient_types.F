@@ -21,6 +21,7 @@
 MODULE coefficient_types
 
   USE kinds, ONLY : dbl
+  USE ao_types, ONLY : ao_type
   USE pw_grid_types, ONLY : pw_grid_type
   USE pw_types, ONLY : pw_type, pw_zero, pw_copy, &
        pw_add, pw_sumup, pw_subtract, pw_reduce, &
@@ -43,6 +44,7 @@ MODULE coefficient_types
   TYPE coeff_type
      INTEGER :: in_use
      TYPE ( pw_type ) :: pw
+     TYPE ( ao_type ) :: ao  
   END TYPE coeff_type
 
   ! Flags for the structure member 'in_use'
@@ -344,7 +346,11 @@ SUBROUTINE coeff_transform_c1c2 ( c1, c2, debug )
 
 !..check if we are dealing with plane waves and call the correct routine
   IF ( c1 % in_use == PLANEWAVES  .AND. c2 % in_use == PLANEWAVES ) THEN
-    CALL pw_fft_wrap ( c1 % pw, c2 % pw, debug )
+    IF ( PRESENT ( debug ) ) THEN
+      CALL pw_fft_wrap ( c1 % pw, c2 % pw, debug )
+    ELSE
+      CALL pw_fft_wrap ( c1 % pw, c2 % pw )
+    END IF
   ELSE
     CALL stop_program ( "coeff_transform_c1c2", "not implemented")
   END IF

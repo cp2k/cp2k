@@ -36,11 +36,15 @@ MODULE particle_types
 
   TYPE particle_type
      INTEGER :: iatom
+     INTEGER ::  grid_id 
+     INTEGER ::  node 
      REAL ( dbl ), DIMENSION (3) :: r
      REAL ( dbl ), DIMENSION (3) :: f
      REAL ( dbl ), DIMENSION (3) :: v
      TYPE (particle_prop_type ), POINTER :: prop
      TYPE ( cell_neighborlist_type ), POINTER :: cell
+     TYPE ( cell_neighborlist_type ), POINTER :: cell_ol
+     INTEGER, DIMENSION(:), POINTER :: coef_list 
   END TYPE particle_type
 
 END MODULE particle_types

@@ -19,6 +19,7 @@ MODULE dg_types
 
   USE dg_rho0s, ONLY : dg_rho0_type
   USE particle_lists, ONLY : particle_list_type
+  USE coefficient_lists, ONLY : coef_list_type
 
   IMPLICIT NONE
 
@@ -26,8 +27,10 @@ MODULE dg_types
   TYPE dg_type
     INTEGER :: grid_index
     INTEGER :: nparts
+    INTEGER :: ncoefs
     TYPE ( dg_rho0_type ) :: dg_rho0
     TYPE ( particle_list_type ), POINTER :: plist
+    TYPE ( coef_list_type ), POINTER :: clist
   END TYPE dg_type
 
   PRIVATE

@@ -96,7 +96,7 @@ CONTAINS
     ab ( 4, i ) = ab ( 4, i ) * ww
   END DO
 
-  CALL dgbsv ( n, 1, 1, 1, ab, 4, ipiv, s, n, info )
+  CALL DGBSV ( n, 1, 1, 1, ab, 4, ipiv, s, n, info )
   IF ( info /= 0 ) call stop_program ( "numerov", "DGBSV: info /= 0" )
   g ( 1:n ) = s ( 1:n )
 

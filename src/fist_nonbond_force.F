@@ -312,7 +312,6 @@ SUBROUTINE bonded_correct_gaussian ( ewald_param, molecule, v_bonded_corr, &
   v_bonded_corr = 0.0_dbl
 
 !
-! return !wdbg
 !
   alpha = ewald_param % alpha
   const = 2.0_dbl * alpha / SQRT( pi )

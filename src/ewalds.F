@@ -21,7 +21,7 @@
 MODULE ewalds
 
   USE coefficient_types, ONLY : coeff_type
-  USE dgs, ONLY : dg_grid_setup
+  USE dgs, ONLY : dg_pme_grid_setup
   USE dg_types, ONLY : dg_type
   USE dg_rho0s, ONLY : dg_rho0_setup
   USE ewald_parameters_types, ONLY : ewald_parameters_type
@@ -32,7 +32,7 @@ MODULE ewalds
   USE molecule_types, ONLY : particle_node_type
   USE message_passing, ONLY : mp_sum
   USE particle_types, ONLY : particle_type
-  USE particle_lists, ONLY : particle_list_select
+  USE particle_lists, ONLY : particle_list_ewald
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup, pw_grid_construct
   USE realspace_grid_types, ONLY : realspace_grid_type, rs_grid_setup
@@ -518,7 +518,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 
         npts_s ( : ) = ewald_param % ns_max
 
-        CALL dg_grid_setup ( box, npts_s, ewald_param % epsilon, &
+        CALL dg_pme_grid_setup ( box, npts_s, ewald_param % epsilon, &
              ewald_param % alpha, pme_small_grid, &
              pme_big_grid, ewald_param % ewald_type, pnode_grp )
 
@@ -526,7 +526,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
              pnode_grp % scr )
 
         ! set up a list with all particles having a chage
-        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
+        CALL particle_list_ewald ( pnode, dg % plist, dg % nparts )
 
         IF ( pnode_grp % ionode ) THEN
           WRITE ( iw, '( A,T71,E10.4 )' ) &
@@ -556,7 +556,7 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
         CALL rs_grid_setup ( rs, spme_grid, npts_s, pnode_grp % scr )
 
         ! set up a list with all particles having a chage
-        CALL particle_list_select ( pnode, dg % plist, dg % nparts )
+        CALL particle_list_ewald ( pnode, dg % plist, dg % nparts )
 
      END IF
 
