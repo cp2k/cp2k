@@ -308,7 +308,8 @@ contains
 
     call timeset(routineN,"I","",handle)
 
-    nullify(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger)
+    nullify(ao_mo_fm_pools, X, R, b, Ab, Sb, tddfpt_control, logger, &
+            tilde_fm_struct, Atilde%matrix, Us%matrix)
 
     call get_qs_env(qs_env, tddfpt_control=tddfpt_control)
     logger    => cp_error_get_logger(error)
