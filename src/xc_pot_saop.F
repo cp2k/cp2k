@@ -33,6 +33,7 @@ MODULE xc_pot_saop
                                              cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
                                              cp_fm_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
@@ -72,7 +73,8 @@ MODULE xc_pot_saop
 
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE simulation_cell,                 ONLY: cell_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix,&
                                              set_matrix
@@ -180,7 +182,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     mos=molecular_orbitals)
-    xc_control=>dft_control%xc_control
+    xc_control => dft_control%xc_control
     CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
 
     nspins = dft_control%nspins
@@ -424,9 +426,6 @@ CONTAINS
                                   orbital, orbital_g, &
                                   tot_rho_psi, qs_env, error=error)
 
-!TC          This is ok
-!TC          write (*,*) tot_rho_psi, sum(orbital%pw%cr3d)*orbital%pw%pw_grid%dvol
-
 !TC          CALL pw_zero(orbital%pw)
 !TC          CALL pw_zero(orbital_g%pw)
 !TC          CALL calculate_wavefunction(mo_coeff,orb,orbital,orbital_g,qs_env,error)
@@ -435,6 +434,10 @@ CONTAINS
                orbital%pw%cr3d * vxc_tmp(ispin)%pw%cr3d
 
        END DO
+
+       CALL cp_fm_release(single_mo_coeff(ispin)%matrix, error=error)
+       CALL deallocate_matrix(orb_dens(ispin)%matrix)
+
        DEALLOCATE(coeff_col)
 
        DO k=bo(1,3), bo(2,3)
@@ -457,8 +460,6 @@ CONTAINS
 !!TC             END DO
 !!TC          END DO
 !!TC       END DO
-
-!       vxc_SAOP(ispin)%pw%cr3d = vxc_GLLB(ispin)%pw%cr3d
 
     END DO
        
