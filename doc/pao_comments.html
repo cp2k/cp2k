@@ -37,35 +37,35 @@
     <p>At the moment the pao component has different files,
     these are more global:</p>
     <ul>
-      <li><code>qs_prep_globals.h</code> the preprocessor macros for
+      <li><code>cp_prep_globals.h</code> the preprocessor macros for
 	error handling.</li>
-      <li><code>qs_log_handling.F</code> the routines to log, errors,
+      <li><code>cp_log_handling.F</code> the routines to log, errors,
 	notes,... (contains the logger object and routines to convert
 	numbers to strings).</li>
-      <li><code>qs_error_handling.F</code> the routines to perform
+      <li><code>cp_error_handling.F</code> the routines to perform
 	error handling</li>
-      <li><code>qs_output_handling.F</code> the routines to write some
+      <li><code>cp_output_handling.F</code> the routines to write some
 	output data</li>
-      <li><code>qs_pao_lbfgs.F</code> the <a href="http://www.ece.nwu.edu/~ciyou/index.html#lbfgs">lbfgs quasi newton optimizer</a>
+      <li><code>cp_lbfgs.F</code> the <a href="http://www.ece.nwu.edu/~ciyou/index.html#lbfgs">lbfgs quasi newton optimizer</a>
 	used by the pao method</li>
     </ul>
     <p>and these are more pao related:</p>
     <ul>
-      <li><code>qs_pao_types.F</code> all the (global) types that are
+      <li><code>cp_pao_types.F</code> all the (global) types that are
 	related to the pao method</li>
-      <li><code>qs_pao_types_tests.F</code> some tests for the pao
+      <li><code>cp_pao_types_tests.F</code> some tests for the pao
 	types</li>
-      <li><code>qs_pao_utils.F</code> various utility routines, some
+      <li><code>cp_pao_utils.F</code> various utility routines, some
 	are quite general and should be moved to a less pao specific
 	place</li>
-      <li><code>qs_plain_rot.F</code> the plain rotation routines, and
+      <li><code>cp_plain_rot.F</code> the plain rotation routines, and
 	the one that calculates the unitary trasformation with
 	them</li>
-      <li><code>qs_plain_rot_tests.F</code> some tests forthe plain
+      <li><code>cp_plain_rot_tests.F</code> some tests forthe plain
 	rotations</li>
-      <li><code>qs_pao_obj_function.F</code> the functional (objective
+      <li><code>cp_pao_obj_function.F</code> the functional (objective
 	function) that pao tries to optimize</li>
-      <li><code>qs_pao_optimizer.F</code> the code that optimizes the
+      <li><code>cp_pao_optimizer.F</code> the code that optimizes the
 	objective function (calling the real optimizer)</li>
     </ul>
     <h2>Developement Environement and guidelines</h2>
@@ -542,7 +542,7 @@
     <address><a href="mailto:fawzi@cscs.ch">Mohamed Fawzi (CSCS)</a></address>
 <!-- Created: Wed Jan 23 16:39:59 CET 2002 -->
 <!-- hhmts start -->
-Last modified: Thu Feb  7 10:13:13 CET 2002
+Last modified: Tue Apr 16 18:26:37 CEST 2002
 <!-- hhmts end -->
   </body>
 </html>
