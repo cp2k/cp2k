@@ -637,7 +637,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_3d_r_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_3d_r_type), INTENT(in), TARGET :: sll
+    TYPE(cp_sll_3d_r_type), pointer :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER ::res
 

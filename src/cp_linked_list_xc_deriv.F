@@ -652,7 +652,7 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
   FUNCTION cp_sll_xc_deriv_get_length(sll,error) RESULT(res)
-    TYPE(cp_sll_xc_deriv_type), INTENT(in), TARGET :: sll
+    TYPE(cp_sll_xc_deriv_type), pointer :: sll
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     INTEGER ::res
 
