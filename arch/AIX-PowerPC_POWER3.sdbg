@@ -9,7 +9,7 @@ CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -C -g -qarch=pwr3 -qfullpath\
            -qflttrap=overflow:zerodivide:enable -qinitauto=FF\
            -qnointlog -qnosave -qsigtrap -qtune=pwr3
-LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3/32 -bmaxdata:0x40000000 -bnoquiet
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -bmaxdata:0x40000000 -bnoquiet
 LIBS     = -llapack3 -lessl -lhmd
 
 OBJECTS_ARCHITECTURE = machine_aix.o

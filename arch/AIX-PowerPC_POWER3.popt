@@ -8,8 +8,8 @@ DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL\
            -D__parallel -D__BLACS -D__SCALAPACK
 CPPFLAGS = -C $(DFLAGS) -P
 FCFLAGS  = -O2 -qarch=pwr3 -qcache=auto -qmaxmem=-1 -qtune=pwr3
-LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/SP3/32 -bmaxdata:0x80000000 -bnoquiet
+LDFLAGS  = $(FCFLAGS) -L/users/krack/lib/32 -bmaxdata:0x80000000 -bnoquiet
 LIBS     = -lscalapack -lblacsF77init -lblacs\
-           -llapack3 -lessl -lmass -lhm
+           -llapack3 -lessl -lmass
 
 OBJECTS_ARCHITECTURE = machine_aix.o

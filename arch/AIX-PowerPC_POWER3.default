@@ -30,7 +30,7 @@ OBJECTS_ARCHITECTURE = machine_aix.o
 #
 # ** lapack & blas & (maybe) essl **
 LIBS    += -llapack3 -lessl -lhmd
-LDFLAGS += -L/users/krack/lib/SP3/32
+LDFLAGS += -L/users/krack/lib/32
 # ** ESSL **
 DFLAGS  += -D__ESSL
 
@@ -48,7 +48,7 @@ DFLAGS   += -D__FFTSG
 # library often available on the ibms.
 # it might be used also as blas (in lapack), don't link it twice 
 DFLAGS   += -D__FFTESSL
-#LDFLAGS  += -L/users/krack/lib/SP3/32
+#LDFLAGS  += -L/users/krack/lib/32
 #LIBS     += -lessl
 
 ## ** FFTW **
