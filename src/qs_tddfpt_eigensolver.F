@@ -47,13 +47,6 @@ MODULE qs_tddfpt_eigensolver
                                              qs_environment_type
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
-  USE qs_ot,                           ONLY: qs_ot_new_preconditioner,&
-                                             qs_ot_type
-  USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-  USE qs_ot_scf,                       ONLY: ot_scf_destroy,&
-                                             ot_scf_init,&
-                                             ot_scf_mini,&
-                                             ot_scf_read_input
   USE qs_p_env_methods,                ONLY: p_op_l1,&
                                              p_op_l2,&
                                              p_postortho,&
@@ -538,7 +531,7 @@ CONTAINS
                fm_struct(spin)%struct, mat_name)
           IF (.NOT.ASSOCIATED(vectors(index,spin)%matrix)) &
                CALL stop_program(routineP, &
-               "Could not alloacte "//TRIM(mat_name)//".")
+               "Could not allocate "//TRIM(mat_name)//".")
        END DO
     END DO
 
