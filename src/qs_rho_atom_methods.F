@@ -383,14 +383,14 @@ MODULE qs_rho_atom_methods
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_atom_coeff(qs_env,rho_ao, tddft, tddft_rho_atom)
+  SUBROUTINE calculate_rho_atom_coeff(qs_env, rho_ao, tddfpt, tddfpt_rho_atom)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: rho_ao
-    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddfpt
     TYPE(rho_atom_type), DIMENSION(:), &
-      POINTER, OPTIONAL                      :: tddft_rho_atom
+      POINTER, OPTIONAL                      :: tddfpt_rho_atom
 
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
@@ -445,8 +445,8 @@ MODULE qs_rho_atom_methods
             oce=oce,sab_orb=sab_orb,&
             rho_atom_set=rho_atom)
 
-    IF (PRESENT(tddft)) THEN
-       IF (tddft) rho_atom => tddft_rho_atom
+    IF (PRESENT(tddfpt)) THEN
+       IF (tddfpt) rho_atom => tddfpt_rho_atom
     END IF
 
     nspins=dft_control%nspins
@@ -966,7 +966,7 @@ MODULE qs_rho_atom_methods
 
     ! LOCALS
     INTEGER :: iat, iatom,ikind, ispin, istat, j, max_iso_not0,&
-               maxso, nat, natom, nkind, nr, nset, nsotot, nspins
+               maxso, nat, natom, nkind, nr, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1017,76 +1017,88 @@ MODULE qs_rho_atom_methods
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
               "rho_rad_h,rho_rad_s,vrho_rad_h,vrho_rad_s",4*nspins)
 
+          istat = 0
           DO ispin = 1,nspins
-             NULLIFY(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef)
-             ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(&
-                  1:nr,1:max_iso_not0),STAT=istat)
+
+             NULLIFY(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef, &
+                     rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef, &
+                     rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef, &
+                     rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef)
+
+             ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
+                      rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(1:nr,1:max_iso_not0), &
+                      rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
+                      rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(1:nr,1:max_iso_not0), &
+                      STAT=tmpstat)
+             istat = istat + tmpstat
+
              rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef=0.0_dp
-
-             NULLIFY(rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef)
-             ALLOCATE(rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef(& 
-                  1:nr,1:max_iso_not0),STAT=istat)
              rho_atom_set(iatom)%rho_rad_s(ispin)%r_coef=0.0_dp
-
-             NULLIFY(rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef)
-             ALLOCATE(rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef(&
-                  1:nr,1:max_iso_not0),STAT=istat)
              rho_atom_set(iatom)%vrho_rad_h(ispin)%r_coef=0.0_dp
-
-             NULLIFY(rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef)
-             ALLOCATE(rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef(& 
-                  1:nr,1:max_iso_not0),STAT=istat)
              rho_atom_set(iatom)%vrho_rad_s(ispin)%r_coef=0.0_dp
+
           END DO
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
               "r_coef of rho_rad_h,rho_rad_s,vrho_rad_h,vrho_rad_s",&
               4*nr*max_iso_not0*nspins*dp_size)
 
-          ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%cpc_s(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%drho_rad_h(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%drho_rad_s(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%rho_rad_h_d(3,nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%rho_rad_s_d(3,nspins),STAT=istat)
+          ALLOCATE (rho_atom_set(iatom)%cpc_h(nspins), &
+                    rho_atom_set(iatom)%cpc_s(nspins), &
+                    rho_atom_set(iatom)%drho_rad_h(nspins), &
+                    rho_atom_set(iatom)%drho_rad_s(nspins), &
+                    rho_atom_set(iatom)%rho_rad_h_d(3,nspins), &
+                    rho_atom_set(iatom)%rho_rad_s_d(3,nspins), &
+                    STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
               "cpc_h,cpc_s,drho_rad_h,drho_rad_s,rho_rad_h_d,rho_rad_s_d")
 
-          ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins),STAT=istat)
-          ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins),STAT=istat)
+          ALLOCATE (rho_atom_set(iatom)%ga_Vlocal_gb_h(nspins), &
+                    rho_atom_set(iatom)%ga_Vlocal_gb_s(nspins), &
+                    STAT=istat)
           IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
               "ga_Vlocal_gb_h,ga_Vlocal_gb_s")
 
-          IF( paw_atom) THEN 
-             DO ispin = 1,nspins
-                NULLIFY(rho_atom_set(iatom)%cpc_h(ispin)%r_coef)
-                ALLOCATE(rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
 
-                NULLIFY(rho_atom_set(iatom)%cpc_s(ispin)%r_coef)
-                ALLOCATE(rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsotot,1:nsotot),STAT=istat)
+          IF (paw_atom) THEN 
+             istat = 0
+             DO ispin = 1,nspins
+                NULLIFY(rho_atom_set(iatom)%cpc_h(ispin)%r_coef, &
+                        rho_atom_set(iatom)%cpc_s(ispin)%r_coef, &
+                        rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef, &
+                        rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
+                ALLOCATE(rho_atom_set(iatom)%cpc_h(ispin)%r_coef(1:nsotot,1:nsotot), &
+                         rho_atom_set(iatom)%cpc_s(ispin)%r_coef(1:nsotot,1:nsotot), &
+                         rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef(nr,max_iso_not0), &
+                         rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr,max_iso_not0), &
+                         STAT=tmpstat)
+                istat = istat + tmpstat
 
                 rho_atom_set(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
                 rho_atom_set(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
-
-                NULLIFY(rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef)
-                ALLOCATE(rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef(nr,max_iso_not0),STAT=istat)
-
-                NULLIFY(rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef)
-                ALLOCATE(rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef(nr,max_iso_not0),STAT=istat)
+                rho_atom_set(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
+                rho_atom_set(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
 
                 DO j = 1,3
-                   NULLIFY(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef)
-                   ALLOCATE(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef(nr,max_iso_not0),STAT=istat)
-                   NULLIFY(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef)
-                   ALLOCATE(rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef(nr,max_iso_not0),STAT=istat)
+                   NULLIFY(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef, &
+                           rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef)
+                   ALLOCATE(rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef(nr,max_iso_not0), &
+                            rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef(nr,max_iso_not0), &
+                            STAT=tmpstat)
+                   istat = istat + tmpstat
+                   rho_atom_set(iatom)%rho_rad_h_d(j,ispin)%r_coef = 0.0_dp
+                   rho_atom_set(iatom)%rho_rad_s_d(j,ispin)%r_coef = 0.0_dp
                 END DO
 
                 NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef)
-                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
-                     1,nsotot,1,nsotot)
                 NULLIFY(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef)
-                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
-                     1,nsotot,1,nsotot)
 
+                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef,&
+                                1,nsotot,1,nsotot)
+                CALL reallocate(rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef,&
+                                1,nsotot,1,nsotot)
+
+                rho_atom_set(iatom)%ga_Vlocal_gb_h(ispin)%r_coef = 0.0_dp
+                rho_atom_set(iatom)%ga_Vlocal_gb_s(ispin)%r_coef = 0.0_dp
              END DO
 
              IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&

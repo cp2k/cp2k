@@ -194,8 +194,7 @@ CONTAINS
     n_spins = qs_env%dft_control%nspins
 
     failure=.FALSE.
-    NULLIFY( ao_mo_fm_pools,&
-         mo_mo_fm_pools)
+    NULLIFY( ao_mo_fm_pools, mo_mo_fm_pools)
     
     ALLOCATE(p_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -863,7 +862,6 @@ END SUBROUTINE p_env_did_change
        CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%Smo_inv(spin)%matrix, tmp, 0.0_dp, res)
     END IF
-
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
     CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, tmp, &
@@ -970,8 +968,8 @@ END SUBROUTINE p_env_did_change
                               qs_env=qs_env, gapw=gapw, error=error)
        IF(gapw) THEN
          CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,&
-                                       tddft=.TRUE.,&
-                                       tddft_rho_atom=p_env%local_rho_set%rho_atom_set)
+                                       tddfpt=.TRUE.,&
+                                       tddfpt_rho_atom=p_env%local_rho_set%rho_atom_set)
        ENDIF
 
        IF (fdiff) THEN
