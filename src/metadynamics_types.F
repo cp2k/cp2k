@@ -18,10 +18,12 @@ MODULE metadynamics_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics_types'
 
-   PUBLIC :: colvar_type, dist_colvar_type,colvar_init, colvar_dealloc_ref
+   PUBLIC :: colvar_type, coord_colvar_type,dist_colvar_type,colvar_init,&
+        colvar_dealloc_ref
    PUBLIC :: hills_env_type, meta_env_type, meta_env_retain, meta_env_release
 
-  INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,dist_colvar_id=1
+  INTEGER, PARAMETER, PUBLIC :: no_colvar_id=-2,dist_colvar_id=1,&
+       coord_colvar_id=2
 
 !!****s* metadynamics/dist_colvar_param [1.0] *
 !!
@@ -47,6 +49,11 @@ MODULE metadynamics_types
   TYPE dist_colvar_type
      INTEGER :: i_at,i_subsys,j_at,j_subsys
   END TYPE dist_colvar_type
+  TYPE coord_colvar_type
+     INTEGER :: n_atoms_to,n_atoms_from,i_subsys,j_subsys,nncrd,ndcrd
+     INTEGER, POINTER, DIMENSION (:) :: i_at_from,i_at_to
+     REAL(dp) :: r_0
+  END TYPE coord_colvar_type
 !!***
   !****************************************************************************
 
@@ -79,6 +86,7 @@ MODULE metadynamics_types
      REAL(kind=dp) :: mass,lambda,ss, ss0, ff_s,vv, vvp, &
                       cv_energy,delta_s,ff_hills
      TYPE(dist_colvar_type) :: dist_param
+     TYPE(coord_colvar_type) :: coord_param
   END TYPE colvar_type
 !!***
   !****************************************************************************
@@ -145,6 +153,14 @@ SUBROUTINE colvar_init(colvar,index,error)
   colvar%dist_param%j_at=-HUGE(0)
   colvar%dist_param%i_subsys=-HUGE(0)
   colvar%dist_param%j_subsys=-HUGE(0)
+  colvar%coord_param%n_atoms_from=-HUGE(0)
+  colvar%coord_param%n_atoms_to=-HUGE(0)
+  colvar%coord_param%i_subsys=-HUGE(0)
+  colvar%coord_param%j_subsys=-HUGE(0)
+  colvar%coord_param%nncrd=6
+  colvar%coord_param%ndcrd=12
+  colvar%coord_param%R_0=3.0_dp
+  nullify(colvar%coord_param%i_at_from,colvar%coord_param%i_at_to)
 
   colvar%ss=0.0_dp
   colvar%ss0=0.0_dp
@@ -183,17 +199,24 @@ SUBROUTINE colvar_dealloc_ref(colvar,error)
       routinep = modulen//':'//routinen
 
     LOGICAL                                  :: failure
+    INTEGER :: stat
 
   failure=.FALSE.
   
   SELECT CASE(colvar%type_id)
   CASE (dist_colvar_id)
+     colvar%dist_param%i_at=-HUGE(0)
+     colvar%dist_param%j_at=-HUGE(0)
+  CASE (coord_colvar_id)
+     colvar%coord_param%n_atoms_from=-HUGE(0)
+     colvar%coord_param%n_atoms_to=-HUGE(0)
+     DEALLOCATE(colvar%coord_param%i_at_from,&
+          colvar%coord_param%i_at_to,stat=stat)
+     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
   CASE(no_colvar_id)
   CASE default
      CPAssert(.FALSE.,cp_failure_level,routinep,error,failure)
   END SELECT
-  colvar%dist_param%i_at=-HUGE(0)
-  colvar%dist_param%j_at=-HUGE(0)
   colvar%index=-HUGE(0)
   colvar%type_id=no_colvar_id
   colvar%mass=-HUGE(0.0_dp)

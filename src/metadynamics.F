@@ -31,7 +31,7 @@ MODULE metadynamics
                                              start_parser,&
                                              stop_parser,&
                                              test_object
-
+  USE convert_units, only: convert_to_cp2k_units
   PRIVATE 
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: modulen='metadynamics'
@@ -124,7 +124,7 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
       routinep = modulen//':'//routinen
 
     CHARACTER(len=3)                         :: test_result
-    CHARACTER(len=default_string_length)     :: keyword
+    CHARACTER(len=default_string_length)     :: keyword, time_units
     INTEGER                                  :: n_colvar
     LOGICAL                                  :: do_hills, failure, &
                                                 section_found
@@ -173,13 +173,19 @@ SUBROUTINE metadyn_read(meta_env,globenv,error)
      do_hills=.FALSE.
      SELECT CASE(keyword)
      CASE("TIMESTEP","TIMESTEP:")
+        time_units='FS'
         CALL read_object(dt)
+        IF (test_object(newline=.FALSE.)=='STR') THEN
+           CALL read_object(time_units,lower_to_upper=.TRUE.,newline=.false.)
+        end if
+        CALL convert_to_cp2k_units (time_units,time=dt)
      END SELECT
   END DO
   CALL finish_parser()
 
   CALL metadyn_create(meta_env,n_colvar=n_colvar,&
        dt=dt,error=error)
+  
   
   CALL start_parser(file_name=globenv%input_file_name,&
        globenv=globenv,&
