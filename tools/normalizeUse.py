@@ -134,9 +134,17 @@ def rewriteUse(inFile,outFile):
         
 
 if __name__ == '__main__':
+    import os.path
     if len(sys.argv)<2:
-        print "usage:", sys.argv[0]," file_in file_out"
+        print "usage:", sys.argv[0]," out_dir file1 [file2 ...]"
     else:
-        infile=open(sys.argv[1],'r')
-        outfile=open(sys.argv[2],'w')
-        rewriteUse(infile,outfile)
+        outDir=sys.argv[1]
+        if not os.path.isdir(outDir):
+            print "out_dir must be a directory"
+            print "usage:", sys.argv[0]," out_dir file1 [file2 ...]"
+        else:
+            for fileName in sys.argv[2:]:
+                infile=open(fileName,'r')
+                outfile=open(os.path.join(outDir,
+                                          os.path.basename(fileName)),'w')
+                rewriteUse(infile,outfile)
