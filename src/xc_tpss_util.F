@@ -379,7 +379,7 @@ CONTAINS
                                  b1p=  1.3981_dbl,&
                                  b2p=  0.2611_dbl
 
-        REAL(dbl)  :: xln,eu,ep,vu,vp,rs1,rs2,oxu,doxu,eu,vu,oxp,doxp,f43
+        REAL(dbl)  :: xln,eu,ep,vu,vp,rs1,rs2,oxu,doxu,oxp,doxp,f43
         REAL(dbl)  :: feta,dfeta
 
 ! -----------------------------------------------------------------------------
