@@ -557,7 +557,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER                                  :: n_electrons, output_unit, ispin
     REAL(dp)                                 :: tot1_h, tot1_s
-    LOGICAL                                  :: ionode
 
     logger => cp_error_get_logger(error)
 
