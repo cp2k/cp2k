@@ -1024,13 +1024,7 @@ CONTAINS
 
 !   *** Add the V(non-local) contribution of the GTH pseudo potential ***
 
-    IF (gth_potential_present) THEN
-      IF (calculate_forces) THEN
-        CALL add_vppnl(p)
-      ELSE
-        CALL add_vppnl()
-      END IF
-    END IF
+    IF (gth_potential_present) CALL add_vppnl(calculate_forces,p)
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
@@ -1123,7 +1117,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_vppnl(p)
+  SUBROUTINE add_vppnl(calculate_forces,p)
 
 !   Purpose: Add the non-local contribution of the GTH pseudo potential to the
 !            core Hamiltonian matrix.
@@ -1133,6 +1127,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(real_matrix_type), OPTIONAL, POINTER :: p
+    LOGICAL, INTENT(IN)                       :: calculate_forces
 
 !   *** Local parameters ***
 
@@ -1149,7 +1144,7 @@ CONTAINS
                 i,iatom,ikind,iset,istat,jatom,jkind,katom,kkind,l,lc_max,&
                 lc_min,lppnl,na,natom,nb,ncoa,ncoc,nppnl,nprjc,nseta,nsgf,&
                 prjc,sgfa
-    LOGICAL  :: calculate_forces,ppnl_present
+    LOGICAL  :: ppnl_present
 
     REAL(wp), DIMENSION(1) :: rprjc,zetc
     INTEGER, DIMENSION(1)  :: first_prj,last_prj
@@ -1184,8 +1179,7 @@ CONTAINS
     CALL allocate_matrix_set(sca,maxder)
     CALL allocate_matrix_set(scb,maxder)
 
-    IF (PRESENT(p)) THEN
-      calculate_forces = .TRUE.
+    IF (calculate_forces) THEN
       ALLOCATE (v_block(maxsgf,maxsgf),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"v_block",maxsgf*maxsgf*wp_size)
       v_block(:,:) = 0.0_wp

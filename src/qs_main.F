@@ -66,7 +66,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
 !   *** Local variables ***
 
@@ -97,7 +97,9 @@ CONTAINS
 
 !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
-    CALL build_core_hamiltonian_matrix(qs_env,globenv,.FALSE.)
+    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
+                                       globenv=globenv,&
+                                       calculate_forces=.FALSE.)
 
 !   *** Perform a SCF run ***
 

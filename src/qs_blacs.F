@@ -3397,11 +3397,12 @@ CONTAINS
 
     IF (PRESENT(formatted)) THEN
        IF (formatted) THEN
-          WRITE (UNIT=lunit,*) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
-                                                            j=1,ncol_local)
+         WRITE (UNIT=lunit,FMT=*)&
+           ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),j=1,ncol_local)
        ELSE
-          WRITE (UNIT=lunit) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
-                                                            j=1,ncol_local)
+          WRITE (UNIT=lunit)&
+            ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
+                                                 j=1,ncol_local)
        ENDIF
     ELSE
           WRITE (UNIT=lunit) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
