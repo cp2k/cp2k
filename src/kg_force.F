@@ -35,19 +35,20 @@ MODULE kg_force
   USE kg_density,                      ONLY: calculate_density,&
                                              calculate_epc_density,&
                                              calculate_epc_rspace_forces,&
+                                             calculate_p_density,&
                                              calculate_total_density,&
-                                             calculate_v_rspace_forces
+                                             calculate_v_rspace_forces,&
+                                             calculate_vp_rspace_forces
   USE kg_energy_types,                 ONLY: init_kg_energy,&
                                              kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: init_kg_force,&
                                              kg_force_type
-!  USE kg_intra,                        ONLY: calculate_ebond_corr
-
-  USE kg_kxc,                          ONLY: calculate_kxc_potential
+  USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
-  USE kg_ppl,                          ONLY: calculate_rho0_ppl
+  USE kg_ppl,                          ONLY: calculate_drho_ppl,&
+                                             calculate_rho0_ppl
   USE kg_rho_types,                    ONLY: kg_rho_type
   USE kinds,                           ONLY: dbl
   USE machine,                         ONLY: m_flush
@@ -60,6 +61,7 @@ MODULE kg_force
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE xc,                              ONLY: xc_calculate_pw1
 
   IMPLICIT NONE
 
@@ -111,12 +113,271 @@ SUBROUTINE kg_force_control ( kg_env, globenv )
   CALL get_kg_env( kg_env=kg_env, dft_control=dft_control)
   kgpol = dft_control % kg_control % polarization
  
-!  IF (kgpol) THEN
-!  CALL kgpol_calculate_forces (kg_env, globenv, debug)
-! ELSE
-   CALL kg_calculate_forces (kg_env, globenv )
-! END IF
+  IF (kgpol) THEN
+    CALL kgpol_calculate_forces (kg_env, globenv)
+  ELSE
+    CALL kg_calculate_forces (kg_env, globenv )
+  END IF
   END SUBROUTINE kg_force_control
+
+
+!******************************************************************************
+!!****** kg_force/kgpol_calculate_forces [1.1] *
+!!
+!!   NAME
+!!     kgpol_calculate_forces
+!!
+!!   FUNCTION
+!!     Calculates the total potential energy, total force
+!!
+!!   AUTHOR
+!!     gt         
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** *************************************************************************
+
+SUBROUTINE kgpol_calculate_forces ( kg_env, globenv )
+
+
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: &
+      routine = "SUBROUTINE kgpol_calculate_forces (MODULE kg_force)"
+
+    INTEGER                                  :: auxbas_grid, handle, i, &
+                                                iatom, ikind, isos, natoms, &
+                                                nkind, output_unit
+    INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: calculate_forces, ionode
+    REAL(dbl)                                :: dvol, e1_xc, e2_xc, &
+                                                total_rho0_rspace, &
+                                                total_rhop_rspace
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_energy_type), POINTER            :: energy
+    TYPE(kg_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(kg_rho_type), POINTER               :: kg_rho_v
+    TYPE(particle_type), POINTER             :: part( : )
+
+!  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
+!  CHARACTER(LEN=8) :: force_type
+!------------------------------------------------------------------------------
+
+  CALL write_checkpoint_information("entering "//routine,globenv)
+  CALL timeset ( 'FORCE','I',' ',handle )
+  ionode=globenv%ionode
+  output_unit=globenv%scr
+  NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
+          kg_rho_v)
+
+  CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
+                    dft_control=dft_control, energy=energy, cell=cell,&
+                    force=force,particle_set=part,rho=kg_rho_v)
+
+  calculate_forces=.TRUE. 
+  natoms = SIZE ( part )
+  nkind = SIZE( atomic_kind_set )
+  isos = 0
+  auxbas_grid=kg_rho_v%auxbas_grid
+  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
+
+  IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
+     ALLOCATE (natom_of_kind(nkind),STAT=isos)
+     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                              natom_of_kind=natom_of_kind)
+  END IF
+
+  CALL build_kg_neighbor_lists(kg_env,globenv)
+
+! initialize forces and energies                    
+ 
+  CALL init_kg_force(force)
+  CALL init_kg_energy(energy)
+
+  DO i = 1, natoms
+     part ( i ) % f ( 1 ) = 0.0_dbl
+     part ( i ) % f ( 2 ) = 0.0_dbl
+     part ( i ) % f ( 3 ) = 0.0_dbl
+  END DO
+
+! self energy 
+  CALL calculate_eself ( kg_env, energy % core_self )
+
+! Calculate the rspace energy of the core charge distribution
+! and its force contributions
+
+  CALL calculate_ecore_rspace(kg_env,globenv,energy%core_overlap,force)
+
+! calculate intramolecular bonded_correction energy  
+
+!  CALL calculate_ebond_corr(kg_env,globenv,energy%e_bond_corr,kg_forces)
+
+! Calculate the local pseudopotential energy         
+
+  CALL calculate_rho0_ppl(kg_env,globenv,calculate_forces)
+  CALL calculate_drho_ppl(kg_env,globenv,calculate_forces)
+
+! Calculate the density generated by the core charges
+
+  CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
+                         kg_rho_v%l_info,&
+                         kg_rho_v%total_rho_core_rspace, kg_env)
+
+! calculate the frozen electronic pseudo density
+
+  CALL calculate_density ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
+            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
+            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
+            kg_rho_v%l_info, total_rho0_rspace, kg_env)
+
+  CALL calculate_p_density(kg_rho_v%rho_p_rspace, kg_rho_v%rho_p_gspace, &
+            kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
+            kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
+            kg_rho_v%l_info, total_rhop_rspace, kg_env )
+
+  CALL coeff_zero(kg_rho_v%v_rspace)
+
+! from the frozen rho, calculate the thomas-fermi and xc potentials
+  CALL xc_calculate_pw1 (kg_rho_v%rho_elec_rspace%pw, kg_rho_v%rho_gspace%pw, &
+                        kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
+                        kg_rho_v%pw_pool)
+
+  CALL calculate_kxc_derivatives(kg_rho_v% pw_pool, & 
+                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
+                                kg_rho_v % rho_p_rspace, kg_rho_v%v_xc_rspace,&
+                                kg_rho_v%v1_xc_rspace, kg_rho_v%v2_xc_rspace,&
+                                e1_xc, e2_xc, dft_control,calculate_forces)
+
+  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
+  energy%exc=energy%exc+e1_xc+e2_xc
+
+! calculate the total density
+  kg_rho_v%total_rho_rspace = total_rho0_rspace+&
+             kg_rho_v%total_rho_core_rspace
+
+! add the core density to the frozen electronic density
+  CALL coeff_sumup(kg_rho_v%rho_core,kg_rho_v%rho_gspace)
+
+  kg_rho_v%total_rho_gspace = calculate_total_density(kg_rho_v%rho_gspace)
+
+! add the polarization density to get the total density
+  CALL coeff_sumup(kg_rho_v%rho_p_gspace,kg_rho_v%rho_gspace)
+
+! calculate electrostatic potential
+  CALL init_pw_poisson_solver(cell%green)
+  CALL calculate_hartree(kg_rho_v%rho_gspace, energy % hartree,&
+           kg_rho_v%v_gspace)
+  CALL cleanup_pw_poisson_solver(cell%green)
+
+!  calclation of the forces on the ions
+
+  CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
+
+  kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
+               dvol*kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+
+  CALL calculate_epc_rspace_forces(kg_rho_v % v_hartree_rspace,&
+                   kg_rho_v%cube_info(1),&
+                   kg_rho_v%l_info, kg_env, force)
+
+  kg_rho_v%v_rspace%pw%cr3d(:,:,:) =&
+               kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
+               kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:) +&
+               kg_rho_v%v2_xc_rspace%pw%cr3d(:,:,:) +&
+               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+
+  CALL calculate_v_rspace_forces(kg_rho_v%v_rspace,kg_rho_v%mgrid_rspace,&
+               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
+               kg_rho_v%gridlevel_info,&
+               kg_rho_v%cube_info, kg_rho_v%l_info,&
+               kg_env, force)
+
+  kg_rho_v%vp_rspace%pw%cr3d(:,:,:) =-1.0_dbl* &
+              (kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
+               kg_rho_v%v1_xc_rspace%pw%cr3d(:,:,:)+&
+               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:))
+
+  CALL calculate_vp_rspace_forces(kg_rho_v%vp_rspace,kg_rho_v%mgrid_rspace,&
+               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
+               kg_rho_v%gridlevel_info,&
+               kg_rho_v%cube_info, kg_rho_v%l_info,&
+               kg_env, calculate_forces)
+
+! add up all the potential energies
+
+  energy % total = energy % core_self + energy % core_overlap + energy % exc + &
+                 energy % hartree + energy % pseudo + energy%ppseudo 
+     
+! print
+    IF (ionode) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,F20.10))")&
+            "Total electronic density (r-space): ",&
+            total_rho0_rspace,  &
+            "Total core charge density (r-space):",&
+            kg_rho_v%total_rho_core_rspace
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            kg_rho_v%total_rho_rspace
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total rho_coefs charge density (r-space):     ",&
+            total_rhop_rspace
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Self energy of the core charge distribution:   ",energy%core_self,&
+            "Pseudopotential  energy:                       ",energy%pseudo,&
+            "Pseudopotential  energy  due to coefs:         ",energy%ppseudo,&
+            "Hartree energy:                                ",energy%hartree,&
+            "Exchange-correlation energy:                   ",energy%exc,&
+            "Total energy:                                  ",energy%total
+       CALL m_flush(output_unit)
+    END IF
+
+! add up all the forces
+
+  DO ikind = 1, nkind         
+    CALL mp_sum(force(ikind)%f_rho,globenv%group)
+!    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
+    CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
+    CALL mp_sum(force(ikind)%f_ppl,globenv%group)
+    force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
+                                force(ikind)%f_rspace_core(:,:) +&
+                                force(ikind)%f_hartree_core(:,:) +&
+                                force(ikind)%f_ppl(:,:) 
+  END DO
+
+
+  DO ikind = 1, nkind         
+    atomic_kind => atomic_kind_set(ikind)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           atom_list=atom_list) 
+    DO iatom=1, SIZE(atom_list)
+      i = atom_list(iatom)
+! fill in the forces in part
+      part(i)%f(1) = force(ikind)%f_total(1,iatom)
+      part(i)%f(2) = force(ikind)%f_total(2,iatom)
+      part(i)%f(3) = force(ikind)%f_total(3,iatom)
+    END DO
+  END DO
+
+! deallocating all local variables
+  IF ( ALLOCATED ( natom_of_kind ) ) THEN
+     DEALLOCATE (natom_of_kind ,STAT=isos)
+     IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
+  END IF
+
+ CALL timestop ( zero, handle )
+ CALL write_checkpoint_information("leaving "//routine,globenv)
+
+END SUBROUTINE kgpol_calculate_forces
 
 
 !******************************************************************************
@@ -145,13 +406,13 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_calculate_forces (MODULE kg_force)"
 
-    INTEGER                                  :: handle, i, iatom, ikind, &
-                                                isos, natoms, nkind, &
-                                                output_unit
+    INTEGER                                  :: auxbas_grid, handle, i, &
+                                                iatom, ikind, isos, natoms, &
+                                                nkind, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:), SAVE :: natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: calculate_forces, ionode
-    REAL(dbl)                                :: exc, total_rho0_rspace
+    REAL(dbl)                                :: dvol, total_rho0_rspace
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -164,6 +425,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
     TYPE(particle_type), POINTER             :: part( : )
 
 !  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
+!  CHARACTER(LEN=8) :: force_type
 !------------------------------------------------------------------------------
 
   CALL write_checkpoint_information("entering "//routine,globenv)
@@ -181,6 +443,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
   natoms = SIZE ( part )
   nkind = SIZE( atomic_kind_set )
   isos = 0
+  auxbas_grid=kg_rho_v%auxbas_grid
+  dvol=kg_rho_v%pw_grid(auxbas_grid)%dvol
 
   IF ( .NOT. ALLOCATED ( natom_of_kind ) ) THEN
      ALLOCATE (natom_of_kind(nkind),STAT=isos)
@@ -230,21 +494,22 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
 
   CALL calculate_epc_density(kg_rho_v%rho_core, kg_rho_v%cube_info(1),&
                          kg_rho_v%l_info,&
-                         kg_rho_v%total_rho_core_rspace, kg_env, globenv)
+                         kg_rho_v%total_rho_core_rspace, kg_env)
 
 ! calculate the frozen electronic pseudo density
 
   CALL calculate_density ( kg_rho_v%rho_elec_rspace, kg_rho_v%rho_gspace, &
             kg_rho_v%mgrid_rspace, kg_rho_v%mgrid_gspace,&
             kg_rho_v%gridlevel_info, kg_rho_v%cube_info,&
-            kg_rho_v%l_info, total_rho0_rspace, kg_env, globenv )
+            kg_rho_v%l_info, total_rho0_rspace, kg_env)
 
 
   CALL coeff_zero(kg_rho_v%v_rspace)
 ! from the frozen rho, calculate the thomas-fermi and xc potentials
-  CALL calculate_kxc_potential (kg_rho_v% pw_pool, & 
-                                kg_rho_v % rho_elec_rspace, kg_rho_v % rho_gspace, &
-                                kg_rho_v%v_xc_rspace, energy % exc, dft_control)
+  CALL xc_calculate_pw1 (kg_rho_v%rho_elec_rspace%pw, kg_rho_v%rho_gspace%pw, &
+                        kg_rho_v%v_xc_rspace%pw, energy%exc, dft_control,&
+                        kg_rho_v%pw_pool)
+  kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) =dvol*kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:)
 
 ! calculate the total density
   kg_rho_v%total_rho_rspace = total_rho0_rspace+&
@@ -267,32 +532,13 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
   CALL coeff_transform_space(kg_rho_v%v_gspace,kg_rho_v%v_hartree_rspace)
 
   kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:) =&
-               kg_rho_v%v_hartree_rspace%pw%pw_grid%dvol*&
-               kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+               dvol*kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
+
 
   CALL calculate_epc_rspace_forces(kg_rho_v % v_hartree_rspace,&
                    kg_rho_v%cube_info(1),&
                    kg_rho_v%l_info, kg_env, force)
 
-! if we are doing debugging calculate separately the contribution
-! to the forces due by tfxc and hartree 
-! else, sumup all the realspace potentials and get the total
-! contribution to the forces
-
-!  IF ( PRESENT ( debug )  ) THEN
-!    force_type = 'hartree'
-!    CALL calculate_v_rspace_forces(kg_rho_v%v_hartree_rspace,kg_rho_v%mgrid_rspace,&
-!               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-!               kg_rho_v%gridlevel_info,&
-!               kg_rho_v%cube_info, kg_rho_v%l_info,&
-!               kg_env, kg_forces, globenv, force_type)
-!    force_type = 'xc'
-!    CALL calculate_v_rspace_forces(kg_rho_v%v_xc_rspace,kg_rho_v%mgrid_rspace,&
-!               kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
-!               kg_rho_v%gridlevel_info,&
-!               kg_rho_v%cube_info, kg_rho_v%l_info,&
-!               kg_env, kg_forces, globenv, force_type)
-!  ELSE 
     kg_rho_v%v_rspace%pw%cr3d(:,:,:) =&
                kg_rho_v%v_xc_rspace%pw%cr3d(:,:,:) +&
                kg_rho_v%v_hartree_rspace%pw%cr3d(:,:,:)
@@ -301,8 +547,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
                kg_rho_v%mgrid_gspace, kg_rho_v%auxbas_grid,&
                kg_rho_v%gridlevel_info,&
                kg_rho_v%cube_info, kg_rho_v%l_info,&
-               kg_env, force, globenv)
-!  END IF
+               kg_env, force)
 
 ! add up all the potential energies
 
@@ -353,32 +598,14 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv )
       part(i)%f(1) = force(ikind)%f_total(1,iatom)
       part(i)%f(2) = force(ikind)%f_total(2,iatom)
       part(i)%f(3) = force(ikind)%f_total(3,iatom)
-! if we are doing debugging, check if variables are present and assign
-!      IF ( PRESENT ( debug )  ) THEN
-!        debug % f_hartree (:,i) = force(ikind)%f_hartree(:,iatom) + &
-!                              force(ikind)%f_hartree_core(:,iatom)
-!       debug % f_rspace_core (:,i) = force(ikind)%f_rspace_core(:,iatom)
-!       debug % f_bc (:,i) = force(ikind)%f_bc(:,iatom)
-!       debug % f_xc (:,i) = force(ikind)%f_xc(:,iatom)
-!       debug % f_ppl (:,i) = force(ikind)%f_ppl(:,iatom)
-!     END IF
     END DO
   END DO
-
-!  IF ( PRESENT ( debug )  ) THEN
-!    debug % pot_hartree = thermo % e_hartree
-!    debug % pot_rspace_core = thermo % e_rspace_core
-!    debug % pot_bond_corr = thermo % e_bond_corr
-!    debug % pot_xc = thermo % e_xc
-!    debug % pot_ppl = thermo % e_ppl
-!  END IF
 
 ! deallocating all local variables
   IF ( ALLOCATED ( natom_of_kind ) ) THEN
      DEALLOCATE (natom_of_kind ,STAT=isos)
      IF (isos /= 0) CALL stop_memory(routine,"natom_of_kind",nkind)
   END IF
-
 ! CALL deallocate_kg_densities ( kg_rho_v, globenv )
 
  CALL timestop ( zero, handle )
@@ -389,5 +616,3 @@ END SUBROUTINE kg_calculate_forces
 !******************************************************************************
 
 END MODULE kg_force  
-
-!******************************************************************************
