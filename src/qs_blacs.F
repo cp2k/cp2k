@@ -436,7 +436,7 @@ CONTAINS
 
     INTEGER, DIMENSION(9) :: desca,descv,descwork,descvecbuf,deschh,descvh,descvv
     INTEGER, DIMENSION(:), POINTER :: ipivot,iwork
-    INTEGER :: n, lipivot, istat, info, i
+    INTEGER :: lipivot, istat, info, i
 
     TYPE(blacs_matrix_type), POINTER          ::  vecbuffer,matrix_overlap_hh
     TYPE(blacs_matrix_type), POINTER          ::  matrix_overlap_vh,matrix_overlap_vv
@@ -444,7 +444,6 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: a,v,work,vecbuf,overlap_hh,overlap_vh
     REAL(wp), DIMENSION(:,:), POINTER :: overlap_vv
     REAL(wp), DIMENSION(:), POINTER :: evwork,evalsl
-    INTEGER, DIMENSION(:), POINTER :: iwork
     REAL(wp) :: rone,rzero
     INTEGER  :: nhigh,nvec,nlow,levwork,liwork,iter,iter_inner
     INTEGER  :: handle,handle_lu,handle_av,handle_trs
