@@ -687,25 +687,21 @@ END SUBROUTINE pw_derive
 !!     Gets the slice on the left and on the right of the pw_grid owned by the current cpu
 !!     user allocates left & right 
 !!
-!!   AUTHOR
-!!     Joost VandeVondele 2004
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   NOTES
-!!
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE pw_get_left_right ( pw, left, right )
+
     TYPE(pw_type), INTENT(IN)                :: pw
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
 
-    INTEGER                                  :: left_cpu, left_x, right_cpu, &
-                                                right_x
-    INTEGER, DIMENSION(:, :), POINTER        :: bl
+    INTEGER                                  :: left_cpu, left_x, &
+                                                right_cpu, right_x
+    INTEGER, DIMENSION(2,3)                  :: bl
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: send
 
-  bl => pw%pw_grid%bounds_local
+!!*****
+
+  bl = pw%pw_grid%bounds_local
   IF ( pw % in_space /= REALSPACE .OR.  pw % in_use /= REALDATA3D ) THEN
      CALL stop_program("pw_get_left_right","wrong pw type")
   ENDIF
@@ -734,7 +730,6 @@ SUBROUTINE pw_get_left_right ( pw, left, right )
 
 END SUBROUTINE pw_get_left_right
 
-!!*****
 !******************************************************************************
 !!****** pw_types/pw_derive_fd [1.0] *
 !!
@@ -753,26 +748,22 @@ END SUBROUTINE pw_get_left_right
 !!     Calculate the derivative of a plane wave vector using finite
 !!     differences. Only for cr3d and order 1 right now.
 !!
-!!   AUTHOR
-!!     Joost VandeVondele 2004
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   NOTES
-!!
 !!   SOURCE
 !******************************************************************************
 
 SUBROUTINE pw_derive_fd ( pw, pw_der, n )
+
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pw_der
     INTEGER, DIMENSION(3), INTENT(IN)        :: n
 
     INTEGER                                  :: handle, i, j, k
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: wrap
-    INTEGER, DIMENSION(:, :), POINTER        :: bl
+    INTEGER, DIMENSION(2,3)                  :: bl
     REAL(dbl)                                :: itwodelta
     REAL(KIND=dbl), DIMENSION(:, :), POINTER :: left, right
+
+!!*****
 
   CALL timeset ( 'pw_derive_fd', 'I', '', handle )
  
@@ -793,7 +784,7 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
      CALL stop_program("pw_derive_fd","wrong pw_der type") 
   ENDIF
 
-  bl => pw%pw_grid%bounds_local
+  bl = pw%pw_grid%bounds_local
  
   ! fully local derivs, z
   IF (n(3) .EQ. 1) THEN
@@ -924,7 +915,6 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
 END SUBROUTINE pw_derive_fd
 
 
-!!*****
 !******************************************************************************
 !!****** pw_types/pw_transfer [1.0] *
 !!
