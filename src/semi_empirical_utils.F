@@ -30,9 +30,12 @@ MODULE semi_empirical_utils
                                              create_gto_from_sto_basis
   USE global_types,                    ONLY: global_environment_type
   USE periodic_table,                  ONLY: ptable
-  USE physcon,                         ONLY: evolt
+  USE physcon,                         ONLY: evolt,kcalmol,angstrom
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_parameters,       ONLY: eht_default_parameter
+  USE semi_empirical_parameters,       ONLY: eht_default_parameter,&
+                                             am1_default_parameter,&
+                                             pm3_default_parameter,&
+                                             mndo_default_parameter
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -95,6 +98,13 @@ CONTAINS
                                      "se_parameter%states",0)
     se_parameter % sto_exponents(:) = -1
 
+    se_parameter % uss = 0._dp
+    se_parameter % upp = 0._dp
+    se_parameter % udd = 0._dp
+    se_parameter % uff = 0._dp
+    se_parameter % alp = 0._dp
+    se_parameter % eisol = 0._dp
+
   END SUBROUTINE allocate_se_param
 
 ! *****************************************************************************
@@ -130,8 +140,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,&
-                          beta,sto_exponents,ngauss)
+  SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
+                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,ngauss)
 
     TYPE(semi_empirical_type), POINTER     :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -141,10 +151,13 @@ CONTAINS
     LOGICAL, INTENT(OUT), OPTIONAL         :: defined
     INTEGER, INTENT(OUT), OPTIONAL         :: z,zeff
     INTEGER, INTENT(OUT), OPTIONAL         :: natorb
+    REAL(KIND = dp), OPTIONAL              :: eheat
     REAL(KIND = dp), DIMENSION(:), POINTER, &
                    OPTIONAL                :: beta
     REAL(KIND = dp), DIMENSION(:), POINTER, &
                    OPTIONAL                :: sto_exponents
+    REAL(KIND = dp), OPTIONAL              :: uss,upp,udd,uff
+    REAL(KIND = dp), OPTIONAL              :: alp,eisol
     INTEGER, INTENT(OUT), OPTIONAL         :: ngauss
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_se_param"
@@ -159,9 +172,16 @@ CONTAINS
       IF (PRESENT(z)) z = se_parameter%z
       IF (PRESENT(zeff)) zeff = se_parameter%zeff
       IF (PRESENT(natorb)) natorb = se_parameter%natorb
+      IF (PRESENT(eheat)) eheat = se_parameter%eheat
       IF (PRESENT(beta)) beta => se_parameter%beta
       IF (PRESENT(sto_exponents)) sto_exponents => se_parameter%sto_exponents
       IF (PRESENT(ngauss)) ngauss = se_parameter%ngauss
+      IF (PRESENT(uss)) uss = se_parameter%uss
+      IF (PRESENT(upp)) upp = se_parameter%upp
+      IF (PRESENT(udd)) udd = se_parameter%udd
+      IF (PRESENT(uff)) uff = se_parameter%uff
+      IF (PRESENT(alp)) alp = se_parameter%alp
+      IF (PRESENT(eisol)) eisol = se_parameter%eisol
 
     ELSE
 
@@ -248,8 +268,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,&
-                          beta,sto_exponents,ngauss)
+  SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
+                          beta,sto_exponents,uss,upp,udd,uff,alp,eisol,ngauss)
 
     TYPE(semi_empirical_type), POINTER     :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -259,10 +279,13 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL         :: defined
     INTEGER, INTENT(IN), OPTIONAL         :: z,zeff
     INTEGER, INTENT(IN), OPTIONAL         :: natorb
-    INTEGER, DIMENSION(:), OPTIONAL       :: beta
+    REAL(KIND = dp), OPTIONAL             :: eheat
+    REAL(dp), DIMENSION(0:), OPTIONAL     :: beta
     REAL(KIND = dp), DIMENSION(:), &
                    OPTIONAL               :: sto_exponents
     INTEGER, INTENT(IN), OPTIONAL         :: ngauss
+    REAL(KIND = dp), OPTIONAL             :: uss,upp,udd,uff
+    REAL(KIND = dp), OPTIONAL             :: alp,eisol
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_se_param"
 
@@ -276,9 +299,16 @@ CONTAINS
       IF (PRESENT(z)) se_parameter%z = z
       IF (PRESENT(zeff)) se_parameter%zeff = zeff
       IF (PRESENT(natorb)) se_parameter%natorb = natorb
+      IF (PRESENT(eheat)) se_parameter%eheat = eheat
       IF (PRESENT(beta)) se_parameter%beta = beta
       IF (PRESENT(sto_exponents)) se_parameter%sto_exponents = sto_exponents
       IF (PRESENT(ngauss)) se_parameter%ngauss = ngauss
+      IF (PRESENT(uss)) se_parameter%uss = uss
+      IF (PRESENT(upp)) se_parameter%upp = upp
+      IF (PRESENT(udd)) se_parameter%udd = udd
+      IF (PRESENT(uff)) se_parameter%uff = uff
+      IF (PRESENT(alp)) se_parameter%alp = alp
+      IF (PRESENT(eisol)) se_parameter%eisol = eisol
 
     ELSE
 
@@ -304,45 +334,143 @@ CONTAINS
     INTEGER                                :: natorb
     REAL(KIND = dp), DIMENSION(:), POINTER :: beta
     REAL(KIND = dp), DIMENSION(:), POINTER :: sexp
-    INTEGER                                :: ngauss
+    INTEGER                                :: ngauss,lm
     INTEGER                                :: output_unit, l
+    REAL(KIND = dp)                        :: uss,upp,udd,uff
+    REAL(KIND = dp), DIMENSION(0:3)        :: u
+    REAL(KIND = dp)                        :: alp,eisol,eheat
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_se_param"
 
 !   ---------------------------------------------------------------------------
 
+!   REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
+!   REAL(KIND = dp)                        :: gsd,gpd,gdd
+!   REAL(KIND = dp)                        :: dd,qq,am,ad,aq
+!   REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
+
     IF (.NOT.globenv%ionode) RETURN
 
     IF (ASSOCIATED(se_parameter).AND.globenv%print%basis_set) THEN
       CALL get_se_param(se_parameter,name=name,typ=typ,defined=defined,&
-                        z=z,zeff=zeff,natorb=natorb,beta=beta,&
-                        sto_exponents=sexp,ngauss=ngauss)
+                        z=z,zeff=zeff,natorb=natorb,eheat=eheat,beta=beta,&
+                        sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
+                        alp=alp,eisol=eisol,&
+                        ngauss=ngauss)
       output_unit = globenv%scr
 
+      u(0) = uss
+      u(1) = upp
+      u(2) = udd
+      u(3) = uff
+
+      lm=-1
+
       SELECT CASE (typ)
-      CASE DEFAULT
-        CALL stop_program(routine_name,module_name,__LINE__,&
-                        "Typ unknown: "//typ)
-      CASE ('EHT')
-        WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
-          " Semi empirical parameters: ","Extended Huckel ",&
-          ADJUSTR(TRIM(name))
-        IF ( defined ) THEN
-          WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
-            "Effective core charge:",zeff, &
-            "Number of orbitals:",natorb, &
-            "Basis set expansion (STO-NG)",ngauss
-          DO l=0,3
-            IF (ABS(beta(l)) > 0._dp) THEN
-              WRITE (UNIT=output_unit,FMT="(T16,A,I2,T48,A,F17.4,/,T47,A,F17.4)") &
-               "Shell: ",l,"Slater exponent:",sexp(l),&
-               "H parameter [eV]:",beta(l)*evolt
-            END IF
-          END DO
-        ELSE
-          WRITE (UNIT=output_unit,FMT="(T55,A)")&
-             "Parameters are not defined"
-        END IF
+        CASE DEFAULT
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                          "Typ unknown: "//typ)
+        CASE ('EHT')
+          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+            " Semi empirical parameters: ","Extended Huckel ",TRIM(name)
+          IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+              "Effective core charge:",zeff, &
+              "Number of orbitals:",natorb, &
+              "Basis set expansion (STO-NG)",ngauss
+            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+            DO l=0,3
+              IF (ABS(beta(l)) > 0._dp) THEN
+                WRITE (UNIT=output_unit,&
+                 FMT="(T16,A,I2,T48,A,F17.4,/,T47,A,F17.4)") &
+                 "Shell: ",l,"Slater exponent:",sexp(l),&
+                 "H parameter [eV]:",beta(l)*evolt
+              END IF
+            END DO
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(T55,A)")&
+               "Parameters are not defined"
+          END IF
+        CASE ('AM1')
+          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+            " Semi empirical parameters: ","Austin Model 1 (AM1)",TRIM(name)
+          IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+              "Effective core charge:",zeff, &
+              "Number of orbitals:",natorb, &
+              "Basis set expansion (STO-NG)",ngauss
+            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+            DO l=0,3
+              IF (ABS(beta(l)) > 0._dp) THEN
+                WRITE (UNIT=output_unit,&
+                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                 "Shell: ",l,"Slater exponent:",sexp(l),&
+                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                lm=l
+              END IF
+            END DO
+            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+               "alp [A^-1]      :",alp/angstrom,&
+               "eisol [eV]      :",eisol*evolt
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(T55,A)")&
+               "Parameters are not defined"
+          END IF
+        CASE ('PM3')
+          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+            " Semi empirical parameters: ","Parametric Method 3 (PM3) ",&
+            TRIM(name)
+          IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+              "Effective core charge:",zeff, &
+              "Number of orbitals:",natorb, &
+              "Basis set expansion (STO-NG)",ngauss
+            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+            DO l=0,3
+              IF (ABS(beta(l)) > 0._dp) THEN
+                WRITE (UNIT=output_unit,&
+                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                 "Shell: ",l,"Slater exponent:",sexp(l),&
+                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                lm=l
+              END IF
+            END DO
+            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+               "alp [A^-1]      :",alp/angstrom,&
+               "eisol [eV]      :",eisol*evolt
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(T55,A)")&
+               "Parameters are not defined"
+          END IF
+        CASE ('MNDO')
+          WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+            " Semi empirical parameters: ","MNDO ",TRIM(name)
+          IF ( defined ) THEN
+            WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+              "Effective core charge:",zeff, &
+              "Number of orbitals:",natorb, &
+              "Basis set expansion (STO-NG)",ngauss
+            WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+              "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+            DO l=0,3
+              IF (ABS(beta(l)) > 0._dp) THEN
+                WRITE (UNIT=output_unit,&
+                 FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                 "Shell: ",l,"Slater exponent:",sexp(l),&
+                 "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                lm=l
+              END IF
+            END DO
+            WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+               "alp [A^-1]      :",alp/angstrom,&
+               "eisol [eV]      :",eisol*evolt
+          ELSE
+            WRITE (UNIT=output_unit,FMT="(T55,A)")&
+               "Parameters are not defined"
+          END IF
       END SELECT
 
     END IF
@@ -370,8 +498,11 @@ CONTAINS
         CASE ("EHT")
           CALL eht_default_parameter(se_parameter,z)
         CASE ("AM1")
+          CALL am1_default_parameter(se_parameter,z)
         CASE ("PM3")
+          CALL pm3_default_parameter(se_parameter,z)
         CASE ("MNDO")
+          CALL mndo_default_parameter(se_parameter,z)
         CASE DEFAULT
           CALL stop_program(routine_name,module_name,__LINE__,&
                             "Invalid method:"//method)

@@ -48,6 +48,7 @@ MODULE qs_overlap
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
+                                             set_qs_env,&
                                              qs_environment_type
   USE qs_neighbor_list_types,          ONLY: first_list,&
                                              first_node,&
@@ -458,6 +459,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "sint")
 
+    CALL set_qs_env(qs_env=qs_env,&
+                    matrix_s=matrix_s)
     CALL timestop(0.0_dp,handle)
 
 !   *** Print the overlap matrix distribution ***
@@ -789,7 +792,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,globenv,&
-                                 first_row,last_row,first_col,last_col)
+                                 first_row,last_row,first_col,last_col,scale)
 
 !   Purpose: Print a spherical matrix of sparse_matrix_type.
 
@@ -805,6 +808,7 @@ CONTAINS
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
+    REAL(dp), INTENT(IN), OPTIONAL           :: scale
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "write_sparse_matrix"
 
@@ -867,6 +871,10 @@ CONTAINS
       col2 = MIN(nsgf,last_col)
     ELSE
       col2 = nsgf
+    END IF
+
+    IF (PRESENT(scale)) THEN
+      matrix=matrix*scale
     END IF
 
     CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&

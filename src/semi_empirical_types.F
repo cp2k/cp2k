@@ -46,6 +46,14 @@ MODULE semi_empirical_types
                                    POINTER :: sto_exponents
     TYPE(sto_basis_set_type), POINTER      :: basis
     INTEGER                                :: ngauss
+    REAL(KIND = dp)                        :: eheat
+    REAL(KIND = dp)                        :: uss,upp,udd,uff
+    REAL(KIND = dp)                        :: alp
+    REAL(KIND = dp)                        :: eisol
+    REAL(KIND = dp)                        :: gss,gsp,gpp,gp2,hsp
+    REAL(KIND = dp)                        :: gsd,gpd,gdd
+    REAL(KIND = dp)                        :: dd,qq,am,ad,aq
+    REAL(KIND = dp),DIMENSION(4)           :: fn1,fn2,fn3
   END TYPE semi_empirical_type
 
 ! *** Public data types ***

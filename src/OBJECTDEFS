@@ -325,6 +325,7 @@ OBJECTS_GENERIC =\
  qs_scf.o\
  qs_scf_post.o\
  qs_scf_types.o\
+ qs_semi_empirical_hamiltonian.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
  qs_tddfpt_types.o\
@@ -341,6 +342,7 @@ OBJECTS_GENERIC =\
  real_space_test.o\
  realspace_grid_types.o\
  scf_control_types.o\
+ semi_empirical_integrals.o\
  semi_empirical_parameters.o\
  semi_empirical_types.o\
  semi_empirical_utils.o\
