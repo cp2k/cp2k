@@ -1449,16 +1449,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = "cp_sm_mix", &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iblock_col, &
+    INTEGER                                  :: handle, i, iblock_col_m1, iblock_col_m2, &
                                                 iblock_row, j, nblock_row
     REAL(KIND=dp)                            :: r_mix
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: p_new_block, p_old_block
-    TYPE(real_block_node_type), POINTER      :: block_node
+    TYPE(real_block_node_type), POINTER      :: block_node_m1, block_node_m2
+    LOGICAL :: failure
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
-
+    failure = .FALSE.
     delta = 0.0_dp
 
     r_mix = 1.0_dp - p_mix
@@ -1467,19 +1468,21 @@ CONTAINS
 
     DO iblock_row=1,nblock_row
 
-       block_node => first_block_node(matrix=m1,&
+       block_node_m1 => first_block_node(matrix=m1,&
+            block_row=iblock_row)
+       block_node_m2 => first_block_node(matrix=m2,&
             block_row=iblock_row)
 
-       DO WHILE (ASSOCIATED(block_node))
+       DO WHILE (ASSOCIATED(block_node_m1))
 
-          CALL get_block_node(block_node=block_node,&
-               block_col=iblock_col,&
+          CALL get_block_node(block_node=block_node_m1,&
+               block_col=iblock_col_m1,&
                BLOCK=p_new_block)
 
-          CALL get_block_node(matrix=m2,&
-               block_row=iblock_row,&
-               block_col=iblock_col,&
+          CALL get_block_node(block_node=block_node_m2,&
+               block_col=iblock_col_m2,&
                BLOCK=p_old_block)
+          CPPostcondition(iblock_col_m1==iblock_col_m2,cp_failure_level,routineP,error,failure)
 
           DO j=1,SIZE(p_new_block,2)
              DO i=1,SIZE(p_new_block,1)
@@ -1489,7 +1492,8 @@ CONTAINS
              END DO
           END DO
 
-          block_node => next_block_node(block_node)
+          block_node_m1 => next_block_node(block_node_m1)
+          block_node_m2 => next_block_node(block_node_m2)
 
        END DO
 
