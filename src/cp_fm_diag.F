@@ -563,26 +563,26 @@ CONTAINS
        ENDIF
 
 
-       tan_theta = 0.0_dp;
-       tau       = 0.0_dp;
+       tan_theta = 0.0_dp
+       tau       = 0.0_dp
 
        ! Q zur Einheitsmatrix machen
-       EV = 0.0_dp ;
+       EV = 0.0_dp 
        FORALL (I=1:N)
          EV(I,I)=1.0_dp
        END FORALL
 
        ! Summe der Off-Diagonalwerte bis BLocksize ausrechnen
-       A_off = 0.0_dp;
+       A_off = 0.0_dp
        DO J=2,bs
          DO I=1,(J-1)
-           A_off = A_off + A(I,J)*A(I,J);
+           A_off = A_off + A(I,J)*A(I,J)
          ENDDO
        ENDDO
-       A_off=2.0_dp * A_off;
+       A_off=2.0_dp * A_off
 
       ! Anzahl der Durchgaenge
-       Anz=1;
+       Anz=1
 
       DO
          IF (A_off < epsi ) THEN
@@ -598,40 +598,42 @@ CONTAINS
 
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
-          A_off = A_off - 2.0_dp*A(p,q)*A(p,q);
+          A_off = A_off - 2.0_dp*A(p,q)*A(p,q)
 
-          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q));
+          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q))
 
-          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
 
           ! cos theta
-          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
-          s = tan_theta*c;
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+          s = tan_theta*c
 
           ! Schnelle Implementierung von: J' * A * J
 
           ! Erst wird von links dranmultiplitziert
           ! J'*A , weil die Symmetrie mir die Strides rettet
 
-          J_pp=c;  J_pq=s;
-          J_qp=-s; J_qq=c;
+          J_pp=c  
+          J_pq=s
+          J_qp=-s 
+          J_qq=c
 
 
-          c_ip(1:bs)=A(1:bs,p)*J_pp + A(1:bs,q)*J_qp;
-          c_iq(1:bs)=A(1:bs,p)*J_pq + A(1:bs,q)*J_qq;
+          c_ip(1:bs)=A(1:bs,p)*J_pp + A(1:bs,q)*J_qp
+          c_iq(1:bs)=A(1:bs,p)*J_pq + A(1:bs,q)*J_qq
 
-          A(1:bs,p)=c_ip(1:bs);
-          A(1:bs,q)=c_iq(1:bs);
+          A(1:bs,p)=c_ip(1:bs)
+          A(1:bs,q)=c_iq(1:bs)
 
 
           ! Jetzt dann von rechts
           ! A*J
 
-          A(p,p) = J_pp*A(p,p) + J_qp*A(q,p);
-          A(q,q) = J_pq*A(p,q) + J_qq*A(q,q);
+          A(p,p) = J_pp*A(p,p) + J_qp*A(q,p)
+          A(q,q) = J_pq*A(p,q) + J_qq*A(q,q)
 
-          A(p,q) = 0.0_dp;
-          A(q,p) = 0.0_dp;
+          A(p,q) = 0.0_dp
+          A(q,p) = 0.0_dp
 
           ! Die 4 Elemente A(q,q),A(p,q),A(q,p),A(q,q) werden unnoetig mit transferiert...soll mal latte sein
            A(p,1:bs)=A(1:bs,p)
@@ -652,17 +654,17 @@ CONTAINS
           ! Erst wird von rechts dranmultiplitziert
           ! Q * J
           IF (Anz==1) THEN
-            c_ip(1:q)=EV(1:q,p)*J_pp + EV(1:q,q)*J_qp;
-            c_iq(1:q)=EV(1:q,p)*J_pq + EV(1:q,q)*J_qq;
+            c_ip(1:q)=EV(1:q,p)*J_pp + EV(1:q,q)*J_qp
+            c_iq(1:q)=EV(1:q,p)*J_pq + EV(1:q,q)*J_qq
 
-            EV(1:q,p)=c_ip;
-            EV(1:q,q)=c_iq;
+            EV(1:q,p)=c_ip
+            EV(1:q,q)=c_iq
           ELSE
-            c_ip=EV(:,p)*J_pp + EV(:,q)*J_qp;
-            c_iq=EV(:,p)*J_pq + EV(:,q)*J_qq;
+            c_ip=EV(:,p)*J_pp + EV(:,q)*J_qp
+            c_iq=EV(:,p)*J_pq + EV(:,q)*J_qq
 
-            EV(:,p)=c_ip;
-            EV(:,q)=c_iq;
+            EV(:,p)=c_ip
+            EV(:,q)=c_iq
           ENDIF
 
         ENDIF
@@ -682,7 +684,7 @@ CONTAINS
 
     ENDDO   ! for-loop
 
-    Anz=Anz+1;
+    Anz=Anz+1
 
     IF(Anz>Anz_max) THEN
       EXIT
@@ -759,11 +761,11 @@ CONTAINS
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
 
-       tan_theta = 0.0_dp;
-       tau       = 0.0_dp;
+       tan_theta = 0.0_dp
+       tau       = 0.0_dp
 
        ! Q zur Einheitsmatrix machen
-       EV = 0.0_dp ;
+       EV = 0.0_dp 
        FORALL (I=1:N)
          EV(I,I)=1.0_dp
        END FORALL
@@ -779,7 +781,7 @@ CONTAINS
       ENDDO
     ENDDO
 
-    new_thresh=k*max_thresh;
+    new_thresh=k*max_thresh
 
 
     DO q=start_sec_block,N
@@ -791,21 +793,21 @@ CONTAINS
            ! Durch das Wegrotieren erniedirgt sich die Quadratsumme der
            ! Ausserdiagonalwerte:
 
-          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q));
+          tau = (A(q,q)-A(p,p))/(2.0_dp*A(p,q))
 
-          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
 
           ! cos theta
-          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
-          s = tan_theta*c;
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+          s = tan_theta*c
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
-            c_ip = c*EV(:,p) - s*EV(:,q);
-            c_iq = s*EV(:,p) + c*EV(:,q);
+            c_ip = c*EV(:,p) - s*EV(:,q)
+            c_iq = s*EV(:,p) + c*EV(:,q)
 
-            EV(:,p)=c_ip;
-            EV(:,q)=c_iq;
+            EV(:,p)=c_ip
+            EV(:,q)=c_iq
 
          ENDIF
 
@@ -939,11 +941,11 @@ CONTAINS
 
           tau = (eigval(q)-eigval(p))/(2.0_dp*A_loc(p,q_loc))
 
-          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
 
           ! cos theta
-          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
-          s = tan_theta*c;
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+          s = tan_theta*c
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
@@ -951,8 +953,8 @@ CONTAINS
           !  c_ip = c*EV_loc(:,p) - s*EV_loc(:,q)
           !  c_iq = s*EV_loc(:,p) + c*EV_loc(:,q)
 
-          !  EV(:,p)=c_ip;
-          !  EV(:,q)=c_iq;
+          !  EV(:,p)=c_ip
+          !  EV(:,q)=c_iq
 
           CALL dcopy(mynumrows,EV_loc(1,p),1,c_ip(1),1)
           CALL dscal(mynumrows,c,EV_loc(1,p),1)
@@ -991,8 +993,8 @@ CONTAINS
 !   *** START Diagonalising matrix ***
 !   *** START Diagonalising matrix ***
 
-    tan_theta = 0.0_dp;
-    tau       = 0.0_dp;
+    tan_theta = 0.0_dp
+    tau       = 0.0_dp
 
     DO q=start_sec_block,N
       DO p=1,(start_sec_block-1)
@@ -1001,20 +1003,20 @@ CONTAINS
 
           tau = (eigval(q)-eigval(p))/(2.0_dp*A(p,q))
 
-          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau));
+          tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau))
 
           ! cos theta
-          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta);
-          s = tan_theta*c;
+          c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+          s = tan_theta*c
 
           ! Und jetzt noch die Eigenvektoren produzieren:
           ! Q * J
           !  Verstaendliche Version (bevor die BLAS-Aufrufe sie ersetzt haben)
-          !  c_ip = c*EV(:,p) - s*EV(:,q);
-          !  c_iq = s*EV(:,p) + c*EV(:,q);
+          !  c_ip = c*EV(:,p) - s*EV(:,q)
+          !  c_iq = s*EV(:,p) + c*EV(:,q)
 
-          !  EV(:,p)=c_ip;
-          !  EV(:,q)=c_iq;
+          !  EV(:,p)=c_ip
+          !  EV(:,q)=c_iq
 
           CALL dcopy(N,EV(1,p),1,c_ip(1),1)
           CALL dscal(N,c,EV(1,p),1)
