@@ -23,6 +23,7 @@ MODULE topology
 
   USE atomic_kind_types,                ONLY: atomic_kind_type
   USE atoms_input,                      ONLY: read_atoms_input
+  USE checkpoint_handler,               ONLY: write_checkpoint_information
   USE global_types,                     ONLY: global_environment_type
   USE kinds,                            ONLY: dbl
   USE molecule_types_new,               ONLY: allocate_molecule_set,&
@@ -40,6 +41,8 @@ MODULE topology
                                               read_cell,write_cell
   USE termination,                      ONLY: stop_program,&
                                               stop_memory
+  USE timings,                          ONLY: timeset,&
+                                              timestop
   USE topology_input,                   ONLY: read_topology_section
   USE topology_gromos,                  ONLY: read_topology_gromos
   USE topology_pdb,                     ONLY: read_coordinate_pdb
@@ -53,6 +56,9 @@ MODULE topology
                                               topology_generate_dihe,&
                                               topology_generate_molecule,&
                                               topology_connectivity_pack
+
+
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
   PRIVATE
   PUBLIC :: topology_control
@@ -69,17 +75,13 @@ CONTAINS
 !!     topology_control
 !!
 !!   FUNCTION
-!!     1. Read in the topology section in the input file if any
-!!     2. Read in the coordinates
-!!     3. Read in or generate the molecular connectivity
-!!     4. Pack everything into the molecular types
-!!     5. Pack everything into the atomic types
+!!
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
+!!
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -99,48 +101,61 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
 ! Locals
   TYPE ( topology_parameters_type ) :: topology
-  INTEGER :: iw
+  CHARACTER(len=*), PARAMETER :: routineN='topology_control',&
+       routineP=moduleN//':'//routineN
+
+  INTEGER :: iw,handle
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
   iw = globenv%scr
 
-  CALL init_topology(topology)
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "Entering topology_control"
+  END IF
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 1. Get the cell info
+  ! 1. Initialize the topology structure type
   !-----------------------------------------------------------------------------
-  NULLIFY(topology%cell)
+  CALL init_topology(topology)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Get the cell info
+  !-----------------------------------------------------------------------------
   CALL read_cell(topology%cell,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. Read in the topology section in the input file if any
+  ! 3. Read in the topology section in the input file if any
   !-----------------------------------------------------------------------------
   CALL read_topology_section(topology,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Read in the coordinates
+  ! 4. Read in the coordinates
   !-----------------------------------------------------------------------------
-  CALL coordinate_control(particle_set,atomic_kind_set,&
-                          molecule_kind_set,molecule_set,&
-                          topology,globenv)
+  CALL coordinate_control(topology,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Read in or generate the molecular connectivity
+  ! 5. Read in or generate the molecular connectivity
   !-----------------------------------------------------------------------------
   CALL connectivity_control(topology,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 5. Pack everything into the molecular types
+  ! 6. Pack everything into the molecular types
   !-----------------------------------------------------------------------------
   CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
                                   topology,globenv)
@@ -148,7 +163,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. Pack everything into the atomic types
+  ! 7. Pack everything into the atomic types
   !-----------------------------------------------------------------------------
   CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
                                 molecule_kind_set,molecule_set,&
@@ -156,7 +171,20 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
 
 
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 8. Cleanup the topology structure type
+  !-----------------------------------------------------------------------------
   CALL deallocate_topology(topology)
+
+
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "Exiting  topology_control"
+  END IF
+
+  CALL timestop(0.0_dbl,handle)
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
   !CALL stop_program ("topology_control","program check")
 
 
@@ -189,16 +217,23 @@ SUBROUTINE connectivity_control(topology,globenv)
 
 ! Arguments
   TYPE ( topology_parameters_type ), INTENT (INOUT)   :: topology
-  TYPE ( global_environment_type ), INTENT ( IN )  :: globenv
+  TYPE ( global_environment_type ), OPTIONAL,INTENT ( IN )  :: globenv
 
 ! Locals
   LOGICAL found
-  INTEGER :: iw, ierr
-  INTEGER :: natom,nbond
+  CHARACTER(len=*), PARAMETER :: routineN='connectivity_control',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: iw,handle
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
   iw = globenv%scr
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Entering connectivity_control"
+  END IF
 
 
   !-----------------------------------------------------------------------------
@@ -233,13 +268,21 @@ SUBROUTINE connectivity_control(topology,globenv)
                        "gromos not implemented yet...")
   CASE DEFAULT
     !Will use topology generate to set up the connectivity information
-    CALL topology_generate_bond(topology)
-    CALL topology_generate_bend(topology)
-    CALL topology_generate_dihe(topology)
-    CALL topology_generate_molecule(topology)
+    CALL topology_generate_bond(topology,globenv)
+    CALL topology_generate_bend(topology,globenv)
+    CALL topology_generate_dihe(topology,globenv)
+    CALL topology_generate_molecule(topology,globenv)
   END SELECT
 
 
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Exiting  connectivity_control"
+  END IF
+
+  CALL timestop(0.0_dbl,handle)
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 END SUBROUTINE connectivity_control
 
 
@@ -263,9 +306,7 @@ END SUBROUTINE connectivity_control
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE coordinate_control(particle_set,atomic_kind_set,&
-                              molecule_kind_set,molecule_set,&
-                              topology,globenv)
+SUBROUTINE coordinate_control(topology,globenv)
 
   IMPLICIT NONE
 
@@ -279,16 +320,21 @@ SUBROUTINE coordinate_control(particle_set,atomic_kind_set,&
 
 ! Locals
   LOGICAL found
+  CHARACTER(len=*), PARAMETER :: routineN='connectivity_control',&
+       routineP=moduleN//':'//routineN
   CHARACTER ( LEN = 20 ) :: unit_type
   CHARACTER ( LEN = 4 ) :: fext
-  INTEGER :: iw, ierr
-  INTEGER :: i, natom
-  INTEGER :: input_select
+  INTEGER :: iw,handle
 
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
-
   iw = globenv%scr
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Entering coordinate_control"
+  END IF
+
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
@@ -331,6 +377,13 @@ SUBROUTINE coordinate_control(particle_set,atomic_kind_set,&
   END SELECT
 
 
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Exiting  coordinate_control"
+  END IF
+
+  CALL timestop(0.0_dbl,handle)
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 END SUBROUTINE coordinate_control

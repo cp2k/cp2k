@@ -29,7 +29,7 @@ MODULE molecule_kind_types
                                              torsion_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: int_size,&
-                                             dp
+                                             dp,default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
@@ -50,13 +50,12 @@ MODULE molecule_kind_types
   PRIVATE
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "molecule_kind_types"
-  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Define the derived structure types ***
 
   TYPE atom_type
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    CHARACTER(LEN=max_name_length)  :: name
+    CHARACTER(LEN=default_string_length)  :: name
   END TYPE atom_type
 
   TYPE bond_type
@@ -97,7 +96,7 @@ MODULE molecule_kind_types
     TYPE(dist_constraint_type), DIMENSION(:), POINTER :: dist_list
     TYPE(g3x3_constraint_type), DIMENSION(:), POINTER :: g3x3_list
     TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
-    CHARACTER(LEN=max_name_length)                    :: name,&
+    CHARACTER(LEN=default_string_length)                    :: name,&
                                                          nhcopt
     REAL(KIND = dp), DIMENSION(:), POINTER                   :: charge,&
                                                          mass
@@ -311,7 +310,7 @@ CONTAINS
     TYPE(g3x3_constraint_type), DIMENSION(:),&
       OPTIONAL, POINTER                                   :: g3x3_list
     TYPE(torsion_type), DIMENSION(:), OPTIONAL, POINTER   :: torsion_list
-    CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(OUT) :: name,nhcopt
+    CHARACTER(LEN=default_string_length), OPTIONAL, INTENT(OUT) :: name,nhcopt
     REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: mass
     REAL(KIND = dp), DIMENSION(:), OPTIONAL, POINTER      :: charge
     INTEGER, OPTIONAL, INTENT(OUT)                        :: kind_number,&
@@ -465,7 +464,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
 
-    CHARACTER(LEN=max_name_length) :: atomic_kind_name,current_name,keyword,&
+    CHARACTER(LEN=default_string_length) :: atomic_kind_name,current_name,keyword,&
                                       label
     CHARACTER(LEN=3)               :: test_result
     INTEGER                        :: iatom,ikind,istat,natom
@@ -480,7 +479,7 @@ CONTAINS
     NULLIFY (name_list)
 
     CALL reallocate(kind_list,1,nblock)
-    CALL reallocate(name_list,1,max_name_length,1,nblock)
+    CALL reallocate(name_list,1,default_string_length,1,nblock)
 
     natom = 0
     atoms_read = .FALSE.
@@ -524,7 +523,7 @@ CONTAINS
                 natom = natom + 1
                 IF (natom > SIZE(kind_list)) THEN
                   CALL reallocate(kind_list,1,natom+nblock)
-                  CALL reallocate(name_list,1,max_name_length,1,natom+nblock)
+                  CALL reallocate(name_list,1,default_string_length,1,natom+nblock)
                 END IF
                 name_found = .FALSE.
                 DO ikind=1,SIZE(atomic_kind_set)
@@ -696,32 +695,35 @@ CONTAINS
     IF (ASSOCIATED(molecule_kind)) THEN
 
       IF (PRESENT(atom_list)) THEN
+!        n = SIZE(atom_list)
+!        IF (n > 0) THEN
+!          IF (ASSOCIATED(molecule_kind%atom_list)) THEN
+!            DO i=1,SIZE(molecule_kind%atom_list)
+!              NULLIFY (molecule_kind%atom_list(i)%atomic_kind)
+!            END DO
+!            DEALLOCATE (molecule_kind%atom_list,STAT=istat)
+!            IF (istat /= 0) THEN
+!              CALL stop_memory(routine_name,module_name,__LINE__,&
+!                               "molecule_kind%atom_list")
+!!            END IF
+!          END IF
+!          molecule_kind%natom = n
+!          ALLOCATE (molecule_kind%atom_list(n),STAT=istat)
+!          IF (istat /= 0) THEN
+!            CALL stop_memory(routine_name,module_name,__LINE__,&
+!                             "molecule_kind%atom_list",n*int_size)
+!          END IF
+!          DO i=1,n
+!            molecule_kind%atom_list(i)%atomic_kind => atom_list(i)%atomic_kind
+!            molecule_kind%atom_list(i)%name = atom_list(i)%name
+!          END DO
+!        ELSE
+!          CALL stop_program(routine_name,module_name,__LINE__,&
+!                            "An invalid atom_list was supplied")
+!        END IF
         n = SIZE(atom_list)
-        IF (n > 0) THEN
-          IF (ASSOCIATED(molecule_kind%atom_list)) THEN
-            DO i=1,SIZE(molecule_kind%atom_list)
-              NULLIFY (molecule_kind%atom_list(i)%atomic_kind)
-            END DO
-            DEALLOCATE (molecule_kind%atom_list,STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
-                               "molecule_kind%atom_list")
-            END IF
-          END IF
-          molecule_kind%natom = n
-          ALLOCATE (molecule_kind%atom_list(n),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
-                             "molecule_kind%atom_list",n*int_size)
-          END IF
-          DO i=1,n
-            molecule_kind%atom_list(i)%atomic_kind => atom_list(i)%atomic_kind
-            molecule_kind%atom_list(i)%name = atom_list(i)%name
-          END DO
-        ELSE
-          CALL stop_program(routine_name,module_name,__LINE__,&
-                            "An invalid atom_list was supplied")
-        END IF
+        molecule_kind%natom = n
+        molecule_kind%atom_list => atom_list
       END IF
       IF (PRESENT(name)) molecule_kind%name = name
       IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
@@ -733,26 +735,29 @@ CONTAINS
       IF (PRESENT(nbend)) molecule_kind%nbend = nbend
       IF (PRESENT(bend_list)) molecule_kind%bend_list => bend_list
       IF (PRESENT(molecule_list)) THEN
+!        n = SIZE(molecule_list)
+!        IF (n > 0) THEN
+!          IF (ASSOCIATED(molecule_kind%molecule_list)) THEN
+!            DEALLOCATE (molecule_kind%molecule_list,STAT=istat)
+!            IF (istat /= 0) THEN
+!              CALL stop_memory(routine_name,module_name,__LINE__,&
+!                               "molecule_kind%molecule_list")
+!            END IF
+!          END IF
+!          molecule_kind%nmolecule = n
+!          ALLOCATE (molecule_kind%molecule_list(n),STAT=istat)
+!          IF (istat /= 0) THEN
+!            CALL stop_memory(routine_name,module_name,__LINE__,&
+!                             "molecule_kind%molecule_list",n*int_size)
+!          END IF
+!          molecule_kind%molecule_list(:) = molecule_list(:)
+!        ELSE
+!          CALL stop_program(routine_name,module_name,__LINE__,&
+!                            "An invalid molecule_list was supplied")
+!        END IF
         n = SIZE(molecule_list)
-        IF (n > 0) THEN
-          IF (ASSOCIATED(molecule_kind%molecule_list)) THEN
-            DEALLOCATE (molecule_kind%molecule_list,STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine_name,module_name,__LINE__,&
-                               "molecule_kind%molecule_list")
-            END IF
-          END IF
-          molecule_kind%nmolecule = n
-          ALLOCATE (molecule_kind%molecule_list(n),STAT=istat)
-          IF (istat /= 0) THEN
-            CALL stop_memory(routine_name,module_name,__LINE__,&
-                             "molecule_kind%molecule_list",n*int_size)
-          END IF
-          molecule_kind%molecule_list(:) = molecule_list(:)
-        ELSE
-          CALL stop_program(routine_name,module_name,__LINE__,&
-                            "An invalid molecule_list was supplied")
-        END IF
+        molecule_kind%nmolecule = n
+        molecule_kind%molecule_list => molecule_list
       END IF
 
     ELSE
@@ -785,7 +790,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
 
-    CHARACTER(LEN=max_name_length) :: name
+    CHARACTER(LEN=default_string_length) :: name
     INTEGER                        :: iatom,imolecule,natom,nmolecule,&
                                       output_unit
 

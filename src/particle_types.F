@@ -32,9 +32,10 @@ MODULE particle_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: int_size,&
+  USE kinds,                           ONLY: dbl,int_size,&
                                              dp,&
-                                             dp_size
+                                             dp_size,&
+                                             default_string_length
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
   USE molecule_types_new,              ONLY: allocate_molecule_set,&
@@ -77,7 +78,6 @@ MODULE particle_types
 ! *** Global parameters (in this module) ***
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "particle_types"
-  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Data types ***
 
@@ -157,6 +157,13 @@ CONTAINS
       NULLIFY (particle_set(iparticle)%atomic_kind)
       NULLIFY (particle_set(iparticle)%coef_list)
       NULLIFY (particle_set(iparticle)%lpi)
+
+      particle_set(iparticle)%abase = 0
+      particle_set(iparticle)%grid_id = 0
+      particle_set(iparticle)%iatom = iparticle
+      particle_set(iparticle)%f(:) = 0.0_dbl
+      particle_set(iparticle)%r(:) = 0.0_dbl
+      particle_set(iparticle)%v(:) = 0.0_dbl
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -366,7 +373,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER   :: atomic_kind
     TYPE(molecule_kind_type), POINTER :: molecule_kind
-    CHARACTER(LEN=max_name_length)    :: atom_name,&
+    CHARACTER(LEN=default_string_length)    :: atom_name,&
                                          label,&
                                          molecule_name,&
                                          particle_name,&
@@ -421,10 +428,10 @@ CONTAINS
     NULLIFY (r)
 
     CALL reallocate(first_atom_of_molecule,1,nblock1)
-    CALL reallocate(molecule_kind_name,1,max_name_length,1,nblock2)
+    CALL reallocate(molecule_kind_name,1,default_string_length,1,nblock2)
     CALL reallocate(molecule_kind_of,1,nblock1)
     CALL reallocate(nparticle_of_kind,1,nblock2)
-    CALL reallocate(particle_kind_name,1,max_name_length,1,nblock2)
+    CALL reallocate(particle_kind_name,1,default_string_length,1,nblock2)
     CALL reallocate(particle_kind_of,1,nblock1)
     CALL reallocate(r,1,3,1,nblock1)
 
@@ -653,7 +660,7 @@ CONTAINS
           IF (new_kind) THEN
             nparticle_kind = nparticle_kind + 1
             IF (nparticle_kind > SIZE(nparticle_of_kind,1)) THEN
-              CALL reallocate(particle_kind_name,1,max_name_length,&
+              CALL reallocate(particle_kind_name,1,default_string_length,&
                                                  1,nparticle_kind+nblock2)
               CALL reallocate(nparticle_of_kind,1,nparticle_kind+nblock2)
             END IF
@@ -687,7 +694,7 @@ CONTAINS
           IF (new_kind) THEN
             nmolecule_kind = nmolecule_kind + 1
             IF (nmolecule_kind > SIZE(molecule_kind_name,2)) THEN
-              CALL reallocate(molecule_kind_name,1,max_name_length,&
+              CALL reallocate(molecule_kind_name,1,default_string_length,&
                                                   1,nmolecule_kind+nblock2)
             END IF
             ikind = nmolecule_kind
@@ -710,11 +717,11 @@ CONTAINS
 
     IF (nparticle > 0) THEN
       IF (nmolecule_kind > 0) THEN
-        CALL reallocate(molecule_kind_name,1,max_name_length,1,nmolecule_kind)
+        CALL reallocate(molecule_kind_name,1,default_string_length,1,nmolecule_kind)
       END IF
       CALL reallocate(molecule_kind_of,1,nparticle)
       CALL reallocate(nparticle_of_kind,1,nparticle_kind)
-      CALL reallocate(particle_kind_name,1,max_name_length,1,nparticle_kind)
+      CALL reallocate(particle_kind_name,1,default_string_length,1,nparticle_kind)
       CALL reallocate(particle_kind_of,1,nparticle)
       CALL reallocate(r,1,3,1,nparticle)
     ELSE

@@ -51,7 +51,7 @@ MODULE qs_localization
                                              WANNIER_DIRECT,&
                                              WANNIER_JACOBI,&
                                              WANNIER_NONE
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,default_string_length
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
@@ -483,7 +483,7 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
   REAL ( KIND = dp ) :: mydist(2)
   TYPE ( topology_parameters_type ) :: topology
   TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
-  CHARACTER (LEN=60)  :: mol_name
+  CHARACTER (LEN=default_string_length)  :: mol_name
   TYPE(distribution_1d_type), POINTER :: local_molecules
 
 

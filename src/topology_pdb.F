@@ -18,9 +18,11 @@
 !******************************************************************************
 MODULE topology_pdb
 
+  USE checkpoint_handler,       ONLY : write_checkpoint_information
   USE convert_units,            ONLY : convert_to_cp2k_units
   USE global_types,             ONLY : global_environment_type
-  USE kinds,                    ONLY : dbl
+  USE kinds,                    ONLY : dbl,default_string_length
+  USE memory_utilities,         ONLY : reallocate
   USE parser,                   ONLY : parser_init, &
                                        parser_end, &
                                        read_line, &
@@ -30,9 +32,13 @@ MODULE topology_pdb
   USE string_utilities,         ONLY : uppercase
   USE termination,              ONLY : stop_memory, &
                                        stop_program
+  USE timings,                  ONLY : timeset,&
+                                       timestop
   USE topology_types,           ONLY : topology_parameters_type
 
   IMPLICIT NONE
+
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_pdb"
 
   PRIVATE
   PUBLIC :: read_coordinate_pdb
@@ -69,42 +75,45 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: ierror, ilen, iw,  ia, ie, i
-  INTEGER, PARAMETER :: max_name_length = 20
-  INTEGER, PARAMETER :: nblock_atom = 1000,&
-                        nblock_kind = 10
+  INTEGER :: ilen,iw,handle,istat
+  INTEGER, PARAMETER :: nblock_atom = 1000
 
-  CHARACTER(LEN=max_name_length)  :: current_label,label,string
-  CHARACTER(LEN=8)                :: unit_name
-  CHARACTER(LEN=3)                :: test_result
-  INTEGER                         :: iatom,ikind,istat,natom,nkind,z,n,iat,&
-                                     natom_types,nmol_type,k,j
-  LOGICAL                         :: new_kind,coords,&
-                                       init
+  CHARACTER(LEN=default_string_length)  :: label,string
+  CHARACTER (LEN=default_string_length), POINTER :: tmp_atmname(:)
+  CHARACTER (LEN=default_string_length), POINTER :: tmp_resname(:)
+  INTEGER                         :: iatom,natom
 
   INTEGER, POINTER :: num_atmid(:),num_resid(:)
   REAL (dbl), POINTER :: pos1(:),pos2(:),pos3(:)
-  CHARACTER (LEN=20), POINTER :: tmp_resname(:),tmp_atmname(:)
+  CHARACTER(len=*), PARAMETER :: routineN='read_coordinate_pdb',&
+       routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   iw = globenv % scr
+
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Entering read_coordinate_pdb"
+  END IF
   natom = 0
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Change to REALLOCATE later
   NULLIFY(num_atmid,num_resid,pos1,pos2,pos3)
   NULLIFY(tmp_resname,tmp_atmname)
-  ALLOCATE(num_atmid(100000),STAT=istat)
+  ALLOCATE(num_atmid(nblock_atom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','num_atmid')
-  ALLOCATE(num_resid(100000),STAT=istat)
+  ALLOCATE(num_resid(nblock_atom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','num_resid')
-  ALLOCATE(tmp_resname(100000),STAT=istat)
+  ALLOCATE(tmp_resname(nblock_atom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','tmp_resname')
-  ALLOCATE(tmp_atmname(100000),STAT=istat)
+  ALLOCATE(tmp_atmname(nblock_atom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','tmp_atmname')
-  ALLOCATE(pos1(100000),pos2(100000),pos3(100000),STAT=istat)
+  ALLOCATE(pos1(nblock_atom),pos2(nblock_atom),pos3(nblock_atom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','pos')
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !Parse the file right now and put all info into temporary storage
@@ -112,8 +121,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   natom = 0
   label = 'REMARK PDB'
   CALL parser_init(topology%coord_file_name,globenv )
-  CALL search_label ( label, ierror, ignore_case=.TRUE. )
-  IF ( ierror /= 0 ) THEN
+  CALL search_label ( label, istat, ignore_case=.TRUE. )
+  IF ( istat /= 0 ) THEN
        CALL stop_program ( 'read_coordinate_pdb', 'REMARK PDB'  )
   ELSE
     CALL read_line
@@ -124,6 +133,15 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       SELECT CASE (string)
       CASE ('ATOM')
         natom = natom + 1
+        IF(natom > SIZE(pos1)) THEN
+          CALL reallocate(num_atmid,1,natom+nblock_atom)
+          CALL reallocate(num_resid,1,natom+nblock_atom)
+          CALL reallocate(tmp_resname,1,natom+nblock_atom)
+          CALL reallocate(tmp_atmname,1,natom+nblock_atom)
+          CALL reallocate(pos1,1,natom+nblock_atom)
+          CALL reallocate(pos2,1,natom+nblock_atom)
+          CALL reallocate(pos3,1,natom+nblock_atom)
+        END IF
         CALL get_next(num_atmid(natom))
         CALL get_next(tmp_atmname(natom),ilen)
         CALL get_next(tmp_resname(natom),ilen)
@@ -146,7 +164,14 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   !Put the info into array that got passed in
   ALLOCATE(topology%r(3,natom),STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','r(3,natom)')
-  ALLOCATE(topology%label_resname(natom),topology%label_atmname(natom),STAT=istat)
+  ALLOCATE(topology%label_resname(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label_resname')
+  ALLOCATE(topology%label_atmname(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label_atmname')
+  ALLOCATE(topology%atm_mass(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label_atmname')
+  ALLOCATE(topology%atm_charge(natom),STAT=istat)
+  IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','label_atmname')
   DO iatom=1,natom
     topology%r(1,iatom) = pos1(iatom)
     topology%r(2,iatom) = pos2(iatom)
@@ -156,11 +181,12 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
     CALL convert_to_cp2k_units("ANGSTROM",length=topology%r(3,iatom))
     topology%label_resname(iatom)=tmp_resname(iatom)
     topology%label_atmname(iatom)=tmp_atmname(iatom)
+    topology%atm_mass(iatom)  =0.0
+    topology%atm_charge(iatom)=0.0
   END DO
 
   topology%natoms = natom
 
-!------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   !Deallocate all the temporary arrays
   DEALLOCATE(num_atmid,num_resid,STAT=istat)
@@ -169,6 +195,14 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','pos1,pos2,pos3')
   DEALLOCATE(tmp_resname,tmp_atmname,STAT=istat)
   IF (istat /= 0) CALL stop_memory('read_coordinate_pdb','tmp_[res,atm]name')
+
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Exiting read_coordinate_pdb"
+  END IF
+
+  CALL timestop(0.0_dbl,handle)
+  CALL write_checkpoint_information("exiting "//routineN,globenv)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 

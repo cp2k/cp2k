@@ -100,23 +100,16 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: ierror, ilen, iw,  ia, ie, i
+  INTEGER :: ierror, ilen, iw
   INTEGER, PARAMETER :: nblock_atom = 1000
 
   TYPE(epc_potential_type), POINTER :: epc_potential
-  CHARACTER(LEN=6)  :: current_label,label
-  CHARACTER(LEN=200)              :: message
-  CHARACTER(LEN=8)                :: unit_name
-  CHARACTER(LEN=3)                :: test_result
-  INTEGER                         :: iatom,istat,natom,z,n,iat,&
-                                     natom_types,nmol_type,k,j
-
-  INTEGER, DIMENSION(:,:), POINTER  :: atom_list
+  CHARACTER(LEN=6)  :: label
+  INTEGER                         :: iatom,istat,natom
 
 !   ---------------------------------------------------------------------------
 
   natom = 0
-  iat = 0
 
   iw = globenv % scr
 
@@ -156,7 +149,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
         CALL reallocate(topology%atm_charge,1,natom+nblock_atom)
        END IF
 
-       ilen = 20
+       ilen = default_string_length
        topology%label_resname(natom) = ""
        topology%label_atmname(natom) = ""
        CALL get_next(topology%label_resname(natom),ilen)

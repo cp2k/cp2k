@@ -34,7 +34,6 @@ MODULE molecule_types_new
 ! *** Global parameters (in this module) ***
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "molecule_types_new"
-  INTEGER, PARAMETER          :: max_name_length = 60
 
 ! *** Data types ***
 

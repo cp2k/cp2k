@@ -1076,7 +1076,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             atom_list,pao_bas_proj)
+                             natom,atom_list,pao_bas_proj)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1089,6 +1089,7 @@ CONTAINS
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN)      :: name
     REAL(KIND = dp), OPTIONAL, INTENT(IN)              :: mass
     INTEGER, OPTIONAL, INTENT(IN)               :: kind_number
+    INTEGER, OPTIONAL, INTENT(IN)               :: natom
     INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN) :: atom_list
     TYPE(pao_bas_projection_type), OPTIONAL,&
       INTENT(IN), TARGET                        :: pao_bas_proj
@@ -1109,6 +1110,7 @@ CONTAINS
       IF (PRESENT(name)) atomic_kind%name = name
       IF (PRESENT(mass)) atomic_kind%mass = mass
       IF (PRESENT(kind_number)) atomic_kind%kind_number = kind_number
+      IF (PRESENT(natom)) atomic_kind%natom = natom
       IF (PRESENT(atom_list)) THEN
         n = SIZE(atom_list)
         IF (n > 0) THEN

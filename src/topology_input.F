@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE topology_input
+  USE checkpoint_handler,               ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
@@ -46,6 +47,8 @@ MODULE topology_input
                                              stop_program
   USE topology_types,                  ONLY: topology_parameters_type
   IMPLICIT NONE
+
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_input"
 
   PRIVATE
   PUBLIC :: read_topology_section
@@ -99,30 +102,33 @@ SUBROUTINE read_topology_section ( topology, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: ierror,i,n,ilen,iw, ia, ie
+  INTEGER :: ierror,i,n,ilen,ia,ie
+  INTEGER :: iw,handle
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 6 ) :: label
+  CHARACTER(len=*), PARAMETER :: routineN='read_topology_section',&
+       routineP=moduleN//':'//routineN
 
 !------------------------------------------------------------------------------
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+
+  iw = globenv % scr
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Entering read_topology_section"
+  END IF
 
   CALL xstring(globenv % project_name,ia,ie)
 
   topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
   topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
 
-  topology % coordinate = .FALSE.
-  topology % connectivity = .FALSE.
-  topology % conn_type = 'OFF'
-  topology % coord_type = 'OFF'
-
-  iw = globenv % scr
 
   ! parse the input section
   label = '&TOPOL'
   CALL parser_init ( globenv % input_file_name, globenv )
   CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
-     IF ( globenv % ionode .AND. globenv % print_level >= 2 ) THEN
+     IF ( globenv % ionode .AND. globenv % print%level >= 2 ) THEN
         WRITE ( iw, '( A )' ) ' No input section &TOPOL found on file '
         WRITE ( iw, '( T2, A )' ) globenv % input_file_name
      END IF
@@ -188,6 +194,13 @@ SUBROUTINE read_topology_section ( topology, globenv )
   END IF
 
   CALL parser_end
+
+
+  IF((globenv%ionode).AND.(globenv%print%level>0))THEN
+    WRITE(iw,*) "  Exiting  read_topology_section"
+  END IF
+
+  CALL write_checkpoint_information("exiting "//routineN,globenv)
 
 END SUBROUTINE read_topology_section
 

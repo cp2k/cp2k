@@ -67,7 +67,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=20), DIMENSION(:), POINTER :: p
+    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: p
     INTEGER, INTENT(IN)              :: lb1_new, &
                                         ub1_new 
 

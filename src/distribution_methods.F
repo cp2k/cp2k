@@ -244,6 +244,7 @@ CONTAINS
           local_molecule(imolecule_kind)%array(imolecule_local) = molecule_a
           DO iatom=1,natom
             atom_a = molecule_set(molecule_a)%first_atom + iatom - 1
+   
             CALL get_atomic_kind(atomic_kind=particle_set(atom_a)%atomic_kind,&
                                  kind_number=kind_a)
             nparticle_local(kind_a) = nparticle_local(kind_a) + 1
