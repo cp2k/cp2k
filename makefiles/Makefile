@@ -62,7 +62,8 @@ include $(MACHINEDEFS)
 
 CPPFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
-            -D__COMPILE_HOST="\"$(shell hostname)\""
+            -D__COMPILE_HOST="\"$(shell hostname)\""\
+	    -I$(SRCDIR)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
