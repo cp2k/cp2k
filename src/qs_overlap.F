@@ -861,7 +861,7 @@ CONTAINS
       CALL symmetrize_matrix(matrix,"upper_to_lower")
     ELSE IF (symmetry == "antisymmetric") THEN
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
-    ELSE
+    ELSE IF (symmetry /= "none") THEN
       CALL stop_program(routine,"Invalid matrix structure")
     END IF
 
