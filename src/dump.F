@@ -106,7 +106,7 @@ CONTAINS
     CALL get_md_env ( md_env, force_env = force_env )
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY (nhc_part,para_env,new_logger)
+    NULLIFY (para_env,new_logger)
 
     CALL force_env_get(force_env,para_env=para_env)
 

@@ -384,7 +384,7 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
 !  TYPE(replica_environment_type), POINTER :: rep_att
 !  NULLIFY(rep_att,atomic_kinds, particles, local_molecules)
 
-  NULLIFY(atomic_kinds, particles)
+!  NULLIFY(atomic_kinds, particles)
   failure=.FALSE.
 
   ALLOCATE(force_env, stat=stat)

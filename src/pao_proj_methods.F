@@ -166,14 +166,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_row
     TYPE(cp_error_type)                      :: iError
     TYPE(cp_matrix_block_iterator)           :: iterator
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
 
 ! make target?
 ! make target?
 
     CALL cp_error_init(iError,template_error=error)
-    NULLIFY(block_val,l_index,u_row,pao_env)
+    NULLIFY(block_val,l_index,u_row)
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -378,14 +377,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_col, u_row
     TYPE(cp_error_type)                      :: iError
     TYPE(cp_matrix_block_iterator)           :: iterator
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
 
 ! make target?
 ! make target ?
 
     CALL cp_error_init(iError,template_error=error)
-    NULLIFY(block_val,u_col, u_row,pao_env)
+    NULLIFY(block_val,u_col, u_row)
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -538,14 +536,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block_val, u_col, u_row
     TYPE(cp_error_type)                      :: iError
     TYPE(cp_matrix_block_iterator)           :: iterator
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
 
 ! make target?
 ! make target?
 
     CALL cp_error_init(iError,template_error=error)
-    NULLIFY(block_val,block_val, u_col, u_row,pao_env)
+    NULLIFY(block_val,block_val, u_col, u_row)
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
@@ -695,7 +692,6 @@ CONTAINS
                                                 u_col, u_row
     TYPE(cp_error_type)                      :: iError
     TYPE(cp_matrix_block_iterator)           :: iterator
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: s
@@ -704,7 +700,7 @@ CONTAINS
 ! make target?
 
     CALL cp_error_init(iError,template_error=error)
-    NULLIFY(block_val,block_val, u_col, u_row,pao_env)
+    NULLIFY(block_val,block_val, u_col, u_row)
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
