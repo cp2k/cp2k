@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2001 - 2002  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/memory_utilities [1.0] *
 !!
@@ -46,8 +46,8 @@ MODULE memory_utilities
 ! *****************************************************************************
 
   INTERFACE reallocate
-    MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,&
-                     reallocate_r1,reallocate_r2,reallocate_r3
+    MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
+                     reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4
   END INTERFACE
 
 ! *****************************************************************************
@@ -248,6 +248,88 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE reallocate_i4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
+                             lb4_new,ub4_new)
+
+!   Purpose: (Re)Allocate an integer array with new dimensions.
+
+!   History: - Creation (04.10.2002,MK)
+
+!   ***************************************************************************
+
+    INTEGER, DIMENSION(:,:,:,:), POINTER :: p
+    INTEGER, INTENT(IN)                  :: lb1_new,lb2_new,lb3_new,lb4_new,&
+                                            ub1_new,ub2_new,ub3_new,ub4_new
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i4"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,new_size,&
+               old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,ub4,ub4_old
+
+    INTEGER, DIMENSION(:,:,:,:), ALLOCATABLE :: work
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb3_old = LBOUND(p,3)
+      ub3_old = UBOUND(p,3)
+      lb4_old = LBOUND(p,4)
+      ub4_old = UBOUND(p,4)
+      ALLOCATE (work(lb1_old:ub1_old,&
+                     lb2_old:ub2_old,&
+                     lb3_old:ub3_old,&
+                     lb4_old:ub4_old),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1_old - lb1_old + 1)*&
+                   (ub2_old - lb2_old + 1)*&
+                   (ub3_old - lb3_old + 1)*&
+                   (ub4_old - lb4_old + 1)*int_size
+        CALL stop_memory(routine,"work",old_size)
+      END IF
+      work(:,:,:,:) = p(:,:,:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
+                lb4_new:ub4_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*&
+                 (ub2_new - lb2_new + 1)*&
+                 (ub3_new - lb3_new + 1)*&
+                 (ub4_new - lb4_new + 1)*int_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:,:,:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      lb3 = MAX(lb3_new,lb3_old)
+      ub3 = MIN(ub3_new,ub3_old)
+      lb4 = MAX(lb4_new,lb4_old)
+      ub4 = MIN(ub4_new,ub4_old)
+      p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_i4
+
+! *****************************************************************************
+
   SUBROUTINE reallocate_r1(p,lb1_new,ub1_new)
 
 !   Purpose: (Re)Allocate an real vector with a new dimension.
@@ -437,6 +519,88 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_r3
+
+! *****************************************************************************
+
+  SUBROUTINE reallocate_r4(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new,&
+                             lb4_new,ub4_new)
+
+!   Purpose: (Re)Allocate an integer array with new dimensions.
+
+!   History: - Creation (04.10.2002,MK)
+
+!   ***************************************************************************
+
+    REAL(wp), DIMENSION(:,:,:,:), POINTER :: p
+    INTEGER, INTENT(IN)                   :: lb1_new,lb2_new,lb3_new,lb4_new,&
+                                             ub1_new,ub2_new,ub3_new,ub4_new
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r4"
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
+
+!   *** Local variables ***
+
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,lb4,lb4_old,new_size,&
+               old_size,ub1,ub1_old,ub2,ub2_old,ub3,ub3_old,ub4,ub4_old
+
+    REAL(wp), DIMENSION(:,:,:,:), ALLOCATABLE :: work
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb3_old = LBOUND(p,3)
+      ub3_old = UBOUND(p,3)
+      lb4_old = LBOUND(p,4)
+      ub4_old = UBOUND(p,4)
+      ALLOCATE (work(lb1_old:ub1_old,&
+                     lb2_old:ub2_old,&
+                     lb3_old:ub3_old,&
+                     lb4_old:ub4_old),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1_old - lb1_old + 1)*&
+                   (ub2_old - lb2_old + 1)*&
+                   (ub3_old - lb3_old + 1)*&
+                   (ub4_old - lb4_old + 1)*wp_size
+        CALL stop_memory(routine,"work",old_size)
+      END IF
+      work(:,:,:,:) = p(:,:,:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new,&
+                lb4_new:ub4_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*&
+                 (ub2_new - lb2_new + 1)*&
+                 (ub3_new - lb3_new + 1)*&
+                 (ub4_new - lb4_new + 1)*wp_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:,:,:) = 0.0_wp
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      lb3 = MAX(lb3_new,lb3_old)
+      ub3 = MIN(ub3_new,ub3_old)
+      lb4 = MAX(lb4_new,lb4_old)
+      ub4 = MIN(ub4_new,ub4_old)
+      p(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4) = work(lb1:ub1,lb2:ub2,lb3:ub3,lb4:ub4)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_r4
 
 ! *****************************************************************************
 
