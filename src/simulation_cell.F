@@ -741,10 +741,10 @@ CONTAINS
 
       CALL get_cell(cell=cell,abc=abc,alpha=alpha,beta=beta,gamma=gamm)
 
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T60,F20.3)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T61,F20.3)")&
         "CELL| Volume ["//TRIM(cell%unit_of_length_name)//"**3]:",&
         cell%deth/cell%unit_of_length**3
-      WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F10.3)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T30,3F10.3,4X,A6,F11.3)")&
         "CELL| Vector a ["//TRIM(cell%unit_of_length_name)//"]:",&
         cell%hmat(:,1)/cell%unit_of_length,&
         "|a| = ",abc(1)/cell%unit_of_length,&
@@ -754,11 +754,11 @@ CONTAINS
         "CELL| Vector c ["//TRIM(cell%unit_of_length_name)//"]:",&
         cell%hmat(:,3)/cell%unit_of_length,&
         "|c| = ",abc(3)/cell%unit_of_length
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F10.3)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
         "CELL| Angle (b,c) [degree]: ",alpha,&
         "CELL| Angle (a,c) [degree]: ",beta,&
         "CELL| Angle (a,b) [degree]: ",gamm
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,I10)")&
+      WRITE (UNIT=output_unit,FMT="(T2,A,T70,I11)")&
         "CELL| Grid size for subcell generation",cell%nsubcell
 
     END IF

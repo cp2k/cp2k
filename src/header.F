@@ -109,10 +109,10 @@ SUBROUTINE qs_header ( iw )
        '    *****  ** *****  ***  *****  ***  *******  ****  ******  ***    ',&
        '                                                             ***    ',&
        '                                                                    ',&
-       '                  MPI Festkoerperforschung Stuttgart                ',&
-       '                               1999                                 ',&
+       '                           CP2K Developers Group                    ',&
+       '                               1999 - 2002                          ',&
        '                                                                    ',&
-       '                            Version 0.0                             ',&
+       '                               Version 0.1                          ',&
        '                                                                    '
 END SUBROUTINE qs_header
 

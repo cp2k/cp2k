@@ -724,7 +724,7 @@ CONTAINS
 
      IF (do_level_shift) THEN
         IF (use_cholesky .or. use_arpack) THEN
-	   call stop_program("eigensolver","level shift not implemented")
+           call stop_program("eigensolver","level shift not implemented")
         ENDIF
      ENDIF
 

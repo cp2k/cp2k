@@ -774,7 +774,7 @@ CONTAINS
 ! check input ...
     IF (present(pmatrix)) THEN
        IF (.not. present(work)) THEN
-	   call stop_program("make_basis","pmatrix needs work space !?")
+          call stop_program("make_basis","pmatrix needs work space !?")
        ENDIF
     ENDIF
     IF (present(ortho)) THEN
