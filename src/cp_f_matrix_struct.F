@@ -25,23 +25,39 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_f_matrix_struct
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_get_default_unit_nr, cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
-  USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release, cp_para_env_write
-  USE cp_blacs_env, ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_write
-  USE timings, ONLY: timeset, timestop
-  USE message_passing,     ONLY: mp_bcast,&
-                                 mp_max,&
-                                 mp_sum,&
-                                 mp_sync
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             cp_blacs_env_write
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain,&
+                                             cp_para_env_write
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE kinds,                           ONLY: wp=>dp
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -57,7 +73,7 @@ MODULE cp_f_matrix_struct
   PUBLIC :: cp_f_matrix_struct_type
   PUBLIC :: optimal_blacs_row_block_size, optimal_blacs_col_block_size
   PUBLIC :: cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent, cp_fmstruct_write
+       cp_fmstruct_equivalent, cp_fmstruct_write, cp_fmstruct_get
 !***
 !****************************************************************************
 
@@ -106,7 +122,7 @@ MODULE cp_f_matrix_struct
      ! ncol_global=descriptor(4)
      ! nrow_block=descriptor(5)
      ! nrow_global=descriptor(3)
-     INTEGER :: ncol_block, nrow_block, nrow_global, ncol_global
+     INTEGER :: nrow_block, ncol_block, nrow_global, ncol_global
      INTEGER, DIMENSION(2) :: first_p_pos
      INTEGER, DIMENSION(:), POINTER :: row_indices, col_indices,&
           nrow_local, ncol_local
@@ -123,13 +139,13 @@ CONTAINS
 !!     cp_fmstruct_create
 !!
 !!   SYNOPSIS
-!!     Subroutine cp_fmstruct_create(fmstruct, para_env, nrow_global,&
-!!         ncol_global, nrow_block, ncol_block, context, descriptor,&
+!!     Subroutine cp_fmstruct_create(fmstruct, para_env, context,&
+!!         nrow_global, ncol_global, nrow_block, ncol_block, descriptor,&
 !!         first_p_pos, error)
 !!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
 !!       Type(cp_para_env_type), Pointer:: para_env
-!!       Integer, Intent (IN):: nrow_global, ncol_global, nrow_block,&
-!!         ncol_block
+!!       Integer, Intent (IN):: nrow_global, ncol_global
+!!       Integer, Intent (IN), Optional:: nrow_block, ncol_block
 !!       Type(cp_blacs_env_type), Pointer:: context
 !!       Integer, Dimension(9), Intent (IN), Optional:: descriptor
 !!       Integer, Optional, Dimension(2):: first_p_pos
@@ -194,7 +210,7 @@ SUBROUTINE cp_fmstruct_create(fmstruct,para_env,context, nrow_global,&
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      fmstruct%context => context
-     CALL cp_blacs_env_retain(fmstruct%context,error=error)
+     CALL cp_blacs_env_retain(context,error=error)
      fmstruct%para_env => para_env
      CALL cp_para_env_retain(para_env,error=error)
      
@@ -444,6 +460,15 @@ END FUNCTION cp_fmstruct_equivalent
 !!   NAME
 !!     cp_fmstruct_write
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_fmstruct_write(fmstruct, unit_nr, long_description,&
+!!         error)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Integer, Intent (IN):: unit_nr
+!!       Logical, Intent (IN), Optional:: long_description
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fmstruct_write
+!!
 !!   FUNCTION
 !!     writes a description of the matrix structure to the given unit
 !!
@@ -556,6 +581,88 @@ SUBROUTINE cp_fmstruct_write(fmstruct, unit_nr, long_description,error)
      WRITE (unit=unit_nr, fmt="(a)",iostat=iostat)"<cp_f_matrix_struct>:*null*"
   END IF
 END SUBROUTINE cp_fmstruct_write
+!***************************************************************************
+
+!!****f* cp_f_matrix_struct/cp_fmstruct_get [1.0] *
+!!
+!!   NAME
+!!     cp_fmstruct_get
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fmstruct_get(fmstruct, para_env, context, descriptor,&
+!!         ncol_block, nrow_block, nrow_global, ncol_global, id_nr,&
+!!         ref_count, first_p_pos, row_indices, col_indices, nrow_local,&
+!!         ncol_local, error)
+!!       Type(cp_f_matrix_struct_type), Pointer:: fmstruct
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
+!!       Type(cp_blacs_env_type), Pointer, Optional:: context
+!!       Integer, Dimension(9), Intent (OUT), Optional:: descriptor
+!!       Integer, Intent (OUT), Optional:: ncol_block, nrow_block,&
+!!         nrow_global, ncol_global, id_nr, ref_count
+!!       Integer, Dimension(2), Intent (OUT), Optional:: first_p_pos
+!!       Integer, Dimension(:), Pointer, Optional:: row_indices,&
+!!         col_indices, nrow_local, ncol_local
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine cp_fmstruct_get
+!!
+!!   FUNCTION
+!!     returns the values of various attributes of the matrix structure
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - fmstruct: the stru
+!!     - unit_nr: the number of the unit where to write the descr
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_fmstruct_get(fmstruct, para_env, context,&
+     descriptor, ncol_block, nrow_block, nrow_global,&
+     ncol_global, id_nr, ref_count, first_p_pos, row_indices,&
+     col_indices, nrow_local, ncol_local, error)
+  TYPE(cp_f_matrix_struct_type), POINTER :: fmstruct
+  TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
+  TYPE(cp_blacs_env_type), POINTER, OPTIONAL :: context
+  INTEGER, DIMENSION(9), INTENT(OUT), OPTIONAL :: descriptor
+  INTEGER, INTENT(out), OPTIONAL :: ncol_block, nrow_block, nrow_global,&
+       ncol_global, id_nr, ref_count
+  INTEGER, DIMENSION(2), INTENT(out), OPTIONAL :: first_p_pos
+  INTEGER, DIMENSION(:), POINTER, OPTIONAL :: row_indices, col_indices,&
+       nrow_local, ncol_local
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fmstruct_get',&
+       routineP=moduleN//':'//routineN
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(fmstruct),cp_failure_level,routineP,error,failure)
+  CPPrecondition(fmstruct%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (PRESENT(para_env)) para_env => fmstruct%para_env
+     IF (PRESENT(context)) context => fmstruct%context
+     IF (PRESENT(descriptor)) descriptor = fmstruct%descriptor
+     IF (PRESENT(ncol_block)) ncol_block=fmstruct%ncol_block
+     IF (PRESENT(nrow_block)) nrow_block=fmstruct%nrow_block
+     IF (PRESENT(nrow_global)) nrow_global=fmstruct%nrow_global
+     IF (PRESENT(ncol_global)) ncol_global=fmstruct%ncol_global
+     IF (PRESENT(id_nr)) id_nr=fmstruct%id_nr
+     IF (PRESENT(ref_count)) ref_count=fmstruct%ref_count
+     IF (PRESENT(first_p_pos)) first_p_pos=fmstruct%first_p_pos
+     IF (PRESENT(row_indices)) row_indices => fmstruct%row_indices
+     IF (PRESENT(col_indices)) col_indices => fmstruct%col_indices
+     IF (PRESENT(nrow_local)) nrow_local => nrow_local
+     IF (PRESENT(ncol_local)) ncol_local => ncol_local
+  END IF
+END SUBROUTINE cp_fmstruct_get
 !***************************************************************************
 
 END MODULE cp_f_matrix_struct

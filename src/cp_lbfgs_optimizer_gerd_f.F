@@ -36,7 +36,7 @@ MODULE cp_lbfgs_optimizer_gerd_f
   USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
         cp_assertion_failed, cp_error_get_logger
   USE cp_log_handling, ONLY: cp_to_string, cp_warning_level, cp_failure_level,&
-        cp_std_out_unit_nr, cp_logger_get_default_unit_nr
+        cp_std_out_unit_nr, cp_logger_get_default_unit_nr, cp_logger_type
   USE kinds, ONLY: wp=>dp
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
@@ -250,14 +250,15 @@ CONTAINS
     INTEGER :: handle,n, lenwa, stat
     CHARACTER(len=*), PARAMETER :: routineN='cp_opt_gerd_f_init',&
          routineP=moduleN//':'//routineN
+    TYPE(cp_logger_type), POINTER :: logger
     failure=.FALSE.
 
     CALL timeset(routineN//','//moduleN,'I',"",handle)
 
     IF (.NOT. failure) THEN
        ! quite a hack (redirect the lbfgs output)
-       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(&
-            cp_error_get_logger(error))
+       logger => cp_error_get_logger(error)
+       cp_lbfgs_unit_nr=cp_logger_get_default_unit_nr(logger)
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m

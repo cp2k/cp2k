@@ -25,55 +25,74 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_unitary_t
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log, cp_logger_type, cp_note_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_get_logger
-  use kinds, only: wp=>dp
-  use pao_plain_rot, only: cp_right_compose_p_rot, &
-       cp_right_compose_p_rot_deriv, cp_left_compose_p_rot,&
-       cp_left_compose_p_rot_deriv
-  use pao_types, only: pao_env_type, pao_glob_angles_type
-  use pao_l_angles_methods, only: pao_local_angles_type, cp_init, &
-       pao_l_ang_dealloc_ref, cp_get_angle, cp_get_p_index,&
-       cp_get_non_p_index, cp_get_size_min_bas, cp_get_size_excl_bas,&
-       cp_get_size_full_bas, pao_l_ang_get
-  use cp_matrix_utils, only: cp_sup_norm_matrix
-  use cp_array_utils, only: cp_2d_r_output, cp_1d_r_output
-  implicit none
-  private
+MODULE pao_unitary_t
+  USE cp_array_utils,                  ONLY: cp_1d_r_output,&
+                                             cp_2d_r_output
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_precondition_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
+  USE kinds,                           ONLY: wp=>dp
+  USE pao_l_angles_methods,            ONLY: cp_get_angle,&
+                                             cp_get_non_p_index,&
+                                             cp_get_p_index,&
+                                             cp_get_size_excl_bas,&
+                                             cp_get_size_full_bas,&
+                                             cp_get_size_min_bas,&
+                                             cp_init,&
+                                             pao_l_ang_dealloc_ref,&
+                                             pao_l_ang_get,&
+                                             pao_local_angles_type
+  USE pao_plain_rot,                   ONLY: cp_left_compose_p_rot,&
+                                             cp_left_compose_p_rot_deriv,&
+                                             cp_right_compose_p_rot,&
+                                             cp_right_compose_p_rot_deriv
+  USE pao_types,                       ONLY: pao_env_type,&
+                                             pao_glob_angles_type
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.false.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.FALSE.
 
-  public :: pao_calc_u_du_type
+  PUBLIC :: pao_calc_u_du_type
 
-  public :: cp_init, cp_dealloc_ref, cp_get, cp_next
+  PUBLIC :: cp_init, cp_dealloc_ref, cp_get, cp_next
 
-  public :: pao_calc_u_du_init, pao_calc_u_du_dealloc_ref,&
+  PUBLIC :: pao_calc_u_du_init, pao_calc_u_du_dealloc_ref,&
        pao_calc_u_du_get, pao_calc_u_du_next
 
 ! == core methods ==
 !! initializes the object
-  interface cp_init
-     module procedure pao_calc_u_du_init
-  end interface
+  INTERFACE cp_init
+     MODULE PROCEDURE pao_calc_u_du_init
+  END INTERFACE
 
 !! deallocates the memory used by the first argument
-  interface cp_dealloc_ref
-     module procedure pao_calc_u_du_dealloc_ref
-  end interface
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE pao_calc_u_du_dealloc_ref
+  END INTERFACE
 
 !! returns various attributes of the first argument 
-  interface cp_get
-     module procedure pao_calc_u_du_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE pao_calc_u_du_get
+  END INTERFACE
 
 !! iterator interface: returns true if there is a next element
-  interface cp_next
-     module procedure pao_calc_u_du_next
-  end interface
+  INTERFACE cp_next
+     MODULE PROCEDURE pao_calc_u_du_next
+  END INTERFACE
 
 !!***
 !***************************************************************************
@@ -121,17 +140,17 @@ module pao_unitary_t
 !!
 !!   SOURCE
 !***************************************************************************
-  type pao_calc_u_du_type
-     private
-     logical :: initialized
-     real(kind=wp), dimension(:,:), pointer :: L,R,tmp_m
-     integer :: min_bas, excl_bas, status
-     type(pao_local_angles_type), pointer :: local_angles
-  end type pao_calc_u_du_type
+  TYPE pao_calc_u_du_type
+     PRIVATE
+     LOGICAL :: initialized
+     REAL(kind=wp), DIMENSION(:,:), POINTER :: L,R,tmp_m
+     INTEGER :: min_bas, excl_bas, status
+     TYPE(pao_local_angles_type), POINTER :: local_angles
+  END TYPE pao_calc_u_du_type
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 ! ======= pao specific ======
 
 ! ============== pao_calc_u_du ============
@@ -181,115 +200,115 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine pao_calc_u_du_init(c_env,local_angles, min_bas, excl_bas,&
+  SUBROUTINE pao_calc_u_du_init(c_env,local_angles, min_bas, excl_bas,&
        u, error) !to do (correct full to excl)
-    type(pao_calc_u_du_type), intent(out) :: c_env
-    type(pao_local_angles_type), intent(inout), target :: local_angles
-    integer, optional, intent(in) :: min_bas,excl_bas
-    real(kind=wp), dimension(:,:), optional, intent(in):: u
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(out) :: c_env
+    TYPE(pao_local_angles_type), INTENT(inout), TARGET :: local_angles
+    INTEGER, OPTIONAL, INTENT(in) :: min_bas,excl_bas
+    REAL(kind=wp), DIMENSION(:,:), OPTIONAL, INTENT(in):: u
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_init'
-    integer :: n_excl_bas,n_min_bas, stat, i_excl_bas, i_min_bas, i, n_full_bas
-    integer, dimension(:), pointer :: proj_indexes, non_proj_indexes
-    failure=.false.
-    c_env%initialized=.true.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_init'
+    INTEGER :: n_excl_bas,n_min_bas, stat, i_excl_bas, i_min_bas, i, n_full_bas
+    INTEGER, DIMENSION(:), POINTER :: proj_indexes, non_proj_indexes
+    failure=.FALSE.
+    c_env%initialized=.TRUE.
     c_env%status=0
     c_env%local_angles => local_angles
-    nullify(c_env%L, c_env%R, c_env%tmp_m)
-    if (present(min_bas)) then
+    NULLIFY(c_env%L, c_env%R, c_env%tmp_m)
+    IF (PRESENT(min_bas)) THEN
        c_env%min_bas=min_bas
-    else
+    ELSE
        c_env%min_bas=1
-    end if
-    if (present(excl_bas)) then
+    END IF
+    IF (PRESENT(excl_bas)) THEN
        c_env%excl_bas=excl_bas
-    else
+    ELSE
        c_env%excl_bas=1
-    end if
-    call pao_l_ang_get(local_angles, size_excl_bas=n_excl_bas, &
+    END IF
+    CALL pao_l_ang_get(local_angles, size_excl_bas=n_excl_bas, &
          size_min_bas=n_min_bas,&
          size_full_bas=n_full_bas, proj_indexes=proj_indexes,&
          non_proj_indexes=non_proj_indexes, error=error)
     CPPrecondition(n_excl_bas>=0,cp_failure_level,routineP,error,failure)
-    allocate(c_env%L(n_full_bas,n_full_bas),stat=stat)
+    ALLOCATE(c_env%L(n_full_bas,n_full_bas),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    allocate(c_env%R(n_full_bas,n_full_bas),stat=stat)
+    ALLOCATE(c_env%R(n_full_bas,n_full_bas),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    allocate(c_env%tmp_m(n_full_bas,n_full_bas),stat=stat)
+    ALLOCATE(c_env%tmp_m(n_full_bas,n_full_bas),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (present(u)) then
-          if (present(min_bas)) then
+    failureIf: IF (.NOT. failure) THEN
+       IF (PRESENT(u)) THEN
+          IF (PRESENT(min_bas)) THEN
              CPPrecondition(min_bas==1,cp_failure_level,routineP,error,failure)
-          end if
-          if (present(excl_bas)) then
+          END IF
+          IF (PRESENT(excl_bas)) THEN
              CPPrecondition(excl_bas==1,cp_failure_level,routineP,error,failure)
-          end if
+          END IF
           c_env%L=0
-          forall (i=1:n_excl_bas) c_env%L(i,i)=1
+          FORALL (i=1:n_excl_bas) c_env%L(i,i)=1
           c_env%R=u
-          call cp_left_compose_p_rot(matrix=c_env%R,&
+          CALL cp_left_compose_p_rot(matrix=c_env%R,&
                angle=-cp_get_angle(local_angles,min_bas=n_min_bas,&
                excl_bas=n_excl_bas,error=error),&
                i=cp_get_p_index(local_angles,min_bas=n_min_bas,error=error),&
                j=cp_get_non_p_index(local_angles,excl_bas=n_excl_bas,error=error),&
                error=error)
-       else
+       ELSE
           c_env%L=0
           c_env%R=0
-          forall (i=1:n_full_bas)
+          FORALL (i=1:n_full_bas)
              c_env%L(i,i)=1
              c_env%R(i,i)=1
-          end forall
+          END FORALL
 ! def R
-          do i_excl_bas=n_excl_bas,c_env%excl_bas+1,-1
-             do i_min_bas=n_min_bas,1,-1
-                call cp_left_compose_p_rot(matrix=c_env%R,&
+          DO i_excl_bas=n_excl_bas,c_env%excl_bas+1,-1
+             DO i_min_bas=n_min_bas,1,-1
+                CALL cp_left_compose_p_rot(matrix=c_env%R,&
                      angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                      excl_bas=i_excl_bas,error=error),&
                      i=proj_indexes(i_min_bas),&
                      j=non_proj_indexes(i_excl_bas),&
                      error=error)
-             end do
-          end do
+             END DO
+          END DO
           i_excl_bas=c_env%excl_bas
-          do i_min_bas=n_min_bas,c_env%min_bas+1,-1
-             call cp_left_compose_p_rot(matrix=c_env%R,&
+          DO i_min_bas=n_min_bas,c_env%min_bas+1,-1
+             CALL cp_left_compose_p_rot(matrix=c_env%R,&
                   angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                   excl_bas=i_excl_bas,error=error),&
                   i=proj_indexes(i_min_bas),&
                   j=non_proj_indexes(i_excl_bas),&
                   error=error)
-          end do
+          END DO
 ! def L
-          do i_excl_bas=1,c_env%excl_bas-1
-             do i_min_bas=1,n_min_bas
-                call cp_right_compose_p_rot(matrix=c_env%L,&
+          DO i_excl_bas=1,c_env%excl_bas-1
+             DO i_min_bas=1,n_min_bas
+                CALL cp_right_compose_p_rot(matrix=c_env%L,&
                      angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                      excl_bas=i_excl_bas,error=error),&
                      i=proj_indexes(i_min_bas),&
                      j=non_proj_indexes(i_excl_bas),&
                      error=error)
-             end do
-          end do
+             END DO
+          END DO
           i_excl_bas=c_env%excl_bas
-          do i_min_bas=1,c_env%min_bas-1
-             call cp_right_compose_p_rot(matrix=c_env%L,&
+          DO i_min_bas=1,c_env%min_bas-1
+             CALL cp_right_compose_p_rot(matrix=c_env%L,&
                   angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                   excl_bas=i_excl_bas,error=error),&
                   i=proj_indexes(i_min_bas),&
                   j=non_proj_indexes(i_excl_bas),&
                   error=error)
-          end do
-       end if
+          END DO
+       END IF
        c_env%min_bas=c_env%min_bas-1 ! to start up goes one before
-    end if failureIf
-    if (failure) then
+    END IF failureIf
+    IF (failure) THEN
        c_env%status=-1
-    end if
-  end subroutine pao_calc_u_du_init
+    END IF
+  END SUBROUTINE pao_calc_u_du_init
 !!***
 !***************************************************************************
 
@@ -325,90 +344,90 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  function pao_calc_u_du_next(c_env,error) result(res)
-    logical :: res
-    type(pao_calc_u_du_type), intent(inout) :: c_env
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_calc_u_du_next(c_env,error) RESULT(res)
+    LOGICAL :: res
+    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_next'
-    real(kind=wp) :: err
-    integer :: old_min_bas,old_excl_bas, i
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_next'
+    REAL(kind=wp) :: err
+    INTEGER :: old_min_bas,old_excl_bas, i
+    failure=.FALSE.
 
     CPPrecondition(c_env%initialized,cp_failure_level,routineP,error,failure)
-    if (debug_this_module .and. cp_debug) then
-       CPPrecondition(associated(c_env%R),cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(c_env%L),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
+    IF (debug_this_module .AND. cp_debug) THEN
+       CPPrecondition(ASSOCIATED(c_env%R),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(c_env%L),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT. failure) THEN
        old_min_bas=c_env%min_bas
        old_excl_bas=c_env%excl_bas
-       if (c_env%min_bas>=cp_get_size_min_bas(c_env%local_angles)) then
-          if (c_env%excl_bas>=cp_get_size_excl_bas(c_env%local_angles)) then
+       IF (c_env%min_bas>=cp_get_size_min_bas(c_env%local_angles)) THEN
+          IF (c_env%excl_bas>=cp_get_size_excl_bas(c_env%local_angles)) THEN
              c_env%status=2
-             res=.false.
-             return
-          else if (cp_get_size_excl_bas(c_env%local_angles)==0) then
+             res=.FALSE.
+             RETURN
+          ELSE IF (cp_get_size_excl_bas(c_env%local_angles)==0) THEN
              c_env%status=2
-             res=.false.
-             return
-          else
+             res=.FALSE.
+             RETURN
+          ELSE
              c_env%min_bas=1
              c_env%excl_bas=c_env%excl_bas+1
-          end if
-       else
+          END IF
+       ELSE
           c_env%min_bas=c_env%min_bas+1
-       end if
-       select case (c_env%status)
-       case (-2) ! status after dealloc
-          res=.false.
-       case (-1) ! status after an error
-          res=.false.
-       case (0) ! initial status
-          res=.true.
+       END IF
+       SELECT CASE (c_env%status)
+       CASE (-2) ! status after dealloc
+          res=.FALSE.
+       CASE (-1) ! status after an error
+          res=.FALSE.
+       CASE (0) ! initial status
+          res=.TRUE.
           c_env%status=1
-       case (1)
+       CASE (1)
 ! normal case
-          res=.true.
-          call cp_right_compose_p_rot(matrix=c_env%L,&
+          res=.TRUE.
+          CALL cp_right_compose_p_rot(matrix=c_env%L,&
                angle=cp_get_angle(c_env%local_angles,min_bas=old_min_bas,&
                excl_bas=old_excl_bas), &
                i=cp_get_p_index(c_env%local_angles,old_min_bas,error=error), &
                j=cp_get_non_p_index(c_env%local_angles,old_excl_bas,&
                error=error), error=error)
-          call cp_left_compose_p_rot(matrix=c_env%R,&
+          CALL cp_left_compose_p_rot(matrix=c_env%R,&
                angle= -cp_get_angle(c_env%local_angles,min_bas=c_env%min_bas,&
                excl_bas=c_env%excl_bas), &
                i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error))
-       case (2)
-          res=.false.
-          if (debug_this_module .and. cp_debug) then
-             do i=1,size(c_env%R)
+       CASE (2)
+          res=.FALSE.
+          IF (debug_this_module .AND. cp_debug) THEN
+             DO i=1,SIZE(c_env%R)
                 c_env%R(i,i)=c_env%R(i,i)-1
-             end do
+             END DO
              err=cp_sup_norm_matrix(c_env%R)
-             if (err>2*size(c_env%R)*epsilon(0.0_wp)) then
-                call cp_error_message(cp_warning_level,routineP,&
+             IF (err>2*SIZE(c_env%R)*EPSILON(0.0_wp)) THEN
+                CALL cp_error_message(cp_warning_level,routineP,&
                      message="accumulation of the error bigger than tolerance:"//&
                      cp_to_string(err)//" in "//&
                      CPSourceFileRef,&
                      error=error)
-             end if
-          end if
-       case default
-          res=.false.
-          call cp_error_message(cp_warning_level,routineP,&
+             END IF
+          END IF
+       CASE default
+          res=.FALSE.
+          CALL cp_error_message(cp_warning_level,routineP,&
                message="unknown status "//cp_to_string(c_env%status)//&
                " in "// &
                CPSourceFileRef,&
                error=error)
           c_env%status=-1
-       end select
-    end if
-  end function pao_calc_u_du_next
+       END SELECT
+    END IF
+  END FUNCTION pao_calc_u_du_next
 !!***
 !***************************************************************************
 
@@ -455,100 +474,102 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine pao_calc_u_du_get(c_env,u,du,min_bas,excl_bas,local_angles,&
+  SUBROUTINE pao_calc_u_du_get(c_env,u,du,min_bas,excl_bas,local_angles,&
        finished,error)
-    type(pao_calc_u_du_type), intent(inout) :: c_env
-    type(pao_local_angles_type), optional, pointer :: local_angles
-    integer, optional, intent(out) :: min_bas,excl_bas
-    logical,optional, intent(out) :: finished
-    real(kind=wp), optional, intent(out), dimension(:,:) :: u,du
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
+    TYPE(pao_local_angles_type), OPTIONAL, POINTER :: local_angles
+    INTEGER, OPTIONAL, INTENT(out) :: min_bas,excl_bas
+    LOGICAL,OPTIONAL, INTENT(out) :: finished
+    REAL(kind=wp), OPTIONAL, INTENT(out), DIMENSION(:,:) :: u,du
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_get'
-    integer :: n_excl_bas, n_full_bas
-    real(kind=wp) :: angle
-    integer, save :: iter=0
-    real(kind=wp), dimension(:), pointer :: ang
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_get'
+    INTEGER :: n_excl_bas, n_full_bas
+    REAL(kind=wp) :: angle
+    INTEGER, SAVE :: iter=0
+    REAL(kind=wp), DIMENSION(:), POINTER :: ang
+    TYPE(cp_logger_type), POINTER :: logger
+    failure=.FALSE.
+    logger => cp_error_get_logger(error)
     iter = iter+1
 
     CPPrecondition(c_env%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(c_env%status==1,cp_failure_level,routineP,error,failure)
-    if (debug_this_module .and. cp_debug) then
-       CPPrecondition(associated(c_env%local_angles),cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(c_env%R),cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(c_env%L),cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(c_env%tmp_m),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       call pao_l_ang_get(c_env%local_angles,size_excl_bas=n_excl_bas,&
+    IF (debug_this_module .AND. cp_debug) THEN
+       CPPrecondition(ASSOCIATED(c_env%local_angles),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(c_env%R),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(c_env%L),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(c_env%tmp_m),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT. failure) THEN
+       CALL pao_l_ang_get(c_env%local_angles,size_excl_bas=n_excl_bas,&
             size_full_bas=n_full_bas)
        angle=cp_get_angle(c_env%local_angles,min_bas=c_env%min_bas,&
             excl_bas=c_env%excl_bas,error=error)
-       if (present(u)) then
-          CPPrecondition(size(u,1)==n_full_bas,cp_failure_level,routineP,error,failure)
-          CPPrecondition(size(u,2)==n_full_bas,cp_failure_level,routineP,error,failure)
+       IF (PRESENT(u)) THEN
+          CPPrecondition(SIZE(u,1)==n_full_bas,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(u,2)==n_full_bas,cp_failure_level,routineP,error,failure)
           c_env%tmp_m=c_env%L
-          call cp_right_compose_p_rot(matrix=c_env%tmp_m,&
+          CALL cp_right_compose_p_rot(matrix=c_env%tmp_m,&
                angle=angle,&
                i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error),error=error)
-          call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
+          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,u,n_full_bas)
-          if (cp_debug .and. debug_this_module) then
-             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+          IF (cp_debug .AND. debug_this_module) THEN
+             CALL cp_2d_r_output(logger=logger,&
                   outputName='u',fromWhere=routineP, iter=iter,&
                   array=u,comment=" min_bas="//cp_to_string(c_env%min_bas)//&
                   " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
-          end if
-       end if
-       if (present(du)) then
-          CPPrecondition(size(du,1)==n_full_bas,cp_failure_level,routineP,error,failure)
-          CPPrecondition(size(du,2)==n_full_bas,cp_failure_level,routineP,error,failure)
+          END IF
+       END IF
+       IF (PRESENT(du)) THEN
+          CPPrecondition(SIZE(du,1)==n_full_bas,cp_failure_level,routineP,error,failure)
+          CPPrecondition(SIZE(du,2)==n_full_bas,cp_failure_level,routineP,error,failure)
           c_env%tmp_m=c_env%L
-          call cp_right_compose_p_rot_deriv(matrix=c_env%tmp_m,&
+          CALL cp_right_compose_p_rot_deriv(matrix=c_env%tmp_m,&
                angle=angle,&
                i=cp_get_p_index(c_env%local_angles,c_env%min_bas,error=error),&
                j=cp_get_non_p_index(c_env%local_angles,c_env%excl_bas,&
                error=error),error=error)
-          call dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
+          CALL dgemm('N','N',n_full_bas,n_full_bas,n_full_bas,1.0_wp,&
                c_env%tmp_m,n_full_bas,c_env%R,n_full_bas,0.0_wp,du,n_full_bas)
-          if (cp_debug .and. debug_this_module) then
+          IF (cp_debug .AND. debug_this_module) THEN
 !!FM             nullify(ang)
 !!FM             call pao_l_ang_get(c_env%local_angles,angles=ang)
-!!FM             call cp_1d_r_output(logger=cp_error_get_logger(error),&
+!!FM             call cp_1d_r_output(logger=logger,&
 !!FM               outputName='udu_angles',fromWhere=routineP, iter=iter,&
 !!FM               array=ang,error=error)
-             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+             CALL cp_2d_r_output(logger=logger,&
                outputName='udu_L',fromWhere=routineP, iter=iter,&
                array=c_env%L,comment=" min_bas="//&
                cp_to_string(c_env%min_bas)//&
                   " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
-             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+             CALL cp_2d_r_output(logger=logger,&
                outputName='udu_R',fromWhere=routineP, iter=iter,&
                array=c_env%R,comment=" min_bas="//&
                cp_to_string(c_env%min_bas)//&
                   " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
-             call cp_2d_r_output(logger=cp_error_get_logger(error),&
+             CALL cp_2d_r_output(logger=logger,&
                outputName='du',fromWhere=routineP, iter=iter,&
                array=du,comment=" min_bas="//cp_to_string(c_env%min_bas)//&
                   " excl_bas="//cp_to_string(c_env%excl_bas),error=error)
-          end if
-       end if
-       if (present(min_bas)) &
+          END IF
+       END IF
+       IF (PRESENT(min_bas)) &
             min_bas=c_env%min_bas
-       if (present(excl_bas)) &
+       IF (PRESENT(excl_bas)) &
             excl_bas=c_env%excl_bas
-       if (present(local_angles)) &
+       IF (PRESENT(local_angles)) &
             local_angles => c_env%local_angles
-       if (present(finished)) then
-          finished=c_env%status /= 1 .and. c_env%status /= 0
+       IF (PRESENT(finished)) THEN
+          finished=c_env%status /= 1 .AND. c_env%status /= 0
 ! catch also status=0 and past end?
-       end if
-    end if
-  end subroutine pao_calc_u_du_get
+       END IF
+    END IF
+  END SUBROUTINE pao_calc_u_du_get
 !!***
 !***************************************************************************
 
@@ -583,34 +604,34 @@ contains
 !!
 !!   SOURCE
 !***************************************************************************
-  subroutine pao_calc_u_du_dealloc_ref(c_env, error)
-    type(pao_calc_u_du_type), intent(inout) :: c_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_calc_u_du_dealloc_ref(c_env, error)
+    TYPE(pao_calc_u_du_type), INTENT(inout) :: c_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot:pao_calc_u_du_dealloc_ref'
-    integer :: stat
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_calc_u_du_dealloc_ref'
+    INTEGER :: stat
+    failure=.FALSE.
     CPAssert(c_env%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (associated(c_env%R)) then
-          deallocate(c_env%R, stat=stat)
+    IF (.NOT. failure) THEN
+       IF (ASSOCIATED(c_env%R)) THEN
+          DEALLOCATE(c_env%R, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       if (associated(c_env%L)) then
-          deallocate(c_env%L, stat=stat)
+       END IF
+       IF (ASSOCIATED(c_env%L)) THEN
+          DEALLOCATE(c_env%L, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       if (associated(c_env%tmp_m)) then
-          deallocate(c_env%tmp_m, stat=stat)
+       END IF
+       IF (ASSOCIATED(c_env%tmp_m)) THEN
+          DEALLOCATE(c_env%tmp_m, stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       nullify(c_env%local_angles)
+       END IF
+       NULLIFY(c_env%local_angles)
        c_env%status=-2
-    end if
-  end subroutine pao_calc_u_du_dealloc_ref
+    END IF
+  END SUBROUTINE pao_calc_u_du_dealloc_ref
 !!***
 !***************************************************************************
 
 
-end module pao_unitary_t
+END MODULE pao_unitary_t

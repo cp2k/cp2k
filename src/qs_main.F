@@ -26,28 +26,28 @@
 !******************************************************************************
 
 MODULE qs_main
-
-  USE kinds, ONLY: wp => dp
-
-  USE checkpoint_handler,   ONLY: write_checkpoint_information
-  USE global_types,         ONLY: global_environment_type
-  USE qs_blacs,             ONLY: finish_blacs,&
-                                  start_blacs
-  USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_types, ONLY: qs_environment_type
-  USE qs_forces,            ONLY: update_forces
-  USE qs_init,              ONLY: read_qs_env
-  USE qs_build_ks_matrix,   ONLY: qs_ks_env_type
-  USE qs_neighbor_lists,    ONLY: build_neighbor_lists,&
-                                  rebuild_neighbor_lists
-  USE qs_overlap,           ONLY: distribute_overlap_matrix
-  USE qs_p_types,           ONLY: qs_p_env_type
-  USE qs_scf,               ONLY: scf
-  USE qs_tddfpt_module,     ONLY: tddfpt_calculation
-  USE timings,              ONLY: timeset,&
-                                  timestop
-  USE termination,          ONLY: stop_program
-
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp
+  USE qs_blacs,                        ONLY: finish_blacs,&
+                                             start_blacs
+  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
+  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
+  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_forces,                       ONLY: update_forces
+  USE qs_init,                         ONLY: read_qs_env
+  USE qs_neighbor_lists,               ONLY: build_neighbor_lists,&
+                                             rebuild_neighbor_lists
+  USE qs_overlap,                      ONLY: distribute_overlap_matrix
+  USE qs_p_types,                      ONLY: qs_p_env_type
+  USE qs_scf,                          ONLY: scf
+  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -88,6 +88,7 @@ CONTAINS
 
     TYPE(qs_ks_env_type) :: ks_env
     TYPE(qs_p_env_type)  :: qs_p_env
+    TYPE(cp_para_env_type), POINTER :: para_env
     INTEGER              :: handle
 
 !   ---------------------------------------------------------------------------
@@ -112,6 +113,8 @@ CONTAINS
 !   *** Allocate the overlap matrix and distribute the atomic blocks ***
 
     CALL distribute_overlap_matrix(qs_env,globenv)
+    para_env => cp_para_env_from_globenv(globenv)
+    CALL qs_env_update_s_mstruct(qs_env,para_env=para_env)
 
 !   *** Calculate the overlap and the core Hamiltonian integral matrix ***
 

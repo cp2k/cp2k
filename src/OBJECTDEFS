@@ -181,6 +181,7 @@ OBJECTS_GENERIC =\
  qs_core_hamiltonian.o\
  qs_diis.o\
  qs_energy_types.o\
+ qs_environment_methods.o\
  qs_environment_types.o\
  qs_force_types.o\
  qs_forces.o\

@@ -47,15 +47,21 @@
 !******************************************************************************
 
 MODULE cp_log_handling
-  USE output_utilities, ONLY: print_message
-  USE qs_parser, ONLY: open_file, close_file
-  USE machine, ONLY: m_flush, m_walltime
-  USE message_passing, ONLY: mp_comm_free, mp_bcast
-  USE termination, ONLY: stop_program
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE global_types, ONLY: print_key_type, init_print_keys
-  USE string_utilities, ONLY: compress_all
-  USE kinds, ONLY: wp=>dp
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: init_print_keys,&
+                                             print_key_type
+  USE kinds,                           ONLY: wp=>dp
+  USE machine,                         ONLY: m_datum,&
+                                             m_flush,&
+                                             m_getpid,&
+                                             m_hostnm
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_comm_free
+  USE output_utilities,                ONLY: print_message
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
+  USE string_utilities,                ONLY: compress_all
+  USE termination,                     ONLY: stop_program
   IMPLICIT NONE
   PRIVATE
 
@@ -99,7 +105,6 @@ MODULE cp_log_handling
 
   LOGICAL, SAVE, PRIVATE :: default_logger_initialized=.FALSE.
   INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0
-  REAL(kind=wp), SAVE, PRIVATE :: start_time
 
 !!***
 !****************************************************************************
@@ -249,7 +254,6 @@ CONTAINS
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
     END IF
-    start_time=m_walltime()
     default_logger_initialized=.TRUE.
   END SUBROUTINE cp_init_default_logger
 !**************************************************************************
@@ -754,6 +758,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN='cp_logger_log',&
          routineP=moduleN//':'//routineN
     CHARACTER(7):: label
+    CHARACTER(LEN=26) :: datx
     INTEGER ::oErr, unitNr
     LOGICAL :: loc
 
@@ -780,9 +785,9 @@ CONTAINS
        END SELECT
        unitNr=cp_logger_get_unit_nr(lggr,level,fromWhere,local=loc)
        IF (loc .OR. lggr%para_env%mepos==lggr%para_env%source) THEN
-          CALL print_message(label//' in '//fromWhere//',t'//&
-               TRIM(ADJUSTL(cp_to_string(m_walltime()-start_time)))//&
-               ' '//message,unitNr,&
+          CALL m_datum(datx)
+          CALL print_message(datx(12:19)//' '//label//' in '//&
+               fromWhere//' '//message,unitNr,&
                level, level,level/2)
 ! old (more failsafe, no trim, compress,...) code:
 !write (unit=unitNr,fmt='(a)', iostat=oErr) ' '
@@ -917,7 +922,8 @@ CONTAINS
     LOGICAL :: loc,exists
     CHARACTER(len=*), PARAMETER :: routineN='cp_logger_get_default_unit_nr',&
          routineP=moduleN//':'//routineN
-    CHARACTER(len=80) :: filename
+    CHARACTER(len=80) :: filename, host_name
+    INTEGER :: pid, iostat
     TYPE(cp_logger_type), POINTER ::lggr
     loc=.FALSE.
 
@@ -956,6 +962,22 @@ CONTAINS
           CALL open_file(TRIM(filename),file_status="unknown",&
                file_action="write",&
                unit_number=lggr%default_local_unit_nr)
+          CALL m_getpid(pid)
+          CALL m_hostnm(host_name)
+          WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,i8)',iostat=iostat)&
+               ' **** Local logger file of mpi task',lggr%para_env%mepos,&
+               ' in communicator',lggr%para_env%group
+          IF (iostat==0) THEN
+             WRITE (unit=lggr%default_local_unit_nr,fmt='(a,i8,a,a)',iostat=iostat)&
+                  ' **** pid=',pid,' host=',host_name
+          END IF
+          IF (iostat /= 0) THEN
+             PRINT *," Error trying to write to the local logger."
+             PRINT *," mpi_id=",lggr%para_env%mepos,&
+                  " mpi_communicator=",lggr%para_env%group,&
+                  " pid=",pid,'host=',host_name
+          END IF
+          
        END IF
        res=lggr%default_local_unit_nr
     END IF
@@ -1115,42 +1137,6 @@ CONTAINS
     END IF
   END FUNCTION cp_int_to_string
 
-!!****f* cp_log_handling/cp_real_sp_to_string [1.0] *
-!!
-!!   NAME
-!!     cp_real_sp_to_string
-!!
-!!   SYNOPSIS
-!!     Function cp_real_sp_to_string(val) Result(res)
-!!       Character(Len=10):: res
-!!       Real(Kind=kind(1.0)), Intent (IN):: val
-!!     End Function cp_real_sp_to_string
-!!
-!!   FUNCTION
-!!     convert a single precision real in a string
-!!     (should be a variable length string, but that does not work with 
-!!     all the compilers)
-!!
-!!   NOTES
-!!     desactivated because unused, and on cray single==double
-!!
-!!   INPUTS
-!!     val: the number to convert
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     4.2002 revised [fawzi]
-!!
-!!*** *********************************************************************
-! pure 
-!!FM  function cp_real_sp_to_string(val) result(res)
-!!FM    character(len=10) :: res
-!!FM    real(kind=kind(1.0)), intent(in):: val
-!!FM    write (res,'(es10.4)') val
-!!FM  end function cp_real_sp_to_string
-
 !!****f* cp_log_handling/cp_real_dp_to_string [1.0] *
 !!
 !!   NAME
@@ -1183,7 +1169,7 @@ CONTAINS
 ! pure 
   FUNCTION cp_real_dp_to_string(val) RESULT(res)
     CHARACTER(len=11) :: res
-    REAL(kind=KIND(1.0D0)), INTENT(in):: val
+    REAL(kind=wp), INTENT(in):: val
     WRITE (res,'(es11.4)') val
   END FUNCTION cp_real_dp_to_string
 

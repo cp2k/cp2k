@@ -24,53 +24,75 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module pao_qs_env_methods
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_note_level
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
-       cp_error_message, cp_error_get_logger
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use pao_types, only: pao_env_type, pao_env_get, pao_glob_angles_type
-  use pao_bas_projection_types, only: pao_bas_projection_type
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use atomic_kind_types, only: atomic_kind_type, get_atomic_kind,&
-       get_atomic_kind_set
-  use pao_glob_angles_methods, only: pao_g_ang_did_change
-  use cp_block_matrix, only: cp_block_matrix_p_type, cp_block_matrix_type,&
-       cp_sp_create, cp_sp_release, cp_get_matrix, &
-       cp_sp_block_handle_type, cp_sp_block_handle_init, cp_sp_block_handle_release
-  use cp_b_matrix_structure, only: cp_b_matrix_struct_type, cp_bmstruct_get,&
-       cp_bmstruct_create, cp_bmstruct_release, cp_b_dims_type
-  use cp_matrix_utils, only: cp_sm_set_dist_sparsity_from_sm
-  use sparse_matrix_types, only: real_matrix_p_type, real_matrix_type,&
-       get_block_node,add_block_node
-  use mathlib, only: symmetrize_matrix, power_matrix
-  use cp_array_utils, only: cp_2d_r_output
-  use particle_types, only: particle_type
-  use dft_types, only: dft_control_type
-  use cp_para_types, only: cp_para_env_type
-  implicit none
-  private
+MODULE pao_qs_env_methods
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             get_atomic_kind_set
+  USE cp_array_utils,                  ONLY: cp_2d_r_output
+  USE cp_b_matrix_structure,           ONLY: cp_b_dims_type,&
+                                             cp_b_matrix_struct_type,&
+                                             cp_bmstruct_create,&
+                                             cp_bmstruct_get,&
+                                             cp_bmstruct_release
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_get_matrix,&
+                                             cp_sp_block_handle_init,&
+                                             cp_sp_block_handle_release,&
+                                             cp_sp_block_handle_type,&
+                                             cp_sp_create,&
+                                             cp_sp_release
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_debug,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sm_set_dist_sparsity_from_sm
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE dft_types,                       ONLY: dft_control_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE mathlib,                         ONLY: power_matrix,&
+                                             symmetrize_matrix
+  USE pao_bas_projection_types,        ONLY: pao_bas_projection_type
+  USE pao_glob_angles_methods,         ONLY: pao_g_ang_did_change
+  USE pao_types,                       ONLY: pao_env_get,&
+                                             pao_env_type,&
+                                             pao_glob_angles_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_qs_env_methods'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pao_qs_env_methods'
 
-  public :: cp_get_b_projection, cp_did_change
+  PUBLIC :: cp_get_b_projection, cp_did_change
   ! underlying routines
-  public :: pao_qs_env_get_b_projection, pao_qs_env_get, &
+  PUBLIC :: pao_qs_env_get_b_projection, pao_qs_env_get, &
        pao_qs_env_did_change, pao_qs_env_get_atomic_ortho
-  public :: pao_bas_projection_type ! for the intel compiler
-  interface cp_get_b_projection
-     module procedure pao_qs_env_get_b_projection
-  end interface
-  interface cp_did_change
-     module procedure pao_qs_env_did_change
-  end interface
+  PUBLIC :: pao_bas_projection_type ! for the intel compiler
+  INTERFACE cp_get_b_projection
+     MODULE PROCEDURE pao_qs_env_get_b_projection
+  END INTERFACE
+  INTERFACE cp_did_change
+     MODULE PROCEDURE pao_qs_env_did_change
+  END INTERFACE
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* pao_qs_env_methods/pao_qs_env_get_b_projection [1.0] *
 !!
@@ -107,21 +129,21 @@ contains
 !!     - 23.04.02 moved to qs
 !!
 !!*** **********************************************************************
-  function pao_qs_env_get_b_projection(qs_env, atom_nr, error) result(res)
-    type(pao_bas_projection_type), pointer ::res
-    type(qs_environment_type), intent(in) :: qs_env
-    integer, intent(in) :: atom_nr
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_qs_env_get_b_projection(qs_env, atom_nr, error) RESULT(res)
+    TYPE(pao_bas_projection_type), POINTER ::res
+    TYPE(qs_environment_type), INTENT(in) :: qs_env
+    INTEGER, INTENT(in) :: atom_nr
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_qs_env_get_b_projection',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get_b_projection',&
         routineP=moduleN//':'//routineN
-    type(particle_type), dimension(:), pointer :: particle_set
-    failure=.false.
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    failure=.FALSE.
 
-    call get_qs_env(qs_env, particle_set=particle_set)
-    call get_atomic_kind(particle_set(atom_nr)%atomic_kind,pao_bas_proj=res)
-  end function pao_qs_env_get_b_projection
+    CALL get_qs_env(qs_env, particle_set=particle_set)
+    CALL get_atomic_kind(particle_set(atom_nr)%atomic_kind,pao_bas_proj=res)
+  END FUNCTION pao_qs_env_get_b_projection
 !***************************************************************************
 
 !!****f* pao_qs_env_methods/pao_qs_env_get [1.0] *
@@ -180,7 +202,7 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
+SUBROUTINE pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
      pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
      pao_min_density_m, pao_min_bas_m_struct, pao_full_bas_m_struct,&
@@ -189,47 +211,47 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_angles_att, pao_w_subspace_pos_precision,&
      pao_w_in_subspace_precision,pao_atomic_ortho,&
      pao_atomic_ortho_valid, n_atoms, n_electrons, error)
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(pao_env_type), pointer, optional :: pao_env
-  integer, intent(out), optional :: pao_max_min_bas,&
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(pao_env_type), POINTER, OPTIONAL :: pao_env
+  INTEGER, INTENT(out), OPTIONAL :: pao_max_min_bas,&
        pao_max_full_bas, pao_max_excl_bas, pao_max_l_angles,&
        pao_tot_min_bas, pao_tot_full_bas, pao_tot_excl_bas,&
        n_atoms, n_electrons
-  real(kind=wp), optional, intent(out) :: pao_w_subspace_pos_precision
-  real(kind=wp), optional, intent(out) :: pao_w_in_subspace_precision
-  type(pao_glob_angles_type), optional, pointer :: pao_angles_att
-  type(cp_block_matrix_p_type), dimension(:), optional, pointer ::&
+  REAL(kind=wp), OPTIONAL, INTENT(out) :: pao_w_subspace_pos_precision
+  REAL(kind=wp), OPTIONAL, INTENT(out) :: pao_w_in_subspace_precision
+  TYPE(pao_glob_angles_type), OPTIONAL, POINTER :: pao_angles_att
+  TYPE(cp_block_matrix_p_type), DIMENSION(:), OPTIONAL, POINTER ::&
        pao_min_density_m
-  type(cp_b_matrix_struct_type), pointer, optional :: pao_min_bas_m_struct, &
+  TYPE(cp_b_matrix_struct_type), POINTER, OPTIONAL :: pao_min_bas_m_struct, &
        pao_full_bas_m_struct,pao_min_full_bas_m_struct, &
        pao_full_min_bas_m_struct, pao_full_bas_diag_m_struct
-  type(cp_error_type), optional, intent(inout) :: error
-  logical, dimension(:), pointer, optional :: pao_atomic_ortho_valid
-  type(cp_block_matrix_type), pointer, optional :: pao_atomic_ortho
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  LOGICAL, DIMENSION(:), POINTER, OPTIONAL :: pao_atomic_ortho_valid
+  TYPE(cp_block_matrix_type), POINTER, OPTIONAL :: pao_atomic_ortho
   
-  logical :: failure
-  integer :: natoms
-  character(len=*), parameter :: routineN='pao_qs_env_get',&
+  LOGICAL :: failure
+  INTEGER :: natoms
+  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get',&
         routineP=moduleN//':'//routineN
-  type(atomic_kind_type), dimension(:), pointer :: atomic_kind_set
-  type(pao_env_type), pointer :: p_env
-  type(dft_control_type), pointer :: dft_control
-  natoms = size(qs_env%particle_set)
-  failure=.false.
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  TYPE(pao_env_type), POINTER :: p_env
+  TYPE(dft_control_type), POINTER :: dft_control
+  natoms = SIZE(qs_env%particle_set)
+  failure=.FALSE.
   
-  call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env)
-  CPPrecondition(associated(p_env),cp_failure_level,routineP,error,failure)
+  CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, pao_env=p_env)
+  CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(p_env%initialized,cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     if (present(pao_max_min_bas)) pao_max_min_bas=p_env%max_min_bas
-     if (present(pao_max_full_bas)) pao_max_full_bas=p_env%max_full_bas
-     if (present(pao_max_excl_bas)) pao_max_excl_bas=p_env%max_excl_bas
-     if (present(pao_tot_min_bas)) pao_tot_min_bas=p_env%tot_min_bas
-     if (present(pao_tot_full_bas)) pao_tot_full_bas=p_env%tot_full_bas
-     if (present(pao_tot_excl_bas)) pao_tot_excl_bas=p_env%tot_excl_bas
-     if (present(pao_max_l_angles)) pao_max_l_angles=p_env%max_l_angles
-     call pao_env_get(p_env,&
+  IF (.NOT.failure) THEN
+     IF (PRESENT(pao_max_min_bas)) pao_max_min_bas=p_env%max_min_bas
+     IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_env%max_full_bas
+     IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_env%max_excl_bas
+     IF (PRESENT(pao_tot_min_bas)) pao_tot_min_bas=p_env%tot_min_bas
+     IF (PRESENT(pao_tot_full_bas)) pao_tot_full_bas=p_env%tot_full_bas
+     IF (PRESENT(pao_tot_excl_bas)) pao_tot_excl_bas=p_env%tot_excl_bas
+     IF (PRESENT(pao_max_l_angles)) pao_max_l_angles=p_env%max_l_angles
+     CALL pao_env_get(p_env,&
           wanted_subspace_pos_precision=pao_w_subspace_pos_precision,&
           wanted_in_subspace_precision=pao_w_in_subspace_precision,&
           angles_att=pao_angles_att,min_density_m=pao_min_density_m,&
@@ -238,41 +260,41 @@ subroutine pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
           full_min_bas_m_struct=pao_full_min_bas_m_struct,&
           full_bas_diag_m_struct=pao_full_bas_diag_m_struct,&
           full_bas_m_struct=pao_full_bas_m_struct, error=error)
-     if (present(pao_atomic_ortho_valid)) then
-        if (.not.associated(pao_env%atomic_ortho_valid)) then
-           allocate(p_env%atomic_ortho_valid(natoms))
-           p_env%atomic_ortho_valid=.false.
-        end if
+     IF (PRESENT(pao_atomic_ortho_valid)) THEN
+        IF (.NOT.ASSOCIATED(pao_env%atomic_ortho_valid)) THEN
+           ALLOCATE(p_env%atomic_ortho_valid(natoms))
+           p_env%atomic_ortho_valid=.FALSE.
+        END IF
         pao_atomic_ortho_valid => p_env%atomic_ortho_valid
-     end if
-     if (present(pao_atomic_ortho)) then
-        if (.not.associated(p_env%atomic_ortho_valid)) then
-           allocate(p_env%atomic_ortho_valid(natoms))
-           p_env%atomic_ortho_valid=.false.
-        end if
-        if (.not.associated(p_env%atomic_ortho)) then
-           call cp_sp_create(p_env%atomic_ortho,&
+     END IF
+     IF (PRESENT(pao_atomic_ortho)) THEN
+        IF (.NOT.ASSOCIATED(p_env%atomic_ortho_valid)) THEN
+           ALLOCATE(p_env%atomic_ortho_valid(natoms))
+           p_env%atomic_ortho_valid=.FALSE.
+        END IF
+        IF (.NOT.ASSOCIATED(p_env%atomic_ortho)) THEN
+           CALL cp_sp_create(p_env%atomic_ortho,&
                 matrix_struct=p_env%full_min_bas_m_struct,&
                 error=error)
-        end if
+        END IF
         pao_atomic_ortho => p_env%atomic_ortho
-     end if
-     if (present(n_atoms)) n_atoms = natoms
-     if (present(n_electrons)) then
-        call get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
+     END IF
+     IF (PRESENT(n_atoms)) n_atoms = natoms
+     IF (PRESENT(n_electrons)) THEN
+        CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
              dft_control=dft_control)
-        CPPrecondition(associated(atomic_kind_set),cp_failure_level,routineP,error,failure)
-        CPPrecondition(associated(dft_control),cp_failure_level,routineP,error,failure)
-        if (.not.failure) then
-           call get_atomic_kind_set(atomic_kind_set,nelectron=n_electrons)
+        CPPrecondition(ASSOCIATED(atomic_kind_set),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           CALL get_atomic_kind_set(atomic_kind_set,nelectron=n_electrons)
            n_electrons=n_electrons-dft_control%charge
-        else
+        ELSE
            n_electrons=-1
-        end if
-     end if
-  end if
-  if (present(pao_env)) pao_env => p_env
-end subroutine pao_qs_env_get
+        END IF
+     END IF
+  END IF
+  IF (PRESENT(pao_env)) pao_env => p_env
+END SUBROUTINE pao_qs_env_get
 !***************************************************************************
 
 !!****f* pao_qs_env_methods/pao_qs_env_did_change [1.0] *
@@ -313,112 +335,112 @@ end subroutine pao_qs_env_get
 !!     none
 !!
 !!*** **********************************************************************
-subroutine pao_qs_env_did_change(qs_env,global_env,&
+SUBROUTINE pao_qs_env_did_change(qs_env,global_env,&
      h_changed, s_changed,&
      angles_changed, full_reset, error)
-  type (qs_environment_type), intent(inout) :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  logical, intent(in), optional :: h_changed, s_changed, &
+  TYPE (qs_environment_type), INTENT(inout) :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  LOGICAL, INTENT(in), OPTIONAL :: h_changed, s_changed, &
        angles_changed, full_reset
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_qs_env_did_change',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_did_change',&
        routineP=moduleN//':'//routineN
-  logical :: s_c, full_r
-  integer :: i
-  type(pao_env_type), pointer :: pao_env
-  type(real_matrix_p_type), dimension(:), pointer :: overlap_rmpv
-  type(cp_b_dims_type), pointer :: b_dims
-  type(cp_b_matrix_struct_type), pointer :: old_m_struct
-  type(cp_para_env_type), pointer :: para_env
-  failure=.false.
-  s_c=.false.; full_r=.false.
+  LOGICAL :: s_c, full_r
+  INTEGER :: i
+  TYPE(pao_env_type), POINTER :: pao_env
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: overlap_rmpv
+  TYPE(cp_b_dims_type), POINTER :: b_dims
+  TYPE(cp_b_matrix_struct_type), POINTER :: old_m_struct
+  TYPE(cp_para_env_type), POINTER :: para_env
+  failure=.FALSE.
+  s_c=.FALSE.; full_r=.FALSE.
   
-  call get_qs_env(qs_env,pao_env=pao_env)
-  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
+  CALL get_qs_env(qs_env,pao_env=pao_env)
+  CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
      CPPrecondition(pao_env%initialized,cp_failure_level,routineP,error,failure)
-  end if
-  if (.not. failure) then
-     if (present(s_changed)) s_c=s_changed
-     if (present(full_reset)) full_r=full_reset
-     if (s_c.or.full_r) then
-        call get_qs_env(qs_env, s=overlap_rmpv)
+  END IF
+  IF (.NOT. failure) THEN
+     IF (PRESENT(s_changed)) s_c=s_changed
+     IF (PRESENT(full_reset)) full_r=full_reset
+     IF (s_c.OR.full_r) THEN
+        CALL get_qs_env(qs_env, s=overlap_rmpv)
         ! invalidate min_density_m
-        pao_env%min_d_m_valid=.false.
-        do i=1,size(pao_env%min_density_m)
-           call cp_sp_release(pao_env%min_density_m(i)%matrix,error=error)
-        end do
+        pao_env%min_d_m_valid=.FALSE.
+        DO i=1,SIZE(pao_env%min_density_m)
+           CALL cp_sp_release(pao_env%min_density_m(i)%matrix,error=error)
+        END DO
         ! invalidate matrix structure
-        call cp_bmstruct_get(pao_env%min_bas_m_struct,&
+        CALL cp_bmstruct_get(pao_env%min_bas_m_struct,&
             b_dims=b_dims, error=error)
         old_m_struct => pao_env%min_bas_m_struct
-        call cp_bmstruct_create(pao_env%min_bas_m_struct,&
-               symmetric=.true.,&
+        CALL cp_bmstruct_create(pao_env%min_bas_m_struct,&
+               symmetric=.TRUE.,&
                para_env=global_env%para_env,&
                b_dims=b_dims,&
                error=error)
-        call cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
+        CALL cp_sm_set_dist_sparsity_from_sm(pao_env%min_bas_m_struct,&
              para_env=global_env%para_env,&
              sample_matrix=overlap_rmpv(1)%matrix,&
              error=error)
-        call cp_bmstruct_release(old_m_struct,error=error)
+        CALL cp_bmstruct_release(old_m_struct,error=error)
 
-        call cp_bmstruct_get(pao_env%full_bas_m_struct,&
+        CALL cp_bmstruct_get(pao_env%full_bas_m_struct,&
              para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_bas_m_struct
-        call cp_bmstruct_create(pao_env%full_bas_m_struct,&
-             symmetric=.false.,&
+        CALL cp_bmstruct_create(pao_env%full_bas_m_struct,&
+             symmetric=.FALSE.,&
              para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
              error=error)
-        call cp_bmstruct_release(old_m_struct,error=error)
+        CALL cp_bmstruct_release(old_m_struct,error=error)
 
-        call cp_bmstruct_get(pao_env%full_min_bas_m_struct,&
+        CALL cp_bmstruct_get(pao_env%full_min_bas_m_struct,&
              para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%full_min_bas_m_struct
-        call cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
-             symmetric=.false.,&
+        CALL cp_bmstruct_create(pao_env%full_min_bas_m_struct,&
+             symmetric=.FALSE.,&
              para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
              error=error)
-        call cp_bmstruct_release(old_m_struct,error=error)
+        CALL cp_bmstruct_release(old_m_struct,error=error)
 
-        call cp_bmstruct_get(pao_env%min_full_bas_m_struct,&
+        CALL cp_bmstruct_get(pao_env%min_full_bas_m_struct,&
              para_env=para_env, b_dims=b_dims, error=error)
         old_m_struct => pao_env%min_full_bas_m_struct
-        call cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
-             symmetric=.false.,&
+        CALL cp_bmstruct_create(pao_env%min_full_bas_m_struct,&
+             symmetric=.FALSE.,&
              para_env=para_env,&
              b_dims=b_dims,&
              d_struct=pao_env%min_bas_m_struct%distribution,&
              sparsity=pao_env%min_bas_m_struct%sparsity,&
              error=error)
-        call cp_bmstruct_release(old_m_struct,error=error)
+        CALL cp_bmstruct_release(old_m_struct,error=error)
         
-        do i=1,size(pao_env%min_density_m)
-           call cp_sp_create(pao_env%min_density_m(i)%matrix,&
+        DO i=1,SIZE(pao_env%min_density_m)
+           CALL cp_sp_create(pao_env%min_density_m(i)%matrix,&
                 matrix_struct= pao_env%min_bas_m_struct,&
                 error=error)
-        end do
+        END DO
         ! invalidate atomic orthogonalisation
-        if (associated(pao_env%atomic_ortho_valid)) &
-             pao_env%atomic_ortho_valid=.false.
+        IF (ASSOCIATED(pao_env%atomic_ortho_valid)) &
+             pao_env%atomic_ortho_valid=.FALSE.
         ! in general the atom distribution changes
-        call cp_sp_release(pao_env%atomic_ortho,error=error)
-        call pao_qs_env_preinit_atom_ortho(qs_env, global_env, error=error)
-     end if
-     call pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
+        CALL cp_sp_release(pao_env%atomic_ortho,error=error)
+        CALL pao_qs_env_preinit_atom_ortho(qs_env, global_env, error=error)
+     END IF
+     CALL pao_g_ang_did_change(pao_env%angles_att,qs_env=qs_env,&
           global_env=global_env, h_changed=h_changed,&
           s_changed=s_changed, angles_changed=angles_changed,&
           full_reset=full_reset, error=error)
-  end if
-end subroutine pao_qs_env_did_change
+  END IF
+END SUBROUTINE pao_qs_env_did_change
 !***************************************************************************
 
 !!****f* pao_qs_env_methods/pao_qs_env_get_atomic_ortho [1.0] *
@@ -458,97 +480,99 @@ end subroutine pao_qs_env_did_change
 !!     6.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
-     result(res)
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  integer, intent(in) :: atom_nr
-  type(cp_error_type), optional, intent(inout) :: error
-  real(kind=wp), dimension(:,:), pointer :: res
+FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
+     RESULT(res)
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  INTEGER, INTENT(in) :: atom_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: res
 
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_qs_env_get_atomic_ortho',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_get_atomic_ortho',&
        routineP=moduleN//':'//routineN
-  integer :: stat, n_atoms
-  integer, save :: iter=0
-  type(cp_block_matrix_type), pointer :: atomic_ortho
-  type(pao_env_type), pointer :: pao_env
-  type(real_matrix_p_type), dimension(:), pointer :: s
-  real(kind=wp), dimension(:,:), pointer :: block_val
-  real(kind=wp), dimension(:,:), allocatable :: tmp_m
-  real(kind=wp) :: eps_eigval
-  failure=.false.
-  nullify(res, atomic_ortho, block_val, pao_env, s)
+  INTEGER :: stat, n_atoms
+  INTEGER, SAVE :: iter=0
+  TYPE(cp_block_matrix_type), POINTER :: atomic_ortho
+  TYPE(pao_env_type), POINTER :: pao_env
+  TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+  TYPE(cp_logger_type), POINTER :: logger
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: block_val
+  REAL(kind=wp), DIMENSION(:,:), ALLOCATABLE :: tmp_m
+  REAL(kind=wp) :: eps_eigval
+  failure=.FALSE.
+  NULLIFY(res, atomic_ortho, block_val, pao_env, s)
 
-  call pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
-  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     if (.not.associated(pao_env%atomic_ortho_valid)) then
-        allocate(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
+  CALL pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
+  CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (.NOT.ASSOCIATED(pao_env%atomic_ortho_valid)) THEN
+        ALLOCATE(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        if (.not.failure) then
-           pao_env%atomic_ortho_valid=.false.
-        end if
-     end if
-     if (.not.associated(pao_env%atomic_ortho)) then
-        call cp_sp_create(pao_env%atomic_ortho,&
+        IF (.NOT.failure) THEN
+           pao_env%atomic_ortho_valid=.FALSE.
+        END IF
+     END IF
+     IF (.NOT.ASSOCIATED(pao_env%atomic_ortho)) THEN
+        CALL cp_sp_create(pao_env%atomic_ortho,&
              matrix_struct=pao_env%full_bas_diag_m_struct,&
              error=error)
-     end if
+     END IF
      atomic_ortho => pao_env%atomic_ortho
-  end if
-  CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
-  CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     if (pao_env%atomic_ortho_valid(atom_nr)) then
-        call get_block_node(cp_get_matrix(atomic_ortho),&
-             block=res,block_row=atom_nr,&
+  END IF
+  CPPrecondition(ASSOCIATED(atomic_ortho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (pao_env%atomic_ortho_valid(atom_nr)) THEN
+        CALL get_block_node(cp_get_matrix(atomic_ortho),&
+             BLOCK=res,block_row=atom_nr,&
              block_col=atom_nr)
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-     else
-        call get_qs_env(qs_env,s=s)
-        call get_block_node(cp_get_matrix(atomic_ortho),&
-             block=res,block_row=atom_nr,&
+        CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+     ELSE
+        CALL get_qs_env(qs_env,s=s)
+        CALL get_block_node(cp_get_matrix(atomic_ortho),&
+             BLOCK=res,block_row=atom_nr,&
              block_col=atom_nr)
-        if (.not.associated(res)) then
-           call add_block_node(cp_get_matrix(atomic_ortho),&
-                block_row=atom_nr,block_col=atom_nr,block=res)
-        end if
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-        if (.not.failure) then
-           CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           allocate(tmp_m(size(res,1),size(res,2)),stat=stat)
+        IF (.NOT.ASSOCIATED(res)) THEN
+           CALL add_block_node(cp_get_matrix(atomic_ortho),&
+                block_row=atom_nr,block_col=atom_nr,BLOCK=res)
+        END IF
+        CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           CPPrecondition(SIZE(res,1)==SIZE(res,2),cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.NOT.failure) THEN
+           ALLOCATE(tmp_m(SIZE(res,1),SIZE(res,2)),stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call get_block_node(s(1)%matrix,block_row=atom_nr,&
-                block_col=atom_nr,block=block_val)
-           CPPrecondition(size(block_val,1)==size(res,1),cp_failure_level,routineP,error,failure)
-           CPPrecondition(size(block_val,2)==size(res,2),cp_failure_level,routineP,error,failure)
-           if (.not.failure) then
+        END IF
+        IF (.NOT.failure) THEN
+           CALL get_block_node(s(1)%matrix,block_row=atom_nr,&
+                block_col=atom_nr,BLOCK=block_val)
+           CPPrecondition(SIZE(block_val,1)==SIZE(res,1),cp_failure_level,routineP,error,failure)
+           CPPrecondition(SIZE(block_val,2)==SIZE(res,2),cp_failure_level,routineP,error,failure)
+           IF (.NOT.failure) THEN
               tmp_m=block_val
-              eps_eigval= 10 * epsilon(0.0_wp) ! to do: use the scf value
-              call power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
-              call symmetrize_matrix(res,"upper_to_lower")
-              if (cp_debug.and.debug_this_module) then
+              eps_eigval= 10 * EPSILON(0.0_wp) ! to do: use the scf value
+              CALL power_matrix(tmp_m,res,-0.5_wp,threshold=eps_eigval)
+              CALL symmetrize_matrix(res,"upper_to_lower")
+              IF (cp_debug.AND.debug_this_module) THEN
                  iter=iter+1
-                 call cp_2d_r_output(cp_error_get_logger(error),&
+                 logger => cp_error_get_logger(error)
+                 CALL cp_2d_r_output(logger,&
                       outputName="atomic_ortho",&
                       fromWhere=routineP, iter=iter,array=res,&
                       comment="atom_nr="//cp_to_string(atom_nr),&
                       error=error)
-              end if
-           end if
-           deallocate(tmp_m,stat=stat) ! just to be sure...
+              END IF
+           END IF
+           DEALLOCATE(tmp_m,stat=stat) ! just to be sure...
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-           pao_env%atomic_ortho_valid(atom_nr)=.true.
-        end if
-     end if
-  end if
-  if (failure) nullify(res)
-end function pao_qs_env_get_atomic_ortho
+           pao_env%atomic_ortho_valid(atom_nr)=.TRUE.
+        END IF
+     END IF
+  END IF
+  IF (failure) NULLIFY(res)
+END FUNCTION pao_qs_env_get_atomic_ortho
 !***************************************************************************
 
 !!****f* pao_qs_env_methods/pao_qs_env_preinit_atom_ortho [1.0] *
@@ -576,42 +600,42 @@ end function pao_qs_env_get_atomic_ortho
 !!     6.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_qs_env_preinit_atom_ortho',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_qs_env_preinit_atom_ortho',&
        routineP=moduleN//':'//routineN
-  integer :: stat, n_atoms,i
-  type(cp_block_matrix_type), pointer :: atomic_ortho
-  type(pao_env_type), pointer :: pao_env
-  type(cp_sp_block_handle_type) :: block_handle
+  INTEGER :: stat, n_atoms,i
+  TYPE(cp_block_matrix_type), POINTER :: atomic_ortho
+  TYPE(pao_env_type), POINTER :: pao_env
+  TYPE(cp_sp_block_handle_type) :: block_handle
   
-  failure=.false.
-  nullify(atomic_ortho, pao_env)
+  failure=.FALSE.
+  NULLIFY(atomic_ortho, pao_env)
 
-  call pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
-  CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
-     if (.not.associated(pao_env%atomic_ortho_valid)) then
-        allocate(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
+  CALL pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
+  CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (.NOT.ASSOCIATED(pao_env%atomic_ortho_valid)) THEN
+        ALLOCATE(pao_env%atomic_ortho_valid(n_atoms),stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-        if (.not.failure) then
-           pao_env%atomic_ortho_valid=.false.
-        end if
-     end if
-     if (.not.associated(pao_env%atomic_ortho)) then
-        call cp_sp_create(pao_env%atomic_ortho,&
+        IF (.NOT.failure) THEN
+           pao_env%atomic_ortho_valid=.FALSE.
+        END IF
+     END IF
+     IF (.NOT.ASSOCIATED(pao_env%atomic_ortho)) THEN
+        CALL cp_sp_create(pao_env%atomic_ortho,&
              matrix_struct=pao_env%full_bas_diag_m_struct,&
              error=error)
-     end if
+     END IF
      atomic_ortho => pao_env%atomic_ortho
-  end if
-  CPPrecondition(associated(atomic_ortho),cp_failure_level,routineP,error,failure)
-  CPPrecondition(associated(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
-  if (.not.failure) then
+  END IF
+  CPPrecondition(ASSOCIATED(atomic_ortho),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(pao_env%atomic_ortho_valid),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
 #ifdef __parallel
 !!FM     ! stupid parallelization, every processor has everything
 !!FM     do i=1,n_atoms
@@ -632,8 +656,8 @@ subroutine pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
 !!FM        call cp_sp_block_handle_release(block_handle,error=error)
 !!FM     end do
 #endif
-  end if
-end subroutine pao_qs_env_preinit_atom_ortho
+  END IF
+END SUBROUTINE pao_qs_env_preinit_atom_ortho
 !***************************************************************************
 
-end module pao_qs_env_methods
+END MODULE pao_qs_env_methods

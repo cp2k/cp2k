@@ -21,10 +21,6 @@
 !******************************************************************************
 
 MODULE qs_init
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set,&
                                              init_atomic_kind_set,&
@@ -32,10 +28,34 @@ MODULE qs_init
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type,&
                                              read_dft_control,&
                                              read_qs_control,&
@@ -43,18 +63,25 @@ MODULE qs_init
                                              write_qs_control
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp
   USE machine,                         ONLY: m_flush
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE particle_types,                  ONLY: particle_type,&
-                                             init_particle_set,&
+  USE pao_read_section,                ONLY: pao_env_init_from_file
+  USE pao_types,                       ONLY: pao_env_type
+  USE particle_types,                  ONLY: init_particle_set,&
+                                             particle_type,&
                                              read_particle_set,&
                                              write_particle_coordinates,&
                                              write_particle_distances
-  USE qs_environment_types,            ONLY: init_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pool,&
+                                             qs_env_rebuild_pw_pools
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             init_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
@@ -69,11 +96,6 @@ MODULE qs_init
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE pao_types,                       ONLY: pao_env_type
-  USE pao_read_section,                ONLY: pao_env_init_from_file
-
-
-
   IMPLICIT NONE
 
   PRIVATE
@@ -92,7 +114,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_qs_env(qs_env,globenv)
+  SUBROUTINE read_qs_env(qs_env,globenv,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -101,8 +123,9 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(OUT)    :: qs_env
-    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(qs_environment_type), INTENT(OUT)       :: qs_env
+    TYPE(global_environment_type), INTENT(IN)    :: globenv
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -119,10 +142,13 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
     TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
-    type(scf_control_type), pointer               :: scf_control
-    TYPE(cp_para_env_type), pointer               :: para_env
+    TYPE(scf_control_type), POINTER               :: scf_control
+    TYPE(cp_para_env_type), POINTER               :: para_env
+    TYPE(cp_blacs_env_type), POINTER              :: blacs_env
+    TYPE(cp_f_matrix_struct_type), POINTER        :: fmstruct
 
-    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
+    INTEGER :: handle,ikind,istat,lmax,maxl,maxlppl,maxlppnl,nkind,&
+         output_unit, n_mo, n_ao
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
@@ -145,9 +171,11 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (energy)
     NULLIFY (force)
-    nullify (scf_control)
+    NULLIFY (scf_control,fmstruct, para_env, blacs_env)
 
     para_env => cp_para_env_from_globenv(globenv)
+    blacs_env => cp_blacs_env_from_globenv(globenv)
+
     CALL init_qs_env(qs_env,para_env=para_env)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
@@ -273,11 +301,35 @@ CONTAINS
                     force=force,&
                     scf_control=scf_control)
 
-    call scf_c_release(scf_control)
+    CALL scf_c_release(scf_control)
+
+!   *** Initialize pools ***
+      CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set,&
+           dft_control=dft_control)
+      CALL get_atomic_kind_set(atomic_kind_set, nsgf=n_ao, nelectron=n_mo)
+      n_mo = n_mo-dft_control%charge
+
+     IF (globenv%print%mo_eigenvalues.OR.&
+         (scf_control%level_shift /= 0.0_wp).OR.&
+         (scf_control%smear /= 0.0_wp)) THEN
+       n_mo = n_ao
+     ELSE
+       n_mo = n_mo/2
+     END IF
+
+     CALL cp_fmstruct_create(fmstruct, nrow_global=n_ao,&
+         ncol_global=n_mo, para_env=para_env,&
+         context=blacs_env,&
+         nrow_block=scf_control%nrow_block,&
+         ncol_block=scf_control%ncol_block)
+     CALL qs_env_rebuild_aomo_pool(qs_env,fmstruct,error=error)
+     CALL cp_fmstruct_release(fmstruct,error=error)
+
+     CALL qs_env_rebuild_pw_pools(qs_env,error=error)
 
 !   *** Read the pao section ***
 
-    IF (dft_control%qs_control%pao) then
+    IF (dft_control%qs_control%pao) THEN
       ALLOCATE (pao_env) ! check status ?
       CALL set_qs_env(qs_env=qs_env,pao_env=pao_env)
       CALL pao_env_init_from_file(qs_env,globenv)

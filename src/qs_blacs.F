@@ -25,62 +25,90 @@
 !******************************************************************************
 
 MODULE qs_blacs
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE global_types,        ONLY: global_environment_type
-  USE mathlib,             ONLY: symmetrize_matrix
-  USE util,                ONLY: sort
-  USE sparse_matrix_types, ONLY: first_block_node,&
-                                 get_block_node,&
-                                 get_matrix_info,&
-                                 next_block_node,&
-                                 real_block_node_type,&
-                                 real_matrix_type, &
-                                 sparse_times_replicated, &
-                                 sparse_plus_rep_rept
-  USE machine,             ONLY: m_cputime
-  USE message_passing,     ONLY: mp_bcast,&
-                                 mp_max,&
-                                 mp_sum,&
-                                 mp_sync
-  USE string_utilities,    ONLY: compress
-  USE termination,         ONLY: stop_memory,&
-                                 stop_program
-  USE timings,             ONLY: timeset,&
-                                 timestop
-
-  USE cp_error_handling, ONLY: cp_assert, cp_error_message, cp_error_type,&
-       cp_assertion_failed, cp_unimplemented_error, cp_error_get_logger
-  USE cp_log_handling,   ONLY: cp_to_string, cp_warning_level, &
-       cp_failure_level, cp_logger_type, cp_logger_get_unit_nr, cp_log
-  USE cp_matrix_utils,   ONLY: cp_init, cp_dealloc_ref, cp_next, cp_get, &
-       cp_matrix_block_iterator
-  USE cp_para_types,     ONLY: cp_para_env_type, cp_blacs_env_type
-  USE cp_para_env,       ONLY: cp_para_env_retain, cp_para_env_release,&
-       cp_para_env_from_globenv
-  USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_create, start_blacs, finish_blacs, &
-       cp_blacs_env_from_globenv
-  USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
-       cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
-       cp_fmstruct_equivalent
-  USE parallel, ONLY: cp2k_is_parallel
-  USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_full_matrix_p_type,&
-       cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
-       cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
-       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info,&
-       cp_fm_maxval
-  USE cp_fm_basic_linalg, ONLY: cp_fm_add, cp_sm_fm_multiply, &
-       cp_sm_plus_fm_fm_t, cp_fm_gemm, cp_fm_symm,&
-       cp_fm_syrk, cp_fm_schur_product, cp_fm_trace
-  USE cp_fm_vect, ONLY: cp_fm_vect_create2, cp_fm_vect_dealloc
-
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_from_globenv,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             finish_blacs,&
+                                             start_blacs
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
+  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_equivalent,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_add,&
+                                             cp_fm_gemm,&
+                                             cp_fm_schur_product,&
+                                             cp_fm_symm,&
+                                             cp_fm_syrk,&
+                                             cp_fm_trace,&
+                                             cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_create2,&
+                                             cp_fm_vect_dealloc
+  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+                                             cp_fm_create2,&
+                                             cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_init_random,&
+                                             cp_fm_maxval,&
+                                             cp_fm_release,&
+                                             cp_fm_retain,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_set_submatrix,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_get_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_dealloc_ref,&
+                                             cp_get,&
+                                             cp_init,&
+                                             cp_matrix_block_iterator,&
+                                             cp_next
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE machine,                         ONLY: m_cputime
+  USE mathlib,                         ONLY: symmetrize_matrix
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE parallel,                        ONLY: cp2k_is_parallel
+  USE sparse_matrix_types,             ONLY: first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type,&
+                                             sparse_plus_rep_rept,&
+                                             sparse_times_replicated
+  USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE util,                            ONLY: sort
   IMPLICIT NONE
 
   PRIVATE
@@ -1281,6 +1309,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     INTEGER, DIMENSION(:), ALLOCATABLE  :: iclustr,ifail,iwork
     REAL(wp), DIMENSION(:,:), POINTER   :: a,z,b
     TYPE(cp_blacs_env_type), POINTER    :: context
+    TYPE(cp_logger_type), POINTER       :: logger
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL  :: iceil,numroc
@@ -1292,9 +1321,8 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
     CALL timeset("blacs_syevx","I","",handle)
 
-    ! to do : redefine io using error
-    ionode = matrix%matrix_struct%para_env%mepos==&
-         matrix%matrix_struct%para_env%source ! globenv%ionode
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
 
     context =>  matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -1367,7 +1395,7 @@ SUBROUTINE blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   *** Error handling ***
 
     IF (info /= 0) THEN
-       output_unit = cp_logger_get_unit_nr(cp_error_get_logger(error),&
+       output_unit = cp_logger_get_unit_nr(logger,&
             cp_failure_level,routineP,local=.FALSE.)
       IF (ionode) THEN
         WRITE (unit=output_unit,FMT="(/,(T3,A,T12,1X,I10))")&

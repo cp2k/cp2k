@@ -26,58 +26,84 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_l_angles_methods
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref, cp_internal_error, cp_error_get_logger
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use pao_types, only: pao_env_type, pao_glob_angles_type, pao_env_get
-  use pao_glob_angles_methods, only: pao_g_ang_get, cp_validate
-  use sparse_matrix_types, only: real_matrix_type, replicate_matrix, &
-       copy_matrix, real_matrix_p_type,&
-       allocate_matrix, deallocate_matrix, get_matrix_info, get_block_node,&
-       add_block_node, put_block_node
-  use cp_block_matrix, only: cp_block_matrix_type, cp_block_matrix_p_type,&
-       cp_get_matrix, cp_sp_get
-  use pao_bas_projection_types, only: pao_bas_projection_type, cp_proj_get
-  use pao_plain_rot, only: cp_left_compose_p_rot
-  use qs_environment_types, only: qs_environment_type, get_qs_env
-  use atomic_kind_types, only:atomic_kind_type, get_atomic_kind
-  use particle_types, only: particle_type
-  use pao_qs_env_methods, only: pao_qs_env_get, pao_qs_env_get_atomic_ortho
-  use cp_array_utils, only: cp_2d_r_output
-  implicit none
-  private
+MODULE pao_l_angles_methods
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE cp_array_utils,                  ONLY: cp_2d_r_output
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
+                                             cp_block_matrix_type,&
+                                             cp_get_matrix,&
+                                             cp_sp_get
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_precondition_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE pao_bas_projection_types,        ONLY: cp_proj_get,&
+                                             pao_bas_projection_type
+  USE pao_glob_angles_methods,         ONLY: cp_validate,&
+                                             pao_g_ang_get
+  USE pao_plain_rot,                   ONLY: cp_left_compose_p_rot
+  USE pao_qs_env_methods,              ONLY: pao_qs_env_get,&
+                                             pao_qs_env_get_atomic_ortho
+  USE pao_types,                       ONLY: pao_env_get,&
+                                             pao_env_type,&
+                                             pao_glob_angles_type
+  USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             copy_matrix,&
+                                             deallocate_matrix,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             put_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='pao_l_angles_methods'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pao_l_angles_methods'
 ! types
-  public :: pao_local_angles_type
+  PUBLIC :: pao_local_angles_type
 
 ! core procedures
-  public :: cp_init, cp_dealloc_ref, cp_set, cp_get, &
+  PUBLIC :: cp_init, cp_dealloc_ref, cp_set, cp_get, &
        cp_did_change
 
 ! core functions
-  public :: cp_validate, cp_valid
+  PUBLIC :: cp_validate, cp_valid
 
 ! special procedures
-  public :: cp_set_angle
+  PUBLIC :: cp_set_angle
 
 ! special functions
-  public :: cp_get_angle, &
+  PUBLIC :: cp_get_angle, &
        cp_get_size_min_bas, cp_get_size_full_bas, cp_get_size_excl_bas, &
        cp_get_p_indexes, cp_get_p_index, cp_get_non_p_index,&
        cp_get_non_p_indexes, cp_get_unitary_t,&
        cp_get_g_index
 
-  public :: pao_l_compose_u ! to do remove from here and plain rot tests
+  PUBLIC :: pao_l_compose_u ! to do remove from here and plain rot tests
 
 ! underlying functions
-  public :: pao_l_ang_init, pao_l_ang_dealloc_ref,&
+  PUBLIC :: pao_l_ang_init, pao_l_ang_dealloc_ref,&
        pao_l_ang_validate, pao_l_ang_set,&
        pao_l_ang_get, pao_l_ang_did_change,&
        pao_l_ang_get_angle,&
@@ -95,109 +121,109 @@ module pao_l_angles_methods
 !! initializes the first, argument.
 !! Support optional initial values that depend on the 
 !! first argument 
-  interface cp_init
-     module procedure pao_l_ang_init
-  end interface
+  INTERFACE cp_init
+     MODULE PROCEDURE pao_l_ang_init
+  END INTERFACE
 
 !! Deallocates the memory allocated by the first argument.
 !! Supports error=error
-  interface cp_dealloc_ref
-     module procedure pao_l_ang_dealloc_ref
-  end interface
+  INTERFACE cp_dealloc_ref
+     MODULE PROCEDURE pao_l_ang_dealloc_ref
+  END INTERFACE
 
 !! returns true if the content of the first argumenst is valid.
 !! writes the errors ar warnings, full validation (long)
-  interface cp_validate
-     module procedure pao_l_ang_validate
-  end interface
+  INTERFACE cp_validate
+     MODULE PROCEDURE pao_l_ang_validate
+  END INTERFACE
 
 !! returns true if the first argument is valid. Only a fast minimal 
 !! validation is performed (no dangling pointers)
-  interface cp_valid
-     module procedure pao_l_angles_valid
-  end interface
+  INTERFACE cp_valid
+     MODULE PROCEDURE pao_l_angles_valid
+  END INTERFACE
 
 !! sets the value of various optonal attributes of the firs argument.
 !! the optional attributes depend on the type of the first
-  interface cp_set
-     module procedure pao_l_ang_set
-  end interface
+  INTERFACE cp_set
+     MODULE PROCEDURE pao_l_ang_set
+  END INTERFACE
 
 !! gets values from the first argument via optional keyword arguments
 !! that depend on the type of the first argument
-  interface cp_get
-     module procedure pao_l_ang_get
-  end interface
+  INTERFACE cp_get
+     MODULE PROCEDURE pao_l_ang_get
+  END INTERFACE
 
 !! tells the object that its internal values have changes and its cached
 !! values may be invalid
-  interface cp_did_change
-     module procedure pao_l_ang_did_change
-  end interface
+  INTERFACE cp_did_change
+     MODULE PROCEDURE pao_l_ang_did_change
+  END INTERFACE
 
 ! +++ end of the core methods +++
 
 !! returns the angle in the first arg identified by the second (min_bas)
 !! and the third arg (full_bas) 
-  interface cp_get_angle
-     module procedure pao_l_ang_get_angle
-  end interface
+  INTERFACE cp_get_angle
+     MODULE PROCEDURE pao_l_ang_get_angle
+  END INTERFACE
 
 !! sets the angle in the first arg identified by the second (min_bas)
 !! and the third arg (full_bas) to the value in the fourth (value)
-  interface cp_set_angle
-     module procedure pao_l_ang_set_angle
-  end interface
+  INTERFACE cp_set_angle
+     MODULE PROCEDURE pao_l_ang_set_angle
+  END INTERFACE
 
 !! returns the size of the minimal basis
-  interface cp_get_size_min_bas
-     module procedure pao_l_ang_get_size_min_bas
-  end interface
+  INTERFACE cp_get_size_min_bas
+     MODULE PROCEDURE pao_l_ang_get_size_min_bas
+  END INTERFACE
 
 !! returns the size of the full basis
-  interface cp_get_size_full_bas
-     module procedure pao_l_ang_get_size_full_bas
-  end interface
+  INTERFACE cp_get_size_full_bas
+     MODULE PROCEDURE pao_l_ang_get_size_full_bas
+  END INTERFACE
 
 !! returns the size of the excluded basis
-  interface cp_get_size_excl_bas
-     module procedure pao_l_ang_get_size_excl_bas
-  end interface
+  INTERFACE cp_get_size_excl_bas
+     MODULE PROCEDURE pao_l_ang_get_size_excl_bas
+  END INTERFACE
 
 !! returns the projection indexes
-  interface cp_get_p_indexes
-     module procedure pao_l_ang_get_p_indexes
-  end interface
+  INTERFACE cp_get_p_indexes
+     MODULE PROCEDURE pao_l_ang_get_p_indexes
+  END INTERFACE
 
 !! returns the indexes of the excluded basis
-  interface cp_get_non_p_indexes
-     module procedure pao_l_ang_get_non_p_indexes
-  end interface
+  INTERFACE cp_get_non_p_indexes
+     MODULE PROCEDURE pao_l_ang_get_non_p_indexes
+  END INTERFACE
 
 !! returns an index of the projection
-  interface cp_get_p_index
-     module procedure pao_l_ang_get_p_index
-  end interface
+  INTERFACE cp_get_p_index
+     MODULE PROCEDURE pao_l_ang_get_p_index
+  END INTERFACE
 
 !! returns an index of the excluded basis
-  interface cp_get_non_p_index
-     module procedure pao_l_ang_get_non_p_index
-  end interface
+  INTERFACE cp_get_non_p_index
+     MODULE PROCEDURE pao_l_ang_get_non_p_index
+  END INTERFACE
 
 !! gets the unitary transformation
-  interface cp_get_unitary_t
-     module procedure pao_l_ang_get_unitary_t
-  end interface
+  INTERFACE cp_get_unitary_t
+     MODULE PROCEDURE pao_l_ang_get_unitary_t
+  END INTERFACE
 
 !! sets the unitary transformation
-  interface cp_set_unitary_t
-     module procedure pao_l_ang_set_unitary_t
-  end interface
+  INTERFACE cp_set_unitary_t
+     MODULE PROCEDURE pao_l_ang_set_unitary_t
+  END INTERFACE
 
 !! returns the global indexes
-interface cp_get_g_index
-   module procedure pao_l_ang_get_g_index
-end interface
+INTERFACE cp_get_g_index
+   MODULE PROCEDURE pao_l_ang_get_g_index
+END INTERFACE
 
 !!***
 !****************************************************************************
@@ -240,20 +266,20 @@ end interface
 !!
 !!   SOURCE
 !***************************************************************************
-  type pao_local_angles_type
-     private
-     logical :: initialized
-     integer :: atom_nr, begins_at, size_min_bas
-     real(kind=wp), dimension(:,:), pointer :: tmp_m
-     type(qs_environment_type), pointer :: qs_env
-     type(global_environment_type), pointer :: global_env
-     type(pao_bas_projection_type), pointer :: projection
-     type(pao_glob_angles_type), pointer :: glob_angles
-  end type pao_local_angles_type
+  TYPE pao_local_angles_type
+     PRIVATE
+     LOGICAL :: initialized
+     INTEGER :: atom_nr, begins_at, size_min_bas
+     REAL(kind=wp), DIMENSION(:,:), POINTER :: tmp_m
+     TYPE(qs_environment_type), POINTER :: qs_env
+     TYPE(global_environment_type), POINTER :: global_env
+     TYPE(pao_bas_projection_type), POINTER :: projection
+     TYPE(pao_glob_angles_type), POINTER :: glob_angles
+  END TYPE pao_local_angles_type
 !!***
 !****************************************************************************
 
-contains
+CONTAINS
 
 ! ====== core methods ======
 
@@ -294,27 +320,27 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_init(local_angles, qs_env, global_env, atom_nr,&
+  SUBROUTINE pao_l_ang_init(local_angles, qs_env, global_env, atom_nr,&
        glob_angles, error)
-    type(pao_local_angles_type), intent(out):: local_angles
-    type(qs_environment_type), intent(in), target :: qs_env
-    type(global_environment_type), intent(in), target :: global_env
-    integer, intent(in) :: atom_nr
-    type(pao_glob_angles_type), target :: glob_angles
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_local_angles_type), INTENT(out):: local_angles
+    TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+    INTEGER, INTENT(in) :: atom_nr
+    TYPE(pao_glob_angles_type), TARGET :: glob_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_init'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_init'
+    failure=.FALSE.
 
-    local_angles%initialized=.true.
+    local_angles%initialized=.TRUE.
     local_angles%atom_nr=-1
     local_angles%global_env => global_env
     local_angles%qs_env => qs_env
     local_angles%glob_angles => glob_angles
-    nullify(local_angles%projection, local_angles%tmp_m)
-    call pao_l_ang_set(local_angles, atom_nr, error=error)
-  end subroutine pao_l_ang_init
+    NULLIFY(local_angles%projection, local_angles%tmp_m)
+    CALL pao_l_ang_set(local_angles, atom_nr, error=error)
+  END SUBROUTINE pao_l_ang_init
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_dealloc_ref [1.0] *
@@ -348,27 +374,27 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_dealloc_ref(local_angles, error)
-    real(kind=wp) ::res
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_l_ang_dealloc_ref(local_angles, error)
+    REAL(kind=wp) ::res
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: stat
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_dealloc_ref'
-    failure=.false.
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_dealloc_ref'
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (associated(local_angles%tmp_m)) then
-          deallocate(local_angles%tmp_m,stat=stat)
+    failureIf: IF (.NOT. failure) THEN
+       IF (ASSOCIATED(local_angles%tmp_m)) THEN
+          DEALLOCATE(local_angles%tmp_m,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-       end if
-       nullify(local_angles%glob_angles, local_angles%projection, &
+       END IF
+       NULLIFY(local_angles%glob_angles, local_angles%projection, &
             local_angles%qs_env, local_angles%global_env, local_angles%tmp_m)
-       local_angles%initialized=.false.
-    end if failureIf
-  end subroutine pao_l_ang_dealloc_ref
+       local_angles%initialized=.FALSE.
+    END IF failureIf
+  END SUBROUTINE pao_l_ang_dealloc_ref
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_validate [1.0] *
@@ -402,48 +428,48 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_validate(local_angles, error) result(res)
-    logical ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_validate(local_angles, error) RESULT(res)
+    LOGICAL ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_validate'
-    type(pao_env_type), pointer :: pao_env
-    integer :: i, beginAt
-    failure=.false.
-    nullify(pao_env)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_validate'
+    TYPE(pao_env_type), POINTER :: pao_env
+    INTEGER :: i, beginAt
+    failure=.FALSE.
+    NULLIFY(pao_env)
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-    CPAssert(associated(local_angles%glob_angles),cp_warning_level,routineP,error,failure)
-    CPAssert(associated(local_angles%qs_env),cp_warning_level,routineP,error,failure)
-    CPAssert(associated(local_angles%global_env),cp_warning_level,routineP,error,failure)
-    if (cp_debug .and. .not. failure) then
-       call cp_assert(cp_validate(local_angles%glob_angles,&
+    CPAssert(ASSOCIATED(local_angles%glob_angles),cp_warning_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(local_angles%qs_env),cp_warning_level,routineP,error,failure)
+    CPAssert(ASSOCIATED(local_angles%global_env),cp_warning_level,routineP,error,failure)
+    IF (cp_debug .AND. .NOT. failure) THEN
+       CALL cp_assert(cp_validate(local_angles%glob_angles,&
             qs_env=local_angles%qs_env,global_env=local_angles%global_env,&
             error=error),cp_warning_level,cp_assertion_failed,routineP,&
             "referenced pao_glob_angles is invalid, in file "//&
             CPSourceFileRef,&
             error,failure)
-    end if
-    if (.not.failure) then
+    END IF
+    IF (.NOT.failure) THEN
        CPAssert(local_angles%atom_nr>0,cp_warning_level,routineP,error,failure)
 !       CPAssert(local_angles%atom_nr<=cp_get_n_atom(pao_env),cp_warning_level,routineP,error,failure)
-       if (.not.failure) then
+       IF (.NOT.failure) THEN
           CPAssert(local_angles%begins_at>=0,cp_warning_level,routineP,error,failure)
-          call cp_assert(local_angles%begins_at < &
-               size(local_angles%glob_angles%angles),&
+          CALL cp_assert(local_angles%begins_at < &
+               SIZE(local_angles%glob_angles%angles),&
                cp_warning_level,cp_assertion_failed,routineP,&
                "begins_at out of range in "//&
                CPSourceFileRef,&
                error,failure)
-          call get_qs_env(local_angles%qs_env, pao_env=pao_env)
+          CALL get_qs_env(local_angles%qs_env, pao_env=pao_env)
           beginAt=pao_env%angles_begin_at(local_angles%atom_nr)
           CPAssert(local_angles%begins_at==beginAt,cp_warning_level,routineP,error,failure)
-       end if
-    end if
-    res=.not.failure
-  end function pao_l_ang_validate
+       END IF
+    END IF
+    res=.NOT.failure
+  END FUNCTION pao_l_ang_validate
 !***************************************************************************
 
 
@@ -486,53 +512,53 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_set(local_angles, atom_nr,error)
-    type(pao_local_angles_type), intent(inout):: local_angles
-    integer, intent(in) :: atom_nr
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_l_ang_set(local_angles, atom_nr,error)
+    TYPE(pao_local_angles_type), INTENT(inout):: local_angles
+    INTEGER, INTENT(in) :: atom_nr
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set'
-    type(pao_env_type), pointer :: pao_env
-    type(particle_type), dimension(:), pointer :: particle_set
-    type(cp_error_type) :: iError
-    failure=.false.
-    nullify(pao_env)
-    call cp_error_init(iError, template_error=error)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_set'
+    TYPE(pao_env_type), POINTER :: pao_env
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(cp_error_type) :: iError
+    failure=.FALSE.
+    NULLIFY(pao_env)
+    CALL cp_error_init(iError, template_error=error)
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
+    failureIf: IF (.NOT. failure) THEN
        local_angles%atom_nr=atom_nr
        CPAssert(atom_nr>0,cp_warning_level,routineP,error,failure)
-       if (local_angles%atom_nr>0) then
-          call cp_assert(associated(local_angles%glob_angles),&
+       IF (local_angles%atom_nr>0) THEN
+          CALL cp_assert(ASSOCIATED(local_angles%glob_angles),&
                cp_failure_level,cp_precondition_failed,routineP,&
                "global_angles not associated in "//&
                CPSourceFileRef,&
                error,failure)
-          call get_qs_env(local_angles%qs_env,pao_env=pao_env,&
+          CALL get_qs_env(local_angles%qs_env,pao_env=pao_env,&
                particle_set=particle_set)
-          CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-          CPPrecondition(associated(particle_set),cp_failure_level,routineP,error,failure)
-          if (.not.failure) then
+          CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ASSOCIATED(particle_set),cp_failure_level,routineP,error,failure)
+          IF (.NOT.failure) THEN
              local_angles%begins_at= pao_env%angles_begin_at(atom_nr)
-             call get_atomic_kind(particle_set(atom_nr)%atomic_kind,&
+             CALL get_atomic_kind(particle_set(atom_nr)%atomic_kind,&
                   pao_bas_proj=local_angles%projection)
-             CPPostcondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-          end if
-          if (.not.failure) then
-             call cp_proj_get(local_angles%projection,&
+             CPPostcondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+          END IF
+          IF (.NOT.failure) THEN
+             CALL cp_proj_get(local_angles%projection,&
                   size_min_bas=local_angles%size_min_bas, error=error)
-          end if
-       else
-          nullify(local_angles%projection)
-       end if
-    end if failureIf
-    if (failure) then
-       nullify(local_angles%projection)
-    end if
-    call cp_error_dealloc_ref(iError,error=error)
-  end subroutine pao_l_ang_set
+          END IF
+       ELSE
+          NULLIFY(local_angles%projection)
+       END IF
+    END IF failureIf
+    IF (failure) THEN
+       NULLIFY(local_angles%projection)
+    END IF
+    CALL cp_error_dealloc_ref(iError,error=error)
+  END SUBROUTINE pao_l_ang_set
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get [1.0] *
@@ -587,75 +613,75 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_get(local_angles, atom_nr, &
+  SUBROUTINE pao_l_ang_get(local_angles, atom_nr, &
        pao_env, unitary_t,cache_valid,&
        size_min_bas, size_full_bas, &
        size_excl_bas, proj_indexes, non_proj_indexes,&
        projection, angles, NUi_injection, atomic_ortho, error)
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    integer, optional, intent(out) :: atom_nr
-    integer, optional, intent(out) :: size_excl_bas,size_full_bas,&
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    INTEGER, OPTIONAL, INTENT(out) :: atom_nr
+    INTEGER, OPTIONAL, INTENT(out) :: size_excl_bas,size_full_bas,&
          size_min_bas
-    integer, optional, dimension(:), pointer :: proj_indexes,&
+    INTEGER, OPTIONAL, DIMENSION(:), POINTER :: proj_indexes,&
          non_proj_indexes
-    type(pao_env_type), optional, pointer :: pao_env
-    type(cp_error_type), optional, intent(inout) :: error
-    real(kind=wp), dimension(:,:), pointer, optional :: unitary_t,&
+    TYPE(pao_env_type), OPTIONAL, POINTER :: pao_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    REAL(kind=wp), DIMENSION(:,:), POINTER, OPTIONAL :: unitary_t,&
          atomic_ortho, NUi_injection
-    logical, intent(out), optional :: cache_valid
-    type(pao_bas_projection_type), pointer, optional :: projection
-    real(kind=wp), dimension(:), pointer, optional :: angles
+    LOGICAL, INTENT(out), OPTIONAL :: cache_valid
+    TYPE(pao_bas_projection_type), POINTER, OPTIONAL :: projection
+    REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: angles
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get'
-    type(pao_env_type), pointer :: my_pao_env
-    failure=.false.
-    nullify(my_pao_env)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get'
+    TYPE(pao_env_type), POINTER :: my_pao_env
+    failure=.FALSE.
+    NULLIFY(my_pao_env)
 
     CPAssert(local_angles%initialized,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       if (present(atom_nr)) then
+    IF (.NOT. failure) THEN
+       IF (PRESENT(atom_nr)) THEN
           atom_nr=local_angles%atom_nr
-       end if
-       if (present(pao_env)) then
-          call get_qs_env(local_angles%qs_env, pao_env=pao_env)
-       end if
-       if (present(projection)) projection => local_angles%projection
-       CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-       call cp_proj_get(local_angles%projection, size_min_bas=size_min_bas,&
+       END IF
+       IF (PRESENT(pao_env)) THEN
+          CALL get_qs_env(local_angles%qs_env, pao_env=pao_env)
+       END IF
+       IF (PRESENT(projection)) projection => local_angles%projection
+       CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    END IF
+    IF (.NOT.failure) THEN
+       CALL cp_proj_get(local_angles%projection, size_min_bas=size_min_bas,&
             size_full_bas=size_full_bas, size_excl_bas=size_excl_bas,&
             proj_indexes=proj_indexes, non_proj_indexes=non_proj_indexes,&
             error=error)
-       if (present(unitary_t)) then
+       IF (PRESENT(unitary_t)) THEN
           unitary_t => pao_l_ang_get_unitary_t(local_angles,error=error)
-       end if
-       if (present(cache_valid)) then
-          if (associated(local_angles%glob_angles%ut_calculated).and.&
-               local_angles%atom_nr>0) then
+       END IF
+       IF (PRESENT(cache_valid)) THEN
+          IF (ASSOCIATED(local_angles%glob_angles%ut_calculated).AND.&
+               local_angles%atom_nr>0) THEN
              cache_valid=local_angles%glob_angles%ut_calculated(&
                   local_angles%atom_nr)
-          else
-             cache_valid=.false.
-          end if
-       end if
-       if (present(angles)) then
-          nullify(angles)
+          ELSE
+             cache_valid=.FALSE.
+          END IF
+       END IF
+       IF (PRESENT(angles)) THEN
+          NULLIFY(angles)
           ! seems to give problems on some platforms
-          CPAssert(.false.,cp_warning_level,routineP,error,failure)
-          call get_qs_env(local_angles%qs_env, pao_env=my_pao_env)
+          CPAssert(.FALSE.,cp_warning_level,routineP,error,failure)
+          CALL get_qs_env(local_angles%qs_env, pao_env=my_pao_env)
           angles => local_angles%glob_angles%angles(local_angles%begins_at:&
                (my_pao_env%angles_begin_at(local_angles%atom_nr+1)-1))
-       end if
-       if (present(NUi_injection)) then
+       END IF
+       IF (PRESENT(NUi_injection)) THEN
           NUi_injection => pao_l_ang_get_NUi_injection(local_angles,error=error)
-       end if
-       if (present(atomic_ortho)) then
+       END IF
+       IF (PRESENT(atomic_ortho)) THEN
           atomic_ortho => pao_l_ang_get_atomic_ortho(local_angles,error=error)
-       end if
-    end if
-  end subroutine pao_l_ang_get
+       END IF
+    END IF
+  END SUBROUTINE pao_l_ang_get
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_angles_valid [1.0] *
@@ -682,19 +708,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_angles_valid(local_angles, error) result(res)
-    logical ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_angles_valid(local_angles, error) RESULT(res)
+    LOGICAL ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_angles_valid'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_angles_valid'
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-    CPAssert(associated(local_angles%glob_angles),cp_warning_level,routineP,error,failure)
-    res=.not.failure
-  end function pao_l_angles_valid
+    CPAssert(ASSOCIATED(local_angles%glob_angles),cp_warning_level,routineP,error,failure)
+    res=.NOT.failure
+  END FUNCTION pao_l_angles_valid
 !***************************************************************************
 
 ! ====== special methods =====
@@ -731,26 +757,26 @@ contains
 !!     4.2002 use bas_projection [fawzi]
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_p_indexes(local_angles,error) result(res)
-    integer, dimension(:), pointer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_p_indexes(local_angles,error) RESULT(res)
+    INTEGER, DIMENSION(:), POINTER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_l_ang_get_p_indexes',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_p_indexes',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (cp_debug .or. debug_this_module) then
+    failure=.FALSE.
+    IF (cp_debug .OR. debug_this_module) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    end if
+       CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    END IF
 
-    if (.not. failure) then
-       call cp_proj_get(local_angles%projection, proj_indexes=res,error=error)
-    else
-       nullify(res)
-    end if
-  end function pao_l_ang_get_p_indexes
+    IF (.NOT. failure) THEN
+       CALL cp_proj_get(local_angles%projection, proj_indexes=res,error=error)
+    ELSE
+       NULLIFY(res)
+    END IF
+  END FUNCTION pao_l_ang_get_p_indexes
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_non_p_indexes [1.0] *
@@ -785,26 +811,26 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_non_p_indexes(local_angles,error) result(res)
-    integer, dimension(:), pointer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_non_p_indexes(local_angles,error) RESULT(res)
+    INTEGER, DIMENSION(:), POINTER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_l_ang_get_p_indexes',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_p_indexes',&
          routineP=moduleN//':'//routineN
-    failure=.false.
-    if (cp_debug .or. debug_this_module) then
+    failure=.FALSE.
+    IF (cp_debug .OR. debug_this_module) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    end if
+       CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    END IF
 
-    if (.not. failure) then
-       call cp_proj_get(local_angles%projection, non_proj_indexes=res,error=error)
-    else
-       nullify(res)
-    end if
-  end function pao_l_ang_get_non_p_indexes
+    IF (.NOT. failure) THEN
+       CALL cp_proj_get(local_angles%projection, non_proj_indexes=res,error=error)
+    ELSE
+       NULLIFY(res)
+    END IF
+  END FUNCTION pao_l_ang_get_non_p_indexes
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_p_index [1.0] *
@@ -842,29 +868,29 @@ contains
 !!     4.2002 use bas_projection [fawzi]
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_p_index(local_angles, min_bas, error) result(res)
-    integer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    integer, intent(in) :: min_bas
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_p_index(local_angles, min_bas, error) RESULT(res)
+    INTEGER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    INTEGER, INTENT(in) :: min_bas
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_l_ang_get_p_index',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_p_index',&
          routineP=moduleN//':'//routineN
-    integer, dimension(:), pointer :: p
-    failure=.false.
-    if (cp_debug .or. debug_this_module) then
+    INTEGER, DIMENSION(:), POINTER :: p
+    failure=.FALSE.
+    IF (cp_debug .OR. debug_this_module) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    end if
+       CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    END IF
 
-    if (.not. failure) then
-       call cp_proj_get(local_angles%projection, proj_indexes=p,error=error)
+    IF (.NOT. failure) THEN
+       CALL cp_proj_get(local_angles%projection, proj_indexes=p,error=error)
        res=p(min_bas)
-    else
+    ELSE
        res=-1
-    end if
-  end function pao_l_ang_get_p_index
+    END IF
+  END FUNCTION pao_l_ang_get_p_index
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_non_p_index [1.0] *
@@ -901,29 +927,29 @@ contains
 !!     4.2002 use bas projection [fawzi]
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_non_p_index(local_angles,excl_bas,error) result(res)
-    integer ::res
-    integer, intent(in) :: excl_bas
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_non_p_index(local_angles,excl_bas,error) RESULT(res)
+    INTEGER ::res
+    INTEGER, INTENT(in) :: excl_bas
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_l_ang_get_p_index',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_p_index',&
          routineP=moduleN//':'//routineN
-    integer, dimension(:), pointer :: np
-    failure=.false.
-    if (cp_debug .or. debug_this_module) then
+    INTEGER, DIMENSION(:), POINTER :: np
+    failure=.FALSE.
+    IF (cp_debug .OR. debug_this_module) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    end if
+       CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    END IF
 
-    if (.not. failure) then
-       call cp_proj_get(local_angles%projection, non_proj_indexes=np,error=error)
+    IF (.NOT. failure) THEN
+       CALL cp_proj_get(local_angles%projection, non_proj_indexes=np,error=error)
        res=np(excl_bas)
-    else
+    ELSE
        res=-1
-    end if
-  end function pao_l_ang_get_non_p_index
+    END IF
+  END FUNCTION pao_l_ang_get_non_p_index
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_angle [1.0] *
@@ -963,51 +989,51 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_angle(local_angles, min_bas, excl_bas, &
-       error) result(res)
-    real(kind=wp) ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    integer, intent(in) :: min_bas, excl_bas
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_angle(local_angles, min_bas, excl_bas, &
+       error) RESULT(res)
+    REAL(kind=wp) ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    INTEGER, INTENT(in) :: min_bas, excl_bas
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_angle'
-    integer :: size_excl_bas
-    type(pao_glob_angles_type), pointer :: glob_angles
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_angle'
+    INTEGER :: size_excl_bas
+    TYPE(pao_glob_angles_type), POINTER :: glob_angles
+    failure=.FALSE.
     glob_angles => local_angles%glob_angles
 
-    debugIf: if (debug_this_module.and.cp_debug) then
+    debugIf: IF (debug_this_module.AND.cp_debug) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(glob_angles),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-       end if
-       if (.not.failure) then
-          call cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
+       CPPrecondition(ASSOCIATED(glob_angles),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+       END IF
+       IF (.NOT.failure) THEN
+          CALL cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
                error=error)
-          call cp_assert(min_bas>0.and.min_bas <= &
+          CALL cp_assert(min_bas>0.AND.min_bas <= &
                local_angles%size_min_bas,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "min_bas out of range in "//&
                CPSourceFileRef,&
                error,failure)
-          call cp_assert(excl_bas>0.and.excl_bas <= &
+          CALL cp_assert(excl_bas>0.AND.excl_bas <= &
                size_excl_bas,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "excl_bas out of range in "//&
                CPSourceFileRef,&
                error,failure)
-       end if
-    end if debugIf
-    failureIf: if (.not. failure) then
+       END IF
+    END IF debugIf
+    failureIf: IF (.NOT. failure) THEN
        res=glob_angles%angles(local_angles%begins_at + &
             local_angles%size_min_bas*(excl_bas-1) + &
             min_bas)
-    else failureIf
+    ELSE failureIf
        res=-1
-    end if failureIf
-  end function pao_l_ang_get_angle
+    END IF failureIf
+  END FUNCTION pao_l_ang_get_angle
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_set_angle [1.0] *
@@ -1047,48 +1073,48 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_set_angle(local_angles, min_bas, excl_bas, &
+  SUBROUTINE pao_l_ang_set_angle(local_angles, min_bas, excl_bas, &
        value,error)
-    type(pao_local_angles_type), intent(in) :: local_angles !actually the substructure globalangles is modifed
-    integer, intent(in) :: min_bas, excl_bas
-    real(kind=wp), intent(in) :: value
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles !actually the substructure globalangles is modifed
+    INTEGER, INTENT(in) :: min_bas, excl_bas
+    REAL(kind=wp), INTENT(in) :: value
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='pao_l_ang_set_angle',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_set_angle',&
          routineP=moduleN//':'//routineN
-    type(pao_glob_angles_type), pointer :: glob_angles
-    integer :: size_excl_bas
-    failure=.false.
+    TYPE(pao_glob_angles_type), POINTER :: glob_angles
+    INTEGER :: size_excl_bas
+    failure=.FALSE.
     glob_angles => local_angles%glob_angles
 
-    debugIf: if (debug_this_module.and.cp_debug) then
+    debugIf: IF (debug_this_module.AND.cp_debug) THEN
        CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
-       CPPrecondition(associated(glob_angles),cp_failure_level,routineP,error,failure)
-       if (.not.failure) then
-          call cp_assert(min_bas>0.and.min_bas <= &
+       CPPrecondition(ASSOCIATED(glob_angles),cp_failure_level,routineP,error,failure)
+       IF (.NOT.failure) THEN
+          CALL cp_assert(min_bas>0.AND.min_bas <= &
                local_angles%size_min_bas,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "min_bas out of range in "//&
                CPSourceFileRef,&
                error,failure)
-          call cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
+          CALL cp_proj_get(local_angles%projection,size_excl_bas=size_excl_bas,&
                error=error)
-          call cp_assert(excl_bas>0.and.excl_bas <= &
+          CALL cp_assert(excl_bas>0.AND.excl_bas <= &
                size_excl_bas,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "excl_bas out of range in "//&
                CPSourceFileRef,&
                error,failure)
-       end if
-    end if debugIf
-    failureIf: if (.not. failure) then
+       END IF
+    END IF debugIf
+    failureIf: IF (.NOT. failure) THEN
        glob_angles%angles(local_angles%begins_at + &
             local_angles%size_min_bas*(excl_bas-1) + &
             min_bas) = value
-    end if failureIf
-    nullify(glob_angles)
-  end subroutine pao_l_ang_set_angle
+    END IF failureIf
+    NULLIFY(glob_angles)
+  END SUBROUTINE pao_l_ang_set_angle
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_size_excl_bas [1.0] *
@@ -1123,23 +1149,23 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_size_excl_bas(local_angles, error) result(res)
-    integer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_size_excl_bas(local_angles, error) RESULT(res)
+    INTEGER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_size_excl_bas'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_size_excl_bas'
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
-       call cp_proj_get(local_angles%projection,size_excl_bas=res,error=error)
-    else
+    CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CALL cp_proj_get(local_angles%projection,size_excl_bas=res,error=error)
+    ELSE
        res=-1
-    end if
-  end function pao_l_ang_get_size_excl_bas
+    END IF
+  END FUNCTION pao_l_ang_get_size_excl_bas
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_size_min_bas [1.0] *
@@ -1173,22 +1199,22 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_size_min_bas(local_angles, error) result(res)
-    integer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_size_min_bas(local_angles, error) RESULT(res)
+    INTEGER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_size_min_bas'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_size_min_bas'
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    IF (.NOT.failure) THEN
        res=local_angles%size_min_bas
-    else
+    ELSE
        res=-1
-    end if
-  end function pao_l_ang_get_size_min_bas
+    END IF
+  END FUNCTION pao_l_ang_get_size_min_bas
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_size_full_bas [1.0] *
@@ -1223,23 +1249,23 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_size_full_bas(local_angles, error) result(res)
-    integer ::res
-    type(pao_local_angles_type), intent(in) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  FUNCTION pao_l_ang_get_size_full_bas(local_angles, error) RESULT(res)
+    INTEGER ::res
+    TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_size_full_bas'
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_size_full_bas'
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized, cp_failure_level,routineP,error,failure)
-    CPPrecondition(associated(local_angles%projection),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
-       call cp_proj_get(local_angles%projection,size_full_bas=res,error=error)
-    else
+    CPPrecondition(ASSOCIATED(local_angles%projection),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+       CALL cp_proj_get(local_angles%projection,size_full_bas=res,error=error)
+    ELSE
        res=-1
-    end if
-  end function pao_l_ang_get_size_full_bas
+    END IF
+  END FUNCTION pao_l_ang_get_size_full_bas
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_did_change [1.0] *
@@ -1273,28 +1299,28 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_did_change(local_angles,error)
+  SUBROUTINE pao_l_ang_did_change(local_angles,error)
 ! changes in local_angles%glob_angles
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_did_change'
-    logical, dimension(:), pointer :: ut_calculated
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_did_change'
+    LOGICAL, DIMENSION(:), POINTER :: ut_calculated
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(local_angles%atom_nr>0,cp_warning_level,routineP,error,failure)
-    if (.not. failure) then
-       if (associated(local_angles%glob_angles%ut_calculated)) then
-          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.false.
-       end if
-       if (associated(local_angles%glob_angles%NUi_injection_calculated)) then
+    IF (.NOT. failure) THEN
+       IF (ASSOCIATED(local_angles%glob_angles%ut_calculated)) THEN
+          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.FALSE.
+       END IF
+       IF (ASSOCIATED(local_angles%glob_angles%NUi_injection_calculated)) THEN
           local_angles%glob_angles%NUi_injection_calculated&
-               (local_angles%atom_nr)=.false.
-       end if
-    end if
-  end subroutine pao_l_ang_did_change
+               (local_angles%atom_nr)=.FALSE.
+       END IF
+    END IF
+  END SUBROUTINE pao_l_ang_did_change
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_set_unitary_t [1.0] *
@@ -1329,39 +1355,39 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_ang_set_unitary_t(local_angles,unitary_t,error)
+  SUBROUTINE pao_l_ang_set_unitary_t(local_angles,unitary_t,error)
 ! changes in glob_angles
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    real(kind=wp), dimension(:,:), intent(in), target :: unitary_t
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    REAL(kind=wp), DIMENSION(:,:), INTENT(in), TARGET :: unitary_t
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_set_unitary_t'
-    type(cp_block_matrix_type), pointer :: full_u_t
-    real(kind=wp), dimension(:,:), pointer :: unitary_t_ptr
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_set_unitary_t'
+    TYPE(cp_block_matrix_type), POINTER :: full_u_t
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: unitary_t_ptr
+    failure=.FALSE.
 
     CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
     CPPrecondition(local_angles%atom_nr>0,cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
-       call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+    IF (.NOT. failure) THEN
+       CALL pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
             global_env=local_angles%global_env, unitary_t=full_u_t,&
             error=error)
-       CPPrecondition(associated(full_u_t),cp_warning_level,routineP,error,failure)
-       call cp_assert(associated(local_angles%glob_angles%ut_calculated),&
+       CPPrecondition(ASSOCIATED(full_u_t),cp_warning_level,routineP,error,failure)
+       CALL cp_assert(ASSOCIATED(local_angles%glob_angles%ut_calculated),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "ut_calculated not allocated in "//&
             CPSourceFileRef,&
             error,failure)
-       if (.not.failure) then
-          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
+       IF (.NOT.failure) THEN
+          local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.TRUE.
           unitary_t_ptr => unitary_t
-          call put_block_node(cp_get_matrix(full_u_t),&
+          CALL put_block_node(cp_get_matrix(full_u_t),&
                block_row=local_angles%atom_nr,&
-               block_col=local_angles%atom_nr, block=unitary_t_ptr)
-       end if
-    end if
-  end subroutine pao_l_ang_set_unitary_t
+               block_col=local_angles%atom_nr, BLOCK=unitary_t_ptr)
+       END IF
+    END IF
+  END SUBROUTINE pao_l_ang_set_unitary_t
 !***************************************************************************
 
 !!****f* pao_plain_rot/pao_l_compose_u [1.0] *
@@ -1399,37 +1425,37 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine pao_l_compose_u(matrix,local_angles,error)
-    real(kind=wp), dimension(:,:), intent(inout) :: matrix
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE pao_l_compose_u(matrix,local_angles,error)
+    REAL(kind=wp), DIMENSION(:,:), INTENT(inout) :: matrix
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_plain_rot:pao_l_compose_u'
-    integer :: n_full_bas, i_min_bas, i_excl_bas
-    integer, dimension(:), pointer :: proj_indexes, non_proj_indexes
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_plain_rot:pao_l_compose_u'
+    INTEGER :: n_full_bas, i_min_bas, i_excl_bas
+    INTEGER, DIMENSION(:), POINTER :: proj_indexes, non_proj_indexes
+    failure=.FALSE.
 
-    call pao_l_ang_get(local_angles,&
+    CALL pao_l_ang_get(local_angles,&
          size_full_bas=n_full_bas, proj_indexes=proj_indexes,&
          non_proj_indexes=non_proj_indexes)
-    CPPrecondition(size(proj_indexes)>0,cp_warning_level,routineP,error,failure)
-    CPPrecondition(size(non_proj_indexes)>=0,cp_warning_level,routineP,error,failure)
-    CPPrecondition(size(matrix,1)==n_full_bas,cp_warning_level,routineP,error,failure)
-    CPPrecondition(size(matrix,2)==n_full_bas,cp_warning_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       do i_excl_bas=size(non_proj_indexes),1,-1
-          do i_min_bas=size(proj_indexes),1,-1
-             call cp_left_compose_p_rot(matrix=matrix,&
+    CPPrecondition(SIZE(proj_indexes)>0,cp_warning_level,routineP,error,failure)
+    CPPrecondition(SIZE(non_proj_indexes)>=0,cp_warning_level,routineP,error,failure)
+    CPPrecondition(SIZE(matrix,1)==n_full_bas,cp_warning_level,routineP,error,failure)
+    CPPrecondition(SIZE(matrix,2)==n_full_bas,cp_warning_level,routineP,error,failure)
+    failureIf: IF (.NOT. failure) THEN
+       DO i_excl_bas=SIZE(non_proj_indexes),1,-1
+          DO i_min_bas=SIZE(proj_indexes),1,-1
+             CALL cp_left_compose_p_rot(matrix=matrix,&
                   angle=cp_get_angle(local_angles,min_bas=i_min_bas,&
                   excl_bas=i_excl_bas,error=error),&
                   i=proj_indexes(i_min_bas),&
                   j=non_proj_indexes(i_excl_bas),&
                   error=error)
-          end do
-       end do
-    end if failureIf
-  end subroutine pao_l_compose_u
+          END DO
+       END DO
+    END IF failureIf
+  END SUBROUTINE pao_l_compose_u
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_unitary_t [1.0] *
@@ -1463,60 +1489,60 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  function pao_l_ang_get_unitary_t(local_angles,error) result(res)
-    type(pao_local_angles_type), intent(inout) :: local_angles
-    type(cp_error_type), optional, intent(inout) :: error
-    real(kind=wp), dimension(:,:), pointer :: res
+  FUNCTION pao_l_ang_get_unitary_t(local_angles,error) RESULT(res)
+    TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    REAL(kind=wp), DIMENSION(:,:), POINTER :: res
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_l_angles_methods:pao_l_ang_get_unitary_t'
-    integer :: i
-    type(cp_block_matrix_type), pointer :: unitary_t
-    failure=.false.
-    nullify(res)
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_l_angles_methods:pao_l_ang_get_unitary_t'
+    INTEGER :: i
+    TYPE(cp_block_matrix_type), POINTER :: unitary_t
+    failure=.FALSE.
+    NULLIFY(res)
 
-    if (cp_debug .and. debug_this_module) then
+    IF (cp_debug .AND. debug_this_module) THEN
        CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
-    end if
-    if (.not. failure) then
-       call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+    END IF
+    IF (.NOT. failure) THEN
+       CALL pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
             global_env=local_angles%global_env, unitary_t=unitary_t,&
             error=error)
-       CPPrecondition(associated(unitary_t),cp_failure_level,routineP,error,failure)
-       call cp_assert(associated(local_angles%glob_angles%ut_calculated),&
+       CPPrecondition(ASSOCIATED(unitary_t),cp_failure_level,routineP,error,failure)
+       CALL cp_assert(ASSOCIATED(local_angles%glob_angles%ut_calculated),&
             cp_failure_level,cp_assertion_failed,routineP,&
             "ut_calculated not associated in "//&
             CPSourceFileRef,&
             error,failure)
-       if (.not.failure) then
-          if (local_angles%glob_angles%ut_calculated(local_angles%atom_nr)) then
-             call get_block_node(cp_get_matrix(unitary_t),&
-                  block=res,block_row=local_angles%atom_nr,&
+       IF (.NOT.failure) THEN
+          IF (local_angles%glob_angles%ut_calculated(local_angles%atom_nr)) THEN
+             CALL get_block_node(cp_get_matrix(unitary_t),&
+                  BLOCK=res,block_row=local_angles%atom_nr,&
                   block_col=local_angles%atom_nr)
-             CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-          else
-             call get_block_node(cp_get_matrix(unitary_t),&
-                  block=res,block_row=local_angles%atom_nr,&
+             CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+          ELSE
+             CALL get_block_node(cp_get_matrix(unitary_t),&
+                  BLOCK=res,block_row=local_angles%atom_nr,&
                   block_col=local_angles%atom_nr)
-             if (.not.associated(res)) then
-                call add_block_node(cp_get_matrix(unitary_t),&
-                     local_angles%atom_nr,local_angles%atom_nr,block=res)
-             end if
-             CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-             if (.not.failure) then
-                CPPrecondition(size(res,1)==size(res,2),cp_failure_level,routineP,error,failure)
-             end if
-             if (.not.failure) then
+             IF (.NOT.ASSOCIATED(res)) THEN
+                CALL add_block_node(cp_get_matrix(unitary_t),&
+                     local_angles%atom_nr,local_angles%atom_nr,BLOCK=res)
+             END IF
+             CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+             IF (.NOT.failure) THEN
+                CPPrecondition(SIZE(res,1)==SIZE(res,2),cp_failure_level,routineP,error,failure)
+             END IF
+             IF (.NOT.failure) THEN
                 res=0.0_wp
-                forall (i=1:size(res,1)) res(i,i)=1.0_wp
-                call pao_l_compose_u(res,local_angles,error=error)
-                local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.true.
-             end if
-          end if
-       end if
-    end if
-    if (failure) nullify(res)
-  end function pao_l_ang_get_unitary_t
+                FORALL (i=1:SIZE(res,1)) res(i,i)=1.0_wp
+                CALL pao_l_compose_u(res,local_angles,error=error)
+                local_angles%glob_angles%ut_calculated(local_angles%atom_nr)=.TRUE.
+             END IF
+          END IF
+       END IF
+    END IF
+    IF (failure) NULLIFY(res)
+  END FUNCTION pao_l_ang_get_unitary_t
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_g_index [1.0] *
@@ -1555,29 +1581,29 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-function pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
-     result(res)
-  integer :: res
-  type(pao_local_angles_type), intent(inout) :: local_angles
-  integer, intent(in) :: min_bas, excl_bas
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION pao_l_ang_get_g_index(local_angles, min_bas, excl_bas, error)&
+     RESULT(res)
+  INTEGER :: res
+  TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+  INTEGER, INTENT(in) :: min_bas, excl_bas
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_l_ang_get_g_index',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_g_index',&
        routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (cp_debug .and. debug_this_module) then
+  IF (cp_debug .AND. debug_this_module) THEN
      CPPrecondition(local_angles%initialized,cp_failure_level,routineP,error,failure)
      CPPrecondition(local_angles%atom_nr>0,cp_failure_level,routineP,error,failure)
-  end if
-  if (.not. failure) then
+  END IF
+  IF (.NOT. failure) THEN
      res = local_angles%begins_at+local_angles%size_min_bas*(excl_bas-1)&
           + min_bas
-  else
+  ELSE
      res=-1
-  end if
-end function pao_l_ang_get_g_index
+  END IF
+END FUNCTION pao_l_ang_get_g_index
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_atomic_ortho [1.0] *
@@ -1604,28 +1630,28 @@ end function pao_l_ang_get_g_index
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function pao_l_ang_get_atomic_ortho(local_angles,error) result(res)
-  type(pao_local_angles_type), intent(in) :: local_angles
-  real(kind=wp), dimension(:,:), pointer ::res
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION pao_l_ang_get_atomic_ortho(local_angles,error) RESULT(res)
+  TYPE(pao_local_angles_type), INTENT(in) :: local_angles
+  REAL(kind=wp), DIMENSION(:,:), POINTER ::res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_l_ang_get_atomic_ortho',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_atomic_ortho',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  if (.not.cp_valid(local_angles,error=error)) then
-     CPPrecondition(.false.,cp_failure_level,routineP,error,failure)
-  end if
-  if (.not. failure) then
+  IF (.NOT.cp_valid(local_angles,error=error)) THEN
+     CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT. failure) THEN
      res => pao_qs_env_get_atomic_ortho(local_angles%qs_env,&
           global_env=local_angles%global_env,&
           atom_nr=local_angles%atom_nr,&
           error=error)
-  else
-     nullify(res)
-  end if
-end function pao_l_ang_get_atomic_ortho
+  ELSE
+     NULLIFY(res)
+  END IF
+END FUNCTION pao_l_ang_get_atomic_ortho
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_l_ang_get_NUi_injection [1.0] *
@@ -1653,103 +1679,105 @@ end function pao_l_ang_get_atomic_ortho
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function pao_l_ang_get_NUi_injection(local_angles, error) result(res)
-  real(kind=wp), dimension(:,:), pointer ::res
-  type(pao_local_angles_type), intent(inout) :: local_angles
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION pao_l_ang_get_NUi_injection(local_angles, error) RESULT(res)
+  REAL(kind=wp), DIMENSION(:,:), POINTER ::res
+  TYPE(pao_local_angles_type), INTENT(inout) :: local_angles
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='pao_l_ang_get_NUi_injection',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='pao_l_ang_get_NUi_injection',&
         routineP=moduleN//':'//routineN
-  integer :: stat, max_full_bas, i, max_min_bas
-  integer, save :: iter=0
-  integer, dimension(:), pointer :: proj_indexes
-  type(cp_block_matrix_type), pointer :: NUi_injection
-  type(pao_env_type), pointer :: pao_env
-  real(kind=wp), dimension(:,:), pointer :: n_m,u_m
-  failure=.false.
-  nullify(res, NUi_injection, n_m, u_m, pao_env)
+  INTEGER :: stat, max_full_bas, i, max_min_bas
+  INTEGER, SAVE :: iter=0
+  INTEGER, DIMENSION(:), POINTER :: proj_indexes
+  TYPE(cp_block_matrix_type), POINTER :: NUi_injection
+  TYPE(pao_env_type), POINTER :: pao_env
+  TYPE(cp_logger_type), POINTER :: logger
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: n_m,u_m
+  failure=.FALSE.
+  NULLIFY(res, NUi_injection, n_m, u_m, pao_env)
 
   CPPrecondition(cp_valid(local_angles),cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     call pao_qs_env_get(local_angles%qs_env,&
+  IF (.NOT. failure) THEN
+     CALL pao_qs_env_get(local_angles%qs_env,&
           global_env=local_angles%global_env, pao_env=pao_env,&
           pao_max_full_bas=max_full_bas,pao_max_min_bas=max_min_bas,&
           error=error)
-     call pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
+     CALL pao_g_ang_get(local_angles%glob_angles,qs_env=local_angles%qs_env,&
           global_env=local_angles%global_env,NUi_injection=NUi_injection,&
           error=error)
-     CPPrecondition(associated(NUi_injection),cp_failure_level,routineP,error,failure)
-     CPPrecondition(associated(pao_env),cp_failure_level,routineP,error,failure)
-     if (.not.failure) then
-        call cp_assert(associated(local_angles%glob_angles%NUi_injection_calculated),&
+     CPPrecondition(ASSOCIATED(NUi_injection),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+     IF (.NOT.failure) THEN
+        CALL cp_assert(ASSOCIATED(local_angles%glob_angles%NUi_injection_calculated),&
              cp_failure_level,cp_assertion_failed,routineP,&
              "NUi_injection_calculated not associated in "//&
              CPSourceFileRef,&
              error,failure)
-     end if
-  end if
-  if (.not.failure) then
-     if (local_angles%glob_angles%NUi_injection_calculated&
-          (local_angles%atom_nr)) then
-        call get_block_node(cp_get_matrix(NUi_injection),&
-             block=res,block_row=local_angles%atom_nr,&
+     END IF
+  END IF
+  IF (.NOT.failure) THEN
+     IF (local_angles%glob_angles%NUi_injection_calculated&
+          (local_angles%atom_nr)) THEN
+        CALL get_block_node(cp_get_matrix(NUi_injection),&
+             BLOCK=res,block_row=local_angles%atom_nr,&
              block_col=local_angles%atom_nr)
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-     else
-        call get_block_node(cp_get_matrix(NUi_injection),&
-             block=res,block_row=local_angles%atom_nr,&
+        CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+     ELSE
+        CALL get_block_node(cp_get_matrix(NUi_injection),&
+             BLOCK=res,block_row=local_angles%atom_nr,&
              block_col=local_angles%atom_nr)
-        if (.not.associated(res)) then
-           call add_block_node(cp_get_matrix(NUi_injection),&
-                local_angles%atom_nr,local_angles%atom_nr,block=res)
-        end if
-        CPPostcondition(associated(res),cp_failure_level,routineP,error,failure)
-        if (.not.failure) then
-           if (.not.associated(local_angles%tmp_m)) then
-              allocate(local_angles%tmp_m(max_full_bas,max_min_bas),stat=stat)
+        IF (.NOT.ASSOCIATED(res)) THEN
+           CALL add_block_node(cp_get_matrix(NUi_injection),&
+                local_angles%atom_nr,local_angles%atom_nr,BLOCK=res)
+        END IF
+        CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           IF (.NOT.ASSOCIATED(local_angles%tmp_m)) THEN
+              ALLOCATE(local_angles%tmp_m(max_full_bas,max_min_bas),stat=stat)
               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           end if
-           call cp_assert(size(local_angles%tmp_m,1) >= size(res,1) .and.&
-                size(local_angles%tmp_m,2) >= size(res,2),cp_failure_level,&
+           END IF
+           CALL cp_assert(SIZE(local_angles%tmp_m,1) >= SIZE(res,1) .AND.&
+                SIZE(local_angles%tmp_m,2) >= SIZE(res,2),cp_failure_level,&
                 cp_internal_error, routineP, &
                 "local_angles%tmp_m not big enough, in"//&
                 CPSourceFileRef,&
                 error=error,failure=failure)
-        end if
+        END IF
         u_m => pao_l_ang_get_unitary_t(local_angles, error=error)
-        CPPrecondition(associated(u_m),cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(u_m),cp_failure_level,routineP,error,failure)
         n_m => pao_l_ang_get_atomic_ortho(local_angles, error=error)
-        CPPrecondition(associated(n_m),cp_failure_level,routineP,error,failure)
-        if (.not.failure) then
-           CPPrecondition(size(u_m,1)==size(n_m,2),cp_failure_level,routineP,error,failure)
-           call cp_proj_get(local_angles%projection,proj_indexes=proj_indexes,&
+        CPPrecondition(ASSOCIATED(n_m),cp_failure_level,routineP,error,failure)
+        IF (.NOT.failure) THEN
+           CPPrecondition(SIZE(u_m,1)==SIZE(n_m,2),cp_failure_level,routineP,error,failure)
+           CALL cp_proj_get(local_angles%projection,proj_indexes=proj_indexes,&
                 error=error)
-           CPPrecondition(associated(proj_indexes),cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           do i=1,size(proj_indexes)
-              local_angles%tmp_m(1:size(u_m,1),i)=u_m(:,proj_indexes(i))
-           end do
-           call dgemm('N','N',size(n_m,1),size(proj_indexes),&
-                size(u_m,1),1.0_wp,&
-                n_m,size(n_m,1),local_angles%tmp_m,size(local_angles%tmp_m,1),&
-                0.0_wp,res,size(res,1))
-           if (cp_debug.and.debug_this_module) then
+           CPPrecondition(ASSOCIATED(proj_indexes),cp_failure_level,routineP,error,failure)
+        END IF
+        IF (.NOT.failure) THEN
+           DO i=1,SIZE(proj_indexes)
+              local_angles%tmp_m(1:SIZE(u_m,1),i)=u_m(:,proj_indexes(i))
+           END DO
+           CALL dgemm('N','N',SIZE(n_m,1),SIZE(proj_indexes),&
+                SIZE(u_m,1),1.0_wp,&
+                n_m,SIZE(n_m,1),local_angles%tmp_m,SIZE(local_angles%tmp_m,1),&
+                0.0_wp,res,SIZE(res,1))
+           IF (cp_debug.AND.debug_this_module) THEN
               iter=iter+1
-              call cp_2d_r_output(cp_error_get_logger(error),&
+              logger => cp_error_get_logger(error)
+              CALL cp_2d_r_output(logger,&
                    outputName="atomic_NUi",&
                    fromWhere=routineP, iter=iter,array=res,&
                    comment="atom_nr="//cp_to_string(local_angles%atom_nr),&
                    error=error)
               local_angles%glob_angles%NUi_injection_calculated &
-                   (local_angles%atom_nr)=.true.
-           end if
-        end if
-     end if
-  end if
-  if (failure) nullify(res)
-end function pao_l_ang_get_NUi_injection
+                   (local_angles%atom_nr)=.TRUE.
+           END IF
+        END IF
+     END IF
+  END IF
+  IF (failure) NULLIFY(res)
+END FUNCTION pao_l_ang_get_NUi_injection
 !***************************************************************************
 
 !!****f* pao_l_angles_methods/pao_guarantee_owned_NUi [1.0] *
@@ -1778,42 +1806,42 @@ end function pao_l_ang_get_NUi_injection
 !!     07.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine pao_guarantee_owned_NUi(glob_angles, qs_env,&
+SUBROUTINE pao_guarantee_owned_NUi(glob_angles, qs_env,&
      global_env,error)
-  type(pao_glob_angles_type), intent(inout), target :: glob_angles
-  type(qs_environment_type), intent(in), target :: qs_env
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(pao_glob_angles_type), INTENT(inout), TARGET :: glob_angles
+  TYPE(qs_environment_type), INTENT(in), TARGET :: qs_env
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: i, n_block_rows
-  character(len=*), parameter :: routineN='pao_guarantee_owned_NUi',&
+  LOGICAL :: failure
+  INTEGER :: i, n_block_rows
+  CHARACTER(len=*), PARAMETER :: routineN='pao_guarantee_owned_NUi',&
         routineP=moduleN//':'//routineN
-  type(pao_local_angles_type) :: local_angles
-  type(cp_block_matrix_type), pointer :: NUi_injection
-  real(kind=wp), dimension(:,:), pointer :: NUi_block
-  nullify(NUi_block, NUi_injection)
-  failure=.false.
+  TYPE(pao_local_angles_type) :: local_angles
+  TYPE(cp_block_matrix_type), POINTER :: NUi_injection
+  REAL(kind=wp), DIMENSION(:,:), POINTER :: NUi_block
+  NULLIFY(NUi_block, NUi_injection)
+  failure=.FALSE.
   
   CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     call pao_g_ang_get(glob_angles,qs_env=qs_env,&
+  IF (.NOT. failure) THEN
+     CALL pao_g_ang_get(glob_angles,qs_env=qs_env,&
           global_env=global_env,NUi_injection=NUi_injection,&
           error=error)
 
-     CPPrecondition(associated(NUi_injection),cp_failure_level,routineP,error,failure)
-     call pao_l_ang_init(local_angles,glob_angles=glob_angles, qs_env=qs_env,&
+     CPPrecondition(ASSOCIATED(NUi_injection),cp_failure_level,routineP,error,failure)
+     CALL pao_l_ang_init(local_angles,glob_angles=glob_angles, qs_env=qs_env,&
           global_env=global_env, atom_nr=1, error=error)
-     call cp_sp_get(NUi_injection, n_block_rows=n_block_rows,error=error)
-     do i=1,n_block_rows
-        if (NUi_injection%matrix_struct%distribution%block_owner(i,i) == &
-             NUi_injection%matrix_struct%distribution%para_env%mepos) then
-           call pao_l_ang_set(local_angles, atom_nr=i,error=error)
+     CALL cp_sp_get(NUi_injection, n_block_rows=n_block_rows,error=error)
+     DO i=1,n_block_rows
+        IF (NUi_injection%matrix_struct%distribution%block_owner(i,i) == &
+             NUi_injection%matrix_struct%distribution%para_env%mepos) THEN
+           CALL pao_l_ang_set(local_angles, atom_nr=i,error=error)
            NUi_block => pao_l_ang_get_NUi_injection(local_angles,error=error)
-        end if
-     end do
-  end if
-end subroutine pao_guarantee_owned_NUi
+        END IF
+     END DO
+  END IF
+END SUBROUTINE pao_guarantee_owned_NUi
 !***************************************************************************
 
-end module pao_l_angles_methods
+END MODULE pao_l_angles_methods

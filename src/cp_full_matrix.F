@@ -29,41 +29,61 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_full_matrix
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log,&
-       cp_logger_type
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
-  USE cp_para_env,       ONLY: cp_para_env_retain, cp_para_env_release,&
-       cp_para_env_from_globenv
-  USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_create, start_blacs, finish_blacs, &
-       cp_blacs_env_from_globenv
-  USE timings, ONLY: timeset, timestop
-  USE sparse_matrix_types, ONLY: first_block_node,&
-       get_block_node,&
-       get_matrix_info,&
-       next_block_node,&
-       real_block_node_type,&
-       real_matrix_type, &
-       sparse_times_replicated, &
-       sparse_plus_rep_rept
-  USE message_passing,     ONLY: mp_bcast,&
-       mp_max,&
-       mp_sum,&
-       mp_sync
-  USE string_utilities,    ONLY: compress
-  USE termination,         ONLY: stop_memory,&
-       stop_program
-  USE global_types,        ONLY: global_environment_type
-  USE cp_f_matrix_struct,  ONLY: cp_f_matrix_struct_type,&
-       cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       cp_fmstruct_equivalent, cp_fmstruct_write
-  USE cp_array_utils, ONLY: cp_2d_r_output, cp_2d_r_write
+  USE cp_array_utils,                  ONLY: cp_2d_r_output,&
+                                             cp_2d_r_write
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_from_globenv,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             finish_blacs,&
+                                             start_blacs
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_equivalent,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain,&
+                                             cp_fmstruct_write
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum,&
+                                             mp_sync
+  USE sparse_matrix_types,             ONLY: first_block_node,&
+                                             get_block_node,&
+                                             get_matrix_info,&
+                                             next_block_node,&
+                                             real_block_node_type,&
+                                             real_matrix_type,&
+                                             sparse_plus_rep_rept,&
+                                             sparse_times_replicated
+  USE string_utilities,                ONLY: compress
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -913,6 +933,15 @@ CONTAINS
 !!   NAME
 !!     cp_fm_write
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_write(matrix, unit_nr, long_description, local,&
+!!         error)
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Integer, Intent (IN):: unit_nr
+!!       Logical, Optional, Intent (IN):: long_description, local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fm_write
+!!
 !!   FUNCTION
 !!     writes out the matrix
 !!
@@ -1001,7 +1030,7 @@ CONTAINS
           END IF
           IF (.NOT.failure) THEN
              uniquing_nr=uniquing_nr+1
-             CALL cp_2d_r_output(logger=cp_error_get_logger(error),&
+             CALL cp_2d_r_output(logger=logger,&
                   outputName="fm_matrix_local_data",&
                   fromWhere=routineP, iter=uniquing_nr,&
                   array=matrix%local_data,&

@@ -25,21 +25,38 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_pool
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE timings, ONLY: timeset, timestop
-  USE cp_full_matrix, ONLY: cp_full_matrix_type, cp_fm_create, cp_fm_release
-  USE cp_f_matrix_struct, ONLY: cp_f_matrix_struct_type, cp_fmstruct_retain,&
-       cp_fmstruct_release
-  USE cp_linked_list_fm, ONLY: cp_sll_fm_type, cp_sll_fm_dealloc,&
-       cp_sll_fm_next, cp_sll_fm_get_first_el, cp_sll_fm_rm_first_el,&
-       cp_sll_fm_insert_el
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain
+  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+                                             cp_fm_release,&
+                                             cp_full_matrix_type
+  USE cp_linked_list_fm,               ONLY: cp_sll_fm_dealloc,&
+                                             cp_sll_fm_get_first_el,&
+                                             cp_sll_fm_insert_el,&
+                                             cp_sll_fm_next,&
+                                             cp_sll_fm_rm_first_el,&
+                                             cp_sll_fm_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -49,7 +66,8 @@ MODULE cp_fm_pool
 
   PUBLIC :: cp_fm_pool_type, cp_fm_pool_p_type
   PUBLIC :: fm_pool_create, fm_pool_retain, fm_pool_release,&
-       fm_pool_create_matrix, fm_pool_give_back_matrix
+       fm_pool_create_matrix, fm_pool_give_back_matrix,&
+       fm_pool_get_mstruct
 !***
 !****************************************************************************
 
@@ -121,6 +139,13 @@ CONTAINS
 !!
 !!   NAME
 !!     fm_pool_create
+!!
+!!   SYNOPSIS
+!!     Subroutine fm_pool_create(pool, matrix_struct, error)
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_f_matrix_struct_type), Pointer:: matrix_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pool_create
 !!
 !!   FUNCTION
 !!     creates a pool of full matrixes
@@ -309,6 +334,13 @@ CONTAINS
 !!   NAME
 !!     fm_pool_create_matrix
 !!
+!!   SYNOPSIS
+!!     Function fm_pool_create_matrix(pool, error) Result(res)
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(cp_full_matrix_type), Pointer:: res
+!!     End Function fm_pool_create_matrix
+!!
 !!   FUNCTION
 !!     returns a matrix, allocating it if none is in the pool
 !!
@@ -360,6 +392,13 @@ CONTAINS
 !!   NAME
 !!     fm_pool_give_back_matrix
 !!
+!!   SYNOPSIS
+!!     Subroutine fm_pool_give_back_matrix(pool, matrix, error)
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_full_matrix_type), Pointer:: matrix
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine fm_pool_give_back_matrix
+!!
 !!   FUNCTION
 !!     returns the matrix to the pool
 !!
@@ -409,6 +448,56 @@ CONTAINS
     END IF
     NULLIFY(matrix)
   END SUBROUTINE fm_pool_give_back_matrix
+!***************************************************************************
+
+!!****f* cp_fm_pool/fm_pool_get_mstruct [1.0] *
+!!
+!!   NAME
+!!     fm_pool_get_mstruct
+!!
+!!   SYNOPSIS
+!!     Function fm_pool_get_mstruct(pool, error) Result(res)
+!!       Type(cp_f_matrix_struct_type), Pointer:: res
+!!       Type(cp_fm_pool_type), Pointer:: pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function fm_pool_get_mstruct
+!!
+!!   FUNCTION
+!!     returns the matrix structure of this pool
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - pool: the pool you are interested in
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION fm_pool_get_mstruct(pool,error) RESULT(res)
+  TYPE(cp_f_matrix_struct_type), POINTER       :: res
+  TYPE(cp_fm_pool_type), POINTER               :: pool
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='fm_pool_get_mstruct',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+  
+  CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+  CPPrecondition(pool%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     res => pool%matrix_struct
+  ELSE
+     NULLIFY(res)
+  END IF
+END FUNCTION fm_pool_get_mstruct
 !***************************************************************************
 
 END MODULE cp_fm_pool

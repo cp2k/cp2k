@@ -25,29 +25,38 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_para_env
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-      cp_note_level, cp_logger_type
-  use cp_error_handling, only: cp_debug, cp_internal_error, cp_assertion_failed,&
-      cp_assert, cp_unimplemented_error, cp_error_type
-  use kinds, only: wp=>dp
-  use timings, only: timeset, timestop
-  use cp_para_types, only: cp_para_env_type
-  use message_passing, only: mp_comm_dup, mp_comm_free, mp_environ
-  use global_types, only: global_environment_type
-  implicit none
-  private
+MODULE cp_para_env
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE message_passing,                 ONLY: mp_comm_dup,&
+                                             mp_comm_free,&
+                                             mp_environ
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_para_env'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_para_env'
 
-!MK  public :: cp_para_env_type
-  public :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
+  PUBLIC :: cp_para_env_retain, cp_para_env_release, cp_para_env_create, &
       cp_para_env_duplicate, cp_para_env_from_globenv,&
       cp_para_env_write
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* cp_para_env/cp_para_env_create [1.0] *
 !!
@@ -87,37 +96,37 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_env_create(para_env, group, source,mepos, num_pe,&
+  SUBROUTINE cp_para_env_create(para_env, group, source,mepos, num_pe,&
       owns_group,error)
-    type(cp_para_env_type), pointer :: para_env
-    integer, intent(in) :: group
-    integer, intent(in), optional :: source,mepos, num_pe
-    logical, intent(in), optional :: owns_group
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_para_env_type), POINTER :: para_env
+    INTEGER, INTENT(in) :: group
+    INTEGER, INTENT(in), OPTIONAL :: source,mepos, num_pe
+    LOGICAL, INTENT(in), OPTIONAL :: owns_group
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_para_env_create',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_create',&
          routineP=moduleN//':'//routineN
-    integer :: stat
-    failure=.false.
+    INTEGER :: stat
+    failure=.FALSE.
 
-    allocate(para_env,stat=stat)
+    ALLOCATE(para_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    IF (.NOT.failure) THEN
       para_env%group=group
       para_env%source=0
       para_env%ref_count=1
-      para_env%owns_group=.true.
-      if (present(source)) para_env%source=source
-      if (present(owns_group)) para_env%owns_group=owns_group
-      if (.not.(present(mepos).and.present(num_pe))) then
-         call cp_para_env_update(para_env,error=error)
-      else
+      para_env%owns_group=.TRUE.
+      IF (PRESENT(source)) para_env%source=source
+      IF (PRESENT(owns_group)) para_env%owns_group=owns_group
+      IF (.NOT.(PRESENT(mepos).AND.PRESENT(num_pe))) THEN
+         CALL cp_para_env_update(para_env,error=error)
+      ELSE
          para_env%mepos=mepos
          para_env%num_pe=num_pe
-      end if
-    end if
-  end subroutine cp_para_env_create
+      END IF
+    END IF
+  END SUBROUTINE cp_para_env_create
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_duplicate [1.0] *
@@ -153,34 +162,34 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_env_duplicate(para_env, template, source,error)
-    type(cp_para_env_type), pointer :: para_env, template
-    integer, intent(in), optional :: source
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_para_env_duplicate(para_env, TEMPLATE, source,error)
+    TYPE(cp_para_env_type), POINTER :: para_env, TEMPLATE
+    INTEGER, INTENT(in), OPTIONAL :: source
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_para_env_duplicate',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_duplicate',&
          routineP=moduleN//':'//routineN
-    integer :: stat
-    failure=.false.
+    INTEGER :: stat
+    failure=.FALSE.
 
-    CPPrecondition(associated(template),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    CPPrecondition(ASSOCIATED(TEMPLATE),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
       CPPrecondition(template%ref_count>0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-      allocate(para_env,stat=stat)
+    END IF
+    IF (.NOT.failure) THEN
+      ALLOCATE(para_env,stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
+    END IF
+    IF (.NOT.failure) THEN
       para_env%ref_count=1
-      call mp_comm_dup(template%group,para_env%group)
+      CALL mp_comm_dup(template%group,para_env%group)
       para_env%source=template%source
-      para_env%owns_group=.true.
-      if (present(source)) para_env%source=source
-      call cp_para_env_update(para_env,error=error)
-    end if
-  end subroutine cp_para_env_duplicate
+      para_env%owns_group=.TRUE.
+      IF (PRESENT(source)) para_env%source=source
+      CALL cp_para_env_update(para_env,error=error)
+    END IF
+  END SUBROUTINE cp_para_env_duplicate
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_retain [1.0] *
@@ -213,22 +222,22 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_env_retain(para_env, error)
-    type(cp_para_env_type), pointer :: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_para_env_retain(para_env, error)
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_para_env_retain',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_retain',&
          routineP=moduleN//':'//routineN
-    integer :: stat
-    failure=.false.
+    INTEGER :: stat
+    failure=.FALSE.
 
-    CPPrecondition(associated(para_env),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
       para_env%ref_count=para_env%ref_count+1
-    end if
-  end subroutine cp_para_env_retain
+    END IF
+  END SUBROUTINE cp_para_env_retain
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_release [1.0] *
@@ -262,29 +271,29 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_env_release(para_env, error)
-    type(cp_para_env_type), pointer :: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_para_env_release(para_env, error)
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_para_env_release',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_release',&
          routineP=moduleN//':'//routineN
-    integer :: stat
-    failure=.false.
+    INTEGER :: stat
+    failure=.FALSE.
 
-    if (associated(para_env)) then
+    IF (ASSOCIATED(para_env)) THEN
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
       para_env%ref_count=para_env%ref_count-1
-      if (para_env%ref_count<1) then
-         if (para_env%owns_group) then
-            call mp_comm_free(para_env%group)
-         end if
-         deallocate(para_env,stat=stat)
+      IF (para_env%ref_count<1) THEN
+         IF (para_env%owns_group) THEN
+            CALL mp_comm_free(para_env%group)
+         END IF
+         DEALLOCATE(para_env,stat=stat)
          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-      end if
-    end if
-    nullify(para_env)
-  end subroutine cp_para_env_release
+      END IF
+    END IF
+    NULLIFY(para_env)
+  END SUBROUTINE cp_para_env_release
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_update [1.0] *
@@ -310,25 +319,25 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_para_env_update(para_env, error)
-    type(cp_para_env_type), pointer :: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_para_env_update(para_env, error)
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_para_env_update',&
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_update',&
          routineP=moduleN//':'//routineN
-    integer :: stat
-    failure=.false.
+    INTEGER :: stat
+    failure=.FALSE.
 
-    CPPrecondition(associated(para_env),cp_failure_level,routineP,error,failure)
-    if (.not.failure) then
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
       CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    end if
-    if (.not.failure) then
-      call mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
+    END IF
+    IF (.NOT.failure) THEN
+      CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
            groupid=para_env%group)
-    end if
-  end subroutine cp_para_env_update
+    END IF
+  END SUBROUTINE cp_para_env_update
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_from_globenv [1.0] *
@@ -362,19 +371,19 @@ contains
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-function cp_para_env_from_globenv(global_env, error) result(res)
-  type(cp_para_env_type),pointer :: res
-  type(global_environment_type), intent(in), target :: global_env
-  type(cp_error_type), optional, intent(inout) :: error
+FUNCTION cp_para_env_from_globenv(global_env, error) RESULT(res)
+  TYPE(cp_para_env_type),POINTER :: res
+  TYPE(global_environment_type), INTENT(in), TARGET :: global_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_para_env_from_globenv',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_para_env_from_globenv',&
         routineP=moduleN//':'//routineN
-  failure=.false.
+  failure=.FALSE.
   
-  CPPrecondition(associated(global_env%para_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(global_env%para_env),cp_failure_level,routineP,error,failure)
   res => global_env%para_env
-end function cp_para_env_from_globenv
+END FUNCTION cp_para_env_from_globenv
 !***************************************************************************
 
 !!****f* cp_para_env/cp_para_env_write [1.0] *
@@ -408,40 +417,40 @@ end function cp_para_env_from_globenv
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_para_env_write(para_env,unit_nr,error)
-  type(cp_para_env_type), pointer :: para_env
-  integer, intent(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_para_env_write(para_env,unit_nr,error)
+  TYPE(cp_para_env_type), POINTER :: para_env
+  INTEGER, INTENT(in) :: unit_nr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  character(len=*), parameter :: routineN='cp_blacs_env_write',&
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='cp_blacs_env_write',&
         routineP=moduleN//':'//routineN
-  integer :: iostat
-  failure=.false.
+  INTEGER :: iostat
+  failure=.FALSE.
   
-  if (associated(para_env)) then
-     write (unit=unit_nr,&
+  IF (ASSOCIATED(para_env)) THEN
+     WRITE (unit=unit_nr,&
           fmt="(' <cp_para_env>:{ owns_group=',l1,',')",&
           iostat=iostat) para_env%owns_group
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
+     WRITE (unit=unit_nr,fmt="('  group=',i10,', ref_count=',i10,',')",&
           iostat=iostat) para_env%group, para_env%ref_count
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  mepos=',i8,',')",&
+     WRITE (unit=unit_nr,fmt="('  mepos=',i8,',')",&
           iostat=iostat) para_env%mepos
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  source=',i8,',')",&
+     WRITE (unit=unit_nr,fmt="('  source=',i8,',')",&
           iostat=iostat) para_env%source
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     write (unit=unit_nr,fmt="('  num_pe=',i8,'}')",&
+     WRITE (unit=unit_nr,fmt="('  num_pe=',i8,'}')",&
           iostat=iostat) para_env%num_pe
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-  else
-     write (unit=unit_nr,&
+  ELSE
+     WRITE (unit=unit_nr,&
           fmt="(a)", iostat=iostat) ' <cp_para_env>:*null* '
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-  end if
-end subroutine cp_para_env_write
+  END IF
+END SUBROUTINE cp_para_env_write
 !***************************************************************************
 
-end module cp_para_env
+END MODULE cp_para_env

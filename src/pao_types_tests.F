@@ -25,30 +25,43 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-module pao_types_tests
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
-       cp_log
-  use cp_error_handling, only: cp_error_type, cp_assert, cp_error_message,&
-       cp_assertion_failed, cp_debug, cp_precondition_failed, cp_error_init,&
-       cp_error_dealloc_ref
-  use kinds, only: wp=>dp
-  use global_types, only: global_environment_type
-  use pao_utils, only:  cp_get_random_integer
-  use cp_matrix_utils, only: cp_sup_norm_matrix
-  use pao_types, only: pao_env_type, pao_glob_angles_type
+MODULE pao_types_tests
 !  use pao_proj_methods
-  use pao_env_methods, only: pao_env_init
-  use cp_block_matrix, only: cp_block_matrix_type, cp_create, cp_retain, &
-       cp_dealloc, cp_release
-  use pao_l_angles_methods, only: pao_local_angles_type, cp_init, cp_get
 !  use pao_glob_angles_methods
-  implicit none
+  USE cp_block_matrix,                 ONLY: cp_block_matrix_type,&
+                                             cp_create,&
+                                             cp_dealloc,&
+                                             cp_release,&
+                                             cp_retain
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_precondition_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sup_norm_matrix
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE pao_env_methods,                 ONLY: pao_env_init
+  USE pao_l_angles_methods,            ONLY: cp_get,&
+                                             cp_init,&
+                                             pao_local_angles_type
+  USE pao_types,                       ONLY: pao_env_type,&
+                                             pao_glob_angles_type
+  USE pao_utils,                       ONLY: cp_get_random_integer
+  IMPLICIT NONE
 
-  logical, private, parameter :: debug_this_module=.true.
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
 
 !!***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* pao_types_tests/cp_test_pao_types [1.0] *
 !!
@@ -82,24 +95,24 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_test_pao_types(g_env, failed,error)
-    type(global_environment_type), intent(in) ::g_env
-    logical, intent(inout) :: failed
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_test_pao_types(g_env, failed,error)
+    TYPE(global_environment_type), INTENT(in) ::g_env
+    LOGICAL, INTENT(inout) :: failed
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_types_tests:cp_test_pao_types'
-    type(pao_env_type) :: pao_env
-    type(pao_glob_angles_type) :: glob_angles
-    type(pao_local_angles_type) :: local_angles
-    type(cp_block_matrix_type) :: pao_t
-    integer, parameter :: atomNr=3
-    integer, dimension(atomNr) :: minB, fullB
-    integer :: i
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_types_tests:cp_test_pao_types'
+    TYPE(pao_env_type) :: pao_env
+    TYPE(pao_glob_angles_type) :: glob_angles
+    TYPE(pao_local_angles_type) :: local_angles
+    TYPE(cp_block_matrix_type) :: pao_t
+    INTEGER, PARAMETER :: atomNr=3
+    INTEGER, DIMENSION(atomNr) :: minB, fullB
+    INTEGER :: i
 
-    failure=.false.
+    failure=.FALSE.
 !!FM    if (cp_debug.and.debug_this_module) then
-!!FM       call cp_log(cp_error_get_logger(error),cp_note_level,routineP, &
+!!FM       call cp_log(logger,cp_note_level,routineP, &
 !!FM            'began pao_types tests')
 !!FM    end if
 !!FM    do i=1,atomNr
@@ -133,7 +146,7 @@ contains
 !!FM       !print *, "cp_test_pao_types SUCCESS!"
 !!FM    end if
     failed=failure
-  end subroutine cp_test_pao_types
+  END SUBROUTINE cp_test_pao_types
   !***************************************************************************
 
 !!****f* pao_types_tests/cp_init_test_pao_env [1.0] *
@@ -170,19 +183,19 @@ contains
 !!     none
 !!
 !!*** **********************************************************************
-  subroutine cp_init_test_pao_env(pao_env, glob_env, atom_nr, error)
-    type(pao_env_type), intent(out) :: pao_env
-    type(global_environment_type), target, intent(in) :: glob_env
-    integer, optional :: atom_nr
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_init_test_pao_env(pao_env, glob_env, atom_nr, error)
+    TYPE(pao_env_type), INTENT(out) :: pao_env
+    TYPE(global_environment_type), TARGET, INTENT(in) :: glob_env
+    INTEGER, OPTIONAL :: atom_nr
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineP='pao_types_tests:cp_init_test_pao_env'
-    integer, dimension(:), allocatable :: minB, fullB
-    integer :: n_atom,i, stat
-    type(cp_block_matrix_type), pointer :: u
-    nullify(u)
-    failure=.false.
+    LOGICAL :: failure
+    CHARACTER(len=*), PARAMETER :: routineP='pao_types_tests:cp_init_test_pao_env'
+    INTEGER, DIMENSION(:), ALLOCATABLE :: minB, fullB
+    INTEGER :: n_atom,i, stat
+    TYPE(cp_block_matrix_type), POINTER :: u
+    NULLIFY(u)
+    failure=.FALSE.
 
 !!FM    n_atom=3
 !!FM    if (present(atom_nr)) n_atom=atom_nr
@@ -205,8 +218,8 @@ contains
 !!FM       deallocate(minB,fullB,stat=stat) !just to be sure...
 !!FM       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 !!FM    end if
-  end subroutine cp_init_test_pao_env
+  END SUBROUTINE cp_init_test_pao_env
   !***************************************************************************
 
-end module pao_types_tests
+END MODULE pao_types_tests
 

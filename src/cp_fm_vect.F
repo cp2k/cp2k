@@ -25,28 +25,56 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cp_fm_vect
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE timings, ONLY: timeset, timestop
-  USE cp_full_matrix, ONLY:  cp_full_matrix_type, cp_full_matrix_p_type,&
-       cp_fm_create, cp_fm_create2, cp_fm_retain, cp_fm_release,&
-       cp_fm_init_random, cp_fm_set_element, cp_fm_set_all,&
-       cp_fm_set_submatrix, cp_fm_get_submatrix, cp_fm_get_info
-  USE global_types, ONLY: global_environment_type
-  USE cp_f_matrix_struct, ONLY:   cp_f_matrix_struct_type,&
-       cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
-       optimal_blacs_col_block_size, optimal_blacs_row_block_size,&
-       cp_fmstruct_equivalent
-  USE cp_blacs_env,      ONLY: cp_blacs_env_retain, cp_blacs_env_release,&
-       cp_blacs_env_create, start_blacs, finish_blacs, &
-       cp_blacs_env_from_globenv
-  USE cp_para_env,       ONLY: cp_para_env_retain, cp_para_env_release,&
-       cp_para_env_from_globenv
+  USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                             cp_blacs_env_from_globenv,&
+                                             cp_blacs_env_release,&
+                                             cp_blacs_env_retain,&
+                                             finish_blacs,&
+                                             start_blacs
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_f_matrix_struct,              ONLY: cp_f_matrix_struct_type,&
+                                             cp_fmstruct_create,&
+                                             cp_fmstruct_equivalent,&
+                                             cp_fmstruct_release,&
+                                             cp_fmstruct_retain,&
+                                             optimal_blacs_col_block_size,&
+                                             optimal_blacs_row_block_size
+  USE cp_full_matrix,                  ONLY: cp_fm_create,&
+                                             cp_fm_create2,&
+                                             cp_fm_get_info,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_init_random,&
+                                             cp_fm_release,&
+                                             cp_fm_retain,&
+                                             cp_fm_set_all,&
+                                             cp_fm_set_element,&
+                                             cp_fm_set_submatrix,&
+                                             cp_full_matrix_p_type,&
+                                             cp_full_matrix_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -109,7 +137,11 @@ CONTAINS
          routineP=moduleN//':'//routineN
     INTEGER :: i, stat, row_bl, col_bl
     TYPE(cp_f_matrix_struct_type), POINTER :: matrix_struct
+    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(cp_blacs_env_type), POINTER :: blacs_env
     failure=.FALSE.
+    para_env => cp_para_env_from_globenv(globenv)
+    blacs_env => cp_blacs_env_from_globenv(globenv)
     row_bl=optimal_blacs_row_block_size
     col_bl=optimal_blacs_col_block_size
     IF (PRESENT(nrow_block)) row_bl=nrow_block
@@ -120,8 +152,8 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL cp_fmstruct_create(matrix_struct,nrow_global=nrow_global,&
             ncol_global=ncol_global,nrow_block=row_bl,&
-            ncol_block=col_bl, context=cp_blacs_env_from_globenv(globenv),&
-            para_env=cp_para_env_from_globenv(globenv))
+            ncol_block=col_bl, context=blacs_env,&
+            para_env=para_env)
        DO i=1,n_matrixes
           CALL cp_fm_create(blacs_matrixes(i)%matrix,&
                matrix_struct=matrix_struct, name=name//cp_to_string(i),&

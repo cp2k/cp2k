@@ -35,7 +35,7 @@ MODULE string_utilities
      MODULE PROCEDURE integer_to_string_n, integer_to_string_1
   END INTERFACE
 
-  character(len=*), private, parameter :: moduleN="string_utilities"
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="string_utilities"
 
 !!*****
 ! *****************************************************************************
@@ -211,7 +211,7 @@ SUBROUTINE xstring(string,ia,ib)
 !------------------------------------------------------------------------------
 
   ia = 1
-  ib = len_trim(string)
+  ib = LEN_TRIM(string)
   IF (ib>0) THEN
      DO WHILE (string(ia:ia)==' ')
         ia = ia + 1
@@ -224,58 +224,58 @@ END SUBROUTINE xstring
 
 SUBROUTINE make_tuple(int,nt,na,tuple)
   IMPLICIT NONE
-  INTEGER, INTENT ( IN ) :: int ( :, : ), nt, na
+  INTEGER, INTENT ( IN ) :: INT ( :, : ), nt, na
   INTEGER :: i, nm
   CHARACTER ( LEN = * ), INTENT ( OUT ) :: tuple ( : )
 
-  nm = maxval(int(1:nt,1:na))
+  nm = MAXVAL(INT(1:nt,1:na))
   SELECT CASE (nt)
   CASE DEFAULT
      STOP 'make_tuple: case not programmed'
   CASE (1)
      IF (nm<100) THEN
         DO i = 1, na
-           WRITE (tuple(i),'(A,I2,A )' ) '[', int(1,i), ']'
+           WRITE (tuple(i),'(A,I2,A )' ) '[', INT(1,i), ']'
         END DO
      ELSE
         DO i = 1, na
-           WRITE (tuple(i),'(A,I4,A )' ) '[', int(1,i), ']'
+           WRITE (tuple(i),'(A,I4,A )' ) '[', INT(1,i), ']'
         END DO
      END IF
   CASE (2)
      IF (nm<100) THEN
         DO i = 1, na
-           WRITE (tuple(i),'(A,I2,A,I2,A )' ) '[', int(1,i), '-', int(2,i), &
+           WRITE (tuple(i),'(A,I2,A,I2,A )' ) '[', INT(1,i), '-', INT(2,i), &
                 ']'
         END DO
      ELSE
         DO i = 1, na
-           WRITE (tuple(i),'(A,I4,A,I4,A )' ) '[', int(1,i), '-', int(2,i), &
+           WRITE (tuple(i),'(A,I4,A,I4,A )' ) '[', INT(1,i), '-', INT(2,i), &
                 ']'
         END DO
      END IF
   CASE (3)
      IF (nm<100) THEN
         DO i = 1, na
-           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A )' ) '[', int(1,i), '-', &
-                int(2,i), '-', int(3,i), ']'
+           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A )' ) '[', INT(1,i), '-', &
+                INT(2,i), '-', INT(3,i), ']'
         END DO
      ELSE
         DO i = 1, na
-           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A )' ) '[', int(1,i), '-', &
-                int(2,i), '-', int(3,i), ']'
+           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A )' ) '[', INT(1,i), '-', &
+                INT(2,i), '-', INT(3,i), ']'
         END DO
      END IF
   CASE (4)
      IF (nm<100) THEN
         DO i = 1, na
-           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A,I2,A )' ) '[', int(1,i), '-', &
-                int(2,i), '-', int(3,i), '-', int(4,i), ']'
+           WRITE (tuple(i),'(A,I2,A,I2,A,I2,A,I2,A )' ) '[', INT(1,i), '-', &
+                INT(2,i), '-', INT(3,i), '-', INT(4,i), ']'
         END DO
      ELSE
         DO i = 1, na
-           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A,I4,A )' ) '[', int(1,i), '-', &
-                int(2,i), '-', int(3,i), '-', int(4,i), ']'
+           WRITE (tuple(i),'(A,I4,A,I4,A,I4,A,I4,A )' ) '[', INT(1,i), '-', &
+                INT(2,i), '-', INT(3,i), '-', INT(4,i), ']'
         END DO
      END IF
   END SELECT
@@ -339,23 +339,23 @@ END FUNCTION str_search
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine compress_all(string)
-  character(len=*), intent(inout) :: string
+SUBROUTINE compress_all(string)
+  CHARACTER(len=*), INTENT(inout) :: string
   
-  character(len=*), parameter :: routineN='compress_all',&
+  CHARACTER(len=*), PARAMETER :: routineN='compress_all',&
         routineP=moduleN//':'//routineN
-  integer :: i, pos2
+  INTEGER :: i, pos2
 
   pos2=1
-  do i=1,len(string)
-     if (string(i:i)/=' ') then
+  DO i=1,LEN(string)
+     IF (string(i:i)/=' ') THEN
         string(pos2:pos2)=string(i:i)
         pos2=pos2+1
-     end if
-  end do
-  if (pos2<len(string)) string((pos2+1):len(string))=""
+     END IF
+  END DO
+  IF (pos2<LEN(string)) string(pos2:LEN(string))=""
 
-end subroutine compress_all
+END SUBROUTINE compress_all
 !***************************************************************************
 
 END MODULE string_utilities
