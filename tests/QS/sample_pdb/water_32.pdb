@@ -1,6 +1,5 @@
 REMARK PDB
 REMARK TITLE
-&COORD pdb
 ATOM      1  O   TIP3    0      -4.583   5.333   1.560  1.00  0.00      WAT
 ATOM      2  H   TIP3    0      -3.777   5.331   0.943  1.00  0.00      WAT
 ATOM      3  H   TIP3    0      -5.081   4.589   1.176  1.00  0.00      WAT
@@ -97,4 +96,4 @@ ATOM     93  H   TIP3   30      -0.403  -1.349   0.873  1.00  0.00      WAT
 ATOM     94  O   TIP3   31       3.655   3.021   0.988  1.00  0.00      WAT
 ATOM     95  H   TIP3   31       2.706   3.053   1.282  1.00  0.00      WAT
 ATOM     96  H   TIP3   31       3.542   2.615   0.020  1.00  0.00      WAT
-&END
+END
