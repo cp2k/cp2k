@@ -310,7 +310,7 @@ CONTAINS
     NULLIFY (sabt)
     NULLIFY (habt)
     NULLIFY (pabt)
-    NULLIFY (workt)
+    NULLIFY (workt,sdabt)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
