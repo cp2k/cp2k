@@ -34,7 +34,7 @@ MODULE timings
   PUBLIC :: timeset, timestop, timeprint, trace_debug, print_stack
 
 ! subroutine calling stack
-  INTEGER, PARAMETER :: max_stack = 100
+  INTEGER, PARAMETER :: max_stack = 10000
   INTEGER :: stack_size
   CHARACTER ( LEN = 31 ) :: routine_stack ( max_stack ), routine_name
 
