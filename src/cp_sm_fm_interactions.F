@@ -23,8 +23,7 @@
 MODULE cp_sm_fm_interactions
   USE cp_array_i_utils,                ONLY: cp_1d_i_p_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
-                                             cp_blacs_gridexit,&
+  USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
                                              cp_blacs_gridinfo,&
                                              cp_blacs_gridinit,&
                                              cp_blacs_pnum
@@ -740,7 +739,8 @@ CONTAINS
     ALLOCATE(ncol_loc(0:num_pe-1))
     ncol_loc=0
 #if defined(__SCALAPACK)
-    CALL cp_blacs_get(-1,0,ictxt_loc)
+    ! get a new context
+    ictxt_loc=v_in%matrix_struct%para_env%group
     CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
     CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     CALL descinit(desc,nrow_global,ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
@@ -905,8 +905,10 @@ CONTAINS
     ALLOCATE(ncol_loc(0:num_pe-1))
 
 #if defined(__SCALAPACK)
-    CALL cp_blacs_get(-1,0,ictxt_loc)
+    ! create a blacs context for the given mpi group
+    ictxt_loc=matrix_v%matrix_struct%para_env%group
     CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
+
     CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     CALL descinit(desc,nrow_global,my_ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)

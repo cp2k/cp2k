@@ -23,10 +23,8 @@
 ! ************************************************************************************
 
 MODULE cp_fm_diag
-  USE cp_blacs_calls,                  ONLY: cp_blacs_get,&
-                                             cp_blacs_gridexit,&
-                                             cp_blacs_gridinit,&
-                                             cp_blacs_pinfo
+  USE cp_blacs_calls,                  ONLY: cp_blacs_gridexit,&
+                                             cp_blacs_gridinit
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -894,10 +892,11 @@ CONTAINS
     block_dim_col = N - block_dim_row
     ALLOCATE(A_loc(block_dim_row,block_dim_col))
 
-    ictxt=0
-
-    CALL cp_blacs_pinfo(mype,npe)
-    CALL cp_blacs_get(ictxt,0,ictxt_loc)
+    mype=matrix%matrix_struct%para_env%mepos 
+    npe=matrix%matrix_struct%para_env%num_pe 
+    ictxt    =matrix%matrix_struct%context%group
+    ! get a new context
+    ictxt_loc=matrix%matrix_struct%para_env%group
     CALL cp_blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
 
     CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
