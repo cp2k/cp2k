@@ -50,8 +50,8 @@ MODULE pao_glob_angles_methods
                                              cp_error_propagate_error,&
                                              cp_error_set,&
                                              cp_error_type
-  USE cp_fragment_types,               ONLY: cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -734,7 +734,7 @@ CONTAINS
     TYPE(cp_block_matrix_type), POINTER, OPTIONAL :: unitary_t,&
          NUi_injection
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-    TYPE(cp_fragment_type), POINTER :: fragment
+    TYPE(cp_subsystem_type), POINTER :: subsys
     TYPE(particle_list_type), POINTER :: particles
 
     LOGICAL :: failure
@@ -744,13 +744,13 @@ CONTAINS
     TYPE(cp_b_matrix_struct_type), POINTER :: m_struct
     INTEGER :: stat, n_atoms
 
-    NULLIFY(fragment, particles, pao_env, m_struct)
+    NULLIFY(subsys, particles, pao_env, m_struct)
     CALL cp_error_init(iError,template_error=error)
     failure=.FALSE.
 
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
-    CALL get_qs_env(qs_env,fragment=fragment,error=error)
-    CALL fragment_get(fragment, particles=particles, error=error)
+    CALL get_qs_env(qs_env,subsys=subsys,error=error)
+    CALL cp_subsys_get(subsys, particles=particles, error=error)
     n_atoms=particles%n_els
     failureIf: IF (.NOT. failure) THEN
        IF (PRESENT(angles)) angles => glob_angles%angles

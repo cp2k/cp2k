@@ -55,11 +55,11 @@ PROGRAM cp2k
   USE timings,                         ONLY: trace_debug
   USE cp_blacs_env, ONLY: start_blacs, end_blacs
   use cp_para_types, ONLY: cp_para_env_type, cp_blacs_env_type
-  USE force_control, ONLY: force_env_type, force_env_calculate_energy, force_env_release
+  USE force_env_types, ONLY: force_env_type, force_env_calculate_energy, force_env_release
   USE cp_log_handling, ONLY: cp_logger_type, cp_failure_level, cp_logger_create, cp_logger_release, cp_to_string
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
-  USE qs_geoopt, only: qs_geo_opt
-  USE qs_md, only: qs_mol_dyn
+  USE geo_opt, only: qs_geo_opt
+  USE md_run, only: qs_mol_dyn
 
 
   IMPLICIT NONE

@@ -48,8 +48,8 @@ MODULE pao_qs_env_methods
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_fragment_types,               ONLY: cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -241,12 +241,12 @@ SUBROUTINE pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(pao_env_type), POINTER :: p_env
   TYPE(dft_control_type), POINTER :: dft_control
-  TYPE(cp_fragment_type), POINTER :: fragment
+  TYPE(cp_subsystem_type), POINTER :: subsys
   TYPE(particle_list_type), POINTER :: particles
 
-  NULLIFY(atomic_kind_set, p_env, dft_control, fragment, particles)
-  CALL get_qs_env(qs_env, fragment=fragment, error=error)
-  CALL fragment_get(fragment,particles=particles, error=error)
+  NULLIFY(atomic_kind_set, p_env, dft_control, subsys, particles)
+  CALL get_qs_env(qs_env, subsys=subsys, error=error)
+  CALL cp_subsys_get(subsys,particles=particles, error=error)
   natoms = particles%n_els
   failure=.FALSE.
   

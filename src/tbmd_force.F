@@ -46,7 +46,7 @@ MODULE tbmd_force
   USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type
+  PUBLIC :: force_env_types, debug_variables_type
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_nonbond, pot_g
@@ -60,10 +60,10 @@ MODULE tbmd_force
 CONTAINS
 
 !******************************************************************************
-!!****** tbmd_force/force_control [1.0] *
+!!****** tbmd_force/force_env_types [1.0] *
 !!
 !!   NAME
-!!     force_control
+!!     force_env_types
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force, and the
@@ -79,7 +79,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
+SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
      potparm, ewald_param, box_change, fc_global, lldata, debug )
 
   IMPLICIT NONE
@@ -123,7 +123,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
   IF ( .NOT. ALLOCATED ( f_nonbond )  ) &
        ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
   IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+       CALL stop_memory ( 'force_env_types', 'f_nonbond', 3 * natoms )
 
 ! initialize ewalds with reference box ( consistent NPT restarts )
   IF ( first_time ) THEN
@@ -197,7 +197,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
      IF ( .NOT. ALLOCATED ( fg_coulomb )  ) &
           ALLOCATE ( fg_coulomb ( 3,nnodes ), STAT=isos )
      IF ( isos /= 0 ) &
-          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+          CALL stop_memory ( 'force_env_types', 'fg_coulomb', 3 * nnodes )
 
 ! compute g-space part of the ewald sum
      SELECT CASE ( ewald_param % ewald_type )
@@ -215,7 +215,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
              grid_spme, ewald_param )
         
      CASE DEFAULT
-        CALL stop_program ( "force_control", "illegal value of ewald_type: "//&
+        CALL stop_program ( "force_env_types", "illegal value of ewald_type: "//&
              ewald_param % ewald_type )
      END SELECT
   END IF
@@ -301,7 +301,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 ! deallocating all local variables
   isos = 0
   IF ( ALLOCATED ( fg_coulomb )  ) DEALLOCATE ( fg_coulomb, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fg_coulomb' )
 
 #if defined ( __parallel )
   DO i = 1, natoms
@@ -311,7 +311,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, thermo, &
 
   CALL timestop ( zero, handle )
 
-END SUBROUTINE force_control
+END SUBROUTINE force_env_types
 
 !!*****
 !******************************************************************************

@@ -36,15 +36,15 @@ MODULE integrator
                                              rattle_roll_control,&
                                              shake_control,&
                                              shake_roll_control
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsys_get
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE eigenvalueproblems,              ONLY: diagonalise
   USE extended_system_dynamics,        ONLY: lnhc,&
                                              lnhc_parameters_type,&
                                              npt_info_type,&
                                              yoshida_coef
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE force_env_types,                   ONLY: force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -851,7 +851,7 @@ END SUBROUTINE nve
     INTEGER  :: iparticle,iparticle_kind,iparticle_local,istat,isubsys,&
                 nparticle,nparticle_kind,nparticle_local
 
-    TYPE(cp_fragment_p_type), POINTER, DIMENSION(:) :: subsys
+    TYPE(cp_subsystem_p_type), POINTER, DIMENSION(:) :: subsys
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
 
@@ -869,7 +869,7 @@ END SUBROUTINE nve
 
     DO isubsys=1,SIZE(subsys)
 
-      CALL fragment_get(fragment=subsys(isubsys)%fragment,&
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                         atomic_kinds=atomic_kinds,&
                         local_particles=local_particles,&
                         particles=particles)
@@ -951,7 +951,7 @@ END SUBROUTINE nve
 
 !MK   CALL pressure(struc%pnode,thermo)
 
-    END DO ! next fragment or sub-system
+    END DO ! next subsys or sub-system
 
   END SUBROUTINE nve_new
 

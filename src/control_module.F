@@ -39,7 +39,7 @@ MODULE control_module
   USE extended_system_types, ONLY : extended_system_type
   USE fermi, ONLY : fermi_distribution_type, init_fermi_dist, fermi_info
   USE fist_debug, ONLY : fist_debug_control => debug_control
-  USE force_control, ONLY : force
+  USE force_env_types, ONLY : force
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
   USE force_fields, ONLY : read_force_field_section

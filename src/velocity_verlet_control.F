@@ -24,7 +24,7 @@ MODULE velocity_verlet_control
 
   USE coefficient_types,               ONLY: ATOMICORBITALS,&
                                              PLANEWAVES
-  USE force_control,                   ONLY: force_env_get,&
+  USE force_env_types,                   ONLY: force_env_get,&
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_pol_force,&

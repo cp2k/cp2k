@@ -24,7 +24,7 @@ MODULE tbmd_debug
   USE fist_force_numer, ONLY : force_nonbond_numer, ewald_energy_numer, &
        ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
        ewald_force_numer
-  USE tbmd_force, ONLY : force_control, debug_variables_type
+  USE tbmd_force, ONLY : force_env_types, debug_variables_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE linklists, ONLY : dist_constraints, g3x3_constraints
@@ -123,7 +123,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_g", 3 * natoms )
 
 ! call to analytical nonbond force routine:
-  CALL force_control ( molecule, pnode, part, box, box_ref, thermo, &
+  CALL force_env_types ( molecule, pnode, part, box, box_ref, thermo, &
        potparm, ewald_param, box_change, globenv, lldata, dbg )
 
 ! Debug real-space nonbond

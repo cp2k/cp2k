@@ -37,9 +37,9 @@ MODULE gopt_f_types
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -49,7 +49,7 @@ MODULE gopt_f_types
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_control,                   ONLY: force_env_calculate_energy,&
+  USE force_env_types,                   ONLY: force_env_calculate_energy,&
                                              force_env_calculate_force,&
                                              force_env_get,&
                                              force_env_release,&
@@ -372,7 +372,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
   CHARACTER(len=*), PARAMETER :: routineN='gopt_f_eval_at',&
        routineP=moduleN//':'//routineN
   TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(cell_type), POINTER :: cell
 
@@ -386,7 +386,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
        cell=cell,error=error)
   idg=0
   DO isubsys=1,SIZE(subsys)
-     CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
           error=error)
      DO ip=1,particles%n_els
         DO idir=1,3
@@ -423,7 +423,7 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, master, para_env, error)
              error=error)
         idg=0
         DO isubsys=1,SIZE(subsys)
-           CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+           CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
                 error=error)
            DO ip=1,particles%n_els
               DO idir=1,3
@@ -479,7 +479,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
        routineP=moduleN//':'//routineN
   INTEGER :: stat, idg, ndg, idir, isubsys, ip
   TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
 
   failure=.FALSE.
   NULLIFY(particles,subsys)
@@ -488,7 +488,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
        error=error)
   ndg=0
   DO isubsys=1,SIZE(subsys)
-     CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
           error=error)
      ndg=ndg+particles%n_els*3
   END DO
@@ -498,7 +498,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
   
   idg=0
   DO isubsys=1,SIZE(subsys)
-     CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
           error=error)
      DO ip=1,particles%n_els
         DO idir=1,3

@@ -3,10 +3,10 @@
 !   Copyright (C) 2001 - 2003  CP2K developers group
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
-!!****** cp2k/qs_md [1.0] *
+!!****** cp2k/md_run [1.0] *
 !!
 !!   NAME
-!!     qs_md
+!!     md_run
 !!
 !!   FUNCTION
 !!     Perform a molecular dynamics (MD) run using QUICKSTEP
@@ -20,7 +20,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE qs_md
+MODULE md_run
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
@@ -40,9 +40,9 @@ MODULE qs_md
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_log,&
                                              cp_logger_get_default_unit_nr,&
@@ -56,7 +56,7 @@ MODULE qs_md
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE force_env_types,                   ONLY: force_env_calculate_force,&
                                              force_env_create,&
                                              force_env_get,&
                                              force_env_release,&
@@ -82,7 +82,7 @@ MODULE qs_md
                                              md_environment_type,&
                                              set_md_env,&
                                              zero_virial
-  USE md_qs_energies,                  ONLY: md_energy_qs,&
+  USE md_energies,                  ONLY: md_energy_qs,&
                                              set_qs_energies
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
@@ -136,7 +136,7 @@ MODULE qs_md
 
 ! *** Global parameters ***
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_md"
+  CHARACTER(LEN=*), PARAMETER :: module_name = "md_run"
 
   PUBLIC :: qs_mol_dyn
 
@@ -187,7 +187,7 @@ CONTAINS
     REAL(KIND = dp)                                             :: ekin
     REAL(KIND = dp)                                             :: econs 
     INTEGER                                              :: i
-    TYPE(cp_fragment_p_type), DIMENSION(:), POINTER      :: subsys
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER      :: subsys
     TYPE ( lnhc_parameters_type ), POINTER :: nhc_part, nhc_baro
 
     INTEGER :: handle,istat,istep,natom,nmolecule
@@ -234,7 +234,7 @@ CONTAINS
     cell_ref => cell
 
     DO isubsys=1,SIZE(subsys)
-       CALL fragment_get(subsys(isubsys)%fragment,&
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
             local_molecules=local_molecules,&
             molecule_kinds=molecule_kinds,&
             molecule_kinds_new=molecule_kinds_new,&
@@ -250,7 +250,7 @@ CONTAINS
     SELECT CASE ( simpar % read_type )
     CASE ( 'INIT' )
        DO isubsys=1,SIZE(subsys)
-          CALL fragment_get(subsys(isubsys)%fragment,&
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
                particles=particles,&
                error=error)
           CALL initialize_velocities ( simpar, &
@@ -260,7 +260,7 @@ CONTAINS
        !FM should be adapted to the existence of many fragments
        CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
        isubsys=1
-       CALL fragment_get(subsys(isubsys)%fragment,&
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
             particles=particles,&
             error=error)
        nhc_part => extended_type%nhc_part(isubsys)
@@ -274,7 +274,7 @@ CONTAINS
        !FM should be adapted to the existence of many fragments
        CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
        isubsys=1
-       CALL fragment_get(subsys(isubsys)%fragment,&
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
             particles=particles,&
             error=error)
        nhc_part => extended_type%nhc_part(isubsys)
@@ -295,7 +295,7 @@ CONTAINS
 
     DO isubsys=1,SIZE(subsys)
        CALL init_structure_type(struc(isubsys))
-       CALL fragment_get(subsys(isubsys)%fragment,&
+       CALL cp_subsys_get(subsys(isubsys)%subsys,&
             pnode=struc(isubsys)%pnode, particles=particles,&
             local_molecules=local_molecules, error=error)
        struc(isubsys)%part => particles%els
@@ -385,7 +385,7 @@ CONTAINS
     INTEGER  :: atom,handle,iatom,ikind,istat,natom,nkind, isubsys
     LOGICAL  :: failure
 
-    TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
 
@@ -405,7 +405,7 @@ CONTAINS
 
        DO isubsys=1,SIZE(subsys)
 
-          CALL fragment_get(subsys(isubsys)%fragment,&
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
                local_particles=local_particles,&
                particles=particles, atomic_kinds=atomic_kinds,&
                error=error)
@@ -440,7 +440,7 @@ CONTAINS
 
           DO isubsys=1,SIZE(subsys)
 
-             CALL fragment_get(subsys(isubsys)%fragment,&
+             CALL cp_subsys_get(subsys(isubsys)%subsys,&
                   local_particles=local_particles,&
                   particles=particles, atomic_kinds=atomic_kinds,&
                   error=error)
@@ -528,4 +528,4 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE qs_md
+END MODULE md_run

@@ -53,7 +53,7 @@ MODULE pol_force_ao
   USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type, get_pol_grids
+  PUBLIC :: force_env_types, debug_variables_type, get_pol_grids
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_electrostatics, pot_overlap
@@ -78,15 +78,15 @@ MODULE pol_force_ao
 CONTAINS
 
 !******************************************************************************
-!!****** pol_force_ao/force_control [1.0] *
+!!****** pol_force_ao/force_env_types [1.0] *
 !!
 !!   NAME
-!!     force_control
+!!     force_env_types
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
+SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
      thermo, potparm, empparm, ewald_param, box_change, fc_global, lldata,&
      debug)
@@ -331,9 +331,9 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
      CALL bonded_correct_gaussian ( ewald_param, molecule, &
           thermo % e_bonded, pv_bc )
   CASE ( "SPME" )
-     CALL stop_program ( "force_control", "SPME cannot be used with Pol" )
+     CALL stop_program ( "force_env_types", "SPME cannot be used with Pol" )
   CASE DEFAULT
-     CALL stop_program ( "force_control", "illegal value of ewald_type: "//&
+     CALL stop_program ( "force_env_types", "illegal value of ewald_type: "//&
                          ewald_param % ewald_type )
   END SELECT
 
@@ -449,7 +449,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   CALL timestop ( zero, handle )
 
-END SUBROUTINE force_control
+END SUBROUTINE force_env_types
 
 !******************************************************************************
 !!****** pol_force_ao/get_pol_grids [1.0] *

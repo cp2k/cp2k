@@ -52,8 +52,8 @@ MODULE pao_env_methods
                                              cp_error_message,&
                                              cp_error_type,&
                                              cp_internal_error
-  USE cp_fragment_types,               ONLY: cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
@@ -198,11 +198,11 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER :: atom_list
     CHARACTER(len=60) :: name
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    TYPE(cp_fragment_type), POINTER :: fragment
+    TYPE(cp_subsystem_type), POINTER :: subsys
     TYPE(particle_list_type), POINTER :: particles
     TYPE(atomic_kind_list_type), POINTER :: atomic_kinds
 
-    NULLIFY(atom_list, fragment, particles, atomic_kinds)
+    NULLIFY(atom_list, subsys, particles, atomic_kinds)
     failure=.FALSE.
     CALL cp_error_init(iError, template_error=error)
 
@@ -214,8 +214,8 @@ CONTAINS
     pao_env%min_d_m_valid=.FALSE.
 
     ! check projection
-    CALL get_qs_env(qs_env, fragment=fragment)
-    CALL fragment_get(fragment, particles=particles, atomic_kinds=atomic_kinds,&
+    CALL get_qs_env(qs_env, subsys=subsys)
+    CALL cp_subsys_get(subsys, particles=particles, atomic_kinds=atomic_kinds,&
          error=error)
     n_atoms=particles%n_els
     CPPrecondition(ASSOCIATED(atomic_kinds),cp_failure_level,routineP,error,failure)

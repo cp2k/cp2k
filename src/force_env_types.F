@@ -3,10 +3,10 @@
 !   Copyright (C) 2000-2003  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 #include "cp_prep_globals.h"
-!!****** cp2k/force_control [1.0] *
+!!****** cp2k/force_env_types [1.0] *
 !!
 !!   NAME
-!!     force_control
+!!     force_env_types
 !!
 !!   FUNCTION
 !!     Interface for the force calculations
@@ -22,7 +22,7 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE force_control
+MODULE force_env_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
@@ -39,13 +39,13 @@ MODULE force_control
                                              cp_error_type,&
                                              cp_internal_error,&
                                              cp_unimplemented_error
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type,&
-                                             fragment_create,&
-                                             fragment_get,&
-                                             fragment_release,&
-                                             fragment_retain,&
-                                             fragment_set
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_create,&
+                                             cp_subsys_get,&
+                                             cp_subsys_release,&
+                                             cp_subsys_retain,&
+                                             cp_subsys_set
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -98,7 +98,7 @@ MODULE force_control
 
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_control'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_types'
   INTEGER, SAVE, PRIVATE :: last_force_env_id
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
@@ -111,7 +111,7 @@ MODULE force_control
 !!***
 !******************************************************************************
 
-!!****s* force_control/force_env_type [1.0] *
+!!****s* force_env_types/force_env_type [1.0] *
 !!
 !!   NAME
 !!     force_env_type
@@ -159,7 +159,7 @@ MODULE force_control
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( qs_environment_type ), POINTER :: qs_env 
-     TYPE (cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+     TYPE (cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
      TYPE (global_environment_type), POINTER :: globenv
      TYPE (cp_para_env_type), POINTER :: para_env
   END TYPE force_env_type
@@ -169,7 +169,7 @@ MODULE force_control
 CONTAINS
 
 !******************************************************************************
-!!****** force_control/force_env_calculate_force [1.0] *
+!!****** force_env_types/force_env_calculate_force [1.0] *
 !!
 !!   NAME
 !!     force_env_calculate_force
@@ -255,7 +255,7 @@ SUBROUTINE force_env_calculate_force ( force_env, box_change, error )
 END SUBROUTINE force_env_calculate_force
 !******************************************************************************
 
-!!****f* force_control/force_env_calculate_energy [1.0] *
+!!****f* force_env_types/force_env_calculate_energy [1.0] *
 !!
 !!   NAME
 !!     force_env_calculate_energy
@@ -343,7 +343,7 @@ END SUBROUTINE force_env_calculate_energy
 !***************************************************************************
 
 
-!!****f* force_control/force_env_create [1.0] *
+!!****f* force_env_types/force_env_create [1.0] *
 !!
 !!   NAME
 !!     force_env_create
@@ -455,8 +455,8 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
         DO i=1,n_rep
-           NULLIFY(force_env%subsys(i)%fragment)
-           CALL fragment_create(force_env%subsys(i)%fragment,&
+           NULLIFY(force_env%subsys(i)%subsys)
+           CALL cp_subsys_create(force_env%subsys(i)%subsys,&
                 para_env=force_env % para_env, error=error)
 
            rep_att => force_env%fist_env%rep_env(i)
@@ -467,7 +467,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
                 els_ptr=rep_att%part, owns_els=.FALSE., error=error)
            CALL mol_struct_list_create(local_molecules,&
                 els_ptr=rep_att%molecule, error=error)
-           CALL fragment_set(force_env%subsys(i)%fragment,&
+           CALL cp_subsys_set(force_env%subsys(i)%subsys,&
                 local_particles=rep_att%local_particles,&
                 atomic_kinds=atomic_kinds, particles=particles,&
                 pnode=rep_att%pnode,local_molecules=local_molecules,&
@@ -481,8 +481,8 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
         CPPrecondition(PRESENT(globenv),cp_failure_level,routineP,error,failure)
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        NULLIFY(force_env%subsys(1)%fragment)
-        CALL fragment_create(force_env%subsys(1)%fragment,&
+        NULLIFY(force_env%subsys(1)%subsys)
+        CALL cp_subsys_create(force_env%subsys(1)%subsys,&
              para_env=force_env%para_env, error=error)
 
         CALL atomic_kind_list_create(atomic_kinds,&
@@ -492,7 +492,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
              els_ptr=force_env%kg_env%part, owns_els=.FALSE., error=error)
         CALL mol_struct_list_create(local_molecules,&
              els_ptr=kg_env%molecule, owns_els=.FALSE., error=error)
-        CALL fragment_set(force_env%subsys(1)%fragment,&
+        CALL cp_subsys_set(force_env%subsys(1)%subsys,&
              atomic_kinds=atomic_kinds, particles=particles,&
              pnode=force_env%kg_env%pnode,local_molecules=local_molecules,&
              error=error)
@@ -502,12 +502,12 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
      CASE(use_qs_force)
         ALLOCATE(force_env%subsys(1), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        NULLIFY(force_env%subsys(1)%fragment)
+        NULLIFY(force_env%subsys(1)%subsys)
 
         CALL get_qs_env(force_env%qs_env,&
-             fragment=force_env%subsys(1)%fragment,&
+             subsys=force_env%subsys(1)%subsys,&
              error=error)
-        CALL fragment_retain(force_env%subsys(1)%fragment,&
+        CALL cp_subsys_retain(force_env%subsys(1)%subsys,&
              error=error)
      END SELECT
      
@@ -515,7 +515,7 @@ SUBROUTINE force_env_create(force_env,fist_env,qs_env,kg_env,para_env,&
 END SUBROUTINE force_env_create
 !***************************************************************************
 
-!!****f* force_control/force_env_retain [1.0] *
+!!****f* force_env_types/force_env_retain [1.0] *
 !!
 !!   NAME
 !!     force_env_retain
@@ -562,7 +562,7 @@ SUBROUTINE force_env_retain(force_env, error)
 END SUBROUTINE force_env_retain
 !***************************************************************************
 
-!!****f* force_control/force_env_release [1.0] *
+!!****f* force_env_types/force_env_release [1.0] *
 !!
 !!   NAME
 !!     force_env_release
@@ -610,7 +610,7 @@ SUBROUTINE force_env_release(force_env, error)
         CALL qs_env_release(force_env%qs_env,error=error)
         IF (ASSOCIATED(force_env%subsys)) THEN
            DO i=1,SIZE(force_env%subsys)
-              CALL fragment_release(force_env%subsys(i)%fragment, error=error)
+              CALL cp_subsys_release(force_env%subsys(i)%subsys, error=error)
            END DO
            DEALLOCATE(force_env%subsys, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -630,7 +630,7 @@ SUBROUTINE force_env_release(force_env, error)
 END SUBROUTINE force_env_release
 !***************************************************************************
 
-!!****f* force_control/force_env_get [1.0] *
+!!****f* force_env_types/force_env_get [1.0] *
 !!
 !!   NAME
 !!     force_env_get
@@ -643,7 +643,7 @@ END SUBROUTINE force_env_release
 !!       Type(fist_environment_type), Pointer, Optional:: fist_env
 !!       Type(kg_environment_type), Pointer, Optional:: kg_env
 !!       Type(qs_environment_type), Pointer, Optional:: qs_env
-!!       Type(cp_fragment_p_type), Pointer, Dimension(:), Optional:: subsys
+!!       Type(cp_subsystem_p_type), Pointer, Dimension(:), Optional:: subsys
 !!       Type(cell_type), Pointer, Optional:: cell
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Real(Kind=dbl), Intent (OUT), Optional:: potential_energy,&
@@ -677,7 +677,7 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
   TYPE ( fist_environment_type ), POINTER, OPTIONAL :: fist_env 
   TYPE ( kg_environment_type ), POINTER, OPTIONAL :: kg_env
   TYPE ( qs_environment_type ), POINTER, OPTIONAL :: qs_env
-  TYPE ( cp_fragment_p_type ), POINTER, DIMENSION(:), OPTIONAL :: subsys
+  TYPE ( cp_subsystem_p_type ), POINTER, DIMENSION(:), OPTIONAL :: subsys
   TYPE ( cell_type ), POINTER, OPTIONAL :: cell
   TYPE(cp_para_env_type), POINTER, OPTIONAL :: para_env
   REAL(kind=dbl), INTENT(out), OPTIONAL :: potential_energy, kinetic_energy
@@ -719,7 +719,7 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
         ! needed?
         DO i=1,SIZE(force_env%fist_env%rep_env)
            rep_att => force_env%fist_env%rep_env(i)
-           CALL fragment_set(force_env%subsys(i)%fragment,&
+           CALL cp_subsys_set(force_env%subsys(i)%subsys,&
                 local_particles=rep_att%local_particles, error=error)
         END DO
         IF (PRESENT(potential_energy)) potential_energy=force_env%fist_env%thermo%pot
@@ -764,7 +764,7 @@ SUBROUTINE force_env_get(force_env, in_use, fist_env, qs_env, kg_env, &
 END SUBROUTINE force_env_get
 !***************************************************************************
 
-!!****f* force_control/force_env_set_cell [1.0] *
+!!****f* force_env_types/force_env_set_cell [1.0] *
 !!
 !!   NAME
 !!     force_env_set_cell
@@ -825,7 +825,7 @@ SUBROUTINE force_env_set_cell(force_env, cell, error)
 END SUBROUTINE force_env_set_cell
 !***************************************************************************
 
-!!****f* force_control/force_env_write_variables [1.0] *
+!!****f* force_env_types/force_env_write_variables [1.0] *
 !!
 !!   NAME
 !!     force_env_write_variables
@@ -871,7 +871,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
   CHARACTER(len=*), PARAMETER :: routineN='force_env_write_variables',&
        routineP=moduleN//':'//routineN
   TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
   TYPE(cell_type), POINTER :: cell
   TYPE(particle_list_type), POINTER :: particles
   INTEGER :: isubsys, i
@@ -906,7 +906,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
 !FM     WRITE(unit=unit_nr,fmt=*) SIZE(subsys) ! should be written
 !FM     END IF
      DO isubsys=1,SIZE(subsys)
-        CALL fragment_get(subsys(isubsys)%fragment,&
+        CALL cp_subsys_get(subsys(isubsys)%subsys,&
              particles=particles, error=error)
 
         IF (should_write) THEN
@@ -959,7 +959,7 @@ SUBROUTINE force_env_write_variables(force_env, unit_nr, local, error)
 END SUBROUTINE force_env_write_variables
 !***************************************************************************
 
-!!****f* force_control/force_env_read_variables [1.0] *
+!!****f* force_env_types/force_env_read_variables [1.0] *
 !!
 !!   NAME
 !!     force_env_read_variables
@@ -1006,7 +1006,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
   CHARACTER(len=*), PARAMETER :: routineN='force_env_read_variables',&
         routineP=moduleN//':'//routineN
   TYPE(cp_logger_type), POINTER :: logger
-  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
   TYPE(cell_type), POINTER :: cell
   TYPE(particle_list_type), POINTER :: particles
   INTEGER :: isubsys, i
@@ -1041,7 +1041,7 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
 
 !FM     READ(unit=unit_nr,fmt=*) SIZE(subsys) ! should be written
      DO isubsys=1,SIZE(subsys)
-        CALL fragment_get(subsys(isubsys)%fragment,&
+        CALL cp_subsys_get(subsys(isubsys)%subsys,&
              particles=particles, error=error)
 
 !FM        READ(unit=unit_nr,fmt=*) particles%n_els
@@ -1084,5 +1084,5 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
 END SUBROUTINE force_env_read_variables
 !***************************************************************************
 
-END MODULE force_control
+END MODULE force_env_types
 !******************************************************************************

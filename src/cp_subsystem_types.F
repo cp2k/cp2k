@@ -5,13 +5,13 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/cp_fragment_types [1.0] *
+!!****h* cp2k/cp_subsystem_types [1.0] *
 !!
 !!   NAME
-!!     cp_fragment_types
+!!     cp_subsystem_types
 !!
 !!   FUNCTION
-!!     types that represent a fragment, i.e. a part of the system
+!!     types that represent a subsys, i.e. a part of the system
 !!
 !!   NOTES
 !!     -
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE cp_fragment_types
+MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
@@ -74,20 +74,20 @@ MODULE cp_fragment_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fragment_types'
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_subsystem_types'
   INTEGER, PRIVATE, SAVE :: last_fragment_id=0
 
-  PUBLIC :: cp_fragment_type, cp_fragment_p_type
-  PUBLIC :: fragment_create, fragment_retain, fragment_release,&
-       fragment_get, fragment_set
+  PUBLIC :: cp_subsystem_type, cp_subsystem_p_type
+  PUBLIC :: cp_subsys_create, cp_subsys_retain, cp_subsys_release,&
+       cp_subsys_get, cp_subsys_set
 
 !***
 !****************************************************************************
 
-!!****s* force_control/cp_fragment_type [1.0] *
+!!****s* force_env_types/cp_subsystem_type [1.0] *
 !!
 !!   NAME
-!!     cp_fragment_type
+!!     cp_subsystem_type
 !!
 !!   FUNCTION
 !!     represents a part of a system: atoms, molecules, their pos,vel,...
@@ -96,13 +96,13 @@ MODULE cp_fragment_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - atomic_kinds: list with all the kinds in the actual fragment
-!!     - particles: list with the particles of the actual fragment
+!!     - atomic_kinds: list with all the kinds in the actual subsys
+!!     - particles: list with the particles of the actual subsys
 !!     - local_particles: the particles that are local to the actual processor
 !!     - molecule_kinds: list with the molecule kinds
-!!     - local_molecules: the molecule structures of the actual fragment
+!!     - local_molecules: the molecule structures of the actual subsys
 !!       that are local to this processor
-!!     - para_env: the parallel environment of the actual fragment
+!!     - para_env: the parallel environment of the actual subsys
 !!     - pnode: *to be removed* !
 !!
 !!   AUTHOR
@@ -113,7 +113,7 @@ MODULE cp_fragment_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_fragment_type
+  TYPE cp_subsystem_type
 !     PRIVATE !FM removed for convenience, but to as if it where there
      INTEGER :: ref_count, id_nr
      TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
@@ -132,24 +132,24 @@ MODULE cp_fragment_types
 
 !to remove
      TYPE (particle_node_type), DIMENSION(:), POINTER :: pnode
-  END TYPE cp_fragment_type
+  END TYPE cp_subsystem_type
 !!***
   !****************************************************************************
 
-!!****s* cp_fragment_types/cp_fragment_p_type [1.0] *
+!!****s* cp_subsystem_types/cp_subsystem_p_type [1.0] *
 !!
 !!   NAME
-!!     cp_fragment_p_type
+!!     cp_subsystem_p_type
 !!
 !!   FUNCTION
-!!     represent a pointer to a fragment, to be able to create arrays
+!!     represent a pointer to a subsys, to be able to create arrays
 !!     of pointers
 !!
 !!   NOTES
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - fragment: the pointer to the fragment
+!!     - subsys: the pointer to the subsys
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -159,35 +159,35 @@ MODULE cp_fragment_types
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_fragment_p_type
-     TYPE(cp_fragment_type), POINTER :: fragment
-  END TYPE cp_fragment_p_type
+  TYPE cp_subsystem_p_type
+     TYPE(cp_subsystem_type), POINTER :: subsys
+  END TYPE cp_subsystem_p_type
 !!***
   !****************************************************************************
 
 CONTAINS
 
-!!****f* cp_fragment_types/fragment_create [1.0] *
+!!****f* cp_subsystem_types/cp_subsys_create [1.0] *
 !!
 !!   NAME
-!!     fragment_create
+!!     cp_subsys_create
 !!
 !!   SYNOPSIS
-!!     Subroutine fragment_create(fragment, para_env, error)
-!!       Type(cp_fragment_type), Pointer:: fragment
+!!     Subroutine cp_subsys_create(subsys, para_env, error)
+!!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fragment_create
+!!     End Subroutine cp_subsys_create
 !!
 !!   FUNCTION
-!!     creates a fragment
+!!     creates a subsys
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - fragment: the fragment to allocate and initialize
-!!     - para_env: the parallel environment of this fragment
+!!     - subsys: the subsys to allocate and initialize
+!!     - para_env: the parallel environment of this subsys
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -198,54 +198,54 @@ CONTAINS
 !!     07.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fragment_create(fragment, para_env, error)
-  TYPE(cp_fragment_type), POINTER :: fragment
+SUBROUTINE cp_subsys_create(subsys, para_env, error)
+  TYPE(cp_subsystem_type), POINTER :: subsys
   TYPE(cp_para_env_type), POINTER :: para_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fragment_create',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_create',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
 
   failure=.FALSE.
   
-  ALLOCATE(fragment, stat=stat)
+  ALLOCATE(subsys, stat=stat)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      last_fragment_id=last_fragment_id+1
-     fragment%id_nr=last_fragment_id
-     fragment%ref_count=1
+     subsys%id_nr=last_fragment_id
+     subsys%ref_count=1
      CALL cp_para_env_retain(para_env,error=error)
-     fragment%para_env => para_env
-     NULLIFY(fragment%atomic_kinds, fragment%particles, &
-          fragment%local_particles, fragment%molecule_kinds,&
-          fragment%local_molecules, fragment%molecules_new,&
-          fragment%molecule_kinds_new, fragment%local_molecules_new,&
-          fragment%pnode)
+     subsys%para_env => para_env
+     NULLIFY(subsys%atomic_kinds, subsys%particles, &
+          subsys%local_particles, subsys%molecule_kinds,&
+          subsys%local_molecules, subsys%molecules_new,&
+          subsys%molecule_kinds_new, subsys%local_molecules_new,&
+          subsys%pnode)
   END IF
-END SUBROUTINE fragment_create
+END SUBROUTINE cp_subsys_create
 !***************************************************************************
 
-!!****f* cp_fragment_types/fragment_retain [1.0] *
+!!****f* cp_subsystem_types/cp_subsys_retain [1.0] *
 !!
 !!   NAME
-!!     fragment_retain
+!!     cp_subsys_retain
 !!
 !!   SYNOPSIS
-!!     Subroutine fragment_retain(fragment, error)
-!!       Type(cp_fragment_type), Pointer:: fragment
+!!     Subroutine cp_subsys_retain(subsys, error)
+!!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fragment_retain
+!!     End Subroutine cp_subsys_retain
 !!
 !!   FUNCTION
-!!     retains a fragment (see doc/ReferenceCounting.html)
+!!     retains a subsys (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - fragment: the fragment to retain
+!!     - subsys: the subsys to retain
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -256,43 +256,43 @@ END SUBROUTINE fragment_create
 !!     07.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fragment_retain(fragment, error)
-  TYPE(cp_fragment_type), POINTER :: fragment
+SUBROUTINE cp_subsys_retain(subsys, error)
+  TYPE(cp_subsystem_type), POINTER :: subsys
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fragment_retain',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_retain',&
         routineP=moduleN//':'//routineN
 
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(fragment),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CPPreconditionNoFail(fragment%ref_count>0,cp_failure_level,routineP,error)
-     fragment%ref_count=fragment%ref_count+1
+     CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
+     subsys%ref_count=subsys%ref_count+1
   END IF
-END SUBROUTINE fragment_retain
+END SUBROUTINE cp_subsys_retain
 !***************************************************************************
 
-!!****f* cp_fragment_types/fragment_release [1.0] *
+!!****f* cp_subsystem_types/cp_subsys_release [1.0] *
 !!
 !!   NAME
-!!     fragment_release
+!!     cp_subsys_release
 !!
 !!   SYNOPSIS
-!!     Subroutine fragment_release(fragment, error)
-!!       Type(cp_fragment_type), Pointer:: fragment
+!!     Subroutine cp_subsys_release(subsys, error)
+!!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fragment_release
+!!     End Subroutine cp_subsys_release
 !!
 !!   FUNCTION
-!!     releases a fragment (see doc/ReferenceCounting.html)
+!!     releases a subsys (see doc/ReferenceCounting.html)
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - fragment: the fragment to release
+!!     - subsys: the subsys to release
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -303,49 +303,49 @@ END SUBROUTINE fragment_retain
 !!     07.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fragment_release(fragment, error)
-  TYPE(cp_fragment_type), POINTER :: fragment
+SUBROUTINE cp_subsys_release(subsys, error)
+  TYPE(cp_subsystem_type), POINTER :: subsys
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fragment_release',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_release',&
         routineP=moduleN//':'//routineN
   INTEGER :: stat
 
   failure=.FALSE.
   
-  IF (ASSOCIATED(fragment)) THEN
-     CPPreconditionNoFail(fragment%ref_count>0,cp_failure_level,routineP,error)
-     fragment%ref_count=fragment%ref_count-1
-     IF (fragment%ref_count==0) THEN
-        CALL atomic_kind_list_release(fragment%atomic_kinds,error=error)
-        CALL particle_list_release(fragment%particles, error=error)
-        CALL distribution_1d_release(fragment%local_particles, error=error)
-        CALL mol_kind_list_release(fragment%molecule_kinds, error=error)
-        CALL mol_struct_list_release(fragment%local_molecules, error=error)
-        CALL mol_kind_new_list_release(fragment%molecule_kinds_new, error=error)
-        CALL mol_new_list_release(fragment%molecules_new, error=error)
-        CALL distribution_1d_release(fragment%local_molecules_new,error=error)
-        CALL cp_para_env_release(fragment%para_env, error=error)
-        NULLIFY(fragment%pnode)
-        DEALLOCATE(fragment, stat=stat)
+  IF (ASSOCIATED(subsys)) THEN
+     CPPreconditionNoFail(subsys%ref_count>0,cp_failure_level,routineP,error)
+     subsys%ref_count=subsys%ref_count-1
+     IF (subsys%ref_count==0) THEN
+        CALL atomic_kind_list_release(subsys%atomic_kinds,error=error)
+        CALL particle_list_release(subsys%particles, error=error)
+        CALL distribution_1d_release(subsys%local_particles, error=error)
+        CALL mol_kind_list_release(subsys%molecule_kinds, error=error)
+        CALL mol_struct_list_release(subsys%local_molecules, error=error)
+        CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
+        CALL mol_new_list_release(subsys%molecules_new, error=error)
+        CALL distribution_1d_release(subsys%local_molecules_new,error=error)
+        CALL cp_para_env_release(subsys%para_env, error=error)
+        NULLIFY(subsys%pnode)
+        DEALLOCATE(subsys, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-  NULLIFY(fragment)
-END SUBROUTINE fragment_release
+  NULLIFY(subsys)
+END SUBROUTINE cp_subsys_release
 !***************************************************************************
 
-!!****f* cp_fragment_types/fragment_set [1.0] *
+!!****f* cp_subsystem_types/cp_subsys_set [1.0] *
 !!
 !!   NAME
-!!     fragment_set
+!!     cp_subsys_set
 !!
 !!   SYNOPSIS
-!!     Subroutine fragment_set(fragment, atomic_kinds, particles,&
+!!     Subroutine cp_subsys_set(subsys, atomic_kinds, particles,&
 !!         local_particles, molecule_kinds, local_molecules, molecules_new,&
 !!         molecule_kinds_new, local_molecules_new, pnode, para_env, error)
-!!       Type(cp_fragment_type), Pointer:: fragment
+!!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
 !!       Type(distribution_1d_type), Pointer, Optional:: local_particles
@@ -359,19 +359,19 @@ END SUBROUTINE fragment_release
 !!         local_molecules_new
 !!       Type(particle_node_type), Dimension(:), Pointer, Optional:: pnode
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fragment_set
+!!     End Subroutine cp_subsys_set
 !!
 !!   FUNCTION
-!!     sets various propreties of the fragment
+!!     sets various propreties of the subsys
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - fragment: the fragment you want to modify
+!!     - subsys: the subsys you want to modify
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!     For the description of the other arguments see cp_fragment_type
+!!     For the description of the other arguments see cp_subsystem_type
 !!     attributes.
 !!
 !!   AUTHOR
@@ -381,10 +381,10 @@ END SUBROUTINE fragment_release
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fragment_set(fragment, atomic_kinds, particles, local_particles,&
+SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
      molecule_kinds, local_molecules,molecules_new, molecule_kinds_new,&
      local_molecules_new,pnode,para_env, error)
-  TYPE (cp_fragment_type), POINTER :: fragment
+  TYPE (cp_subsystem_type), POINTER :: subsys
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
   TYPE (distribution_1d_type), POINTER, OPTIONAL :: local_particles
@@ -398,74 +398,74 @@ SUBROUTINE fragment_set(fragment, atomic_kinds, particles, local_particles,&
   TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fragment_set',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_set',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(fragment),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fragment%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+  CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
      IF (PRESENT(atomic_kinds)) THEN
         CALL atomic_kind_list_retain(atomic_kinds,error=error)
-        CALL atomic_kind_list_release(fragment%atomic_kinds, error=error)
-        fragment%atomic_kinds => atomic_kinds
+        CALL atomic_kind_list_release(subsys%atomic_kinds, error=error)
+        subsys%atomic_kinds => atomic_kinds
      END IF
      IF (PRESENT(particles)) THEN
         CALL particle_list_retain(particles, error=error)
-        CALL particle_list_release(fragment%particles, error=error)
-        fragment%particles => particles
+        CALL particle_list_release(subsys%particles, error=error)
+        subsys%particles => particles
      END IF
      IF (PRESENT(local_particles)) THEN
         CALL distribution_1d_retain(local_particles,error=error)
-        CALL distribution_1d_release(fragment%local_particles,error=error)
-        fragment%local_particles => local_particles
+        CALL distribution_1d_release(subsys%local_particles,error=error)
+        subsys%local_particles => local_particles
      END IF
      IF (PRESENT(molecule_kinds)) THEN
         CALL mol_kind_list_retain(molecule_kinds, error=error)
-        CALL mol_kind_list_release(fragment%molecule_kinds, error=error)
-        fragment%molecule_kinds => molecule_kinds
+        CALL mol_kind_list_release(subsys%molecule_kinds, error=error)
+        subsys%molecule_kinds => molecule_kinds
      END IF
      IF (PRESENT(local_molecules)) THEN
         CALL mol_struct_list_retain(local_molecules, error=error)
-        CALL mol_struct_list_release(fragment%local_molecules, error=error)
-        fragment%local_molecules => local_molecules
+        CALL mol_struct_list_release(subsys%local_molecules, error=error)
+        subsys%local_molecules => local_molecules
      END IF
      IF (PRESENT(local_molecules_new)) THEN
         CALL distribution_1d_retain(local_molecules_new,error=error)
-        CALL distribution_1d_release(fragment%local_molecules_new,error=error)
-        fragment%local_molecules_new => local_molecules_new
+        CALL distribution_1d_release(subsys%local_molecules_new,error=error)
+        subsys%local_molecules_new => local_molecules_new
      END IF
      IF (PRESENT(molecule_kinds_new)) THEN
         CALL mol_kind_new_list_retain(molecule_kinds_new, error=error)
-        CALL mol_kind_new_list_release(fragment%molecule_kinds_new, error=error)
-        fragment%molecule_kinds_new => molecule_kinds_new
+        CALL mol_kind_new_list_release(subsys%molecule_kinds_new, error=error)
+        subsys%molecule_kinds_new => molecule_kinds_new
      END IF
      IF (PRESENT(molecules_new)) THEN
         CALL mol_new_list_retain(molecules_new, error=error)
-        CALL mol_new_list_release(fragment%molecules_new, error=error)
-        fragment%molecules_new => molecules_new
+        CALL mol_new_list_release(subsys%molecules_new, error=error)
+        subsys%molecules_new => molecules_new
      END IF
      IF (PRESENT(para_env)) THEN
         CALL cp_para_env_retain(para_env, error=error)
-        CALL cp_para_env_release(fragment%para_env, error=error)
-        fragment%para_env => para_env
+        CALL cp_para_env_release(subsys%para_env, error=error)
+        subsys%para_env => para_env
      END IF
-     IF (PRESENT(pnode)) fragment%pnode => pnode
+     IF (PRESENT(pnode)) subsys%pnode => pnode
   END IF
-END SUBROUTINE fragment_set
+END SUBROUTINE cp_subsys_set
 !***************************************************************************
 
-!!****f* cp_fragment_types/fragment_get [1.0] *
+!!****f* cp_subsystem_types/cp_subsys_get [1.0] *
 !!
 !!   NAME
-!!     fragment_get
+!!     cp_subsys_get
 !!
 !!   SYNOPSIS
-!!     Subroutine fragment_get(fragment, id_nr, ref_count, atomic_kinds,&
+!!     Subroutine cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds,&
 !!         particles, local_particles, molecule_kinds, local_molecules,&
 !!         molecules_new, molecule_kinds_new, local_molecules_new, para_env,&
 !!         pnode, error)
-!!       Type(cp_fragment_type), Pointer:: fragment
+!!       Type(cp_subsystem_type), Pointer:: subsys
 !!       Integer, Intent (OUT), Optional:: id_nr, ref_count
 !!       Type(atomic_kind_list_type), Pointer, Optional:: atomic_kinds
 !!       Type(particle_list_type), Pointer, Optional:: particles
@@ -480,19 +480,19 @@ END SUBROUTINE fragment_set
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(particle_node_type), Dimension(:), Pointer, Optional:: pnode
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine fragment_get
+!!     End Subroutine cp_subsys_get
 !!
 !!   FUNCTION
-!!     returns information about various attributes of the given fragment
+!!     returns information about various attributes of the given subsys
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - fragment: the fragment you want info about
+!!     - subsys: the subsys you want info about
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!     For the description of the other arguments see cp_fragment_type
+!!     For the description of the other arguments see cp_subsystem_type
 !!     attributes.
 !!
 !!   AUTHOR
@@ -502,10 +502,10 @@ END SUBROUTINE fragment_set
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE fragment_get(fragment, id_nr, ref_count, atomic_kinds, particles,&
+SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      local_particles, molecule_kinds, local_molecules,molecules_new,&
      molecule_kinds_new, local_molecules_new, para_env,pnode, error)
-  TYPE (cp_fragment_type), POINTER :: fragment
+  TYPE (cp_subsystem_type), POINTER :: subsys
   INTEGER, INTENT(out), OPTIONAL :: id_nr, ref_count
   TYPE (atomic_kind_list_type), POINTER, OPTIONAL :: atomic_kinds
   TYPE (particle_list_type), POINTER, OPTIONAL :: particles
@@ -520,29 +520,29 @@ SUBROUTINE fragment_get(fragment, id_nr, ref_count, atomic_kinds, particles,&
   TYPE (cp_error_type), OPTIONAL, INTENT(inout) :: error
   
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='fragment_get',&
+  CHARACTER(len=*), PARAMETER :: routineN='cp_subsys_get',&
         routineP=moduleN//':'//routineN
   failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(fragment),cp_failure_level,routineP,error,failure)
-  CPPrecondition(fragment%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+  CPPrecondition(subsys%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     IF (PRESENT(id_nr)) id_nr = fragment%id_nr
-     IF (PRESENT(ref_count)) ref_count = fragment%ref_count
-     IF (PRESENT(atomic_kinds)) atomic_kinds => fragment%atomic_kinds
-     IF (PRESENT(particles)) particles => fragment%particles
-     IF (PRESENT(local_particles)) local_particles => fragment%local_particles
-     IF (PRESENT(molecule_kinds)) molecule_kinds => fragment%molecule_kinds
-     IF (PRESENT(local_molecules)) local_molecules => fragment%local_molecules
-     IF (PRESENT(molecules_new)) molecules_new => fragment%molecules_new
-     IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => fragment%molecule_kinds_new
-     IF (PRESENT(local_molecules_new)) local_molecules_new => fragment%local_molecules_new
-     IF (PRESENT(para_env)) para_env => fragment%para_env
-     IF (PRESENT(pnode)) pnode => fragment%pnode
+     IF (PRESENT(id_nr)) id_nr = subsys%id_nr
+     IF (PRESENT(ref_count)) ref_count = subsys%ref_count
+     IF (PRESENT(atomic_kinds)) atomic_kinds => subsys%atomic_kinds
+     IF (PRESENT(particles)) particles => subsys%particles
+     IF (PRESENT(local_particles)) local_particles => subsys%local_particles
+     IF (PRESENT(molecule_kinds)) molecule_kinds => subsys%molecule_kinds
+     IF (PRESENT(local_molecules)) local_molecules => subsys%local_molecules
+     IF (PRESENT(molecules_new)) molecules_new => subsys%molecules_new
+     IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
+     IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
+     IF (PRESENT(para_env)) para_env => subsys%para_env
+     IF (PRESENT(pnode)) pnode => subsys%pnode
   END IF
-END SUBROUTINE fragment_get
+END SUBROUTINE cp_subsys_get
 !***************************************************************************
 
 ! to do: read from input
 
-END MODULE cp_fragment_types
+END MODULE cp_subsystem_types

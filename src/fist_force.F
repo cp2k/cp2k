@@ -67,10 +67,10 @@ MODULE fist_force
  CONTAINS
 
 !******************************************************************************
-!!****** fist_force/force_control [1.1] *
+!!****** fist_force/force_env_types [1.1] *
 !!
 !!   NAME
-!!     force_control
+!!     force_env_types
 !!
 !!   FUNCTION
 !!     Calculates the total potential energy, total force, and the
@@ -139,13 +139,13 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
   IF ( .NOT. ALLOCATED ( f_nonbond )  ) THEN
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+       CALL stop_memory ( 'force_env_types', 'f_nonbond', 3 * natoms )
   ELSE IF ( SIZE ( f_nonbond, 2  ) < natoms ) THEN
     DEALLOCATE ( f_nonbond, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_nonbond' )
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+       CALL stop_memory ( 'force_env_types', 'f_nonbond', 3 * natoms )
     ! change in system, do a full reinitialisation
     first_time = .TRUE.
   END IF
@@ -234,7 +234,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
         ! Parallelisation over atoms --> allocate only nnodes
         ALLOCATE ( fg_coulomb ( 3, nnodes ), STAT=isos )
         IF ( isos /= 0 ) &
-          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+          CALL stop_memory ( 'force_env_types', 'fg_coulomb', 3 * nnodes )
         CALL ewald_evaluate ( dg, ewald_param, fg_coulomb, vg_coulomb, &
              pv_g, pnode, box )
         
@@ -242,7 +242,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
-          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+          CALL stop_memory ( 'force_env_types', 'fg_coulomb', 3 * nnodes )
         CALL pme_evaluate ( dg, part, box, grid_s, grid_b, ewald_param, &
                             vg_coulomb, fg_coulomb, pv_g )
         
@@ -250,12 +250,12 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
-          CALL stop_memory ( 'force_control', 'fg_coulomb', 3 * nnodes )
+          CALL stop_memory ( 'force_env_types', 'fg_coulomb', 3 * nnodes )
         CALL spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
              grid_spme, ewald_param )
         
      CASE DEFAULT
-        CALL stop_program ( "force_control", "illegal value of ewald_type: "//&
+        CALL stop_program ( "force_env_types", "illegal value of ewald_type: "//&
                             ewald_param % ewald_type )
      END SELECT
 
@@ -303,7 +303,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
 ! We first sum the forces in f_nonbond, this allows for a more efficient
 ! global sum in the parallel code and in the end copy them back to part
   ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total', 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_total', 3 * natoms )
   DO i = 1, natoms
      f_total ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
@@ -323,7 +323,7 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
      CASE ( "SPME" )
         f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
      CASE DEFAULT
-        CALL stop_program ( "force_control", "illegal value of ewald_type: "//&
+        CALL stop_program ( "force_env_types", "illegal value of ewald_type: "//&
                             ewald_param % ewald_type )
      END SELECT
   END IF
@@ -387,11 +387,11 @@ SUBROUTINE fist_force_control ( rep_env, ewald_param, potparm, thermo, &
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN
     DEALLOCATE ( fg_coulomb, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fg_coulomb' )
   END IF
   IF ( ALLOCATED ( f_total ) ) THEN
     DEALLOCATE ( f_total, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_total' )
   END IF
 
   CALL timestop ( zero, handle )

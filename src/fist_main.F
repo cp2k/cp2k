@@ -42,7 +42,7 @@ MODULE fist_main
                                              replica_env_init,&
                                              replica_environment_type,&
                                              set_fist_env
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE force_env_types,                   ONLY: force_env_calculate_force,&
                                              force_env_create,&
                                              force_env_release,&
                                              force_env_type

@@ -2,10 +2,10 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2003  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/md_qs_energies [1.0] *
+!!****** cp2k/md_energies [1.0] *
 !!
 !!   NAME
-!!     md_qs_energies
+!!     md_energies
 !!
 !!   FUNCTION
 !!     prints all energy info per timestep to the screen or to
@@ -19,18 +19,18 @@
 !!
 !******************************************************************************
 
-MODULE md_qs_energies
+MODULE md_energies
 
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_type
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_type,&
                                              cp_to_string
-  USE force_control,                   ONLY: force_env_get,&
+  USE force_env_types,                   ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE integrator,                      ONLY: pressure
@@ -66,7 +66,7 @@ MODULE md_qs_energies
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: module_name = "md_qs_energies"
+  CHARACTER(LEN=*), PARAMETER :: module_name = "md_energies"
 
   REAL(KIND = dp) :: econs_avg,t_old
 
@@ -84,7 +84,7 @@ MODULE md_qs_energies
 CONTAINS
 
 !******************************************************************************
-!!****** md_qs_energies/set_qs_energies [1.0] *
+!!****** md_energies/set_qs_energies [1.0] *
 !!
 !!   NAME
 !!     set_qs_energies
@@ -140,7 +140,7 @@ SUBROUTINE set_qs_energies ( globenv, mdio )
 END SUBROUTINE set_qs_energies
 
 !******************************************************************************
-!!****** md_qs_energies/md_energy_qs [1.0] *
+!!****** md_energies/md_energy_qs [1.0] *
 !!
 !!   NAME
 !!     energy_qs
@@ -180,7 +180,7 @@ END SUBROUTINE set_qs_energies
     INTEGER            :: handle,istat,iw, isubsys
     LOGICAL            :: file_exists,replace_file
 
-    TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys
+    TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys
 
 !   ---------------------------------------------------------------------------
 
@@ -279,7 +279,7 @@ END SUBROUTINE set_qs_energies
 
         IF (MODULO(itimes,icrd) == 0) THEN
           DO isubsys=1,SIZE(subsys)
-            CALL fragment_get(subsys(isubsys)%fragment,&
+            CALL cp_subsys_get(subsys(isubsys)%subsys,&
                               particles=particles,&
                               error=error)
             CALL write_particle_coordinates(particles%els,cell,crd,&
@@ -290,7 +290,7 @@ END SUBROUTINE set_qs_energies
 
         IF (MODULO(itimes,ivel) == 0) THEN
           DO isubsys=1,SIZE(subsys)
-            CALL fragment_get(subsys(isubsys)%fragment,&
+            CALL cp_subsys_get(subsys(isubsys)%subsys,&
                               particles=particles,&
                               error=error)
             CALL write_particle_coordinates(particles%els,cell,vel,&
@@ -350,4 +350,4 @@ END SUBROUTINE set_qs_energies
 
 ! *****************************************************************************
 
-END MODULE md_qs_energies
+END MODULE md_energies

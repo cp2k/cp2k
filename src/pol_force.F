@@ -51,7 +51,7 @@ MODULE pol_force
   USE linklist_types, ONLY : linklist_internal_data_type
 
   PRIVATE
-  PUBLIC :: force_control, debug_variables_type, get_pol_grids
+  PUBLIC :: force_env_types, debug_variables_type, get_pol_grids
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_electrostatics, pot_overlap
@@ -73,15 +73,15 @@ MODULE pol_force
 CONTAINS
 
 !******************************************************************************
-!!****** pol_force/force_control [1.0] *
+!!****** pol_force/force_env_types [1.0] *
 !!
 !!   NAME
-!!     force_control
+!!     force_env_types
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
+SUBROUTINE force_env_types ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
      thermo, potparm, empparm, ewald_param, box_change, fc_global, lldata,&
      debug)
@@ -141,13 +141,13 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   IF ( .NOT. ALLOCATED ( f_nonbond )  ) THEN
     ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
     IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+       CALL stop_memory ( 'force_env_types', 'f_nonbond', 3 * natoms )
   ELSE IF ( SIZE ( f_nonbond ,2 ) < natoms ) THEN
     DEALLOCATE ( f_nonbond, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_nonbond' )
     ALLOCATE ( f_nonbond ( 3, natoms ), STAT = isos )
     IF ( isos /= 0 ) &
-       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+       CALL stop_memory ( 'force_env_types', 'f_nonbond', 3 * natoms )
   END IF
 
   IF ( first_time ) THEN
@@ -203,27 +203,27 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   IF ( .NOT. ALLOCATED ( fe_part )  ) &
          ALLOCATE ( fe_part ( 3, nnodes ), STAT=isos )
   IF ( isos /= 0 ) &
-      CALL stop_memory ( 'force_control', 'fe_part', 3 * nnodes )
+      CALL stop_memory ( 'force_env_types', 'fe_part', 3 * nnodes )
 
   IF ( .NOT. ALLOCATED ( fo_part )  ) &
          ALLOCATE ( fo_part ( 3, nnodes ), STAT=isos )
   IF ( isos /= 0 ) &
-    CALL stop_memory ( 'force_control', 'fo_part',  3 * nnodes )
+    CALL stop_memory ( 'force_env_types', 'fo_part',  3 * nnodes )
 
   IF ( .NOT. ALLOCATED ( fe_coef )  ) &
          ALLOCATE ( fe_coef ( ncoefs ), STAT=isos )
   IF ( isos /= 0 ) &
-    CALL stop_memory ( 'force_control', 'fe_coef',  ncoefs )
+    CALL stop_memory ( 'force_env_types', 'fe_coef',  ncoefs )
 
   IF ( .NOT. ALLOCATED ( fo_coef )  ) &
          ALLOCATE ( fo_coef ( ncoefs ), STAT=isos )
   IF ( isos /= 0 ) &
-    CALL stop_memory ( 'force_control', 'fo_coef',  ncoefs )
+    CALL stop_memory ( 'force_env_types', 'fo_coef',  ncoefs )
 
   IF ( .NOT. ALLOCATED ( fthk )  ) &
          ALLOCATE ( fthk ( ncoefs ), STAT=isos )
   IF ( isos /= 0 ) &
-    CALL stop_memory ( 'force_control', 'fthk',  ncoefs )
+    CALL stop_memory ( 'force_env_types', 'fthk',  ncoefs )
 
 ! get overlap forces
 
@@ -263,7 +263,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
   isos = 0
   IF ( .NOT. ALLOCATED ( f_total ) ) ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total', 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_total', 3 * natoms )
 
   DO i = 1, natoms
      f_total ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
@@ -306,21 +306,21 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
 
 ! deallocating all local variables
   IF ( ALLOCATED ( f_total )  ) DEALLOCATE ( f_total, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_total' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'f_total' )
   IF ( ALLOCATED ( fe_part )  ) DEALLOCATE ( fe_part, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_part' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fe_part' )
   IF ( ALLOCATED ( fo_part )  ) DEALLOCATE ( fo_part, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_part' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fo_part' )
   IF ( ALLOCATED ( fe_coef )  ) DEALLOCATE ( fe_coef, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fe_coef' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fe_coef' )
   IF ( ALLOCATED ( fo_coef )  ) DEALLOCATE ( fo_coef, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fo_coef' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fo_coef' )
   IF ( ALLOCATED ( fthk )  ) DEALLOCATE ( fthk, STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fthk' )
+  IF ( isos /= 0 ) CALL stop_memory ( 'force_env_types', 'fthk' )
 
   CALL timestop ( zero, handle )
 
-END SUBROUTINE force_control
+END SUBROUTINE force_env_types
 
 !******************************************************************************
 !!****** pol_force/get_pol_grids [1.0] *

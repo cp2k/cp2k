@@ -40,7 +40,7 @@ MODULE qs_main
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type
-  USE force_control,                   ONLY: force_env_create,&
+  USE force_env_types,                   ONLY: force_env_create,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp

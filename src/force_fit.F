@@ -19,7 +19,7 @@ MODULE force_fit
   USE termination, ONLY : stop_program
 
 !  USE fist_input, ONLY : atom_names
-!  USE force_control, ONLY : force
+!  USE force_env_types, ONLY : force
 !  USE md, ONLY : simulation_parameters
 !  USE pair_potential, ONLY : potentialparm, spline_nonbond_control
 

@@ -25,7 +25,7 @@
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_force_control, ONLY : fit_force
-  USE force_control, ONLY : force
+  USE force_env_types, ONLY : force
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, thermodynamic_type              

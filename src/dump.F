@@ -35,7 +35,7 @@ MODULE dump
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE fist_environment_types,          ONLY: replica_environment_type
-  USE force_control,                   ONLY: force_env_get,&
+  USE force_env_types,                   ONLY: force_env_get,&
                                              force_env_type,&
                                              force_env_write_variables
   USE global_types,                    ONLY: global_environment_type

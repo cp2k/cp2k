@@ -2,7 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/force_control [1.0] *
+!!****** cp2k/force_env_types [1.0] *
 !!
 !!   NAME
 !!     fit_force_control
@@ -17,9 +17,9 @@ MODULE fit_force_control
 
   USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
   USE ewald_parameters_types, ONLY : ewald_parameters_type
-  USE fist_force, ONLY : fist_force_control => force_control
-  USE pol_force_ao, ONLY : pol_force_control_ao => force_control
-  USE pol_force_pw, ONLY : pol_force_control_pw => force_control
+  USE fist_force, ONLY : fist_force_control => force_env_types
+  USE pol_force_ao, ONLY : pol_force_control_ao => force_env_types
+  USE pol_force_pw, ONLY : pol_force_control_pw => force_env_types
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
@@ -38,7 +38,7 @@ MODULE fit_force_control
 CONTAINS
 
 !******************************************************************************
-!!****** force_control/force [1.0] *
+!!****** force_env_types/force [1.0] *
 !!
 !!   NAME
 !!     force

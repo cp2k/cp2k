@@ -33,7 +33,7 @@ MODULE pol_debug_ao
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
-  USE pol_force_ao, ONLY : force_control, debug_variables_type, get_pol_grids
+  USE pol_force_ao, ONLY : force_env_types, debug_variables_type, get_pol_grids
   USE pol_force_numer_ao, ONLY : part_electrostatics_numer, coef_electrostatics_numer, &
                               part_overlap_numer, coef_overlap_numer
   USE pw_grid_types, ONLY : pw_grid_type
@@ -115,7 +115,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, pnode, part, &
 
   IF (isos/=0) CALL stop_program ( 'debug', 'allocation failed' )
 
-  CALL force_control ( molecule, pnode, part, box, box_ref, &
+  CALL force_env_types ( molecule, pnode, part, box, box_ref, &
      drho_basis_info, rho0_basis_info, coef_pos, coef_vel, coef_force, &
      thermo, potparm, empparm, ewald_param, box_change, globenv, ll_data, dbg)
 

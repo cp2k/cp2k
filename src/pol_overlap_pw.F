@@ -307,7 +307,7 @@ CONTAINS
   IF ( first_time ) THEN
      IF ( .NOT. ALLOCATED ( n_images ) ) &
           ALLOCATE ( n_images (  nkind, nkind, 3 ), STAT = allocstat )
-     IF ( allocstat /= 0 ) CALL stop_memory ( 'force_control', &
+     IF ( allocstat /= 0 ) CALL stop_memory ( 'force_env_types', &
           'n_images', nkind ** 2 * 3 )
  
      CALL get_cell_param ( box, cell_lengths )

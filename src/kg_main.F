@@ -36,7 +36,7 @@ MODULE kg_main
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE force_env_types,                   ONLY: force_env_calculate_force,&
                                              force_env_create,&
                                              force_env_release,&
                                              force_env_type

@@ -5,10 +5,10 @@
 
 #include "cp_prep_globals.h"
 
-!!****h* cp2k/qs_geoopt [1.0] *
+!!****h* cp2k/geo_opt [1.0] *
 !!
 !!   NAME
-!!     qs_geoopt
+!!     geo_opt
 !!
 !!   FUNCTION
 !!     performs geometry optimization
@@ -24,7 +24,7 @@
 !!
 !!   SOURCE
 !*****************************************************************************
-MODULE qs_geoopt
+MODULE geo_opt
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
@@ -41,9 +41,9 @@ MODULE qs_geoopt
                                              cp_internal_error,&
                                              cp_unimplemented_error,&
                                              cp_unimplemented_error_nr
-  USE cp_fragment_types,               ONLY: cp_fragment_p_type,&
-                                             cp_fragment_type,&
-                                             fragment_get
+  USE cp_subsystem_types,               ONLY: cp_subsystem_p_type,&
+                                             cp_subsystem_type,&
+                                             cp_subsys_get
   USE cp_lbfgs_optimizer_gopt,         ONLY: cp_lbfgs_opt_gopt_type,&
                                              cp_opt_gopt_create,&
                                              cp_opt_gopt_get,&
@@ -59,7 +59,7 @@ MODULE qs_geoopt
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_control,                   ONLY: force_env_calculate_force,&
+  USE force_env_types,                   ONLY: force_env_calculate_force,&
                                              force_env_create,&
                                              force_env_get,&
                                              force_env_release,&
@@ -94,7 +94,7 @@ MODULE qs_geoopt
  IMPLICIT NONE
  PRIVATE
 
- CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='qs_geoopt'
+ CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='geo_opt'
 
  PUBLIC :: qs_geo_opt
  CONTAINS
@@ -131,7 +131,7 @@ MODULE qs_geoopt
 
   END SUBROUTINE qs_geo_opt
 
-!!****f* qs_geoopt/gopt_do_opt [1.0] *
+!!****f* geo_opt/gopt_do_opt [1.0] *
 !!
 !!   NAME
 !!     gopt_do_opt
@@ -168,7 +168,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
   TYPE(cell_type), POINTER :: cell
   TYPE(cp_logger_type), POINTER :: logger
   TYPE(particle_list_type), POINTER :: particles
-  TYPE(cp_fragment_p_type), DIMENSION(:), POINTER :: subsys 
+  TYPE(cp_subsystem_p_type), DIMENSION(:), POINTER :: subsys 
   INTEGER :: i, stat, isubsys, handle
   REAL(KIND = dp) :: f
   REAL(KIND = dp), DIMENSION(:), POINTER :: x0
@@ -218,7 +218,7 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
 
      CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
      DO isubsys=1,SIZE(subsys)
-        CALL fragment_get(subsys(isubsys)%fragment, particles=particles,&
+        CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
              error=error)
         CALL write_particle_distances(particles%els,&
              cell,&
@@ -233,4 +233,4 @@ SUBROUTINE gopt_do_opt(force_env, gopt_param, globenv, error)
 END SUBROUTINE gopt_do_opt
 !***************************************************************************
 
-END MODULE qs_geoopt
+END MODULE geo_opt

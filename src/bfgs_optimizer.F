@@ -16,7 +16,7 @@ MODULE bfgs_optimizer
                                              dp_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat
-  USE md_qs_energies,                  ONLY: md_energy_qs,&
+  USE md_energies,                  ONLY: md_energy_qs,&
                                              set_qs_energies
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type,&
