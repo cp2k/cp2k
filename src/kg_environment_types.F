@@ -291,6 +291,7 @@ CONTAINS
     NULLIFY (kg_env%scf_control)
     NULLIFY (kg_env%scf_env)
     NULLIFY (kg_env%subsys)
+    NULLIFY (kg_env%sub_qs_env)
 
     CALL cp_subsys_create(kg_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
