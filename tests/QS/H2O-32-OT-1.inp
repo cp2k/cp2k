@@ -9,6 +9,8 @@
  FFTLIB       FFTW
 &END
 
+
+# if not running try to switcht to FFTSG instead of FFTW
 &IO
  BASIS_SET_FILE OT_BASIS
 &END

@@ -6,6 +6,8 @@
  RUN_TYPE     MD
 &END
 
+# if not running try to switcht to FFTSG instead of FFTW
+
 &CNTL
  SIMULATION     md
  UNITS          atomic

@@ -3,6 +3,7 @@
  IOLEVEL      10
  FFTLIB       FFTESSL
 &END
+# if not working try to switch to FFTSG instead of FFTESSL
 
 &DFT
 FUNCTIONAL    Pade

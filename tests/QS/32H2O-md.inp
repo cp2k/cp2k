@@ -2,7 +2,7 @@
  PROGRAM      Quickstep
  PROJECT      32H2O-md
  IOLEVEL      10
- FFTLIB       FFTESSL
+ FFTLIB       FFTSG
  RUN_TYPE     MD
 &END
 
