@@ -138,8 +138,7 @@ CONTAINS
   SUBROUTINE qs_ks_qmmm_create(ks_qmmm_env, qs_env, qmmm_env, error)
     TYPE(qs_ks_qmmm_env_type), POINTER            :: ks_qmmm_env
     TYPE(qmmm_env_type), pointer :: qmmm_env
-    TYPE(qs_environment_type), INTENT(in), &
-         TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER            :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 

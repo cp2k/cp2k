@@ -360,7 +360,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
-    TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+    TYPE(pw_grid_type), INTENT(INOUT), TARGET:: pw_grid
     REAL(dbl), INTENT(IN), OPTIONAL          :: cutoff ! cutoff could be inout, and set to the effective cutoff of the given grid
     INTEGER, INTENT(IN), OPTIONAL            :: pe_group, info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked

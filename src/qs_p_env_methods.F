@@ -159,8 +159,7 @@ CONTAINS
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_kpp1_env_type), INTENT(in), &
       OPTIONAL, TARGET                       :: kpp1_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -314,8 +313,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE p_env_check_i_alloc(p_env, qs_env, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -476,8 +474,7 @@ END SUBROUTINE p_env_did_change
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in), OPTIONAL, TARGET           :: psi0
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -727,8 +724,7 @@ END SUBROUTINE p_env_did_change
    
     ! argument
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -802,8 +798,7 @@ END SUBROUTINE p_env_did_change
    
     ! argument
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: spin
     TYPE(cp_fm_type), POINTER                :: v, res
     TYPE(cp_error_type), INTENT(inout), &
@@ -905,8 +900,7 @@ END SUBROUTINE p_env_did_change
   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta, error)
     
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: p1
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1029,8 +1023,7 @@ END SUBROUTINE p_env_did_change
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: v
     INTEGER, DIMENSION(:), INTENT(in), &
@@ -1177,8 +1170,7 @@ END SUBROUTINE p_env_did_change
 
 
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(inout)                          :: v
     INTEGER, DIMENSION(:), INTENT(in), &
@@ -1324,8 +1316,7 @@ END SUBROUTINE p_env_did_change
   SUBROUTINE p_op_l2_fawzi(p_env, qs_env, v, res, alpha, beta, error)
     
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &

@@ -155,7 +155,7 @@ MODULE qs_rho0_methods
                                  paw_atom,natom,ikind,harmonics,&
                                  rho0_h_tot,rho0_s_tot)
 
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, DIMENSION(:), INTENT(IN)        :: a_list
     TYPE(grid_atom_type), INTENT(IN)         :: g_atom
     TYPE(rho0_mpole_type), POINTER           :: rho0_mp

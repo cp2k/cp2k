@@ -75,7 +75,7 @@ CONTAINS
 
   SUBROUTINE update_ks_atom(qs_env,ks,p,ispin,forces,error)
 
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: ks
     TYPE(real_matrix_p_type), INTENT(IN)     :: p
     INTEGER                                  :: ispin

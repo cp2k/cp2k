@@ -149,7 +149,7 @@ CONTAINS
   SUBROUTINE integrate_v_core_rspace(v_rspace,qs_env)
 
     TYPE(coeff_type), INTENT(INOUT)          :: v_rspace
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
@@ -289,7 +289,7 @@ CONTAINS
     TYPE(real_matrix_p_type), INTENT(IN), &
       OPTIONAL                               :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: h
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau
     LOGICAL, INTENT(IN), OPTIONAL            :: gapw

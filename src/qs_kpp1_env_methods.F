@@ -147,8 +147,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE kpp1_create(kpp1_env,qs_env, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -203,8 +202,7 @@ CONTAINS
     
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
@@ -533,8 +531,7 @@ CONTAINS
   SUBROUTINE kpp1_calc_k_p_p1_fdiff(kpp1_env,qs_env,k_p_p1,rho,rho1,&
        diff, error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: k_p_p1
     TYPE(qs_rho_type), POINTER               :: rho, rho1
@@ -651,8 +648,7 @@ CONTAINS
 
 
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -59,7 +59,7 @@ CONTAINS
 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER  :: qs_env
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "prepare_gapw_den"
 

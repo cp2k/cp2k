@@ -250,7 +250,7 @@ MODULE  hartree_local_methods
 
   SUBROUTINE Vh_1c_gg_integrals(qs_env,energy)
 
-    TYPE(qs_environment_type), INTENT(INOUT)   :: qs_env
+    TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(qs_energy_type), INTENT(INOUT)        :: energy
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "Vh_1c_gg_integrals",&

@@ -141,8 +141,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_ks_create(ks_env, qs_env, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -234,7 +233,7 @@ CONTAINS
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
        rho,energy,calculate_forces,just_energy,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
         POINTER                              :: ks_matrix
     TYPE(qs_rho_type), POINTER               :: rho
@@ -597,8 +596,7 @@ CONTAINS
 SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      calculate_forces, just_energy, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -791,8 +789,7 @@ END SUBROUTINE qs_ks_did_change
 SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
      calculate_forces, just_energy, error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: vxc_rho, vxc_tau
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

@@ -121,8 +121,7 @@ CONTAINS
       OPTIONAL                               :: kg_env
     TYPE(replica_environment_type), &
       INTENT(IN), OPTIONAL                   :: rep_env
-    TYPE(qs_environment_type), INTENT(IN), &
-      OPTIONAL                               :: qs_env
+    TYPE(qs_environment_type), POINTER, OPTIONAL :: qs_env
 
     IF ( PRESENT ( rep_env ) ) THEN 
       struc % pnode => rep_env % pnode

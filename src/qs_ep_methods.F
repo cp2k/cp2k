@@ -414,8 +414,7 @@ END SUBROUTINE qs_ep_calculation
 !!*** **********************************************************************
   SUBROUTINE ep_env_create(ep_env,main_qs_env,projections, error)
     TYPE(qs_ep_env_type), POINTER            :: ep_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: main_qs_env
+    TYPE(qs_environment_type), POINTER       :: main_qs_env
     TYPE(qs_p_projection_p_type), &
       DIMENSION(:), INTENT(in)               :: projections
     TYPE(cp_error_type), INTENT(inout), &
@@ -1182,8 +1181,7 @@ END SUBROUTINE stupid_solve
 !!*** **********************************************************************
 SUBROUTINE p_op_ep(p_env, qs_env, v, res, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       INTENT(in)                             :: v
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -1264,8 +1262,7 @@ END SUBROUTINE p_op_ep
 !!*** **********************************************************************
 SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     CHARACTER(len=*), INTENT(in)             :: name
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

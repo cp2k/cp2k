@@ -172,8 +172,7 @@ CONTAINS
        wanted_in_subspace_precision,&
        error)
     TYPE(pao_env_type), INTENT(out)          :: pao_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: wanted_subspace_pos_precision,&
@@ -387,8 +386,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_env_dealloc_ref(pao_env,qs_env,global_env, error)
     TYPE(pao_env_type), INTENT(inout)        :: pao_env
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -488,8 +486,7 @@ CONTAINS
   FUNCTION pao_env_validate(pao_env,qs_env,global_env, test_pos_att, error)&
        RESULT(res)
     TYPE(pao_env_type), INTENT(in), TARGET   :: pao_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     LOGICAL, OPTIONAL                        :: test_pos_att
@@ -567,8 +564,7 @@ CONTAINS
        min_density_m, min_d_valid,error)
     TYPE(pao_env_type), INTENT(inout), &
       TARGET                                 :: pao_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: wanted_subspace_pos_precision,&

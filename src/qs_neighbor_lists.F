@@ -136,7 +136,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, OPTIONAL                        :: molecular

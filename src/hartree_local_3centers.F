@@ -96,7 +96,7 @@ MODULE  hartree_local_3centers
     TYPE(qs_energy_type), INTENT(INOUT)        :: energy
     TYPE(real_matrix_p_type), INTENT(IN)       :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)    :: h
-    TYPE(qs_environment_type), INTENT(IN)      :: qs_env
+    TYPE(qs_environment_type), POINTER         :: qs_env
     LOGICAL, INTENT(IN)                        :: calculate_forces,&
                                                   just_energy
     TYPE(cp_error_type), INTENT(inout), &

@@ -172,7 +172,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho_core
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -331,7 +331,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: p
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     REAL(KIND=dp), INTENT(OUT)               :: total_rho
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: soft_valid, compute_tau
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1001,7 +1001,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -131,7 +131,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION pao_qs_env_get_b_projection(qs_env, atom_nr, error) RESULT(res)
-    TYPE(qs_environment_type), INTENT(in)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(in)                      :: atom_nr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -216,8 +216,7 @@ SUBROUTINE pao_qs_env_get(qs_env, global_env, pao_env, pao_max_min_bas,&
      pao_angles_att, pao_w_subspace_pos_precision,&
      pao_w_in_subspace_precision,pao_atomic_ortho,&
      pao_atomic_ortho_valid, n_atoms, n_electrons, error)
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
@@ -356,7 +355,7 @@ END SUBROUTINE pao_qs_env_get
 SUBROUTINE pao_qs_env_did_change(qs_env,global_env,&
      h_changed, s_changed,&
      angles_changed, full_reset, error)
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     LOGICAL, INTENT(in), OPTIONAL            :: h_changed, s_changed, &
@@ -504,8 +503,7 @@ END SUBROUTINE pao_qs_env_did_change
 !!*** **********************************************************************
 FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
      RESULT(res)
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     INTEGER, INTENT(in)                      :: atom_nr
@@ -630,8 +628,7 @@ END FUNCTION pao_qs_env_get_atomic_ortho
 !!
 !!*** **********************************************************************
 SUBROUTINE pao_qs_env_preinit_atom_ortho(qs_env,global_env,error)
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &

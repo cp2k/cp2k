@@ -315,8 +315,7 @@ CONTAINS
   SUBROUTINE pao_l_ang_init(local_angles, qs_env, global_env, atom_nr,&
        glob_angles, error)
     TYPE(pao_local_angles_type), INTENT(out) :: local_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     INTEGER, INTENT(in)                      :: atom_nr
@@ -1900,8 +1899,7 @@ SUBROUTINE pao_guarantee_owned_NUi(glob_angles, qs_env,&
      global_env,error)
     TYPE(pao_glob_angles_type), &
       INTENT(inout), TARGET                  :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &

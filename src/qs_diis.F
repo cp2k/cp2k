@@ -252,7 +252,6 @@ CONTAINS
 !!       Type(cp_fm_p_type), Dimension(:), Pointer:: kc
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!       Type(mo_set_p_type), Dimension(:), Pointer:: mo_array
-!!       Type(qs_environment_type), Intent (IN):: qs_env
 !!       Real(KIND = dp), Intent (IN):: delta
 !!       Real(KIND = dp), Intent (OUT):: error_max
 !!       Logical, Intent (OUT):: diis_step
@@ -290,7 +289,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), INTENT(OUT)               :: error_max
     LOGICAL, INTENT(OUT)                     :: diis_step
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

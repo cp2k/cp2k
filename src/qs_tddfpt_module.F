@@ -65,7 +65,7 @@ CONTAINS
   SUBROUTINE tddfpt_calculation(qs_env, glob_env)
 
 
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in)                             :: glob_env
 

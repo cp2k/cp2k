@@ -147,8 +147,7 @@ CONTAINS
        qs_env, global_env, error)
     TYPE(real_matrix_type), POINTER          :: source_m, target_m
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -360,8 +359,7 @@ CONTAINS
        qs_env, global_env, error)
     TYPE(real_matrix_type), POINTER          :: source_m, target_m
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -519,8 +517,7 @@ CONTAINS
        qs_env, global_env, error)
     TYPE(real_matrix_type), POINTER          :: source_m, target_m
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -674,8 +671,7 @@ CONTAINS
        qs_env, global_env, error)
     TYPE(real_matrix_type), POINTER          :: source_m, target_m
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -873,8 +869,7 @@ CONTAINS
        min_overlap_m,  min_hamiltonian_m, error)
     TYPE(pao_glob_angles_type), &
       INTENT(inout)                          :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_block_matrix_p_type), &

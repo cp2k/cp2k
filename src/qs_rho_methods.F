@@ -115,8 +115,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qs_rho_rebuild(rho, qs_env, rebuild_ao, rebuild_grids, error)
     TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -310,7 +309,7 @@ END SUBROUTINE qs_rho_rebuild
 !!*** **********************************************************************
 SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(qs_environment_type), INTENT(in)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

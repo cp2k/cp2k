@@ -113,7 +113,7 @@ MODULE qs_rho0_ggrid
 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(rho0_mpole_type),      POINTER      :: rho0
     TYPE(atomic_kind_type), DIMENSION(:), &
                                  POINTER     :: atom_set
@@ -309,8 +309,7 @@ MODULE qs_rho0_ggrid
 
   SUBROUTINE rho0_s_grid_create(qs_env,error)
 
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -378,7 +377,7 @@ MODULE qs_rho0_ggrid
 
   SUBROUTINE integrate_vhg0_rspace(qs_env,v_rspace, calculate_forces, error)
 
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: v_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
@@ -404,7 +403,6 @@ MODULE qs_rho0_ggrid
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ecoul_1center_type), DIMENSION(:), &
                             POINTER          :: ecoul_1c
-    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(l_info_type)                        :: l_info
@@ -475,7 +473,6 @@ MODULE qs_rho0_ggrid
 
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
-    gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info(igrid)
     l_info=pw_env%l_info
 

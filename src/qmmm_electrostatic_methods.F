@@ -141,8 +141,7 @@ CONTAINS
     ! Arguments
     TYPE(global_environment_type), &
       INTENT(in), TARGET,  OPTIONAL              :: globenv
-    TYPE(qs_environment_type), INTENT(INOUT), &
-         TARGET                                  :: qs_env   
+    TYPE(qs_environment_type), POINTER           :: qs_env   
     TYPE(qmmm_env_type), INTENT(in), &
          TARGET                                  :: qmmm_env  
     TYPE(cp_error_type), INTENT(inout), &

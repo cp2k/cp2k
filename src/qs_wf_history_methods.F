@@ -203,8 +203,7 @@ END SUBROUTINE wfs_create
 SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in), OPTIONAL      :: dt
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

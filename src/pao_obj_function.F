@@ -269,8 +269,7 @@ CONTAINS
   SUBROUTINE pao_gerd_f_create(gf_env,qs_env,global_env, scf_work1,scf_work2,&
        scf_work3, mo_orbital, should_dealloc_mo, error)
     TYPE(pao_gerd_functional_type), POINTER  :: gf_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_fm_type), INTENT(in), TARGET     :: scf_work1, scf_work2, &
@@ -1012,8 +1011,7 @@ END SUBROUTINE pao_gerd_f_retain
 !!*** **********************************************************************
 SUBROUTINE cp_l_multiply_atomic_ortho(matrix,qs_env,global_env,error)
     TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &

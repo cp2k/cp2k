@@ -192,8 +192,7 @@ CONTAINS
   SUBROUTINE pao_g_ang_init(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
     TYPE(pao_glob_angles_type), INTENT(out)  :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), DIMENSION(:), &
@@ -399,8 +398,7 @@ CONTAINS
   SUBROUTINE pao_g_ang_create(glob_angles, qs_env, global_env, angles, source,&
        min_overlap_m, min_hamiltonian_m, error)
     TYPE(pao_glob_angles_type), POINTER      :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), DIMENSION(:), &
@@ -469,8 +467,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION pao_g_ang_validate(glob_angles,qs_env,global_env, error) RESULT(res)
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -597,8 +594,7 @@ CONTAINS
        m_s_m_valid, m_h_m_valid, angles_val, error)
     TYPE(pao_glob_angles_type), &
       INTENT(inout)                          :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), DIMENSION(:), &
@@ -765,8 +761,7 @@ CONTAINS
        NUi_injection_calculated, NUi_injection, error)
     TYPE(pao_glob_angles_type), &
       INTENT(inout)                          :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
@@ -892,8 +887,7 @@ CONTAINS
 !!*** **********************************************************************
   FUNCTION pao_g_ang_valid(glob_angles, qs_env, global_env, error) RESULT(res)
     TYPE(pao_glob_angles_type), INTENT(in)   :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -1182,8 +1176,7 @@ CONTAINS
        angles_changed, full_reset, error)
     TYPE(pao_glob_angles_type), &
       INTENT(inout), TARGET                  :: glob_angles
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     LOGICAL, INTENT(in), OPTIONAL            :: h_changed, s_changed, &

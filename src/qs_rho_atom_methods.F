@@ -89,7 +89,7 @@ MODULE qs_rho_atom_methods
   SUBROUTINE calculate_rho_atom(qs_env,atom_kind,atom_list,grid_atom,natom,&
                                 nspins,tot_rho1_h,tot_rho1_s)
 
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type),  INTENT(IN)        :: grid_atom

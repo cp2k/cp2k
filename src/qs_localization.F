@@ -128,7 +128,7 @@ CONTAINS
 SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
 
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-    TYPE(qs_environment_type)                :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     INTEGER                                  :: handle, i, isos, j, natoms
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -197,7 +197,7 @@ SUBROUTINE get_boys_foster_operator ( qs_loc_env, qs_env )
 
 ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-    TYPE(qs_environment_type)                :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     INTEGER                                  :: i, ix, iy, iz, j
     REAL(KIND=dp)                            :: thearg, theval, x, y, z
@@ -265,7 +265,7 @@ END SUBROUTINE get_boys_foster_operator
 SUBROUTINE get_pipek_menzy_operator ( qs_loc_env, qs_env )
 ! globals
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
-    TYPE(qs_environment_type)                :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
   CALL stop_program("qs_localization","PIPEK MENZY not implemented")
 END SUBROUTINE get_pipek_menzy_operator

@@ -119,8 +119,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE pw_env_create(pw_env,qs_env,error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_environment_type), INTENT(in), &
-      OPTIONAL, TARGET                       :: qs_env
+    TYPE(qs_environment_type), OPTIONAL, POINTER :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -171,8 +170,7 @@ END SUBROUTINE pw_env_create
 !!*** **********************************************************************
 SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -455,8 +453,7 @@ END SUBROUTINE pw_env_rebuild
 !***************************************************************************
 
 SUBROUTINE get_subgrid_size ( qs_env, cutoff, radius )
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: cutoff
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: radius
 

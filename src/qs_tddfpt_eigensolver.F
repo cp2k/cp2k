@@ -86,7 +86,7 @@ CONTAINS
 
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in)                             :: glob_env
 
@@ -375,7 +375,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:)         :: X, R
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
-    TYPE(qs_environment_type)                :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "apply_op", &
       routineP = moduleN//"/"//routineN

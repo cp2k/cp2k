@@ -493,7 +493,7 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER                :: blacs_matrix
     INTEGER, INTENT(IN)                      :: before, after
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
@@ -576,7 +576,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: before, after
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
@@ -800,7 +800,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &

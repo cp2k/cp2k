@@ -175,7 +175,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
@@ -681,7 +681,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(qs_environment_type), INTENT(IN)    :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_ecore_self", &
       routine = "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"

@@ -148,8 +148,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE qmmm_calculate_energy(qs_env, rho, v_qmmm, qmmm_energy, error)
     IMPLICIT NONE
-    TYPE(qs_environment_type), INTENT(in), &
-         TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER      :: qs_env
     TYPE(coeff_type), DIMENSION(:), POINTER :: rho
     TYPE(coeff_type), INTENT(IN) :: v_qmmm
     REAL(dbl), INTENT(INOUT) :: qmmm_energy
@@ -242,8 +241,7 @@ CONTAINS
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,error)
     IMPLICIT NONE
     ! Arguments
-    TYPE(qs_environment_type), INTENT(INOUT), &
-         TARGET                                  :: qs_env   
+    TYPE(qs_environment_type), POINTER           :: qs_env   
     TYPE(qmmm_env_type), INTENT(in), &
          TARGET                                  :: qmmm_env  
     TYPE(cp_error_type), INTENT(inout), &
@@ -995,8 +993,7 @@ CONTAINS
     IMPLICIT NONE
     ! Arguments
     TYPE(pw_type), POINTER                       :: rho
-    TYPE(qs_environment_type), INTENT(INOUT), &
-         TARGET                                  :: qs_env   
+    TYPE(qs_environment_type), POINTER           :: qs_env   
     TYPE(qmmm_env_type), INTENT(in), &
          TARGET                                  :: qmmm_env  
     REAL(KIND=dbl), DIMENSION(:,:), POINTER      :: Analytical_Forces

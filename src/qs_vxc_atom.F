@@ -85,8 +85,8 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(qs_environment_type), INTENT(INOUT) :: qs_env
+      OPTIONAL                          :: error
+    TYPE(qs_environment_type), POINTER  :: qs_env
 
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "calculate_vxc_atom",&
                 routineP = module_name//':'//routine_name

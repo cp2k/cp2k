@@ -245,8 +245,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_create(scf_env, qs_env, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_environment_type), INTENT(in), &
-      TARGET                                 :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -337,8 +336,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE scf(qs_env,globenv,error)
-    TYPE(qs_environment_type), &
-      INTENT(INOUT), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     TYPE(cp_error_type), INTENT(inout), &

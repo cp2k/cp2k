@@ -110,7 +110,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE pao_env_init_from_file(qs_env, global_env, section_label,&
        error)
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                     :: global_env
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: section_label

@@ -138,7 +138,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_env_setup(qs_env,error)
 
-    TYPE(qs_environment_type), INTENT(inout) :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -332,8 +332,7 @@ END SUBROUTINE qs_env_update_s_mstruct
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -430,8 +429,7 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_rebuild_rho(qs_env, rebuild_ao, rebuild_grids, error)
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(in), OPTIONAL            :: rebuild_ao, rebuild_grids
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -479,8 +477,7 @@ END SUBROUTINE qs_env_rebuild_rho
 !!
 !!*** **********************************************************************
 SUBROUTINE qs_env_update_rho_core(qs_env,error)
-    TYPE(qs_environment_type), &
-      INTENT(inout), TARGET                  :: qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
