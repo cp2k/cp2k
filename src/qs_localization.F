@@ -452,6 +452,8 @@ SUBROUTINE qs_loc_destroy ( qs_loc_env )
      CALL deallocate_matrix(qs_loc_env%operator(j,i)%matrix)
    ENDDO
   END DO
+  DEALLOCATE(qs_loc_env%operator)
+
   CALL cp_para_env_release(qs_loc_env%para_env) 
 
 END SUBROUTINE qs_loc_destroy
@@ -697,6 +699,8 @@ SUBROUTINE wfc_to_molecule ( qs_loc_env, center, molecule_set )
 !---------------------------------------------------------------------------
   DEALLOCATE(distance,STAT=isos)
   IF(isos/=0) CALL stop_memory('wfc_to_molecule','distance')
+  DEALLOCATE(r,STAT=isos)
+  IF(isos/=0) CALL stop_memory('wfc_to_molecule','r')
 
   DEALLOCATE(wfc_to_atom_map,STAT=isos)
   IF(isos/=0) CALL stop_memory('wfc_to_molecule','wfc_to_atom_map')
