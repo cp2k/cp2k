@@ -1272,10 +1272,11 @@ CONTAINS
 !!                                                                            !
 !!<----------------------------------------------------------------------------
 
-  SUBROUTINE read_tddfpt_control(t_control, glob_env)
+  SUBROUTINE read_tddfpt_control(t_control, dft_control, glob_env)
 
 
     TYPE(tddfpt_control_type)                :: t_control
+    TYPE(dft_control_type)                   :: dft_control
     TYPE(global_environment_type), &
       INTENT(in)                             :: glob_env
 
@@ -1286,16 +1287,32 @@ CONTAINS
     LOGICAL                                  :: section_found
 
     section_found = .FALSE.
-        CALL start_parser(file_name=glob_env%input_file_name,&
-                          globenv=glob_env,&
-                          start_section_label="TDDFPT",&
-                          section_found=section_found)
+    CALL start_parser(file_name=glob_env%input_file_name,&
+                      globenv=glob_env,&
+                      start_section_label="TDDFPT",&
+                      section_found=section_found)
+    
+    t_control%max_iter = 20
+    t_control%n_ev = 1
+    t_control%n_reortho = 2
+    t_control%do_kernel = .TRUE.
+    t_control%invert_S = .TRUE.
+    t_control%res_etype = tddfpt_singlet
+    t_control%diag_method = tddfpt_lanczos
+    t_control%oe_corr = oe_none
+    t_control%sic_method_id = sic_none
+    t_control%xc_control = dft_control%xc_control
 
     DO WHILE (section_found.AND.(test_object(newline=.TRUE.) /= "EOS"))
 
        CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
 
        SELECT CASE (TRIM(keyword))
+
+       CASE ("MAX_ITER")
+          CALL read_object(t_control%max_iter)
+          IF (t_control%max_iter < 1) &
+               CALL stop_parser(routineP, "maximal number of iterations must be >= 1")
 
        CASE ("NEV", "N_EV", "EV")
           CALL read_object(t_control%n_ev)

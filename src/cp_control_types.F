@@ -169,6 +169,7 @@ MODULE cp_control_types
   TYPE tddfpt_control_type
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
      TYPE(xc_control_type)                     :: xc_control
+     INTEGER                                   :: max_iter
      INTEGER                                   :: n_ev
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
