@@ -63,6 +63,12 @@ MODULE cp2k_runs
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE virial_types,                    ONLY: virial_type,&
                                              virial_create
+  USE input_cp2k,                      only: create_cp2k_input_structure
+  USE input_file_types, ONLY: input_file_type, input_file_release,&
+       input_file_create, input_structure_type, input_structure_release,&
+       input_structure_describe, input_file_write, input_file_release
+  USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
+  USE input_parsing, only: section_vals_parse
   IMPLICIT NONE
 
   PRIVATE
@@ -123,6 +129,9 @@ CONTAINS
     TYPE(force_env_type), pointer :: force_env
     TYPE(virial_type), pointer :: virial
     TYPE(meta_env_type), pointer :: meta_env
+    TYPE(input_structure_type), pointer :: input_structure
+    TYPE(input_file_type), pointer :: input_file
+    TYPE(cp_parser_type), pointer :: parser
     INTEGER :: handle, stat, i,ierr
     logical :: failure
 
@@ -142,7 +151,26 @@ CONTAINS
     CALL cp2k_init ( globenv )
     CALL cp_error_init(error)
 
+!FM    ! parse the input
+!FM    nullify(input_structure)
+!FM    CALL create_cp2k_input_structure(input_structure,error=error)
+!FM    IF (globenv%ionode) &
+!FM         CALL input_structure_describe(input_structure,globenv%scr,4,&
+!FM         error=error)
+!FM    NULLIFY(input_file)
+!FM    CALL input_file_create(input_file,input_structure,path=input_file_name,&
+!FM         error=error)
+!FM    CALL input_structure_release(input_structure,error=error)
+!FM    nullify(parser)
+!FM    CALL parser_create(parser,file_name=input_file_name,error=error)
+!FM    CALL section_vals_parse(input_file%root_vals,parser,root_section=.false.,&
+!FM         error=error)
+!FM    CALL parser_release(parser,error=error)
+!FM    IF (globenv%ionode) &
+!FM         CALL input_file_write(input_file,globenv%scr,error=error)
+!FM    CALL input_file_release(input_file,error=error)
 
+    stop "end parsing"
     ! initialize force_env
     SELECT CASE (globenv%program_name)
     CASE ("ATOM")
