@@ -1,6 +1,11 @@
 ! for a given dr() this will provide the bounds to be used if 
 ! one wants to go over a sphere-subregion of given radius
 
+! the computation of the exact sphere radius is sensitive to roundoff (e.g.
+! compiler optimization level) and hence this small roundoff can result in
+! energy difference of about EPS_DEFAULT in QS energies (one gridpoint more or
+! less in the density mapping)
+
 MODULE cube_utils
 
   USE kinds,                           ONLY: dp
@@ -76,7 +81,6 @@ CONTAINS
     TYPE(cube_info_type)                     :: info
     real(KIND=dp)                            :: dr(3), max_radius
     integer                                  :: cmax
-
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
 
@@ -85,6 +89,8 @@ CONTAINS
                                                 kgmin
     real(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
                                                 dz2, dzi, radius, radius2
+    integer :: kgmin_old,jgmin_old,igmin_old
+    integer :: check_1,check_2
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
@@ -105,20 +111,23 @@ CONTAINS
     allocate(info%lb_cube(3,imr),info%ub_cube(3,imr), &
              info%sphere_bounds_count(imr),info%sphere_bounds(imr))
     cmax=0
+    check_1=0
+    check_2=0
 !   count and allocate
     DO i=1,imr
       k=1
       radius=i*drmin 
       radius2=radius**2
-      kgmin=CEILING(-dzi*radius)
+      kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_dp)))
+         jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_dp)))
+          igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
+          check_1=MODULO((kgmin*97+jgmin*37+igmin*113)*check_1,9343)
           k=k+1
          ENDDO
       ENDDO
@@ -132,27 +141,58 @@ CONTAINS
     do i=1,imr 
       k=1
       radius=i*drmin
-      info%lb_cube(:,i)=CEILING(-radius/dr(:))-1 ! take care in case of rounding
-      info%ub_cube(:,i)=1-info%lb_cube(:,i)
+      info%lb_cube(:,i)=-1
       radius2=radius**2
-      kgmin=CEILING(-dzi*radius)
+      kgmin=do_and_hide_it_1(dzi,i,drmin,0.0_dp,0.0_dp,0,0)
+      info%lb_cube(3,i)=MIN(kgmin,info%lb_cube(3,i))
       info%sphere_bounds(i)%p(k)=kgmin
       k=k+1
       DO kg=kgmin,0
          kg2=kg*kg
-         jgmin=CEILING(-dyi*sqrt(max(radius2-kg2*dz2,0.0_dp)))
+         jgmin=do_and_hide_it_1(dyi,i,drmin,dz2,0.0_dp,kg2,0)
+         info%lb_cube(2,i)=MIN(jgmin,info%lb_cube(2,i))
          info%sphere_bounds(i)%p(k)=jgmin
          k=k+1
          DO jg=jgmin,0
           jg2=jg*jg
-          igmin=CEILING(-dxi*sqrt(max(radius2-kg2*dz2-jg2*dy2,0.0_dp)))
+          igmin=do_and_hide_it_1(dxi,i,drmin,dz2,dy2,kg2,jg2)
+          check_2=MODULO((kgmin*97+jgmin*37+igmin*113)*check_2,9343)
+          info%lb_cube(1,i)=MIN(jgmin,info%lb_cube(1,i))
           info%sphere_bounds(i)%p(k)=igmin
           k=k+1
          ENDDO
       ENDDO
+      info%ub_cube(:,i)=1-info%lb_cube(:,i)
     enddo
     cmax=MAXVAL(info%ub_cube)
+    IF (check_1.NE.check_2) THEN 
+        CALL stop_program("init_cube_info"," :-/ irreproducable fp math caused memory corruption")
+    ENDIF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE
+  ! try to hide things from the optimizer, so that we get the same numbers,
+  ! always (this solves the optimisation problems with the intel and nag compiler
+  ! in which the counting loops and execution loops above are executed a different
+  ! number of times, even at -O1
+  FUNCTION do_and_hide_it_1(prefactor,i,drmin,dz2,dy2,kg2,jg2) RESULT(res)
+    INTEGER :: res
+    REAL(KIND=dp) :: prefactor,drmin,dz2,dy2
+    INTEGER :: jg2,kg2,i
+    REAL(KIND=dp), POINTER, DIMENSION(:) :: buf
+    ALLOCATE(buf(4))
+    buf(1)=prefactor
+    buf(2)=drmin
+    buf(3)=dz2
+    buf(4)=dy2
+    res=do_and_hide_it_2(buf,i,jg2,kg2)
+    DEALLOCATE(buf)
+  END FUNCTION do_and_hide_it_1
+  FUNCTION do_and_hide_it_2(buf,i,jg2,kg2) RESULT(res)
+    INTEGER :: res
+    INTEGER :: jg2,kg2,i
+    REAL(KIND=dp), POINTER, DIMENSION(:) :: buf
+    buf(2)=(i*buf(2))**2
+    res = CEILING(-buf(1)*sqrt(max(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
+  END FUNCTION do_and_hide_it_2
 END MODULE
 ! ***************************************************************
