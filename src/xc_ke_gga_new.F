@@ -894,11 +894,11 @@ CONTAINS
            b**2*x)**3/(b*x+SQRT(1+b**2*x**2))**3)-6*a1/(1+a2*x)**3*a2**2+6*a1*x/(1+a2*x)**4*a2**3
 
          fs(ip,4) = t0
-!deb     fs(ip,4) = -2._dbl*p*q*asp*ys*ys+p*q*x*(5._dbl*asp2-x*asp3)*ys*ys - &
-!deb                p*q*w1*ys*ys + 2._dbl*p*q*q*x*asp*w1*ys*ys*ys - &
-!deb                6._dbl*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
-!deb                4._dbl*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
-!deb                6._dbl * a1*a2*a2/(1+a2*x)**4
+!d       fs(ip,4) = -2._dbl*p*q*asp*ys*ys+p*q*x*(5._dbl*asp2-x*asp3)*ys*ys - &
+!d                  p*q*w1*ys*ys + 2._dbl*p*q*q*x*asp*w1*ys*ys*ys - &
+!d                  6._dbl*p*q*q*q*x*x*asp*asp*asp*ys*ys*ys*ys + &
+!d                  4._dbl*p*q*q*ys*ys*ys*(x*asp*asp+x*x*asp*asp2) - &
+!d                  6._dbl * a1*a2*a2/(1+a2*x)**4
       CASE DEFAULT
          CALL stop_program("efactor_t92","Illegal order")
       END SELECT
