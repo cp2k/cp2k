@@ -43,11 +43,13 @@
     </p>
     
     <h2>Fortran Templates</h2>
-    <p>As I missed templates very much I wrote a simple script to be able to do simple templates in fortran.</p>
+    <p>As I missed templates very much I wrote a simple script to be able to do simple templates in fortran (/cp2k/tools/instantiateTemplates.py).</p>
     <ul>
-      <li>it is a simple replace script, it has no conditionals.</li>
+      <li>it is a simple replace script, it has no conditionals, it takes a .instatiation file and creates template instances using a .template file.</li>
+      <li>The instantiation file is a list of dictionaries that give the correspondence 'parameter':'value', using the python syntax (multiline strings can be written using """).</li>
       <li>to be sure not to have name clashes with variable names,... the template parameters are enclosed in square brackets (i.e. "[type1]" is a template parameter)</li>
       <li>file,module, routines,... names should depend on the template parameter, but you cannot, in general, use just [type1] (i.e. calling the module LinkedList_[type1] is not a good idea if [type1]="type(cp_full_matrix_type), pointer"), so you should also have a [nametype1] parameter</li>
+      <li>In the template filename parameter are substitued using "_" in place of "[" and "]" (thus linked_list__nametype_.template becomes linked_list_integer.F if nametype="integer").</li>
       <li>a [use] parameter should also be present to be able to insert module dependencies.</li>
       <li>Pointers and normal types are quite different in fortran, thus you should either choose that the type is always a pointer (or always a non pointer) or make your template much more complex to accomodate the differences between pointer and non pointers.</li>
       <li>You should not get indimidated by the presence of many source files, they are all similar: once you undestand a linkedlist you understand all linked lists.
@@ -59,7 +61,7 @@
     <address><a href="mailto:fawzi@cscs.ch">Mohamed Fawzi (CSCS)</a></address>
     <!-- Created: Mon Sep  2 20:06:34 CEST 2002 -->
     <!-- hhmts start -->
-Last modified: Fri Sep  6 13:50:07 CEST 2002
+Last modified: Fri Sep  6 14:18:29 CEST 2002
 <!-- hhmts end -->
     
   </body>
