@@ -23,7 +23,7 @@
 MODULE velocity_verlet_control
 
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
+                                             force_env_p_type,&
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_qs_force
@@ -69,7 +69,7 @@ SUBROUTINE velocity_verlet ( md_env )
     TYPE(md_environment_type), POINTER       :: md_env
 
     INTEGER                                  :: handle, in_use
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), POINTER          :: force_env_p ( : )
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -78,33 +78,24 @@ SUBROUTINE velocity_verlet ( md_env )
   CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
 
 ! get force environment
-  CALL get_md_env ( md_env, force_env=force_env, simpar=simpar )
+  CALL get_md_env ( md_env, force_env_p=force_env_p, simpar=simpar )
 ! get in_use
-  CALL force_env_get ( force_env, in_use=in_use )
+  CALL force_env_get ( force_env=force_env_p ( 1 ) % force_env, in_use=in_use )
 
   SELECT CASE ( in_use )
   CASE ( use_fist_force )
-    IF ( simpar % pimd_params % beads > 0 ) THEN
-       SELECT CASE ( simpar % ensemble )
-       CASE DEFAULT
-          CALL stop_program ( 'velocity','PIMD not possible' ) 
-       CASE ( 'NVT' )
-    !      CALL nvt_pimd ( md_env )
-       END SELECT
-    ELSE
-       SELECT CASE ( simpar % ensemble )
-       CASE DEFAULT
-          CALL stop_program ( 'velocity_verlet','integrator not implemented')
-       CASE ( 'NVE')
-          CALL nve ( md_env )
-       CASE ( 'NVT')
-          CALL nvt ( md_env )
-       CASE ( 'NPT_I')
-         ! CALL npt_i ( md_env )
-       CASE ( 'NPT_F')
-         ! CALL npt_f ( md_env )
-       END SELECT
-    END IF
+     SELECT CASE ( TRIM ( simpar % ensemble ) )
+     CASE DEFAULT
+        CALL stop_program ( 'velocity_verlet','integrator not implemented')
+     CASE ( 'NVE')
+        CALL nve ( md_env )
+     CASE ( 'NVT')
+        CALL nvt ( md_env )
+     CASE ( 'NPT_I')
+       ! CALL npt_i ( md_env )
+     CASE ( 'NPT_F')
+       ! CALL npt_f ( md_env )
+     END SELECT
   CASE ( use_qs_force )
     SELECT CASE (TRIM(simpar%ensemble))
     CASE ("NVE")

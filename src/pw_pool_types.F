@@ -874,7 +874,6 @@ SUBROUTINE pw_pool_create_cr3d(pw_pool,cr3d,error)
   END IF
 END SUBROUTINE pw_pool_create_cr3d
 !***************************************************************************
-
 !!****f* pw_pool_types/pw_pool_give_back_cr3d [1.0] *
 !!
 !!   NAME

@@ -22,28 +22,35 @@ MODULE pme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
-                                             PW_REALDATA3D,&
-                                             coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_transform_space,&
+  USE coefficient_types,               ONLY: coeff_transform_space,&
                                              coeff_type
-  USE dg_types,                        ONLY: dg_type
+  USE dg_types,                        ONLY: dg_type, dg_get
   USE dgs,                             ONLY: dg_get_patch,&
                                              dg_get_strucfac,&
                                              dg_sum_patch,&
                                              dg_sum_patch_force_3d
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE dg_rho0_types,                   ONLY: dg_rho0_type
+  USE ewald_environment_types,         ONLY: ewald_environment_type, &
+                                             ewald_env_get
+  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
+                                             ewald_pw_get
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_types,                        ONLY: REALSPACE,&
-                                             RECIPROCALSPACE
+  USE pw_pool_types,                   ONLY: pw_pool_type, &
+                                             pw_pool_init_coeff, &
+                                             pw_pool_give_back_coeff
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver,&
                                              pw_integral_a2b
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_grid_allocate,&
                                              rs_grid_deallocate,&
@@ -86,16 +93,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
-                    ewald_param, vg_coulomb, fg_coulomb, pv_g )
+SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
+                          fg_coulomb, vg_coulomb, pv_g )
 
 
-    TYPE(dg_type), INTENT(IN), TARGET        :: dg
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
-    TYPE(cell_type), INTENT(IN)              :: box
-    TYPE(pw_grid_type), INTENT(IN)           :: grid_s, grid_b
-    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+      POINTER                                :: particle_set
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
     REAL(dbl), INTENT(OUT)                   :: vg_coulomb
     REAL(dbl), DIMENSION(:, :), &
       INTENT(OUT), OPTIONAL                  :: fg_coulomb, pv_g
@@ -109,27 +114,44 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
                                                 rhos1, rhos2
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
     TYPE(structure_factor_type)              :: exp_igr
+    TYPE(pw_grid_type), POINTER              :: grid_s, grid_b
+    TYPE ( pw_pool_type ), POINTER          :: pw_big_pool, pw_small_pool
+    TYPE ( dg_type ), POINTER               :: dg
+    TYPE ( dg_rho0_type ), POINTER          :: dg_rho0
+    REAL ( dbl )                            :: alpha, eps0
+    INTEGER                                 :: group
+    TYPE ( cell_type ), POINTER             :: box
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
   CALL timeset ( 'PME', 'I', ' ', handle )
+  CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
+  CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
+                     pw_small_pool=pw_small_pool, cell=box, dg = dg )
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
-  npart = SIZE ( part )
+  grid_b => pw_big_pool % pw_grid
+  grid_s => pw_small_pool % pw_grid
+
+  CALL dg_get ( dg, dg_rho0 = dg_rho0 )
+
+  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * eps0 )
+  npart = SIZE ( particle_set )
 
   CALL structure_factor_allocate ( grid_s % bounds, npart, exp_igr, &
        allocate_centre = .TRUE. )
 
-  CALL coeff_allocate ( rhos1, grid_s, use_data = PW_REALDATA3D )
-  CALL coeff_allocate ( rhos2, grid_s, use_data = PW_REALDATA3D )
+  CALL pw_pool_init_coeff ( pw_small_pool, rhos1, &
+                            use_data = REALDATA3D )
+  CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
+                            use_data = REALDATA3D )
 
   CALL rs_grid_setup ( rden, grid_b, MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( rden )
   rden % r = 0._dbl
 
   IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
-    CALL get_center ( part, box, exp_igr % centre, grid_b % npts )
+    CALL get_center ( particle_set, box, exp_igr % centre, grid_b % npts )
   END IF
 
 !-------------- DENSITY CALCULATION ----------------
@@ -138,12 +160,12 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
   jpart = 0
   DO 
 
-     CALL set_list ( part, npart, exp_igr % centre, p1, p2, rden, &
+     CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, &
           ipart, jpart )
      IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
      ! calculate function on small boxes (we use double packing in FFT)
-     CALL get_patch ( dg, part, exp_igr, box, p1, p2, grid_b, grid_s, &
+     CALL get_patch ( dg, particle_set, exp_igr, box, p1, p2, grid_b, grid_s, &
           rhos1, rhos2 )
 
      ! add boxes to real space grid (big box)
@@ -153,8 +175,9 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
 
   END DO
 
-  CALL coeff_allocate ( rhob_r, grid_b, use_data = PW_REALDATA3D )
-  rhob_r % pw % in_space = REALSPACE
+  CALL pw_pool_init_coeff ( pw_big_pool, rhob_r, &
+                            use_data = REALDATA3D, &
+                            in_space = REALSPACE )
 
   CALL rs_pw_transfer ( rden, rhob_r % pw, "FORWARD" )
 
@@ -164,17 +187,20 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
 
   ! allocate intermediate arrays
   DO i = 1, 3
-     CALL coeff_allocate ( dphi_g ( i ), grid_b, use_data = PW_COMPLEXDATA1D )
-     dphi_g ( i ) % pw % in_space = RECIPROCALSPACE
+     CALL pw_pool_init_coeff ( pw_big_pool, dphi_g ( i ), &
+                               use_data = COMPLEXDATA1D, &
+                               in_space = RECIPROCALSPACE )
   END DO
-  CALL coeff_allocate ( phi_r, grid_b, use_data = PW_REALDATA3D )
-  phi_r % pw % in_space = REALSPACE
+  CALL pw_pool_init_coeff ( pw_big_pool, phi_r, &
+                            use_data = REALDATA3D, &
+                            in_space = REALSPACE )
 
   CALL init_pw_poisson_solver ( box % green )
 
   CALL calculate_hartree ( rhob_r, vg_coulomb, phi_r, dphi_g, h_stress )
 
-  CALL coeff_deallocate ( phi_r )
+  CALL pw_pool_give_back_coeff ( pw_big_pool, phi_r )
+
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -189,7 +215,7 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
          f_stress ( j, i ) = f_stress ( i, j )
       END DO
     END DO
-    ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg % dg_rho0 % zet ( 1 ) ) ** 2
+    ffa = ( 1.0_dbl / fourpi ) * ( 0.5_dbl / dg_rho0 % zet ( 1 ) ) ** 2
     f_stress = -ffa * f_stress
     pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
   ENDIF
@@ -201,11 +227,11 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
 
   DO i = 1, 3
      CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
-     CALL coeff_deallocate ( dphi_g ( i ) )
+     CALL pw_pool_give_back_coeff ( pw_big_pool, dphi_g ( i ) )
      CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, "BACKWARD" )
   END DO
 
-  CALL coeff_deallocate ( rhob_r )
+  CALL pw_pool_give_back_coeff ( pw_big_pool, rhob_r )
 
 !----------------- FORCE CALCULATION ----------------
 
@@ -218,11 +244,11 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
     jpart = 0
     DO
 
-       CALL set_list ( part, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
+       CALL set_list ( particle_set, npart, exp_igr % centre, p1, p2, rden, ipart, jpart )
        IF ( p1 == 0 .AND. p2 == 0 ) EXIT
 
      ! calculate function on small boxes (we use double packing in FFT)
-       CALL get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
+       CALL get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
 
      ! sum boxes on real space grids (big box)
        CALL dg_sum_patch_force_3d ( drpot, rhos1, exp_igr % centre ( :, p1 ), fat )
@@ -243,8 +269,8 @@ SUBROUTINE pme_evaluate ( dg, part, box, grid_s, grid_b, &
 !------------------CLEANING UP ----------------------
 
   CALL rs_grid_deallocate ( drpot ( 1 : 3 ) )
-  CALL coeff_deallocate ( rhos1 )
-  CALL coeff_deallocate ( rhos2 )
+  CALL pw_pool_give_back_coeff ( pw_small_pool, rhos1 )
+  CALL pw_pool_give_back_coeff ( pw_small_pool, rhos2 )
   CALL structure_factor_deallocate ( exp_igr )
   CALL cleanup_pw_poisson_solver ( box % green )
 
@@ -271,13 +297,13 @@ END SUBROUTINE pme_evaluate
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
+SUBROUTINE get_patch ( dg, particle_set, exp_igr, box, p1, p2, &
            grid_b, grid_s, rhos1, rhos2 )
 
 
-    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(dg_type), POINTER                   :: dg
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
+      POINTER                                :: particle_set
     TYPE(structure_factor_type)              :: exp_igr
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, INTENT(IN)                      :: p1, p2
@@ -290,14 +316,16 @@ SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
     REAL(dbl), DIMENSION(3)                  :: r1, r2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
+    TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
 
 !------------------------------------------------------------------------------
 
-  rho0 => dg % dg_rho0 % density
+  CALL dg_get ( dg, dg_rho0 = dg_rho0 )
+  rho0 => dg_rho0 % density
 
-  r1 = part ( p1 ) % r
+  r1 = particle_set ( p1 ) % r
   
-  atomic_kind => part (p1) % atomic_kind
+  atomic_kind => particle_set (p1) % atomic_kind
   CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
 
   center1 => exp_igr % centre ( :, p1 )
@@ -308,8 +336,8 @@ SUBROUTINE get_patch ( dg, part, exp_igr, box, p1, p2, &
        exp_igr % lb, ex1, ey1, ez1 )
 
   IF ( p2 /= 0 ) THEN
-     r2 = part ( p2 ) % r
-     atomic_kind => part (p2) % atomic_kind
+     r2 = particle_set ( p2 ) % r
+     atomic_kind => particle_set (p2) % atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
      center2 => exp_igr % centre ( :, p2 )
      ex2 => exp_igr % ex ( :, p2 )
@@ -330,12 +358,12 @@ END SUBROUTINE get_patch
 
 !******************************************************************************
 
-SUBROUTINE get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
+SUBROUTINE get_patch_again ( dg, particle_set, exp_igr, p1, p2, rhos1, rhos2 )
 
 
-    TYPE(dg_type), INTENT(IN), TARGET        :: dg
+    TYPE(dg_type), POINTER       :: dg
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
+      POINTER                              :: particle_set
     TYPE(structure_factor_type)              :: exp_igr
     INTEGER, INTENT(IN)                      :: p1, p2
     TYPE(coeff_type)                         :: rhos1, rhos2
@@ -344,19 +372,21 @@ SUBROUTINE get_patch_again ( dg, part, exp_igr, p1, p2, rhos1, rhos2 )
     REAL(dbl)                                :: q1, q2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type), POINTER                :: rho0
+    TYPE ( dg_rho0_type ), POINTER           :: dg_rho0 
 
 !------------------------------------------------------------------------------
 
-  rho0 => dg % dg_rho0 % density
+  CALL dg_get ( dg, dg_rho0 = dg_rho0 )
+  rho0 => dg_rho0 % density
 
-  atomic_kind => part (p1) % atomic_kind
+  atomic_kind => particle_set (p1) % atomic_kind
   CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q1) 
   ex1 => exp_igr % ex ( :, p1 )
   ey1 => exp_igr % ey ( :, p1 )
   ez1 => exp_igr % ez ( :, p1 )
 
   IF ( p2 /= 0 ) THEN
-     atomic_kind => part (p2) % atomic_kind
+     atomic_kind => particle_set (p2) % atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,qeff=q2) 
      ex2 => exp_igr % ex ( :, p2 )
      ey2 => exp_igr % ey ( :, p2 )
@@ -391,11 +421,11 @@ END SUBROUTINE get_patch_again
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
+SUBROUTINE set_list ( particle_set, npart, center, p1, p2, rs, ipart, jpart )
 
 
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
+      POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: npart
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: center
     INTEGER, INTENT(OUT)                     :: p1, p2
@@ -423,7 +453,7 @@ SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
   DO
     ipart = ipart + 1
     IF ( ipart > npart ) EXIT
-    atomic_kind => part ( ipart ) % atomic_kind
+    atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
     IF ( charge == 0._dbl ) CYCLE
     IF ( rs % parallel ) THEN
@@ -451,7 +481,7 @@ SUBROUTINE set_list ( part, npart, center, p1, p2, rs, ipart, jpart )
   DO
     ipart = ipart + 1
     IF ( ipart > npart ) EXIT
-    atomic_kind => part ( ipart ) % atomic_kind
+    atomic_kind => particle_set ( ipart ) % atomic_kind
     CALL get_atomic_kind ( atomic_kind=atomic_kind, qeff=charge )
     IF ( charge == 0._dbl ) CYCLE
     IF ( rs % parallel ) THEN
@@ -498,11 +528,11 @@ END FUNCTION in_slice
 !!*****
 !******************************************************************************
 
-SUBROUTINE get_center ( part, box, centre, npts )
+SUBROUTINE get_center ( particle_set, box, centre, npts )
 
 
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
+      POINTER                             :: particle_set
     TYPE(cell_type), INTENT(IN)              :: box
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
@@ -512,9 +542,9 @@ SUBROUTINE get_center ( part, box, centre, npts )
 
 !------------------------------------------------------------------------------
 
-  DO ipart = 1, SIZE ( part )
+  DO ipart = 1, SIZE ( particle_set )
     ! compute the scaled coordinate of atomi
-    s = MATMUL ( box % h_inv, part ( ipart ) % r )
+    s = MATMUL ( box % h_inv, particle_set ( ipart ) % r )
     s = s - NINT ( s )
     ! find the closest grid point (on big grid)
     centre ( :, ipart ) = NINT ( REAL ( npts ( 1:3 ), dbl ) * s ( 1:3 ) )

@@ -23,51 +23,30 @@ MODULE pair_potential
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE erf_fn,                          ONLY: erfc
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type
-  USE kinds,                           ONLY: dbl
+  USE ewald_environment_types,         ONLY: ewald_environment_type, &
+                                             ewald_env_get
+  USE kinds,                           ONLY: dbl, default_string_length
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: pair_potential_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
                                              kill_spline,&
                                              spline_data,&
-                                             splineh
+                                             splineh, &
+                                             spline_environment_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: get_potrange, potential_f, potential_s
+  PUBLIC :: potential_f, potential_s
   PUBLIC :: spline_nonbond_control
-
-! look-up table (i,j)->n
-  INTEGER, DIMENSION ( :, : ), ALLOCATABLE, SAVE :: spltab
-
-! splines for interaction n
-  TYPE ( spline_data ), DIMENSION ( : ), POINTER, SAVE :: spline_table
 
 !!*****
 !******************************************************************************
 
 CONTAINS
-
-!******************************************************************************
-
-FUNCTION get_potrange ( potparm ) RESULT ( potrange )
-
-
-! Result
-    TYPE(pair_potential_type), &
-      DIMENSION(:, :), INTENT(IN)            :: potparm
-    REAL(dbl)                                :: potrange
-
-!------------------------------------------------------------------------------
-
-  potrange = MAXVAL( abs ( potparm ( :, : ) % rcutsq ) )
-  potrange = SQRT ( potrange )
-
-END FUNCTION get_potrange
 
 !******************************************************************************
 
@@ -101,23 +80,27 @@ END FUNCTION ener_pot
 
 !******************************************************************************
 
-FUNCTION ener_coul ( pot, qi, qj, r, ewald_param )
+FUNCTION ener_coul ( pot, qi, qj, r, ewald_env )
 
 
     TYPE(pair_potential_type), INTENT(IN)    :: pot
     REAL(dbl), INTENT(IN)                    :: qi, qj, r
-    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(dbl)                                :: ener_coul
 
     REAL(dbl), PARAMETER :: eps = 1.0E-6_dbl, &
       ifourpi = 1.0_dbl / ( 4.0_dbl * pi )
+    CHARACTER ( len = default_string_length ) :: ewald_type
+    REAL ( dbl ) :: eps0, alpha
 
 !------------------------------------------------------------------------------
 
-  SELECT CASE( ewald_param % ewald_type )
+  CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
+                       ewald_type = ewald_type ) 
+  SELECT CASE(  ewald_type )
   CASE( 'EWALD', 'PME', 'SPME' )
-     ener_coul = ifourpi / ewald_param % eps0 * qi * qj &
-          * erfc ( ewald_param % alpha * r ) / r - pot % e_cutoff_coul
+     ener_coul = ifourpi / eps0 * qi * qj &
+          * erfc ( alpha * r ) / r - pot % e_cutoff_coul
   CASE( 'NONE')
      ener_coul= 0._dbl
   END SELECT
@@ -128,25 +111,32 @@ END FUNCTION ener_coul
 
 ! creates the splines for the potentials
 
-SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_param )
+SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
 
 
-    TYPE(pair_potential_type), &
-      DIMENSION(:, :), INTENT(INOUT)         :: potparm
+    TYPE ( spline_environment_type ), INTENT ( INOUT ) :: spline_env 
     TYPE(atomic_kind_type), DIMENSION(:), &
-      INTENT(IN), TARGET                     :: atomic_kind_set
-    INTEGER, INTENT(IN)                      :: npoints
-    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+      POINTER                                 :: atomic_kind_set
+    TYPE(ewald_environment_type), POINTER     :: ewald_env
 
     INTEGER                                  :: i, isos, j, jx, n, ntab, ntype
+    INTEGER                                  :: npoints
     LOGICAL, SAVE                            :: first_visit = .TRUE.
     REAL(dbl)                                :: a, cutmax, cutmin, dx2, e, &
                                                 hicut, locut, qi, qj, x, x2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER, POINTER, DIMENSION ( :, : )     :: spltab
+    TYPE ( spline_data ), POINTER, DIMENSION ( : )     :: spline_table
+    TYPE ( pair_potential_type ), POINTER, DIMENSION ( :, : )     :: potparm
 
 !------------------------------------------------------------------------------
 
-  ntype = SIZE ( potparm, 1 )
+  spltab => spline_env % spltab
+  potparm => spline_env % potparm
+  spline_table => spline_env % spline_table
+  npoints = spline_env % nspline_points
+
+  ntype = SIZE ( atomic_kind_set )
   ntab = ( ntype * ntype + ntype ) / 2
 
   IF ( first_visit ) THEN
@@ -172,7 +162,7 @@ SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_par
      NULLIFY ( spline_table(i) % y )
      NULLIFY ( spline_table(i) % y2 )
   END DO
-  IF ( ALLOCATED ( spltab ) ) THEN
+  IF ( ASSOCIATED ( spltab ) ) THEN
      DEALLOCATE ( spltab, STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'spline_nonbond_control', 'spltab' )
   END IF
@@ -212,7 +202,7 @@ SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_par
 
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
         potparm(i,j) %e_cutoff_coul &
-             = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_param )
+             = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
         potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul
 
@@ -221,7 +211,7 @@ SUBROUTINE spline_nonbond_control ( potparm, atomic_kind_set, npoints, ewald_par
         DO jx = 1, npoints + 1 ! jx: loop over distance**2
            x = SQRT ( x2 )
            e = ener_pot ( potparm ( i, j ), qi, qj, x ) &
-                + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_param )
+                + ener_coul ( potparm ( i, j ), qi, qj, x, ewald_env )
            spline_table(n) %x(jx) = x2
            spline_table(n) %y(jx) = e
            x2 = x2 + dx2
@@ -239,12 +229,14 @@ END SUBROUTINE spline_nonbond_control
 !     calculates energy=V(r^2) and fscalar=-V^{prime}(r^2)/r
 !     qi,qj are not used any more. only kept to have same args as potential()
 
-SUBROUTINE potential_s ( rijsq, iatom, jatom, energy, fscalar )
+SUBROUTINE potential_s ( spline_table, spltab, rijsq, iatom, jatom, energy, fscalar )
 
 
     REAL(dbl), INTENT(IN)                    :: rijsq
     INTEGER, INTENT(IN)                      :: iatom, jatom
     REAL(dbl), INTENT(OUT)                   :: energy, fscalar
+    INTEGER, INTENT ( IN ), DIMENSION ( :, : ) :: spltab
+    TYPE ( spline_data ), INTENT ( IN ), DIMENSION ( : ) :: spline_table
 
 !------------------------------------------------------------------------------
 
@@ -256,7 +248,7 @@ END SUBROUTINE potential_s
 !******************************************************************************
 
 SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
-     ewald_param )
+     ewald_env )
 
 
     REAL(dbl), INTENT(IN)                    :: rijsq
@@ -265,8 +257,8 @@ SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
     REAL(dbl), INTENT(IN)                    :: qi, qj
     INTEGER, INTENT(IN)                      :: iatom, jatom
     REAL(dbl), INTENT(OUT)                   :: energy
-    TYPE(ewald_parameters_type), &
-      INTENT(IN), OPTIONAL                   :: ewald_param
+    TYPE(ewald_environment_type), &
+      POINTER, OPTIONAL                      :: ewald_env
 
     REAL(dbl)                                :: rij
 
@@ -278,9 +270,9 @@ SUBROUTINE potential_f ( rijsq, potparm, qi, qj, iatom, jatom, energy, &
   energy = ener_pot ( potparm ( iatom, jatom ), qi, qj, rij )
 
 ! real-space ewald non-bond energy
-  IF ( PRESENT ( ewald_param ) ) THEN
+  IF ( PRESENT ( ewald_env ) ) THEN
      energy = energy &
-          + ener_coul ( potparm ( iatom, jatom ), qi, qj, rij, ewald_param )
+          + ener_coul ( potparm ( iatom, jatom ), qi, qj, rij, ewald_env )
   END IF
 
 END SUBROUTINE potential_f

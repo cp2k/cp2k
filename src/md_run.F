@@ -48,7 +48,8 @@ MODULE md_run
                                              lnhc_parameters_type
   USE force_env_methods,               ONLY: force_env_calculate_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_p_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
@@ -61,16 +62,14 @@ MODULE md_run
   USE md,                              ONLY: initialize_velocities,&
                                              mdio_parameters_type,&
                                              read_md_section,&
-                                             simulation_parameters_type,&
-                                             virial_type
-  USE md_energies,                     ONLY: md_energy_qs,&
-                                             set_qs_energies
+                                             simulation_parameters_type
+  USE md_energies,                     ONLY: md_energy,&
+                                             set_energies
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_env_create,&
                                              md_env_release,&
                                              md_environment_type,&
-                                             set_md_env,&
-                                             zero_virial
+                                             set_md_env
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
@@ -95,14 +94,40 @@ MODULE md_run
 
   PUBLIC :: qs_mol_dyn
 
+  INTERFACE qs_mol_dyn
+     MODULE PROCEDURE qs_mol_dyn1, qs_mol_dyn2
+  END INTERFACE
+
 !!***
 ! *****************************************************************************
 
 CONTAINS
 
 ! *****************************************************************************
+  SUBROUTINE qs_mol_dyn1 ( force_env, globenv, error )
 
-  SUBROUTINE qs_mol_dyn ( force_env, globenv, error )
+    TYPE(force_env_type), POINTER  :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
+    INTEGER :: stat
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn1", &
+      routineP = module_name//':'//routine_name
+
+    ALLOCATE(force_env_p(1), stat=stat)
+    CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
+    force_env_p(1)%force_env => force_env
+    CALL qs_mol_dyn2 ( force_env_p, globenv, error )
+    DEALLOCATE(force_env_p, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  
+  END SUBROUTINE qs_mol_dyn1
+
+! *****************************************************************************
+
+  SUBROUTINE qs_mol_dyn2 ( force_env_p, globenv, error )
 
 !   Purpose: Driver routine for MD run using QUICKSTEP.
 
@@ -110,16 +135,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn", &
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_mol_dyn2", &
       routineP = module_name//':'//routine_name
 
     INTEGER                                  :: handle, i, iset, istat, &
-                                                istep, isubsys
+                                                istep, isubsys, ibead, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: md_run_start_time, &
@@ -141,7 +166,6 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(virial_type), POINTER               :: virial
 
 !   ---------------------------------------------------------------------------
 
@@ -154,50 +178,54 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              simpar,virial,itimes,used_time,subsys,nhc_part,nhc_baro)
+              simpar,itimes,used_time,subsys,nhc_part,nhc_baro)
     NULLIFY (md_env,molecule_kinds_new, molecules_new)
 
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+    nbeads = SIZE ( force_env_p )
+    DO i = 1, nbeads
+      CPPrecondition ( ASSOCIATED ( force_env_p ( i ) % force_env ), cp_failure_level,routineP,error,failure)
+    END DO
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
                                      "simpar",0)
-    ALLOCATE (virial,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                     "virial",0)
-    CALL zero_virial(virial)
-
-    CALL read_md_section(simpar,globenv,mdio)
+    CALL read_md_section ( simpar, globenv, mdio )
     simpar%program = globenv%program_name
 
-    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
-                       dyn_coeff_set=dyn_coeff_set, error=error)
-
-    !FM probably in some cases it might also be good to connect the same
-    !FM termostat to different subsystems (add a way in the input to specify 
-    !FM this?)
-    ALLOCATE (extended_type%nhc_part(SIZE(subsys)),STAT=istat)
+!    CALL force_env_get(force_env,subsys=subsys, cell=cell,&
+!                       dyn_coeff_set=dyn_coeff_set, error=error)
+!    !FM probably in some cases it might also be good to connect the same
+!    !FM termostat to different subsystems (add a way in the input to specify 
+!    !FM this?)
+!    ALLOCATE (extended_type%nhc_part(SIZE(subsys)),STAT=istat)
+    ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (extended_type%nhc_baro(SIZE(subsys)),STAT=istat)
+    ALLOCATE (extended_type%nhc_baro(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    ! Define a reference cell for compatibility with MD restarts
-    cell_ref => cell
+! loop over number of beads
+    DO ibead = 1, nbeads
 
-    DO isubsys=1,SIZE(subsys)
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            local_molecules_new=local_molecules,&
-            molecule_kinds_new=molecule_kinds_new,&
-            molecules_new=molecules_new,&
-            error=error)
-       CALL initialize_nhc_part(cell,simpar,local_molecules, &
-                                molecules_new%els, molecule_kinds_new%els,&
-                                globenv, extended_type%nhc_part(isubsys))
-       CALL initialize_nhc_baro(simpar,globenv,&
-                                extended_type%nhc_baro(isubsys))
-    END DO
-    CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
+      CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
+                          cell=cell, error=error )
+
+! Define a reference cell for compatibility with MD restarts
+      cell_ref => cell
+
+      DO isubsys=1,SIZE(subsys)
+         CALL cp_subsys_get(subsys(isubsys)%subsys,&
+              local_molecules_new=local_molecules,&
+              molecule_kinds_new=molecule_kinds_new,&
+              molecules_new=molecules_new,&
+              error=error)
+         CALL initialize_nhc_part(cell,simpar,local_molecules, &
+                                  molecules_new%els, molecule_kinds_new%els,&
+                                  globenv, extended_type%nhc_part(ibead))
+         CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead))
+      END DO
+      CALL initialize_npt_type(simpar,globenv,extended_type%npt_info,cell)
 
 ! initialize coef thermostats and setup coefficient forces, velocities and effective masses
     IF (ASSOCIATED(dyn_coeff_set)) THEN
@@ -212,84 +240,85 @@ CONTAINS
     END IF
 
 ! initialize velocities and read restart files if needed
-    SELECT CASE ( simpar % read_type )
-    CASE ( 'INIT' )
-       DO isubsys=1,SIZE(subsys)
+      SELECT CASE ( simpar % read_type )
+      CASE ( 'INIT' )
+         DO isubsys=1,SIZE(subsys)
+            CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                 particles=particles,&
+                 error=error)
+            CALL initialize_velocities ( simpar, &
+                 particles%els, globenv )
+         END DO
+      CASE ( 'POS' )
+!FM should be adapted to the existence of many fragments
+         CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+         isubsys=1
+         CALL cp_subsys_get(subsys(isubsys)%subsys,&
+              particles=particles,&
+              error=error)
+         nhc_part => extended_type%nhc_part(ibead)
+         nhc_baro => extended_type%nhc_baro(ibead)
+         CALL read_md_restart ( simpar % read_type, globenv,   &
+              particles%els, cell, cell_ref,  &
+              nhc_part, nhc_baro, extended_type%npt_info )
+         CALL initialize_velocities ( simpar, particles%els, globenv )
+      CASE DEFAULT
+!FM should be adapted to the existence of many fragments
+         CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+          isubsys=1
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
                particles=particles,&
                error=error)
-          CALL initialize_velocities ( simpar, &
-               particles%els, globenv )
-       END DO
-    CASE ( 'POS' )
-       !FM should be adapted to the existence of many fragments
-       CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-       isubsys=1
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles,&
-            error=error)
-       nhc_part => extended_type%nhc_part(isubsys)
-       nhc_baro => extended_type%nhc_baro(isubsys)
-       CALL read_md_restart ( simpar % read_type, globenv,   &
-            particles%els, cell, cell_ref,  &
-            nhc_part, &
-            nhc_baro, extended_type%npt_info )
-       CALL initialize_velocities ( simpar, particles%els, globenv )
-    CASE DEFAULT
-       !FM should be adapted to the existence of many fragments
-       CPPrecondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
-       isubsys=1
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles,&
-            error=error)
-       nhc_part => extended_type%nhc_part(isubsys)
-       nhc_baro => extended_type%nhc_baro(isubsys)
-       CALL read_md_restart ( simpar % read_type, globenv,   &
+          nhc_part => extended_type%nhc_part(ibead)
+          nhc_baro => extended_type%nhc_baro(ibead)
+          CALL read_md_restart ( simpar % read_type, globenv,   &
                               particles%els, &
                               cell, cell_ref,  &
                               nhc_part, &
                               nhc_baro, &
                               extended_type%npt_info )
-    END SELECT
+       END SELECT
 
-    DO isubsys=1,SIZE(subsys)
-      nhc_part => extended_type%nhc_part(isubsys)
-      nhc_baro => extended_type%nhc_baro(isubsys)
-      CALL initialize_nhc_forces ( nhc_part=nhc_part, nhc_baro=nhc_baro )
-    END DO
+       nhc_part => extended_type%nhc_part(ibead)
+       nhc_baro => extended_type%nhc_baro(ibead)
+       CALL initialize_nhc_forces ( nhc_part=nhc_part, nhc_baro=nhc_baro )
 
-    DO isubsys=1,SIZE(subsys)
-       CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles,&
-            local_molecules_new=local_molecules, error=error)
-    END DO
+       DO isubsys=1,SIZE(subsys)
+          CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                             particles=particles,&
+                             local_molecules_new=local_molecules, &
+                             error=error)
+       END DO
+! end loop over number of beads
+    END DO 
 
     CALL md_env_create ( md_env, globenv % para_env, error = error )
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
-                    virial=virial,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
                     cell=cell,&
-                    force_env=force_env)
+                    force_env_p=force_env_p)
 
     IF (ASSOCIATED(dyn_coeff_set)) THEN
-       CALL set_md_env(md_env, nhc_coef=extended_type%nhc_coef)
+       CALL set_md_env( md_env, nhc_coef=extended_type%nhc_coef)
     END IF
 
     CALL set_integrator ( globenv )
 
-    CALL set_qs_energies ( globenv, mdio )
+    CALL set_energies ( globenv, mdio )
     ! the verlet integrator needs to be started with the correct forces alreay initialized
 
     time_iter_start=m_walltime()
 
-    CALL get_md_env ( md_env, force_env=force_env, itimes = itimes, &
+    CALL get_md_env ( md_env, force_env_p=force_env_p, itimes = itimes, &
                       used_time = used_time ) 
-    CALL force_env_calculate_force ( force_env )
-    CALL md_energy_qs ( md_env ) ! inits the print env at itimes == 0
+    DO ibead = 1, nbeads
+       CALL force_env_calculate_force ( force_env_p(ibead)%force_env )
+    END DO
+    CALL md_energy ( md_env ) ! inits the print env at itimes == 0
 
     DO istep=1,simpar%nsteps
       CALL velocity_verlet(md_env)
@@ -298,13 +327,13 @@ CONTAINS
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
-      CALL md_energy_qs(md_env)
+      CALL md_energy ( md_env )
       IF (MODULO(itimes,mdio%idump) == 0) THEN
         CALL dump_variables(md_env,mdio%dump_file_name,error)
       END IF
 
       ! test for EXIT_MD to exit
-      CALL external_control(force_env,should_stop,error=error)
+      CALL external_control(force_env_p,should_stop,error=error)
       IF (should_stop) EXIT
 
       ! test if we have used more walltime than allowed      
@@ -321,18 +350,18 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  END SUBROUTINE qs_mol_dyn
+  END SUBROUTINE qs_mol_dyn2
 
 ! *****************************************************************************
 
   SUBROUTINE temperature_control(simpar,force_env,error)
 
-    !   Purpose: Perform all temperature manipulations during a QS MD run.
+!   Purpose: Perform all temperature manipulations during a QS MD run.
 
-    !   History: - Creation (15.09.2003,MK)
-    !            - adapted to force_env (05.10.2003,fawzi)
+!   History: - Creation (15.09.2003,MK)
+!            - adapted to force_env (05.10.2003,fawzi)
 
-    !   ***************************************************************************
+!   ***************************************************************************
 
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -446,7 +475,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE external_control(force_env,should_stop,error)
+  SUBROUTINE external_control(force_env_p,should_stop,error)
 
 !   Purpose: External manipulations during an MD run.
 
@@ -454,7 +483,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
     LOGICAL, INTENT(OUT)                     :: should_stop
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -471,7 +500,7 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
     failure=.FALSE.
-    CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
     logger => cp_error_get_logger(error)
     should_stop = .FALSE.

@@ -10,7 +10,7 @@ MODULE cp2k_runs
   USE atom_module,                     ONLY: atomic_code
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init
-!  USE fist_main,                       ONLY: fist
+  USE fist_main,                       ONLY: fist_create_force_env
   USE global_types,                    ONLY: global_environment_type
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_string_length, &
@@ -28,6 +28,7 @@ MODULE cp2k_runs
   USE force_env_methods,               ONLY: force_env_calculate_energy
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_release,&
+                                             force_env_p_type,&
                                              force_env_set
   USE cp_log_handling,                 ONLY: cp_logger_type, &
                                              cp_failure_level, &
@@ -111,8 +112,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_run",&
                                    routineP=moduleN//':'//routineN  
 
-    TYPE(global_environment_type), pointer :: globenv
+    TYPE(global_environment_type), pointer :: globenv, para_env_p ( : )
     TYPE(cp_error_type) :: error
+    TYPE(force_env_p_type), pointer :: force_env_p ( : )
     TYPE(force_env_type), pointer :: force_env
     TYPE(meta_env_type), pointer :: meta_env
     INTEGER :: handle, stat, i,ierr
@@ -121,7 +123,7 @@ CONTAINS
     ! -----------------------------------------------------------------------------
     cp2k_run_OK = .FALSE.
     failure=.false.
-    NULLIFY(globenv, force_env )
+    NULLIFY(globenv, force_env, force_env_p, para_env_p )
     ALLOCATE(globenv,stat=stat)
     IF (stat/=0) STOP "cp2k:cp2k, glob_env allocation"
 
@@ -131,21 +133,22 @@ CONTAINS
     globenv%input_file_name=input_file_name
 
     ! generate all dependent info in globenv
-    CALL cp2k_init(globenv)
-    call cp_error_init(error)
+    CALL cp2k_init ( globenv )
+    CALL cp_error_init(error)
+
 
     ! initialize force_env
     SELECT CASE (globenv%program_name)
     CASE ("ATOM")
-       CALL atomic_code(globenv)
+       CALL atomic_code ( globenv )
     CASE ("FARMING")
-       CALL farming_run(globenv,error)
+       CALL farming_run ( globenv, error )
     CASE ("FIST")
-  !     CALL fist(globenv)
+      CALL fist_create_force_env ( force_env, globenv,  error = error )
     CASE ("KG")
-       CALL kg_create_force_env(force_env, globenv, error=error)
+      CALL kg_create_force_env ( force_env, globenv, error=error)
     CASE ("QS")
-       CALL quickstep_create_force_env(force_env, globenv, error=error)
+      CALL quickstep_create_force_env(force_env, globenv, error=error)
     CASE ("TRAJANA")
        CALL trajana(globenv)
     CASE ("QMMM")
@@ -190,6 +193,18 @@ CONTAINS
                error,failure)
          END SELECT
          CALL force_env_release(force_env, error=error)
+       ELSE IF ( globenv % program_name == "FIST" ) THEN
+          SELECT CASE (globenv%run_type)
+          CASE ("MOLECULAR DYNAMICS")
+             CALL qs_mol_dyn ( force_env, globenv, error=error )
+          CASE ( "GEOMETRY OPTIMIZATION" )
+             CALL qs_geo_opt(force_env,globenv,error=error)
+          CASE ( "MONTE CARLO" )
+             CALL qs_mon_car ( force_env, globenv, error=error )
+!         CASE ( "DEBUG" )
+!            CALL fist_debug ( force_env, error = error )
+          END SELECT
+          CALL force_env_release(force_env, error=error)
 #if defined(__HMD)
          IF (globenv%ionode) CALL _dump_allocated(%VAL(0))
 #endif

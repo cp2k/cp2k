@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****h* cp2k/splines [1.0] *
 !!
 !!   NAME
@@ -21,13 +22,31 @@
 
 MODULE splines
 
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dbl
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE pair_potential_types,            ONLY: pair_potential_type
 
   IMPLICIT NONE
 
   PRIVATE
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='fist_environment_types'
+  INTEGER, PRIVATE, SAVE :: last_spline_env_id_nr=0
+
+  PUBLIC :: spline_env_release, spline_env_retain, spline_env_set, &
+            spline_environment_type
+  PUBLIC :: spline_env_create
   PUBLIC :: spline_data      ! the data structure for splines
   PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
   PUBLIC :: init_spline      ! generate table for spline (allocates y2)
@@ -76,10 +95,177 @@ MODULE splines
      REAL ( dbl )          :: xn          ! end x value if uniform incr.
   END TYPE spline_data
 
+  TYPE spline_environment_type
+     INTEGER :: ref_count, id_nr
+     TYPE ( spline_data ), POINTER, DIMENSION ( : ) :: spline_table
+     TYPE ( pair_potential_type ), POINTER, DIMENSION ( :, : ) :: potparm
+     INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
+     INTEGER  :: nspline_points
+  END TYPE spline_environment_type
 !******************************************************************************
 !!*****
 
 CONTAINS
+
+!******************************************************************************
+!!****
+!!****s* splines/spline_env_set [1.0] *
+!!
+!!   NAME
+!!     spline_env_set
+!!
+!!   FUNCTION
+!!     set spline_env
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_env_set ( spline_env, potparm, spline_table, spltab,  &
+                            nspline_points, error)
+  TYPE(spline_environment_type), POINTER :: spline_env
+  TYPE ( pair_potential_type ), POINTER, OPTIONAL :: potparm ( :, : )
+  TYPE ( spline_data ), POINTER, OPTIONAL :: spline_table ( : )
+  INTEGER, POINTER, OPTIONAL :: spltab ( :, : )
+  INTEGER, OPTIONAL :: nspline_points
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN='spline_env_set',&
+       routineP=moduleN//':'//routineN
+
+  IF ( PRESENT ( potparm ) ) spline_env % potparm => potparm
+  IF ( PRESENT ( spline_table ) ) spline_env % spline_table => spline_table
+  IF ( PRESENT ( spltab ) ) spline_env % spltab => spltab
+  IF ( PRESENT ( nspline_points ) ) spline_env % nspline_points = nspline_points
+END SUBROUTINE spline_env_set
+!******************************************************************************
+!!****
+!!****s* splines/spline_env_release [1.0] *
+!!
+!!   NAME
+!!     spline_env_release
+!!
+!!   FUNCTION
+!!     releases spline_env
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-19-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_env_release(spline_env,error)
+  TYPE(spline_environment_type), POINTER :: spline_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_env_release',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: i, stat
+  failure=.FALSE.
+
+  IF (ASSOCIATED(spline_env)) THEN
+     CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     spline_env%ref_count=spline_env%ref_count-1
+     IF (spline_env%ref_count<1) THEN
+        DEALLOCATE (  spline_env % spltab, stat = stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DO i = 1, SIZE (  spline_env % spline_table )
+          CALL kill_spline ( spline_env % spline_table ( i )  )
+        END DO
+        DEALLOCATE (  spline_env % spline_table, stat = stat )
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DEALLOCATE ( spline_env % potparm, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        NULLIFY ( spline_env % spltab )
+        NULLIFY ( spline_env % spline_table )
+        NULLIFY ( spline_env % potparm ) 
+     END IF
+  END IF
+  NULLIFY ( spline_env )
+END SUBROUTINE spline_env_release
+!***************************************************************************
+
+!******************************************************************************
+!!****
+!!****s* splines/spline_env_retain [1.0] *
+!!
+!!   NAME
+!!     spline_env_retain
+!!
+!!   FUNCTION
+!!     retains spline_env
+!!    
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-19-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_env_retain(spline_env,error)
+  TYPE(spline_environment_type), POINTER :: spline_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+ 
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_env_retain',&
+        routineP=moduleN//':'//routineN
+  failure=.FALSE.
+!!  
+  CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+     spline_env%ref_count=spline_env%ref_count+1
+  END IF
+END SUBROUTINE spline_env_retain
+
+!******************************************************************************
+!!****
+!!****s* splines/spline_env_create [1.0] *
+!!
+!!   NAME
+!!     spline_env_create
+!!
+!!   FUNCTION
+!!     Data-structure that holds all needed information about
+!!     a specific spline interpolation.
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-19-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE spline_env_create ( spline_env, error )
+  TYPE(spline_environment_type), POINTER :: spline_env
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='spline_env_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  
+  ALLOCATE(spline_env, stat=stat)
+  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+    spline_env%ref_count=1
+    last_spline_env_id_nr=last_spline_env_id_nr+1
+    spline_env%id_nr=last_spline_env_id_nr
+    NULLIFY ( spline_env % spline_table )
+    NULLIFY ( spline_env % spltab )
+    NULLIFY ( spline_env % potparm )
+    spline_env % nspline_points = 2500
+  END IF
+END SUBROUTINE spline_env_create
 
 !******************************************************************************
 !!****m* splines/init_splinexy [1.0] *

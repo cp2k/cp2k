@@ -38,10 +38,9 @@ MODULE md_environment_types
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_retain,&
-                                             force_env_type
+                                             force_env_p_type
   USE kinds,                           ONLY: dbl
-  USE md,                              ONLY: simulation_parameters_type,&
-                                             virial_type
+  USE md,                              ONLY: simulation_parameters_type
   USE simulation_cell,                 ONLY: cell_type
 !USE termination,                     ONLY: stop_memory
 
@@ -56,26 +55,24 @@ MODULE md_environment_types
 
   TYPE md_environment_type
      PRIVATE
-     INTEGER :: id_nr, ref_count, in_use
+     INTEGER :: id_nr, ref_count
      TYPE (cp_para_env_type), POINTER :: para_env 
      INTEGER, POINTER :: itimes
      REAL ( dbl ), POINTER  :: used_time
      REAL ( dbl ), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
-     TYPE ( force_env_type ), POINTER :: force_env  !? should this also be an array for PIMD
+     TYPE ( force_env_p_type ), POINTER :: force_env_p ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_coef ( : )
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_baro ( : )
      TYPE ( npt_info_type ), POINTER :: npt ( :, : )
-   !  TYPE ( pimd_environment_type ), POINTER :: pimd_env
      TYPE ( simulation_parameters_type ), POINTER :: simpar
-     TYPE ( virial_type ), POINTER :: virial
   END TYPE md_environment_type
 
 ! *** Public subroutines and data types ***
   PUBLIC :: md_environment_type, set_md_env,   &
-            virial_type, get_md_env, md_env_create,  &
-            md_env_release, md_env_retain, zero_virial
+            get_md_env, md_env_create,  &
+            md_env_release, md_env_retain
 
 ! *** Global parameters ***
 
@@ -89,14 +86,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-!  SUBROUTINE get_md_env ( md_env, itimes, constant, cell, simpar, pimd_env, &
-!                          virial, &
-!                          nhc_part, nhc_coef, nhc_baro, npt, &
-!                          force_env, para_env )
   SUBROUTINE get_md_env ( md_env, itimes, constant, used_time, cell,  &
-                          simpar, virial, &
-                          nhc_part, nhc_coef, nhc_baro, npt, force_env, &
-                          para_env )
+                          simpar, nhc_part, nhc_coef, nhc_baro, npt, &
+                          force_env_p, para_env )
 
 !   Purpose: Get the integrator environment
 
@@ -108,19 +100,17 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(simulation_parameters_type), &
       OPTIONAL, POINTER                      :: simpar
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(lnhc_parameters_type), OPTIONAL, &
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
-    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(force_env_p_type), OPTIONAL, POINTER  :: force_env_p ( : )
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "get_md_env", &
       routineP = moduleN//':'//routine_name
 
-!    TYPE ( pimd_environment_type ), POINTER :: pimd_env
 !   ---------------------------------------------------------------------------
 
     IF ( PRESENT ( itimes ) ) itimes => md_env % itimes
@@ -131,10 +121,8 @@ CONTAINS
     IF ( PRESENT ( nhc_part ) ) nhc_part => md_env % nhc_part 
     IF ( PRESENT ( nhc_coef ) ) nhc_coef => md_env % nhc_coef
     IF ( PRESENT ( nhc_baro ) ) nhc_baro => md_env % nhc_baro
-!    IF ( PRESENT ( pimd_env ) ) pimd_env => md_env % pimd_env
     IF ( PRESENT ( npt ) ) npt => md_env % npt
-    IF ( PRESENT ( virial ) ) virial => md_env % virial
-    IF ( PRESENT ( force_env ) ) force_env => md_env % force_env
+    IF ( PRESENT ( force_env_p ) ) force_env_p => md_env % force_env_p
     IF ( PRESENT ( para_env ) ) para_env => md_env % para_env
 
   END SUBROUTINE get_md_env
@@ -166,7 +154,6 @@ CONTAINS
     last_md_env_id=last_md_env_id+1
     md_env%id_nr=last_md_env_id
     md_env%ref_count=1
-    md_env%in_use=0
 
     NULLIFY ( md_env % itimes )
     NULLIFY ( md_env % constant )
@@ -176,9 +163,7 @@ CONTAINS
     NULLIFY ( md_env % nhc_coef )
     NULLIFY ( md_env % nhc_baro )
     NULLIFY ( md_env % npt )
-    NULLIFY ( md_env % virial )
-    NULLIFY ( md_env % force_env )
-!    NULLIFY ( md_env % pimd_env )
+    NULLIFY ( md_env % force_env_p )
     md_env % para_env => para_env 
     CALL cp_para_env_retain ( md_env % para_env )
     ALLOCATE( md_env % itimes , stat=istat )
@@ -236,7 +221,6 @@ SUBROUTINE md_env_retain(md_env, error)
   END IF
 END SUBROUTINE md_env_retain
 !***************************************************************************
-
 !!****f* md_environment_types/md_env_release [1.0] *
 !!
 !!   NAME
@@ -268,7 +252,7 @@ SUBROUTINE md_env_release(md_env, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'md_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: istat, stat
+    INTEGER                                  :: istat, stat, i
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -291,8 +275,13 @@ SUBROUTINE md_env_release(md_env, error)
         NULLIFY ( md_env % nhc_coef )
         NULLIFY ( md_env % nhc_baro )
         NULLIFY ( md_env % npt )
-        NULLIFY ( md_env % virial )
-        CALL force_env_release( md_env % force_env) 
+        IF (ASSOCIATED(md_env%force_env_p)) THEN
+           DO i=1,SIZE(md_env%force_env_p)
+              CALL force_env_release(md_env%force_env_p(i)%force_env, error=error)
+           END DO
+           DEALLOCATE(md_env%force_env_p, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         md_env%ref_count=0
         DEALLOCATE(md_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -302,13 +291,9 @@ SUBROUTINE md_env_release(md_env, error)
 END SUBROUTINE md_env_release
 
 ! *****************************************************************************
-!  SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, pimd_env, &
-!                          coef_pos, coef_vel, coef_force, virial, &
-!                          nhc_part, nhc_coef, nhc_baro, npt, &
-!                          force_env, para_env )
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, &
-                          nhc_part, nhc_coef, nhc_baro, npt, virial, &
-                          force_env, para_env )
+                          nhc_part, nhc_coef, nhc_baro, npt, &
+                          force_env_p, para_env )
 
 !   Purpose: Set the integrator environment to the correct program.
 
@@ -324,30 +309,37 @@ END SUBROUTINE md_env_release
       POINTER                                :: nhc_part( : ), nhc_coef( : ), &
                                                 nhc_baro( : )
     TYPE(npt_info_type), OPTIONAL, POINTER   :: npt( :, : )
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(force_env_p_type), OPTIONAL,     &
+      POINTER                                :: force_env_p ( : )
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
+
+    INTEGER :: i
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_md_env", &
       routineP = moduleN//':'//routine_name
 
-!    TYPE ( pimd_environment_type ), POINTER :: pimd_env
-
     IF ( PRESENT ( cell ) ) md_env % cell => cell
-!    IF ( PRESENT ( pimd_env ) ) md_env % pimd_env => pimd_env
     IF ( PRESENT ( simpar ) ) md_env % simpar => simpar
     IF ( PRESENT ( nhc_part ) ) md_env % nhc_part => nhc_part
     IF ( PRESENT ( nhc_coef ) ) md_env % nhc_coef => nhc_coef
     IF ( PRESENT ( nhc_baro ) ) md_env % nhc_baro => nhc_baro
     IF ( PRESENT ( npt ) ) md_env % npt => npt
-    IF ( PRESENT ( virial ) ) md_env % virial => virial
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
     IF ( PRESENT ( constant ) ) md_env % constant => constant
-    IF ( PRESENT ( force_env ) ) THEN
-       CALL force_env_retain ( force_env ) ! accept null pointers?
-       CALL force_env_release ( md_env % force_env )
-       md_env % force_env => force_env
+    IF ( PRESENT ( force_env_p ) ) THEN
+! accept null pointers?
+       IF (ASSOCIATED(force_env_p)) THEN
+          DO i=1,SIZE(force_env_p)
+             CALL force_env_retain ( force_env_p(i) % force_env )
+          END DO
+       END IF
+       IF (ASSOCIATED(md_env%force_env_p)) THEN
+          DO i=1,SIZE(md_env%force_env_p)
+             CALL force_env_release ( md_env % force_env_p(i) % force_env )
+          END DO
+       END IF
+       md_env % force_env_p => force_env_p
     END IF
     
          
@@ -355,27 +347,6 @@ END SUBROUTINE md_env_release
 
   END SUBROUTINE set_md_env
 
-! *****************************************************************************
-
-  SUBROUTINE zero_virial ( virial )
-
-!   Purpose:  zero the virials
-
-!   ***************************************************************************
-
-    TYPE(virial_type), INTENT(OUT)           :: virial
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "zero_virial", &
-      routineP = moduleN//':'//routine_name
-
-    virial % pv_total = 0._dbl 
-    virial % pv_kinetic = 0._dbl 
-    virial % pv_virial = 0._dbl 
-    virial % pv_constraint = 0._dbl 
-    virial % pv_availability = .TRUE.
-
-! *****************************************************************************
-  END SUBROUTINE  zero_virial
 ! *****************************************************************************
 
 END MODULE md_environment_types

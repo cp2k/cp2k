@@ -23,25 +23,30 @@ MODULE spme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE coefficient_types,               ONLY: PW_COMPLEXDATA1D,&
-                                             PW_REALDATA3D,&
-                                             PW_REALSPACE,&
-                                             PW_RECIPROCALSPACE,&
-                                             coeff_allocate,&
-                                             coeff_deallocate,&
-                                             coeff_transform_space,&
+  USE coefficient_types,               ONLY: coeff_transform_space,&
                                              coeff_type
-  USE dg_types,                        ONLY: dg_type
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
-  USE ewald_parameters_types,          ONLY: ewald_parameters_type
+  USE ewald_environment_types,         ONLY: ewald_environment_type, &
+                                             ewald_env_get
+  USE ewald_pw_types,                  ONLY: ewald_pw_type, &
+                                             ewald_pw_get
   USE greens_fn,                       ONLY: greens_function_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: fourpi
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
-  USE pw_types,                        ONLY: pw_type
+  USE pw_pool_types,                   ONLY: pw_pool_type, &
+                                             pw_pool_init_coeff, &
+                                             pw_pool_give_back_coeff
+  USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             COMPLEXDATA3D,&
+                                             REALDATA1D,&
+                                             REALDATA3D,&
+                                             REALSPACE,&
+                                             RECIPROCALSPACE, &
+                                             pw_type
   USE pws,                             ONLY: cleanup_pw_poisson_solver,&
                                              init_pw_poisson_solver,&
                                              pw_integral_a2b
@@ -59,7 +64,7 @@ MODULE spme
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: spme_evaluate, spme_coeff_calculate
+  PUBLIC :: spme_evaluate
 
 !!***
 !******************************************************************************
@@ -82,41 +87,48 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
-     grid_spme, ewald_param )
+SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
+                           fg_coulomb, vg_coulomb, pv_g )
 
 
-    TYPE(dg_type), INTENT(IN), TARGET        :: dg
     TYPE(particle_type), DIMENSION(:), &
-      INTENT(IN)                             :: part
+      POINTER                                :: particle_set
     REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: fg_coulomb
     REAL(dbl), INTENT(OUT)                   :: vg_coulomb
     REAL(dbl), DIMENSION(:, :), INTENT(OUT)  :: pv_g
-    TYPE(cell_type), INTENT(INOUT)           :: box
-    TYPE(pw_grid_type), INTENT(IN), TARGET   :: grid_spme
-    TYPE(ewald_parameters_type), INTENT(IN)  :: ewald_param
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
 
     INTEGER                                  :: handle, i, ierr, ipart, j, &
                                                 jpart, n, ndim( 3 ), npart, p1
+    INTEGER                                  :: o_spline, group
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: centre
     REAL(dbl)                                :: dvols, ffa, inv_fourpi_eps0
     REAL(dbl), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(dbl), DIMENSION(3)                  :: fat
     REAL(dbl), DIMENSION(3, 3)               :: f_stress, h_stress
+    REAL ( dbl )                             :: alpha, eps0
     TYPE(coeff_type)                         :: dphi_g( 3 ), phi_g, rhob_g, &
                                                 rhob_r
     TYPE(realspace_grid_type)                :: drpot( 3 ), rden
+    TYPE(pw_grid_type), POINTER              :: grid_spme
+    TYPE(pw_pool_type), POINTER              :: pw_pool
+    TYPE(cell_type), POINTER           :: box
 
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
   CALL timeset ( 'SPME', 'I', ' ', handle )
+  CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
+                       o_spline = o_spline, group = group )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box )
+  grid_spme => pw_pool % pw_grid
 
-  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * ewald_param % eps0 )
-  npart = SIZE ( part )
+  inv_fourpi_eps0 = 1.0_dbl / ( fourpi * eps0 )
+  npart = SIZE ( particle_set )
  
-  n = ewald_param % o_spline
+  n = o_spline
   ALLOCATE ( rhos ( n, n, n ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
@@ -126,7 +138,7 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "centre", 3*npart )
-  CALL get_center ( part, box, centre, grid_spme % npts, n )
+  CALL get_center ( particle_set, box, centre, grid_spme % npts, n )
 
 !-------------- DENSITY CALCULATION ----------------
 
@@ -134,27 +146,29 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
   jpart = 0
   DO
 
-     CALL set_list ( part, npart, centre, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( part, box, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch ( rden, rhos, centre(:,p1) )
 
   END DO
 
-  CALL coeff_allocate ( rhob_r, grid_spme, use_data = PW_REALDATA3D )
-  rhob_r % pw % in_space = PW_REALSPACE
+  CALL pw_pool_init_coeff ( pw_pool, rhob_r,  &
+                           use_data = REALDATA3D, &
+                           in_space = REALSPACE )
 
   CALL rs_pw_transfer ( rden, rhob_r % pw, "FORWARD" )
 
   CALL rs_grid_deallocate ( rden )
 
   ! transform density to G space and add charge function
-  CALL coeff_allocate ( rhob_g, grid_spme, use_data = PW_COMPLEXDATA1D )
-  rhob_g % pw % in_space = PW_RECIPROCALSPACE
+  CALL pw_pool_init_coeff ( pw_pool, rhob_g,  &
+                           use_data = COMPLEXDATA1D, &
+                           in_space = RECIPROCALSPACE )
   CALL coeff_transform_space ( rhob_r, rhob_g )
   ! update charge function
   CALL p3m_update ( box % green )
@@ -164,19 +178,20 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
 
   ! allocate intermediate arrays
   DO i = 1, 3
-     CALL coeff_allocate ( dphi_g ( i ), grid_spme, &
-          use_data = PW_COMPLEXDATA1D )
-     dphi_g ( i ) % pw % in_space = PW_RECIPROCALSPACE
+     CALL pw_pool_init_coeff ( pw_pool, dphi_g ( i ),  &
+                              use_data = COMPLEXDATA1D,   &
+                              in_space = RECIPROCALSPACE )
   END DO
-  CALL coeff_allocate ( phi_g, grid_spme, use_data = PW_COMPLEXDATA1D )
-  phi_g % pw % in_space = PW_RECIPROCALSPACE
+  CALL pw_pool_init_coeff ( pw_pool, phi_g,  &
+                           use_data = COMPLEXDATA1D,   &
+                           in_space = RECIPROCALSPACE )
 
   CALL init_pw_poisson_solver ( box % green )
 
   CALL calculate_hartree ( rhob_g, vg_coulomb, phi_g, dphi_g, h_stress )
 
-  CALL coeff_deallocate ( phi_g )
-  CALL coeff_deallocate ( rhob_g )
+  CALL pw_pool_give_back_coeff ( pw_pool, phi_g )
+  CALL pw_pool_give_back_coeff ( pw_pool, rhob_g )
   vg_coulomb = vg_coulomb * inv_fourpi_eps0
 
 !---------- END OF ELECTROSTATIC CALCULATION --------
@@ -191,7 +206,7 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
     END DO
   END DO
   ffa = ( 1.0_dbl / fourpi ) * &
-        ( 0.5_dbl / ewald_param % alpha ) ** 2
+        ( 0.5_dbl / alpha ) ** 2
   f_stress = -ffa * f_stress
   pv_g = inv_fourpi_eps0 * ( h_stress + f_stress )
 
@@ -205,11 +220,11 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               box % green % p3m_charge % cr
      CALL coeff_transform_space ( dphi_g ( i ), rhob_r )
-     CALL coeff_deallocate ( dphi_g ( i ) )
+     CALL pw_pool_give_back_coeff ( pw_pool, dphi_g ( i ) )
      CALL rs_pw_transfer ( drpot ( i ), rhob_r % pw, "BACKWARD" )
   END DO
 
-  CALL coeff_deallocate ( rhob_r )
+  CALL pw_pool_give_back_coeff ( pw_pool, rhob_r )
 
 !----------------- FORCE CALCULATION ----------------
 
@@ -221,11 +236,11 @@ SUBROUTINE spme_evaluate ( dg, part, fg_coulomb, vg_coulomb, pv_g, box, &
   jpart = 0
   DO
 
-     CALL set_list ( part, npart, centre, p1, rden, ipart, jpart )
+     CALL set_list ( particle_set, npart, centre, p1, rden, ipart, jpart )
      IF ( p1 == 0 ) EXIT
 
      ! calculate function on small boxes
-     CALL get_patch ( part, box, grid_spme % npts, p1, rhos )
+     CALL get_patch ( particle_set, box, grid_spme % npts, p1, rhos )
 
      ! add boxes to real space grid (big box)
      CALL dg_sum_patch_force_3d ( drpot, rhos, centre(:,p1), fat )
@@ -580,66 +595,6 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
 
 END SUBROUTINE get_delta
 
-!******************************************************************************
-!!****** spme/spme_coeff_calculate [1.0] *
-!!
-!!   NAME
-!!     spme_coeff_calculate
-!!
-!!   FUNCTION
-!!     Calculates the coefficients for the charge assignment function
-!!
-!!   AUTHOR
-!!     DG (29-Mar-2001)
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!*** *************************************************************************
-
-SUBROUTINE spme_coeff_calculate ( n, coeff )
-
-
-    INTEGER, INTENT(IN)                      :: n
-    REAL(dbl), &
-      DIMENSION(-(n-1):n-1, 0:n-1), &
-      INTENT(OUT)                            :: coeff
-
-    INTEGER                                  :: i, j, l, m
-    REAL(dbl)                                :: b
-    REAL(dbl), DIMENSION(n, -n:n, 0:n-1)     :: a
-
-!------------------------------------------------------------------------------
-
-  a = 0._dbl
-  a ( 1, 0, 0 ) = 1._dbl
-
-  DO i = 2, n
-     m = i-1
-     DO j = -m, m, 2
-        DO l = 0, m-1
-           b = ( a ( m, j-1, l ) + &
-               REAL ( (-1) ** l, dbl ) * a ( m, j+1, l ) ) / &
-               REAL ( ( l + 1 ) * 2 ** ( l + 1 ) , dbl )
-           a ( i, j, 0 ) = a ( i, j, 0 ) + b
-        END DO
-        DO l = 0, m-1
-           a ( i, j, l+1 ) = ( a ( m, j+1, l ) - &
-                               a ( m, j-1, l ) ) / REAL ( l + 1, dbl )
-        END DO
-     END DO
-  END DO
-
-  coeff = 0._dbl
-  DO i = 0, n-1
-    DO j = -(n-1), n-1, 2
-      coeff ( j, i ) = a ( n, j, i )
-    END DO
-  END DO
-
-END SUBROUTINE spme_coeff_calculate
-
-!******************************************************************************
 
 END MODULE spme
 

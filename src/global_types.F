@@ -174,7 +174,7 @@ MODULE global_types
                                          program_name,&
                                          project_name,&
                                          restart_file_name
-     CHARACTER(LEN=60) :: run_type
+     CHARACTER(LEN=60)                :: run_type
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor

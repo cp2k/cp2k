@@ -36,7 +36,6 @@ MODULE md
                                              stop_parser,&
                                              test_next
   USE particle_types,                  ONLY: particle_type
-  USE read_pimd,                       ONLY: pimd_parameters_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
   USE util,                            ONLY: gasdev
@@ -46,12 +45,8 @@ MODULE md
   PRIVATE
   PUBLIC :: read_md_section, simulation_parameters_type, &
             initialize_velocities, mdio_parameters_type, &
-            virial_type, qs_md_parameters_type, simpar_units_type
+            qs_md_parameters_type, simpar_units_type
 
-  TYPE virial_type
-     REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, pv_virial, pv_constraint
-     LOGICAL :: pv_availability
-  END TYPE virial_type
 
 !!****s* md/qs_md_parameters_type [1.0] *
 !!
@@ -114,15 +109,12 @@ MODULE md
      INTEGER :: nc_coef
      INTEGER :: nyosh_coef
      INTEGER :: nhclen_coef
-     REAL ( dbl ) :: subcells
      REAL ( dbl ) :: tau_nhc
      REAL ( dbl ) :: tau_nhc_coef
      REAL ( dbl ) :: tau_cell
      REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh
      REAL ( dbl ), POINTER, DIMENSION ( : ) :: dt_yosh_coef
      REAL ( dbl ) :: shake_tol
-     REAL ( dbl ) :: verlet_skin
-     TYPE ( pimd_parameters_type ) :: pimd_params
      TYPE ( qs_md_parameters_type ) :: qs_md_param
      TYPE ( simpar_units_type ) :: units
   END TYPE simulation_parameters_type
@@ -138,6 +130,9 @@ MODULE md
      CHARACTER ( LEN = 50 ) :: dump_file_name
      CHARACTER ( LEN = 50 ) :: coef_file_name
   END TYPE mdio_parameters_type
+
+! *** Global parameters ***
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='md'
 
 !!***
 !******************************************************************************
@@ -269,13 +264,11 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % nhclen_coef = 1
   simpar % nc = 2
   simpar % nc_coef = 1
-  simpar % subcells = 2.0_dbl
   simpar % nyosh = 1
   simpar % nyosh_coef = 1
   simpar % tau_nhc = 1000.0_dbl
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
-  simpar % verlet_skin = 1.0_dbl
   simpar % qs_md_param % neighbor_lists_from_scratch = .TRUE.
 
   iw = mdpar % scr
@@ -350,28 +343,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
         CASE ( 'WALLTI' ) ! WALLTIME
            CALL get_next ( simpar % walltime )
-
-        CASE ( 'VERLET' )
-           CALL get_next ( simpar % verlet_skin )
-           IF ( test_next () == 'C' ) THEN
-             CALL get_next ( string, ilen )
-             CALL uppercase ( string )
-             SELECT CASE ( string )
-             CASE DEFAULT
-               simpar % units % time = 'AU'  
-             CASE ('ANGSTR','AU')
-               simpar % units % verlet_skin = string
-             END SELECT
-           ELSE
-              simpar % units % verlet_skin = 'AU'
-           ENDIF
-           CALL uppercase ( simpar % units % verlet_skin )
-           IF ( simpar % units % verlet_skin == 'ANGSTR' ) &
-           simpar % units % verlet_skin = 'ANGSTROM'
-
-        CASE ( 'SUBCEL' )
-           CALL get_next ( simpar % subcells )
-
         CASE ( 'TIMEST' )
            CALL get_next ( simpar % dt )
            IF ( test_next () == 'C' ) THEN
@@ -692,8 +663,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
           simpar % temp_ext
      WRITE ( iw, '( A,T71,F10.2 )' ) ' MD| Temperature tolerance [K] ', &
           simpar % temp_tol
-     WRITE ( iw, '( A,A8,A,T71,F10.2 )' ) &
-          ' MD| Verlet buffer skin [',simpar % units % verlet_skin,'] ', simpar % verlet_skin
      IF ( ( simpar % ensemble ( 1:3 ) == 'NVT' ) &
           .OR. (simpar % ensemble ( 1:3 ) == 'NPT' ) ) THEN
         WRITE ( iw, '( A )' ) ' MD| Nose-Hoover-Chain parameters '
@@ -766,7 +735,6 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   CALL convert_to_cp2k_units ( simpar % units % tau_coef, tau_nhc = simpar % tau_nhc_coef ) 
   CALL convert_to_cp2k_units ( simpar % units % tau_cell, tau_nhc = simpar % tau_cell ) 
   CALL convert_to_cp2k_units ( simpar % units % press, pressure = simpar % p_ext ) 
-  CALL convert_to_cp2k_units ( simpar % units % verlet_skin, length = simpar % verlet_skin ) 
 
 END SUBROUTINE read_md_section
 
@@ -911,7 +879,7 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
 
 END SUBROUTINE initialize_velocities
 
-!******************************************************************************
+
 
 END MODULE md
 

@@ -22,7 +22,6 @@ MODULE convert_units
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE kinds,                           ONLY: dbl
-  USE molecule_types,                  ONLY: intra_parameters_type
   USE pair_potential_types,            ONLY: pair_potential_type
   USE particle_types,                  ONLY: particle_type
   USE simulation_cell,                 ONLY: cell_type
@@ -55,8 +54,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, eps0, l_power, part, box, potparm, &
-                                   intra_param )
+                                   tau_nhc, mass, eps0, l_power, part, box, potparm )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
@@ -68,9 +66,6 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
       INTENT(INOUT), OPTIONAL                :: potparm( :, : )
-    TYPE(intra_parameters_type), &
-      INTENT(INOUT), OPTIONAL                :: intra_param
-
     INTEGER                                  :: i, ll
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -171,51 +166,51 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   END IF
 
 ! converting bond, bends and torsion and constraint parameters
-  IF ( PRESENT ( intra_param ) ) THEN
-    IF ( ASSOCIATED ( intra_param % bond_param )) THEN
-       IF ( unit_char == 'KCAL' ) THEN
-         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-                                               *units%angstrom
-         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-                                               *units%kcal/units%angstrom/units%angstrom
-       ELSEIF ( unit_char == 'KELVIN' ) THEN
-         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
-                                               *units%angstrom
-         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
-                                               *units%kelvin/units%angstrom/units%angstrom
-       ENDIF
-    END IF
+!  IF ( PRESENT ( intra_param ) ) THEN
+!    IF ( ASSOCIATED ( intra_param % bond_param )) THEN
+!       IF ( unit_char == 'KCAL' ) THEN
+!         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
+!                                               *units%angstrom
+!         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
+!                                               *units%kcal/units%angstrom/units%angstrom
+!       ELSEIF ( unit_char == 'KELVIN' ) THEN
+!         intra_param % bond_param ( : ) % r0 = intra_param % bond_param ( : ) % r0 &
+!                                               *units%angstrom
+!         intra_param % bond_param ( : ) % k = intra_param % bond_param ( : ) % k &
+!                                               *units%kelvin/units%angstrom/units%angstrom
+!       ENDIF
+!    END IF
 
-    IF ( ASSOCIATED ( intra_param % bend_param )) THEN
-       IF ( unit_char == 'KCAL' ) THEN
-         intra_param % bend_param( : ) % k &
-         = intra_param % bend_param( : ) % k * units%kcal
-       ELSEIF ( unit_char == 'KCAL' ) THEN
-         intra_param % bend_param( : ) % k &
-         = intra_param % bend_param( : ) % k * units%kelvin
-       ENDIF
-    END IF
+!    IF ( ASSOCIATED ( intra_param % bend_param )) THEN
+!       IF ( unit_char == 'KCAL' ) THEN
+!         intra_param % bend_param( : ) % k &
+!         = intra_param % bend_param( : ) % k * units%kcal
+!       ELSEIF ( unit_char == 'KCAL' ) THEN
+!         intra_param % bend_param( : ) % k &
+!         = intra_param % bend_param( : ) % k * units%kelvin
+!       ENDIF
+!    END IF
 
-    IF ( ASSOCIATED ( intra_param % torsion_param ) ) THEN
-       IF ( unit_char == 'KCAL' ) THEN
-         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-            intra_param % torsion_param( : ) % a(i) =  &
-            intra_param % torsion_param( : ) % a(i)*units%kcal
-         END DO
-       ELSEIF ( unit_char == 'KELVIN' ) THEN
-         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
-            intra_param % torsion_param( : ) % a(i) =  &
-            intra_param % torsion_param( : ) % a(i)*units%kelvin
-         END DO
-       ENDIF
-    END IF
+!    IF ( ASSOCIATED ( intra_param % torsion_param ) ) THEN
+!       IF ( unit_char == 'KCAL' ) THEN
+!         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
+!            intra_param % torsion_param( : ) % a(i) =  &
+!            intra_param % torsion_param( : ) % a(i)*units%kcal
+!         END DO
+!       ELSEIF ( unit_char == 'KELVIN' ) THEN
+!         DO i = 0, SIZE ( intra_param % torsion_param(1) % a ) - 1
+!            intra_param % torsion_param( : ) % a(i) =  &
+!            intra_param % torsion_param( : ) % a(i)*units%kelvin
+!         END DO
+!       ENDIF
+!    END IF
 
-    IF ( ASSOCIATED ( intra_param % constraint_distance ) ) THEN
-       IF ( ( unit_char == 'KELVIN' ) .OR. ( unit_char == 'KCAL' ) ) &
-       intra_param % constraint_distance ( : ) =  &
-       intra_param % constraint_distance ( : ) * units%angstrom
-    END IF
-  ENDIF
+!    IF ( ASSOCIATED ( intra_param % constraint_distance ) ) THEN
+!       IF ( ( unit_char == 'KELVIN' ) .OR. ( unit_char == 'KCAL' ) ) &
+!       intra_param % constraint_distance ( : ) =  &
+!       intra_param % constraint_distance ( : ) * units%angstrom
+!    END IF
+!  ENDIF
 
 END SUBROUTINE convert_to_cp2k_units
 

@@ -29,17 +29,24 @@ MODULE md_energies
                                              cp_to_string
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
+  USE cp2k_units,                      ONLY: unit_convert_type, &
+                                             get_cp2k_units
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_p_type, &
+                                             use_fist_force, &
+                                             use_qs_force,& 
+                                             use_kg_force,& 
+                                             use_pol_force,& 
+                                             use_qmmm, &
+                                             use_list_force
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, dbl
   USE machine,                         ONLY: m_flush
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: mdio_parameters_type,&
                                              simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
-!compute_conserved_quantity_pimd
 
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
@@ -51,10 +58,11 @@ MODULE md_energies
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
   USE qs_parser,                       ONLY: open_file
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type, get_cell_param
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 
   IMPLICIT NONE
 
@@ -62,6 +70,15 @@ MODULE md_energies
 
   CHARACTER(LEN=*), PARAMETER :: module_name = "md_energies"
 
+  TYPE average_quantities_type
+     REAL ( dbl ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
+     REAL ( dbl ) :: aveal, avebe, avega, avepress, avekinc, avetempc
+  END TYPE average_quantities_type
+
+ 
+  TYPE ( unit_convert_type ), POINTER :: unit
+
+  TYPE (average_quantities_type ) :: averages
   REAL(KIND = dp) :: econs_avg,t_old
 
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
@@ -70,21 +87,21 @@ MODULE md_energies
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
   LOGICAL :: ionode
 
-  PUBLIC :: md_energy_qs,&
-            set_qs_energies
+  PUBLIC :: md_energy,&
+            set_energies
 !!***
 !******************************************************************************
 
 CONTAINS
 
 !******************************************************************************
-!!****** md_energies/set_qs_energies [1.0] *
+!!****** md_energies/set_energies [1.0] *
 !!
 !!   NAME
-!!     set_qs_energies
+!!     set_energies
 !!
 !!   FUNCTION
-!!     setup of parameters for qs_energies
+!!     setup of parameters for energies
 !!
 !!   AUTHOR
 !!
@@ -94,7 +111,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE set_qs_energies ( globenv, mdio )
+SUBROUTINE set_energies ( globenv, mdio )
 
 
     TYPE(global_environment_type), &
@@ -122,14 +139,16 @@ SUBROUTINE set_qs_energies ( globenv, mdio )
   itemp = mdio % itemp
   idump = mdio % idump
   iscreen = mdio % iscreen
+ 
+  CALL get_cp2k_units ( unit )
 
-END SUBROUTINE set_qs_energies
+END SUBROUTINE set_energies
 
 !******************************************************************************
-!!****** md_energies/md_energy_qs [1.0] *
+!!****** md_energies/md_energy [1.0] *
 !!
 !!   NAME
-!!     energy_qs
+!!     md_energy
 !!
 !!   FUNCTION
 !!     This routine computes the conserved quantity, temperature
@@ -143,13 +162,13 @@ END SUBROUTINE set_qs_energies
 !!
 !!*****************************************************************************
 
-  SUBROUTINE md_energy_qs(md_env, error)
+  SUBROUTINE md_energy(md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy_qs"
+    CHARACTER(LEN=*), PARAMETER              :: routine_name = "md_energy"
 
     CHARACTER(LEN=200)                       :: title
     CHARACTER(len=50)                        :: filename
@@ -165,10 +184,14 @@ END SUBROUTINE set_qs_energies
       DIMENSION(:), POINTER                  :: subsys
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), POINTER          :: force_env_p ( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE ( virial_type ), POINTER            :: virial
+    REAL ( dbl ) :: cell_length ( 3 ), cell_angle ( 3 )
+    REAL ( dbl ) :: econs, pv_scalar
+    INTEGER :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -180,12 +203,14 @@ END SUBROUTINE set_qs_energies
                     constant=constant,&
                     used_time = used_time, &
                     simpar=simpar,&
-                    force_env=force_env)
+                    force_env_p=force_env_p )
+                    
 
-    CALL force_env_get(force_env=force_env,&
+    CALL force_env_get(force_env=force_env_p(1)%force_env,&
                        cell=cell,&
                        subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set,&
+                       virial = virial, &
                        error=error)
 
     replace_file = .FALSE.
@@ -238,9 +263,7 @@ END SUBROUTINE set_qs_energies
     IF (itimes > itimes_old) THEN
 
        iw = scr
-       CALL force_env_get(force_env,&
-                          potential_energy=epot,&
-                          error=error)
+       CALL force_env_get(force_env_p ( 1 ) % force_env, potential_energy=epot, error=error)
        IF (ASSOCIATED (dyn_coeff_set)) THEN
          CALL compute_conserved_quantity(md_env,&
                                          epot,&
@@ -269,9 +292,130 @@ END SUBROUTINE set_qs_energies
           " i =",itimes," t =",t,"fs E =",epot,&
           "au T= ",temp,"K"
       END IF
+! computing the scalar pressure
+      IF ( virial % pv_availability ) THEN
+        pv_scalar = 0._dbl
+        DO i = 1, 3
+          pv_scalar = pv_scalar + virial%pv_total(i,i)
+        END DO
+        pv_scalar = pv_scalar/3._dbl/cell%deth
+        pv_scalar = pv_scalar * unit % bar
+     ENDIF
+
+      CALL get_cell_param ( cell, cell_length, cell_angle )
 
 
       IF (ionode) THEN
+
+! average quantities:
+        SELECT CASE (itimes)
+        CASE (0)
+          WRITE (iw,*)
+          WRITE ( iw, '( A )' ) ' MD_ENERGIES| Initialization proceeding'
+          WRITE (iw,*)
+       CASE (1)
+          IF ( virial % pv_availability ) averages%avepress = pv_scalar
+          averages%avetemp = temp
+          averages%avepot = epot
+          averages%avekin = ekin
+          averages%avevol = cell % deth
+          averages%aveca = cell_length ( 1 )
+          averages%avecb = cell_length ( 2 )
+          averages%avecc = cell_length ( 3 )
+          averages%aveal = cell_angle ( 3 )
+          averages%avebe = cell_angle ( 2 )
+          averages%avega = cell_angle ( 1 )
+          econs_avg =  0._dbl
+       CASE DEFAULT
+          IF ( virial % pv_availability ) &
+          averages%avepress = (averages%avepress*REAL(itimes-1,dbl)+pv_scalar)/ &
+          REAL ( itimes, dbl )
+          averages%avetemp = (averages%avetemp*REAL(itimes-1,dbl)+temp)/ &
+               REAL(itimes,dbl)
+          averages%avepot = (averages%avepot*REAL(itimes-1,dbl)+epot)/ &
+               REAL(itimes,dbl)
+          averages%avekin = (averages%avekin*REAL(itimes-1,dbl)+ekin)/ &
+               REAL(itimes,dbl)
+          averages%avevol = (averages%avevol*REAL(itimes-1,dbl)+cell%deth)/ &
+               REAL(itimes,dbl)
+          averages%aveca = (averages%aveca*REAL(itimes-1,dbl)+cell_length(1))/REAL(itimes,dbl)
+          averages%avecb = (averages%avecb*REAL(itimes-1,dbl)+cell_length(2))/REAL(itimes,dbl)
+          averages%avecc = (averages%avecc*REAL(itimes-1,dbl)+cell_length(3))/REAL(itimes,dbl)
+          averages%aveal = (averages%aveal*REAL(itimes-1,dbl)+cell_angle(3))/ &
+               REAL(itimes,dbl)
+          averages%avebe = (averages%avebe*REAL(itimes-1,dbl)+cell_angle(2))/ &
+               REAL(itimes,dbl)
+          averages%avega = (averages%avega*REAL(itimes-1,dbl)+cell_angle(1))/ &
+          REAL(itimes,dbl)
+          econs_avg = econs_avg + abs((cons-constant)/constant)
+       END SELECT
+!
+       IF (itimes==0) THEN
+          WRITE ( iw, '( )' )
+          WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+               'GO CP2K GO! **********************************'
+          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL POTENTIAL ENERGY', &
+               adjustl( unit % e_label), '= ', epot
+          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL KINETIC ENERGY', &
+               adjustl( unit % e_label), '= ', ekin
+          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL TEMPERATURE', &
+               adjustl( unit % temp_label ), '= ', temp
+          IF ( virial % pv_availability ) &
+          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL PRESSURE', &
+               adjustl( unit % pres_label), '= ', pv_scalar
+          WRITE ( iw, '( A,A,T40,A,T65,1(1X,E15.7) )' ) ' INITIAL VOLUME', &
+               adjustl( unit % vol_label), '= ', cell%deth
+          WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL LNTHS', &
+               adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
+          WRITE ( iw, '( A,A,T29,A,T33,3(1X,E15.7) )' ) ' INITIAL CELL ANGLS', &
+               adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+          WRITE ( iw, '( A,A )' ) ' ******************************** ', &
+               'GO CP2K GO! **********************************'
+       END IF
+
+       IF ( ( itimes /= 0 ) .AND. ( MOD ( itimes, iscreen ) == 0 ) ) THEN
+
+          WRITE ( iw, '( )' )
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( A,T61,A )' ) ' ENSEMBLE TYPE                = ', &
+               ADJUSTR ( simpar%ensemble)
+          WRITE ( iw, '( A,T71,I10 )' ) ' STEP NUMBER                  = ', itimes
+          WRITE ( iw, '( A,T65,1(1X,E15.7) )' ) ' CONSERVED QNTY               = ', &
+               cons
+          WRITE ( iw, '( )' )
+          WRITE ( iw, '( T52,A )' ) 'INSTANTANEOUS        AVERAGES'
+          WRITE ( iw, '( A,T49,2(1X,E15.7) )' ) ' {E-E0}/E0                    = ', &
+               econs, econs_avg/REAL(itimes,dbl)
+          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' POTENTIAL ENERGY', &
+               adjustl(unit % e_label), '= ', epot, averages%avepot
+          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' KINETIC ENERGY', &
+               adjustl(unit % e_label), '= ', ekin, averages%avekin
+          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' TEMPERATURE', &
+               adjustl(unit % temp_label), '= ', temp, averages%avetemp
+          IF ( virial % pv_availability ) &
+          WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' PRESSURE', &
+               adjustl(unit % pres_label), '= ', pv_scalar, averages%avepress
+          IF (simpar%ensemble(1:3)=='NPT') THEN
+             WRITE ( iw, '( A,A,T31,A,T49,2(1X,E15.7) )' ) ' VOLUME', &
+                  adjustl(unit % vol_label), '= ', cell%deth, averages%avevol
+             WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL LNTHS', &
+                  adjustl(unit % l_label), '= ', cell_length(1), cell_length(2), cell_length(3)
+             WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL LNTHS', &
+                  adjustl(unit % l_label), '= ', averages%aveca, averages%avecb, &
+                  averages%avecc
+          END IF
+          IF (simpar%ensemble=='NPT_F') THEN
+             WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' CELL ANGLS', &
+                  adjustl(unit % angl_label), '= ', cell_angle(3), cell_angle(2), cell_angle(1)
+             WRITE ( iw, '( A,A,T31,A,T33,3(1X,E15.7) )' ) ' AVE. CELL ANGLS', &
+                  adjustl(unit % angl_label), '= ', averages%aveal, averages%avebe, &
+                  averages%avega
+          END IF
+          WRITE ( iw, '( A,A )' ) ' **************************************', &
+               '*****************************************'
+          WRITE ( iw, '( )' )
+       END IF
 
         IF (MODULO(itimes,iscreen) == 0) THEN
           IF (ASSOCIATED (dyn_coeff_set)) THEN
@@ -320,7 +464,7 @@ END SUBROUTINE set_qs_energies
 
     CALL timestop(zero,handle)
 
-  END SUBROUTINE md_energy_qs
+  END SUBROUTINE md_energy
 
 ! *****************************************************************************
 

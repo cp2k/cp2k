@@ -62,7 +62,6 @@ MODULE pair_potential_types
     REAL ( dbl ) :: rcutsq
     REAL ( dbl ) :: energy_cutoff
     REAL ( dbl ) :: e_cutoff_coul
-    REAL ( dbl ) :: lrc
   END TYPE pair_potential_type
 
 !!*****

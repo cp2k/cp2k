@@ -35,7 +35,7 @@ MODULE md_conserved_quantities
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_p_type
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
@@ -297,33 +297,37 @@ SUBROUTINE get_econs_nve ( md_env, md_ener, cons, int_grp )
     REAL(dbl)                                :: nhc_coef_kin, nhc_coef_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
 
+    INTEGER :: iforce_env
+
 !----------------------------------------------------------------------------
 
-  NULLIFY(dyn_coeff_set, force_env, nhc_coef)
+  NULLIFY(dyn_coeff_set, force_env_p, nhc_coef)
 
-  CALL get_md_env (md_env, force_env=force_env, nhc_coef=nhc_coef)
-  CALL force_env_get (force_env, dyn_coeff_set=dyn_coeff_set)
+  CALL get_md_env (md_env, force_env_p=force_env_p, nhc_coef=nhc_coef)
 
   cons = md_ener % ekin + md_ener % epot 
 
-  IF (ASSOCIATED (dyn_coeff_set)) THEN
+  DO iforce_env = 1, SIZE(force_env_p)  
 
-    CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+     CALL force_env_get (force_env = force_env_p(iforce_env)%force_env, &
+                         dyn_coeff_set=dyn_coeff_set)
+
+     IF (ASSOCIATED (dyn_coeff_set)) THEN
+
+        CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
                       md_ener%temp_coefs, int_grp)
-
-    cons = cons + md_ener%ekin_coefs
-
-    IF (ASSOCIATED(nhc_coef)) THEN
-      CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp )
-      cons = cons + nhc_coef_kin + nhc_coef_pot
-
-    END IF
-
-  END IF
+        cons = cons + md_ener%ekin_coefs
+        IF (ASSOCIATED(nhc_coef)) THEN
+           CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
+                                   int_grp )
+           cons = cons + nhc_coef_kin + nhc_coef_pot
+        END IF
+     END IF
+  END DO
 
 END SUBROUTINE get_econs_nve
 
@@ -356,34 +360,34 @@ SUBROUTINE get_econs_nvt ( md_env, md_ener, cons, int_grp)
                                                 nhc_part_kin, nhc_part_pot
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef, nhc_part
 
+    INTEGER :: iforce_env
+
 !----------------------------------------------------------------------------
 
-  NULLIFY(dyn_coeff_set, force_env, nhc_part, nhc_coef)
+  NULLIFY(dyn_coeff_set, force_env_p, nhc_part, nhc_coef)
 
-  CALL get_md_env (md_env, force_env=force_env, nhc_part=nhc_part, nhc_coef=nhc_coef)
-  CALL force_env_get (force_env, dyn_coeff_set=dyn_coeff_set)
-
+  CALL get_md_env (md_env, force_env_p=force_env_p, nhc_part=nhc_part,&
+                   nhc_coef=nhc_coef)
   CALL get_nhc_energies ( nhc_part ( 1 ), nhc_part_pot, nhc_part_kin, int_grp )
-
   cons = md_ener% ekin + md_ener%epot + nhc_part_kin + nhc_part_pot
-
-  IF (ASSOCIATED (dyn_coeff_set)) THEN
-
-    CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
-                      md_ener%temp_coefs, int_grp)
-
-    cons = cons + md_ener%ekin_coefs
-
-    IF (ASSOCIATED(nhc_coef)) THEN
-      CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin, int_grp )
-      cons = cons + nhc_coef_kin + nhc_coef_pot 
-    END IF
-
-  END IF
+  DO iforce_env = 1, SIZE(force_env_p)
+     CALL force_env_get (force_env=force_env_p(iforce_env)%force_env, &
+                         dyn_coeff_set=dyn_coeff_set)
+     IF (ASSOCIATED (dyn_coeff_set)) THEN
+        CALL get_coef_ke (dyn_coeff_set(1)%dyn_coeff_set, md_ener%ekin_coefs, &
+                          md_ener%temp_coefs, int_grp)
+        cons = cons + md_ener%ekin_coefs
+        IF (ASSOCIATED(nhc_coef)) THEN
+           CALL get_nhc_energies ( nhc_coef(1), nhc_coef_pot, nhc_coef_kin,&
+                                   int_grp )
+           cons = cons + nhc_coef_kin + nhc_coef_pot 
+        END IF
+     END IF
+  END DO
 
 END SUBROUTINE get_econs_nvt
 
@@ -569,15 +573,17 @@ SUBROUTINE get_part_ke ( md_env, ekin, int_grp )
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
   ekin  = zero
 
-  CALL get_md_env ( md_env, force_env = force_env )
-  CALL force_env_get ( force_env = force_env, subsys = subsys )
+  CALL get_md_env ( md_env, force_env_p = force_env_p )
+  CALL force_env_get ( force_env = force_env_p(1)%force_env, subsys = subsys )
+!HAF: subsys(1)?? ARGHHHHH
+!HAF: ok, in that case I can just as well use force_env_p(1)%force_env 
   CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                      atomic_kinds=atomic_kinds,&
                      local_particles=local_particles,&

@@ -19,7 +19,24 @@
 !******************************************************************************
 
 MODULE dgs
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE coefficient_types,               ONLY: PW_COMPLEXDATA3D,&
                                              PW_REALDATA3D,&
                                              coeff_type
@@ -47,7 +64,7 @@ MODULE dgs
 
   PRIVATE
   PUBLIC :: dg_get_patch, dg_get_delta
-  PUBLIC :: dg_pol_grid_setup, dg_pme_grid_setup, dg_find_max_cutoff,  &
+  PUBLIC :: dg_pme_grid_setup, dg_find_max_cutoff,  &
        dg_sum_patch, dg_sum_patch_force_3d, dg_sum_patch_force_1d,  &
        dg_get_strucfac, dg_grid_change, dg_find_cutoff
 
@@ -86,21 +103,27 @@ CONTAINS
 
 !******************************************************************************
 SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
-                               dg_glopar, grid_ref )
+                               para_env, grid_ref )
 
 
     TYPE(cell_type), INTENT(IN)              :: box_b
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
     REAL(dbl), INTENT(IN)                    :: cutoff_radius
     TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: dg_glopar
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
 
     REAL(dbl)                                :: cutoff, ecut
     TYPE(cell_type)                          :: box_s, unit_box
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: ionode
+    TYPE ( cp_logger_type ), POINTER         :: logger
+    TYPE ( cp_error_type ), POINTER          :: error
 
 !------------------------------------------------------------------------------
+  logger => cp_error_get_logger(error)
+  ionode=(logger%para_env%mepos==logger%para_env%source)
+  IF (ionode) output_unit=cp_logger_get_default_unit_nr(logger)
 
   CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
 
@@ -108,11 +131,11 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
 
   IF ( PRESENT ( grid_ref ) ) THEN
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-          pe_group = dg_glopar % group, info = dg_glopar % group, & 
+          pe_group = para_env % group, info = output_unit , & 
           fft_usage = .TRUE.,  ref_grid = grid_ref )
   ELSE
      CALL pw_grid_setup ( box_b, grid_b, cutoff = ecut, &
-          pe_group = dg_glopar % group, info =  dg_glopar % scr, &
+          pe_group = para_env % group, info =  output_unit, &
           fft_usage = .TRUE. )
   ENDIF
 
@@ -123,45 +146,6 @@ SUBROUTINE dg_pme_grid_setup ( box_b, npts_s, cutoff_radius, grid_s, grid_b, &
   CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
 
 END SUBROUTINE dg_pme_grid_setup
-
-!******************************************************************************
-SUBROUTINE dg_pol_grid_setup ( box_b, npts_s, cutoff_radius, &
-                 grid_s, grid_b, dg_glopar, grid_ref )
-
-
-    TYPE(cell_type), INTENT(IN)              :: box_b
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts_s
-    REAL(dbl), INTENT(INOUT)                 :: cutoff_radius
-    TYPE(pw_grid_type), INTENT(INOUT)        :: grid_s, grid_b
-    TYPE(global_environment_type), &
-      INTENT(IN)                             :: dg_glopar
-    TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: grid_ref
-
-    REAL(dbl)                                :: cutoff, ecut
-    TYPE(cell_type)                          :: box_s, unit_box
-
-!------------------------------------------------------------------------------
-
-  CALL dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s, grid_b, cutoff )
-
-! If necessary set up grid with respect to the reference grid
-
-  ecut = 0.5_dbl * cutoff * cutoff
-
-  IF ( PRESENT ( grid_ref ) ) THEN
-     CALL pw_grid_setup ( box_b, grid_b, ecut, dg_glopar % group, &
-                         ref_grid = grid_ref )
-  ELSE
-     CALL pw_grid_setup ( box_b, grid_b, ecut, dg_glopar % group )
-  ENDIF
-
-  CALL dg_find_basis ( grid_b % npts, box_b, unit_box )
-
-  CALL dg_set_cell ( grid_s % npts, unit_box, box_s )
-
-  CALL pw_grid_setup ( box_s, grid_s, symm_usage=.FALSE. )
-
-END SUBROUTINE dg_pol_grid_setup
 
 !******************************************************************************
 SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
@@ -201,9 +185,11 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
     dr ( 3 ) = cell_lengths ( 3 ) / REAL ( nout ( 3 ), dbl )
   ENDIF
 
+! big grid bounds
   grid_b % bounds ( 1, : ) = - grid_b % npts / 2
   grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
   grid_b % grid_span = HALFSPACE
+! small grid bounds
   grid_s % bounds ( 1, : ) =   -nout ( : ) / 2
   grid_s % bounds ( 2, : ) = ( +nout ( : ) - 1 ) / 2
   grid_s % grid_span = HALFSPACE

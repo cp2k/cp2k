@@ -24,8 +24,7 @@ MODULE constraint
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE kinds,                           ONLY: dbl
   USE linear_systems,                  ONLY: solve_system
-  USE md,                              ONLY: simulation_parameters_type,&
-                                             virial_type
+  USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type,&
@@ -43,6 +42,7 @@ MODULE constraint
                                              matmul_3x3,&
                                              matvec_3x3,&
                                              transpose_3d
+  USE virial_types,                    ONLY: virial_type
 
   IMPLICIT NONE
 

@@ -82,7 +82,7 @@ OBJECTS_GENERIC =\
  cube_utils.o\
  densities.o\
  density_types.o\
- dg_rho0s.o\
+ dg_rho0_types.o\
  dg_types.o\
  dgs.o\
  distribution_1d_types.o\
@@ -94,8 +94,10 @@ OBJECTS_GENERIC =\
  empirical_parameters.o\
  environment.o\
  erf_fn.o\
- ewald_parameters_types.o\
  ewalds.o\
+ ewald_environment_types.o\
+ ewald_pw_methods.o\
+ ewald_pw_types.o\
  extended_system_dynamics.o\
  extended_system_initialize.o\
  extended_system_types.o\
@@ -108,13 +110,15 @@ OBJECTS_GENERIC =\
  fftsg_lib.o\
  fftsgi_lib.o\
  fftw_lib.o\
- fist_debug.o\
+ fist_energy_types.o\
+ fist_environment.o\
  fist_environment_types.o\
  fist_force.o\
- fist_force_numer.o\
  fist_intra_force.o\
  fist_main.o\
  fist_neighbor_lists.o\
+ fist_neighbor_list_control.o\
+ fist_nonbond_env_types.o\
  fist_nonbond_force.o\
  force_env_methods.o\
  force_env_types.o\
@@ -132,8 +136,6 @@ OBJECTS_GENERIC =\
  hartree_local_types.o\
  header.o\
  initialize_extended_types.o\
- initialize_molecule_types.o\
- initialize_pimd_types.o\
  input_types.o\
  integrator.o\
  k290.o\
@@ -161,11 +163,6 @@ OBJECTS_GENERIC =\
  level_shift.o\
  library_tests.o\
  linear_systems.o\
- linklist_control.o\
- linklist_types.o\
- linklist_utilities.o\
- linklist_verlet_list.o\
- linklists.o\
  machine.o\
  mathconstants.o\
  mathlib.o\
@@ -182,8 +179,6 @@ OBJECTS_GENERIC =\
  md_conserved_quantities.o\
  md_energies.o\
  md_environment_types.o\
- md_fist_energies.o\
- md_kg_energies.o\
  md_run.o\
  memory_utilities.o\
  message_passing.o\
@@ -195,7 +190,6 @@ OBJECTS_GENERIC =\
  mol_new_list_types.o\
  molecular_states.o\
  molecule_kind_types.o\
- molecule_types.o\
  molecule_types_new.o\
  mulliken.o\
  nhc.o\
@@ -223,7 +217,6 @@ OBJECTS_GENERIC =\
  parallel_include.o\
  parser.o\
  particle_list_types.o\
- particle_lists.o\
  particle_types.o\
  paw_proj_set_types.o\
  periodic_table.o\
@@ -314,7 +307,6 @@ OBJECTS_GENERIC =\
  radial_poisson.o\
  radial_solver.o\
  radial_util.o\
- read_pimd.o\
  real_space_test.o\
  realspace_grid_types.o\
  scf_control_types.o\
@@ -345,6 +337,7 @@ OBJECTS_GENERIC =\
  transformations.o\
  util.o\
  velocity_verlet_control.o\
+ virial_types.o\
  wf_types.o\
  xc.o\
  xc_atom.o\

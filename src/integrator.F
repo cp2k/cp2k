@@ -45,13 +45,12 @@ MODULE integrator
   USE extended_system_types,           ONLY: lnhc_parameters_type
   USE force_env_methods,               ONLY: force_env_calculate_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type
+                                             force_env_p_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp,&
                                              dp_size
-  USE md,                              ONLY: simulation_parameters_type,&
-                                             virial_type
+  USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE message_passing,                 ONLY: mp_comm_dup,&
@@ -62,12 +61,12 @@ MODULE integrator
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory, stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 !  USE transformations,                 ONLY: fr2fu,&
-
 !                                             u2r
+  USE virial_types,                     ONLY : virial_type
 
 
   IMPLICIT NONE
@@ -828,7 +827,7 @@ END SUBROUTINE set_integrator
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
@@ -842,17 +841,22 @@ END SUBROUTINE set_integrator
       POINTER                                :: particle_set
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
+    TYPE ( virial_type ), POINTER            :: virial
 
 !MK TYPE(virial_type), POINTER           :: thermo
 !   ---------------------------------------------------------------------------
 !MK thermo => md_env%virial
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set)
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("nve","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
+                       dyn_coeff_set=dyn_coeff_set, virial = virial )
 
     DO isubsys=1,SIZE(subsys)
 
@@ -948,7 +952,8 @@ END SUBROUTINE set_integrator
 
 !     *** Update forces ***
 
-      CALL force_env_calculate_force(force_env,box_change=.FALSE.)
+      CALL force_env_calculate_force(force_env_p(1)%force_env, &
+                                      box_change=.FALSE.)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1066,7 +1071,7 @@ END SUBROUTINE set_integrator
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: coeffs
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER :: force_env_p
     TYPE(lnhc_parameters_type), &
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(lnhc_parameters_type), POINTER      :: nhc( : )
@@ -1087,10 +1092,14 @@ END SUBROUTINE set_integrator
 !MK thermo => md_env%virial
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
-    CALL get_md_env(md_env=md_env,simpar=simpar,force_env=force_env,&
+    CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc,nhc_coef=nhc_coef)
     dt = simpar%dt
-    CALL force_env_get(force_env=force_env,subsys=subsys,&
+    IF (SIZE(force_env_p)/=1) THEN
+       CALL stop_program("nvt","integrator",__LINE__,&
+       "MD_ENV with more than (or less) than one force_env not supported atm!")
+    END IF
+    CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set)
 
     DO isubsys=1,SIZE(subsys)
@@ -1192,7 +1201,8 @@ END SUBROUTINE set_integrator
 
 !     *** Update forces ***
 
-      CALL force_env_calculate_force(force_env,box_change=.FALSE.)
+      CALL force_env_calculate_force(force_env_p(1)%force_env, &
+                                      box_change=.FALSE.)
 
 !     *** Velocity Verlet (second part) ***
 
@@ -1614,48 +1624,58 @@ END SUBROUTINE set_integrator
 !!   SOURCE
 !******************************************************************************
 
-!SUBROUTINE pressure ( pnode, thermo )
+SUBROUTINE pressure ( atomic_kind_set, particle_set, local_particles, virial  )
 
-!  IMPLICIT NONE
+  IMPLICIT NONE
 
 ! Arguments
-!  TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-!  TYPE ( virial_type ), INTENT ( INOUT ) :: thermo
+  TYPE ( atomic_kind_type ), DIMENSION ( : ), POINTER :: atomic_kind_set
+  TYPE ( particle_type ), DIMENSION ( : ), POINTER :: particle_set
+  TYPE ( distribution_1d_type ), POINTER :: local_particles
+  TYPE ( virial_type ), INTENT ( INOUT ) :: virial
 
 ! Locals
-!  INTEGER :: i, j, iatom, nnodes, handle
-!  REAL ( dbl ) :: mfl, mass
-!  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
+  INTEGER :: i, j, handle, iparticle_kind, nparticle_kind, nnodes
+  INTEGER :: nparticle_local, iparticle_local, iparticle
+  REAL ( dbl ) :: mass, mfl
+  TYPE ( atomic_kind_type ), POINTER :: atomic_kind
 !
 !------------------------------------------------------------------------------
+   IF ( virial % pv_availability ) THEN
+     CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
+     mfl = 0._dbl
+     nparticle_kind = SIZE ( atomic_kind_set )
+     virial % pv_kinetic = 0._dbl
+     DO i = 1, 3
+        DO j = 1, 3
+           nnodes = 0
+           DO iparticle_kind=1,nparticle_kind
+              atomic_kind => atomic_kind_set(iparticle_kind)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              DO iparticle_local=1,nparticle_local
+                nnodes = nnodes + 1
+                iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+                virial % pv_kinetic ( i, j ) = virial % pv_kinetic ( i, j ) + &
+                                  mass * particle_set ( iparticle ) % v ( i )* &
+                                         particle_set ( iparticle ) % v ( j )
+              END DO
+           END DO
+        END DO
+     END DO
+     mfl = REAL( 9 * nnodes, dbl ) * 2._dbl * 1.e-6_dbl
 
-!  CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
-
-!  thermo % pv_kinetic = 0._dbl
-!  nnodes = SIZE(pnode)
-!  DO i = 1, 3
-!     DO j = 1, 3
-!        DO iatom = 1, nnodes
-!           atomic_kind => pnode ( iatom ) % p % atomic_kind
-!           CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
-!           thermo % pv_kinetic ( i, j ) = thermo % pv_kinetic ( i, j ) + &
-!                mass*pnode ( iatom ) % p % v ( i )* &
-!                pnode ( iatom ) % p % v ( j )
-!        END DO
-!     END DO
-!  END DO
-!  mfl = REAL( 9 * nnodes, dbl ) * 2._dbl * 1.e-6_dbl
-
-!#if defined(__parallel)
-!  CALL mp_sum(thermo%pv_kinetic,int_group)
-!#endif
+#if defined(__parallel)
+     CALL mp_sum(virial%pv_kinetic,int_group)
+#endif
 
 ! total virial
-!  thermo%pv_total = thermo%pv_virial + thermo%pv_kinetic + thermo%pv_constraint
+     virial%pv_total = virial%pv_virial + virial%pv_kinetic + virial%pv_constraint
 
-!  CALL timestop ( mfl, handle )
-!
-!END SUBROUTINE pressure
+     CALL timestop ( mfl, handle )
+   ENDIF
+
+END SUBROUTINE pressure
 !!*****
 !******************************************************************************
 !!****** integrator/set [1.0] *
@@ -2102,7 +2122,7 @@ END SUBROUTINE set_integrator
 !END SUBROUTINE get_veps
 !!*****
 !******************************************************************************
-!!****** integrator/nvt_fist_pimd [1.0] *
+!!****** integrator/nvt_pimd [1.0] *
 !!
 !!   NAME
 !!     nvt_pimd

@@ -32,8 +32,8 @@ MODULE dump
                                              cp_logger_type,&
                                              cp_to_string
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE force_env_types,               ONLY: force_env_get,&
-                                             force_env_type,&
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_p_type,&
                                              force_env_write_variables
   USE kinds,                           ONLY: dbl
   USE md_environment_types,            ONLY: get_md_env,&
@@ -96,16 +96,16 @@ CONTAINS
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger, new_logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_p_type), DIMENSION(:), POINTER  :: force_env_p
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_md_env ( md_env, force_env = force_env )
+    CALL get_md_env ( md_env, force_env_p = force_env_p )
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY (para_env,new_logger)
 
-    CALL force_env_get(force_env,para_env=para_env)
+    CALL get_md_env ( md_env, para_env = para_env )
 
     logger => cp_error_get_logger(error)
     CALL cp_logger_create(new_logger,para_env=para_env,template_logger=logger)
@@ -119,7 +119,12 @@ CONTAINS
                      unit_number=dump_unit)
     END IF
 
-    CALL force_env_write_variables(force_env,unit_nr=dump_unit,error=new_error)
+    IF (ASSOCIATED(force_env_p)) THEN
+       DO i = 1, SIZE(force_env_p)
+          CALL force_env_write_variables(force_env_p(i)%force_env, &
+                                           unit_nr=dump_unit,error=new_error)
+       END DO
+    END IF
 
     IF (para_env%mepos==para_env%source) THEN
 

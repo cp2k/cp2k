@@ -71,7 +71,8 @@ MODULE cp_para_types
   !***************************************************************************
   TYPE cp_para_env_type
      LOGICAL :: owns_group
-     INTEGER :: mepos, group, source, num_pe, ref_count
+     INTEGER :: mepos, source, num_pe, ref_count
+     INTEGER :: group
   END TYPE cp_para_env_type
 !!***
 !****************************************************************************
