@@ -835,8 +835,7 @@ CONTAINS
 
     INTEGER                                  :: handle, Icg, IGauss, ilevel, &
                                                 Imm, IndMM, IRadTyp, ithread, &
-                                                LIndMM, stat
-    INTEGER, DIMENSION(3)                    :: ndim
+                                                LIndMM, stat, iwrk
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
@@ -844,25 +843,27 @@ CONTAINS
                                                 zdat, zder
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_pot_type), POINTER             :: pot
+    INTEGER, DIMENSION(2,3)                  :: bo2
 
     NULLIFY(pgf, xdat, ydat, zdat, xder, yder, zder, wrk)    
     CALL timeset(routineN,"I","",handle)
     ithread = 0
     Icg     = 0
-    ndim    = grids(auxbas_grid) % pw % pw_grid %npts
-    ALLOCATE (xdat(ndim(1)), STAT=stat)
+    bo2     = grids(auxbas_grid) % pw % pw_grid % bounds
+    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ydat(ndim(2)), STAT=stat)
+    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zdat(ndim(3)), STAT=stat)
+    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (xder(ndim(1)), STAT=stat)
+    ALLOCATE (xder(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (yder(ndim(2)), STAT=stat)
+    ALLOCATE (yder(bo2(1,2):bo2(2,2)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zder(ndim(3)), STAT=stat)
+    ALLOCATE (zder(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (wrk(MAX(ndim(1),ndim(2),ndim(3))), STAT=stat)
+    iwrk = MAXLOC(grids(auxbas_grid) % pw % pw_grid % npts, 1)
+    ALLOCATE (wrk(bo2(1,iwrk):bo2(2,iwrk)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
@@ -896,6 +897,7 @@ CONTAINS
                                             xder=xder,&
                                             yder=yder,&
                                             zder=zder,&
+                                            bo2=bo2,&
                                             wrk=wrk,&
                                             force=force)
              force = force * dvol
@@ -916,6 +918,7 @@ CONTAINS
                                                      aug_pools=aug_pools,&
                                                      debug_force=force,&
                                                      mm_cell=mm_cell,&
+                                                     auxbas_grid=auxbas_grid,&
                                                      error=error)
              END IF
           END DO Atoms
@@ -1330,8 +1333,8 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE debug_integrate_gf_rspace_NoPBC(ilevel, zetp, rp, scale, W, pwgrid, cube_info,&
                                              eps_mm_rspace, ithread, aug_pools, debug_force,&
-                                             mm_cell,error)
-    INTEGER, INTENT(IN)                      :: ilevel
+                                             mm_cell,auxbas_grid,error)
+    INTEGER, INTENT(IN)                      :: ilevel, auxbas_grid
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
@@ -1352,13 +1355,13 @@ CONTAINS
 
     INTEGER                                  :: handle, i, igrid, k, ngrids, &
                                                 stat
-    INTEGER, DIMENSION(3)                    :: ndim
     INTEGER, SAVE                            :: Icount
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(2)              :: energy
     REAL(KIND=dp), DIMENSION(3)              :: Err, force, myrp, r_pbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     TYPE(pw_p_type), DIMENSION(:), POINTER   :: grids
+    INTEGER, DIMENSION(2,3)                  :: bo2
 
     DATA Icount /0/
     ! Statements
@@ -1367,19 +1370,16 @@ CONTAINS
     NULLIFY(grids)
     !Statements
     ngrids = SIZE(aug_pools)
-    ndim   = 0
     CALL pw_pools_create_pws(aug_pools,grids,use_data=REALDATA3D,in_space=REALSPACE,error=error)
     DO igrid=1,ngrids
        CALL pw_zero(grids(igrid)%pw)
     END DO
-    DO igrid = 1, ngrids
-       ndim = MAX(grids(igrid)%pw%pw_grid%npts,ndim)
-    END DO
-    ALLOCATE (xdat(ndim(1)), STAT=stat)
+    bo2 = grids(auxbas_grid)%pw%pw_grid%bounds
+    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ydat(ndim(2)), STAT=stat)
+    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zdat(ndim(3)), STAT=stat)
+    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)    
 
     Icount = Icount + 1
@@ -1399,7 +1399,8 @@ CONTAINS
                                          ithread=ithread, &
                                          xdat=xdat,&
                                          ydat=ydat,&
-                                         zdat=zdat)
+                                         zdat=zdat,&
+                                         bo2=bo2)
 
           energy(k) = pw_integral_ab(pwgrid, grids(ilevel)%pw)          
        END DO

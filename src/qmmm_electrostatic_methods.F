@@ -601,16 +601,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, Icg, IGauss, &
-                                                igrid, ilevel, Imm, IndMM, &
+                                                ilevel, Imm, IndMM, &
                                                 IRadTyp, ithread, LIndMM, stat
-    INTEGER, DIMENSION(3)                    :: ndim
     LOGICAL                                  :: failure,ll
     REAL(KIND=dp)                            :: alpha, height, W
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_pot_type), POINTER             :: pot
-
+    INTEGER, DIMENSION(2,3)                  :: bo2
 !Statements
 
     NULLIFY(pgf, xdat, ydat, zdat)
@@ -618,15 +617,12 @@ CONTAINS
 
     ithread            = 0
     Icg                = 0
-    ndim               = 0
-    DO igrid = auxbas_grid, coarser_grid
-       ndim = MAX(tmp_grid(igrid)%pw%pw_grid%npts,ndim)
-    END DO
-    ALLOCATE (xdat(ndim(1)), STAT=stat)
+    bo2 = tmp_grid(auxbas_grid)%pw%pw_grid%bounds
+    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ydat(ndim(2)), STAT=stat)
+    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zdat(ndim(3)), STAT=stat)
+    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
@@ -654,7 +650,8 @@ CONTAINS
                                             ithread=ithread, &
                                             xdat=xdat,&
                                             ydat=ydat,&
-                                            zdat=zdat)                          
+                                            zdat=zdat,&
+                                            bo2=bo2)                          
           END DO Atoms
        END DO Gaussian
     END DO Radius

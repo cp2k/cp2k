@@ -104,7 +104,7 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE collocate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,bo2)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                :: zetp
@@ -114,7 +114,8 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace    
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    REAL(KIND=dp), DIMENSION(:), POINTER    :: xdat, ydat, zdat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
+    INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
     ! Local Variables
     INTEGER                                  :: ithread_l
     INTEGER                                  :: zub,zlb,yub,ylb,xub,xlb
@@ -122,10 +123,10 @@ CONTAINS
     REAL(KIND=dp)                           :: radius,  rpg, zap, yap, xap
     REAL(KIND=dp), DIMENSION(3)              :: dr
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, &
-                                                ub_cube, ng
+                                                ub_cube
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    INTEGER, DIMENSION(2,3)                  :: gridbounds
+    INTEGER, DIMENSION(2,3)                  :: bo, gbo
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
 
 
@@ -141,48 +142,42 @@ CONTAINS
     END IF
     
 !   *** properties of the grid ***
-    dr(:) = pwgrid%pw_grid%dr(:)
-    ng(:) = pwgrid%pw_grid%npts(:)
-    grid => pwgrid%cr3d(:,:,:)
-    gridbounds(1,1) = LBOUND(grid,1)
-    gridbounds(2,1) = UBOUND(grid,1)
-    gridbounds(1,2) = LBOUND(grid,2)
-    gridbounds(2,2) = UBOUND(grid,2)
-    gridbounds(1,3) = LBOUND(grid,3)
-    gridbounds(2,3) = UBOUND(grid,3)
-
+    dr(:) =  pwgrid%pw_grid%dr(:)
+    grid  => pwgrid%cr3d(:,:,:)
+    bo    =  pwgrid%pw_grid%bounds_local
+    gbo   =  pwgrid%pw_grid%bounds
 
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+gridbounds(1,:)
-    zub = MIN(gridbounds(2,3),cubecenter(3)+ub_cube(3))
-    zlb = MAX(gridbounds(1,3),cubecenter(3)+lb_cube(3))
-    yub = MIN(gridbounds(2,2),cubecenter(2)+ub_cube(2))
-    ylb = MAX(gridbounds(1,2),cubecenter(2)+lb_cube(2))
-    xub = MIN(gridbounds(2,1),cubecenter(1)+ub_cube(1))
-    xlb = MAX(gridbounds(1,1),cubecenter(1)+lb_cube(1))
+    cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
+    zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+    zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+    yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+    ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+    xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+    xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
 
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg = REAL(ig-gridbounds(1,3),dp)*dr(3) - rp(3)
+       rpg = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
        zap = EXP(-zetp*rpg**2)
        zdat(ig)=scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg = REAL(ig-gridbounds(1,2),dp)*dr(2) - rp(2)
+       rpg = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
        yap = EXP(-zetp*rpg**2)
        ydat(ig)=yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg = REAL(ig-gridbounds(1,1),dp)*dr(1) - rp(1)
+       rpg = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
        xap  = EXP(-zetp*rpg**2)
        xdat(ig)=xap
     ENDDO
 
-    CALL collocate_gf_npbc(grid,xdat,ydat,zdat,gridbounds,zlb,zub,ylb,yub,xlb,xub)
+    CALL collocate_gf_npbc(grid,xdat,ydat,zdat,bo,bo2,zlb,zub,ylb,yub,xlb,xub)
 
   END SUBROUTINE collocate_gf_rspace_NoPBC
 
@@ -211,7 +206,7 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,wrk,force)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,force)
     IMPLICIT NONE
     ! Arguments
     REAL(KIND=dp), INTENT(IN)                 :: zetp
@@ -224,6 +219,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xder, yder, zder, wrk
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
+    INTEGER, DIMENSION(2,3), INTENT(IN)      :: bo2
     ! Local Variables
     INTEGER                                   :: ithread_l
     INTEGER                                   :: zub,zlb,yub,ylb,xub,xlb
@@ -231,10 +227,10 @@ CONTAINS
     REAL(KIND=dp)                            :: radius,  rpg, zap, yap, xap
     REAL(KIND=dp), DIMENSION(3)               :: dr
     INTEGER, DIMENSION(3)                     :: cubecenter, lb_cube, &
-                                                 ub_cube, ng
+                                                 ub_cube
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                 :: grid
-    INTEGER, DIMENSION(2,3)                   :: gridbounds
+    INTEGER, DIMENSION(2,3)                   :: bo, gbo
     INTEGER, DIMENSION(:), POINTER            :: sphere_bounds
 
 
@@ -252,43 +248,38 @@ CONTAINS
     
 !   *** properties of the grid ***
     dr(:) = pwgrid%pw_grid%dr(:)
-    ng(:) = pwgrid%pw_grid%npts(:)
-    grid => pwgrid%cr3d(:,:,:)
-    gridbounds(1,1) = LBOUND(grid,1)
-    gridbounds(2,1) = UBOUND(grid,1)
-    gridbounds(1,2) = LBOUND(grid,2)
-    gridbounds(2,2) = UBOUND(grid,2)
-    gridbounds(1,3) = LBOUND(grid,3)
-    gridbounds(2,3) = UBOUND(grid,3)
+    grid  => pwgrid%cr3d(:,:,:)
+    bo    =  pwgrid%pw_grid%bounds_local
+    gbo   =  pwgrid%pw_grid%bounds    
 
 !   *** get the sub grid properties for the given radius ***
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
-    cubecenter(:) = FLOOR(rp(:)/dr(:))+gridbounds(1,:)
-    zub = MIN(gridbounds(2,3),cubecenter(3)+ub_cube(3))
-    zlb = MAX(gridbounds(1,3),cubecenter(3)+lb_cube(3))
-    yub = MIN(gridbounds(2,2),cubecenter(2)+ub_cube(2))
-    ylb = MAX(gridbounds(1,2),cubecenter(2)+lb_cube(2))
-    xub = MIN(gridbounds(2,1),cubecenter(1)+ub_cube(1))
-    xlb = MAX(gridbounds(1,1),cubecenter(1)+lb_cube(1))
+    cubecenter(:) = FLOOR(rp(:)/dr(:))+gbo(1,:)
+    zub = MIN(bo(2,3),cubecenter(3)+ub_cube(3))
+    zlb = MAX(bo(1,3),cubecenter(3)+lb_cube(3))
+    yub = MIN(bo(2,2),cubecenter(2)+ub_cube(2))
+    ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
+    xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
+    xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))
 
     IF (zlb.GT.zub) RETURN
     DO ig=zlb,zub
-       rpg      = REAL(ig-gridbounds(1,3),dp)*dr(3) - rp(3)
+       rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rp(3)
        zap      = EXP(-zetp*rpg**2)
        zder(ig) = rpg
        zdat(ig) = scale*W*zap
     ENDDO
     IF (ylb.GT.yub) RETURN
     DO ig=ylb,yub
-       rpg      = REAL(ig-gridbounds(1,2),dp)*dr(2) - rp(2)
+       rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rp(2)
        yap      = EXP(-zetp*rpg**2)
        yder(ig) = rpg
        ydat(ig) = yap
     ENDDO
     IF (xlb.GT.xub) RETURN
     DO ig=xlb,xub
-       rpg      = REAL(ig-gridbounds(1,1),dp)*dr(1) - rp(1)
+       rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rp(1)
        xap      = EXP(-zetp*rpg**2)
        xder(ig) = rpg
        xdat(ig) = xap
@@ -298,19 +289,19 @@ CONTAINS
     DO ig=zlb,zub
        wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
     ENDDO
-    CALL integrate_gf_npbc(grid,xdat,ydat,wrk,gridbounds,&
+    CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2,&
          zlb,zub,ylb,yub,xlb,xub,force(3))
     ! y derivative
     DO ig=ylb,yub
        wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
     ENDDO    
-    CALL integrate_gf_npbc(grid,xdat,wrk,zdat,gridbounds,&
+    CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2,&
          zlb,zub,ylb,yub,xlb,xub,force(2))
     ! x derivative
     DO ig=xlb,xub
        wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
     ENDDO    
-    CALL integrate_gf_npbc(grid,wrk,ydat,zdat,gridbounds,&
+    CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2,&
          zlb,zub,ylb,yub,xlb,xub,force(1))
 
   END SUBROUTINE integrate_gf_rspace_NoPBC
