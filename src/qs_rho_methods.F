@@ -30,7 +30,6 @@ MODULE qs_rho_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
@@ -59,8 +58,7 @@ MODULE qs_rho_methods
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure,&
-                                             transfer_matrix
+                                             replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
                                              timestop
 

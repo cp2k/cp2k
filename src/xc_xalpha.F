@@ -222,6 +222,7 @@ CONTAINS
     INTEGER                                  :: ip
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip)
 
     DO ip = 1, n
@@ -316,6 +317,7 @@ CONTAINS
 
 ! number of points in array 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip)
 
     DO ip = 1, npoints

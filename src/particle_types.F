@@ -377,16 +377,16 @@ CONTAINS
                                                 xyz_format
     CHARACTER(LEN=default_string_length)     :: label, molecule_name, &
                                                 particle_name, string
-    INTEGER :: atom_a, handle, i, iatom, idummy, ikind, &
-      imolecule, imolecule_kind, input_format_length, iparticle, &
-      iparticle_kind, istat, natom, ndigits, nmolecule, nmolecule_kind, &
-      nparticle, nparticle_kind, string_length
+    INTEGER :: atom_a, handle, i, iatom, idummy, ikind, imolecule, &
+      imolecule_kind, input_format_length, iparticle, iparticle_kind, istat, &
+      natom, ndigits, nmolecule, nmolecule_kind, nparticle, nparticle_kind, &
+      string_length
     INTEGER, DIMENSION(:), POINTER :: first_atom_of_molecule, list, &
       molecule_kind_of, nmolecule_of_kind, nparticle_of_kind, particle_kind_of
     INTEGER, DIMENSION(:, :), POINTER        :: molecule_kind_name, &
                                                 particle_kind_name
-    LOGICAL                                  :: new_kind, newline, &
-                                                pdb, scaled_coordinates, &
+    LOGICAL                                  :: new_kind, newline, pdb, &
+                                                scaled_coordinates, &
                                                 section_found
     REAL(KIND=dp)                            :: fdummy, unit_of_length
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r

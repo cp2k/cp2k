@@ -433,8 +433,7 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilist, max_el, max_el1, &
-                                                max_loc, my_id, npcol, nprow, &
-                                                stat
+                                                my_id, npcol, nprow, stat
     INTEGER, DIMENSION(:), POINTER           :: g_dist
     LOGICAL                                  :: failure
 

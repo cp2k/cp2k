@@ -881,9 +881,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_epc_rspace_forces (MODULE kg_density)"
 
-    INTEGER                                  :: atom_a, handle, iatom, &
-                                                ikind, iparticle_local, &
-                                                istat, natom, nkind, &
+    INTEGER                                  :: atom_a, handle, iatom, ikind, &
+                                                iparticle_local, istat, &
+                                                natom, nkind, &
                                                 nparticle_local, nsmax
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     REAL(dbl)                                :: alpha_core_charge, &
@@ -1478,9 +1478,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_vp_rspace_forces (MODULE kg_density)"
 
-    INTEGER :: atom_a, handle, igrid_level, ikind, ipgf, iset, isgf, &
-      istat, maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, nseta, nsmax, &
-      offset, sgfa
+    INTEGER :: atom_a, handle, igrid_level, ikind, ipgf, iset, isgf, istat, &
+      maxco, maxsgf_set, na1, na2, natom, ncoa, nkind, nseta, nsmax, offset, &
+      sgfa
     INTEGER, DIMENSION(:), POINTER           :: atom_list, la_max, la_min, &
                                                 npgfa, nsgfa
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa

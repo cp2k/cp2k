@@ -40,8 +40,6 @@ MODULE qs_ks_types
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_release,&
                                              pw_pool_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -167,7 +165,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.

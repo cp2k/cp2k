@@ -67,9 +67,7 @@ MODULE qs_p_env_methods
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
-  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
-                                             sm_pools_create_matrix_vect,&
-                                             sm_pools_give_back_matrix_vect
+  USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type
   USE kinds,                           ONLY: dbl,&
                                              dp
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -95,7 +93,7 @@ MODULE qs_p_env_methods
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              replicate_matrix_structure,&
-                                             set_matrix, &
+                                             set_matrix,&
                                              transfer_matrix
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&

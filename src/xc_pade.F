@@ -450,6 +450,7 @@ CONTAINS
     REAL(dbl)                                :: epade, p, q
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip,p,q,epade)
 
     DO ip = 1, n
@@ -475,6 +476,7 @@ CONTAINS
     REAL(dbl)                                :: depade, dp, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
 
     DO ip = 1, n
@@ -507,6 +509,7 @@ CONTAINS
     REAL(dbl)                                :: depade, dp, dq, epade, p, q
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip,p,q,epade,dp,dq,depade)
 
     DO ip = 1, n
@@ -541,6 +544,7 @@ CONTAINS
                                                 t1, t2, t3
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,rsr,t1,t2,t3)
 
     DO ip = 1, n
@@ -581,6 +585,7 @@ CONTAINS
                                                 rsr2, rsr3
 
 !   ---------------------------------------------------------------------------
+
 !$omp parallel do private(ip,p,q,dp,dq,d2p,d2q,d3p,d3q,ab1,ab2,ab3,rsr1,rsr2,rsr3)
 
     DO ip = 1, n

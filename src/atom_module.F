@@ -116,9 +116,8 @@ CONTAINS
     TYPE(ATOM_TYPE), INTENT(INOUT)           :: atom
     TYPE(ATOM_CALCULATION_TYPE), INTENT(IN)  :: ac
 
-    INTEGER                                  :: err, it, l, matchp, &
-                                                max_iter, max_shoot, n, &
-                                                nodes, si
+    INTEGER                                  :: err, it, l, matchp, max_iter, &
+                                                max_shoot, n, nodes, si
     LOGICAL                                  :: shoot_converged
     REAL(DBL)                                :: a, eg, eg_li, ev, ldd, &
                                                 mix_ang, ncv, precision, res

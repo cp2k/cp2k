@@ -30,7 +30,6 @@ MODULE qs_rho_types
                                              coeff_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type,&
@@ -296,9 +295,8 @@ CONTAINS
   SUBROUTINE qs_rho_did_change(rho_struct,rho_r_valid, &
        rho_g_valid, tau_r_valid, tau_g_valid, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, &
-                                                rho_g_valid, tau_r_valid, &
-                                                tau_g_valid
+    LOGICAL, INTENT(in), OPTIONAL            :: rho_r_valid, rho_g_valid, &
+                                                tau_r_valid, tau_g_valid
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -364,9 +362,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: rho_ao
     TYPE(coeff_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: rho_r, rho_g, tau_r, tau_g
-    LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, &
-                                                rho_g_valid, tau_r_valid, &
-                                                tau_g_valid
+    LOGICAL, INTENT(out), OPTIONAL           :: rho_r_valid, rho_g_valid, &
+                                                tau_r_valid, tau_g_valid
     INTEGER, INTENT(out), OPTIONAL           :: rebuild_each
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: tot_rho_r

@@ -43,8 +43,7 @@ MODULE qs_collocate_density
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE coefficient_types,               ONLY: coeff_copy,&
-                                             coeff_sumup,&
+  USE coefficient_types,               ONLY: coeff_sumup,&
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
@@ -164,10 +163,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_rho_core', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom_a, bo(2), dir, handle, &
-                                                iatom, ierr, ikind, ithread, &
-                                                j, natom, ncurr, npme, &
-                                                omp_get_thread_num
+    INTEGER :: atom_a, bo(2), dir, handle, iatom, ierr, ikind, ithread, j, &
+      natom, ncurr, npme, omp_get_thread_num, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     REAL(KIND=dp)                            :: alpha, eps_rho_rspace
@@ -186,7 +183,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(realspace_grid_type), POINTER       :: rs_rho
-    INTEGER                                  :: omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 
@@ -334,7 +330,8 @@ CONTAINS
       ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
       maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), natom_pairs, nb1, &
       nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp
+      omp_get_max_threads, omp_get_max_threads, omp_get_thread_num, &
+      omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub
@@ -348,10 +345,9 @@ CONTAINS
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, p_block, &
-                                                pab, pblock, &
-                                                rpgfa, rpgfb, sphi_a, sphi_b, &
-                                                work, zeta, zetb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, p_block, pab, &
+                                                pblock, rpgfa, rpgfb, sphi_a, &
+                                                sphi_b, work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dist_ab, pabt, workt
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -374,7 +370,6 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    INTEGER :: omp_get_max_threads, omp_get_thread_num
 
 !   ---------------------------------------------------------------------------
 

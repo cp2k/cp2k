@@ -81,16 +81,15 @@ CONTAINS
     TYPE(cube_info_type)                     :: info
     real(KIND=dp)                            :: dr(3), max_radius
     integer                                  :: cmax
+
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cube_info (MODULE cube_utils)"
 
-    integer                                  :: handle, i, igmin, imr, istat, &
-                                                jg, jg2, jgmin, k, kg, kg2, &
-                                                kgmin
+    integer                                  :: check_1, check_2, handle, i, &
+                                                igmin, imr, istat, jg, jg2, &
+                                                jgmin, k, kg, kg2, kgmin
     real(KIND=dp)                            :: drmin, drsafe, dxi, dy2, dyi, &
                                                 dz2, dzi, radius, radius2
-    integer :: kgmin_old,jgmin_old,igmin_old
-    integer :: check_1,check_2
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
@@ -175,10 +174,13 @@ CONTAINS
   ! in which the counting loops and execution loops above are executed a different
   ! number of times, even at -O1
   FUNCTION do_and_hide_it_1(prefactor,i,drmin,dz2,dy2,kg2,jg2) RESULT(res)
-    INTEGER :: res
-    REAL(KIND=dp) :: prefactor,drmin,dz2,dy2
-    INTEGER :: jg2,kg2,i
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: buf
+    REAL(KIND=dp)                            :: prefactor
+    INTEGER                                  :: i
+    REAL(KIND=dp)                            :: drmin, dz2, dy2
+    INTEGER                                  :: kg2, jg2, res
+
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buf
+
     ALLOCATE(buf(4))
     buf(1)=prefactor
     buf(2)=drmin
@@ -188,9 +190,9 @@ CONTAINS
     DEALLOCATE(buf)
   END FUNCTION do_and_hide_it_1
   FUNCTION do_and_hide_it_2(buf,i,jg2,kg2) RESULT(res)
-    INTEGER :: res
-    INTEGER :: jg2,kg2,i
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: buf
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: buf
+    INTEGER                                  :: i, jg2, kg2, res
+
     buf(2)=(i*buf(2))**2
     res = CEILING(-0.1D-7-buf(1)*sqrt(max(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2

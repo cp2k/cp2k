@@ -40,7 +40,6 @@ MODULE qs_ks_methods
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
-                                             cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
@@ -247,17 +246,15 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, &
-                                                just_energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_kohn_sham', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, &
-                                                n_electrons, nspins, &
-                                                output_unit, stat
+    INTEGER                                  :: handle, ispin, n_electrons, &
+                                                nspins, output_unit, stat
     LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -549,8 +546,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), &
       INTENT(inout), TARGET                  :: qs_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, &
-                                                just_energy
+    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -566,7 +566,7 @@ SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ilist, max_el, max_el1, &
-                                                max_loc, my_id, stat
+                                                my_id, stat
     INTEGER, DIMENSION(:), POINTER           :: g_dist
     LOGICAL                                  :: failure
 

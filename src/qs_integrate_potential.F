@@ -151,8 +151,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
-    INTEGER                                  :: atom_a, dir, handle, &
-                                                iatom, ierr, ikind, j, &
+    INTEGER                                  :: atom_a, dir, handle, iatom, &
+                                                ierr, ikind, j, &
                                                 natom_of_kind, npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -357,7 +357,8 @@ CONTAINS
       istat, itask, ithread, jatom, jkind, jpgf, jset, maxco, maxsgf_set, n, &
       na1, na2, nalimit(2), natom, natom_pairs, nb1, nb2, ncoa, ncob, nkind, &
       nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb, tp
+      omp_get_max_threads, omp_get_thread_num, omp_get_thread_num, sgfa, &
+      sgfb, tp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -369,8 +370,7 @@ CONTAINS
     LOGICAL                                  :: h_duplicated, my_compute_tau, &
                                                 p_duplicated
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
-                                                kind_radius_b, maxvdiff, &
-                                                maxvnew, rab2, scale,  &
+                                                kind_radius_b, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
                                                 rb, rp
@@ -402,7 +402,6 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap, dh
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
-    INTEGER :: omp_get_thread_num, omp_get_max_threads
 
 !   ---------------------------------------------------------------------------
 ! default, if compute_tau is not present we assume it is false

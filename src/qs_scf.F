@@ -1240,8 +1240,7 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: use_cholesky
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
-    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, &
-                                                smear
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -754,7 +754,7 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(dbl) :: as, asp, asp2, asp3, bs, p, q, sas, sbs, sbs3, sbs5, t1, &
       t11, t12, t13, t16, t19, t22, t24, t25, t3, t33, t34, t36, t39, t4, &
-      t43, t44, t60, t62, w1, w2, x, ys
+      t43, t44, t60, t62, w1, x, ys
 
     p = 0.0045_dbl*b*b
     q = 0.0253_dbl*b
@@ -877,7 +877,7 @@ CONTAINS
     INTEGER                                  :: ip
     REAL(dbl)                                :: a1, a2, as, asp, asp2, asp3, &
                                                 bs, p, q, s1, s2, sas, sbs, &
-                                                sbs3, sbs5, t0, w1, w2, x, ys
+                                                sbs3, sbs5, t0, w1, x, ys
 
     p = 0.0055_dbl*b*b
     q = 0.0253_dbl*b

@@ -83,6 +83,7 @@ CONTAINS
     integer                                  :: handle, ithread, la_max, &
                                                 la_min, lb_max, lb_min, &
                                                 nthread_l
+
 !$  integer                                  :: omp_get_max_threads
 
       CALL timeset("init_l_info","I","",handle)

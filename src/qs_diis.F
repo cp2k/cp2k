@@ -56,8 +56,7 @@ MODULE qs_diis
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type,&
-                                             mo_set_type
+                                             mo_set_p_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_memory
