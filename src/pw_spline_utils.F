@@ -75,13 +75,13 @@ MODULE pw_spline_utils
        cp_add_iter_level, cp_rm_iter_level, cp_unitnr_for_output, &
        cp_finished_output
   USE string_utilities, only: compress
+  USE input_constants, only: no_precond,precond_spl3_aint, precond_spl3_1
+
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='pw_spline_utils'
-  
-  INTEGER, PARAMETER, PUBLIC :: no_precond=0,precond_spl3_aint=1, precond_spl3_1=2
 
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs=&
          (/ 125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp /),&

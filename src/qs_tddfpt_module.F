@@ -21,15 +21,15 @@ MODULE qs_tddfpt_module
 
   USE cp_control_utils,                ONLY: read_tddfpt_control
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             oe_none,&
+                                             tddfpt_control_type,&
+                                             xc_control_type
+  USE input_constants,                 ONLY: oe_none,&
                                              oe_saop,&
                                              oe_sic,&
                                              sic_none,&
-                                             tddfpt_control_type,&
                                              tddfpt_singlet,&
                                              tddfpt_davidson,&
-                                             tddfpt_lanczos,&
-                                             xc_control_type
+                                             tddfpt_lanczos
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&

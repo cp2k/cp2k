@@ -59,7 +59,9 @@ MODULE xc_perdew_zunger_new
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
-
+  USE input_constants,                 ONLY: pz_dmc,&
+                                             pz_orig,&
+                                             pz_vmc
   IMPLICIT NONE
   PRIVATE
   
@@ -69,8 +71,6 @@ MODULE xc_perdew_zunger_new
 
   REAL(KIND=dp), PARAMETER :: epsilon = 5.E-13
   REAL(KIND=dp) :: eps_rho
-  
-  INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
 
   PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_zunger_new"

@@ -49,7 +49,12 @@ MODULE xc_exchange_gga_new
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
-
+  USE input_constants,                 ONLY: xgga_b88,&
+                                             xgga_opt,&
+                                             xgga_pbe,&
+                                             xgga_pw86,&
+                                             xgga_pw91,&
+                                             xgga_revpbe
   IMPLICIT NONE
 
   PRIVATE
@@ -63,8 +68,6 @@ MODULE xc_exchange_gga_new
                           f43 = 4.0_dp*f13, &
                           f53 = 5.0_dp*f13
 
-  INTEGER, PARAMETER, PUBLIC :: xgga_b88=1, xgga_pw86=2, xgga_pw91=3, xgga_pbe=4,&
-       xgga_revpbe=5, xgga_opt=6
 
   REAL(KIND=dp) :: cx, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact

@@ -22,8 +22,8 @@ MODULE  hartree_local_methods
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             gapw_control_type,&
-                                             tddfpt_singlet
+                                             gapw_control_type
+  USE input_constants,                 ONLY: tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE global_types,                    ONLY: global_environment_type

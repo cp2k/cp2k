@@ -72,7 +72,12 @@ MODULE cp_output_handling
                                              default_string_length,&
                                              dp
   USE string_utilities,                ONLY: compress
-
+  USE input_constants,                 ONLY: silent_print_level,&
+                                             low_print_level,&
+                                             medium_print_level,&
+                                             high_print_level,&
+                                             debug_print_level
+  
   IMPLICIT NONE
   PRIVATE
 
@@ -81,9 +86,6 @@ MODULE cp_output_handling
   PUBLIC :: cp_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_unitnr_for_output, cp_finished_output
-
-  INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
-       medium_print_level=2, high_print_level=3, debug_print_level=4
 
 !!***
 !****************************************************************************

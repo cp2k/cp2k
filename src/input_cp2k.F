@@ -43,65 +43,15 @@ MODULE input_cp2k
        keyword_release
   USE input_val_types, ONLY: val_type, no_t, logical_t, integer_t, real_t, char_t,&
        enum_t
-  USE cp_output_handling, only: silent_print_level, low_print_level,&
-       medium_print_level, high_print_level, debug_print_level
-  USE cp_control_types, only: xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
-       xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
-       xc_deriv_spline3, xc_deriv_spline2,&
-       xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
-       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
-       no_excitations,tddfpt_excitations,&
-       oe_none,&
-       oe_saop,&
-       oe_sic,&
-       tddfpt_davidson,&
-       tddfpt_excitations,&
-       tddfpt_lanczos,&
-       tddfpt_singlet,&
-       tddfpt_triplet
-  USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
   USE cp_output_handling, only: cp_print_key_section_create
-  USE greens_fn, ONLY: periodic3d,& 
-       analytic2d,& 
-       analytic1d,& 
-       analytic0d,& 
-       mt2d,&       
-       mt1d,&       
-       mt0d,&       
-       hockney2d,&
-       hockney1d,&
-       hockney0d 
-  USE xc_exchange_gga_new,             ONLY: xgga_b88,&
-                                             xgga_eval,&
-                                             xgga_info,&
-                                             xgga_opt,&
-                                             xgga_pbe,&
-                                             xgga_pw86,&
-                                             xgga_pw91,&
-                                             xgga_revpbe
-  USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
-                                             ke_gga_lda_eval,&
-                                             ke_gga_lsd_eval,&
-                                             ke_lc,&
-                                             ke_llp,&
-                                             ke_ol1,&
-                                             ke_ol2,&
-                                             ke_pw86,&
-                                             ke_pw91,&
-                                             ke_t92
-  USE xc_perdew_wang_new,              ONLY: pw_dmc,&
-                                             pw_orig,&
-                                             pw_vmc
-  USE xc_perdew_zunger_new,            ONLY: pz_dmc,&
-                                             pz_orig,&
-                                             pz_vmc
+
   USE string_utilities, ONLY: s2a
-  implicit none
-  private
-
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='input_cp2k'
-
+  IMPLICIT NONE
+  PRIVATE
+  
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_cp2k'
+  
   PUBLIC :: create_cp2k_root_section, check_cp2k_input, parsed_cp2k_input
 !!***
 !****************************************************************************
@@ -230,25 +180,31 @@ contains
 !!     fawzi
 !!
 !!*** **********************************************************************
-  FUNCTION parsed_cp2k_input(input_file,error) RESULT(res)
+  FUNCTION parsed_cp2k_input(input_file,check_this_section,error) RESULT(res)
     TYPE(section_vals_type), pointer :: input_file
+    LOGICAL, INTENT(IN), OPTIONAL :: check_this_section
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     logical :: res
 
-    logical :: failure
+    LOGICAL :: failure, my_check
     character(len=*), parameter :: routineN='parsed_cp2k_input',&
          routineP=moduleN//':'//routineN
     TYPE(section_vals_type), POINTER ::glob_section
 
     failure=.false.
-
+    my_check = .FALSE.
+    IF (PRESENT(check_this_section)) my_check = check_this_section
     res=ASSOCIATED(input_file)
     IF (res) THEN
        CPPrecondition(input_file%ref_count>0,cp_failure_level,routineP,error,failure)
        IF (.NOT.failure) THEN
-          glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",&
-               error=error)
-          CALL section_vals_get(glob_section,explicit=res,error=error)
+          IF (.NOT.my_check) THEN
+             glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",&
+                  error=error)
+             CALL section_vals_get(glob_section,explicit=res,error=error)
+          ELSE
+             CALL section_vals_get(input_file,explicit=res,error=error)
+          END IF
        END IF
     END IF
   END FUNCTION parsed_cp2k_input
@@ -5683,6 +5639,13 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="periodic",&
+            description="This keyword enables the QMMM periodic potential. Default .FALSE.",&
+            usage="periodic LOGICAL",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="typ_center",&
             description="This keyword specifies whether the centering is performes continuosly (NONE) "//&
             "or by unit grid steps (GRID).",&
@@ -6147,6 +6110,106 @@ END SUBROUTINE create_ewald_section
     character(len=*), parameter :: routineN='create_cell_section',&
          routineP=moduleN//':'//routineN
     TYPE(keyword_type), pointer :: keyword
+    TYPE(section_type), pointer :: subsection
+    failure=.false.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"cell",&
+            description="parameters needed to set up the cell",&
+            n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+! Real
+       CALL keyword_create(keyword, name="A",&
+            description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
+            usage="A real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Read the hmat(1,2); hmat(2,2); hmat(3,2)",&
+            usage="B real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Read the hmat(1,3); hmat(2,3); hmat(3,3)",&
+            usage="C real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ABC",&
+            description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
+            usage="ABC real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+! Character
+       CALL keyword_create(keyword, name="UNITS",&
+            variants=(/"UNIT"/),& 
+            description="Specify the global units used in the input.",&
+            usage="UNITS ANGSTROM",&
+            enum_c_vals=s2a( "ANGSTROM","SCALED_ANGSTROM","BOHR","SCALED_BOHR"),&
+            enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
+            use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
+            default_i_val=use_unit_bohr, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
+!Integers
+
+       CALL keyword_create(keyword, name="SUBCELLS",&
+            description="Read the subcells numbers.",&
+            usage="SUBCELLS integer",&
+            n_var=1,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+!Subsections
+
+       CALL create_cell_ref_section(subsection,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+  END SUBROUTINE create_cell_section
+
+
+
+!!****f* input_cp2k/create_cell_ref_section *
+!!
+!!   NAME
+!!     create_cell_ref_section
+!!
+!!   FUNCTION
+!!     creates the cell section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_cell_ref_section(section,error)
+    TYPE(section_type), pointer :: section
+    type(cp_error_type), optional, intent(inout) :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='create_cell_ref_section',&
+         routineP=moduleN//':'//routineN
+    TYPE(keyword_type), pointer :: keyword
     failure=.false.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -6199,8 +6262,17 @@ END SUBROUTINE create_ewald_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
+!Integers
+
+       CALL keyword_create(keyword, name="SUBCELLS",&
+            description="Read the subcells numbers.",&
+            usage="SUBCELLS integer",&
+            n_var=1,type_of_var=integer_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
     END IF
-  END SUBROUTINE create_cell_section
+  END SUBROUTINE create_cell_ref_section
 
 !!****f* input_cp2k/create_mgrid_section *
 !!

@@ -145,4 +145,41 @@ MODULE input_constants
   INTEGER, PUBLIC, PARAMETER :: default_lbfgs_method_id=1,&
                                 default_bfgs_method_id=2
 
+
+  INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
+       medium_print_level=2, high_print_level=3, debug_print_level=4
+
+  INTEGER, PARAMETER, PUBLIC :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
+       xc_rho_spline3_smooth=2, xc_rho_nn10=3, xc_rho_nn50=4
+  INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
+       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
+       xc_deriv_spline3_smooth=4, xc_deriv_nn10_smooth=5,&
+       xc_deriv_fd=6, xc_deriv_nn50_smooth=7
+  INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
+       xc_test_lsd_f_routine=3, xc_debug_new_routine=4
+  INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
+  INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
+  INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
+  INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_saop=1, oe_sic=2
+  INTEGER, PARAMETER, PUBLIC :: no_excitations=0, tddfpt_excitations=1
+  
+  
+  INTEGER, PARAMETER, PUBLIC :: no_precond=0,precond_spl3_aint=1, precond_spl3_1=2
+
+  INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
+                        ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
+                        MT2D = 1101, MT1D = 1102, MT0D = 1103,&
+                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
+
+  INTEGER, PARAMETER, PUBLIC :: xgga_b88=1, xgga_pw86=2, xgga_pw91=3, xgga_pbe=4,&
+       xgga_revpbe=5, xgga_opt=6
+
+  INTEGER, PARAMETER, PUBLIC :: ke_ol1=1, ke_ol2=2,ke_llp=3,ke_pw86=4,&
+       ke_pw91=5, ke_lc=6,ke_t92=7
+
+  INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
+  
+  INTEGER, PARAMETER, PUBLIC :: pz_orig=1, pz_dmc=2, pz_vmc=3
+ 
+
 END MODULE input_constants

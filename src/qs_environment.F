@@ -168,21 +168,25 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, cell_section
 
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
-         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+         particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref,&
+         cell_section)
     
     force_env_section => section_vals_get_subs_vals(globenv%input_file,&
          "FORCE_EVAL",error=error)
-
+    cell_section => section_vals_get_subs_vals(force_env_section,&
+         "SUBSYS%CELL",error=error)
+    
     CALL set_qs_env(qs_env,input=force_env_section,error=error)
     
     CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
 
 !   *** Read the input section with the cell parameters ***
 
-    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell)
+    CALL read_cell(cell, cell_ref, globenv, use_ref_cell=use_ref_cell, cell_section=cell_section,&
+         error=error)
 
 !   *** Print the cell parameters ***
 
@@ -192,7 +196,7 @@ CONTAINS
 !   *** the molecule kind, and the molecule data structures         ***
     CALL topology_control (atomic_kind_set,particle_set,&
                          molecule_kind_set,molecule_set,&
-                         globenv)
+                         globenv,error=error)
   
     CALL read_atomic_kind_set(atomic_kind_set,globenv)
 

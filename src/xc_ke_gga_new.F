@@ -48,6 +48,13 @@ MODULE xc_ke_gga_new
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
+  USE input_constants,                 ONLY: ke_lc,&
+                                             ke_llp,&
+                                             ke_ol1,&
+                                             ke_ol2,&
+                                             ke_pw86,&
+                                             ke_pw91,&
+                                             ke_t92
 
   IMPLICIT NONE
 
@@ -62,9 +69,6 @@ MODULE xc_ke_gga_new
                           f53 = 5.0_dp*f13
 
   PUBLIC :: ke_gga_info, ke_gga_lda_eval, ke_gga_lsd_eval
-
-  INTEGER, PARAMETER, PUBLIC :: ke_ol1=1, ke_ol2=2,ke_llp=3,ke_pw86=4,&
-       ke_pw91=5, ke_lc=6,ke_t92=7
 
   REAL(KIND=dp) :: cf, b, b_lda, b_lsd, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact

@@ -33,6 +33,21 @@ MODULE cp_control_types
                                              cp_warning_level
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE input_constants, only: xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
+       xc_rho_spline2_smooth,xc_rho_spline3_smooth,xc_deriv_pw,&
+       xc_deriv_spline3, xc_deriv_spline2,&
+       xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
+       xc_deriv_spline3_smooth,sic_none, sic_mauri_us, sic_ad, sic_mauri_spz,&
+       no_excitations,tddfpt_excitations,&
+       oe_none,&
+       oe_saop,&
+       oe_sic,&
+       tddfpt_davidson,&
+       tddfpt_excitations,&
+       tddfpt_lanczos,&
+       tddfpt_singlet,&
+       tddfpt_triplet
+
 
   IMPLICIT NONE
 
@@ -222,22 +237,6 @@ MODULE cp_control_types
             pw_grid_option, xc_control_type, mulliken_restraint_type,&
             semi_empirical_control_type
 
-! *** Public parameters ***
-
-  INTEGER, PARAMETER, PUBLIC :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
-       xc_rho_spline3_smooth=2, xc_rho_nn10=3, xc_rho_nn50=4
-  INTEGER, PARAMETER, PUBLIC :: xc_deriv_pw=0, xc_deriv_spline2=1,&
-       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
-       xc_deriv_spline3_smooth=4, xc_deriv_nn10_smooth=5,&
-       xc_deriv_fd=6, xc_deriv_nn50_smooth=7
-  INTEGER, PARAMETER, PUBLIC :: xc_old_f_routine=0, xc_new_f_routine=1,&
-       xc_test_lsd_f_routine=3, xc_debug_new_routine=4
-  INTEGER, PARAMETER, PUBLIC :: sic_none=0, sic_mauri_us=1, sic_mauri_spz=2, sic_ad=3
-  INTEGER, PARAMETER, PUBLIC :: tddfpt_singlet=0, tddfpt_triplet=1
-  INTEGER, PARAMETER, PUBLIC :: tddfpt_lanczos=0, tddfpt_davidson=1
-  INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_saop=1, oe_sic=2
-  INTEGER, PARAMETER, PUBLIC :: no_excitations=0, tddfpt_excitations=1
-  
 
 ! *** Public subroutines ***
 

@@ -14,7 +14,7 @@ MODULE mt_util
                                              cp_to_string,&
                                              cp_warning_level
   USE erf_fn,                          ONLY: erf
-  USE greens_fn,                       ONLY: MT0D,&
+  USE input_constants,                 ONLY: MT0D,&
                                              MT1D,&
                                              MT2D
   USE kinds,                           ONLY: dp

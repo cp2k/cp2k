@@ -29,7 +29,7 @@ MODULE simulation_cell
                                              cp_to_string,&
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
-  USE greens_fn,                       ONLY: ANALYTIC0D,&
+  USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
                                              ANALYTIC2D,&
                                              HOCKNEY0D,&
@@ -38,8 +38,8 @@ MODULE simulation_cell
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
-                                             PERIODIC3D,&
-                                             greens_function_type,&
+                                             PERIODIC3D
+  USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn_destroy,&
                                              pw_green_fn_init1
   USE kinds,                           ONLY: dp
@@ -55,6 +55,10 @@ MODULE simulation_cell
                                              test_object
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE input_cp2k,                      ONLY: parsed_cp2k_input
 
   IMPLICIT NONE
 
@@ -659,7 +663,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_cell ( cell, cell_ref, globenv, use_ref_cell )
+  SUBROUTINE read_cell ( cell, cell_ref, globenv, use_ref_cell, error, cell_section)
 
 !   Purpose: Read the cell parameters from the input file.
 
@@ -671,6 +675,8 @@ CONTAINS
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
     LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
+    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
+    TYPE(cp_error_type), INTENT(inout)            :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE read_cell (MODULE simulation_cell)"
@@ -678,12 +684,14 @@ CONTAINS
     CHARACTER(LEN=40)                        :: keyword, string
     INTEGER                                  :: istat
     LOGICAL                                  :: section_found
-    TYPE(cp_error_type)                      :: error
 
-!    REAL(dp), DIMENSION(1:3, 1:3), &
-!      INTENT(IN), OPTIONAL                   :: new_h_matrix
-!   ---------------------------------------------------------------------------
 
+    IF (parsed_cp2k_input(cell_section,check_this_section=.TRUE.,error=error)) THEN
+       CALL read_cell_new(cell, cell_ref, globenv, use_ref_cell, error=error, cell_section=cell_section)
+       RETURN
+    END IF
+
+!TODEL_START_TL
     IF (.NOT.ASSOCIATED(cell)) THEN
       ALLOCATE (cell,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"cell",0)
@@ -865,8 +873,144 @@ CONTAINS
     ENDIF
 
     CALL finish_parser()
-
+!TODEL_END_TL
   END SUBROUTINE read_cell
+
+!!****f* simulation_cell/read_cell_new [1.0] *
+!!
+!!   NAME
+!!     read_cell_new
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     03.2005 created [teo]
+!!
+!!*** **********************************************************************
+
+  RECURSIVE SUBROUTINE read_cell_new ( cell, cell_ref, globenv, use_ref_cell, error, cell_section,&
+       check_for_ref)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+    LOGICAL, INTENT(OUT), OPTIONAL           :: use_ref_cell
+    LOGICAL, INTENT(IN), OPTIONAL            :: check_for_ref
+    TYPE(section_vals_type), POINTER, OPTIONAL :: cell_section
+    TYPE(section_vals_type), POINTER           :: cell_ref_section
+    TYPE(cp_error_type), INTENT(INOUT) :: error
+    ! Local Variables
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_cell', &
+      routineP = module_name//':'//routineN
+    REAL(KIND=dp), DIMENSION(:),POINTER      :: cell_par
+    CHARACTER(LEN=40)                        :: keyword, string
+    INTEGER                                  :: istat, n_rep
+    LOGICAL                                  :: section_found, failure, my_check
+
+
+    failure  = .FALSE.
+    my_check = .TRUE.
+    NULLIFY(cell_ref_section, cell_par)
+    IF (.NOT.failure) THEN
+
+       IF (.NOT.ASSOCIATED(cell)) THEN
+          ALLOCATE (cell, STAT=istat)
+          CPPostcondition(istat == 0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+       IF (.NOT.ASSOCIATED(cell_ref)) THEN
+          ALLOCATE (cell_ref,STAT=istat)
+          CPPostcondition(istat == 0,cp_failure_level,routineP,error,failure)
+       END IF
+       
+       IF(PRESENT(use_ref_cell)  ) use_ref_cell = .FALSE.
+       IF (PRESENT(check_for_ref)) my_check     =  check_for_ref
+       
+       cell%unit_of_length_name = "BOHR"
+       cell%deth = 0.0_dp
+       cell%unit_of_length = 1.0_dp
+       cell%orthorhombic = .TRUE.
+       cell%scaled_coordinates = .FALSE.
+       cell%subcells = 2.0_dp
+       cell%perd(:) = 1
+       cell%hmat(:,:) = 0.0_dp
+       cell%h_inv(:,:) = 0.0_dp
+       
+       CALL section_vals_val_get(cell_section,"A",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(cell_section,"A",r_vals=cell_par,error=error)
+          cell%hmat(:,1) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(cell_section,"B",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(cell_section,"B",r_vals=cell_par,error=error)
+          cell%hmat(:,2) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(cell_section,"C",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(cell_section,"C",r_vals=cell_par,error=error)
+          cell%hmat(:,3) = cell_par(:)
+       END IF
+       CALL section_vals_val_get(cell_section,"ABC",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(cell_section,"ABC",r_vals=cell_par,error=error)
+          cell%hmat(1,1) = cell_par(1)
+          cell%hmat(2,2) = cell_par(2)
+          cell%hmat(3,3) = cell_par(3)
+       END IF
+       CALL section_vals_val_get(cell_section,"SUBCELLS",n_rep_val=n_rep,error=error)
+       IF (n_rep /= 0) THEN
+          CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
+       END IF
+       
+       CALL section_vals_val_get(cell_section,"UNITS",c_val=string,error=error)
+       SELECT CASE (TRIM(string))
+       CASE ("ANGSTROM")
+          cell%unit_of_length = bohr
+          cell%unit_of_length_name = "ANGSTROM"
+          cell%scaled_coordinates = .FALSE.
+       CASE ("BOHR")
+          cell%unit_of_length = 1.0_dp
+          cell%unit_of_length_name = "BOHR"
+          cell%scaled_coordinates = .FALSE.
+       CASE ("SCALED_ANGSTROM")
+          cell%unit_of_length = bohr
+          cell%unit_of_length_name = "ANGSTROM"
+          cell%scaled_coordinates = .TRUE.
+       CASE ("SCALED_BOHR")
+          cell%unit_of_length = 1.0_dp
+          cell%unit_of_length_name = "BOHR"
+          cell%scaled_coordinates = .TRUE.
+       CASE DEFAULT
+          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+       cell%hmat(:,:) = cell%hmat(:,:)*cell%unit_of_length      
+       CALL init_cell(cell)
+       
+       IF (.NOT.my_check) RETURN
+       cell_ref_section => section_vals_get_subs_vals(cell_section,&
+            "REF_CELL",error=error)
+       IF (parsed_cp2k_input(cell_ref_section,check_this_section=.TRUE.,error=error)) THEN
+          IF(PRESENT(use_ref_cell) ) use_ref_cell = .TRUE.
+          CALL read_cell_new(cell_ref, cell_ref, globenv, use_ref_cell, error=error,&
+               cell_section=cell_section, check_for_ref=.FALSE.)
+       ELSE
+          CALL cell_clone (cell, cell_ref, .FALSE., error)
+       END IF
+    END IF
+  END SUBROUTINE read_cell_new
 
 ! *****************************************************************************
 

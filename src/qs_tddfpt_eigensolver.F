@@ -18,8 +18,8 @@
 !!     
 !!****
 MODULE qs_tddfpt_eigensolver
-  USE cp_control_types,                ONLY: tddfpt_control_type,&
-                                             tddfpt_davidson,&
+  USE cp_control_types,                ONLY: tddfpt_control_type
+  USE input_constants,                 ONLY: tddfpt_davidson,&
                                              tddfpt_lanczos
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&

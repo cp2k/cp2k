@@ -813,10 +813,13 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
            ( mass * part ( i ) % v ( 3 ) * part ( i ) % v ( 3 ) )
         END IF
      END DO
-     temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
- 
-! scale velocities to get the correct initial temperature and
-     sc = SQRT ( simpar % temp_ext / temp )
+     temp = 0.0_dp
+     sc   = 0.0_dp
+     IF (simpar % nfree /= 0) THEN 
+        temp = 2.0_dp * akin / REAL ( simpar % nfree,KIND=dp)
+        ! scale velocities to get the correct initial temperature and
+        sc = SQRT ( simpar % temp_ext / temp )
+     END IF
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )

@@ -106,6 +106,8 @@ MODULE kg_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
 
   IMPLICIT NONE
 
@@ -166,7 +168,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
-
+    TYPE(section_vals_type), POINTER         :: cell_section
 !------------------------------------------------------------------------------
 
     CALL write_checkpoint_information("entering "//routine_name,globenv)
@@ -177,7 +179,7 @@ CONTAINS
     output_unit = globenv%scr
 
     ! nullifying  pointers
-    NULLIFY ( atomic_kind_set )
+    NULLIFY ( atomic_kind_set, cell_section)
     NULLIFY ( cell )
     NULLIFY ( dft_control )
     NULLIFY ( dyn_coeff_set )
@@ -190,6 +192,8 @@ CONTAINS
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
 
+    cell_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL%SUBSYS%CELL",error=error)    
     ! Read/write the input section with the dft and qs control parameters
     CALL read_dft_control ( dft_control, globenv, error )
     CALL read_qs_control ( dft_control % qs_control, globenv )
@@ -197,13 +201,14 @@ CONTAINS
     CALL write_qs_control ( dft_control % qs_control, globenv )
 
     ! Read/write the input section with the cell parameters
-    CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell )
+    CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
+         cell_section=cell_section, error=error)
     CALL write_cell ( cell, globenv )
 
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           globenv)
+                           globenv, error=error)
 
     ! Read/write the atomic kind set
     CALL read_atomic_kind_set(atomic_kind_set,globenv)

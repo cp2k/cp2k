@@ -36,7 +36,7 @@ MODULE pws
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE greens_fn,                       ONLY: ANALYTIC0D,&
+  USE input_constants,                 ONLY: ANALYTIC0D,&
                                              ANALYTIC1D,&
                                              ANALYTIC2D,&
                                              HOCKNEY0D,&
@@ -45,8 +45,8 @@ MODULE pws
                                              MT0D,&
                                              MT1D,&
                                              MT2D,&
-                                             PERIODIC3D,&
-                                             greens_function_type,&
+                                             PERIODIC3D
+  USE greens_fn,                       ONLY: greens_function_type,&
                                              pw_green_fn
   USE kinds,                           ONLY: dp, mp
   USE mathconstants,                   ONLY: fourpi

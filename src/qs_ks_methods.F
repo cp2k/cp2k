@@ -43,8 +43,8 @@ MODULE qs_ks_methods
                                              coeff_type, & 
                                              coeff_scale, &
                                              coeff_copy
-  USE cp_control_types,                ONLY: dft_control_type, & 
-                                             sic_none, &
+  USE cp_control_types,                ONLY: dft_control_type
+  USE input_constants,                 ONLY: sic_none, &
                                              sic_mauri_us, &
                                              sic_mauri_spz, &
                                              sic_ad

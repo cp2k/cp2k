@@ -33,8 +33,8 @@ MODULE xc
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type,&
-                                             tddfpt_triplet,&
-                                             xc_control_type,&
+                                             xc_control_type
+  USE input_constants,                 ONLY: tddfpt_triplet,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&

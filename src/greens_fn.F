@@ -50,6 +50,17 @@ MODULE greens_fn
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
+  USE input_constants, ONLY: periodic3d,& 
+                             analytic2d,& 
+                             analytic1d,& 
+                             analytic0d,& 
+                             mt2d,&       
+                             mt1d,&       
+                             mt0d,&       
+                             hockney2d,&
+                             hockney1d,&
+                             hockney0d 
+
   IMPLICIT NONE
   
   PRIVATE
@@ -75,10 +86,7 @@ MODULE greens_fn
     TYPE ( pw_type ), POINTER :: p3m_charge
   END TYPE greens_function_type
 
-  INTEGER, PARAMETER, PUBLIC :: PERIODIC3D = 1000, ANALYTIC2D = 1001,  &
-                        ANALYTIC1D = 1002, ANALYTIC0D = 1003,  &
-                        MT2D = 1101, MT1D = 1102, MT0D = 1103,&
-                        HOCKNEY2D = 1201, HOCKNEY1D = 1202, HOCKNEY0D = 1203
+
   INTEGER, SAVE, PRIVATE :: last_greens_fn_id_nr=0
   CHARACTER(len=*),PARAMETER,PRIVATE :: moduleN='greens_fn'
 !!*****

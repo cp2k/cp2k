@@ -48,19 +48,19 @@ MODULE xc_derivatives
                                              cs1_lsd_eval,&
                                              cs1_lsd_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
-  USE xc_exchange_gga_new,             ONLY: xgga_b88,&
-                                             xgga_eval,&
-                                             xgga_info,&
-                                             xgga_opt,&
-                                             xgga_pbe,&
-                                             xgga_pw86,&
-                                             xgga_pw91,&
-                                             xgga_revpbe
+  USE xc_exchange_gga_new,             ONLY: xgga_eval,&
+                                             xgga_info
   USE xc_hcth,                         ONLY: hcth_lda_eval,&
                                              hcth_lda_info
   USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
                                              ke_gga_lda_eval,&
-                                             ke_gga_lsd_eval,&
+                                             ke_gga_lsd_eval
+  USE input_constants,                 ONLY: xgga_b88,&                                             
+                                             xgga_opt,&
+                                             xgga_pbe,&
+                                             xgga_pw86,&
+                                             xgga_pw91,&
+                                             xgga_revpbe,&
                                              ke_lc,&
                                              ke_llp,&
                                              ke_ol1,&
@@ -87,16 +87,16 @@ MODULE xc_derivatives
                                              p86_lda_info
   USE xc_perdew_wang_new,              ONLY: perdew_wang_info,&
                                              perdew_wang_lda_eval,&
-                                             perdew_wang_lsd_eval,&
-                                             pw_dmc,&
+                                             perdew_wang_lsd_eval
+  USE input_constants,                 ONLY: pw_dmc,&
                                              pw_orig,&
                                              pw_vmc
-  USE xc_perdew_zunger_new,            ONLY: pz_dmc,&
-                                             pz_info,&
-                                             pz_lda_eval,&
-                                             pz_lsd_eval,&
+  USE input_constants,                 ONLY: pz_dmc,&
                                              pz_orig,&
                                              pz_vmc
+  USE xc_perdew_zunger_new,            ONLY: pz_info,&
+                                             pz_lda_eval,&
+                                             pz_lsd_eval
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type

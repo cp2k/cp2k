@@ -34,9 +34,9 @@ MODULE qs_kpp1_env_methods
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type,&
-                                             tddfpt_singlet,&
-                                             tddfpt_triplet,&
                                              xc_control_type
+  USE input_constants,                 ONLY: tddfpt_singlet,&
+                                             tddfpt_triplet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&

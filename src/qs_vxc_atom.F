@@ -30,8 +30,8 @@ MODULE qs_vxc_atom
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             xc_control_type,&
-                                             tddfpt_triplet
+                                             xc_control_type
+  USE input_constants,                 ONLY: tddfpt_triplet
   USE cp_error_handling,               ONLY: cp_error_type, &
                                              cp_a_l,&
                                              cp_assert

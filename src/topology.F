@@ -56,6 +56,8 @@ MODULE topology
   USE qmmm_topology_util,              ONLY: qmmm_coordinate_control,&
                                              qmmm_connectivity_control
   USE qmmm_types,                      only: qmmm_env_mm_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type  
 
   CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology"
 
@@ -107,8 +109,12 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   INTEGER                                          :: handle, iw
   TYPE(topology_parameters_type)                   :: topology
   LOGICAL                                          :: my_qmmm
-!-------------------------------------------------------------------------------
-!-------------------------------------------------------------------------------
+  TYPE(section_vals_type), POINTER                 :: cell_section
+
+  NULLIFY(cell_section)
+    
+  cell_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%CELL",error=error)
   my_qmmm = .FALSE.
   IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   iw = globenv%scr
@@ -131,7 +137,8 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 2. Get the cell info
   !-----------------------------------------------------------------------------
-  CALL read_cell ( topology%cell, topology%cell_ref, globenv )
+  CALL read_cell ( topology%cell, topology%cell_ref, globenv, error=error,&
+       cell_section=cell_section)
 
 
   !-----------------------------------------------------------------------------

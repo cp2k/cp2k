@@ -18,21 +18,21 @@ MODULE cp_control_utils
   USE cp_control_types,                ONLY: dft_control_create,&
                                              dft_control_type,&
                                              gapw_control_create,&
-                                             oe_none,&
+                                             qs_control_type,&
+                                             tddfpt_control_type,&
+                                             wave_control_type
+  USE input_constants,                 ONLY: oe_none,&
                                              oe_saop,&
                                              oe_sic,&
-                                             qs_control_type,&
                                              sic_ad,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
                                              sic_none,&
-                                             tddfpt_control_type,&
                                              tddfpt_davidson,&
                                              tddfpt_excitations,&
                                              tddfpt_lanczos,&
                                              tddfpt_singlet,&
                                              tddfpt_triplet,&
-                                             wave_control_type,&
                                              xc_debug_new_routine,&
                                              xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&

@@ -18,8 +18,8 @@
 MODULE xc_atom 
 
   USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_triplet,&
                                              xc_control_type
+  USE input_constants,                 ONLY: tddfpt_triplet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&

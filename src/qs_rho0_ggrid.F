@@ -27,8 +27,8 @@ MODULE qs_rho0_ggrid
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_sumup,coeff_zero
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             tddfpt_singlet
+  USE cp_control_types,                ONLY: dft_control_type
+  USE input_constants,                 ONLY: tddfpt_singlet
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_message,&

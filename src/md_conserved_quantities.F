@@ -141,6 +141,8 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
  
   CALL get_part_ke ( md_env, md_ener % ekin, int_grp )
 
+  
+  IF (simpar%nfree /= 0) &
   md_ener % temp_part = 2.0_dp * md_ener % ekin / REAL ( simpar%nfree,KIND=dp)
   
   SELECT CASE ( TRIM(simpar % ensemble)  )

@@ -29,8 +29,8 @@ MODULE xc_rho_set_types
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
-  USE cp_control_types,                ONLY: xc_control_type,&
-                                             xc_deriv_fd,&
+  USE cp_control_types,                ONLY: xc_control_type
+  USE input_constants,                 ONLY: xc_deriv_fd,&
                                              xc_deriv_nn10_smooth,&
                                              xc_deriv_nn50_smooth,&
                                              xc_deriv_pw,&

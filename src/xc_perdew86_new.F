@@ -32,8 +32,8 @@ MODULE xc_perdew86_new
   USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
                                              set_util,&
                                              setup_calculation
-  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval,&
-       pz_orig
+  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval
+  USE input_constants,                 ONLY: pz_orig
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE cp_error_handling,               ONLY: cp_a_l,&
        cp_assert,&

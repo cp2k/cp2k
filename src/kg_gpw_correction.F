@@ -32,8 +32,8 @@ MODULE kg_gpw_correction
                                              coeff_transform_space,&
                                              coeff_type, & 
                                              coeff_copy
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             sic_none
+  USE cp_control_types,                ONLY: dft_control_type
+  USE input_constants,                 ONLY: sic_none
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&

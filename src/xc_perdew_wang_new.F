@@ -50,7 +50,9 @@ MODULE xc_perdew_wang_new
   USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
                                              xc_rho_set_get,&
                                              xc_rho_set_type
-
+  USE input_constants,                 ONLY: pw_dmc,&
+                                             pw_orig,&
+                                             pw_vmc
   IMPLICIT NONE
   PRIVATE
 
@@ -63,8 +65,6 @@ MODULE xc_perdew_wang_new
        fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_perdew_wang_new"
-
-  INTEGER, PARAMETER, PUBLIC :: pw_orig=1,pw_dmc=2,pw_vmc=3
 
 
   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval

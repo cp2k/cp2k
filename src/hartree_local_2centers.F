@@ -22,7 +22,7 @@ MODULE  hartree_local_2centers
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_control_types,                ONLY: tddfpt_singlet
+  USE input_constants,                 ONLY: tddfpt_singlet
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size,&
                                              int_size

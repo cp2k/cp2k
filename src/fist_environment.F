@@ -79,6 +79,8 @@ MODULE fist_environment
                                              timestop
   USE topology,                        ONLY: topology_control
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   IMPLICIT NONE
 
   PRIVATE
@@ -144,7 +146,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
   INTEGER                                  :: handle
-
+  TYPE(section_vals_type), POINTER         :: cell_section
 ! Local parameters 
 
   CHARACTER(LEN=*), PARAMETER :: routine_name = "fist_init"
@@ -157,11 +159,14 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env)
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section)
 
+  cell_section => section_vals_get_subs_vals(globenv%input_file,&
+       "FORCE_EVAL%SUBSYS%CELL",error=error)
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
-  CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell )
+  CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&
+       cell_section=cell_section)
 
 ! Print the cell parameters ***
   CALL write_cell ( cell, globenv )
