@@ -42,6 +42,7 @@ MODULE md_environment_types
   TYPE md_environment_type
      TYPE(cp_para_env_type), POINTER :: para_env 
      INTEGER, POINTER :: itimes
+     REAL ( dbl ) :: used_time
      REAL ( dbl ), POINTER :: constant
      TYPE ( cell_type ), POINTER :: cell
      TYPE ( lnhc_parameters_type ), POINTER :: nhc_part ( : )

@@ -71,6 +71,7 @@ MODULE md_run
   USE kinds,                           ONLY: int_size,&
                                              dp,&
                                              dp_size
+  USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
                                              mdio_parameters_type,&
                                              qs_md_parameters_type,&
@@ -193,6 +194,8 @@ CONTAINS
     INTEGER :: handle,istat,istep,natom,nmolecule
     INTEGER :: nmoltype, nmol, nnodes, nsh, isubsys
     LOGICAL :: should_stop, failure
+
+    REAL( KIND = dp ) :: time_iter_start, time_iter_stop 
 
 !   ---------------------------------------------------------------------------
 
@@ -328,8 +331,10 @@ CONTAINS
     itimes = 0
 
     CALL set_qs_energies ( globenv, mdio )
-
     ! the verlet integrator needs to be started with the correct forces alreay initialized
+
+    time_iter_start=m_walltime()
+
     CALL force_env_calculate_force ( md_env%force_env )
     CALL md_energy_qs(md_env) ! inits the print env at itimes == 0
 
@@ -337,6 +342,9 @@ CONTAINS
       CALL velocity_verlet(md_env)
       itimes = itimes + 1
       CALL temperature_control(simpar,force_env,error)
+      time_iter_stop=m_walltime()
+      md_env % used_time = time_iter_stop - time_iter_start
+      time_iter_start=time_iter_stop
       CALL md_energy_qs(md_env)
       IF (MODULO(itimes,mdio%idump) == 0) THEN
         CALL dump_variables(md_env,force_env,mdio%dump_file_name,error)

@@ -88,7 +88,7 @@ SUBROUTINE velocity_verlet ( md_env )
   INTEGER :: handle, in_use
 
 !------------------------------------------------------------------------------
-  CALL timeset ( 'VELOCITY VERLET', 'I', ' ', handle )
+  CALL timeset ( 'velocity_verlet', 'I', ' ', handle )
 
 ! get force environment
   CALL force_env_get ( md_env%force_env, in_use=in_use )

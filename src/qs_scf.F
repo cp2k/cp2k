@@ -700,8 +700,8 @@ CONTAINS
        CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (ionode.AND.logger%print_keys%scf) THEN
-             WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
-                  "*** SCF run converged ***"
+             WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                  "*** SCF run converged in ",scf_env%iter_count," steps ***"
           END IF
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop

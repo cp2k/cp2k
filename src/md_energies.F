@@ -265,9 +265,9 @@ END SUBROUTINE set_qs_energies
       IF (ionode) THEN
 
         IF (MODULO(itimes,iscreen) == 0) THEN
-          WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,/)")&
+          WRITE (scr, "(/,T2,A6,I8,F12.3,F20.9,F20.9,F20.9,F20.9,F20.12,F20.6/)")&
             "-MD-",itimes,t,ekin,temp,epot,&
-            cons,cons-constant
+            cons,cons-constant,md_env % used_time
         END IF
 
         IF (MODULO(itimes,iener) == 0) THEN
