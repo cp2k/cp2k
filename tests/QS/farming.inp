@@ -1,0 +1,10 @@
+#farming example. 
+&CP2K
+ PROGRAM      farming
+&END
+#need to create dirX that should contain a normally working H2O.inp (or whatever cp2k input)
+&JOBS
+ dir1 H2O.inp
+ dir2 H2O.inp
+ dir3 H2O.inp
+&END
