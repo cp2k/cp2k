@@ -1287,7 +1287,7 @@ CONTAINS
         lb_max_local=lb_max+1
         lb_min_local=MAX(lb_min-1,0)
         ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
-        ! is equivalent to mapping pab with (nabla pgf_a) . (nabla pgf_b)
+        ! is equivalent to mapping pab with 0.5 * (nabla pgf_a) . (nabla pgf_b)
         ! (ddx pgf_a ) (ddx pgf_b) = (a pgf_{a-1} - 2*zeta*pgf_{a+1}*(b pgf_{x-1} - 2 * zetb * pgf_{b+1})
         ! cleaner would possibly be to touch pzyx directly (avoiding the following allocate)
         ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
@@ -1354,6 +1354,7 @@ CONTAINS
         ENDDO
         o1_local=0
         o2_local=0
+        pab_local=pab_local * 0.5_dp
     ELSE
         la_max_local=la_max
         la_min_local=la_min

@@ -1117,6 +1117,7 @@ CONTAINS
     INTEGER :: ithread_l
     REAL(KIND = dp) :: t_a_1,t_a_2,t_b_1,t_b_2,t_c_1,t_c_2
     REAL(KIND = dp) :: exp_x2, exp_x1, exp_x0
+    REAL(kind = dp) :: axp1,axm1,ayp1,aym1,azp1,azm1,axpm0,bxm1,bym1,bzm1,pabval
     LOGICAL :: my_compute_tau
 
 !   ---------------------------------------------------------------------------
@@ -1127,6 +1128,7 @@ CONTAINS
     ENDIF
 
     ! my_compute_tau defaults to .FALSE.
+    ! IF (.true.) it will compute 0.5 * (nabla x_a).(v(r) nabla x_b)
     IF (PRESENT(compute_tau)) THEN
        my_compute_tau=compute_tau
     ELSE
@@ -1385,43 +1387,52 @@ CONTAINS
                 bz = lb - bx - by
                 jco=coset(bx,by,bz)
                 IF (my_compute_tau) THEN
-                    hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) +  &
-                                           ax * bx * pzyx(ipzyx(MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz)) +  &
-                                           ay * by * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz)) +  &
-                                           az * bz * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0)))  &
-                                           - ftza * bx * pzyx(ipzyx(ax+1,ay,az,MAX(bx-1,0),by,bz))  &
-                                           - ftza * by * pzyx(ipzyx(ax,ay+1,az,bx,MAX(by-1,0),bz))  &
-                                           - ftza * bz * pzyx(ipzyx(ax,ay,az+1,bx,by,MAX(bz-1,0)))  &
-                                           - ax * ftzb * pzyx(ipzyx(MAX(ax-1,0),ay,az,bx+1,by,bz))  &
-                                           - ay * ftzb * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,by+1,bz))  &
-                                           - az * ftzb * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,bz+1)) +  &
-                                           ftza * ftzb * pzyx(ipzyx(ax+1,ay,az,bx+1,by,bz)) + &
-                                           ftza * ftzb * pzyx(ipzyx(ax,ay+1,az,bx,by+1,bz)) + &
-                                           ftza * ftzb * pzyx(ipzyx(ax,ay,az+1,bx,by,bz+1)) 
+                    axpm0 =  0.5_dp * ( ax * bx * pzyx(ipzyx(MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz)) +  &
+                                        ay * by * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz)) +  &
+                                        az * bz * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0)))  &
+                                        - ftza * bx * pzyx(ipzyx(ax+1,ay,az,MAX(bx-1,0),by,bz))  &
+                                        - ftza * by * pzyx(ipzyx(ax,ay+1,az,bx,MAX(by-1,0),bz))  &
+                                        - ftza * bz * pzyx(ipzyx(ax,ay,az+1,bx,by,MAX(bz-1,0)))  &
+                                        - ax * ftzb * pzyx(ipzyx(MAX(ax-1,0),ay,az,bx+1,by,bz))  &
+                                        - ay * ftzb * pzyx(ipzyx(ax,MAX(ay-1,0),az,bx,by+1,bz))  &
+                                        - az * ftzb * pzyx(ipzyx(ax,ay,MAX(az-1,0),bx,by,bz+1)) +  &
+                                        ftza * ftzb * pzyx(ipzyx(ax+1,ay,az,bx+1,by,bz)) + &
+                                        ftza * ftzb * pzyx(ipzyx(ax,ay+1,az,bx,by+1,bz)) + &
+                                        ftza * ftzb * pzyx(ipzyx(ax,ay,az+1,bx,by,bz+1)) )
                 ELSE
-                    hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + pzyx(ipzyx(ax,ay,az,bx,by,bz))
+                    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
                 ENDIF
+                hab(o1+ico,o2+jco) = hab(o1+ico,o2+jco) + axpm0
                 IF (calculate_forces) THEN
                   IF (my_compute_tau) THEN
-                     CALL stop_program("integrate_pgf_product_rspace","atomic forces and tau not yet implemented")
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*ax * bx
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,MAX(bx-1,0),by,bz,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*ay * by
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,MAX(by-1,0),bz,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*az * bz
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,MAX(bz-1,0),pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * bx )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,MAX(bx-1,0),by,bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * by )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,MAX(by-1,0),bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ftza * bz  )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,MAX(bz-1,0) ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ax * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,MAX(ax-1,0),ay,az,bx+1,by,bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- ay * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,MAX(ay-1,0),az,bx,by+1,bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(- az * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,MAX(az-1,0),bx,by,bz+1 ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax+1,ay,az,bx+1,by,bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay+1,az,bx,by+1,bz ,pzyx,ipzyx)
+                     pabval=pab(o1+ico,o2+jco)*0.5_dp*(ftza * ftzb )
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az+1,bx,by,bz+1 ,pzyx,ipzyx)
+                  ELSE
+                     pabval=pab(o1+ico,o2+jco)
+                     CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
                   ENDIF
-                  dhab(1) = ftza*pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
-                            REAL(ax,dp)*pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
-                  dhab(2) = ftza*pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
-                            REAL(ay,dp)*pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
-                  dhab(3) = ftza*pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
-                            REAL(az,dp)*pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
-                  force_a(:) = force_a(:) + pab(o1+ico,o2+jco)*dhab(:)
-                  dhab(1) = ftzb*(pzyx(ipzyx(ax+1,ay,az,bx,by,bz)) -&
-                                  rab(1)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bx,dp)*pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
-                  dhab(2) = ftzb*(pzyx(ipzyx(ax,ay+1,az,bx,by,bz)) -&
-                                  rab(2)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(by,dp)*pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
-                  dhab(3) = ftzb*(pzyx(ipzyx(ax,ay,az+1,bx,by,bz)) -&
-                                  rab(3)*pzyx(ipzyx(ax,ay,az,bx,by,bz))) -&
-                            REAL(bz,dp)*pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
-                  force_b(:) = force_b(:) + pab(o1+ico,o2+jco)*dhab(:)
                 END IF
               END DO
             END DO
@@ -1436,6 +1447,36 @@ CONTAINS
     !IF (ithread_l.EQ.0) mytimings(3)=mytimings(3)+(t_c_2-t_c_1)
 
   END SUBROUTINE integrate_pgf_product_rspace
+
+! *****************************************************************************
+  SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+    REAL(KIND = dp), DIMENSION(3), INTENT(INOUT) :: force_a,force_b
+    REAL(KIND = dp), DIMENSION(3), INTENT(IN)    :: rab
+    REAL(KIND = dp),               INTENT(IN)    :: pab,ftza,ftzb
+    INTEGER,                       INTENT(IN)    :: ax,ay,az,bx,by,bz 
+    REAL(KIND = dp), POINTER                     :: pzyx(:)
+    INTEGER, POINTER                             :: ipzyx(:,:,:,:,:,:)
+
+    REAL(kind = dp) :: axp1,axm1,ayp1,aym1,azp1,azm1,axpm0,bxm1,bym1,bzm1
+
+    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
+    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
+    axm1=pzyx(ipzyx(MAX(0,ax-1),ay,az,bx,by,bz))
+    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
+    aym1=pzyx(ipzyx(ax,MAX(0,ay-1),az,bx,by,bz))
+    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
+    azm1=pzyx(ipzyx(ax,ay,MAX(0,az-1),bx,by,bz))
+    bxm1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1),by,bz))
+    bym1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1),bz))
+    bzm1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)))
+    force_a(1) = force_a(1) + pab*(ftza*axp1 - REAL(ax,dp)* axm1)
+    force_a(2) = force_a(2) + pab*(ftza*ayp1 - REAL(ay,dp)* aym1)
+    force_a(3) = force_a(3) + pab*(ftza*azp1 - REAL(az,dp)* azm1)
+    force_b(1) = force_b(1) + pab*(ftzb*(axp1 - rab(1)*axpm0) - REAL(bx,dp)* bxm1)
+    force_b(2) = force_b(2) + pab*(ftzb*(ayp1 - rab(2)*axpm0) - REAL(by,dp)* bym1)
+    force_b(3) = force_b(3) + pab*(ftzb*(azp1 - rab(3)*axpm0) - REAL(bz,dp)* bzm1)
+
+  END SUBROUTINE force_update
 
 ! *****************************************************************************
 
