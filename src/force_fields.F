@@ -426,11 +426,11 @@ END SUBROUTINE read_force_field_section
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &force_field ... &end                                            I
 !!I                                                                           I
-!!I nonbonded14                                                                I
+!!I nonbonded14                                                               I
 !!I    lennard-jones atom1 atom2 epsilon sigma rcut                           I
 !!I    williams      atom1 atom2 a b c rcut                                   I
 !!I    goodwin       atom1 atom2 vr0 d dc m mc rcut                           I
-!!I end nonbonded14                                                            I
+!!I end nonbonded14                                                           I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -591,6 +591,7 @@ END SUBROUTINE input_nonbonded14
 !!I    lennard-jones atom1 atom2 epsilon sigma rcut                           I
 !!I    williams      atom1 atom2 a b c rcut                                   I
 !!I    goodwin       atom1 atom2 vr0 d dc m mc rcut                           I
+!!I    ipbv          atom1 atom2  rcut                                        I
 !!I end nonbonded                                                             I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
@@ -691,6 +692,100 @@ SUBROUTINE input_nonbonded(ff_type,globenv)
                  inp_info%nonbonded(np) %willis%a = a
                  inp_info%nonbonded(np) %willis%b = b
                  inp_info%nonbonded(np) %willis%c = c
+                 inp_info%nonbonded(np) %rcutsq = rcut*rcut
+              CASE ( 'IPBV')
+                 np = np + 1
+                 CALL reallocate_potparm(inp_info%nonbonded,1,np)
+                 ilen = 0
+                 CALL get_next(at1,ilen)
+                 ilen = 0
+                 CALL get_next(at2,ilen)
+                 CALL get_next ( rcut )
+                 IF ( rcut /= 7.8_dp ) &
+                 WRITE ( *, * ) '****IPBV cut-off changed to 7.8 Angstroms****'
+                 rcut = 7.8_dp
+                 inp_info%nonbonded(np) %type = string2
+                 inp_info%nonbonded(np) %at1 = at1
+                 inp_info%nonbonded(np) %at2 = at2
+                 IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+                   inp_info%nonbonded(np) %ipbv%rcore = 0.9_dp       ! a.u.
+                   inp_info%nonbonded(np) %ipbv%m = 0.0_dp           ! Kelvin/a.u. 
+                   inp_info%nonbonded(np) %ipbv%b = 1.0e23_dp        ! Hartree
+                   ! Hartree*a.u.^2
+                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = 4.786380682394_dp 
+                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = -1543.407053545_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = 88783.31188529_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = -2361200.155376_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = 35940504.84679_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = -339762743.6358_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = 2043874926.466_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = -7654856796.383_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = 16195251405.65_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = -13140392992.18_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -9285572894.245_dp 
+                   inp_info%nonbonded(np) %ipbv% a ( 13 ) = 8756947519.029_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 15793297761.67_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = 12917180227.21_dp
+                 ELSEIF ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
+                   inp_info%nonbonded(np) %ipbv%rcore = 2.95_dp       ! a.u.
+                   inp_info%nonbonded(np) %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
+                   inp_info%nonbonded(np) %ipbv%b =  0.0313652_dp     ! Hartree
+                   ! Hartree*a.u.^2
+                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -195.7716013277_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = 15343.78613395_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -530864.4586516_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = 10707934.39058_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -140099704.7890_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 1250943273.785_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -7795458330.676_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 33955897217.31_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = -101135640744.0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 193107995718.7_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -193440560940.0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 13 ) =-4224406093.918E0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 217192386506.5E0_dp 
+                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -157581228915.5_dp
+                 ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+                   inp_info%nonbonded(np) %ipbv%rcore = 2.95_dp       ! a.u.
+                   inp_info%nonbonded(np) %ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
+                   inp_info%nonbonded(np) %ipbv%b =  0.0313652_dp     ! Hartree
+                   ! Hartree*a.u.^2
+                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -195.7716013277_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 3 ) = 15343.78613395_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -530864.4586516_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 5 ) = 10707934.39058_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -140099704.7890_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 1250943273.785_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -7795458330.676_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 33955897217.31_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 10 ) = -101135640744.0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 193107995718.7_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -193440560940.0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 13 ) =-4224406093.918E0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 217192386506.5E0_dp 
+                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -157581228915.5_dp
+                 ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
+                   inp_info%nonbonded(np) %ipbv%rcore = 3.165_dp     ! a.u.
+                   inp_info%nonbonded(np) %ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
+                   inp_info%nonbonded(np) %ipbv%b = -0.02062040_dp   ! Hartree
+                   ! Hartree*a.u.^2
+                   inp_info%nonbonded(np) %ipbv% a ( 2 ) = -26.29456010782_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 3 ) =  2373.352548248_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 4 ) = -93880.43551360_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 5 ) =  2154624.884809_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 6 ) = -31965151.34955_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 7 ) = 322781785.3278_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 8 ) = -2271097368.668_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 9 ) = 11169163192.90_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 10 ) =-37684457778.47_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 11 ) = 82562104256.03_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 12 ) = -100510435213.4_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 13 ) = 24570342714.65E0_dp 
+                   inp_info%nonbonded(np) %ipbv% a ( 14 ) = 88766181532.94E0_dp
+                   inp_info%nonbonded(np) %ipbv% a ( 15 ) = -79705131323.98_dp
+                 ELSE
+                   CALL stop_program ("input_nonbonded","IPBV only for WATER")
+                 ENDIF
                  inp_info%nonbonded(np) %rcutsq = rcut*rcut
               CASE ( 'GOODWIN')
                  np = np + 1
@@ -3762,7 +3857,6 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
    END IF
   END DO
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 9. Count the number of UNSET torsion kinds there are
@@ -3961,8 +4055,6 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
    END IF
   END DO
-
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   IF(PM1) WRITE(iw,*) "  Exiting  clean_intra_force_kind"

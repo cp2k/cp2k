@@ -58,12 +58,24 @@ FUNCTION ener_pot ( pot, qi, qj, r )
     REAL(KIND=dp)                                :: ener_pot
 
     REAL(KIND=dp)                                :: scale
+    INTEGER                                      :: i
 
 !------------------------------------------------------------------------------
 
   IF (pot%type=='LENNARD-JONES') THEN
      ener_pot = 4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
           sigma6*r**(-6)) - pot%energy_cutoff
+  ELSE IF ( pot % type == 'IPBV' ) THEN
+     ener_pot = 0._dp
+     IF ( r > pot % ipbv % rcore ) THEN
+       DO i = 2, 15
+         ener_pot = ener_pot + pot % ipbv % a(i)/(r**(i-1)*REAL(i-1,dp)) 
+       END DO
+       ener_pot=ener_pot- pot % energy_cutoff
+     ELSE
+! use a linear potential
+       ener_pot = pot % ipbv % m * r + pot % ipbv % b
+     ENDIF
   ELSE IF (pot%type=='WILLIAMS') THEN
      ener_pot = pot%willis%a*exp(-pot%willis%b*r) - pot%willis%c/r**6 &
           - pot%energy_cutoff
@@ -189,6 +201,8 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
            locut =  0.944863_dp ! else put locut to 0.5 Angstrom
         ELSE IF (potparm(i,j)%type=='WILLIAMS') THEN
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
+        ELSE IF (potparm(i,j)%type=='IPBV') THEN
+           locut = 0.948863_dp
         ELSE
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         END IF
@@ -199,7 +213,7 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
         potparm(i,j) %e_cutoff_coul = 0.0_dp
         potparm(i,j) %e_cutoff_coul &
-              = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
+        = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
 
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff
         potparm(j,i) %e_cutoff_coul = potparm(i,j) %e_cutoff_coul

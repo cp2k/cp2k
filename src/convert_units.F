@@ -147,6 +147,8 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
 
   IF ( PRESENT ( ff_nonbonded ) ) THEN
    IF(ASSOCIATED(ff_nonbonded)) THEN
+! convert IPBV parameters
+     ! Already in appropriate units (see force_fields.F)
 ! convert LJ parameters
 
      IF ( unit_char == 'KCAL' ) THEN
@@ -173,7 +175,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
      ENDIF
 
 ! convert Cutoff distances
-     IF ( ( unit_char /= 'ATOMIC' ) .OR. ( unit_char /= 'AU' ) ) &
+     IF ( ( unit_char /= 'AU' ) .OR. ( unit_char /= 'ATOMIC' ) ) &
      ff_nonbonded ( : ) % rcutsq = ff_nonbonded ( : ) % rcutsq * ( units % angstrom ) ** 2
     END IF
   END IF

@@ -72,7 +72,7 @@ MODULE md_energies
 
   TYPE average_quantities_type
      REAL ( dp ) :: avetemp, avepot, avekin, avevol, aveca, avecb, avecc
-     REAL ( dp ) :: avetemp_baro, avehugoniot
+     REAL ( dp ) :: avetemp_baro, avehugoniot, avecpu
      REAL ( dp ) :: aveal, avebe, avega, avepress, avekinc, avetempc, avepxx
   END TYPE average_quantities_type
 
@@ -375,6 +375,7 @@ END SUBROUTINE set_energies
        CASE (1)
           IF ( virial % pv_availability ) averages%avepress = pv_scalar
           IF ( virial % pv_availability ) averages%avepxx = pv_xx
+          averages%avecpu = used_time
           averages%avehugoniot = hugoniot
           averages%avetemp = temp
           averages%avetemp_baro = temp_baro
@@ -396,6 +397,8 @@ END SUBROUTINE set_energies
           averages%avepxx = (averages%avepxx*REAL(delta_t-1,dp)+pv_xx)/ &
           REAL ( delta_t, dp )
           averages%avetemp = (averages%avetemp*REAL(delta_t-1,dp)+temp)/ &
+               REAL(delta_t,dp)
+          averages%avecpu = (averages%avecpu*REAL(delta_t-1,dp)+used_time)/ &
                REAL(delta_t,dp)
           averages%avehugoniot = (averages%avehugoniot*REAL(delta_t-1,dp)+hugoniot)/ &
                REAL(delta_t,dp)
@@ -433,6 +436,8 @@ END SUBROUTINE set_energies
                cons
           WRITE ( iw, '( )' )
           WRITE ( iw, '( T42,A )' ) 'INSTANTANEOUS        AVERAGES'
+          WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' CPU [S]                     = ', &
+                used_time, averages%avecpu
           WRITE ( iw, '( A,T39,2(1X,E20.12) )' ) ' {E-E0}/E0                    = ', &
                 econs, econs_avg/REAL( delta_t,dp)
           WRITE ( iw, '( A,A,T31,A,T39,2(1X,E20.12) )' ) ' POTENTIAL ENERGY', &

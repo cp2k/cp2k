@@ -106,6 +106,8 @@ MODULE md
      CHARACTER ( LEN = 20 ) :: nhcopt_coef
      CHARACTER ( LEN = 20 ) :: cmass_storage
      LOGICAL :: constraint
+     LOGICAL :: pv_numerical
+     LOGICAL :: pv_availability
      INTEGER :: nfree
      INTEGER :: nc
      INTEGER :: nyosh
@@ -185,6 +187,8 @@ CONTAINS
 !!I coef_mass: m                         effective coef mass                  I
 !!I restart:     [pos,posvel]            start type                           I
 !!I constraints: [on,off]                constraints                          I
+!!I pv_numerical: [true, false]          pv_numerical                         I
+!!I pv_availability [true, false]        pv_availability                      I
 !!I shake:       eps                     convergence for Shake algorithm      I
 !!I verlet_skin  vs                      buffer size for Verlet lists         I
 !!I cells        x y z                   Number of cells in each direction    I
@@ -273,6 +277,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % read_type = 'POS'
   simpar % read_type_coef = 'INIT'
   simpar % constraint = .FALSE.
+  simpar % pv_numerical=.FALSE.
+  simpar % pv_availability=.FALSE.
   simpar % shake_tol = 1.0E-6_dp
   simpar % nhclen = 3
   simpar % nhclen_coef = 3
@@ -404,6 +410,20 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
            CALL get_next ( string, ilen )
            CALL uppercase ( string )
            simpar % read_type_coef = string ( 1:ilen )
+
+        CASE ( 'PV_AVA' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           IF ( string(1:1)=='T' ) simpar % pv_availability = .TRUE.
+           IF ( string(1:1)=='F' ) simpar % pv_availability = .FALSE.
+
+        CASE ( 'PV_NUM' )
+           ilen = 0
+           CALL get_next ( string, ilen )
+           CALL uppercase ( string )
+           IF ( string(1:1)=='T' ) simpar % pv_numerical=.TRUE.
+           IF ( string(1:1)=='F' ) simpar % pv_numerical=.FALSE.
 
         CASE ( 'CONSTR' )
            ilen = 0

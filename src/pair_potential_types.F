@@ -30,9 +30,16 @@ MODULE pair_potential_types
 
   PRIVATE
   PUBLIC :: pair_potential_type
-  PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type
+  PUBLIC :: lj_pot_type, williams_pot_type, goodwin_pot_type, ipbv_pot_type
 
   PUBLIC :: reallocate_potparm
+
+  TYPE ipbv_pot_type
+    REAL (KIND=dp), DIMENSION (2:15) :: a
+    REAL (KIND=dp) :: rcore
+    REAL (KIND=dp) :: m
+    REAL (KIND=dp) :: b
+  END TYPE ipbv_pot_type
 
   TYPE lj_pot_type
     REAL (KIND=dp) :: epsilon
@@ -56,6 +63,7 @@ MODULE pair_potential_types
     CHARACTER ( LEN = default_string_length ) :: type
     CHARACTER ( LEN = default_string_length ) :: at1
     CHARACTER ( LEN = default_string_length ) :: at2
+    TYPE (ipbv_pot_type ) :: ipbv
     TYPE (lj_pot_type ) :: lj
     TYPE (williams_pot_type ) :: willis
     TYPE (goodwin_pot_type ) :: goodwin
@@ -103,6 +111,23 @@ CONTAINS
     END IF
 
     p ( : ) % type = 'NULL'
+    p ( : ) % ipbv % a ( 2 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 3 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 4 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 5 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 6 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 7 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 8 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 9 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 10 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 11 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 12 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 13 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 14 ) = 0.0_dp
+    p ( : ) % ipbv % a ( 15 ) = 0.0_dp
+    p ( : ) % ipbv % rcore = 0.0_dp
+    p ( : ) % ipbv % b = 0.0_dp
+    p ( : ) % ipbv % m = 0.0_dp
     p ( : ) % lj % epsilon = 0.0_dp
     p ( : ) % lj % sigma6 = 0.0_dp
     p ( : ) % lj % sigma12 = 0.0_dp
