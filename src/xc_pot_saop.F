@@ -174,7 +174,7 @@ CONTAINS
     ionode = (logger%para_env%mepos==logger%para_env%source)
     output_unit = cp_logger_get_default_unit_nr(logger)
 
-    IF (ionode) WRITE (output_unit, *) "in "//routineP
+    IF (ionode) WRITE (output_unit, *) " in "//routineP
 
     CALL get_qs_env(qs_env=qs_env,&
                     rho=rho_struct,&
