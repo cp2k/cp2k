@@ -133,7 +133,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "read_mc_section"
+    CHARACTER(LEN=*), PARAMETER      &
+      :: routineN = "read_mc_section"
 
     CHARACTER(LEN=20)                        :: string
     CHARACTER(LEN=5)                         :: label
@@ -154,6 +155,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
 !..defaults
   mc_par % nstart = 0
   mc_par % nvolmoves = 1
+  mc_par % nswapmoves = 1
 
   iw = globenv % scr
   IF(globenv%ionode) WRITE ( iw, * )
@@ -198,6 +200,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           CALL get_next ( mc_par % nmoves )
         CASE ( 'NVOLMOVES' )
           CALL get_next ( mc_par % nvolmoves )
+        CASE ( 'NSWAPMOVES' )
+          CALL get_next ( mc_par % nswapmoves )
         CASE ( 'LSTOP' )
            CALL get_next ( mc_par % lstop, ilen )
         CASE ( 'LCLASSICAL' )
@@ -206,6 +210,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
            IF ( string(1:2)=='NO' ) THEN
               mc_par % lclassical = .FALSE.
               mc_par % nvolmoves = 1
+              mc_par % nswapmoves = 1
            ENDIF
            IF ( string(1:3)=='YES' ) mc_par % lclassical = .TRUE.
         CASE ( 'RESTART' )
@@ -348,6 +353,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           'before a Quickstep energy calculation'
           WRITE( iw, '(A)' ) ' MC|      takes place.'
      ENDIF
+     IF (mc_par%pmswap .GT. 0.0d0 ) THEN
+          WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nswapmoves,&
+          ' classical swap insertions will be attempted ',&
+          'per Quickstep swap move'
+     ENDIF
   END IF
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)
@@ -401,7 +411,8 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
       POINTER                                :: mc_par
     TYPE(force_env_type), POINTER            :: force_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "write_mc_restart"
+    CHARACTER(LEN=*), PARAMETER    &
+      :: routineN = "write_mc_restart"
 
     INTEGER                                  :: handle, ipart, unit
     TYPE(cell_type), POINTER                 :: cell

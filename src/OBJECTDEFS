@@ -168,6 +168,7 @@ OBJECTS_GENERIC =\
  mathconstants.o\
  mathlib.o\
  mc_control.o\
+ mc_coordinates.o\
  mc_ensembles.o\
  mc_environment_types.o\
  mc_ge_moves.o\

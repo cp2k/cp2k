@@ -35,11 +35,11 @@ MODULE mc_moves
   USE kinds,                           ONLY: dbl,&
                                              dp,&
                                              dp_size
-  USE mc_misc,                         ONLY: get_center_of_mass,&
+  USE mc_coordinates,                  ONLY: get_center_of_mass,&
                                              mc_classical_energy,&
                                              mc_coordinate_fold,&
-                                             mc_make_dat_file,&
                                              check_for_overlap
+  USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_move_control,                 ONLY: move_q_reinit,&
                                              q_move_accept
   USE mc_types,                        ONLY: mc_moves_type,&
@@ -691,7 +691,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.994d0,1.008d0,1.008d0 /)
+      mass = (/ 15.999d0,1.008d0,1.008d0 /)
     REAL(KIND=dp), PARAMETER                 :: masstot = 18.01D0
 
     INTEGER                                  :: dir, handle, ii, imol, ipart, &
@@ -946,7 +946,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_volume_move"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.994d0,1.008d0,1.008d0 /)
+      mass = (/ 15.999d0,1.008d0,1.008d0 /)
     REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
 
     INTEGER                                  :: handle, i, iatom, &

@@ -46,10 +46,10 @@ MODULE mc_ensembles
   USE mc_ge_moves,                     ONLY: mc_ge_quickstep_move,&
                                              mc_ge_swap_move,&
                                              mc_ge_volume_move
-  USE mc_misc,                         ONLY: final_mc_write,&
-                                             get_water_data,&
-                                             init_mc_averages,&
+  USE mc_coordinates,                  ONLY: get_water_data,&
                                              mc_classical_energy
+  USE mc_misc,                         ONLY: final_mc_write,&
+                                             init_mc_averages
   USE mc_move_control,                 ONLY: init_mc_moves,&
                                              mc_move_update,&
                                              mc_moves_release,&
@@ -539,7 +539,7 @@ CONTAINS
                                                 istat, iw, mol, nnstep,&
                                                 cell_unit
     INTEGER, DIMENSION(1:2)                  :: box_flag, crd, DATA, ene, &
-                                                move_unit
+                                                move_unit,istep
     LOGICAL                                  :: ionode, PM0, PM1, PM2, PM3, &
                                                 PM4, should_retain, &
                                                 should_stop
@@ -637,6 +637,7 @@ CONTAINS
 ! initialize running average variables
       energy_check(:)=0.0d0
       box_flag(:)=0
+      istep(:)=0
 
 ! initialize the moves array,the arrays for updating maximum move 
 !   displacements, and the averages array
@@ -935,9 +936,12 @@ CONTAINS
                CALL write_move_stats(moves(ibox)%moves,&
                   move_updates(ibox)%moves,nnstep,&
                   move_unit(ibox))
-               CALL get_water_data( force_env(ibox)%force_env,&
-                  averages(ibox)%averages,nnstep,&
-                  mc_par(ibox)%mc_par%nchain,DATA(ibox))
+               IF(mc_par(ibox)%mc_par%nchain .NE. 0) THEN
+                  istep(ibox)=istep(ibox)+1
+                  CALL get_water_data( force_env(ibox)%force_env,&
+                     averages(ibox)%averages,istep(ibox),&
+                     mc_par(ibox)%mc_par%nchain,DATA(ibox))
+               ENDIF
                WRITE(ene(ibox),*) nnstep,old_energy(ibox)
                averages(ibox)%averages%ave_energy=&
                   averages(ibox)%averages%ave_energy*REAL(nnstep-&

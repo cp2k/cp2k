@@ -51,6 +51,7 @@ MODULE mc_types
      INTEGER :: nmolty
      INTEGER :: nmoves
      INTEGER :: nvolmoves
+     INTEGER :: nswapmoves
      INTEGER :: crd
      INTEGER :: ene
      INTEGER :: rm
