@@ -210,7 +210,7 @@ CONTAINS
       ENDIF
 
 ! initialize running average variables
-      energy_check=0.0d0
+      energy_check=0.0E0_dp
 
 ! initialize the moves array
       CALL init_mc_moves(moves)
@@ -281,7 +281,7 @@ CONTAINS
                  unit_number=diff,&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(ene,*) 'Initial Energy:                ',&
-            old_energy,'0.0D0'
+            old_energy,'0.0E0_dp'
          CALL write_particle_coordinates(particles_old%els,cell,&
                    crd,'XMOL','POS','INITIAL')
 
@@ -332,7 +332,7 @@ CONTAINS
                WRITE(iw,*) 
             ENDIF
 
-            particle_positions(:,:)=0.0d0
+            particle_positions(:,:)=0.0E0_dp
 ! we want to do all this in serial
             IF( ionode ) THEN
 
@@ -405,7 +405,7 @@ CONTAINS
 
 
          IF(ionode) THEN
-!            WRITE(ene,*) nnstep,old_energy/3.16682968D-6,energy_check
+!            WRITE(ene,*) nnstep,old_energy/3.16682968E-6_dp,energy_check
             WRITE(ene,*) nnstep,old_energy,energy_check
 
             IF(.NOT. lclassical_run) &
@@ -538,7 +538,7 @@ CONTAINS
                        "r_old")
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_traditional_ensemble
 !*********************************************************************
@@ -690,7 +690,7 @@ CONTAINS
       ENDIF
 
 ! initialize running average variables
-      energy_check(:)=0.0d0
+      energy_check(:)=0.0E0_dp
       box_flag(:)=0
       istep(:)=0
 
@@ -706,8 +706,8 @@ CONTAINS
       DO i=1,2
 
          IF (nchain(i) == 0) THEN
-            old_energy(i)=0.0d0
-            moves(i)%moves%classical_energy=0.0d0
+            old_energy(i)=0.0E0_dp
+            moves(i)%moves%classical_energy=0.0E0_dp
             classical_energy(i)=moves(i)%moves%classical_energy
          ELSE
 
@@ -784,7 +784,7 @@ CONTAINS
                  unit_number=diff(1),&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(ene(1),*) 'Initial Energy Box 1:            ',&
-            old_energy(1),' 0.0D0'
+            old_energy(1),' 0.0E0_dp'
          IF(nchain(1) == 0) THEN
             WRITE(crd(1),*) ' 0'
             WRITE(crd(1),*) 'INITIAL'
@@ -797,7 +797,7 @@ CONTAINS
                  unit_number=diff(2),&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(ene(2),*) 'Initial Energy Box 2:            ',&
-            old_energy(2),' 0.0D0'
+            old_energy(2),' 0.0E0_dp'
          IF(nchain(2) == 0) THEN
             WRITE(crd(2),*) ' 0'
             WRITE(crd(2),*) 'INITIAL'
@@ -826,7 +826,7 @@ CONTAINS
                  unit_number=com_mol,&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(com_ene,*) 'Initial Total Energy:            ',&
-            old_energy(1)+old_energy(2),' 0.0D0'
+            old_energy(1)+old_energy(2),' 0.0E0_dp'
          IF(nchain(1) == 0) THEN
             WRITE(com_crd,*) ' 0'
             WRITE(com_crd,*) 'INITIAL BOX 1'
@@ -909,7 +909,7 @@ CONTAINS
                WRITE(iw,*) 
             ENDIF
 
-            particle_positions(:,:,:) = 0.0D0
+            particle_positions(:,:,:) = 0.0E0_dp
             
 ! go into serial mode
             IF (ionode) THEN
@@ -1050,7 +1050,7 @@ CONTAINS
                   REAL(nchain(ibox),dp)/REAL(nnstep-nstart,dp)
             ENDDO
             WRITE(com_ene,*) nnstep,old_energy(2)+old_energy(1)
-            IF (pmswap .GT. 0.0D0) &
+            IF (pmswap .GT. 0.0E0_dp) &
                WRITE(com_mol,*) nnstep,nchain(1),nchain(2)
 
 ! compute the average cell length, energy, and number of particles of
@@ -1186,7 +1186,7 @@ CONTAINS
                   final_energy(i),nchain(i),1,nchain(i),cutoff,ldum)
             ENDIF
          ELSE
-            final_energy(i)=0.0D0
+            final_energy(i)=0.0E0_dp
          ENDIF
       ENDDO
 
@@ -1301,7 +1301,7 @@ CONTAINS
    
 
 !     end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
       
   END SUBROUTINE gemc_nvt
 !*********************************************************************

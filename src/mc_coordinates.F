@@ -106,9 +106,9 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
 
 ! initialize some stuff
       NULLIFY(oldsys,particles)
-      bond1_loc=0.0d0
-      bond2_loc=0.0d0
-      angle_loc=0.0d0
+      bond1_loc=0.0E0_dp
+      bond2_loc=0.0E0_dp
+      angle_loc=0.0E0_dp
 
 ! get the particle coordinates
       CALL force_env_get(force_env,subsys=oldsys,error=error)
@@ -124,14 +124,14 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
                  +1)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
                  imol+1)%r(3))**2
           bond1_loc=bond1_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
-                  +DSQRT(tot_squared)/REAL(iimol,dp)
+                  +SQRT(tot_squared)/REAL(iimol,dp)
 
           tot_squared=(particles%els(imol)%r(1)-particles%els(imol+2)%&
                  r(1))**2+(particles%els(imol)%r(2)-particles%els(imol&
                  +2)%r(2))**2+(particles%els(imol)%r(3)-particles%els(&
                  imol+2)%r(3))**2
           bond2_loc=bond2_loc*REAL(iimol-1,dp)/REAL(iimol,dp) &
-                  +DSQRT(tot_squared)/REAL(iimol,dp)
+                  +SQRT(tot_squared)/REAL(iimol,dp)
 
 ! now find the running average bond angle
           vec_1(1:3)=particles%els(imol+1)%r(1:3)-&
@@ -140,9 +140,9 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
               particles%els(imol)%r(1:3)
 
           angle_loc=angle_loc*REAL(iimol-1,dp)/REAL(iimol,dp) + &
-                   1.0d0/REAL(iimol,dp)*&
-              DACOS(DOT_PRODUCT(vec_1,vec_2)/(bond1_loc*bond2_loc))&
-              *180.0d0/pi
+                   1.0E0_dp/REAL(iimol,dp)*&
+              ACOS(DOT_PRODUCT(vec_1,vec_2)/(bond1_loc*bond2_loc))&
+              *180.0E0_dp/pi
 
        ENDDO
        averages%bond1=averages%bond1*REAL(nnstep-1,dp)/&
@@ -156,7 +156,7 @@ SUBROUTINE get_water_data ( force_env,averages,nnstep,nchain,DATA  )
                      angle_loc
  
 ! end the timing
-       CALL timestop(0.0d0,handle)
+       CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE get_water_data
@@ -232,22 +232,22 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 ! initialize some stuff
       loverlap=.FALSE.
-      oo_min_cutoff=2.0d0/angstrom
-      oh_min_cutoff=1.0d0/angstrom
-      hh_min_cutoff=1.0d0/angstrom
+      oo_min_cutoff=2.0E0_dp/angstrom
+      oh_min_cutoff=1.0E0_dp/angstrom
+      hh_min_cutoff=1.0E0_dp/angstrom
 
 
       NULLIFY(oldsys,particles)
-      LJ_energy=0.0d0
-      charge_energy=0.0d0
-      bend_energy=0.0d0
-      stretch_energy=0.0d0
-      kstretch= 0.4015204d0 ! Hartrees/a.u.**2
-      kbend(1)= 0.02384043d0 ! Hartrees/a.u.**2
-      kbend(2)= -0.0506033d0 ! Hartrees/a.u.**3
-      kbend(3)= 0.0287044d0  ! Hartrees/a.u.**4
-      charges(1:3) = (/ -0.7699784d0,0.3849892d0,0.3849892d0 /)
-!      charges(:)=charges(:)*1.60d-19 ! Coulumbs
+      LJ_energy=0.0E0_dp
+      charge_energy=0.0E0_dp
+      bend_energy=0.0E0_dp
+      stretch_energy=0.0E0_dp
+      kstretch= 0.4015204E0_dp ! Hartrees/a.u.**2
+      kbend(1)= 0.02384043E0_dp ! Hartrees/a.u.**2
+      kbend(2)= -0.0506033E0_dp ! Hartrees/a.u.**3
+      kbend(3)= 0.0287044E0_dp  ! Hartrees/a.u.**4
+      charges(1:3) = (/ -0.7699784E0_dp,0.3849892E0_dp,0.3849892E0_dp /)
+!      charges(:)=charges(:)*1.60E-19_dp ! Coulumbs
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
@@ -273,24 +273,24 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       DO imol=nstart,nend
          
 ! stretching
-         OH_bond1=DSQRT((r(1,1,imol)-r(1,2,imol))**2+&
+         OH_bond1=SQRT((r(1,1,imol)-r(1,2,imol))**2+&
                  (r(2,1,imol)-r(2,2,imol))**2+&
                    (r(3,1,imol)-r(3,2,imol))**2)
-         OH_bond2=DSQRT((r(1,1,imol)-r(1,3,imol))**2+&
+         OH_bond2=SQRT((r(1,1,imol)-r(1,3,imol))**2+&
                    (r(2,1,imol)-r(2,3,imol))**2+&
                    (r(3,1,imol)-r(3,3,imol))**2)
 
-         stretch_energy=stretch_energy+0.5d0*kstretch*((OH_bond1-&
-            1.81200d0)**2+(OH_bond2-1.81200d0)**2)
+         stretch_energy=stretch_energy+0.5E0_dp*kstretch*((OH_bond1-&
+            1.81200E0_dp)**2+(OH_bond2-1.81200E0_dp)**2)
 
 ! bond bending
          DO i=1,3
             HH(i)=r(i,2,imol)-r(i,3,imol)
          ENDDO
-         mag_HH=DSQRT(DOT_PRODUCT(HH,HH))
-         bend_energy=bend_energy+0.5d0*kbend(1)*(mag_HH-3.0699d0)**2+&
-             0.33333333333333333d0*kbend(2)*(mag_HH-3.0699d0)**3+&
-             0.25d0*kbend(3)*(mag_HH-3.0699d0)**4
+         mag_HH=SQRT(DOT_PRODUCT(HH,HH))
+         bend_energy=bend_energy+0.5E0_dp*kbend(1)*(mag_HH-3.0699E0_dp)**2+&
+             0.33333333333333333E0_dp*kbend(2)*(mag_HH-3.0699E0_dp)**3+&
+             0.25E0_dp*kbend(3)*(mag_HH-3.0699E0_dp)**4
       ENDDO
 
 ! now let's find the LJ energy between all the oxygens and
@@ -299,8 +299,8 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
       jstart=1
       IF( nstart == 1 .AND. nend == nchain) lall=.TRUE.
       DO imol=nstart,nend
-         LJ_energy_mol=0.0d0
-         charge_energy_mol=0.0d0
+         LJ_energy_mol=0.0E0_dp
+         charge_energy_mol=0.0E0_dp
          IF (lall) jstart=imol+1
          DO jmol=jstart,nchain
             IF(imol == jmol) CYCLE
@@ -313,13 +313,13 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
                (r(3,1,imol)-r(3,1,jmol))/box_length)
             
-            dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+            dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
 
             IF (dist < rcut ) THEN
 ! check for overlap
                IF (dist < oo_min_cutoff) THEN
                   loverlap=.TRUE.
-                  CALL timestop(0.0d0,handle)
+                  CALL timestop(0.0E0_dp,handle)
                   RETURN
                ELSE
                   lcalc_charge = .TRUE.
@@ -340,14 +340,14 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                   rijx=r(1,ipart,imol)-r(1,jpart,jmol)
                   rijy=r(2,ipart,imol)-r(2,jpart,jmol)
                   rijz=r(3,ipart,imol)-r(3,jpart,jmol)
-                  RIJ(1)=rijx - box_length*DINT(rijx/box_length+&
-                     DSIGN(0.5D0,rijx))
-                  RIJ(2)=rijy - box_length*DINT(rijy/box_length+&
-                     DSIGN(0.5D0,rijy))
-                  RIJ(3)=rijz - box_length*DINT(rijz/box_length+&
-                     DSIGN(0.5D0,rijz))
+                  RIJ(1)=rijx - box_length*AINT(rijx/box_length+&
+                     SIGN(0.5E0_dp,rijx))
+                  RIJ(2)=rijy - box_length*AINT(rijy/box_length+&
+                     SIGN(0.5E0_dp,rijy))
+                  RIJ(3)=rijz - box_length*AINT(rijz/box_length+&
+                     SIGN(0.5E0_dp,rijz))
 
-                  dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+                  dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
 
 ! LJ energy
                   IF ( dist < rcut ) THEN
@@ -356,13 +356,13 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
                      IF (ipart .NE. 1 .AND. jpart .NE. 1) THEN
                         IF(dist < hh_min_cutoff) THEN
                            loverlap=.TRUE.
-                           CALL timestop(0.0d0,handle)
+                           CALL timestop(0.0E0_dp,handle)
                            RETURN
                         ENDIF
                      ELSE
                         IF(dist < oh_min_cutoff) THEN
                            loverlap=.TRUE.
-                           CALL timestop(0.0d0,handle)
+                           CALL timestop(0.0E0_dp,handle)
                            RETURN
                         ENDIF
                      ENDIF
@@ -391,10 +391,10 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 !!!!!!!!!!!!!! 
 
 ! scale the total energy to get classical vs. Quickstep energy diffs closer
-!      classical_energy_new=classical_energy_new*1.5d0
+!      classical_energy_new=classical_energy_new*1.5E0_dp
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE mc_classical_energy
@@ -446,72 +446,72 @@ SUBROUTINE nonbonded_energy(dist,ljfake,ntij)
 
       
 ! --- these pshift make the potential zero at 7.8 angstroms
-!      pshift(1)=0.127827d0 ! Hartree
-!      pshift(2)=2.22408d0
-!      pshift(3)=0.256530d0
+!      pshift(1)=0.127827E0_dp ! Hartree
+!      pshift(2)=2.22408E0_dp
+!      pshift(3)=0.256530E0_dp
 !!!!!!!!!!!!!!!
 ! --- these make it zero at 6.211 angstroms
-      pshift(1)=0.128426d0 ! Hartree
-      pshift(2)=2.223850d0
-      pshift(3)=0.256652d0
-      m(1) = 0.0d0   ! Hartree/a.u.
-      m(2) = -0.00437054d0
-      m(3) = 0.00377391d0
+      pshift(1)=0.128426E0_dp ! Hartree
+      pshift(2)=2.223850E0_dp
+      pshift(3)=0.256652E0_dp
+      m(1) = 0.0E0_dp   ! Hartree/a.u.
+      m(2) = -0.00437054E0_dp
+      m(3) = 0.00377391E0_dp
 ! --- these b make the potential zero at 7.8 angstroms
-!      b(1) = 1.0d23 ! Hartree
-!      b(2) = 0.0313652d0
-!      b(3) = -0.0206204d0
+!      b(1) = 1.0e23_dp ! Hartree
+!      b(2) = 0.0313652E0_dp
+!      b(3) = -0.0206204E0_dp
 ! --- these b make the potential zero at 6.211 angstroms
-      b(1) = 1.0d23 ! Hartree
-      b(2) = 0.0311350d0
-      b(3) = -0.0204983d0
-      r_core(1)=0.9d0 ! a.u.
-      r_core(2)=2.95d0
-      r_core(3)=3.165d0
-      A(2,1) = 4.786380682394d0   ! Hartree*a.u.^2
-      A(2,2) = -195.7716013277d0
-      A(2,3) = -26.29456010782d0
-      A(3,1) = -1543.407053545d0
-      A(3,2) = 15343.78613395d0
-      A(3,3) = 2373.352548248d0
-      A(4,1) = 88783.31188529d0
-      A(4,2) = -530864.4586516d0
-      A(4,3) = -93880.43551360d0
-      A(5,1) = -2361200.155376d0
-      A(5,2) = 10707934.39058d0
-      A(5,3) = 2154624.884809d0
-      A(6,1) = 35940504.84679d0
-      A(6,2) = -140099704.7890d0
-      A(6,3) = -31965151.34955d0
-      A(7,1) = -339762743.6358d0
-      A(7,2) = 1250943273.785d0
-      A(7,3) = 322781785.3278d0
-      A(8,1) = 2043874926.466d0
-      A(8,2) = -7795458330.676d0
-      A(8,3) = -2271097368.668d0
-      A(9,1) = -7654856796.383d0
-      A(9,2) = 33955897217.31d0
-      A(9,3) = 11169163192.90d0
-      A(10,1) = 16195251405.65d0
-      A(10,2) = -101135640744.0d0
-      A(10,3) = -37684457778.47d0
-      A(11,1) = -13140392992.18d0
-      A(11,2) = 193107995718.7d0
-      A(11,3) = 82562104256.03d0
-      A(12,1) = -9285572894.245d0
-      A(12,2) = -193440560940.0d0
-      A(12,3) = -100510435213.4d0
-      A(13,1) = 8756947519.029d0
-      A(13,2) = -4224406093.918d0
-      A(13,3) = 24570342714.65d0
-      A(14,1) = 15793297761.67d0
-      A(14,2) = 217192386506.5d0
-      A(14,3) = 88766181532.94d0
-      A(15,1) = 12917180227.21d0
-      A(15,2) = -157581228915.5d0
-      A(15,3) = -79705131323.98d0
+      b(1) = 1.0e23_dp ! Hartree
+      b(2) = 0.0311350E0_dp
+      b(3) = -0.0204983E0_dp
+      r_core(1)=0.9E0_dp ! a.u.
+      r_core(2)=2.95E0_dp
+      r_core(3)=3.165E0_dp
+      A(2,1) = 4.786380682394E0_dp   ! Hartree*a.u.^2
+      A(2,2) = -195.7716013277E0_dp
+      A(2,3) = -26.29456010782E0_dp
+      A(3,1) = -1543.407053545E0_dp
+      A(3,2) = 15343.78613395E0_dp
+      A(3,3) = 2373.352548248E0_dp
+      A(4,1) = 88783.31188529E0_dp
+      A(4,2) = -530864.4586516E0_dp
+      A(4,3) = -93880.43551360E0_dp
+      A(5,1) = -2361200.155376E0_dp
+      A(5,2) = 10707934.39058E0_dp
+      A(5,3) = 2154624.884809E0_dp
+      A(6,1) = 35940504.84679E0_dp
+      A(6,2) = -140099704.7890E0_dp
+      A(6,3) = -31965151.34955E0_dp
+      A(7,1) = -339762743.6358E0_dp
+      A(7,2) = 1250943273.785E0_dp
+      A(7,3) = 322781785.3278E0_dp
+      A(8,1) = 2043874926.466E0_dp
+      A(8,2) = -7795458330.676E0_dp
+      A(8,3) = -2271097368.668E0_dp
+      A(9,1) = -7654856796.383E0_dp
+      A(9,2) = 33955897217.31E0_dp
+      A(9,3) = 11169163192.90E0_dp
+      A(10,1) = 16195251405.65E0_dp
+      A(10,2) = -101135640744.0E0_dp
+      A(10,3) = -37684457778.47E0_dp
+      A(11,1) = -13140392992.18E0_dp
+      A(11,2) = 193107995718.7E0_dp
+      A(11,3) = 82562104256.03E0_dp
+      A(12,1) = -9285572894.245E0_dp
+      A(12,2) = -193440560940.0E0_dp
+      A(12,3) = -100510435213.4E0_dp
+      A(13,1) = 8756947519.029E0_dp
+      A(13,2) = -4224406093.918E0_dp
+      A(13,3) = 24570342714.65E0_dp
+      A(14,1) = 15793297761.67E0_dp
+      A(14,2) = 217192386506.5E0_dp
+      A(14,3) = 88766181532.94E0_dp
+      A(15,1) = 12917180227.21E0_dp
+      A(15,2) = -157581228915.5E0_dp
+      A(15,3) = -79705131323.98E0_dp
       
-      ljfake=0.0d0
+      ljfake=0.0E0_dp
       IF (dist .GT. r_core(index)) THEN
 ! use a series expansion of 1/r
          DO j=2,15
@@ -565,7 +565,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
       CALL timeset(routineN,'I','',handle)
 
       total_mass=SUM(mass(:))
-      center_of_mass(:)=0.0D0
+      center_of_mass(:)=0.0E0_dp
 
       DO iatom=1,natom
          DO i=1,3
@@ -577,7 +577,7 @@ SUBROUTINE get_center_of_mass ( coordinates,natom,center_of_mass,&
       center_of_mass(1:3)=center_of_mass(1:3)/total_mass
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE get_center_of_mass
@@ -618,7 +618,7 @@ SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
 
       CALL timeset(routineN,'I','',handle)
 
-      mass(1:3)=(/ 15.999d0,1.0074d0,1.0074d0 /)
+      mass(1:3)=(/ 15.999E0_dp,1.0074E0_dp,1.0074E0_dp /)
 
 ! loop over all molecules
       DO iatom=1,natoms,3
@@ -638,7 +638,7 @@ SUBROUTINE mc_coordinate_fold(coordinates,natoms,box_length)
 
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE mc_coordinate_fold
@@ -699,9 +699,9 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
 
       CALL timeset(routineN,'I','',handle)
 
-      oo_min_cutoff=2.0d0/angstrom
-      oh_min_cutoff=1.0d0/angstrom
-      hh_min_cutoff=1.0d0/angstrom
+      oo_min_cutoff=2.0E0_dp/angstrom
+      oh_min_cutoff=1.0E0_dp/angstrom
+      hh_min_cutoff=1.0E0_dp/angstrom
 
       DO iatom=1,natoms,3
          r(1:3,1,(iatom+2)/3)=coordinates(1:3,iatom)
@@ -722,13 +722,13 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
             RIJ(3)=r(3,1,imol)-r(3,1,jmol)-box_length*ANINT(&
                (r(3,1,imol)-r(3,1,jmol))/box_length)
             
-            dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+            dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
             
             IF(dist .LT. oo_min_cutoff) THEN
                loverlap=.TRUE.
-               CALL timestop(0.0d0,handle)
+               CALL timestop(0.0E0_dp,handle)
                RETURN
-            ELSEIF(dist .LT. 2.6D0/angstrom) THEN
+            ELSEIF(dist .LT. 2.6E0_dp/angstrom) THEN
 !     check the H-H distance
                DO i=2,3
                   DO j=2,3
@@ -738,10 +738,10 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
                            *ANINT((r(2,i,imol)-r(2,j,jmol))/box_length)
                         RIJ(3)=r(3,i,imol)-r(3,j,jmol)-box_length&
                            *ANINT((r(3,i,imol)-r(3,j,jmol))/box_length)
-                        dist=DSQRT(DOT_PRODUCT(RIJ,RIJ))
+                        dist=SQRT(DOT_PRODUCT(RIJ,RIJ))
                         IF (dist .LT. hh_min_cutoff) THEN
                            loverlap=.TRUE.
-                           CALL timestop(0.0d0,handle)
+                           CALL timestop(0.0E0_dp,handle)
                            RETURN
                         ENDIF
                   ENDDO
@@ -752,7 +752,7 @@ SUBROUTINE check_for_overlap(coordinates,natoms,box_length,loverlap)
       ENDDO
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE check_for_overlap
@@ -859,8 +859,8 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! initialize the arrays that need it
       loverlap_array(:)=.FALSE.
       loverlap=.FALSE.
-      boltz_weight(:) = 0.0d0
-      r(:,:,:)=0.0d0
+      boltz_weight(:) = 0.0E0_dp
+      r(:,:,:)=0.0E0_dp
 
 ! save the positions of the molecules
       DO imove=1,nswapmoves
@@ -897,7 +897,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
 ! find the center of mass of the insertion molecule
          CALL get_center_of_mass(r(:,start_atom:end_atom,imove),3,&
-            center_of_mass(:),(/15.999d0,1.008d0,1.008d0/))
+            center_of_mass(:),(/15.999E0_dp,1.008E0_dp,1.008E0_dp/))
 
 ! move the molecule to the insertion point
          DO i=1,3
@@ -928,7 +928,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          CALL mc_classical_energy(force_env,classical_energy,&
             nmols,imolecule,imolecule,cutoff,loverlap_array(imove))
          IF(loverlap_array(imove)) CYCLE
-         boltz_weight(imove)=DEXP(-BETA*classical_energy)
+         boltz_weight(imove)=EXP(-BETA*classical_energy)
 
       ENDDO
 
@@ -936,7 +936,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 ! which is just the sum of the Boltzmann weights
       rosenbluth_weight=SUM(boltz_weight(:))
       all_overlaps=.TRUE.
-      total_running_weight=0.0d0
+      total_running_weight=0.0E0_dp
       choosen=0
       CALL random_number(rand)
       DO imove=1,nswapmoves
@@ -978,7 +978,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          DEALLOCATE(loverlap_array,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"loverlap_array")
-         CALL timestop(0.0d0,handle)
+         CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
@@ -1008,7 +1008,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
          __LINE__,"loverlap_array")
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE generate_cbmc_swap_config
@@ -1037,7 +1037,7 @@ SUBROUTINE rotate_water_molecule(r)
     CHARACTER(LEN=*), PARAMETER &
       :: routineN = "rotate_water_molecule"
     REAL(KIND=dp),DIMENSION(1:3),PARAMETER   &
-      :: mass = (/ 15.999d0,1.008d0,1.008d0 /)
+      :: mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
 
     INTEGER                                  :: iunit,handle
     REAL(KIND=dp)                            :: cosdg,sindg,ry,rz,rynew,&
@@ -1054,12 +1054,12 @@ SUBROUTINE rotate_water_molecule(r)
 
 ! call a random number to figure out how far we're moving
       CALL RANDOM_NUMBER(rand)
-      dgamma=pi*(rand-0.5d0)*2.0d0
+      dgamma=pi*(rand-0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation marix ***
  
-      cosdg = DCOS( dgamma )
-      sindg = DSIN( dgamma )
+      cosdg = COS( dgamma )
+      sindg = SIN( dgamma )
  
 ! ***    ROTATE UNITS OF I AROUND X-AXIS ***
  
@@ -1101,7 +1101,7 @@ SUBROUTINE rotate_water_molecule(r)
       ENDDO
       
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 END SUBROUTINE rotate_water_molecule
 

@@ -244,7 +244,7 @@
 !          TY(NAT)      TYPES OF ATOMS
 !          WVK0(3) SHIFT FOR K POINTS MESh (MACDONALD ARTICLE)
 !          NHASH   SIZE OF THE HASH TABLES (LIST)
-!          DELTA   REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!          DELTA   REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !                  K-VECTOR < DELTA IS CONSIDERED ZERO
 !        OUTPUT:
 !          RX(3,NAT) SCRATCH ARRAY USED BY GROUP1 ROUTINE
@@ -586,7 +586,7 @@
 !                 DIFFERENT TYPE. TY(I) IS THE TYPE OF THE I-TH ATOM
 !                 OF THE BASIS
 !        X ...... CARTESIAN COORDINATES OF THE NAT ATOMS OF THE BASIS
-!        DELTA... REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA... REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
 !        OUTPUT DATA:
 !        B1,B2,B3 .. RECIPROCAL LATTICE VECTORS, NOT MULTIPLIED BY
@@ -795,7 +795,7 @@
 !          NAT      NUMBER OF ATOMS
 !          TY(NAT)  TYPE OF ATOMS
 !          X(3,NAT) ATOMIC COORDINATES IN CARTESIAN COORDINATES
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !        OUTPUT:
 !          AP(3,3)  COMPONENTS OF THE PRIMITIVE TRANSLATION VECTORS
 !          API(3,3) PRIMITIVE RECIPROCAL BASIS VECTORS
@@ -913,7 +913,7 @@
 !        INPUT:
 !        A ..... DIRECT LATTICE VECTORS
 !        AI .... RECIPROCAL LATTICE VECTORS
-!        DELTA.. REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA.. REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
 !        OUTPUT:
 !        IHC .... CODE DISTINGUISHING BETWEEN HEXAGONAL AND CUBIC
@@ -1012,7 +1012,7 @@
 !           AI(I,J) ARE THE RECIPROCAL LATTICE VECTORS,
 !                   B(I) = AI(I,J),J=1,2,3
 !           XB(1:3) VECTOR IN CARTESIAN COORDINATES
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !        OUTPUT:
 !           VR IS NOT GIVEN IN CARTESIAN COORDINATES BUT
 !              IN THE SYSTEM A1,A2,A3 (CRYSTAL COORDINATES)
@@ -1077,7 +1077,7 @@
 !          NTVEC Number of translational vectors
 !               associated with Identity
 !               if primitive cell NTVEC=1, TVEC=(0,0,0)
-!        DELTA  REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA  REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !        OUTPUT:
 !          RX(3,NAT) Scratch array
 !          ISC(NAT)  Scratch array
@@ -1583,7 +1583,7 @@
 !          AI(1:3,1:3)   LATTICE RECIPROCAL VECTORS
 !          NODUPLI       .TRUE., THE CELL IS A PRIMITIVE ONE
 !                        WE CAN SPEED UP
-!        DELTA           REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA           REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !        OUTPUT:
 !          F0(1:49,1:NAT) ATOM TRANSFORMATION TABLE
 !             F0 IS THE FUNCTION DEFINED IN MARADUDIN AND VOSK0
@@ -1654,7 +1654,7 @@
 !                  R AND V ARE IN CARTESIAN COORDINATES
 !          AI(I,J) ARE THE RECIPROCAL LATTICE VECTORS,
 !                  B(I) = AI(I,J),J=1,2,3
-!        DELTA     REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA     REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !
 !        OUTPUT:
 !          ORIGIN(1:3) Give standard origin (cartesian coordinates)
@@ -1863,8 +1863,8 @@
 !------------------------------------------------------------------------------!
 !       DEFINE THE GENERATORS FOR THE ROTATION MATRICES--HEXAGONAL GROUP
 !------------------------------------------------------------------------------!
-          c = 0.5D0
-          s = 0.5D0*sqrt(3.0D0)
+          c = 0.5E0_dp
+          s = 0.5E0_dp*sqrt(3.0E0_dp)
           r(1,1,2) = c
           r(1,2,2) = -s
           r(2,1,2) = s
@@ -2052,7 +2052,7 @@
 !                 ALL 48 OR 24 MATRICES ARE LISTED.
 !        NCBRAV . TOTAL NUMBER OF ELEMENTS IN RBRAV
 !        IBRAV .. LIST OF NCBRAV OPERATIONS OF THE BRAVAIS LATTICE
-!        DELTA    REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA    REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
 !        OUTPUT DATA:
 !        NTOT ... TOTAL NUMBER OF SPECIAL POINTS
@@ -2413,7 +2413,7 @@
 !                              >0 MEANS: RETURN WVK NO. IPLACE
 !                   ON OUTPUT: THE POSITION ASSIGNED TO WVK
 !                              (=0 IF WVK IS NOT IN THE LIST)
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
     REAL(KIND=dp)                                :: wvk(3)
@@ -2449,7 +2449,7 @@
 !------------------------------------------------------------------------------!
         ELSE IF ((iplace>-2) .AND. (iplace<=0)) THEN
 !       The particular HASH function used in this case:
-          rhash = 0.7890D0*wvk(1) + 0.6810D0*wvk(2) + 0.5811D0*wvk(3) + delta
+          rhash = 0.7890E0_dp*wvk(1) + 0.6810E0_dp*wvk(2) + 0.5811E0_dp*wvk(3) + delta
           ihash = int(abs(rhash)*REAL(nhash,KIND=dp))
           ihash = mod(ihash,nhash) + nmesh + 1
 !       Search for WVK in linked list
@@ -2521,7 +2521,7 @@
           ' SUBROUTINE MESH *** WARNING ***', ' IPLACE = ', iplace, &
           ' IS BEYOND THE LISTS - WVK SET TO 1.0E38'
         DO i = 1, 3
-          wvk(i) = 1.0D38
+          wvk(i) = 1.0E38_dp
         END DO
       END SUBROUTINE mesh
 !------------------------------------------------------------------------------!
@@ -2531,7 +2531,7 @@
 !
 !        INPUT:
 !          WVK(3)
-!          DELTA   REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!          DELTA   REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !        OUTPUT:
 !          IPLACE ..... 1 IF WVK WAS REMOVED
 !                       0 IF WVK WAS NOT REMOVED
@@ -2554,7 +2554,7 @@
 
         delta1 = 10.0_dp*delta
 !     The particular hash function used in this case:
-        rhash = 0.7890D0*wvk(1) + 0.6810D0*wvk(2) + 0.5811D0*wvk(3) + delta
+        rhash = 0.7890E0_dp*wvk(1) + 0.6810E0_dp*wvk(2) + 0.5811E0_dp*wvk(3) + delta
         ihash = int(abs(rhash)*REAL(nhash,KIND=dp))
         ihash = mod(ihash,nhash) + nmesh + 1
 !     Search for WVK in linked list
@@ -2600,7 +2600,7 @@
 !                    IS IN THE GARBAGE LIST
 !        INPUT:
 !          WVK(3)
-!          DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!          DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !
 !        OUTPUT:
 !          IPLACE  ..... I > 0 IS THE PLACE IN THE GARBAGE LIST
@@ -2651,7 +2651,7 @@
 !------------------------------------------------------------------------------!
 !        REDUCE WVK TO LIE ENTIRELY WITHIN THE 1ST BRILLOUIN ZONE
 !        BY ADDING B-VECTORS
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     REAL(KIND=dp)                                :: wvk(3), a1(3), a2(3), a3(3), &
                                                 b1(3), b2(3), b3(3)
@@ -2717,7 +2717,7 @@
 !        IS WVK IN THE 1ST BRILLOUIN ZONE ?
 !        CHECK WHETHER WVK LIES INSIDE ALL THE PLANES
 !        THAT DEFINE THE 1BZ.
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     REAL(KIND=dp)                                :: wvk(3)
     INTEGER                                  :: nrsdir
@@ -2739,7 +2739,7 @@
           projct = (rsdir(1,n)*wvk(1)+rsdir(2,n)*wvk(2)+rsdir(3,n)*wvk(3))/ &
             rsdir(4,n)
 !       WVK is outside the Bz
-          IF (abs(projct)>0.5D0+delta) RETURN
+          IF (abs(projct)>0.5E0_dp+delta) RETURN
         END DO
         inbz = yes
       END FUNCTION inbz
@@ -2756,7 +2756,7 @@
 !        FURTHER CONFINE THE 1BZ.
 !        THE RESULTING VECTORS ARE NOT CLEANED TO AVOID REDUNDANT
 !        PLANES.
-!        DELTA      REQUIRED ACCURACY (1.D-6 IS A GOOD VALUE)
+!        DELTA      REQUIRED ACCURACY (1.0E-6_dp IS A GOOD VALUE)
 !------------------------------------------------------------------------------!
     INTEGER                                  :: iout
     REAL(KIND=dp)                                :: b1(3), b2(3), b3(3)
@@ -2819,12 +2819,12 @@
               END DO
 !           Does the plane of 1/2*BVEC narrow down the 1Bz ?
               DO n = 1, nplane
-                projct = 0.5D0*(rsdir(1,n)*bvec(1)+rsdir(2,n)*bvec(2)+rsdir(3, &
+                projct = 0.5E0_dp*(rsdir(1,n)*bvec(1)+rsdir(2,n)*bvec(2)+rsdir(3, &
                   n)*bvec(3))/rsdir(4,n)
 !             1/2*BVEC is outside the Bz - skip this direction
-!             The 1.D-6 takes care of single points touching the Bz,
+!             The 1.0E-6_dp takes care of single points touching the Bz,
 !             and of the -(plane)
-                IF (abs(projct)>0.5D0-delta) GO TO 150
+                IF (abs(projct)>0.5E0_dp-delta) GO TO 150
               END DO
 !           1/2*BVEC further confines the 1Bz - include into RSDIR
               nplane = nplane + 1

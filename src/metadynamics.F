@@ -335,16 +335,16 @@ SUBROUTINE metadyn_add_forces(meta_env,force_env,error)
         enddo
         !  velocity verlet on the s0
         fft=CV%ff_s+CV%ff_hills
-        CV%vv=CV%vvp+0.5d0*dt*fft/CV%mass
-        CV%vvp=CV%vv+0.5d0*dt*fft/CV%mass
-        meta_env%ekin_s=meta_env%ekin_s + 0.5d0*CV%mass*CV%vvp**2
+        CV%vv=CV%vvp+0.5E0_dp*dt*fft/CV%mass
+        CV%vvp=CV%vv+0.5E0_dp*dt*fft/CV%mass
+        meta_env%ekin_s=meta_env%ekin_s + 0.5E0_dp*CV%mass*CV%vvp**2
      ENDDO
      !  velocity rescaling on the s0
      if(meta_env%tempcontrol)then
        ekin_w=0.5_dp*meta_env%temp_wanted/FACTEM*REAL(meta_env%n_colvar,dp)
        tol_ekin=0.5_dp*meta_env%toll_temp/FACTEM*REAL(meta_env%n_colvar,dp)
        if(abs(ekin_w-meta_env%ekin_s)> tol_ekin)then
-         fac_t=sqrt(ekin_w/max(meta_env%ekin_s,1.D-8))
+         fac_t=sqrt(ekin_w/max(meta_env%ekin_s,1.0E-8_dp))
          DO i_c=1,meta_env%n_colvar
            CV=>colvars(i_c)
            CV%vvp=CV%vvp*fac_t

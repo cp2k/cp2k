@@ -453,10 +453,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
   mc_par % lclassical_run = .FALSE.
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!  mc_par % cutoff = 7.8d0 / angstrom
-!  mc_par % inner_cutoff = 4.0d0 / angstrom
-  mc_par % cutoff = 6.211d0 / angstrom
-  mc_par % inner_cutoff = 6.211d0 / angstrom
+!  mc_par % cutoff = 7.8e0_dp / angstrom
+!  mc_par % inner_cutoff = 4.0e0_dp / angstrom
+  mc_par % cutoff = 6.211e0_dp / angstrom
+  mc_par % inner_cutoff = 6.211e0_dp / angstrom
 
   iw = globenv % scr
   IF(globenv%ionode) WRITE ( iw, * )
@@ -665,13 +665,13 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
           'before a Quickstep energy calculation'
           WRITE( iw, '(A)' ) ' MC|      takes place.'
      ENDIF
-     IF (mc_par%pmvolume .GT. 0.0d0 ) THEN
+     IF (mc_par%pmvolume .GT. 0.0e0_dp ) THEN
           WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nvolmoves,&
           ' volume moves will be attempted ',&
           'before a Quickstep energy calculation'
           WRITE( iw, '(A)' ) ' MC|      takes place.'
      ENDIF
-     IF (mc_par%pmswap .GT. 0.0d0 ) THEN
+     IF (mc_par%pmswap .GT. 0.0e0_dp ) THEN
           WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nswapmoves,&
           ' classical swap insertions will be attempted ',&
           'per Quickstep swap move'
@@ -682,14 +682,14 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
       mc_par % BETA = 1 / mc_par%temp / boltzmann * joule
 
 ! convert from degrees to radians
-      mc_par%rmrot = mc_par%rmrot/180.0d0*pi
+      mc_par%rmrot = mc_par%rmrot/180.0e0_dp*pi
 ! convert from bar to a.u.
       CALL convert_to_cp2k_units(pressure=mc_par%pressure)
 ! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
                      length=mc_par%rmtrans)
 ! convert from degrees to radians
-      mc_par%rmangle = mc_par%rmangle/180.0d0*pi
+      mc_par%rmangle = mc_par%rmangle/180.0e0_dp*pi
 ! convert from angstrom to a.u.
       CALL convert_to_cp2k_units(unit_char='ANGSTROM',&
                     length=mc_par%rmbond)
@@ -698,7 +698,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv )
                             length=mc_par%rmvolume,l_power=3)
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0e0_dp,handle)
 
 
 END SUBROUTINE read_mc_section

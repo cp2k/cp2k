@@ -379,7 +379,7 @@ CONTAINS
 
           CALL cp_fm_init_random(matrices(spin)%matrix, n_ev, start_col=n_cols-n_Ev+1)
           DO i=1, n_ev
-             energies(i,0)=9.999E99_dp
+             energies(i,0)=1.000E38_dp
           END DO
 
        END IF
@@ -494,7 +494,7 @@ CONTAINS
           IF (n_v > n_orbits*n_lumos) THEN
              DO i=n_orbits*n_lumos+1, n_v
                 CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-                energies(i,0)=9.999E99_dp
+                energies(i,0)=1.0E38_dp
              END DO
           END IF
 
@@ -514,7 +514,7 @@ CONTAINS
 
           DO i=1, n_v
              CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
-             energies(i,0)=9.999E99_dp
+             energies(i,0)=1.0E38_dp
           END DO
 
        END IF

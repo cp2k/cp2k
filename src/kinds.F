@@ -36,14 +36,22 @@ MODULE kinds
   PRIVATE
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: default_string_length, default_path_length
-  
+
+#if __SGL 
+  INTEGER, PARAMETER :: sp = KIND(0.0)
+  INTEGER, PARAMETER :: dp = KIND(0.0) ! notice single precision
+  ! we rely on this (libraries) but do not check this
+  INTEGER, PARAMETER :: dp_size  = 4,&
+                        int_size = BIT_SIZE(0)/8,&
+                        sp_size  = 4
+#else
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
-
   ! we rely on this (libraries) but do not check this
   INTEGER, PARAMETER :: dp_size  = 8,&
                         int_size = BIT_SIZE(0)/8,&
                         sp_size  = 4
+#endif
 
   INTEGER, PARAMETER :: default_string_length=80
   INTEGER, PARAMETER :: default_path_length=250

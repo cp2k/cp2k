@@ -1908,7 +1908,7 @@ END SUBROUTINE create_ewald_section
 
        CALL keyword_create(keyword, name="eps_mm_rspace",&
             description="Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
-            "Standard value set to 1.0D-10",&
+            "Standard value set to 1.0E-10_dp",&
             usage="eps_mm_rspace real",&
             default_r_val=1.0E-10_dp, error=error)
        CALL section_add_keyword(section,keyword,error=error)

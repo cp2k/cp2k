@@ -142,7 +142,7 @@ CONTAINS
                     dft_control=dft_control,&
                     error=error)
 
-    qmmm_energy = 0.d0
+    qmmm_energy = 0.0_dp
     DO ispin=1, dft_control%nspins
        qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw )
     END DO

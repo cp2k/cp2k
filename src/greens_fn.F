@@ -298,10 +298,10 @@ SUBROUTINE pw_green_fn ( gftype )
           g2 = grid % gsq ( ig ) 
           g3d = fourpi / g2
           gf%cr ( ig ) = g3d +  gftype%screen_function%cr(ig) - &
-               g3d * EXP( - g2 / (4.D0 * alpha2) )
+               g3d * EXP( - g2 / (4.0E0_dp * alpha2) )
        END DO
        IF ( grid % have_g0 ) &
-            gf%cr(1) = gftype%screen_function%cr(1) + fourpi / (4.D0*alpha2)
+            gf%cr(1) = gftype%screen_function%cr(1) + fourpi / (4.0E0_dp*alpha2)
        
 !       CALL stop_program ( "pw_green_fn", " Method not implemented ")
     CASE ( HOCKNEY2D )

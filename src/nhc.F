@@ -501,7 +501,7 @@ SUBROUTINE nhc_particle_setup ( simpar, local_molecules, molecule_set, &
 !          ELSE IF (nhcopt=="NONE") THEN
 !             noneflag = .TRUE.
 ! NOTE: the thermostat counter is not incremented here.
-! nhc % p_scale(i,j) points to scale=1.d0 for eternity.  Thus
+! nhc % p_scale(i,j) points to scale=1.0E0_dp for eternity.  Thus
 ! the the velocites of particles that are not connected
 ! to a thermostat will not get scaled in lnhc.f
 !             DO ii = 1, 3

@@ -526,8 +526,8 @@ SUBROUTINE read_topology_mc (topology,globenv)
     atm_res_name(iatom) = 'QSMC'
     atm_name1(iatom) = 'O'
     atm_name2(iatom) = 'O'
-    atm_charge(iatom) = 0.0d0
-    atm_mass(iatom) = 15.9994d0
+    atm_charge(iatom) = 0.0E0_dp
+    atm_mass(iatom) = 15.9994E0_dp
 
 ! now the two hydrogens
     atm_mol_name(iatom+1) = 'Water'
@@ -535,16 +535,16 @@ SUBROUTINE read_topology_mc (topology,globenv)
       atm_res_name(iatom+1) = 'QSMC'
       atm_name1(iatom+1) = 'H'
       atm_name2(iatom+1) = 'H'
-      atm_charge(iatom+1) = 0.0d0
-      atm_mass(iatom+1) = 1.008d0
+      atm_charge(iatom+1) = 0.0E0_dp
+      atm_mass(iatom+1) = 1.008E0_dp
 
       atm_mol_name(iatom+2) = 'Water'
       atm_res_num(iatom+2) = (iatom+2)/3
       atm_res_name(iatom+2) = 'QSMC'
       atm_name1(iatom+2) = 'H'
       atm_name2(iatom+2) = 'H'
-      atm_charge(iatom+2) = 0.0d0
-      atm_mass(iatom+2) = 1.008d0
+      atm_charge(iatom+2) = 0.0E0_dp
+      atm_mass(iatom+2) = 1.008E0_dp
 
   END DO
 

@@ -135,8 +135,8 @@ MODULE xc_rho_set_types
 !!       gradient of the spin density)
 !!     - drhoa_drhob: flag for drhoa_drhob (the scalar product of the
 !!       gradient of the two spin densities)
-!!     - rho_1_3: flag for rho**(1.D0/3.D0)
-!!     - rho_spin_1_3: flag for rhoa**(1.D0/3.D0) and rhob**(1.D0/3.D0)
+!!     - rho_1_3: flag for rho**(1.0_dp/3.0_dp)
+!!     - rho_spin_1_3: flag for rhoa**(1.0_dp/3.0_dp) and rhob**(1.0_dp/3.0_dp)
 !!     - tau: flags for the kinetic (KS) part of rho 
 !!     - tau_spin: flags for the kinetic (KS) part of rhoa and rhob
 !!
@@ -190,8 +190,8 @@ MODULE xc_rho_set_types
 !!     - norm_drhoa, norm_drhob: norm of the gradient of rhoa and rhob
 !!     - drhoa_drhob: the scalar product between the gradient of rhoa and the
 !!       one of rhob
-!!     - rho_1_3: rho^(1.D0/3.D0)
-!!     - rhoa_1_3, rhob_1_3: rhoa^(1.D0/3.D0), rhob^(1.D0/3.D0)
+!!     - rho_1_3: rho^(1.0_dp/3.0_dp)
+!!     - rhoa_1_3, rhob_1_3: rhoa^(1.0_dp/3.0_dp), rhob^(1.0_dp/3.0_dp)
 !!     - tau: the kinetic (KohnSham) part of rho
 !!     - tau_a: the kinetic (KohnSham) part of rhoa
 !!     - tau_b: the kinetic (KohnSham) part of rhob

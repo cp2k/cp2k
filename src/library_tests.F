@@ -639,7 +639,7 @@ SUBROUTINE fft_test ( globenv )
       cc = ca
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.d-12 ) THEN
+      IF ( tdiff > 1.0E-12_dp ) THEN
         IF ( globenv % ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         FWFFT ", &
                "             Input array is changed in out-of-place FFT !"
@@ -651,7 +651,7 @@ SUBROUTINE fft_test ( globenv )
       ca = cc
       CALL fft3d ( BWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
-      IF ( tdiff > 1.d-12 ) THEN
+      IF ( tdiff > 1.0E-12_dp ) THEN
         IF ( globenv % ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) adjustr(method),"         BWFFT ", &
                "             Input array is changed in out-of-place FFT !"
@@ -1067,7 +1067,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "  could tell something about the motherboard / cache / compiler "
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1077,7 +1077,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1089,7 +1089,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "  is the memory bandwidth affected on an SMP machine ?"
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1099,7 +1099,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1130,7 +1130,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) THEN
        DO itask=0,nprocs-1
         DO jtask=itask+1,nprocs-1
-         write(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0D-6/send_timings(itask,jtask)," Mb/s"
+         write(6,'(I4,I4,F12.4,A)') itask,jtask,ncount*8.0E-6_dp/send_timings(itask,jtask)," Mb/s"
         ENDDO
        ENDDO
     ENDIF
@@ -1143,7 +1143,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "    these could / should all be on the same shared memory node "
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1157,7 +1157,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     CALL MPI_BARRIER(comm,ierror)
@@ -1169,7 +1169,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "    these could all be going over the network, and stress it a lot"
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1184,7 +1184,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -1195,7 +1195,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "    using trees at least ? "
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1205,7 +1205,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -1215,7 +1215,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "Test global summation (mp_sum / mpi_allreduce) "
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        DO j=1,3**(npow-i)
           CALL MPI_BARRIER(comm,ierror)
@@ -1225,7 +1225,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*ncount," Bytes ",(3**(npow-i))*ncount*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
     ! -------------------------------------------------------------------------------------------
@@ -1236,7 +1236,7 @@ SUBROUTINE mpi_test(comm)
     IF (ionode) write(6,*) "    mpi/network getting confused ? "
     DO i=1,npow
        ncount=10**i
-       t2=0.0D0
+       t2=0.0E0_dp
        IF (ncount.GT.nbufmax) STOP
        scount=ncount/nprocs
        rcount=ncount/nprocs
@@ -1253,7 +1253,7 @@ SUBROUTINE mpi_test(comm)
        ENDDO
        CALL MPI_REDUCE(t2,t1,1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, comm, ierror)
        IF (ionode) THEN
-          write(6,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0D-6/t1," Mb/s"
+          write(6,'(I9,A,F12.4,A)') 8*(ncount/nprocs)*nprocs," Bytes ",(3**(npow-i))*(ncount/nprocs)*nprocs*8.0E-6_dp/t1," Mb/s"
        ENDIF
     ENDDO
 
@@ -1285,7 +1285,7 @@ SUBROUTINE mpi_test(comm)
        left =MODULO(taskid-1,Nprocs)
        right=MODULO(taskid+1,Nprocs)
        t3=MPI_WTIME()
-       lgrid2=0.0D0
+       lgrid2=0.0E0_dp
        DO i=1,Nprocs
           lgrid2=lgrid2+grid(:,MODULO(taskid-i,Nprocs)+1)
           IF (i.EQ.nprocs) EXIT
@@ -1329,7 +1329,7 @@ SUBROUTINE mpi_test(comm)
        left =MODULO(taskid-2,Nprocs)
        right=MODULO(taskid+2,Nprocs)
        t3=MPI_WTIME()
-       lgrid3=0.0D0
+       lgrid3=0.0E0_dp
        DO i=1,Nprocs,2
           lgrid3=lgrid3+grid3(:,MODULO(taskid-i-1,Nprocs)+1)
           IF (i.EQ.nprocs-1) EXIT
@@ -1365,8 +1365,8 @@ SUBROUTINE mpi_test(comm)
 END SUBROUTINE mpi_test
 
 SUBROUTINE simple_copy(buf1,buf2,N)
-  REAL(KIND=KIND(0.0D0)) buf1(*)
-  REAL(KIND=KIND(0.0D0)) buf2(*)
+  REAL(KIND=KIND(0.0E0_dp)) buf1(*)
+  REAL(KIND=KIND(0.0E0_dp)) buf2(*)
   INTEGER I,N
   DO I=1,N
      buf2(I)=buf1(I)

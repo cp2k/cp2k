@@ -115,7 +115,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   gridlevel=1 
   needed_cutoff=ABS(exponent)*gridlevel_info%rel_cutoff
   DO i=1,gridlevel_info%ngrid_levels
-     IF ((gridlevel_info%cutoff(i)+1D-6).GE.needed_cutoff) THEN
+     IF ((gridlevel_info%cutoff(i)+1E-6_dp).GE.needed_cutoff) THEN
         gridlevel=i
      ENDIF
   ENDDO

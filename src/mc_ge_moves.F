@@ -293,7 +293,7 @@ CONTAINS
             classical_energy_old(1)=moves_1%classical_energy
             classical_energy_old(2)=moves_2%classical_energy
 
-            w=dexp(-BETA*((new_energy(1)-&
+            w=exp(-BETA*((new_energy(1)-&
                classical_energy_new(1))&
                -(old_energy(1)-classical_energy_old(1))&
                +(new_energy(2)-classical_energy_new(2))&
@@ -305,18 +305,18 @@ CONTAINS
                  classical_energy_new(2)-classical_energy_old(2)
 
          ELSE
-            w=dexp(-BETA*(new_energy(1)-old_energy(1)+&
+            w=exp(-BETA*(new_energy(1)-old_energy(1)+&
                new_energy(2)-old_energy(2)))
          ENDIF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- !        w = 1.0d0
-!         w=0.0d0
+ !        w = 1.0E0_dp
+!         w=0.0E0_dp
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -392,8 +392,8 @@ CONTAINS
 
          ENDIF ! back to parallel
 
-         IF ( .NOT. ionode) r_old_1(:,:) = 0.0D0
-         IF ( .NOT. ionode) r_old_2(:,:) = 0.0D0
+         IF ( .NOT. ionode) r_old_1(:,:) = 0.0E0_dp
+         IF ( .NOT. ionode) r_old_2(:,:) = 0.0E0_dp
 
 ! coodinates changed, so we need to broadcast those
          CALL mp_bcast(r_old_1,source,group)         
@@ -420,7 +420,7 @@ CONTAINS
       NULLIFY(particles_1,particles_2)
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_ge_quickstep_move
 
@@ -561,9 +561,9 @@ CONTAINS
 !     choose a direction to swap
          CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!!!!!!!!!
-!         rand=0.7d0
+!         rand=0.7E0_dp
 !!!!!!!!!!!!!!!!!!!!
-         IF ( rand .LE. 0.50D0 ) THEN
+         IF ( rand .LE. 0.50E0_dp ) THEN
             remove_box=1
             insert_box=2
          ELSE
@@ -624,7 +624,7 @@ CONTAINS
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"particles_old")
-         CALL timestop(0.0d0,handle)
+         CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
@@ -633,7 +633,7 @@ CONTAINS
       
 ! allocate a couple of arrays that depend on the box
       ins_atoms=nunits_tot(insert_box)+natom
-      mass(1:3)=(/ 15.999d0,1.008d0,1.008d0 /)
+      mass(1:3)=(/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
       rem_atoms=nunits_tot(remove_box)-natom
 
       IF(ionode) THEN
@@ -820,7 +820,7 @@ CONTAINS
          DEALLOCATE(particles_old,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,&
             __LINE__,"particles_old")
-         CALL timestop(0.0d0,handle)
+         CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
@@ -873,8 +873,8 @@ CONTAINS
       ENDIF
 
       IF (nchain(remove_box)-1 == 0) THEN
-         new_energy(remove_box)=0.0D0
-         classical_energy_new(remove_box)=0.0D0
+         new_energy(remove_box)=0.0E0_dp
+         classical_energy_new(remove_box)=0.0E0_dp
       ELSE
 
          IF (.NOT. lclassical_run) THEN
@@ -931,16 +931,16 @@ CONTAINS
             classical_energy_old(remove_box)
          wratio=weight_new/weight_old
          WRITE(6,*) weight_new,weight_old
-         w=prefactor*DEXP(-BETA*(del_quickstep_energy-&
+         w=prefactor*EXP(-BETA*(del_quickstep_energy-&
             del_classical_energy))*wratio
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-         WRITE(6,*) w,prefactor,DEXP(-BETA*(del_quickstep_energy-&
+         WRITE(6,*) w,prefactor,EXP(-BETA*(del_quickstep_energy-&
             del_classical_energy)),BETA,del_quickstep_energy,&
             del_classical_energy,wratio
 ! check if the move is accepted
-         IF(w .GE. 1.0D0) THEN
-            rand=0.0D0
+         IF(w .GE. 1.0E0_dp) THEN
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -951,8 +951,8 @@ CONTAINS
       CALL mp_bcast(w,source,group)
 
 !!!!!!!!!!!!!!!!!!
-!            w=1.0D0
-!            w=0.0D0
+!            w=1.0E0_dp
+!            w=0.0E0_dp
 
 
       IF ( rand .LT. w ) THEN
@@ -1036,7 +1036,7 @@ CONTAINS
          "particles_old")
  
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_ge_swap_move
 
@@ -1105,8 +1105,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_ge_volume_move"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.999d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
+      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
+    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01E0_dp
 
     INTEGER                                  :: handle, i, iatom, &
                                                 ivolmove,j,all_atoms,&
@@ -1230,14 +1230,14 @@ CONTAINS
 
             IF(lempty(i)) THEN
 
-               classical_energy_test(i)=0.0d0
-               classical_energy_original(i)=0.0d0
+               classical_energy_test(i)=0.0E0_dp
+               classical_energy_original(i)=0.0E0_dp
 
 ! don't have any old coordiantes, so let's make some up...these are in
 ! atomic units
-               r(1:3,1,i) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
-               r(1:3,2,i) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
-               r(1:3,3,i) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
+               r(1:3,1,i) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
+               r(1:3,2,i) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
+               r(1:3,3,i) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
@@ -1298,26 +1298,26 @@ CONTAINS
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!
-            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
-!            vol_dis=5.0d0/angstrom**3
+            vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+!            vol_dis=5.0E0_dp/angstrom**3
 !!!!!
 ! add to one box, subtract from the other
-            IF(test_cell_length(1)**3+vol_dis .LE. (3.0d0/angstrom)**3) &
+            IF(test_cell_length(1)**3+vol_dis .LE. (3.0E0_dp/angstrom)**3) &
             CALL stop_program(routineN,module_name,__LINE__,&
             'GE_volume moves are trying to make box 1 smaller than 3')
-            IF(test_cell_length(2)**3-vol_dis .LE. (3.0d0/angstrom)**3) &
+            IF(test_cell_length(2)**3-vol_dis .LE. (3.0E0_dp/angstrom)**3) &
             CALL stop_program(routineN,module_name,__LINE__,&
             'GE_volume moves are trying to make box 2 smaller than 3')
 
             new_cell_length(1)=(test_cell_length(1)**3+&
-               vol_dis)**(1.0d0/3.0d0)
+               vol_dis)**(1.0E0_dp/3.0E0_dp)
             new_cell_length(2)=(test_cell_length(2)**3-&
-                vol_dis)**(1.0d0/3.0d0)
+                vol_dis)**(1.0E0_dp/3.0E0_dp)
 
             DO i=1,2
 
                IF (lempty(i)) THEN
-                  classical_energy_new(i)=0.0D0
+                  classical_energy_new(i)=0.0E0_dp
                   CYCLE
                ENDIF
 
@@ -1369,18 +1369,18 @@ CONTAINS
                   volume_new(2)**nchain(2))/&
                   (volume_old(1)**nchain(1)*&
                   volume_old(2)**nchain(2))
-               w=prefactor*dexp(-BETA*&
+               w=prefactor*exp(-BETA*&
                   (classical_energy_new(1)+classical_energy_new(2)-&
                   classical_energy_test(1)-classical_energy_test(2)))
                
-               IF ( w .GE. 1.0d0 ) THEN
-                  w=1.0d0
-                  rand=0.0D0
+               IF ( w .GE. 1.0E0_dp ) THEN
+                  w=1.0E0_dp
+                  rand=0.0E0_dp
                ELSE
                   CALL RANDOM_NUMBER(rand)
                ENDIF
                
-               IF(loverlap(ivolmove,1) .OR. loverlap(ivolmove,2)) w=0.0d0
+               IF(loverlap(ivolmove,1) .OR. loverlap(ivolmove,2)) w=0.0E0_dp
 
                IF (rand .LT. w ) THEN
 
@@ -1433,7 +1433,7 @@ CONTAINS
                   classical_energy_original(i)
             ENDDO
          ELSE
-            classical_energy_diff(:)=0.0d0
+            classical_energy_diff(:)=0.0E0_dp
          ENDIF
 
          DO i=1,2
@@ -1441,9 +1441,9 @@ CONTAINS
             IF(lempty(i)) THEN
                
 ! don't have any old coordiantes, so let's make some up
-               r(1:3,1,i) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
-               r(1:3,2,i) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
-               r(1:3,3,i) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
+               r(1:3,1,i) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
+               r(1:3,2,i) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
+               r(1:3,3,i) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
 
 ! make the new dat file
                CALL mc_make_dat_file(r(:,:,i),3,&
@@ -1475,7 +1475,7 @@ CONTAINS
             globenv, error=error)
          
          IF (lempty(i)) THEN
-            new_energy(i)=0.0d0
+            new_energy(i)=0.0E0_dp
          ELSE
 
             IF(.NOT. lclassical_run) THEN
@@ -1493,7 +1493,7 @@ CONTAINS
       IF (ionode) THEN
 ! accept or reject the move
          IF (nvolmoves .GT. 1) THEN
-            w=dexp(-BETA*((new_energy(1)+&
+            w=exp(-BETA*((new_energy(1)+&
                new_energy(2)-old_energy(1)-old_energy(2))-&
                classical_energy_diff(1)-classical_energy_diff(2)))
          ELSE
@@ -1502,21 +1502,21 @@ CONTAINS
             volume_old(1:2)=old_cell_length(1:2)**3
             prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
                (volume_new(2)/volume_old(2))**nchain(2)
-            w=prefactor*dexp(-BETA*&
+            w=prefactor*exp(-BETA*&
                (new_energy(1)+new_energy(2)-&
                old_energy(1)-old_energy(2)))
 
-            IF(loverlap(1,1) .OR. loverlap(1,2)) w=0.0d0
+            IF(loverlap(1,1) .OR. loverlap(1,2)) w=0.0E0_dp
 
          ENDIF
 
 !!!!!!!!!!!
-!         w=1.0D0
-!         w=0.0D0
+!         w=1.0E0_dp
+!         w=0.0E0_dp
 !!!!!!!!!!!
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -1630,7 +1630,7 @@ CONTAINS
          "loverlap")      
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_ge_volume_move
 

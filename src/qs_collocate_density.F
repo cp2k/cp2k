@@ -684,7 +684,7 @@ CONTAINS
 
                      zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
 
-                     IF (dab.lt.0.1D0 .AND. dft_control%qs_control%map_paa) THEN
+                     IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
                          igrid_level = 1
                      ELSE
                          igrid_level = gaussian_gridlevel(gridlevel_info,zetp)

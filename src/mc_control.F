@@ -136,7 +136,7 @@ SUBROUTINE write_mc_restart ( nnstep, mc_par, force_env )
   CALL close_file(unit_number=unit)
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0E0_dp,handle)
 
 
 END SUBROUTINE write_mc_restart
@@ -208,7 +208,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       READ(unit,*) ensemble
 
 ! do some checking
-      IF(ABS(temp - mc_temp) .GT. 0.01d0) THEN
+      IF(ABS(temp - mc_temp) .GT. 0.01E0_dp) THEN
          IF(ionode) THEN
             WRITE(iw,*) 'The temperature in the restart file is ',&
                'not the same as the input file.'
@@ -246,7 +246,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          particles=particles, error=error)
 
       READ(unit,*)  box_length  ! in angstroms
-      IF(ABS(box_length - abc(1)*angstrom) .GT. 0.0001d0 ) THEN
+      IF(ABS(box_length - abc(1)*angstrom) .GT. 0.0001E0_dp ) THEN
          IF (ionode) THEN
             WRITE(iw,*) 'The cell length in the restart file is ',&
                'not the same as the input file.'
@@ -263,9 +263,9 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
          ALLOCATE (r(3,3),STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,module_name,__LINE__,&
             "r",3*3*dp_size)
-         r(1:3,1) = (/ 1.088738d0, 1.8323472d0,2.0179184d0 /)
-         r(1:3,2) = (/ 0.337575d0, 3.0485244d0, 0.80660535d0 /)
-         r(1:3,3) = (/ 0.8812212d0, 2.615469d0, 3.707380d0 /)
+         r(1:3,1) = (/ 1.088738E0_dp, 1.8323472E0_dp,2.0179184E0_dp /)
+         r(1:3,2) = (/ 0.337575E0_dp, 3.0485244E0_dp, 0.80660535E0_dp /)
+         r(1:3,3) = (/ 0.8812212E0_dp, 2.615469E0_dp, 3.707380E0_dp /)
 
          CALL close_file(unit_number=unit)
 
@@ -299,7 +299,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env ,iw )
       ENDDO
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
 ! deallcoate
       DEALLOCATE(r)

@@ -212,23 +212,23 @@ CONTAINS
             IF (lclassical_run) new_energy=classical_energy_new
 
             classical_energy_old=moves%classical_energy
-            w=dexp(-BETA*((new_energy-classical_energy_new)&
+            w=exp(-BETA*((new_energy-classical_energy_new)&
                    -(old_energy-classical_energy_old)))
 
             WRITE(diff,*) nnstep,new_energy-old_energy,&
                  classical_energy_new-classical_energy_old
                  
 !!!!!!!!!!!!!!!!!!!!!!!
-!            w=1.0D0
-!            w=0.0D0
+!            w=1.0E0_dp
+!            w=0.0E0_dp
 !!!!!!!!!!!!!!!!!!!!!!!
          ELSE
-            w=dexp(-BETA*(new_energy-old_energy))
+            w=exp(-BETA*(new_energy-old_energy))
          ENDIF
 
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -280,7 +280,7 @@ CONTAINS
 ! back to parallel
          ENDIF
 
-         IF ( .NOT. ionode) r_old(:,:) = 0.0D0
+         IF ( .NOT. ionode) r_old(:,:) = 0.0E0_dp
 
 ! coodinates changed, so we need to broadcast those
          CALL mp_bcast(r_old,source,group)         
@@ -295,7 +295,7 @@ CONTAINS
       CALL cp_subsys_set(subsys(1)%subsys,particles=particles)
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_Quickstep_move
 
@@ -402,8 +402,8 @@ CONTAINS
 
 ! choose if we're changing a bond length or an angle
       CALL RANDOM_NUMBER(rand)
-!      IF (rand .lt. -0.66666667d0) THEN
-      IF (rand .LT. 0.66666667d0) THEN
+!      IF (rand .lt. -0.66666667E0_dp) THEN
+      IF (rand .LT. 0.66666667E0_dp) THEN
 
 ! change a bond length
          bond_flag=.TRUE.
@@ -433,7 +433,7 @@ CONTAINS
 
 ! do the move
          CALL change_bond_angle(r,r_new,mc_par,mol)
-         dis_length=1.0d0
+         dis_length=1.0E0_dp
       ENDIF
 
 ! set the coordinates
@@ -453,14 +453,14 @@ CONTAINS
 ! accept or reject the move based on the Metropolis rule with a 
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
-         w=dexp(-BETA*(classical_energy_new-&
+         w=exp(-BETA*(classical_energy_new-&
                     classical_energy_old))*dis_length**2
 
-         IF(loverlap) w=0.0d0
+         IF(loverlap) w=0.0E0_dp
 
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -505,7 +505,7 @@ CONTAINS
                        "r_new")
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_atom_translation
 
@@ -611,7 +611,7 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       CALL RANDOM_NUMBER(rand)
-      dis_mol=rmtrans*(rand-0.5d0)*2.0d0
+      dis_mol=rmtrans*(rand-0.5E0_dp)*2.0E0_dp
 
 ! now let's grab the coordinates and do the move
       CALL force_env_get(force_env,subsys=subsys,error=error)
@@ -641,14 +641,14 @@ CONTAINS
             nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule
-         w=dexp(-BETA*(classical_energy_new-&
+         w=exp(-BETA*(classical_energy_new-&
                                  classical_energy_old))
 
-         IF(loverlap) w=0.0d0
+         IF(loverlap) w=0.0E0_dp
 
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -685,7 +685,7 @@ CONTAINS
                        "r")
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_molecule_translation
 
@@ -735,8 +735,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "mc_molecule_rotation"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.999d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp), PARAMETER                 :: masstot = 18.01D0
+      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
+    REAL(KIND=dp), PARAMETER                 :: masstot = 18.01E0_dp
 
     INTEGER                                  :: dir, handle, ii, imol, ipart, &
                                                 iunit,istat,nchain,nunits_tot,&
@@ -818,9 +818,9 @@ CONTAINS
 
 ! Determine new center of mass for chain i by finding the sum
 ! of m*r for each unit, then dividing by the total mass of the chain
-      nxcm = 0.0d0
-      nycm = 0.0d0
-      nzcm = 0.0d0
+      nxcm = 0.0E0_dp
+      nycm = 0.0E0_dp
+      nzcm = 0.0E0_dp
       DO ii = 1, nunits
          nxcm = nxcm + particles%els(mol-1+ii)%r(1)* mass(ii)
          nycm = nycm + particles%els(mol-1+ii)%r(2)* mass(ii)
@@ -832,12 +832,12 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       CALL RANDOM_NUMBER(rand)
-      dgamma=rmrot*(rand-0.5d0)*2.0d0
+      dgamma=rmrot*(rand-0.5E0_dp)*2.0E0_dp
 
 ! *** set up the rotation marix ***
  
-      cosdg = DCOS( dgamma )
-      sindg = DSIN( dgamma )
+      cosdg = COS( dgamma )
+      sindg = SIN( dgamma )
  
       IF (lx) THEN
  
@@ -900,14 +900,14 @@ CONTAINS
             nchain,imol,imol,cutoff,loverlap)
 
 ! accept or reject the move based on the Metropolis rule
-         w=dexp(-BETA*(classical_energy_new-&
+         w=exp(-BETA*(classical_energy_new-&
                                  classical_energy_old))
 
-         IF(loverlap) w=0.0d0
+         IF(loverlap) w=0.0E0_dp
 
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -942,7 +942,7 @@ CONTAINS
                        "r")
 
 ! end the timing
-  CALL timestop(0.0d0,handle)
+  CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_molecule_rotation
 
@@ -1004,8 +1004,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: &
       routineN = "mc_volume_move"
     REAL(KIND=dp), DIMENSION(1:3), PARAMETER :: &
-      mass = (/ 15.999d0,1.008d0,1.008d0 /)
-    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01d0
+      mass = (/ 15.999E0_dp,1.008E0_dp,1.008E0_dp /)
+    REAL(KIND=dp), PARAMETER                 :: mass_tot = 18.01E0_dp
 
     INTEGER                                  :: handle, i, iatom, &
                                                 ivolmove,istat,nchain,&
@@ -1124,11 +1124,11 @@ CONTAINS
 ! call a random number to figure out how far we're moving
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
-            vol_dis=rmvolume*(rand-0.5d0)*2.0d0
-!            vol_dis=5.0d0/angstrom**3
+            vol_dis=rmvolume*(rand-0.5E0_dp)*2.0E0_dp
+!            vol_dis=5.0E0_dp/angstrom**3
 
             new_cell_length=(vol_dis+&
-               test_cell_length**3)**(1.0d0/3.0d0)
+               test_cell_length**3)**(1.0E0_dp/3.0E0_dp)
             DO iatom=1,nunits_tot
                r(1:3,iatom)=particles_test%els(iatom)%r(1:3)
             ENDDO
@@ -1175,16 +1175,16 @@ CONTAINS
             IF (nvolmoves .GT. 1) THEN
 
 ! determine the acceptance of the move
-               w=dexp(-BETA*(classical_energy_new-&
+               w=exp(-BETA*(classical_energy_new-&
                   classical_energy_test-REAL(nchain,dp)/&
-                  BETA*3.0d0*&
-                  DLOG(new_cell_length/test_cell_length) + &
+                  BETA*3.0E0_dp*&
+                  LOG(new_cell_length/test_cell_length) + &
                   pressure*vol_dis))
                
-               IF(loverlap(ivolmove)) w=0.0d0
-               IF ( w .GE. 1.0d0 ) THEN
-                  w=1.0d0
-                  rand=0.0D0
+               IF(loverlap(ivolmove)) w=0.0E0_dp
+               IF ( w .GE. 1.0E0_dp ) THEN
+                  w=1.0E0_dp
+                  rand=0.0E0_dp
                ELSE
                   CALL RANDOM_NUMBER(rand)
                ENDIF
@@ -1230,7 +1230,7 @@ CONTAINS
             classical_energy_diff=classical_energy_test-&
                classical_energy_original
          ELSE
-            classical_energy_diff=0.0d0
+            classical_energy_diff=0.0E0_dp
          ENDIF
 
 
@@ -1269,7 +1269,7 @@ CONTAINS
          IF(ionode) WRITE(globenv%scr,*) &
             "Volume move rejected due to overlap.",vol_dis
 !     end the timing
-         CALL timestop(0.0d0,handle)
+         CALL timestop(0.0E0_dp,handle)
          RETURN
       ENDIF
 
@@ -1289,24 +1289,24 @@ CONTAINS
       IF (ionode) THEN
 ! accept or reject the move
          IF (nvolmoves .GT. 1) THEN
-            w=dexp(-BETA*((new_energy-old_energy)-&
+            w=exp(-BETA*((new_energy-old_energy)-&
                classical_energy_diff))
          ELSE
 
-            w=dexp(-BETA*((new_energy-old_energy)-&
-               REAL(nchain,dp)/BETA*3.0d0*&
-               DLOG(test_cell_length/old_cell_length) &
+            w=exp(-BETA*((new_energy-old_energy)-&
+               REAL(nchain,dp)/BETA*3.0E0_dp*&
+               LOG(test_cell_length/old_cell_length) &
                + pressure*vol_dis))
             
          ENDIF
 
 !!!!!!!!!!!
-!         w=1.0D0
-!         w=0.0D0
+!         w=1.0E0_dp
+!         w=0.0E0_dp
 !!!!!!!!!!!
-         IF ( w .GE. 1.0d0 ) THEN
-            w=1.0d0
-            rand=0.0D0
+         IF ( w .GE. 1.0E0_dp ) THEN
+            w=1.0E0_dp
+            rand=0.0E0_dp
          ELSE
             CALL RANDOM_NUMBER(rand)
          ENDIF
@@ -1323,12 +1323,12 @@ CONTAINS
          IF(ionode) THEN
 
             WRITE(cl,*) nnstep,test_cell_length*angstrom,&
-               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
+               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
                -REAL(nchain,dp)/&
-               BETA*3.0d0*DLOG(test_cell_length/&
-               old_cell_length)/3.16682968d-6, &
-               pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
-               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
+               BETA*3.0E0_dp*LOG(test_cell_length/&
+               old_cell_length)/3.16682968E-6_dp, &
+               pressure*(test_cell_length**3-old_cell_length**3)/3.16682968E-6_dp,&
+               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
                
 ! accept the move
             IF(nvolmoves .EQ. 1) THEN
@@ -1371,12 +1371,12 @@ CONTAINS
 ! write cell length, volume, density, and trial displacement to a file
          IF (ionode) THEN
             WRITE(cl,*) nnstep,old_cell_length*angstrom,&
-               (new_energy-old_energy)/3.16682968d-6,classical_energy_diff/3.16682968d-6,&
+               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
                -REAL(nchain,dp)/&
-               BETA*3.0d0*DLOG(test_cell_length/&
-               old_cell_length)/3.16682968d-6, &
-               pressure*(test_cell_length**3-old_cell_length**3)/3.16682968d-6,&
-               vol_dis*(angstrom)**3,rand,new_energy/3.16682968d-6,old_energy/3.16682968d-6,w
+               BETA*3.0E0_dp*LOG(test_cell_length/&
+               old_cell_length)/3.16682968E-6_dp, &
+               pressure*(test_cell_length**3-old_cell_length**3)/3.16682968E-6_dp,&
+               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
                
 
          ENDIF
@@ -1400,7 +1400,7 @@ CONTAINS
                        "loverlap")
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE mc_volume_move
 
@@ -1464,7 +1464,7 @@ CONTAINS
 
 ! pick which bond in the molecule at random
       CALL RANDOM_NUMBER(rand)
-      IF ( rand .LT. 0.50d0) THEN
+      IF ( rand .LT. 0.50E0_dp) THEN
          hydrogen=1
       ELSE
          hydrogen=2
@@ -1472,13 +1472,13 @@ CONTAINS
 
 ! choose a displacement
       CALL RANDOM_NUMBER(rand)
-      dis_length=rmbond*2.0d0*(rand-0.5d0)
+      dis_length=rmbond*2.0E0_dp*(rand-0.5E0_dp)
 
 ! find the bond distance and change it
       DO i=1,3
          OH(i)=r_new(i,mol+hydrogen)-r_new(i,mol)
       ENDDO
-      old_length=DSQRT(DOT_PRODUCT(OH,OH))
+      old_length=SQRT(DOT_PRODUCT(OH,OH))
       DO i=1,3
          r_new(i,mol+hydrogen)=r_new(i,mol)+&
               OH(i)*(old_length+dis_length)/old_length
@@ -1488,7 +1488,7 @@ CONTAINS
       dis_length=(old_length+dis_length)/old_length
 
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE change_bond_length
 
@@ -1555,35 +1555,35 @@ CONTAINS
 
 ! choose a displacement
       CALL RANDOM_NUMBER(rand)
-      dis_angle=rmangle*2.0d0*(rand-0.5d0)
-!      dis_angle=0.017453D0   ! always increase by one degree for testing
+      dis_angle=rmangle*2.0E0_dp*(rand-0.5E0_dp)
+!      dis_angle=0.017453E0_dp   ! always increase by one degree for testing
 
 ! find the bond vectors
       DO i=1,3
          OH1(i)=r_new(i,mol+1)-r_new(i,mol)
          OH2(i)=r_new(i,mol+2)-r_new(i,mol)
       ENDDO
-      old_length1=DSQRT(DOT_PRODUCT(OH1,OH1))
-      old_length2=DSQRT(DOT_PRODUCT(OH2,OH2))
+      old_length1=SQRT(DOT_PRODUCT(OH1,OH1))
+      old_length2=SQRT(DOT_PRODUCT(OH2,OH2))
       OH_between(1:3)=OH1(1:3)/old_length1-OH2(1:3)/old_length2
-      old_angle=DACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
+      old_angle=ACOS(DOT_PRODUCT(OH1,OH2)/(old_length1*old_length2))
       new_angle=old_angle+dis_angle
 
       DO i=1,3
          bisector(i)=OH1(i)/old_length1+& ! not yet normalized
                  OH2(i)/old_length2
       ENDDO
-      bis_length=DSQRT(DOT_PRODUCT(bisector,bisector))
+      bis_length=SQRT(DOT_PRODUCT(bisector,bisector))
 
 ! now scale the bisector and the vector from H1 to H2
-      OH_between1(1:3) = OH_between(1:3)/DSQRT(DOT_PRODUCT(OH_between,&
-             OH_between))*dsin(new_angle/2.0d0)*old_length1
-      OH_between2(1:3) = -OH_between(1:3)/DSQRT(DOT_PRODUCT(OH_between,&
-             OH_between))*dsin(new_angle/2.0d0)*old_length2
+      OH_between1(1:3) = OH_between(1:3)/SQRT(DOT_PRODUCT(OH_between,&
+             OH_between))*sin(new_angle/2.0E0_dp)*old_length1
+      OH_between2(1:3) = -OH_between(1:3)/SQRT(DOT_PRODUCT(OH_between,&
+             OH_between))*sin(new_angle/2.0E0_dp)*old_length2
       bisector1(1:3)=bisector(1:3)/bis_length*&
-             dcos(new_angle/2.0d0)*old_length1
+             cos(new_angle/2.0E0_dp)*old_length1
       bisector2(1:3)=bisector(1:3)/bis_length*&
-             dcos(new_angle/2.0d0)*old_length2
+             cos(new_angle/2.0E0_dp)*old_length2
 
       r_new(:,:)=r_old(:,:)
       DO i=1,3
@@ -1594,7 +1594,7 @@ CONTAINS
       ENDDO
       
 ! end the timing
-      CALL timestop(0.0d0,handle)
+      CALL timestop(0.0E0_dp,handle)
 
   END SUBROUTINE change_bond_angle
 

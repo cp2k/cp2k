@@ -1648,7 +1648,7 @@ END SUBROUTINE cp_iteration_info_release
 !!   SYNOPSIS
 !!     Function cp_real_dp_to_string(val) Result(res)
 !!       Character(Len=10):: res
-!!       Real(Kind=kind(1.0D0)), Intent (IN):: val
+!!       Real(Kind=kind(1.0E0_dp)), Intent (IN):: val
 !!     End Function cp_real_dp_to_string
 !!
 !!   FUNCTION

@@ -406,7 +406,7 @@ CONTAINS
           IF (calculate_forces) THEN
 
             DO i=1,nsgfa(iset)
-              work(i,1)=1.d0                   
+              work(i,1)=1.0E0_dp                   
             ENDDO
          
   

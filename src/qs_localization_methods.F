@@ -124,8 +124,8 @@ CONTAINS
             CALL cp_cfm_get_element ( c_zij(idim) % matrix, jstate, jstate, mjj(idim) )
           END DO 
           CALL get_angle ( mii, mjj, mij, weights, theta )
-          st = DSIN ( theta )
-          ct = DCOS ( theta )
+          st = SIN ( theta )
+          ct = COS ( theta )
           CALL rotate_zij ( istate, jstate, st, ct, c_zij )
           CALL rotate_rmat ( istate, jstate, st, ct, c_rmat )
         END DO
@@ -226,7 +226,7 @@ CONTAINS
     END DO
     IF ( ABS ( b12 ) > 1.e-10_dp ) THEN
       ratio = -a12/b12
-      theta = 0.25_dp * DATAN ( ratio )
+      theta = 0.25_dp * ATAN ( ratio )
     ELSEIF ( ABS ( b12 ) < 1.e-10_dp ) THEN
       b12 = 0.0_dp
       theta = 0.0_dp
@@ -634,7 +634,7 @@ CONTAINS
 
     CALL cp_fm_set_all(matrix_G_old,0.0_dp)
     CALL cp_fm_set_all(matrix_G_search,0.0_dp)
-    normg_old=1.0E99_dp
+    normg_old=1.0E30_dp
     ds_min=1.0_dp
     new_direction=.TRUE.
     Iterations=0
@@ -669,7 +669,7 @@ CONTAINS
             evals_exp(:)=EXP( (0.0_dp,-1.0_dp) * evals(:) )
             CALL cp_fm_set_all(matrix_G_old,0.0_dp)
             CALL cp_fm_set_all(matrix_G_search,0.0_dp)
-            normg_old=1.0E99_dp
+            normg_old=1.0E30_dp
          ENDIF
 
          ! compute Omega and M

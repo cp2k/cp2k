@@ -145,7 +145,7 @@ CONTAINS
           x=-REAL(grid%bounds_local(1,1),dp)*dx
           DO i=grid%bounds_local(1,1),grid%bounds_local(2,1)
              r2=x*x+y2+z2
-             IF(r.GT.1.d-20) THEN
+             IF(r.GT.1.0E-20_dp) THEN
                 r=SQRT(r2)
                 Vloc%cr3d(i,j,k)=erf(my_alpha*r)/r
              ELSE
