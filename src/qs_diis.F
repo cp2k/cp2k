@@ -47,6 +47,7 @@ MODULE qs_diis
   USE termination,          ONLY: stop_memory
   USE timings,              ONLY: timeset,&
                                   timestop
+  USE scf_control_types,    ONLY: scf_control_type
 
   IMPLICIT NONE
 
@@ -55,20 +56,14 @@ MODULE qs_diis
   TYPE diis_buffer_type
     PRIVATE
     INTEGER                                          :: nbuffer,ncall
-    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: error,parameter
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: error,PARAMETER
     REAL(wp), DIMENSION(:,:), POINTER                :: b_matrix
   END TYPE diis_buffer_type
 
   TYPE(cp_full_matrix_type), POINTER :: new_errors,old_errors,parameters
 
   TYPE(diis_buffer_type) :: scf_diis_buffer
-  REAL(wp)               :: eps_diis = 0.1_wp
-  INTEGER                :: max_diis = 4
   LOGICAL                :: init_scf_diis_buffer_done = .FALSE.
-
-! *** Public variables ***
-
-  PUBLIC :: eps_diis,max_diis
 
 ! *** Public subroutines ***
 
@@ -158,9 +153,12 @@ CONTAINS
 !   *** Local variables ***
 
     TYPE(cp_full_matrix_type), POINTER  :: c
+    TYPE(scf_control_type), POINTER     :: scf_control
 
-    INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit
+    INTEGER :: handle,ib,istat,jb,nao,nb,nb1,nmo,nparameter,output_unit,&
+         max_diis
     LOGICAL :: ionode
+    REAL(wp) :: eps_diis
 
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
 
@@ -170,17 +168,23 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("scf_diis","I","",handle)
+    NULLIFY(c,scf_control,s,a,b)
 
     diis_step = .FALSE.
-
-!   *** Quick return, if no DIIS is requested ***
-
-    IF (max_diis < 1) RETURN
 
     ionode = globenv%ionode
     output_unit= globenv%scr
 
-    CALL get_qs_env(qs_env=qs_env,s=s)
+    CALL get_qs_env(qs_env=qs_env,s=s,scf_control=scf_control)
+
+    max_diis=scf_control%max_diis
+    eps_diis=scf_control%eps_diis
+
+!   *** Quick return, if no DIIS is requested ***
+    IF (max_diis < 1) THEN
+       CALL timestop(0.0_wp,handle)
+       RETURN
+    END IF
 
     CALL get_mo_set(mo_set=mo_set,&
                     nao=nao,&
