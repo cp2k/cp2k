@@ -3098,7 +3098,7 @@
       </DATA_TYPE>
       <USAGE>COMMON_ITERATION_LEVELS 1</USAGE>
       <DESCRIPTION>How many iterations levels should be written in the same file (no extra information about the actual iteration level is written to the file)</DESCRIPTION>
-      <DEFAULT_VALUE>0</DEFAULT_VALUE>
+      <DEFAULT_VALUE>1</DEFAULT_VALUE>
      </KEYWORD>
      <KEYWORD>
       <NAME type="default">FILENAME</NAME>
@@ -3108,7 +3108,7 @@
       </DATA_TYPE>
       <USAGE>FILENAME SOMWHERE/NICE</USAGE>
       <DESCRIPTION>Root of the filename used for the output. If not given uses the project name + "DIPOLE"; "__STD_OUT__" (case sensitive, and spelled exactly as here) directs the output to the standard log (normally the standard out).</DESCRIPTION>
-      <DEFAULT_VALUE>d</DEFAULT_VALUE>
+      <DEFAULT_VALUE></DEFAULT_VALUE>
      </KEYWORD>
     </SECTION>
    </SECTION>
@@ -5773,97 +5773,6 @@
       </DATA_TYPE>
       <USAGE>FILENAME SOMWHERE/NICE</USAGE>
       <DESCRIPTION>Root of the filename used for the output. If not given uses the project name + "DIIS_INFORMATION"; "__STD_OUT__" (case sensitive, and spelled exactly as here) directs the output to the standard log (normally the standard out).</DESCRIPTION>
-      <DEFAULT_VALUE>_</DEFAULT_VALUE>
-     </KEYWORD>
-    </SECTION>
-    <SECTION>
-     <NAME>DIPOLE</NAME>
-     <DESCRIPTION>Controls the printing of dipole information.</DESCRIPTION>
-     <KEYWORD>
-      <NAME type="default">PRINT</NAME>
-      <DATA_TYPE>
-       <N_VAR>1</N_VAR>
-       <ENUMERATION>
-        <ITEM>
-         <NAME>SILENT</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>LOW</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>MEDIUM</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>HIGH</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>DEBUG</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <STRICT/>
-       </ENUMERATION>
-      </DATA_TYPE>
-      <USAGE>PRINT</USAGE>
-      <DESCRIPTION>Level starting at which this proprety is printed</DESCRIPTION>
-      <DEFAULT_VALUE>SILENT</DEFAULT_VALUE>
-      <LONE_KEYWORD_VALUE>SILENT</LONE_KEYWORD_VALUE>
-     </KEYWORD>
-     <KEYWORD>
-      <NAME type="default">EACH</NAME>
-      <DATA_TYPE>
-       <N_VAR>1</N_VAR>
-       <INTEGER/>
-      </DATA_TYPE>
-      <USAGE>EACH 2 5</USAGE>
-      <DESCRIPTION>How often this proprety is printed, this is matched with the actual iteration level from the right replacing non present levels with 1. How to handle the last iteration is treated separately in ADD_LAST (this mean that EACH 0 might print the last iteration)</DESCRIPTION>
-      <DEFAULT_VALUE>1</DEFAULT_VALUE>
-     </KEYWORD>
-     <KEYWORD>
-      <NAME type="default">ADD_LAST</NAME>
-      <DATA_TYPE>
-       <N_VAR>1</N_VAR>
-       <ENUMERATION>
-        <ITEM>
-         <NAME>NO</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>NUMERIC</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <ITEM>
-         <NAME>SYMBOLIC</NAME>
-         <DESCRIPTION></DESCRIPTION>
-        </ITEM>
-        <STRICT/>
-       </ENUMERATION>
-      </DATA_TYPE>
-      <USAGE>ADD_LAST NO SYMBOLIC</USAGE>
-      <DESCRIPTION>If the last iteration should be added, and if it should be marked symbolically (with l) or with the iteration number.Not every process is able to identify the last iteration early enough to be able to output.</DESCRIPTION>
-      <DEFAULT_VALUE>NO</DEFAULT_VALUE>
-     </KEYWORD>
-     <KEYWORD>
-      <NAME type="default">COMMON_ITERATION_LEVELS</NAME>
-      <DATA_TYPE>
-       <N_VAR>1</N_VAR>
-       <INTEGER/>
-      </DATA_TYPE>
-      <USAGE>COMMON_ITERATION_LEVELS 1</USAGE>
-      <DESCRIPTION>How many iterations levels should be written in the same file (no extra information about the actual iteration level is written to the file)</DESCRIPTION>
-      <DEFAULT_VALUE>0</DEFAULT_VALUE>
-     </KEYWORD>
-     <KEYWORD>
-      <NAME type="default">FILENAME</NAME>
-      <DATA_TYPE>
-       <N_VAR>1</N_VAR>
-       <STRING/>
-      </DATA_TYPE>
-      <USAGE>FILENAME SOMWHERE/NICE</USAGE>
-      <DESCRIPTION>Root of the filename used for the output. If not given uses the project name + "DIPOLE"; "__STD_OUT__" (case sensitive, and spelled exactly as here) directs the output to the standard log (normally the standard out).</DESCRIPTION>
       <DEFAULT_VALUE>_</DEFAULT_VALUE>
      </KEYWORD>
     </SECTION>

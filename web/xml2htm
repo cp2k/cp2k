@@ -1,2 +1,2 @@
 #!/bin/sh
-Xalan -e ISO-8859-1 -o cp2k_input.htm cp2k_input.xml cp2k_input.xsl
+Xalan -o cp2k_input.htm cp2k_input.xml cp2k_input.xsl
