@@ -5,6 +5,7 @@ OBJECTS_GENERIC =\
  ai_nuclear.o\
  ai_overlap.o\
  ai_overlap_ppl.o\
+ ai_overlap3.o\
  ai_verfc.o\
  amoeba.o\
  ao_types.o\
@@ -15,6 +16,7 @@ OBJECTS_GENERIC =\
  band.o\
  basis_set_types.o\
  bessel_lib.o\
+ blacs.o\
  brillouin.o\
  cell_parameters.o\
  cntl_input.o\

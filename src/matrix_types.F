@@ -31,17 +31,21 @@ MODULE matrix_types
 !                                 matrix_name,matrix_symmetry)
 ! SUBROUTINE allocate_full_real_matrix(matrix,nrow,ncol,matrix_name,&
 !                                      matrix_symmetry)
+! SUBROUTINE copy_sparse_to_full_matrix(sparse_matrix,full_matrix)
 ! SUBROUTINE copy_real_matrix(source,target)
 ! SUBROUTINE deallocate_real_matrix(matrix)
 ! SUBROUTINE deallocate_real_matrix_row(matrix,block_row)
-! SUBROUTINE get_matrix_info(matrix,nrow,ncol,nblock_row,nblock_col,&
-!                            matrix_name,matrix_symmetry)
+! SUBROUTINE get_matrix_info(matrix,matrix_name,matrix_symmetry,&
+!                            nblock_row,nblock_col,nrow,ncol,&
+!                            first_row,last_row,first_col,last_col,&
+!                            nblock,nelement)
 ! SUBROUTINE get_real_block_node(block_node,block_col,block)
 ! SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,block_node,block)
 ! SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,block)
 ! SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,block)
 ! SUBROUTINE replicate_real_matrix(source,target,target_name)
 ! SUBROUTINE replicate_real_matrix_structure(source,target,target_name)
+! SUBROUTINE symmetrise_diagonal_blocks(matrix,option)
 
 ! FUNCTION find_real_block_node(matrix,block_row,block_col) RESULT(block_node)
 ! FUNCTION first_real_block_node(matrix,block_row) RESULT(first_block_node)
@@ -50,6 +54,10 @@ MODULE matrix_types
 ! *****************************************************************************
 
   USE kinds, ONLY: wp => dp
+
+  USE memory_utilities, ONLY: reallocate
+  USE termination,      ONLY: stop_memory,stop_program
+  USE timings,          ONLY: timeset,timestop
 
   IMPLICIT NONE
 
@@ -98,13 +106,15 @@ MODULE matrix_types
   PUBLIC :: add_block_node,&
             allocate_matrix,&
             copy_matrix,&
+            copy_sparse_to_full_matrix,&
             deallocate_matrix,&
             deallocate_matrix_row,&
             get_block_node,&
             get_matrix_info,&
             put_block_node,&
             replicate_matrix,&
-            replicate_matrix_structure
+            replicate_matrix_structure,&
+            symmetrise_diagonal_blocks
 
 ! *** Public functions ***
 
@@ -175,9 +185,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE memory_utilities, ONLY: reallocate
-    USE termination,      ONLY: stop_memory,stop_program
-
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_col,block_row
     REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
@@ -242,9 +249,6 @@ CONTAINS
 !   History: - Creation (16.06.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE memory_utilities, ONLY: reallocate
-    USE termination,      ONLY: stop_memory
 
     TYPE(real_matrix_type), POINTER :: matrix
     CHARACTER(LEN=*), INTENT(IN)    :: matrix_name,matrix_symmetry
@@ -321,9 +325,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE memory_utilities, ONLY: reallocate
-    USE termination,      ONLY: stop_memory
-
     TYPE(real_matrix_type), POINTER :: matrix
     CHARACTER(LEN=*), INTENT(IN)    :: matrix_name,matrix_symmetry
     INTEGER, INTENT(IN)             :: ncol,nrow
@@ -386,6 +387,86 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE copy_sparse_to_full_matrix(sparse_matrix,full_matrix)
+
+!   Purpose: Copy the matrix blocks of a sparse matrix to the corresponding
+!            full matrix which is allocated in this routine.
+
+!   History: - Creation (19.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER   :: sparse_matrix
+    REAL(wp), DIMENSION(:,:), POINTER :: full_matrix
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE copy_sparse_to_full_matrix (MODULE matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block
+
+    REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the input matrix ***
+
+    IF (.NOT.ASSOCIATED(sparse_matrix)) THEN
+      CALL stop_program(routine,"The input matrix pointer is not associated")
+    END IF
+
+    IF (ASSOCIATED(full_matrix)) DEALLOCATE (full_matrix)
+
+    full_matrix => reallocate(full_matrix,1,sparse_matrix%nrow,&
+                                          1,sparse_matrix%ncol)
+
+!   *** Traverse all block nodes of the sparse matrix ***
+
+    DO iblock_row=1,sparse_matrix%nblock_row
+
+      block_node => first_block_node(sparse_matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=sparse_block)
+
+        icol_block = 1
+
+        DO icol=sparse_matrix%first_col(iblock_col),&
+                sparse_matrix%last_col(iblock_col)
+
+          irow_block = 1
+
+          DO irow=sparse_matrix%first_row(iblock_row),&
+                  sparse_matrix%last_row(iblock_row)
+
+            full_matrix(irow,icol) = sparse_block(irow_block,icol_block)
+
+            irow_block = irow_block + 1
+
+          END DO
+
+          icol_block = icol_block + 1
+
+        END DO
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE copy_sparse_to_full_matrix
+
+! *****************************************************************************
+
   SUBROUTINE copy_real_matrix(source,target)
 
 !   Purpose: Copy the real matrix source to the existing real matrix target.
@@ -393,8 +474,6 @@ CONTAINS
 !   History: - Creation (07.07.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_program
 
     TYPE(real_matrix_type), POINTER :: source,target
 
@@ -408,7 +487,8 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: source_block_node,&
                                            target_block_node
 
-    INTEGER :: first_col,first_row,iblock_col,iblock_row,icol,irow,istat,&
+    INTEGER :: first_col,first_row,handle,&
+               iblock_col,iblock_row,icol,irow,istat,&
                jblock_col,jblock_row,jcol,jrow,last_col,last_row,&
                source_first_col,source_first_row,&
                source_last_col,source_last_row,&
@@ -422,6 +502,8 @@ CONTAINS
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routine,"The source matrix pointer is not associated")
     END IF
+
+    CALL timeset("copy_real_matrix","I","",handle)
 
 !   *** Check the association status of the target matrix ***
 
@@ -506,6 +588,8 @@ CONTAINS
 
     END IF
 
+    CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE copy_real_matrix
 
 ! *****************************************************************************
@@ -517,8 +601,6 @@ CONTAINS
 !   History: - Creation (11.07.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_memory
 
     TYPE(real_matrix_type), POINTER :: matrix
 
@@ -566,8 +648,6 @@ CONTAINS
 !   History: - Creation (30.11.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_memory
 
     TYPE(real_matrix_type), POINTER :: matrix
     INTEGER, INTENT(IN)             :: block_row
@@ -649,8 +729,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_matrix_info(matrix,nrow,ncol,nblock_row,nblock_col,&
-                             matrix_name,matrix_symmetry)
+  SUBROUTINE get_matrix_info(matrix,matrix_name,matrix_symmetry,&
+                             nblock_row,nblock_col,nrow,ncol,&
+                             first_row,last_row,first_col,last_col,&
+                             nblock_allocated,nelement_allocated)
 
 !   Purpose: Return the requested matrix information.
 
@@ -658,12 +740,22 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE memory_utilities, ONLY: reallocate
-
     TYPE(real_matrix_type), POINTER          :: matrix
     CHARACTER(LEN=60), OPTIONAL, INTENT(OUT) :: matrix_name
     CHARACTER(LEN=40), OPTIONAL, INTENT(OUT) :: matrix_symmetry
-    INTEGER, OPTIONAL, INTENT(OUT)           :: nblock_row,nblock_col,ncol,nrow
+    INTEGER, OPTIONAL, INTENT(OUT)           :: nblock_allocated,nblock_row,&
+                                                nblock_col,ncol,&
+                                                nelement_allocated,nrow
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: first_col,first_row,&
+                                                last_col,last_row
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_row
+
+    REAL(wp), DIMENSION(:,:), POINTER :: block
 
 !   ---------------------------------------------------------------------------
 
@@ -673,6 +765,33 @@ CONTAINS
     IF (PRESENT(nblock_col)) nblock_col = matrix%nblock_col
     IF (PRESENT(nrow)) nrow = matrix%nrow
     IF (PRESENT(ncol)) ncol = matrix%ncol
+    IF (PRESENT(first_row)) first_row => matrix%first_row
+    IF (PRESENT(last_row)) last_row => matrix%last_row
+    IF (PRESENT(first_col)) first_col => matrix%first_col
+    IF (PRESENT(last_col)) last_col => matrix%last_col
+
+    IF (PRESENT(nblock_allocated)) THEN
+      nblock_allocated = 0
+      DO iblock_row=1,matrix%nblock_row
+        block_node => first_block_node(matrix,iblock_row)
+        DO WHILE (ASSOCIATED(block_node))
+          nblock_allocated = nblock_allocated + 1
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+    END IF
+
+    IF (PRESENT(nelement_allocated)) THEN
+      nelement_allocated = 0
+      DO iblock_row=1,matrix%nblock_row
+        block_node => first_block_node(matrix,iblock_row)
+        DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,block=block)
+          nelement_allocated = nelement_allocated + SIZE(block)
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+    END IF
 
   END SUBROUTINE get_matrix_info
 
@@ -699,7 +818,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,block_node,block)
+  SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,&
+                                   first_row,last_row,first_col,last_col,&
+                                   block_node,block)
 
 !   Purpose: Get block node data set.
 
@@ -710,6 +831,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER               :: matrix
     TYPE(real_block_node_type), OPTIONAL, POINTER :: block_node
     INTEGER, INTENT(IN)                           :: block_col,block_row
+    INTEGER, OPTIONAL, INTENT(OUT)                :: first_col,first_row,&
+                                                     last_col,last_row
     REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: block
 
 !   *** Local variables ***
@@ -717,6 +840,12 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: current_block_node
 
 !   ---------------------------------------------------------------------------
+
+    IF (PRESENT(first_row)) first_row = matrix%first_row(block_row)
+    IF (PRESENT(last_row)) last_row = matrix%last_row(block_row)
+
+    IF (PRESENT(first_col)) first_col = matrix%first_col(block_col)
+    IF (PRESENT(last_col)) last_col = matrix%last_col(block_col)
 
     current_block_node => find_real_block_node(matrix,block_row,block_col)
 
@@ -759,9 +888,6 @@ CONTAINS
 !   History: - Creation (27.07.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE memory_utilities, ONLY: reallocate
-    USE termination,      ONLY: stop_program
 
     TYPE(real_block_node_type), POINTER         :: block_node
     TYPE(real_matrix_type), POINTER             :: matrix
@@ -813,8 +939,6 @@ CONTAINS
 !   History: - Creation (07.07.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_program
 
     TYPE(real_matrix_type), POINTER            :: matrix
     INTEGER, INTENT(IN)                        :: block_col,block_row
@@ -887,8 +1011,6 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE termination, ONLY: stop_program
-
     TYPE(real_matrix_type), POINTER :: source,target
     CHARACTER(LEN=*), INTENT(IN)    :: target_name
 
@@ -912,6 +1034,8 @@ CONTAINS
     IF (.NOT.ASSOCIATED(source)) THEN
       CALL stop_program(routine,"The source matrix pointer is not associated")
     END IF
+
+    IF (ASSOCIATED(target)) CALL deallocate_real_matrix(target)
 
 !   *** Allocate a new matrix structure ***
 
@@ -963,8 +1087,6 @@ CONTAINS
 !   History: - Creation (17.11.2000, Matthias Krack)
 
 !   ***************************************************************************
-
-    USE termination, ONLY: stop_program
 
     TYPE(real_matrix_type), POINTER :: source,target
     CHARACTER(LEN=*), INTENT(IN)    :: target_name
@@ -1024,6 +1146,67 @@ CONTAINS
     END DO
 
   END SUBROUTINE replicate_real_matrix_structure
+
+! *****************************************************************************
+
+  SUBROUTINE symmetrise_diagonal_blocks(matrix)
+
+!   Purpose: Symmetrise the diagonal blocks of matrix.
+
+!   History: - Creation (13.06.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER :: matrix
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE symmetrise_diagonal_blocks (MODULE matrix_types)"
+
+!   *** Local variables ***
+
+    TYPE(real_block_node_type), POINTER :: block_node
+
+    INTEGER :: iblock_col,iblock_row,icol,irow
+
+    REAL(wp), DIMENSION(:,:), POINTER :: block
+
+!   ---------------------------------------------------------------------------
+
+!   *** Check the association status of the input matrix ***
+
+    IF (.NOT.ASSOCIATED(matrix)) THEN
+      CALL stop_program(routine,"The input matrix pointer is not associated")
+    END IF
+
+!   *** Traverse all block nodes ***
+
+    DO iblock_row=1,matrix%nblock_row
+
+      block_node => first_block_node(matrix,iblock_row)
+
+      DO WHILE (ASSOCIATED(block_node))
+
+        CALL get_block_node(block_node=block_node,&
+                            block_col=iblock_col,&
+                            block=block)
+
+        IF (iblock_row == iblock_col) THEN
+          DO irow=1,SIZE(block,1)
+            DO icol=irow+1,SIZE(block,2)
+              block(icol,irow) = block(irow,icol)
+            END DO
+          END DO
+        END IF
+
+        block_node => next_block_node(block_node)
+
+      END DO
+
+    END DO
+
+  END SUBROUTINE symmetrise_diagonal_blocks
 
 ! *****************************************************************************
 

@@ -30,10 +30,12 @@ MODULE integrate_potential
   USE atoms,               ONLY: atom_info
   USE basis_set_types,     ONLY: gto_basis_set_type,maxco,maxsgf,maxsgf_set
   USE coefficient_types,   ONLY: coeff_type
+  USE global_types,        ONLY: global_environment_type
   USE mathlib,             ONLY: symmetrize_matrix
   USE matrix_types,        ONLY: get_block_node,&
                                  real_matrix_set_type
   USE memory_utilities,    ONLY: reallocate
+  USE message_passing,     ONLY: mp_sum
   USE neighbor_list_types, ONLY: extract_neighbor_list,&
                                  find_neighbor_list,&
                                  first_neighbor_list,&
@@ -63,11 +65,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integrate_v_rspace(v_rspace,h,nproduct)
+  SUBROUTINE integrate_v_rspace(v_rspace,h,nproduct,globenv)
 
     TYPE(coeff_type), INTENT(IN)              :: v_rspace
+    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_set_type), INTENT(INOUT) :: h
-    INTEGER, OPTIONAL, INTENT(OUT)            :: nproduct
+    INTEGER, INTENT(OUT)                      :: nproduct
 
 !   *** Local variables ***
 
@@ -86,7 +89,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER    :: orb_neighbors
     REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), POINTER :: h_block,hab,orb_r,work
+    REAL(wp), DIMENSION(:,:), POINTER :: h_block,hab,orb_r,s_block,work
 
 !   ---------------------------------------------------------------------------
 
@@ -143,6 +146,8 @@ CONTAINS
                             block_row=iatom,&
                             block_col=jatom,&
                             block=h_block)
+
+        IF (.NOT.ASSOCIATED(h_block)) CYCLE
 
         DO iset=1,nseta
 
@@ -236,9 +241,13 @@ CONTAINS
 
     END DO
 
-    IF (PRESENT(nproduct)) nproduct = npgf_product
+!   *** Release work storage ***
 
     DEALLOCATE (hab,work)
+
+    CALL mp_sum(npgf_product,globenv%group)
+
+    nproduct = npgf_product
 
     CALL timestop(0.0_wp,handle)
 

@@ -32,6 +32,7 @@ MODULE print_keys
                atomic_coordinates,&
                basic_data_types,&
                basis_set,&
+               blacs_info,&
                cartesian_om,&
                cell_parameters,&
                charge_density_matrix,&
@@ -133,6 +134,7 @@ CONTAINS
     print_key%atomic_coordinates = key_value(level,(/t,t,t/))
     print_key%basic_data_types = key_value(level,(/f,f,f/))
     print_key%basis_set = key_value(level,(/f,t,t/))
+    print_key%blacs_info = key_value(level,(/f,t,t/))
     print_key%cartesian_om = key_value(level,(/f,f,f/))
     print_key%cell_parameters = key_value(level,(/t,t,t/))
     print_key%charge_density_matrix = key_value(level,(/f,f,t/))

@@ -102,11 +102,13 @@ MODULE core_hamiltonian
                                       deallocate_matrix_row,&
                                       first_block_node,&
                                       get_block_node,&
+                                      get_matrix_info,&
                                       next_block_node,&
                                       real_block_node_type,&
                                       real_matrix_set_type,&
                                       replicate_matrix_structure
   USE memory_utilities,         ONLY: reallocate
+  USE message_passing,          ONLY: mp_sum
   USE method_specifications,    ONLY: allchem,gpw,maxder
   USE neighbor_list_types,      ONLY: extract_neighbor_list,&
                                       find_neighbor_list,&
@@ -286,14 +288,23 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER :: neighbor_list
     TYPE(neighbor_node_type), POINTER :: neighbor_node
 
-    INTEGER :: iatom,ij,ikind,ipe,istat,jatom,jkind,jpe,nsgfa,nsgfb
+    INTEGER :: group,iatom,ij,ikind,ipe,istat,jatom,jkind,jpe,mype,&
+               nblock_full_matrix,npe,nsgfa,nsgfb,output_unit,sum_nblock_pe
+    LOGICAL :: ionode
 
-    INTEGER, DIMENSION(natom*(natom+1)/2)  :: nelement_block
-    INTEGER, DIMENSION(0:globenv%num_pe-1) :: nelement_pe
+    INTEGER, DIMENSION(natom*(natom+1)/2)  :: nblock,nelement
+    INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
 
 !   ---------------------------------------------------------------------------
 
-    nelement_block(:) = 0
+    group = globenv%group
+    ionode = globenv%ionode
+    mype = globenv%mepos
+    npe = globenv%num_pe
+    output_unit = globenv%scr
+
+    nblock(:) = 0
+    nelement(:) = 0
 
 !   *** Allocate the overlap matrix ***
 
@@ -335,7 +346,8 @@ CONTAINS
 
         IF (iatom <= jatom) THEN
           ij = iatom + jatom*(jatom - 1)/2
-          nelement_block(ij) = nelement_block(ij) + nsgfa*nsgfb
+          nblock(ij) = nblock(ij) + 1
+          nelement(ij) = nelement(ij) + nsgfa*nsgfb
         END IF
 
         neighbor_node => next_neighbor_node(neighbor_node)
@@ -348,6 +360,7 @@ CONTAINS
 
 !   *** Distribute the atom blocks ***
 
+    nblock_pe(:) = 0
     nelement_pe(:) = 0
 
     DO iatom=1,natom
@@ -355,31 +368,68 @@ CONTAINS
 
         ij = iatom + jatom*(jatom - 1)/2
 
-        IF (nelement_block(ij) > 0) THEN
+        IF (nelement(ij) > 0) THEN
 
           ipe = 0
 
-          DO jpe=0,globenv%num_pe-1
+          DO jpe=0,npe-1
             IF (nelement_pe(jpe) < nelement_pe(ipe)) ipe = jpe
           END DO
 
-          nelement_pe(ipe) = nelement_pe(ipe) + nelement_block(ij)
+          nblock_pe(ipe) = nblock_pe(ipe) + nblock(ij)
+          nelement_pe(ipe) = nelement_pe(ipe) + nelement(ij)
 
-          IF (ipe == globenv%mepos) CALL add_block_node(matrix=s%matrix,&
-                                                        block_row=iatom,&
-                                                        block_col=jatom)
+          IF (ipe == mype) CALL add_block_node(matrix=s%matrix,&
+                                               block_row=iatom,&
+                                               block_col=jatom)
 
         END IF
 
       END DO
     END DO
 
-!   *** Print the distribution ***
+!   *** Print the distribution of the overlap matrix ***
 
-    IF (globenv%ionode.AND.globenv%print%distribution) THEN
-      WRITE (UNIT=globenv%scr,FMT="(/,T5,A,/,/,(I6,8X,I10))")&
-        "PE   Overlap matrix elements",&
-        (ipe,nelement_pe(ipe),ipe=0,globenv%num_pe-1)
+    IF (globenv%print%distribution) THEN
+
+      IF (ionode) THEN
+        WRITE (UNIT=output_unit,&
+               FMT="(/,/,T2,A,/,/,T3,A,/,/,T5,A,/,/,(I6,8X,I8,8X,I10))")&
+          "DISTRIBUTION OF THE OVERLAP MATRIX ELEMENTS",&
+          "Image atoms included:",&
+          "PE   Matrix blocks   Matrix elements",&
+          (ipe,nblock_pe(ipe),nelement_pe(ipe),ipe=0,npe-1)
+        WRITE (UNIT=output_unit,FMT="(/,T4,A3,8X,I8,8X,I10)")&
+          "Sum",SUM(nblock_pe),SUM(nelement_pe)
+      END IF
+
+      nblock_pe(:) = 0
+      nelement_pe(:) = 0
+
+      CALL get_matrix_info(matrix=s%matrix,&
+                           nblock_allocated=nblock_pe(mype),&
+                           nelement_allocated=nelement_pe(mype))
+
+      CALL mp_sum(nblock_pe,group)
+      CALL mp_sum(nelement_pe,group)
+
+      nblock_full_matrix = natom*(natom + 1)/2
+      sum_nblock_pe = SUM(nblock_pe)
+
+      IF (ionode) THEN
+        WRITE (UNIT=output_unit,&
+               FMT="(/,/,T3,A,/,/,T5,A,/,/,(I6,8X,I8,8X,I10))")&
+          "Image atoms not included:",&
+          "PE   Matrix blocks   Matrix elements",&
+          (ipe,nblock_pe(ipe),nelement_pe(ipe),ipe=0,npe-1)
+        WRITE (UNIT=output_unit,FMT="(/,T4,A3,8X,I8,8X,I10)")&
+          "Sum",sum_nblock_pe,SUM(nelement_pe)
+        WRITE (UNIT=output_unit,FMT="(/,T4,A3,8X,I8,A,F5.1,A)")&
+          " of",nblock_full_matrix," blocks in the full matrix (",&
+          100.0_wp*REAL(sum_nblock_pe,wp)/REAL(nblock_full_matrix,wp),&
+          " % occupation)"
+      END IF
+
     END IF
 
   END SUBROUTINE distribute_s_matrix

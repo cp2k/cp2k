@@ -30,10 +30,12 @@ MODULE collocate_density
   USE atoms,               ONLY: atom_info
   USE basis_set_types,     ONLY: gto_basis_set_type,maxco,maxsgf,maxsgf_set
   USE coefficient_types,   ONLY: coeff_type
+  USE global_types,        ONLY: global_environment_type
   USE interactions,        ONLY: eps_rho_gspace,eps_rho_rspace,exp_radius
   USE matrix_types,        ONLY: get_block_node,&
                                  real_matrix_set_type
   USE memory_utilities,    ONLY: reallocate
+  USE message_passing,     ONLY: mp_sum
   USE neighbor_list_types, ONLY: extract_neighbor_list,&
                                  find_neighbor_list,&
                                  first_neighbor_list,&
@@ -70,10 +72,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_core(rho,total_rho)
+  SUBROUTINE calculate_rho_core(rho,total_rho,globenv)
 
-    TYPE(coeff_type), INTENT(INOUT) :: rho
-    REAL(wp), INTENT(OUT)           :: total_rho
+    TYPE(coeff_type), INTENT(INOUT)           :: rho
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(wp), INTENT(OUT)                     :: total_rho
 
 !   *** Local variables ***
 
@@ -110,6 +113,12 @@ CONTAINS
 
     END DO
 
+!   IF (ASSOCIATED(rho%pw%cc3d)) THEN
+!     CALL mp_sum(rho%pw%cc3d,globenv%group)
+!   ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
+!     CALL mp_sum(rho%pw%cr3d,globenv%group)
+!   END IF
+
     total_rho = calculate_total_rho(rho)
 
     CALL timestop(0.0_wp,handle)
@@ -118,12 +127,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho_elec(p,rho,total_rho,nproduct)
+  SUBROUTINE calculate_rho_elec(p,rho,total_rho,nproduct,globenv)
 
-    TYPE(real_matrix_set_type), INTENT(IN) :: p
-    TYPE(coeff_type), INTENT(INOUT)        :: rho
-    REAL(wp), INTENT(OUT)                  :: total_rho
-    INTEGER, OPTIONAL, INTENT(OUT)         :: nproduct
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(coeff_type), INTENT(INOUT)           :: rho
+    TYPE(real_matrix_set_type), INTENT(IN)    :: p
+    REAL(wp), INTENT(OUT)                     :: total_rho
+    INTEGER, INTENT(OUT)                      :: nproduct
 
 !   *** Local variables ***
 
@@ -143,7 +153,7 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER    :: lb_grid,orb_neighbors
     REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), POINTER :: orb_r,p_block,pab,work
+    REAL(wp), DIMENSION(:,:), POINTER :: orb_r,p_block,pab,s_block,work
 
 !   ---------------------------------------------------------------------------
 
@@ -200,6 +210,8 @@ CONTAINS
                             block_row=iatom,&
                             block_col=jatom,&
                             block=p_block)
+
+        IF (.NOT.ASSOCIATED(p_block)) CYCLE
 
         IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-14_wp) CYCLE
 
@@ -311,11 +323,21 @@ CONTAINS
 
     END DO
 
-    total_rho = calculate_total_rho(rho)
-
-    IF (PRESENT(nproduct)) nproduct = npgf_product
+!   *** Release work storage ***
 
     DEALLOCATE (pab,work)
+
+    CALL mp_sum(npgf_product,globenv%group)
+
+    nproduct = npgf_product
+
+    IF (ASSOCIATED(rho%pw%cc3d)) THEN
+      CALL mp_sum(rho%pw%cc3d,globenv%group)
+    ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
+      CALL mp_sum(rho%pw%cr3d,globenv%group)
+    END IF
+
+    total_rho = calculate_total_rho(rho)
 
     CALL timestop(0.0_wp,handle)
 
@@ -325,7 +347,7 @@ CONTAINS
 
   FUNCTION calculate_total_rho(rho) RESULT(total_rho)
 
-    TYPE(coeff_type), INTENT(IN), TARGET :: rho
+    TYPE(coeff_type), TARGET, INTENT(IN) :: rho
 
     REAL(wp) :: total_rho
 
@@ -357,9 +379,9 @@ CONTAINS
     USE mathconstants, ONLY: pi,twopi
 
     TYPE(pw_type), TARGET, INTENT(INOUT) :: pw
-    REAL(wp), INTENT(IN)               :: rab2,scale,zeta,zetb
-    INTEGER, INTENT(IN)                :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN) :: ra,rab
+    REAL(wp), INTENT(IN)                 :: rab2,scale,zeta,zetb
+    INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
+    REAL(wp), DIMENSION(3), INTENT(IN)   :: ra,rab
 
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
 
@@ -544,9 +566,9 @@ CONTAINS
                                           ra,rab,rab2,scale,pab,pw)
 
     TYPE(pw_type), TARGET, INTENT(INOUT) :: pw
-    REAL(wp), INTENT(IN)               :: rab2,scale,zeta,zetb
-    INTEGER, INTENT(IN)                :: la_max,la_min,lb_max,lb_min
-    REAL(wp), DIMENSION(3), INTENT(IN) :: ra,rab
+    REAL(wp), INTENT(IN)                 :: rab2,scale,zeta,zetb
+    INTEGER, INTENT(IN)                  :: la_max,la_min,lb_max,lb_min
+    REAL(wp), DIMENSION(3), INTENT(IN)   :: ra,rab
 
     REAL(wp), DIMENSION(ncoset(la_max),ncoset(lb_max)), INTENT(IN) :: pab
 

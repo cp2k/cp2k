@@ -25,13 +25,20 @@ MODULE mo_types
 
   USE kinds, ONLY: wp => dp
 
+  USE blacs,           ONLY: allocate_blacs_matrix,&
+                             blacs_matrix_type,&
+                             copy_blacs_to_full_matrix,&
+                             deallocate_blacs_matrix,&
+                             get_blacs_info,&
+                             read_blacs_matrix,&
+                             write_blacs_matrix
   USE global_types,    ONLY: global_environment_type
   USE input_utilities, ONLY: close_file,&
                              open_file
   USE matrix_types,    ONLY: allocate_matrix,&
-                             deallocate_matrix,&
                              get_block_node,&
-                             real_matrix_set_type
+                             real_matrix_type
+  USE message_passing, ONLY: mp_sum
 
   IMPLICIT NONE
 
@@ -40,7 +47,7 @@ MODULE mo_types
   TYPE mo_set_type
     INTEGER                         :: homo,lfomo
     REAL(wp), DIMENSION(:), POINTER :: eigenvalues,occupation_numbers
-    TYPE(real_matrix_set_type)      :: eigenvectors
+    TYPE(blacs_matrix_type)         :: eigenvectors
   END TYPE mo_set_type
 
 ! *** Public data types ***
@@ -66,12 +73,21 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE allocate_mo_set(mo_set,nao,nmo)
+  SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nrow_block,ncol_block,context,&
+                             globenv)
+
+!   Purpose: Allocate a wavefunction data structure.
+
+!   History: - Creation (15.05.2001, Matthias Krack)
+
+!   ***************************************************************************
 
     USE memory_utilities, ONLY: reallocate
 
-    TYPE(mo_set_type), INTENT(OUT) :: mo_set
-    INTEGER, INTENT(IN)            :: nao,nmo
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), INTENT(OUT)            :: mo_set
+    INTEGER, INTENT(IN)                       :: context,nao,ncol_block,nmo,&
+                                                 nrow_block
 
 !   ---------------------------------------------------------------------------
 
@@ -84,12 +100,14 @@ CONTAINS
     NULLIFY (mo_set%occupation_numbers)
     mo_set%occupation_numbers => reallocate(mo_set%occupation_numbers,1,nmo)
 
-    NULLIFY (mo_set%eigenvectors%matrix)
-    CALL allocate_matrix(matrix=mo_set%eigenvectors%matrix,&
-                         nrow=nao,&
-                         ncol=nmo,&
-                         matrix_name="MO EIGENVECTORS",&
-                         matrix_symmetry="none")
+    CALL allocate_blacs_matrix(new_matrix=mo_set%eigenvectors,&
+                               nrow_global=nao,&
+                               ncol_global=nmo,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="MO EIGENVECTORS",&
+                               context=context,&
+                               globenv=globenv)
 
   END SUBROUTINE allocate_mo_set
 
@@ -102,42 +120,56 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     DEALLOCATE (mo_set%eigenvalues)
-
     DEALLOCATE (mo_set%occupation_numbers)
-
-    CALL deallocate_matrix(matrix=mo_set%eigenvectors%matrix)
+    CALL deallocate_blacs_matrix(mo_set%eigenvectors)
 
   END SUBROUTINE deallocate_mo_set
 
 ! *****************************************************************************
 
-  SUBROUTINE read_mo_set(mo_set,globenv)
+  SUBROUTINE read_mo_set(mo_set,context,globenv)
+
+!   Purpose: Read the MO eigenvectors from the restart file.
+
+!   History: - Creation (15.05.2001, Matthias Krack)
+!            - Parallel input (19.05.2001, MK)
+
+!   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: mo_set
+    TYPE(mo_set_type), INTENT(OUT)            :: mo_set
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: iao,imo,restart_unit
-
-    REAL(wp), DIMENSION(:,:), POINTER :: mo_eigenvectors
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: mype,npe,restart_unit
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_block_node(matrix=mo_set%eigenvectors%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=mo_eigenvectors)
+    CALL get_blacs_info(context=context,&
+                        globenv=globenv,&
+                        my_process_number=mype,&
+                        number_of_processes=npe)
 
-    CALL open_file(file_name=globenv%restart_file_name,&
+    IF (npe > 1) THEN
+      WRITE (UNIT=extension,FMT="(I6)") mype
+      file_name = TRIM(globenv%restart_file_name)//"."//ADJUSTL(extension)
+    ELSE
+      file_name = globenv%restart_file_name
+    END IF
+
+    CALL open_file(file_name=file_name,&
                    file_action="READ",&
                    file_form="UNFORMATTED",&
                    file_status="OLD",&
                    unit_number=restart_unit)
 
-    READ (UNIT=restart_unit) ((mo_eigenvectors(iao,imo),&
-                               iao=1,SIZE(mo_eigenvectors,1)),&
-                               imo=1,SIZE(mo_eigenvectors,2))
+    CALL read_blacs_matrix(matrix=mo_set%eigenvectors,&
+                           lunit=restart_unit,&
+                           context=context,&
+                           globenv=globenv)
 
     CALL close_file(unit_number=restart_unit)
 
@@ -145,33 +177,48 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_restart_unit(mo_set,globenv)
+  SUBROUTINE write_mo_set_to_restart_unit(mo_set,context,globenv)
+
+!   Purpose: Write the MO eigenvectors to the restart file.
+
+!   History: - Creation (15.05.2001, Matthias Krack)
+
+!   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), INTENT(IN)             :: mo_set
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: iao,imo,restart_unit
-
-    REAL(wp), DIMENSION(:,:), POINTER :: mo_eigenvectors
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: mype,npe,restart_unit
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_block_node(matrix=mo_set%eigenvectors%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=mo_eigenvectors)
+    CALL get_blacs_info(context=context,&
+                        globenv=globenv,&
+                        my_process_number=mype,&
+                        number_of_processes=npe)
 
-    CALL open_file(file_name=globenv%restart_file_name,&
+    IF (npe > 1) THEN
+      WRITE (UNIT=extension,FMT="(I6)") mype
+      file_name = TRIM(globenv%restart_file_name)//"."//ADJUSTL(extension)
+    ELSE
+      file_name = globenv%restart_file_name
+    END IF
+
+    CALL open_file(file_name=file_name,&
                    file_action="WRITE",&
                    file_form="UNFORMATTED",&
                    file_status="REPLACE",&
                    unit_number=restart_unit)
 
-    WRITE (UNIT=restart_unit) ((mo_eigenvectors(iao,imo),&
-                                iao=1,SIZE(mo_eigenvectors,1)),&
-                                imo=1,SIZE(mo_eigenvectors,2))
+    CALL write_blacs_matrix(matrix=mo_set%eigenvectors,&
+                            lunit=restart_unit,&
+                            context=context,&
+                            globenv=globenv)
 
     CALL close_file(unit_number=restart_unit)
 
@@ -179,7 +226,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_output_unit(mo_set,before,after,globenv)
+  SUBROUTINE write_mo_set_to_output_unit(mo_set,before,after,context,globenv)
 
 !   Purpose: Write the MO eigenvalues, MO occupation numbers and
 !            MO eigenvectors.
@@ -200,8 +247,8 @@ CONTAINS
     USE orbital_pointers, ONLY: nso
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(mo_set_type), INTENT(IN)             :: mo_set
-    INTEGER, INTENT(IN)                       :: after,before
+    TYPE(mo_set_type), INTENT(INOUT)          :: mo_set
+    INTEGER, INTENT(IN)                       :: after,before,context
 
 !   *** Local variables ***
 
@@ -220,10 +267,11 @@ CONTAINS
 
     output_unit = globenv%scr
 
-    CALL get_block_node(matrix=mo_set%eigenvectors%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=matrix)
+    IF (globenv%print%mo_eigenvectors) THEN
+      NULLIFY (matrix)
+      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix,context,&
+                                     globenv)
+    END IF
 
     IF (.NOT.globenv%ionode) RETURN
 
@@ -316,6 +364,10 @@ CONTAINS
     END DO
 
     WRITE (output_unit,"(/)")
+
+!   *** Release work storage ***
+
+    DEALLOCATE (matrix)
 
   END SUBROUTINE write_mo_set_to_output_unit
 

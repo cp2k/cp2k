@@ -28,9 +28,28 @@ MODULE qs_scf
   USE atomic_kinds,          ONLY: kind_info,nkind
   USE atoms,                 ONLY: atom_info
   USE basis_set_types,       ONLY: gto_basis_set_type,maxlcgf
+  USE blacs,                 ONLY: allocate_blacs_matrix,&
+                                   blacs_gemm,&
+                                   blacs_matrix_type,&
+                                   blacs_set_all,&
+                                   blacs_set_element,&
+                                   blacs_syevx,&
+                                   blacs_symm,&
+                                   blacs_syrk,&
+                                   copy_blacs_to_sparse_matrix,&
+                                   copy_sparse_to_blacs_matrix,&
+                                   finish_blacs,&
+                                   get_blacs_matrix_info,&
+                                   power_blacs_matrix,&
+                                   replicate_blacs_matrix,&
+                                   start_blacs,&
+                                   symmetrise_blacs_matrix
   USE coefficient_types,     ONLY: coeff_allocate,&
                                    coeff_type,&
                                    coeff_zero
+  USE core_energies,         ONLY: calculate_ecore,&
+                                   calculate_ecore_overlap,&
+                                   calculate_ecore_self
   USE core_hamiltonian,      ONLY: build_core_hamiltonian_matrix,h,s
   USE diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE functionals,           ONLY: init_functionals,vwn_c,vwn_x
@@ -39,24 +58,25 @@ MODULE qs_scf
                                    read_object,&
                                    search,&
                                    start_input_session
-  USE mathlib,               ONLY: diagonalize_matrix,&
-                                   power_matrix,&
-                                   symmetrize_matrix
   USE matrix_types,          ONLY: allocate_matrix,&
                                    copy_matrix,&
+                                   deallocate_matrix,&
                                    first_block_node,&
                                    get_block_node,&
                                    get_matrix_info,&
                                    next_block_node,&
                                    real_block_node_type,&
                                    real_matrix_set_type,&
-                                   replicate_matrix_structure
+                                   replicate_matrix_structure,&
+                                   symmetrise_diagonal_blocks
   USE memory_utilities,      ONLY: reallocate
+  USE message_passing,       ONLY: mp_max,mp_sum,mp_sync
   USE mo_types,              ONLY: allocate_mo_set,&
                                    mo_set_type,&
                                    read_mo_set,&
                                    write_mo_set
-  USE om_utilities,          ONLY: write_spherical_matrix
+  USE om_utilities,          ONLY: write_blacs_matrix,&
+                                   write_spherical_matrix
   USE pw_grid_types,         ONLY: HALFSPACE,pw_grid_type
   USE pw_grids,              ONLY: pw_find_cutoff,&
                                    pw_grid_construct,&
@@ -73,8 +93,9 @@ MODULE qs_scf
   PRIVATE
 
   TYPE(coeff_type)           :: rho_gspace,rho_rspace,v_rspace
+  TYPE(blacs_matrix_type)    :: ortho,scf_work1,scf_work2
   TYPE(mo_set_type)          :: alpha_mo
-  TYPE(real_matrix_set_type) :: ks,ortho,p,scf_work1,scf_work2
+  TYPE(real_matrix_set_type) :: ks,p
   TYPE(pw_grid_type)         :: pw_grid
 
   CHARACTER(LEN=10) :: density_guess = "CORE"
@@ -83,6 +104,7 @@ MODULE qs_scf
                        ecore_overlap = 0.0_wp,&
                        ecore_self = 0.0_wp,&
                        ehartree = 0.0_wp,&
+                       eps_eigval = 1.0E-5_wp,&
                        eps_scf = 1.0E-5_wp,&
                        etotal = 0.0_wp,&
                        ex = 0.0_wp,&
@@ -90,9 +112,14 @@ MODULE qs_scf
                        total_rho_core_rspace = 0.0_wp,&
                        total_rho_elec_rspace = 0.0_wp,&
                        total_rho_gspace = 0.0_wp,&
-                       total_rho_rspace = 0.0_wp
+                       total_rho_rspace = 0.0_wp,&
+                       work_syevx = 0.0_wp
   INTEGER           :: max_scf = 50,&
-                       nelectron = 0
+                       nelectron = 0,&
+                       nrow_block = 32,&
+                       ncol_block = 32,&
+                       nprow = 0,&
+                       npcol = 0
 
 ! *** Public variables ***
 
@@ -122,42 +149,36 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(wp) :: delta,diis_error,t1,t2
-    INTEGER  :: handle,iscf,output_unit
-    LOGICAL  :: diis_step
-
-    REAL(wp), DIMENSION(:,:), POINTER :: scf_work1_matrix
+    INTEGER  :: context,handle,iscf,output_unit
+    LOGICAL  :: diis_step,ionode
 
 !   ---------------------------------------------------------------------------
-
-    CALL timeset("scf","I","",handle)
-
-    output_unit = globenv%scr
 
 !   *** Quick return, if no SCF iteration is requested ***
 
     IF (max_scf < 1) RETURN
 
+    CALL timeset("scf","I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
+
     CALL init_functionals()
 
     CALL init_grid(globenv)
 
-    IF (globenv%print%scf) THEN
+    IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-    CALL init_scf_run(globenv,alpha_mo)
-
-    CALL get_block_node(matrix=scf_work1%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=scf_work1_matrix)
+    CALL init_scf_run(alpha_mo,context,globenv)
 
     etotal = 0.0_wp
     iscf = 0
     diis_step = .FALSE.
 
-    IF (globenv%print%scf) THEN
+    IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,&
              FMT="(/,T3,A,T9,A,T34,A,T49,A,T68,A,/,T3,A)")&
         "Step","Update method","Time","Convergence","Total energy",&
@@ -180,39 +201,40 @@ CONTAINS
         CALL write_spherical_matrix(ks%matrix,4,6,globenv)
       END IF
 
-      scf_work1_matrix(:,:) = 0.0_wp
-      CALL copy_matrix(ks%matrix,scf_work1%matrix)
-      CALL symmetrize_matrix(scf_work1_matrix,"upper_to_lower")
+      CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,context,globenv)
+!MK if only gemm is used
+!     CALL symmetrise_blacs_matrix(scf_work1,scf_work2,context,globenv)
 
       IF (iscf > 1) THEN
-        CALL scf_diis(globenv,alpha_mo,scf_work1,scf_work2,delta,diis_error,&
-                      diis_step)
+        CALL scf_diis(alpha_mo,scf_work1,scf_work2,delta,diis_error,diis_step,&
+                      context,globenv)
       END IF
 
-      CALL orthogonalize_matrix(ortho,scf_work1,scf_work2)
+      CALL orthogonalise_matrix(ortho,scf_work1,scf_work2,context,globenv)
 
-      CALL eigensolver(scf_work1,alpha_mo,ortho)
+      CALL eigensolver(scf_work1,alpha_mo,ortho,scf_work2,context,globenv)
 
       IF (globenv%print%each_scf_step) THEN
-        CALL write_mo_set(alpha_mo,4,6,globenv)
+        CALL write_mo_set(alpha_mo,4,6,context,globenv)
       END IF
 
-      CALL calculate_density_matrix(alpha_mo,scf_work1)
+      CALL calculate_density_matrix(alpha_mo,scf_work1,context,globenv)
 
-      CALL copy_matrix(scf_work1%matrix,ks%matrix)
+      CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,context,globenv)
+      CALL symmetrise_diagonal_blocks(ks%matrix)
 
       t2 = cputime()
 
       IF (diis_step) THEN
-        CALL density_mixing(ks,p,1.0_wp,delta)
-        IF (globenv%print%scf) THEN
+        CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+        IF (ionode.AND.globenv%print%scf) THEN
           WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
             iscf,"DIIS",diis_error,t2 - t1,delta,etotal
         END IF
       ELSE
-        CALL density_mixing(ks,p,p_mix,delta)
-        IF (globenv%print%scf) THEN
+        CALL density_mixing(ks,p,p_mix,delta,globenv)
+        IF (ionode.AND.globenv%print%scf) THEN
           WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
             iscf,"Mixing",p_mix,t2 - t1,delta,etotal
@@ -220,14 +242,13 @@ CONTAINS
       END IF
 
       IF (delta < eps_scf) THEN
-        IF (globenv%print%scf) THEN
+        IF (ionode.AND.globenv%print%scf) THEN
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run converged ***"
         END IF
-        IF (.NOT.diis_step) CALL copy_matrix(ks%matrix,p%matrix)
         EXIT
       ELSE IF (iscf == max_scf) THEN
-        IF (globenv%print%scf) THEN
+        IF (ionode.AND.globenv%print%scf) THEN
           WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
             "*** SCF run NOT converged ***"
         END IF
@@ -236,7 +257,7 @@ CONTAINS
 
     END DO
 
-    IF (globenv%print%scf) THEN
+    IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
         total_rho_elec_rspace,total_rho_elec_rspace + REAL(nelectron,wp),&
@@ -258,7 +279,7 @@ CONTAINS
 
     IF (.NOT.diis_step) CALL copy_matrix(ks%matrix,p%matrix)
 
-    CALL write_mo_set(alpha_mo,4,6,globenv)
+    CALL write_mo_set(alpha_mo,4,6,context,globenv)
 
     IF (globenv%print%density_matrix) THEN
       CALL write_spherical_matrix(p%matrix,4,6,globenv)
@@ -271,7 +292,9 @@ CONTAINS
 
 !   *** Write restart file ***
 
-    CALL write_mo_set(alpha_mo,globenv)
+    CALL write_mo_set(alpha_mo,context,globenv)
+
+    CALL finish_blacs(context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -284,7 +307,6 @@ CONTAINS
     USE collocate_density,   ONLY: calculate_rho_core,&
                                    calculate_rho_elec,&
                                    calculate_total_rho
-    USE core_energies,       ONLY: calculate_ecore
     USE integrate_potential, ONLY: integrate_v_rspace
     USE print_keys,          ONLY: DEBUG
 
@@ -293,29 +315,32 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,nproduct,output_unit
+    LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("build_kohn_sham_matrix","I","",handle)
 
+    ionode = globenv%ionode
     output_unit = globenv%scr
 
-    CALL calculate_ecore(h,p,ecore)
+    CALL calculate_ecore(h,p,ecore,globenv)
 
     CALL coeff_zero(rho_rspace)
 
-    CALL calculate_rho_elec(p,rho_rspace,total_rho_elec_rspace,nproduct)
+    CALL calculate_rho_elec(p,rho_rspace,total_rho_elec_rspace,nproduct,&
+                            globenv)
 
-    IF (globenv%print%total_densities) THEN
+    IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
         "Number of collocated products (r-space):",nproduct
     END IF
 
     CALL coeff_zero(v_rspace)
 
-    CALL calculate_xc_potential(rho_rspace%pw,v_rspace%pw)
+    CALL calculate_xc_potential(rho_rspace,v_rspace,globenv)
 
-    CALL calculate_rho_core(rho_rspace,total_rho_rspace)
+    CALL calculate_rho_core(rho_rspace,total_rho_rspace,globenv)
 
     total_rho_core_rspace = total_rho_rspace - total_rho_elec_rspace
 
@@ -324,7 +349,7 @@ CONTAINS
 
     total_rho_gspace = calculate_total_rho(rho_gspace)
 
-    IF (globenv%print%total_densities) THEN
+    IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
         "Total electronic density (r-space): ",&
         total_rho_elec_rspace,total_rho_elec_rspace + REAL(nelectron,wp),&
@@ -335,11 +360,11 @@ CONTAINS
         "Total charge density (g-space):     ",total_rho_gspace
     END IF
 
-    CALL calculate_hartree_potential(rho_gspace)
+    CALL calculate_hartree_potential(rho_gspace,globenv)
 
     etotal = ecore_overlap + ecore_self + ecore + ehartree + ex + ec
 
-    IF (globenv%print%scf_energies) THEN
+    IF (ionode.AND.globenv%print%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
         "Overlap energy of the core charge distribution:",ecore_overlap,&
         "Self energy of the core charge distribution:   ",ecore_self,&
@@ -357,9 +382,9 @@ CONTAINS
 
     CALL copy_matrix(h%matrix,ks%matrix)
 
-    CALL integrate_v_rspace(v_rspace,ks,nproduct)
+    CALL integrate_v_rspace(v_rspace,ks,nproduct,globenv)
 
-    IF (globenv%print%total_densities) THEN
+    IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
         "Number of integrated products (r-space):",nproduct
     END IF
@@ -379,22 +404,26 @@ CONTAINS
 !   *** Local variables ***
 
     INTEGER :: handle,output_unit
+    LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_grid","I","",handle)
 
+    ionode = globenv%ionode
     output_unit = globenv%scr
 
     CALL pw_grid_construct(pw_grid)
 
     pw_grid%grid_span = HALFSPACE
 
-    IF (globenv%print%pw_grid_information) THEN
-      CALL pw_grid_setup(cell,pw_grid,cutoff,info=output_unit,&
+    IF (ionode.AND.globenv%print%pw_grid_information) THEN
+      CALL pw_grid_setup(cell,pw_grid,cutoff,&
+                         info=output_unit,&
                          orthorhombic=.TRUE.)
     ELSE
-      CALL pw_grid_setup(cell,pw_grid,cutoff,orthorhombic=.TRUE.)
+      CALL pw_grid_setup(cell,pw_grid,cutoff,&
+                         orthorhombic=.TRUE.)
     END IF
 
     CALL coeff_allocate(rho_rspace,pw_grid,REALDATA3D)
@@ -412,19 +441,17 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(globenv,mo)
+  SUBROUTINE init_scf_run(mo,context,globenv)
 
-!   Purpose: Initialize a SCF run.
+!   Purpose: Initialise a SCF run.
 
 !   History: - Creation (30.04.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    USE core_energies, ONLY: calculate_ecore_overlap,&
-                             calculate_ecore_self
-
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), INTENT(OUT)            :: mo
+    INTEGER, INTENT(OUT)                      :: context
 
 !   *** Local parameters ***
 
@@ -433,14 +460,23 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=40) :: symmetry
-    INTEGER           :: handle,homo,ikind,nao,ndep,nmo,output_unit
+    INTEGER :: handle,homo,ikind,nao,ndep,nmo,output_unit
+    LOGICAL :: ionode
+
+    INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I","",handle)
 
+    ionode = globenv%ionode
     output_unit = globenv%scr
+
+!   *** Initialise BLACS ***
+
+    CALL start_blacs(nprow,npcol,context,globenv)
+
+!   *** Calculate the number of electrons ***
 
     nelectron = 0
 
@@ -457,58 +493,76 @@ CONTAINS
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
 
-    CALL get_matrix_info(matrix=h%matrix,&
-                         nrow=nao,&
-                         matrix_symmetry=symmetry)
+    CALL get_matrix_info(matrix=h%matrix,nrow=nao)
 
-    nmo = nao
-!MK nmo = homo
+    IF (globenv%print%mo_eigenvectors) THEN
+      nmo = nao
+    ELSE
+      nmo = homo
+    END IF
 
-    CALL allocate_mo_set(mo,nao,nmo)
+!   *** Allocate the distributed MO eigenvectors ***
+
+    CALL allocate_mo_set(mo,nao,nmo,nrow_block,ncol_block,context,globenv)
 
     mo%homo = homo
     mo%occupation_numbers(1:homo) = 2.0_wp
 
-!   *** Allocate the full SCF matrices ***
+!   *** Get BLACS block size of the MO eigenvector matrix      ***
+!   *** which has to fit to the other distributed SCF matrices ***
 
-    NULLIFY (ortho%matrix)
-    CALL allocate_matrix(matrix=ortho%matrix,&
-                         nrow=nao,&
-                         ncol=nao,&
-                         matrix_name="ORTHOGONALIZATION MATRIX",&
-                         matrix_symmetry=symmetry)
+    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block)
 
-    NULLIFY (scf_work1%matrix)
-    CALL allocate_matrix(matrix=scf_work1%matrix,&
-                         nrow=nao,&
-                         ncol=nao,&
-                         matrix_name="SCF WORK MATRIX 1",&
-                         matrix_symmetry="none")
+!   *** Allocate the distributed SCF matrices ***
 
-    NULLIFY (scf_work2%matrix)
-    CALL allocate_matrix(matrix=scf_work2%matrix,&
-                         nrow=nao,&
-                         ncol=nao,&
-                         matrix_name="SCF WORK MATRIX 2",&
-                         matrix_symmetry="none")
+    CALL allocate_blacs_matrix(new_matrix=ortho,&
+                               nrow_global=nao,&
+                               ncol_global=nao,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="ORTHOGONALIZATION MATRIX",&
+                               context=context,&
+                               globenv=globenv)
+
+    CALL replicate_blacs_matrix(prototype_matrix=ortho,&
+                                new_matrix=scf_work1,&
+                                name="SCF WORK MATRIX 1")
+
+    CALL replicate_blacs_matrix(prototype_matrix=ortho,&
+                                new_matrix=scf_work2,&
+                                name="SCF WORK MATRIX 2")
+
+    CALL copy_sparse_to_blacs_matrix(h%matrix,scf_work1,context,globenv)
+
+!   *** Redistribute the core Hamiltonian matrix ***
+
+!MK IF (gpw) THEN
+      CALL deallocate_matrix(h%matrix)
+      CALL replicate_matrix_structure(s%matrix,h%matrix,&
+                                      "CORE HAMILTONIAN MATRIX")
+      CALL copy_blacs_to_sparse_matrix(scf_work1,h%matrix,context,globenv)
+!MK END IF
 
     NULLIFY (ks%matrix)
     CALL replicate_matrix_structure(h%matrix,ks%matrix,"KOHN-SHAM MATRIX")
+
     NULLIFY (p%matrix)
     CALL replicate_matrix_structure(h%matrix,p%matrix,"DENSITY MATRIX")
 
     CALL calculate_ecore_self(ecore_self)
-    CALL calculate_ecore_overlap(ecore_overlap)
+    CALL calculate_ecore_overlap(ecore_overlap,globenv)
 
-    IF (globenv%print%scf_energies) THEN
+    IF (ionode.AND.globenv%print%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
         "Self energy of the core charge distribution:   ",ecore_self,&
         "Overlap energy of the core charge distribution:",ecore_overlap
     END IF
 
-    CALL calculate_ortho_matrix(ortho,scf_work1,ndep)
+    CALL calculate_ortho_matrix(ortho,scf_work2,ndep,context,globenv)
 
-    IF (globenv%print%scf) THEN
+    IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
         "Number of electrons:                    ",nelectron,&
         "Number of occupied orbitals:            ",homo,&
@@ -517,10 +571,11 @@ CONTAINS
     END IF
 
     IF (globenv%print%ortho_matrix) THEN
-      CALL write_spherical_matrix(ortho%matrix,4,6,globenv)
+      CALL write_blacs_matrix(ortho,4,6,context,globenv)
     END IF
 
-    CALL calculate_first_density_matrix(ortho,mo,p,scf_work1,scf_work2,globenv)
+    CALL calculate_first_density_matrix(ortho,mo,p,scf_work1,scf_work2,&
+                                        context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -528,43 +583,32 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep)
+  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,context,globenv)
 
-    TYPE(real_matrix_set_type), INTENT(OUT)   :: ortho
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: work
+!   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(blacs_matrix_type), INTENT(OUT)      :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work
+    INTEGER, INTENT(IN)                       :: context
     INTEGER, INTENT(OUT)                      :: ndep
 
 !   *** Local variables ***
 
     INTEGER :: handle,nao
 
-    REAL(wp), DIMENSION(:,:), POINTER :: ortho_matrix,work_matrix
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL get_matrix_info(matrix=ortho%matrix,nrow=nao)
-
-    CALL get_block_node(matrix=ortho%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=ortho_matrix)
-
-    CALL get_block_node(matrix=work%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=work_matrix)
-
-!   *** Calculate the orthogonalization matrix (S**(-1/2)) ***
-
-    work_matrix(:,:) = 0.0_wp
-
-    CALL copy_matrix(s%matrix,work%matrix)
-
-    CALL symmetrize_matrix(work_matrix,"upper_to_lower")
-
-    CALL power_matrix(work_matrix,ortho_matrix,-0.5_wp,1.0E-5_wp,ndep,.FALSE.)
+    CALL copy_sparse_to_blacs_matrix(s%matrix,ortho,context,globenv)
+    CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx,&
+                            context,globenv)
+    CALL symmetrise_blacs_matrix(ortho,work,context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -572,92 +616,74 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE orthogonalize_matrix(ortho,ks,work)
+  SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
 
-    TYPE(real_matrix_set_type), INTENT(IN)    :: ortho
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: ks,work
+!   Purpose: Orthogonaliseation matrix (S**(-1/2))
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
     INTEGER :: handle,nao
 
-    REAL(wp), DIMENSION(:,:), POINTER :: ks_matrix,ortho_matrix,work_matrix
-
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("orthogonalize_matrix","I","",handle)
+    CALL timeset("orthogonalise_matrix","I","",handle)
 
-    CALL get_matrix_info(matrix=ks%matrix,nrow=nao)
-
-    CALL get_block_node(matrix=ks%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=ks_matrix)
-
-    CALL get_block_node(matrix=ortho%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=ortho_matrix)
-
-    CALL get_block_node(matrix=work%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=work_matrix)
-
-    CALL dgemm("T","N",nao,nao,nao,1.0_wp,ks_matrix,nao,ortho_matrix,nao,&
-               0.0_wp,work_matrix,nao)
-
-    CALL dgemm("N","N",nao,nao,nao,1.0_wp,ortho_matrix,nao,work_matrix,nao,&
-               0.0_wp,ks_matrix,nao)
+    CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
+    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
+                    globenv)
+!MK CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
+!MK                 globenv)
+    CALL blacs_gemm("N","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
+                    globenv)
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE orthogonalize_matrix
+  END SUBROUTINE orthogonalise_matrix
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo,ortho)
+  SUBROUTINE eigensolver(ks,mo,ortho,work,context,globenv)
 
-    TYPE(real_matrix_set_type), INTENT(IN)    :: ortho
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: ks
+!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!            vectors and MO eigenvalues.
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: ks,work
+    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
     INTEGER :: handle,nao,nmo
 
-    REAL(wp), DIMENSION(:,:), POINTER :: ks_matrix,mo_eigenvectors,ortho_matrix
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("eigensolver","I","",handle)
 
-    CALL get_matrix_info(matrix=mo%eigenvectors%matrix,nrow=nao,ncol=nmo)
+    CALL get_blacs_matrix_info(matrix=mo%eigenvectors,&
+                               nrow_global=nao,&
+                               ncol_global=nmo)
 
-    CALL get_block_node(matrix=ks%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=ks_matrix)
+    CALL blacs_syevx(ks,work,mo%eigenvalues,nmo,work_syevx,context,globenv)
 
-    CALL get_block_node(matrix=mo%eigenvectors%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=mo_eigenvectors)
-
-    CALL get_block_node(matrix=ortho%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=ortho_matrix)
-
-!   CALL diagonalize_matrix(ks_matrix,mo_eigenvectors,mo%eigenvalues)
-!   CALL dgemm("N","N",nao,nmo,nao,1.0_wp,ortho_matrix,nao,mo_eigenvectors,&
-!              nao,0.0_wp,ks_matrix,nao)
-!   mo_eigenvectors(:,:) = ks_matrix(:,:)
-
-    CALL diagonalize_matrix(ks_matrix,mo%eigenvalues,.FALSE.)
-
-    CALL dgemm("N","N",nao,nmo,nao,1.0_wp,ortho_matrix,nao,ks_matrix,&
-               nao,0.0_wp,mo_eigenvectors,nao)
+!MK CALL blacs_gemm("T","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
+!MK                 mo%eigenvectors,context,globenv)
+    CALL blacs_symm("L","U",nao,nmo,1.0_wp,ortho,work,0.0_wp,mo%eigenvectors,&
+                    context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -665,37 +691,30 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_density_matrix(mo,density)
+  SUBROUTINE calculate_density_matrix(mo,density,context,globenv)
 
-    TYPE(real_matrix_set_type), INTENT(OUT) :: density
-    TYPE(mo_set_type), INTENT(IN)           :: mo
+!   Purpose: Calculate the density matrix from the MO eigenvectors and the
+!            MO occupation numbers.
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(blacs_matrix_type), INTENT(OUT)      :: density
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(mo_set_type), INTENT(IN)             :: mo
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: handle,nao
-
-    REAL(wp), DIMENSION(:,:), POINTER :: mo_eigenvectors,density_matrix
+    INTEGER :: handle
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_density_matrix","I","",handle)
 
-    CALL get_matrix_info(matrix=mo%eigenvectors%matrix,nrow=nao)
-
-    CALL get_block_node(matrix=mo%eigenvectors%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=mo_eigenvectors)
-
-    CALL get_block_node(matrix=density%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=density_matrix)
-
-    CALL dsyrk("U","N",nao,mo%homo,2.0_wp,mo_eigenvectors,nao,0.0_wp,&
-               density_matrix,nao)
-
-    CALL symmetrize_matrix(density_matrix,"upper_to_lower")
+    CALL blacs_syrk("U","N",mo%homo,2.0_wp,mo%eigenvectors,0.0_wp,density,&
+                    context,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -703,8 +722,16 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE density_mixing(new_density,old_density,p_mix,delta)
+  SUBROUTINE density_mixing(new_density,old_density,p_mix,delta,globenv)
 
+!   Purpose: Perform a density mixing of the old (last SCF iteration) and the
+!            new (current) density matrix.
+
+!   History: - Creation (01.05.2001, Matthias Krack)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_set_type), INTENT(INOUT) :: new_density,old_density
     REAL(wp), INTENT(IN)                      :: p_mix
     REAL(wp), INTENT(OUT)                     :: delta
@@ -757,17 +784,20 @@ CONTAINS
 
     END DO
 
+    CALL mp_max(delta,globenv%group)
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE density_mixing
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_hartree_potential(rho)
+  SUBROUTINE calculate_hartree_potential(rho,globenv)
 
     USE mathconstants, ONLY: fourpi,twopi
 
-    TYPE(coeff_type), TARGET, INTENT(INOUT) :: rho
+    TYPE(coeff_type), TARGET, INTENT(INOUT)   :: rho
+    TYPE(global_environment_type), INTENT(IN) :: globenv
 
 !   *** Local variables ***
 
@@ -798,29 +828,28 @@ CONTAINS
     ehartree = 0.0_wp
 
     DO kg=lb_grid(3),ub_grid(3)
-      gz = REAL(kg,wp)*dg(3)
       IF (kg < 0) THEN
         k = kg + 1 + ng(3)
       ELSE
         k = kg + 1
       END IF
+      gz = REAL(kg,wp)*dg(3)
       DO jg=lb_grid(2),ub_grid(2)
-        gy = REAL(jg,wp)*dg(2)
         IF (jg < 0) THEN
           j = jg + 1 + ng(2)
         ELSE
           j = jg + 1
         END IF
+        gy = REAL(jg,wp)*dg(2)
         DO ig=lb_grid(1),ub_grid(1)
-          gx = REAL(ig,wp)*dg(1)
           IF (ig < 0) THEN
             i = ig + 1 + ng(1)
           ELSE
             i = ig + 1
           END IF
+          gx = REAL(ig,wp)*dg(1)
           g2 = gx*gx + gy*gy + gz*gz
           IF (g2 > 1.0E-12_wp) THEN
-!!!write (*,"(3I6,2F15.6)") i,j,k,grid(i,j,k)
             vhartree = fourpi*grid(i,j,k)/g2
             ehartree = ehartree + REAL(grid(i,j,k))*REAL(vhartree) +&
                                   AIMAG(grid(i,j,k))*AIMAG(vhartree)
@@ -838,27 +867,50 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_xc_potential(rho,vxc)
+  SUBROUTINE calculate_xc_potential(rho,vxc,globenv)
 
-    TYPE(pw_type), INTENT(IN)    :: rho
-    TYPE(pw_type), INTENT(INOUT) :: vxc
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(coeff_type), TARGET, INTENT(IN)      :: rho
+    TYPE(coeff_type), TARGET, INTENT(INOUT)   :: vxc
 
 !   *** Local variables ***
 
-    INTEGER :: handle
+    INTEGER :: handle,k,kg
+
+    INTEGER, DIMENSION(:), POINTER  :: lb_grid,ng,ub_grid
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_xc_potential","I","",handle)
 
+    ng => rho%pw%pw_grid%npts(:)
+    lb_grid => rho%pw%pw_grid%bounds(1,:)
+    ub_grid => rho%pw%pw_grid%bounds(2,:)
+
     ex = 0.0_wp
     ec = 0.0_wp
 
-    CALL vwn_x(rho%cr3d,ex,vxc%cr3d)
-    CALL vwn_c(rho%cr3d,ec,vxc%cr3d)
+    DO kg=lb_grid(3),ub_grid(3)
 
-    ex = rho%pw_grid%dvol*ex
-    ec = rho%pw_grid%dvol*ec
+      IF (kg < 0) THEN
+        k = kg + 1 + ng(3)
+      ELSE
+        k = kg + 1
+      END IF
+
+      IF (globenv%mepos /= MODULO(k,globenv%num_pe)) CYCLE
+
+      CALL vwn_x(rho%pw%cr3d(:,:,kg),ex,vxc%pw%cr3d(:,:,kg))
+      CALL vwn_c(rho%pw%cr3d(:,:,kg),ec,vxc%pw%cr3d(:,:,kg))
+
+    END DO
+
+    CALL mp_sum(vxc%pw%cr3d,globenv%group)
+    CALL mp_sum(ex,globenv%group)
+    CALL mp_sum(ec,globenv%group)
+
+    ex = rho%pw%pw_grid%dvol*ex
+    ec = rho%pw%pw_grid%dvol*ec
 
     CALL timestop(0.0_wp,handle)
 
@@ -866,12 +918,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo,p,work1,work2,context,&
+                                            globenv)
 
+    TYPE(blacs_matrix_type), INTENT(IN)       :: ortho
+    TYPE(blacs_matrix_type), INTENT(INOUT)    :: work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    TYPE(real_matrix_set_type), INTENT(IN)    :: ortho
-    TYPE(real_matrix_set_type), INTENT(INOUT) :: p,work1,work2
     TYPE(mo_set_type), INTENT(INOUT)          :: mo
+    TYPE(real_matrix_set_type), INTENT(INOUT) :: p
+    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -883,38 +938,35 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER :: elec_conf
 
-    REAL(wp), DIMENSION(:,:), POINTER :: work1_matrix,work2_matrix
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
-!   *** Calculate an initial density guess (core Hamiltonian guess) ***
-
-    CALL get_block_node(matrix=work1%matrix,&
-                        block_row=1,&
-                        block_col=1,&
-                        block=work1_matrix)
-
-      work1_matrix(:,:) = 0.0_wp
+    CALL blacs_set_all(work1,0.0_wp,context,globenv)
 
     IF (density_guess == "RESTART") THEN
 
-      CALL read_mo_set(mo,globenv)
-      CALL calculate_density_matrix(mo,work1)
+      CALL read_mo_set(mo,context,globenv)
+      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL symmetrise_diagonal_blocks(p%matrix)
 
     ELSE IF (density_guess == "CORE") THEN
 
-      CALL copy_matrix(h%matrix,work1%matrix)
-      CALL symmetrize_matrix(work1_matrix,"upper_to_lower")
-      CALL orthogonalize_matrix(ortho,work1,work2)
-      CALL eigensolver(work1,mo,ortho)
-      CALL calculate_density_matrix(mo,work1)
+!     *** It is assumed that work1 holds the upper     ***
+!     *** triangle part of the core Hamiltonian matrix ***
+
+!MK if only gemm is used
+!     CALL symmetrise_blacs_matrix(work1,work2,context,globenv)
+      CALL orthogonalise_matrix(ortho,work1,work2,context,globenv)
+      CALL eigensolver(work1,mo,ortho,work2,context,globenv)
+      CALL calculate_density_matrix(mo,work1,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL symmetrise_diagonal_blocks(p%matrix)
 
     ELSE IF (density_guess == "ATOMIC") THEN
 
       NULLIFY (elec_conf)
-
       elec_conf => reallocate(elec_conf,0,maxlcgf)
 
       DO ikind=1,nkind
@@ -949,7 +1001,7 @@ CONTAINS
                 DO iatom=1,kind_info(ikind)%natom
                   atoma = kind_info(ikind)%atom_list(iatom)
                   isgf = atom_info(atoma)%first_sgf + isgfa - 1
-                  work1_matrix(isgf,isgf) = paa
+                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
                 END DO
               END DO
             END IF
@@ -958,13 +1010,16 @@ CONTAINS
 
       END DO
 
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+
     ELSE
 
-      STOP "qs_scf: wrong keyword for guess"
+      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//&
+                        "(MODULE qs_scf)",&
+                        "An invalid keyword for the initial density "//&
+                        "guess was specified")
 
     END IF
-
-    CALL copy_matrix(work1%matrix,p%matrix)
 
   END SUBROUTINE calculate_first_density_matrix
 
@@ -996,11 +1051,18 @@ CONTAINS
 !   *** Load the default values ***
 
     density_guess = "CORE"
+    eps_eigval = 1.0E-5_wp
     eps_scf = 1.0E-5_wp
     eps_diis = 0.1_wp
     max_diis = 4
     max_scf = 50
+    nprow = 0
+    npcol = 0
+    nrow_block = 32
+    ncol_block = 32
     p_mix = 0.4_wp
+    work_syevx = 0.0_wp
+
     globenv%restart_file_name = "RESTART"
 
     CALL start_input_session(globenv%input_file_name,globenv)
@@ -1025,14 +1087,25 @@ CONTAINS
           CALL read_object(p_mix)
         CASE ("EPS_DIIS")
           CALL read_object(eps_diis)
+        CASE ("EPS_EIGVAL")
+          CALL read_object(eps_eigval)
         CASE ("EPS_SCF")
           CALL read_object(eps_scf)
         CASE ("MAX_DIIS")
           CALL read_object(max_diis)
         CASE ("MAX_SCF")
           CALL read_object(max_scf)
+        CASE ("BLOCKSIZE")
+          CALL read_object(nrow_block)
+          ncol_block = nrow_block
+        CASE ("PROCESS_GRID")
+          CALL read_object(nprow)
+          CALL read_object(npcol)
         CASE ("RESTART_FILE_NAME","RESTART_FILE","RESTART")
           CALL read_object(globenv%restart_file_name)
+        CASE ("WORK_SYEVX")
+          CALL read_object(work_syevx)
+          work_syevx = MIN(MAX(0.0_wp,work_syevx),1.0_wp)
         CASE DEFAULT
           IF (keyword == end_section) THEN
             EXIT
@@ -1067,16 +1140,17 @@ CONTAINS
 
     IF (max_scf < 1) RETURN
 
-    WRITE (lunit,"(/,/,T2,A,/)") "SCF PARAMETERS"
+    WRITE (UNIT=lunit,FMT="(/,/,T2,A,/)") "SCF PARAMETERS"
 
-    WRITE (lunit,"(T3,A,/,T3,A,I5,/,T3,A,ES9.2,/,T3,A,F5.2)")&
+    WRITE (UNIT=lunit,FMT="(T3,A,/,T3,A,I5,2(/,T3,A,ES9.2),/,T3,A,F5.2)")&
       "density guess: "//TRIM(density_guess),&
       "max_scf:      ",max_scf,&
       "eps_scf:      ",eps_scf,&
+      "eps_eigval:   ",eps_eigval,&
       "p_mix:        ",p_mix
 
     IF (max_diis > 0) THEN
-      WRITE (lunit,"(T3,A,I5,/,T3,A,ES9.2)")&
+      WRITE (UNIT=lunit,FMT="(T3,A,I5,/,T3,A,ES9.2)")&
         "max_diis:     ",max_diis,&
         "eps_diis:     ",eps_diis
     END IF

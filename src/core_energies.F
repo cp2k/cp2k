@@ -25,6 +25,9 @@ MODULE core_energies
 
   USE kinds, ONLY: wp => dp
 
+  USE global_types,    ONLY: global_environment_type
+  USE message_passing, ONLY: mp_sum
+
   IMPLICIT NONE
 
   PRIVATE
@@ -39,11 +42,13 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore(h,p,ecore)
+  SUBROUTINE calculate_ecore(h,p,ecore,globenv)
 
 !   Purpose: Calculate the core Hamiltonian energy which includes the kinetic
 !            and the potential energy of the electrons.
 
+!   History: - Creation (03.05.2001, Matthias Krack)
+  
 !   ***************************************************************************
 
     USE matrix_types, ONLY: first_block_node,&
@@ -53,8 +58,9 @@ CONTAINS
                             real_block_node_type,&
                             real_matrix_set_type
 
-    TYPE(real_matrix_set_type), INTENT(IN) :: h,p
-    REAL(wp), INTENT(OUT)                  :: ecore
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(real_matrix_set_type), INTENT(IN)    :: h,p
+    REAL(wp), INTENT(OUT)                     :: ecore
 
 !   *** Local variables ***
 
@@ -105,13 +111,17 @@ CONTAINS
 
     END DO
 
+    CALL mp_sum(ecore,globenv%group)
+
   END SUBROUTINE calculate_ecore
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(ecore_overlap)
+  SUBROUTINE calculate_ecore_overlap(ecore_overlap,globenv)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
+
+!   History: - Creation (30.04.2001, Matthias Krack)
 
 !   ***************************************************************************
 
@@ -119,7 +129,8 @@ CONTAINS
     USE atoms,           ONLY: atom_info,natom
     USE cell_parameters, ONLY: abc
 
-    REAL(wp), INTENT(OUT) :: ecore_overlap
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    REAL(wp), INTENT(OUT)                     :: ecore_overlap
 
 !   *** Local variables ***
 
@@ -136,6 +147,8 @@ CONTAINS
     ecore_overlap = 0.0_wp
 
     DO iatom=1,natom
+
+      IF (globenv%mepos /= MODULO(iatom,globenv%num_pe)) CYCLE
 
       ikind = atom_info(iatom)%kind
 
@@ -186,6 +199,8 @@ CONTAINS
 
     END DO
 
+    CALL mp_sum(ecore_overlap,globenv%group)
+
   END SUBROUTINE calculate_ecore_overlap
 
 ! *****************************************************************************
@@ -193,6 +208,8 @@ CONTAINS
   SUBROUTINE calculate_ecore_self(ecore_self)
 
 !   Purpose: Calculate the self energy of the core charge distribution.
+
+!   History: - Creation (27.04.2001, Matthias Krack)
 
 !   ***************************************************************************
 

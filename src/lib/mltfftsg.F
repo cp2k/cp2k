@@ -34,47 +34,47 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
 
   ISIG = -ISIGN
   TSCAL = ( ABS ( SCALE -1._dbl ) > 1.e-12_dbl )
-  CALL CTRIG ( N, TRIG, AFTER, BEFORE, NOW, ISIG, IC )
+  CALL ctrig ( N, TRIG, AFTER, BEFORE, NOW, ISIG, IC )
   LOT = NCACHE / ( 4 * N )
   LOT = LOT - MOD ( LOT + 1, 2 )
   LOT = MAX ( 1, LOT )
   DO ITR = 1, M, LOT
     NFFT = MIN ( M - ITR + 1, LOT )
     IF ( TRANSA == 'N' .OR. TRANSA == 'n' ) THEN
-      CALL FFTPRE ( NFFT, NFFT, LDAX, LOT, N, A ( 1, ITR ), Z ( 1, 1 ), &
+      CALL fftpre ( NFFT, NFFT, LDAX, LOT, N, A ( 1, ITR ), Z ( 1, 1 ), &
                     TRIG, NOW ( 1 ), AFTER ( 1 ), BEFORE ( 1 ), ISIG )
     ELSE
-      CALL FFTSTP ( LDAX, NFFT, N, LOT, N, A ( ITR, 1 ), Z ( 1, 1 ), &
+      CALL fftstp ( LDAX, NFFT, N, LOT, N, A ( ITR, 1 ), Z ( 1, 1 ), &
                     TRIG, NOW ( 1 ), AFTER ( 1 ), BEFORE ( 1 ), ISIG )
     ENDIF
     IF ( TSCAL ) THEN
       IF ( LOT == NFFT ) THEN
-        CALL DSCAL ( 2 * LOT * N, SCALE, Z ( 1, 1 ), 1 )
+        CALL dscal ( 2 * LOT * N, SCALE, Z ( 1, 1 ), 1 )
       ELSE
         DO I = 1, N
-          CALL DSCAL ( 2 * NFFT, SCALE, Z ( LOT * ( I - 1 ) + 1, 1 ), 1 )
+          CALL dscal ( 2 * NFFT, SCALE, Z ( LOT * ( I - 1 ) + 1, 1 ), 1 )
         END DO
       END IF
     END IF
     IF(IC.EQ.1) THEN
       IF(TRANSB == 'N'.OR.TRANSB == 'n') THEN
-        CALL ZGETMO(Z(1,1),LOT,NFFT,N,B(1,ITR),LDBX)
+        CALL zgetmo(Z(1,1),LOT,NFFT,N,B(1,ITR),LDBX)
       ELSE
-        CALL MATMOV(NFFT,N,Z(1,1),LOT,B(ITR,1),LDBX)
+        CALL matmov(NFFT,N,Z(1,1),LOT,B(ITR,1),LDBX)
       ENDIF
     ELSE
       INZEE=1
       DO I=2,IC-1
-        CALL FFTSTP(LOT,NFFT,N,LOT,N,Z(1,INZEE), &
+        CALL fftstp(LOT,NFFT,N,LOT,N,Z(1,INZEE), &
                     Z(1,3-INZEE),TRIG,NOW(I),AFTER(I), &
                     BEFORE(I),ISIG)
         INZEE=3-INZEE
       ENDDO
       IF(TRANSB == 'N'.OR.TRANSB == 'n') THEN
-        CALL FFTROT(LOT,NFFT,N,NFFT,LDBX,Z(1,INZEE), &
+        CALL fftrot(LOT,NFFT,N,NFFT,LDBX,Z(1,INZEE), &
               B(1,ITR),TRIG,NOW(IC),AFTER(IC),BEFORE(IC),ISIG)
       ELSE
-        CALL FFTSTP(LOT,NFFT,N,LDBX,N,Z(1,INZEE), &
+        CALL fftstp(LOT,NFFT,N,LDBX,N,Z(1,INZEE), &
               B(ITR,1),TRIG,NOW(IC),AFTER(IC),BEFORE(IC),ISIG)
       ENDIF
     ENDIF

@@ -381,7 +381,7 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL DGEMM ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
@@ -394,8 +394,8 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL DGEMM ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
-      CALL DCOPY ( len * len , mc, 1, ma, 1)
+      CALL dgemm ( "N", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dcopy ( len * len , mc, 1, ma, 1)
     END DO
     tend = m_cputime ( )
     t = tend - tstart
@@ -408,7 +408,7 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL DGEMM ( "N", "T", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "N", "T", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart
@@ -421,7 +421,7 @@ SUBROUTINE matmul_test ( globenv )
 
     tstart = m_cputime ( )
     DO j = 1, ntim
-      CALL DGEMM ( "T", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
+      CALL dgemm ( "T", "N", len, len, len, 1._dbl, ma, len, mb, len, 0._dbl, mc, len )
     END DO
     tend = m_cputime ( )
     t = tend - tstart

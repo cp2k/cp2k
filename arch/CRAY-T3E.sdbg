@@ -5,26 +5,18 @@ FC       = f90 -f free
 FC_fixed = f90 -f fixed
 LD       = f90
 AR       = ar -r
-CPPFLAGS = -C -D__T3E -D__FFTSG -P\
+DFLAGS   = -D__T3E -D__FFTSG\
            -Ddcopy=scopy -Ddgbsv=sgbsv -Ddgecon=sgecon -Ddgemm=sgemm\
            -Ddgemv=sgemv -Ddger=sger -Ddgerfs=sgerfs -Ddgetrf=sgetrf\
            -Ddgetri=sgetri -Ddgetrs=sgetrs -Ddlamch=slamch\
            -Ddlange=slange -Ddscal=sscal -Ddsyev=ssyev\
            -Ddsyevd=ssyevd -Ddsyevx=ssyevx -Ddsymm=ssymm\
-           -Ddsymv=ssymv -Ddsyr=ssyr -Ddsyrk=ssyrk -Dzcopy=ccopy\
-           -Dzgemm=cgemm -Dzgemv=cgemv -Dzgerc=cgerc\
+           -Ddsymv=ssymv -Ddsyr=ssyr -Ddsyrk=ssyrk\
+           -Dzcopy=ccopy -Dzgemm=cgemm -Dzgemv=cgemv -Dzgerc=cgerc\
            -Dzgeru=cgeru -Dzscal=cscal -Dzsymm=csymm -Dzsyrk=csyrk
-FCFLAGS  = -D__T3E -D__FFTSG\
-           -Ddcopy=scopy -Ddgbsv=sgbsv -Ddgecon=sgecon -Ddgemm=sgemm\
-           -Ddgemv=sgemv -Ddger=sger -Ddgerfs=sgerfs -Ddgetrf=sgetrf\
-           -Ddgetri=sgetri -Ddgetrs=sgetrs -Ddlamch=slamch\
-           -Ddlange=slange -Ddscal=sscal -Ddsyev=ssyev\
-           -Ddsyevd=ssyevd -Ddsyevx=ssyevx -Ddsymm=ssymm\
-           -Ddsymv=ssymv -Ddsyr=ssyr -Ddsyrk=ssyrk -Dzcopy=ccopy\
-           -Dzgemm=cgemm -Dzgemv=cgemv -Dzgerc=cgerc\
-           -Dzgeru=cgeru -Dzscal=cscal -Dzsymm=csymm -Dzsyrk=csyrk\
-           -F -Racps -eIin -g -m2
-LDFLAGS  = $(FCFLAGS) -L/u/krack/lib
-LIBS     = -llapack-dbg
+CPPFLAGS = -C $(DFLAGS) -P
+FCFLAGS  = $(DFLAGS) -F -Racps -eIin -g -m2
+LDFLAGS  = $(FCFLAGS)
+LIBS     = 
 
 OBJECTS_ARCHITECTURE = machine_t3e.o

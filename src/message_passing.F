@@ -46,7 +46,7 @@ MODULE message_passing
   INTERFACE mp_sum
      MODULE PROCEDURE mp_sum_i1, mp_sum_r1, mp_sum_c1, mp_sum_iv, &
           mp_sum_rv, mp_sum_cv, mp_sum_im, mp_sum_rm, mp_sum_cm, &
-          mp_sum_im3, mp_sum_rm3, mp_sum_root_rm3
+          mp_sum_im3, mp_sum_rm3, mp_sum_cm3, mp_sum_root_rm, mp_sum_root_rm3
   END INTERFACE
 
   INTERFACE mp_max
@@ -1079,6 +1079,34 @@ SUBROUTINE mp_sum_rm(msg,gid)
   mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_rm
+SUBROUTINE mp_sum_root_rm(msg,root,gid)
+  IMPLICIT NONE
+  REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, : )
+  INTEGER, INTENT ( IN ) :: root,gid
+  INTEGER :: msglen, m1, m2, ierr, taskid
+  REAL ( dbl ), ALLOCATABLE :: res ( :, : )
+#if defined(__parallel)
+  t_start = cputime ( )
+  CALL mpi_comm_rank ( gid, taskid, ierr )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_comm_rank @ mp_sum_root_rm" )
+  msglen = SIZE(msg)
+  m1 = SIZE(msg,1)
+  m2 = SIZE(msg,2)
+  ALLOCATE (res(m1,m2),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_root_rm" )
+  CALL mpi_reduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,&
+       root,gid,ierr)
+  IF ( taskid == root ) THEN
+    msg = res
+  END IF
+  DEALLOCATE (res)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  t_end = cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#endif
+END SUBROUTINE mp_sum_root_rm
 SUBROUTINE mp_sum_rm3(msg,gid)
   IMPLICIT NONE
   REAL ( dbl ), INTENT ( INOUT ) :: msg ( :, :, : )
@@ -1126,7 +1154,7 @@ SUBROUTINE mp_sum_root_rm3(msg,root,gid)
     msg = res
   END IF
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm" )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_reduce @ mp_sum_root_rm3" )
   mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
   mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
   t_end = cputime ( )
@@ -1199,6 +1227,31 @@ SUBROUTINE mp_sum_cm(msg,gid)
   mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
 #endif
 END SUBROUTINE mp_sum_cm
+SUBROUTINE mp_sum_cm3(msg,gid)
+  IMPLICIT NONE
+  COMPLEX ( dbl ), INTENT ( INOUT ) :: msg ( :, :, : )
+  INTEGER, INTENT ( IN ) :: gid
+  INTEGER :: msglen, m1, m2, m3, ierr
+  COMPLEX ( dbl ), ALLOCATABLE :: res ( :, :, : )
+#if defined(__parallel)
+  t_start = cputime ( )
+  msglen = 2*size(msg)
+  m1 = size(msg,1)
+  m2 = size(msg,2)
+  m3 = size(msg,3)
+  ALLOCATE (res(m1,m2,m3),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_sum_cm3" )
+  CALL mpi_allreduce(msg,res,msglen,MPI_DOUBLE_PRECISION,MPI_SUM,gid, &
+       ierr)
+  msg = res
+  DEALLOCATE (res)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_sum_cm3" )
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen*2
+  t_end = cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#endif
+END SUBROUTINE mp_sum_cm3
 
 !******************************************************************************
 

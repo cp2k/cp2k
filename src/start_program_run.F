@@ -186,7 +186,7 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=40) :: keyword,test_result
-    INTEGER           :: ipos
+    INTEGER           :: ipos1,ipos2
     LOGICAL           :: found,print_request
 
 !   ---------------------------------------------------------------------------
@@ -237,14 +237,16 @@ CONTAINS
         CALL uppercase(keyword)
 
         IF (keyword(1:3) == "NO_") THEN
-          ipos = 4
+          ipos1= 4
           print_request = .FALSE.
         ELSE
-          ipos = 1
+          ipos1= 1
           print_request = .TRUE.
         END IF
 
-        SELECT CASE (TRIM(keyword(ipos:)))
+        ipos2 = LEN_TRIM(keyword)
+
+        SELECT CASE (keyword(ipos1:ipos2))
         CASE ("ANGLES")
           globenv%print%angles = print_request
         CASE ("ATOMIC_COORDINATES","COORDINATES","COORD")
@@ -253,6 +255,8 @@ CONTAINS
           globenv%print%basic_data_types = print_request
         CASE ("BASIS_SETS","BASIS_SET","BASIS")
           globenv%print%basis_set = print_request
+        CASE ("BLACS_INFORMATION","BLACS_INFO")
+          globenv%print%blacs_info = print_request
         CASE ("CARTESIAN_OPERATOR_MATRICES","CARTESIAN_MATRICES")
           globenv%print%cartesian_om = print_request
         CASE ("CELL_PARAMETERS","CELL")
@@ -408,7 +412,7 @@ CONTAINS
       "**                                                                          **",&
       "**                                                ... make the atoms dance  **",&
       "**                                                                          **",&
-      "**                         Version 3.0 (May 2001)                           **",&
+      "**                         Version 3.0 (June 2001)                          **",&
       "**                                                                          **",&
       "**     Copyright (C) by MPI fuer Festkoerperforschung, Stuttgart (2000)     **",&
       "**                                                                          **",&

@@ -568,7 +568,7 @@ CONTAINS
 
 !   *** Externals (LAPACK) ***
 
-    REAL(wp), EXTERNAL :: dlange
+!MK    REAL(wp), EXTERNAL :: dlange
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
@@ -648,7 +648,7 @@ CONTAINS
       norm = 'I'
     END IF
 
-    a_norm = dlange(norm,n,n,a(:,:),n,work(:))
+!MK    a_norm = dlange(norm,n,n,a(:,:),n,work(:))
 
 !   *** Compute the reciprocal of the condition number of a ***
 

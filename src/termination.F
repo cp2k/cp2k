@@ -28,6 +28,7 @@
 
 MODULE termination
 
+  USE global_types,     ONLY: global_environment_type
   USE message_passing,  ONLY: mp_stop
   USE output_utilities, ONLY: print_message
   USE string_utilities, ONLY: compress
@@ -223,16 +224,30 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE stop_program(routine,error_message)
+  SUBROUTINE stop_program(routine,error_message,globenv)
 
     CHARACTER(LEN=*), INTENT(IN) :: error_message,routine
 
+    TYPE(global_environment_type), OPTIONAL, INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    LOGICAL :: ionode
+
 !   ---------------------------------------------------------------------------
+
+    IF (PRESENT(globenv)) THEN
+      ionode = globenv%ionode
+    ELSE
+      ionode = .TRUE.
+    END IF
 
 !   *** Print the error message ***
 
-    CALL print_message("ERROR in "//TRIM(routine),output_unit,2,2,0)
-    CALL print_message(error_message,output_unit,1,1,1)
+    IF (ionode) THEN
+      CALL print_message("ERROR in "//TRIM(routine),output_unit,2,2,0)
+      CALL print_message(error_message,output_unit,1,1,1)
+    END IF
 
     CALL mp_stop(0,"stop_program")
 
