@@ -37,7 +37,7 @@ MODULE cp_array_logical_utils
   USE timings, ONLY: timeset, timestop
   USE cp_output_handling
   USE qs_parser, ONLY: open_file, close_file
-  [USE]
+  
   IMPLICIT NONE
   PRIVATE
 
@@ -604,11 +604,11 @@ END SUBROUTINE cp_2d_logical_write
 
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,use,defaultFormatType1)]
+  ! [template(type1,nametype1,USE,defaultFormatType1)]
 ! ARGS:
 !  type1 = "logical"
 !  nametype1 = "logical"
-!  use = ""
+!  USE = ""
 !  defaultFormatType1 = ""(t1)""
 
 

@@ -26,53 +26,61 @@
 !!
 !!   SOURCE
 !****************************************************************************
-module cp_array_r_utils
-  use kinds, only: wp=>dp
-  use cp_log_handling, only: cp_to_string, cp_failure_level, cp_warning_level,&
+MODULE cp_array_r_utils
+  USE kinds, ONLY: wp=>dp
+  USE cp_log_handling, ONLY: cp_to_string, cp_failure_level, cp_warning_level,&
        cp_note_level, cp_log, cp_logger_type, cp_logger_generate_filename
-  use cp_error_handling, only: cp_debug, cp_error_type, cp_assert, &
+  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_assert, &
        cp_error_message,cp_assertion_failed, cp_internal_error,&
        cp_error_init, cp_error_dealloc_ref
-  use global_types, only: global_environment_type
-  use timings, only: timeset, timestop
-  use cp_output_handling
-  use qs_parser, only: open_file, close_file
+  USE global_types, ONLY: global_environment_type
+  USE timings, ONLY: timeset, timestop
+  USE cp_output_handling
+  USE qs_parser, ONLY: open_file, close_file
   
-  implicit none
-  private
+  IMPLICIT NONE
+  PRIVATE
 
-  logical, private, parameter :: debug_this_module=.true.
-  character(len=*), private, parameter :: moduleN='cp_array_r_utils'
+  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_array_r_utils'
 
   ! generic interfaces
-  public :: cp_output, cp_guarantee_size, cp_write
+  PUBLIC :: cp_output, cp_guarantee_size, cp_write
   
   ! the underlying procedures
-  public :: cp_1d_r_output, cp_2d_r_output,&
+  PUBLIC :: cp_1d_r_output, cp_2d_r_output,&
        cp_1d_r_guarantee_size, cp_r_write,&
        cp_1d_r_write, cp_2d_r_write,&
        cp_2d_r_guarantee_size
 
-  interface cp_output
-     module procedure cp_1d_r_output, &
+  INTERFACE cp_output
+     MODULE PROCEDURE cp_1d_r_output, &
           cp_2d_r_output
-  end interface
-  interface cp_guarantee_size
-     module procedure cp_1d_r_guarantee_size,&
+  END INTERFACE
+  INTERFACE cp_guarantee_size
+     MODULE PROCEDURE cp_1d_r_guarantee_size,&
           cp_2d_r_guarantee_size
-  end interface
-  interface cp_write
-     module procedure cp_r_write, cp_1d_r_write,&
+  END INTERFACE
+  INTERFACE cp_write
+     MODULE PROCEDURE cp_r_write, cp_1d_r_write,&
        cp_2d_r_write
-  end interface
+  END INTERFACE
 !***
 !****************************************************************************
-contains
+CONTAINS
 
 !!****f* cp_array_r_utils/cp_r_write *
 !!
 !!   NAME
 !!     cp_r_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_r_write(element, unit_nr, el_format, error)
+!!       Real(Kind=wp), Intent (IN):: element
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_r_write
 !!
 !!   FUNCTION
 !!     writes an element to the given unit
@@ -94,26 +102,26 @@ contains
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_r_write(element, unit_nr, el_format, error)
-  real(kind=wp), intent(in) :: element
-  integer, intent(in) :: unit_nr
-  character(len=*), intent(in), optional :: el_format
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_r_write(element, unit_nr, el_format, error)
+  real(kind=wp), INTENT(in) :: element
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: iostat
-  character(len=*), parameter :: routineN='cp_r_write',&
+  LOGICAL :: failure
+  INTEGER :: iostat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es14.6)"
-  failure=.false.
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
+  failure=.FALSE.
   
-  if (present(el_format)) then
-     write(unit=unit_nr,fmt=el_format,iostat=iostat) element
-  else
-     write(unit=unit_nr,fmt=defaultFormat,iostat=iostat) element
-  end if
+  IF (PRESENT(el_format)) THEN
+     WRITE(unit=unit_nr,fmt=el_format,iostat=iostat) element
+  ELSE
+     WRITE(unit=unit_nr,fmt=defaultFormat,iostat=iostat) element
+  END IF
   CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-end subroutine cp_r_write
+END SUBROUTINE cp_r_write
 !***************************************************************************
 
 
@@ -121,6 +129,19 @@ end subroutine cp_r_write
 !!
 !!   NAME
 !!     cp_1d_r_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_1d_r_output(logger, outputname, fromwhere, iter, array,&
+!!         comment, local, el_format, error)
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: iter
+!!       Real(Kind=wp), Intent (IN), Dimension(:):: array
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
+!!       Logical, Intent (IN), Optional:: local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_1d_r_output
 !!
 !!   FUNCTION
 !!     writes a 1d array to an aptly named file
@@ -156,64 +177,72 @@ end subroutine cp_r_write
 !!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_1d_r_output(logger, outputName,&
+SUBROUTINE cp_1d_r_output(logger, outputName,&
      fromWhere, iter, array,&
      comment, local, el_format, error)
-  type(cp_logger_type), pointer ::logger
-  character(len=*) , intent(in) :: outputName
-  character(len=*), intent(in):: fromWhere
-  integer, intent(in) :: iter
-  real(kind=wp), intent(in), dimension(:) :: array
-  character(len=*), intent(in),optional :: comment, el_format
-  logical, intent(in), optional :: local
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  real(kind=wp), INTENT(in), DIMENSION(:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  logical :: failure, exists, loc
-  character(len=*), parameter :: routineN='cp_1d_r_output',&
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_output',&
        routineP=moduleN//':'//routineN
-  character(len=60) :: filename
-  integer :: handle, unitNr, lenFormat, iostat, i
-  failure=.false.; loc=.false.
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, lenFormat, iostat, i
+  failure=.FALSE.; loc=.FALSE.
 
-  call timeset(routineN//','//moduleN,'I',"",handle)
-  if (present(local)) loc=local
-  if (loc .or. logger%para_env%mepos==logger%para_env%source) then
-     if (cp_would_output(logger, outputName , fromWhere, iter,&
-          local=loc,error=error)) then
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  IF (PRESENT(local)) loc=local
+  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
+     IF (cp_would_output(logger, outputName , fromWhere, iter,&
+          local=loc,error=error)) THEN
 
-        call cp_logger_generate_filename(logger,filename,&
-             trim(outputName)//'-'//trim(adjustl(cp_to_string(iter))),&
+        CALL cp_logger_generate_filename(logger,filename,&
+             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
              '.dat',local=loc)
-        call cp_log(logger, cp_note_level, fromWhere,&
-             "writing output to file'"//trim(filename)//"'") 
-        inquire (FILE=trim(filename),EXIST=exists)
-        call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+        CALL cp_log(logger, cp_note_level, fromWhere,&
+             "writing output to file'"//TRIM(filename)//"'") 
+        INQUIRE (FILE=TRIM(filename),EXIST=exists)
+        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
-        call open_file(trim(filename),file_status="unknown",&
+        CALL open_file(TRIM(filename),file_status="unknown",&
              file_action="write",&
              unit_number=unitNr)
 
-        if (present(comment)) then
-           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+        IF (PRESENT(comment)) THEN
+           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
            CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call cp_1d_r_write(array,unit_nr=unitNr,&
+        END IF
+        IF (.NOT.failure) THEN
+           CALL cp_1d_r_write(array,unit_nr=unitNr,&
                 el_format=el_format,error=error)
-        end if
+        END IF
 
-        call close_file(unitNr)
-     end if
-  end if
-  call timestop(0.0_wp,handle)
-end subroutine cp_1d_r_output
+        CALL close_file(unitNr)
+     END IF
+  END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_1d_r_output
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_1d_r_write [1.0] *
 !!
 !!   NAME
 !!     cp_1d_r_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_1d_r_write(array, unit_nr, el_format, error)
+!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_1d_r_write
 !!
 !!   FUNCTION
 !!     writes an array to the given unit
@@ -235,36 +264,49 @@ end subroutine cp_1d_r_output
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_1d_r_write(array, unit_nr, el_format, error)
-  real(kind=wp), dimension(:), intent(in) :: array
-  integer, intent(in) :: unit_nr
-  character(len=*), intent(in), optional :: el_format
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_1d_r_write(array, unit_nr, el_format, error)
+  real(kind=wp), DIMENSION(:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: iostat
-  character(len=*), parameter :: routineN='cp_1d_r_write',&
+  LOGICAL :: failure
+  INTEGER :: iostat
+  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es14.6)"
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
   
   ! do i=1,size(array)
-  if (present(el_format)) then
-     write(unit=unit_nr,fmt=el_format,iostat=iostat) array(:)
-  else
-     write(unit=unit_nr,fmt=defaultFormat,iostat=iostat) array(:)
-  end if
+  IF (PRESENT(el_format)) THEN
+     WRITE(unit=unit_nr,fmt=el_format,iostat=iostat) array(:)
+  ELSE
+     WRITE(unit=unit_nr,fmt=defaultFormat,iostat=iostat) array(:)
+  END IF
   CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
   !   if (failure) then
   !     exit
   !   end if
   ! end do
-end subroutine cp_1d_r_write
+END SUBROUTINE cp_1d_r_write
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_2d_r_output *
 !!
 !!   NAME
 !!     cp_2d_r_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_r_output(logger, outputname, fromwhere, iter, array,&
+!!         comment, local, el_format, error)
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: iter
+!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: array
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
+!!       Logical, Intent (IN), Optional:: local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_2d_r_output
 !!
 !!   FUNCTION
 !!     writes a 2d array to an aptly named file
@@ -300,64 +342,72 @@ end subroutine cp_1d_r_write
 !!     08.2002 added local/global output [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_2d_r_output(logger, outputName, &
+SUBROUTINE cp_2d_r_output(logger, outputName, &
      fromWhere, iter, array,&
      comment, local, el_format, error)
-  type(cp_logger_type), pointer ::logger
-  character(len=*) , intent(in) :: outputName
-  character(len=*), intent(in):: fromWhere
-  integer, intent(in) :: iter
-  real(kind=wp), intent(in), dimension(:,:) :: array
-  character(len=*), intent(in),optional :: comment, el_format
-  logical, intent(in), optional :: local
-  type(cp_error_type), optional, intent(inout) :: error
+  TYPE(cp_logger_type), POINTER ::logger
+  CHARACTER(len=*) , INTENT(in) :: outputName
+  CHARACTER(len=*), INTENT(in):: fromWhere
+  INTEGER, INTENT(in) :: iter
+  real(kind=wp), INTENT(in), DIMENSION(:,:) :: array
+  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
+  LOGICAL, INTENT(in), OPTIONAL :: local
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-  logical :: failure, exists, loc
-  character(len=*), parameter :: routineN='cp_2d_r_output',&
+  LOGICAL :: failure, exists, loc
+  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_output',&
        routineP=moduleN//':'//routineN
-  character(len=60) :: filename
-  integer :: handle, unitNr, lenFormat, iostat
-  failure=.false.; loc=.false.
+  CHARACTER(len=60) :: filename
+  INTEGER :: handle, unitNr, lenFormat, iostat
+  failure=.FALSE.; loc=.FALSE.
 
-  call timeset(routineN//','//moduleN,'I',"",handle)
-  if (present(local)) loc=local
-  if (loc .or. logger%para_env%mepos==logger%para_env%source) then
-     if (cp_would_output(logger, outputName , fromWhere, iter,&
-          local=loc,error=error)) then
+  CALL timeset(routineN//','//moduleN,'I',"",handle)
+  IF (PRESENT(local)) loc=local
+  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
+     IF (cp_would_output(logger, outputName , fromWhere, iter,&
+          local=loc,error=error)) THEN
 
-        call cp_logger_generate_filename(logger,filename,&
-             trim(outputName)//'-'//trim(adjustl(cp_to_string(iter))),&
+        CALL cp_logger_generate_filename(logger,filename,&
+             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
              '.dat',local=loc)
-        call cp_log(logger, cp_note_level, fromWhere, &
-             "writing output to file'"//trim(filename)//"'") 
-        inquire (FILE=trim(filename),EXIST=exists)
-        call cp_assert(.not.exists, cp_warning_level,cp_assertion_failed,&
+        CALL cp_log(logger, cp_note_level, fromWhere, &
+             "writing output to file'"//TRIM(filename)//"'") 
+        INQUIRE (FILE=TRIM(filename),EXIST=exists)
+        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
              fromWhere=routineP,message=" overwriting file '"//filename//"'",&
              error=error)
-        call open_file(trim(filename),file_status="unknown",&
+        CALL open_file(TRIM(filename),file_status="unknown",&
              file_action="write",&
              unit_number=unitNr)
 
-        if (present(comment)) then
-           write(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
+        IF (PRESENT(comment)) THEN
+           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
            CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-        end if
-        if (.not.failure) then
-           call cp_2d_r_write(array,unit_nr=unitNr,&
+        END IF
+        IF (.NOT.failure) THEN
+           CALL cp_2d_r_write(array,unit_nr=unitNr,&
                 el_format=el_format,error=error)
-        end if
+        END IF
 
-        call close_file(unitNr)
-     end if
-  end if
-  call timestop(0.0_wp,handle)
-end subroutine cp_2d_r_output
+        CALL close_file(unitNr)
+     END IF
+  END IF
+  CALL timestop(0.0_wp,handle)
+END SUBROUTINE cp_2d_r_output
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_2d_r_write *
 !!
 !!   NAME
 !!     cp_2d_r_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_r_write(array, unit_nr, el_format, error)
+!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: array
+!!       Integer, Intent (IN):: unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: el_format
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_2d_r_write
 !!
 !!   FUNCTION
 !!     writes an array to the given unit
@@ -379,39 +429,47 @@ end subroutine cp_2d_r_output
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-subroutine cp_2d_r_write(array, unit_nr, el_format, error)
-  real(kind=wp), dimension(:,:), intent(in) :: array
-  integer, intent(in) :: unit_nr
-  character(len=*), intent(in), optional :: el_format
-  type(cp_error_type), optional, intent(inout) :: error
+SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
+  real(kind=wp), DIMENSION(:,:), INTENT(in) :: array
+  INTEGER, INTENT(in) :: unit_nr
+  CHARACTER(len=*), INTENT(in), OPTIONAL :: el_format
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
-  logical :: failure
-  integer :: iostat, i
-  character(len=*), parameter :: routineN='cp_2d_r_write',&
+  LOGICAL :: failure
+  INTEGER :: iostat, i
+  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_write',&
         routineP=moduleN//':'//routineN
-  character(len=*), parameter :: defaultFormat="(es14.6)"
-  character(len=10) :: nRiga
-  failure=.false.
+  CHARACTER(len=*), PARAMETER :: defaultFormat="(es14.6)"
+  CHARACTER(len=10) :: nRiga
+  failure=.FALSE.
   
-  nRiga=cp_to_string(size(array,2))
-  do i=1,size(array,1)
-     if (present(el_format)) then
-        write(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',iostat=iostat) array(i,:)
-     else
-        write(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
-     end if
+  nRiga=cp_to_string(SIZE(array,2))
+  DO i=1,SIZE(array,1)
+     IF (PRESENT(el_format)) THEN
+        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//el_format//')',iostat=iostat) array(i,:)
+     ELSE
+        WRITE(unit=unit_nr,fmt='(" ",'//nRiga//defaultFormat//')',iostat=iostat) array(i,:)
+     END IF
      CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-     if (failure) then
-        exit
-     end if
-  end do
-end subroutine cp_2d_r_write
+     IF (failure) THEN
+        EXIT
+     END IF
+  END DO
+END SUBROUTINE cp_2d_r_write
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_1d_r_guarantee_size [1.0] *
 !!
 !!   NAME
 !!     cp_1d_r_guarantee_size
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_1d_r_guarantee_size(array, n, init, error)
+!!       Real(Kind=wp), Dimension(:), Pointer:: array
+!!       Integer, Intent (IN):: n
+!!       Real(Kind=wp), Intent (IN), Optional:: init
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_1d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.
@@ -440,40 +498,49 @@ end subroutine cp_2d_r_write
 !!     3.2002 templatized [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_1d_r_guarantee_size(array, n, init, error)
-    real(kind=wp), dimension(:), pointer :: array
-    integer, intent(in) :: n
-    real(kind=wp), intent(in), optional :: init
-    type(cp_error_type), optional, intent(inout) :: error
+  SUBROUTINE cp_1d_r_guarantee_size(array, n, init, error)
+    real(kind=wp), DIMENSION(:), POINTER :: array
+    INTEGER, INTENT(in) :: n
+    real(kind=wp), INTENT(in), OPTIONAL :: init
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: stat
-    character(len=*), parameter :: routineN='cp_1d_r_guarantee_size',&
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_guarantee_size',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(n>=0,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (associated(array)) then
-          if (size(array) /= n) then
+    failureIf: IF (.NOT. failure) THEN
+       IF (ASSOCIATED(array)) THEN
+          IF (SIZE(array) /= n) THEN
              CPErrorMessage(cp_warning_level,routineP,'size has changed',error)
-             deallocate(array, stat=stat)
+             DEALLOCATE(array, stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-          end if
-       end if
-       if (.not.associated(array)) then
-          allocate(array(n), stat=stat)
+          END IF
+       END IF
+       IF (.NOT.ASSOCIATED(array)) THEN
+          ALLOCATE(array(n), stat=stat)
           CPPostcondition(stat==0, cp_failure_level,routineP,error,failure)
-          if (present(init).and..not.failure) array=init
-       end if
-    end if failureIf
-  end subroutine cp_1d_r_guarantee_size
+          IF (PRESENT(init).AND..NOT.failure) array=init
+       END IF
+    END IF failureIf
+  END SUBROUTINE cp_1d_r_guarantee_size
 !***************************************************************************
 
 !!****f* cp_array_r_utils/cp_2d_r_guarantee_size [1.0] *
 !!
 !!   NAME
 !!     cp_2d_r_guarantee_size
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols, init,&
+!!         error)
+!!       Real(Kind=wp), Dimension(:,:), Pointer:: array
+!!       Integer, Intent (IN):: n_rows, n_cols
+!!       Real(Kind=wp), Intent (IN), Optional:: init
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_2d_r_guarantee_size
 !!
 !!   FUNCTION
 !!     If the size of the array is changes reallocate it.
@@ -502,47 +569,47 @@ end subroutine cp_2d_r_write
 !!     5.2001 first version [fawzi]
 !!
 !!*** **********************************************************************
-  subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols ,&
+  SUBROUTINE cp_2d_r_guarantee_size(array, n_rows, n_cols ,&
        init, error)
-    real(kind=wp), dimension(:,:), pointer :: array
-    integer, intent(in) :: n_rows, n_cols
-    real(kind=wp), intent(in), optional :: init
-    type(cp_error_type), optional, intent(inout) :: error
+    real(kind=wp), DIMENSION(:,:), POINTER :: array
+    INTEGER, INTENT(in) :: n_rows, n_cols
+    real(kind=wp), INTENT(in), OPTIONAL :: init
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    logical :: failure
-    integer :: stat
-    character(len=*), parameter :: routineN='cp_2d_r_guarantee_size',&
+    LOGICAL :: failure
+    INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_guarantee_size',&
          routineP=moduleN//':'//routineN
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(n_cols>=0,cp_failure_level,routineP,error,failure)
     CPPrecondition(n_rows>=0,cp_failure_level,routineP,error,failure)
-    failureIf: if (.not. failure) then
-       if (associated(array)) then
-          if (size(array,1) /= n_rows .or. size(array,2) /= n_cols) then
+    failureIf: IF (.NOT. failure) THEN
+       IF (ASSOCIATED(array)) THEN
+          IF (SIZE(array,1) /= n_rows .OR. SIZE(array,2) /= n_cols) THEN
              CPErrorMessage(cp_warning_level,routineP,'size has changed',error)
-             deallocate(array, stat=stat)
+             DEALLOCATE(array, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             nullify(array)
-          end if
-       end if
-       if (.not.associated(array)) then
-          allocate(array(n_rows,n_cols), stat=stat)
+             NULLIFY(array)
+          END IF
+       END IF
+       IF (.NOT.ASSOCIATED(array)) THEN
+          ALLOCATE(array(n_rows,n_cols), stat=stat)
           CPPostconditionNoFail(stat==0, cp_failure_level,routineP,error)
-          if (present(init).and..not.failure) array=init
-       end if
-    end if failureIf
-  end subroutine cp_2d_r_guarantee_size
+          IF (PRESENT(init).AND..NOT.failure) array=init
+       END IF
+    END IF failureIf
+  END SUBROUTINE cp_2d_r_guarantee_size
 !***************************************************************************
 
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,use,defaultFormatType1)]
+  ! [template(type1,nametype1,USE,defaultFormatType1)]
 ! ARGS:
 !  type1 = "real(kind=wp)"
 !  nametype1 = "r"
-!  use = ""
+!  USE = ""
 !  defaultFormatType1 = ""(es14.6)""
 
 
-end module cp_array_r_utils
+END MODULE cp_array_r_utils

@@ -537,6 +537,6 @@ END SUBROUTINE cp_2d_[nametype1]_write
 
   ! template def put here so that line numbers in template and derived 
   ! files are almost the same (multi-line use change it a bit)
-  ! [template(type1,nametype1,use,defaultFormatType1)]
+  ! [template(type1,nametype1,USE,defaultFormatType1)]
 
 END MODULE cp_array_[nametype1]_utils

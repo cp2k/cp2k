@@ -1,14 +1,14 @@
 [
 {'nametype1':'r',
 'type1':'real(kind=wp)', 
-'use':'',
+'USE':'',
 'defaultFormatType1':'"(es14.6)"'},
 {'nametype1':'i',
 'type1':'integer', 
-'use':'',
+'USE':'',
 'defaultFormatType1':'"(i6)"'},
 {'nametype1':'logical',
 'type1':'logical', 
-'use':'',
+'USE':'',
 'defaultFormatType1':'"(t1)"'}
 ]
