@@ -242,6 +242,14 @@ CONTAINS
              DEALLOCATE(rho_struct%rho_g,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          IF (ASSOCIATED(rho_struct%tot_rho_r)) THEN
+             DEALLOCATE(rho_struct%tot_rho_r,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          ENDIF
+          IF (ASSOCIATED(rho_struct%tot_rho_g)) THEN
+             DEALLOCATE(rho_struct%tot_rho_g,stat=stat)
+             CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+          ENDIF
           DEALLOCATE(rho_struct,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
