@@ -1,4 +1,3 @@
 #
-# time to reset CU
+# just add file names for which the reference needs to be reset below, with some comment
 #
-Cu.inp
