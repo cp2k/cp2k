@@ -26,21 +26,34 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_rho_types
-  USE cp_log_handling, ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds, ONLY: wp=>dp
-  USE cp_para_types, ONLY: cp_para_env_type
-  USE timings, ONLY: timeset, timestop
-  USE coefficient_types,        ONLY: coeff_type, coeff_deallocate
-  USE cube_utils,               ONLY: cube_info_type
-  USE global_types, ONLY: global_environment_type,DEBUG
-  USE l_utils,                  ONLY: l_info_type
-  USE gaussian_gridlevels,      ONLY: gridlevel_info_type
-  USE sparse_matrix_types,      ONLY: real_matrix_p_type
+  USE coefficient_types,               ONLY: coeff_deallocate,&
+                                             coeff_type
+  USE cp_error_handling,               ONLY: cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cube_utils,                      ONLY: cube_info_type
+  USE gaussian_gridlevels,             ONLY: gridlevel_info_type
+  USE global_types,                    ONLY: DEBUG,&
+                                             global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE l_utils,                         ONLY: l_info_type
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -167,7 +180,8 @@ CONTAINS
        IF (PRESENT(rho_ao_valid)) rho_struct%rho_ao_valid=rho_ao_valid
        IF (PRESENT(rho_r_valid)) rho_struct%rho_r_valid=rho_r_valid
        IF (PRESENT(rho_g_valid)) rho_struct%rho_g_valid=rho_g_valid
-       CALL cp_assert(rho_ao_valid.OR.rho_r_valid.OR.rho_g_valid,&
+       CALL cp_assert(rho_struct%rho_ao_valid.OR.rho_struct%rho_r_valid.OR.&
+            rho_struct%rho_g_valid,&
             cp_failure_level,cp_assertion_failed,fromWhere=routineP,&
             message="at least one representation must be valid "//&
             CPSourceFileRef,&
@@ -252,8 +266,7 @@ CONTAINS
     INTEGER :: stat, i, j
     failure=.FALSE.
 
-    CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
-    IF (.NOT.failure) THEN
+    IF (ASSOCIATED(rho_struct)) THEN
        CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
        rho_struct%ref_count=rho_struct%ref_count-1
        IF (rho_struct%ref_count<1) THEN
@@ -346,6 +359,7 @@ CONTAINS
 !!   INPUTS
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
+!!     For the other inputs the qs_rho_type attributes
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
