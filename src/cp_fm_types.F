@@ -239,7 +239,7 @@ CONTAINS
        nrow_local=matrix_struct%local_leading_dimension
        ncol_local=MAX(1,matrix_struct%ncol_locals(context%mepos(2)))
        ALLOCATE(matrix%local_data(nrow_local,ncol_local),stat=stat)
-       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        ! JVDV we should remove this, as it is up to the user to zero afterwards
        CALL dcopy(nrow_local*ncol_local,0.0_dp,0,matrix%local_data,1)
