@@ -555,24 +555,6 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-!  DO ikind = 1, SIZE ( atomic_kind_set )
-!     atomic_kind => atomic_kind_set ( ikind )
-!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-!     npart_local = particles % n_el ( ikind ) 
-!     DO i = 1, npart_local
-!       ipart = particles % list ( ikind ) % array ( i )
-!       ii = ii + 1
-!       nhc % p_kin ( 1, ii ) % point = nhc % p_kin ( 1, ii ) % point &
-!            + mass * particle_set ( ipart ) % v ( 1 ) *            &
-!                     particle_set ( ipart ) % v ( 1 )
-!       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
-!            + mass * particle_set ( ipart ) % v ( 2 ) *            &
-!                     particle_set ( ipart ) % v ( 2 )
-!       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
-!            + mass * particle_set ( ipart ) % v ( 3 ) *            &
-!                     particle_set ( ipart ) % v ( 3 )
-!     END DO
-!  END DO
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -674,20 +656,6 @@ SUBROUTINE lnhc_particle_set ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-! now scale the particle velocities
-!  ii = 0
-!  DO ikind = 1, SIZE ( atomic_kind_set )
-!     atomic_kind => atomic_kind_set ( ikind )
-!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-!     npart_local = particles % n_el ( ikind ) 
-!     DO i = 1, npart_local
-!       ii = ii + 1
-!       ipart = particles % list ( ikind ) % array ( i )
-!       particle_set ( ipart ) % v ( 1 ) =  particle_set ( ipart ) % v ( 1 ) * nhc % p_scale ( 1, ii ) % point
-!       particle_set ( ipart ) % v ( 2 ) =  particle_set ( ipart ) % v ( 2 ) * nhc % p_scale ( 2, ii ) % point
-!       particle_set ( ipart ) % v ( 3 ) =  particle_set ( ipart ) % v ( 3 ) * nhc % p_scale ( 3, ii ) % point
-!    END DO
-!  END DO
   flops = flops + REAL ( npart_local*3, dbl )
 
   flops = flops * 1.E-6_dbl
@@ -767,25 +735,6 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-!  ii = 0
-!  DO ikind = 1, SIZE ( atomic_kind_set )
-!     atomic_kind => atomic_kind_set ( ikind )
-!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-!     npart_local = particles % n_el ( ikind ) 
-!     DO i = 1, npart_local
-!       ii = ii + 1
-!       ipart = particles % list ( ikind ) % array ( i )
-!       nhc % p_kin ( 1, ii  ) % point = nhc % p_kin ( 1, ii ) % point &
-!            + mass * vel ( 1, ipart ) *            &
-!                     vel ( 1, ipart ) 
-!       nhc % p_kin ( 2, ii ) % point = nhc % p_kin ( 2, ii ) % point &
-!            + mass * vel ( 2, ipart ) *            &
-!                     vel ( 2, ipart )
-!       nhc % p_kin ( 3, ii ) % point = nhc % p_kin ( 3, ii ) % point &
-!            + mass * vel ( 3, ipart ) *            &
-!                     vel ( 3, ipart )
-!     END DO
-!  END DO
 
   IF ( nhc % dis_type == 'INTER_REP' )  CALL mp_sum ( nhc % s_kin, group )
 
@@ -884,20 +833,6 @@ SUBROUTINE lnhc_particles ( nhc, molecule_kind_set, molecule_set,  &
       END DO
     END DO
   END DO
-! now scale the particle velocities
-!  ii = 0
-!  DO ikind = 1, SIZE ( atomic_kind_set )
-!     atomic_kind => atomic_kind_set ( ikind )
-!     CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
-!     npart_local = particles % n_el ( ikind ) 
-!     DO i = 1, npart_local
-!       ii = ii + 1
-!       ipart = particles % list ( ikind ) % array ( i )
-!       vel ( 1, ipart ) =  vel ( 1, ipart ) * nhc % p_scale ( 1, ii ) % point
-!       vel ( 2, ipart ) =  vel ( 2, ipart ) * nhc % p_scale ( 2, ii ) % point
-!       vel ( 3, ipart ) =  vel ( 3, ipart ) * nhc % p_scale ( 3, ii ) % point
-!    END DO
-!  END DO
   flops = flops + REAL ( npart_local*3, dbl )
 
   flops = flops * 1.E-6_dbl
