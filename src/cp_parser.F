@@ -262,14 +262,26 @@ END SUBROUTINE parser_retain
     LOGICAL, INTENT(out), OPTIONAL           :: at_end
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    LOGICAL :: my_at_end
+    CHARACTER(len=*), PARAMETER :: routineN="parser_get_next_line",&
+         routineP=moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
     IF (nline>0) THEN
-       CALL parser_read_line(parser,nline,at_end=at_end,error=error)
-       IF (PRESENT(at_end)) CALL mp_bcast(at_end, parser%para_env%source,&
+       CALL parser_read_line(parser,nline,at_end=my_at_end,error=error)
+       CALL mp_bcast(my_at_end, parser%para_env%source,&
             parser%para_env%group)
+       IF (PRESENT(at_end)) THEN
+          at_end=my_at_end
+       ELSE
+          CALL cp_assert(.not.my_at_end,cp_failure_level,cp_assertion_failed,&
+               routineP, "unexpected EOF "//&
+               TRIM(parser_location(parser,error=error)), error)
+       END IF
        CALL broadcast_input_information(parser,error=error)
+    ELSEIF (PRESENT(at_end)) THEN
+       at_end=.FALSE.
     END IF
 
   END SUBROUTINE parser_get_next_line

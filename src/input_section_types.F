@@ -1458,12 +1458,7 @@ SUBROUTINE section_vals_val_get(section_vals,keyword_name,i_rep_section,&
         IF (PRESENT(n_rep_val)) n_rep_val=1
         my_val => keyword%default_value
      END IF
-     CALL cp_assert(.NOT.keyword%required.OR.ASSOCIATED(my_val),&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          "keyword "//TRIM(keyword_name)//" in section "//&
-          TRIM(section%name)//" is required,but was not found",&
-          error,failure)
-     if (present(val)) val => my_val
+     IF (PRESENT(val)) val => my_val
   END IF
   IF (.NOT.failure) THEN
      IF (valRequested) THEN
