@@ -66,8 +66,7 @@ MODULE qs_rho_methods
                                              pw_sumup,&
                                              pw_transfer,&
                                              pw_type
-  USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_rho_elec,&
+  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                              calculate_total_rho
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&

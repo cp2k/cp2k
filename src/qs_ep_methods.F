@@ -105,9 +105,7 @@ MODULE qs_ep_methods
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_rho_elec,&
-                                             calculate_total_rho,&
+  USE qs_collocate_density,            ONLY: calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_core_energies,                ONLY: calculate_ecore,&
                                              calculate_ecore_overlap,&

@@ -191,8 +191,7 @@ MODULE qs_scf
                                              RECIPROCALSPACE,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_rho_core,&
-                                             calculate_total_abs_rho,&
+  USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
                                              calculate_total_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
