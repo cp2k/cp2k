@@ -98,7 +98,8 @@ MODULE global_types
                v_hartree_cube, &
                lumos, &
                homos, &
-               cubes
+               cubes, &
+               mulliken_analysis
     LOGICAL :: ep_matrixes, ep_rho1_cube, ep_operator
      LOGICAL :: timecumul
      INTEGER    nlumos,nhomos
@@ -229,6 +230,7 @@ CONTAINS
     print_key%nhomos = 4
     print_key%timecumul = key_value(level,(/f,f,f/))
     print_key%localization = key_value(level,(/f,f,f/))
+    print_key%mulliken_analysis = key_value(level,(/f,t,t/))
 
   END SUBROUTINE init_print_keys
 

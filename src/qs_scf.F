@@ -1935,7 +1935,8 @@ CONTAINS
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
        ENDIF
 
-       CALL mulliken_charges(c,s(1)%matrix,globenv%scr,globenv%ionode)
+       IF (globenv%print%mulliken_analysis)  &
+            CALL mulliken_charges(c,s(1)%matrix,globenv%scr,globenv%ionode)
 
 !   *** write additional information about the converged system
        IF (globenv%print%e_density_cube) THEN ! write the electron density

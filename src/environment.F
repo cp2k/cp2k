@@ -481,6 +481,8 @@ CONTAINS
              globenv%print%ep_rho1_cube = print_request
           CASE ("EP_OPERATOR")
              globenv%print%ep_operator = print_request
+          CASE ("MULLIKEN","MULLIKEN_ANALYSIS")
+             globenv%print%mulliken_analysis = print_request
           CASE DEFAULT
             CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
           END SELECT
