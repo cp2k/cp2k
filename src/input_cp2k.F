@@ -625,13 +625,6 @@ contains
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
-       CALL cp_print_key_section_create(print_key,"DIPOLE",&
-            description="Controls the printing of dipole information.", &
-            print_level=silent_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
-       CALL section_add_subsection(section,print_key,error=error)
-       CALL section_release(print_key,error=error)
-
        CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
             description="Controls the printing of the distribution of the simple pair neighbour list.", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
@@ -1264,8 +1257,8 @@ SUBROUTINE create_qs_section(section,error)
      CALL cp_print_key_section_create(print_key,"DIPOLE",&
           description="Calculates the dipole, for the moment it only supports"//&
           "the stupid non periodic dipole, should be extended soon", &
-          print_level=high_print_level,each=(/1/),filename="dipole",&
-          error=error)
+          print_level=high_print_level,each=(/1/),filename=" ",&
+          common_iter_levels=1,error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
   END IF

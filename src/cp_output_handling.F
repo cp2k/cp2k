@@ -720,19 +720,21 @@ FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
               IF (outPath(i:i)=="/") is_path=.TRUE.
            END DO
            IF (.not.is_path) THEN
-              my_middle_name=print_key%section%name
+              if (outPath==' ') my_middle_name=print_key%section%name
               IF (PRESENT(middle_name)) my_middle_name=middle_name
               CALL cp_logger_generate_filename(logger,res=filename,&
                    root=TRIM(logger%iter_info%project_name)//"-"//&
                    TRIM(outPath)//TRIM(my_middle_name),&
-                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
+                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
+                   print_key=print_key,for_file=.TRUE.,error=error))//&
                    extension,local=my_local)
            ELSE
               my_middle_name=' '
               IF (PRESENT(middle_name)) my_middle_name=middle_name
               CALL cp_logger_generate_filename(logger,res=filename,&
                    root=TRIM(outPath)//TRIM(my_middle_name),&
-                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
+                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,&
+                   print_key=print_key,for_file=.TRUE.,error=error))//&
                    extension,local=my_local)
            END IF
            CALL open_file(file_name=filename,file_status="UNKNOWN",&
