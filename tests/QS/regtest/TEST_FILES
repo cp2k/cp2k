@@ -78,3 +78,5 @@ H2-geo-2.inp       1
 # tests GAPW GTH and ALL
 H2O-gapw-gth.inp   1
 H2O-gapw-all.inp   1
+# some problems with CU
+Cu.inp             1
