@@ -195,13 +195,15 @@ CONTAINS
              END IF
           END DO
        END DO       
+
+       CALL qmmm_gaussian_eval_LR(pgfs=qmmm_gaussian_fns,&
+                                  mm_cell=mm_cell,&
+                                  error=error)
+       !
+       ! End of gaussian initialization...
     CASE DEFAULT
        WRITE(*,'(A)')" QMMM Gaussian Data Not Initialized!"
     END SELECT
-
-    CALL qmmm_gaussian_eval_LR(pgfs=qmmm_gaussian_fns,&
-                               mm_cell=mm_cell,&
-                               error=error)
 
     qmmm_env%pgfs => qmmm_gaussian_fns
     qmmm_env%maxradius => maxradius
