@@ -190,7 +190,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      UREY_BRADLEY: DO ibend = 1, nub
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( ibend ) % a + first_atom - 1
-        index_b = ub_list ( ibend ) % b + first_atom - 1
+        index_b = ub_list ( ibend ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         CALL force_bonds (rij,  ub_list ( ibend ) % ub_kind % r0, &
                           ub_list ( ibend ) % ub_kind % k, energy, fscalar)

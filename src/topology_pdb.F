@@ -200,7 +200,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       atom_info%atm_mass(natom)  =0.0_dbl
       atom_info%atm_charge(natom)=-10000.0_dbl
       IF(topology%charge_occup) & 
-        atom_info%atm_charge(natom) = atom_info%beta(natom)
+        atom_info%atm_charge(natom) = atom_info%occup(natom)
       IF(topology%charge_beta) &
         atom_info%atm_charge(natom) = atom_info%beta(natom)
       IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)

@@ -343,7 +343,7 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
      BOND: DO iub = 1, nub
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( iub ) % a + first_atom - 1
-        index_b = ub_list ( iub ) % b + first_atom - 1
+        index_b = ub_list ( iub ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
 ! get the energy
         CALL force_bonds ( rij, ub_list ( iub ) % ub_kind % r0, &
@@ -2450,7 +2450,7 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
      BOND: DO iub = 1, nub
         CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( iub ) % a + first_atom - 1
-        index_b = ub_list ( iub ) % b + first_atom - 1
+        index_b = ub_list ( iub ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         CALL force_bonds(rij,ub_list ( iub ) % ub_kind % r0, &
                          ub_list ( iub ) % ub_kind % k, &
