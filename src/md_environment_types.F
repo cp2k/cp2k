@@ -18,13 +18,16 @@
 !******************************************************************************
 
 MODULE md_environment_types
-
-  USE kinds, ONLY : dbl
-  USE md, ONLY : simulation_parameters_type, virial_type
-  USE nose, ONLY : lnhc_parameters_type, npt_info_type
-  USE simulation_cell, ONLY : cell_type
-  USE structure_types, ONLY : structure_type
-
+  USE force_control,                   ONLY: force_env_release,&
+                                             force_env_retain,&
+                                             force_env_type
+  USE kinds,                           ONLY: dbl
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             virial_type
+  USE nose,                            ONLY: lnhc_parameters_type,&
+                                             npt_info_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_types,                 ONLY: structure_type
   IMPLICIT NONE
 
   PRIVATE
@@ -40,6 +43,7 @@ MODULE md_environment_types
      TYPE ( simulation_parameters_type ), POINTER :: simpar
      TYPE ( structure_type ), POINTER :: struc ( : )
      TYPE ( virial_type ), POINTER :: virial
+     TYPE ( force_env_type ), POINTER :: force_env
   END TYPE md_environment_type
 
 ! *** Public subroutines and data types ***
@@ -55,7 +59,8 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_md_env ( md_env, itimes, constant, cell, simpar, struc,  &
-                          virial, nhc_part, nhc_coef, nhc_baro, npt )
+                          virial, nhc_part, nhc_coef, nhc_baro, npt, &
+                          force_env )
 
     IMPLICIT NONE
 !   Purpose: Get the integrator environment
@@ -71,6 +76,7 @@ CONTAINS
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
     TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
+    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
     INTEGER, POINTER, OPTIONAL :: itimes
     REAL ( dbl ), POINTER, OPTIONAL :: constant
 !   ---------------------------------------------------------------------------
@@ -85,6 +91,7 @@ CONTAINS
     IF ( PRESENT ( nhc_baro ) ) nhc_baro => md_env % nhc_baro
     IF ( PRESENT ( npt ) ) npt => md_env % npt
     IF ( PRESENT ( virial ) ) virial => md_env % virial
+    IF ( PRESENT ( force_env ) ) force_env => md_env % force_env
 
   END SUBROUTINE get_md_env
 
@@ -109,13 +116,15 @@ CONTAINS
     NULLIFY ( md_env % nhc_baro )
     NULLIFY ( md_env % npt )
     NULLIFY ( md_env % virial )
+    NULLIFY ( md_env % force_env )
 
   END SUBROUTINE init_md_env
 
 ! *****************************************************************************
 
   SUBROUTINE set_md_env ( md_env, itimes, constant, cell, simpar, struc,  &
-                          virial, nhc_part, nhc_coef, nhc_baro, npt )
+                          virial, nhc_part, nhc_coef, nhc_baro, npt,&
+                          force_env)
 
 !   Purpose: Set the integrator environment to the correct program.
 
@@ -131,6 +140,7 @@ CONTAINS
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_coef 
     TYPE ( lnhc_parameters_type ), POINTER, OPTIONAL :: nhc_baro ( : )
     TYPE ( npt_info_type ), POINTER, OPTIONAL :: npt ( :, : )
+    TYPE ( force_env_type ), POINTER, OPTIONAL :: force_env
     INTEGER, POINTER, OPTIONAL :: itimes
     REAL ( dbl ), POINTER, OPTIONAL :: constant
 
@@ -144,7 +154,11 @@ CONTAINS
     IF ( PRESENT ( virial ) ) md_env % virial => virial
     IF ( PRESENT ( itimes ) ) md_env % itimes => itimes
     IF ( PRESENT ( constant ) ) md_env % constant => constant
-    
+    IF ( PRESENT ( force_env ) ) THEN
+       CALL force_env_retain( force_env ) ! accept null pointers?
+       CALL force_env_release( md_env % force_env )
+       md_env % force_env => force_env
+    END IF
     
 !   ---------------------------------------------------------------------------
 

@@ -15,101 +15,101 @@
 !******************************************************************************
 
 MODULE kg_main 
-
-  USE atomic_kind_types,               ONLY : atomic_kind_type,&
-                                              get_atomic_kind_set,&
-                                              init_atomic_kind_set,&
-                                              read_atomic_kind_set,&
-                                              write_atomic_kind_set,&
-                                              write_gto_basis_sets
-  USE atoms_input,                     ONLY : read_coord_vel,&
-                                              system_type
-  USE cntl_input,                      ONLY : read_cntl_section
-  USE coefficient_types,               ONLY : coeff_type
-  USE convert_units,                   ONLY : convert
-  USE dft_types,                       ONLY : dft_control_type,&
-                                              read_dft_control,&
-                                              read_kg_control, &
-                                              write_dft_control,&
-                                              write_kg_control
-  USE dump,                            ONLY : dump_variables
-  USE extended_system_types,           ONLY : extended_system_type
-  USE force_control,                   ONLY : force,&
-                                              set_force_env
-  USE force_fields,                    ONLY : read_force_field_section
-  USE global_types,                    ONLY : global_environment_type
-  USE initialize_extended_types,       ONLY : initialize_nhc_baro,  &
-                                              initialize_nhc_coef,  &
-                                              initialize_nhc_part,  &
-                                              initialize_npt_type,  &
-                                              assign_extended_parameters
-  USE initialize_molecule_types,       ONLY : initialize_molecule_type
-  USE input_types,                     ONLY : setup_parameters_type
-  USE integrator,                      ONLY : set_integrator
-  USE kinds,                           ONLY : dbl
-  USE kg_debug,                        ONLY : kg_debug_control
-  USE kg_energy_optimize,              ONLY : optimize_ao
-  USE kg_energy_utils,                 ONLY : read_energy_section,&
-                                              energy_min_type,&
-                                              min_info_type,&
-                                              print_energy_info,&
-                                              print_convergence
-  USE kg_environment_types,            ONLY : kg_environment_type,  &
-                                              kg_thermodynamic_type, &
-                                              init_kg_env,&
-                                              set_kg_env
-  USE kg_force,                        ONLY : kg_force_release
-  USE kg_pol_coefs,                    ONLY : allocate_coefs,&
-                                              dump_coefs,&
-                                              initialize_coefs
-  USE mathconstants,                   ONLY : zero,&
-                                              twopi
-  USE md,                              ONLY : read_md_section,&
-                                              simulation_parameters_type, &
-                                              initialize_velocities,&
-                                              mdio_parameters_type,&
-                                              virial_type
-  USE md_kg_energies,                  ONLY : md_energy_kg,&
-                                              set_kg_energies,&
-                                              set_kg_energies_param
-  USE md_environment_types,            ONLY : init_md_env, & 
-                                              md_environment_type,&
-                                              set_md_env,&
-                                              zero_virial
-  USE molecule_input,                  ONLY : read_molecule_section,&
-                                              read_setup_section, &
-                                              read_topology_section
-  USE molecule_types,                  ONLY : intra_parameters_type,&
-                                              molecule_structure_type,&
-                                              molecule_type,&
-                                              particle_node_type, &
-                                              topology_type
-  USE orbital_transformation_matrices, ONLY : init_spherical_harmonics
-  USE pair_potential,                  ONLY : potentialparm_type
-  USE particle_types,                  ONLY : particle_type,&
-                                              init_particle_set
-  USE physcon,                         ONLY : boltzmann,&
-                                              h_planck
-  USE qs_interactions,                 ONLY : init_interaction_radii
-  USE simulation_cell,                 ONLY : cell_type,&
-                                              get_hinv,&
-                                              init_cell
-  USE string_utilities,                ONLY : integer_to_string,&
-                                              xstring
-  USE structure_types,                 ONLY : init_structure_type,&
-                                              set_structure_type,& 
-                                              structure_type
-  USE termination,                     ONLY : stop_memory,&
-                                              stop_program
-  USE timings,                         ONLY : timeset,&
-                                              timestop,&
-                                              trace_debug
-  USE unit,                            ONLY : set_units,&
-                                              unit_convert_type
-  USE util,                            ONLY : close_unit, &
-                                              get_share
-  USE velocity_verlet_control,         ONLY : velocity_verlet
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind_set,&
+                                             init_atomic_kind_set,&
+                                             read_atomic_kind_set,&
+                                             write_atomic_kind_set,&
+                                             write_gto_basis_sets
+  USE atoms_input,                     ONLY: read_coord_vel,&
+                                             system_type
+  USE cntl_input,                      ONLY: read_cntl_section
+  USE coefficient_types,               ONLY: coeff_type
+  USE convert_units,                   ONLY: convert
+  USE dft_types,                       ONLY: dft_control_type,&
+                                             read_dft_control,&
+                                             read_kg_control,&
+                                             write_dft_control,&
+                                             write_kg_control
+  USE dump,                            ONLY: dump_variables
+  USE extended_system_types,           ONLY: extended_system_type
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_create,&
+                                             force_env_release,&
+                                             force_env_type
+  USE force_fields,                    ONLY: read_force_field_section
+  USE global_types,                    ONLY: global_environment_type
+  USE initialize_extended_types,       ONLY: assign_extended_parameters,&
+                                             initialize_nhc_baro,&
+                                             initialize_nhc_coef,&
+                                             initialize_nhc_part,&
+                                             initialize_npt_type
+  USE initialize_molecule_types,       ONLY: initialize_molecule_type
+  USE input_types,                     ONLY: setup_parameters_type
+  USE integrator,                      ONLY: set_integrator
+  USE kg_debug,                        ONLY: kg_debug_control
+  USE kg_energy_optimize,              ONLY: optimize_ao
+  USE kg_energy_utils,                 ONLY: energy_min_type,&
+                                             min_info_type,&
+                                             print_convergence,&
+                                             print_energy_info,&
+                                             read_energy_section
+  USE kg_environment_types,            ONLY: init_kg_env,&
+                                             kg_environment_type,&
+                                             kg_thermodynamic_type,&
+                                             set_kg_env
+  USE kg_force,                        ONLY: kg_force_release
+  USE kg_pol_coefs,                    ONLY: allocate_coefs,&
+                                             dump_coefs,&
+                                             initialize_coefs
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: twopi,&
+                                             zero
+  USE md,                              ONLY: initialize_velocities,&
+                                             mdio_parameters_type,&
+                                             read_md_section,&
+                                             simulation_parameters_type,&
+                                             virial_type
+  USE md_environment_types,            ONLY: init_md_env,&
+                                             md_environment_type,&
+                                             set_md_env,&
+                                             zero_virial
+  USE md_kg_energies,                  ONLY: md_energy_kg,&
+                                             set_kg_energies,&
+                                             set_kg_energies_param
+  USE molecule_input,                  ONLY: read_molecule_section,&
+                                             read_setup_section,&
+                                             read_topology_section
+  USE molecule_types,                  ONLY: intra_parameters_type,&
+                                             molecule_structure_type,&
+                                             molecule_type,&
+                                             particle_node_type,&
+                                             topology_type
+  USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE pair_potential,                  ONLY: potentialparm_type
+  USE particle_types,                  ONLY: init_particle_set,&
+                                             particle_type
+  USE physcon,                         ONLY: boltzmann,&
+                                             h_planck
+  USE qs_interactions,                 ONLY: init_interaction_radii
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_hinv,&
+                                             init_cell
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             xstring
+  USE structure_types,                 ONLY: init_structure_type,&
+                                             set_structure_type,&
+                                             structure_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop,&
+                                             trace_debug
+  USE unit,                            ONLY: set_units,&
+                                             unit_convert_type
+  USE util,                            ONLY: close_unit,&
+                                             get_share
+  USE velocity_verlet_control,         ONLY: velocity_verlet
   IMPLICIT NONE
 
   PRIVATE
@@ -127,6 +127,12 @@ CONTAINS
 !!
 !!   NAME
 !!     kg
+!!
+!!   SYNOPSIS
+!!     Subroutine kg(globenv)
+!!       Implicit None
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine kg
 !!
 !!   FUNCTION
 !!     Controls program flow for Kim-Gordon type MD
@@ -469,7 +475,7 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ), POINTER :: simpar
-  TYPE ( kg_environment_type ), INTENT ( INOUT ) :: kg_env
+  TYPE ( kg_environment_type ), POINTER :: kg_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( setup_parameters_type ) :: setup
@@ -480,11 +486,13 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
 ! Locals
   INTEGER :: handle, isos
   TYPE ( structure_type ), DIMENSION (:), POINTER :: struc 
+  TYPE ( force_env_type ), POINTER :: force_env
 
 !------------------------------------------------------------------------------
 
   CALL timeset ( 'CNTL_WORK', 'I', ' ', handle )
 
+  NULLIFY(force_env)
 ! allocate structure_type
   ALLOCATE ( struc (1) , STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'struc', 1 )
@@ -493,8 +501,8 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
   CALL init_structure_type ( struc (1) )
   CALL set_structure_type ( struc=struc(1), kg_env=kg_env )
 
-! set the force environment
-  CALL set_force_env ( kg_env_type=kg_env )
+! create the force environment
+  CALL force_env_create ( force_env, kg_env=kg_env )
 
 ! set the integrator environment
   CALL init_md_env ( md_env )
@@ -506,19 +514,22 @@ SUBROUTINE control_work ( globenv, units, simpar, kg_env, md_env, &
                               nhc_coef=extended_type % nhc_coef,    &
                               nhc_baro=extended_type % nhc_baro,    &
                               npt=extended_type % npt_info,         &
-                              cell = kg_env % box )
+                              cell = kg_env % box,                  &
+                              force_env=force_env)
   ELSE
     CALL set_md_env ( md_env, simpar=simpar, struc=struc,           &
                               virial=kg_env % thermo % virial,      &
                               nhc_part=extended_type % nhc_part,    &
                               nhc_baro=extended_type % nhc_baro,    &
                               npt=extended_type % npt_info,         &
-                              cell = kg_env % box )
+                              cell = kg_env % box,                  &
+                              force_env=force_env)
   END IF
   ALLOCATE ( md_env % itimes, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'itimes', 0 )
   ALLOCATE ( md_env % constant, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'constant', 0 )
+  CALL force_env_release(force_env)
 
   SELECT CASE ( setup % run_type )
   CASE DEFAULT
@@ -598,7 +609,7 @@ END SUBROUTINE control_work
   iw = globenv % scr
   itimes = 0
 
-  CALL force ( globenv, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, globenv, box_change )
 
   energy_min % min_info %de = 0.0_dbl
   energy_min % min_info % e = kg_env % thermo%pot
@@ -665,7 +676,7 @@ END SUBROUTINE control_work
   itimes => md_env % itimes
   itimes = 0
 
-  CALL force ( globenv, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, globenv, box_change )
 
 ! Initial call to md energy
   CALL md_energy_kg ( md_env , kg_env % thermo ) 
@@ -763,7 +774,7 @@ SUBROUTINE allocmem ( ainp, mol_setup, part, pnode, molecule, globenv )
   TYPE ( molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
   TYPE (molecule_structure_type), DIMENSION (:), POINTER :: molecule
   TYPE (particle_type), DIMENSION(:), INTENT (IN) :: part
-  TYPE (particle_node_type), dimension (:), POINTER :: pnode
+  TYPE (particle_node_type), DIMENSION (:), POINTER :: pnode
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals

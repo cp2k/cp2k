@@ -23,31 +23,50 @@
 !******************************************************************************
 
 MODULE integrator
-  
-  USE atomic_kind_types, ONLY : atomic_kind_type, get_atomic_kind
-  USE coefficient_types, ONLY : coeff_type, PLANEWAVES, ATOMICORBITALS
-  USE constraint, ONLY: shake_control, rattle_control, pv_constraint, getold, &
-      shake_roll_control, rattle_roll_control
-  USE eigenvalueproblems, ONLY : diagonalise
-  USE force_control, ONLY : force
-  USE global_types, ONLY: global_environment_type
-  USE kinds, ONLY : dbl
-  USE mathconstants, ONLY : pi, zero
-  USE md, ONLY : simulation_parameters_type, virial_type, &
-                 mdio_parameters_type
-  USE md_environment_types, ONLY : md_environment_type
-  USE molecule_types, ONLY : molecule_structure_type, particle_node_type, &
-       linklist_atoms
-  USE message_passing, ONLY : mp_sum, mp_sync, mp_comm_dup
-  USE nose, ONLY : lnhc_parameters_type, npt_info_type, lnhc, yoshida_coef
-  USE particle_types, ONLY : particle_type
-  USE simulation_cell, ONLY : cell_type
-  USE structure_types, ONLY : structure_type
-  USE termination, ONLY : stop_memory, stop_program
-  USE timings, ONLY : timeset, timestop
-  USE transformations, ONLY : u2r, fr2fu
-  USE util, ONLY : get_unit, matvec_3x3, matmul_3x3, transpose_3d
-
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
+  USE coefficient_types,               ONLY: ATOMICORBITALS,&
+                                             PLANEWAVES,&
+                                             coeff_type
+  USE constraint,                      ONLY: getold,&
+                                             pv_constraint,&
+                                             rattle_control,&
+                                             rattle_roll_control,&
+                                             shake_control,&
+                                             shake_roll_control
+  USE eigenvalueproblems,              ONLY: diagonalise
+  USE force_control,                   ONLY: force_env_calculate_force
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: pi,&
+                                             zero
+  USE md,                              ONLY: mdio_parameters_type,&
+                                             simulation_parameters_type,&
+                                             virial_type
+  USE md_environment_types,            ONLY: md_environment_type
+  USE message_passing,                 ONLY: mp_comm_dup,&
+                                             mp_sum,&
+                                             mp_sync
+  USE molecule_types,                  ONLY: linklist_atoms,&
+                                             molecule_structure_type,&
+                                             particle_node_type
+  USE nose,                            ONLY: lnhc,&
+                                             lnhc_parameters_type,&
+                                             npt_info_type,&
+                                             yoshida_coef
+  USE particle_types,                  ONLY: particle_type
+  USE simulation_cell,                 ONLY: cell_type
+  USE structure_types,                 ONLY: structure_type
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE transformations,                 ONLY: fr2fu,&
+                                             u2r
+  USE util,                            ONLY: get_unit,&
+                                             matmul_3x3,&
+                                             matvec_3x3,&
+                                             transpose_3d
   IMPLICIT NONE
 
   PRIVATE
@@ -78,6 +97,12 @@ CONTAINS
 !!
 !!   NAME
 !!     set_integrator
+!!
+!!   SYNOPSIS
+!!     Subroutine set_integrator(globenv)
+!!       Implicit None
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!     End Subroutine set_integrator
 !!
 !!   FUNCTION
 !!     setup of parameters for integrator
@@ -118,6 +143,12 @@ END SUBROUTINE set_integrator
 !!
 !!   NAME
 !!     nve_pw
+!!
+!!   SYNOPSIS
+!!     Subroutine nve_pw(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nve_pw
 !!
 !!   FUNCTION
 !!     nve integrator for particle positions & momenta and AO coefficient type
@@ -162,7 +193,7 @@ SUBROUTINE nve_pw ( md_env )
 !
 ! first half of velocity verlet
 !
-  nnodes = size(struc%pnode)
+  nnodes = SIZE(struc%pnode)
   DO i = 1, nnodes
      atomic_kind => struc%pnode(i)%p%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -200,7 +231,7 @@ SUBROUTINE nve_pw ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
@@ -247,6 +278,12 @@ END SUBROUTINE nve_pw
 !!   NAME
 !!     nve_ao
 !!
+!!   SYNOPSIS
+!!     Subroutine nve_ao(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nve_ao
+!!
 !!   FUNCTION
 !!     nve integrator for particle positions & momenta
 !!
@@ -290,7 +327,7 @@ SUBROUTINE nve_ao ( md_env )
 !
 ! first half of velocity verlet
 !
-  nnodes = size(struc%pnode)
+  nnodes = SIZE(struc%pnode)
   DO i = 1, nnodes
      atomic_kind => struc%pnode(i)%p%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -327,7 +364,7 @@ SUBROUTINE nve_ao ( md_env )
 !
 ! get new forces
 !
-  CALL force (  glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
@@ -371,6 +408,12 @@ END SUBROUTINE nve_ao
 !!
 !!   NAME
 !!     nvt_pw
+!!
+!!   SYNOPSIS
+!!     Subroutine nvt_pw(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nvt_pw
 !!
 !!   FUNCTION
 !!     nvt integrator for particle positions & momenta
@@ -419,7 +462,7 @@ SUBROUTINE nvt_pw ( md_env )
 !
 ! first half of velocity verlet
 !
-  nnodes = size(struc%pnode)
+  nnodes = SIZE(struc%pnode)
   DO i = 1, nnodes
      atomic_kind => struc%pnode(i)%p%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -457,7 +500,7 @@ SUBROUTINE nvt_pw ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
@@ -506,6 +549,12 @@ END SUBROUTINE nvt_pw
 !!   NAME
 !!     nvt_ao
 !!
+!!   SYNOPSIS
+!!     Subroutine nvt_ao(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nvt_ao
+!!
 !!   FUNCTION
 !!     nvt integrator for particle positions & momenta
 !!
@@ -553,7 +602,7 @@ SUBROUTINE nvt_ao ( md_env )
 !
 ! first half of velocity verlet
 !
-  nnodes = size(struc%pnode)
+  nnodes = SIZE(struc%pnode)
   DO i = 1, nnodes
      atomic_kind => struc%pnode(i)%p%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -590,7 +639,7 @@ SUBROUTINE nvt_ao ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
@@ -638,6 +687,12 @@ END SUBROUTINE nvt_ao
 !!   NAME
 !!     nve
 !!
+!!   SYNOPSIS
+!!     Subroutine nve(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nve
+!!
 !!   FUNCTION
 !!     nve integrator for particle positions & momenta
 !!
@@ -677,7 +732,7 @@ SUBROUTINE nve ( md_env )
 !
 ! first half of velocity verlet
 !
-  nnodes = size(struc%pnode)
+  nnodes = SIZE(struc%pnode)
   DO i = 1, nnodes
      atomic_kind => struc%pnode(i)%p%atomic_kind
      CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -705,7 +760,7 @@ SUBROUTINE nve ( md_env )
 ! get new forces
 !
 
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
 
 !
 ! second half of velocity verlet
@@ -741,6 +796,12 @@ END SUBROUTINE nve
 !!
 !!   NAME
 !!     nvt
+!!
+!!   SYNOPSIS
+!!     Subroutine nvt(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nvt
 !!
 !!   FUNCTION
 !!     nvt integrator for particle positions & momenta
@@ -813,7 +874,7 @@ SUBROUTINE nvt ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
 !
 ! second half of velocity verlet
 !
@@ -849,6 +910,12 @@ END SUBROUTINE nvt
 !!
 !!   NAME
 !!     npt_i
+!!
+!!   SYNOPSIS
+!!     Subroutine npt_i(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine npt_i
 !!
 !!   FUNCTION
 !!     npt_i integrator for particle positions & momenta
@@ -920,7 +987,7 @@ SUBROUTINE npt_i ( md_env )
      CALL getold ( struc % molecule )
   END IF
 
-  SR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
+  SR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
 
      IF (simpar%constraint) THEN
         CALL set( struc, box, npt, 'B' )
@@ -942,7 +1009,7 @@ SUBROUTINE npt_i ( md_env )
      scale_r = EXP( 0.5_dbl * simpar % dt * npt ( 1, 1 ) %v )
      scale_v = EXP( -0.25_dbl * simpar % dt * npt ( 1, 1 ) % v * &
                   (1._dbl + 3._dbl * infree ) )
-     nnodes = size(struc%pnode)
+     nnodes = SIZE(struc%pnode)
      DO i = 1, nnodes
         atomic_kind => struc%pnode(i)%p%atomic_kind
         CALL get_atomic_kind (atomic_kind=atomic_kind,mass=mass)
@@ -987,7 +1054,7 @@ SUBROUTINE npt_i ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
@@ -1012,7 +1079,7 @@ SUBROUTINE npt_i ( md_env )
      CALL set( struc, box, npt, 'F' )
   END IF
 
-  RR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! RATTLE-ROLL LOOP
+  RR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! RATTLE-ROLL LOOP
      roll_tol = 0._dbl
      IF (simpar%constraint) CALL rattle_roll_setup ( box, npt, struc, &
             thermo, simpar, vector_v, roll_tol, iroll, infree, first )
@@ -1043,6 +1110,13 @@ END SUBROUTINE npt_i
 !!
 !!   NAME
 !!     pressure
+!!
+!!   SYNOPSIS
+!!     Subroutine pressure(pnode, thermo)
+!!       Implicit None
+!!       Type(particle_node_type), Dimension(:), Intent (IN):: pnode
+!!       Type(virial_type), Intent (INOUT):: thermo
+!!     End Subroutine pressure
 !!
 !!   FUNCTION
 !!     Computes the kinetic part of the pressure tensor and updates
@@ -1075,7 +1149,7 @@ SUBROUTINE pressure ( pnode, thermo )
   CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
 
   thermo % pv_kinetic = 0._dbl
-  nnodes = size(pnode)
+  nnodes = SIZE(pnode)
   DO i = 1, 3
      DO j = 1, 3
         DO iatom = 1, nnodes
@@ -1139,7 +1213,7 @@ SUBROUTINE update_structure(struc,task)
   ALLOCATE (atot(3,natoms),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'update_structure', 'atot', 3 * natoms )
   atot = zero
-  DO imol = 1, size(struc%molecule)
+  DO imol = 1, SIZE(struc%molecule)
      current_atom => struc%molecule(imol) %ll_atoms
      DO i = 1, struc%molecule(imol) %natoms_mol
         iat = struc%molecule(imol) %atombase + i - 1
@@ -1260,6 +1334,12 @@ END SUBROUTINE set
 !!   NAME
 !!     npt_f
 !!
+!!   SYNOPSIS
+!!     Subroutine npt_f(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine npt_f
+!!
 !!   FUNCTION
 !!     Velocity Verlet integrator for the NPT ensemble with fully flexible cell
 !!
@@ -1323,7 +1403,7 @@ SUBROUTINE npt_f ( md_env )
      CALL set(struc, box, npt, 'F' )
      CALL getold ( struc % molecule )
   END IF
-  SR: DO WHILE (abs(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
+  SR: DO WHILE (ABS(roll_tol)>=1.E-10_dbl) ! SHAKE-ROLL LOOP
 
      IF (simpar%constraint) THEN
         CALL set ( struc, box, npt, 'B' )
@@ -1352,11 +1432,11 @@ SUBROUTINE npt_f ( md_env )
      scale_v ( : ) = EXP ( -0.25_dbl * simpar % dt * ( &
                            e_val ( : ) + trvg * infree ) )
 
-     nnodes = size(struc%pnode)
+     nnodes = SIZE(struc%pnode)
      DO i = 1, nnodes
 
         atomic_kind=> struc% pnode(i) %p% atomic_kind
-        call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+        CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
         dtom = 0.5_dbl*simpar%dt/mass
 ! Transform positions and velocities and forces
         ur = MATVEC_3X3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % r )
@@ -1403,14 +1483,14 @@ SUBROUTINE npt_f ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
   
 !
 ! second half of velocity verlet
 !
   DO i = 1, nnodes
      atomic_kind=> struc % pnode(i) %p% atomic_kind
-     call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+     CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
      dtom = 0.5_dbl*simpar%dt/mass
      uv = MATVEC_3X3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % v )
      uf = MATVEC_3x3 ( TRANSPOSE_3D ( u ), struc % pnode ( i ) % p % f )
@@ -1626,6 +1706,12 @@ END SUBROUTINE get_veps
 !!   NAME
 !!     nvt_pimd
 !!
+!!   SYNOPSIS
+!!     Subroutine nvt_pimd(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine nvt_pimd
+!!
 !!   FUNCTION
 !!     nvt_pimd integrator for particle positions & momenta
 !!
@@ -1653,7 +1739,7 @@ SUBROUTINE nvt_pimd ( md_env )
   TYPE ( atomic_kind_type ), POINTER :: atomic_kind
   INTEGER :: i, j, k, nnodes, beads
   REAL ( dbl ) :: dtom, transdt, old_u, fac, mass
-  LOGICAL, PARAMETER :: box_change=.false.
+  LOGICAL, PARAMETER :: box_change=.FALSE.
   
 !------------------------------------------------------------------------------
 ! Assigning local pointers
@@ -1679,7 +1765,7 @@ SUBROUTINE nvt_pimd ( md_env )
 ! first half of velocity verlet
 !
   fac = 0.5_dbl/beads
-  nnodes = size(struc(1)%pnode)
+  nnodes = SIZE(struc(1)%pnode)
   DO j=1, beads
      transdt = simpar%dt*struc(j)%pimd_env%ismeff
      DO i = 1, nnodes
@@ -1776,7 +1862,7 @@ SUBROUTINE nvt_pimd ( md_env )
 !
 ! get new forces
 !
-  CALL force ( glob_env, box_change )
+  CALL force_env_calculate_force ( md_env%force_env, glob_env, box_change )
 
   CALL fr2fu ( struc, simpar )
   
@@ -1788,7 +1874,7 @@ SUBROUTINE nvt_pimd ( md_env )
      transdt = 0.5_dbl*simpar%dt*struc(j)%pimd_env%ismeff / beads
      DO i = 1, nnodes
        atomic_kind=> struc(j) % pnode(i) %p% atomic_kind
-       call get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
+       CALL get_atomic_kind(atomic_kind=atomic_kind, mass=mass)
 
         dtom = transdt/mass
         struc(j)%pnode(i) %p%v(1) = struc(j)%pnode(i) %p%v(1) + &

@@ -34,8 +34,10 @@ MODULE fist_main
                                              init_fist_env,&
                                              replica_environment_type,&
                                              set_fist_env
-  USE force_control,                   ONLY: force,&
-                                             set_force_env
+  USE force_control,                   ONLY: force_env_calculate_force,&
+                                             force_env_create,&
+                                             force_env_release,&
+                                             force_env_type
   USE force_fields,                    ONLY: read_force_field_section
   USE global_types,                    ONLY: global_environment_type
   USE header,                          ONLY: fist_header
@@ -115,6 +117,12 @@ CONTAINS
 !!   NAME
 !!     fist
 !!
+!!   SYNOPSIS
+!!     Subroutine fist(globenv)
+!!       Implicit None
+!!       Type(global_environment_type), Intent (INOUT):: globenv
+!!     End Subroutine fist
+!!
 !!   FUNCTION
 !!     Controls program flow for classical MD and path-integrals
 !!
@@ -149,7 +157,7 @@ SUBROUTINE fist ( globenv )
   
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( ewald_parameters_type ), POINTER :: ewald_param
-  TYPE ( fist_environment_type ) :: fist_env
+  TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( intra_parameters_type ) :: intra_param
   TYPE ( linklist_internal_data_type ), POINTER :: ll_data
   TYPE ( md_environment_type ) :: md_env
@@ -169,10 +177,12 @@ SUBROUTINE fist ( globenv )
 
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
-  CALL timeset ( 'FIST_MAIN', 'I', ' ', handle1 )
+  !CALL timeset ( 'FIST_MAIN', 'I', ' ', handle1 )
   CALL timeset ( 'FIST_INIT', 'I', ' ', handle2 )
   
 ! initialize fist_env
+  ALLOCATE(fist_env,stat=isos)
+  IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'fist_env', 0 )
   CALL init_fist_env ( fist_env )
 
 ! allocating or nullifying local pointers
@@ -491,11 +501,12 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
   TYPE ( unit_convert_type ) :: units
   TYPE ( simulation_parameters_type ), POINTER :: simpar
-  TYPE ( fist_environment_type ), INTENT ( INOUT ) :: fist_env 
-  TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
+  TYPE ( fist_environment_type ), POINTER :: fist_env 
+  TYPE ( md_environment_type ), INTENT(inout) :: md_env
   TYPE ( extended_system_type ) :: extended_type
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( mdio_parameters_type ) :: mdio
+  TYPE ( force_env_type ), POINTER :: force_env
   
 ! Locals
   INTEGER :: handle, ibead, beads, isos
@@ -504,6 +515,7 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
 !------------------------------------------------------------------------------
   
   CALL timeset ( 'CNTL_WORK', 'I', ' ', handle )
+  NULLIFY ( force_env )
 
 ! allocate structure_type
   beads = SIZE ( fist_env % rep_env )
@@ -516,8 +528,8 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
     CALL set_structure_type ( struc ( ibead ), rep_env = fist_env % rep_env ( ibead ) )
   ENDDO
 
-! set the force environment
-  CALL set_force_env ( fist_env_type = fist_env )
+! create the force environment
+  CALL force_env_create ( force_env, fist_env = fist_env )
 
 ! set the integrator environment
   CALL init_md_env ( md_env )
@@ -526,11 +538,13 @@ SUBROUTINE control_work ( globenv, units, simpar, fist_env, md_env, &
                             nhc_part=extended_type % nhc_part,    &
                             nhc_baro=extended_type % nhc_baro,    &
                             npt=extended_type % npt_info,         &
-                            cell=fist_env % rep_env ( 1 ) % box )
+                            cell=fist_env % rep_env ( 1 ) % box,  &
+                            force_env=force_env)
   ALLOCATE ( md_env % itimes, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'itimes', 0 )
   ALLOCATE ( md_env % constant, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_main', 'constant', 0 )
+  CALL force_env_release(force_env)
 
   SELECT CASE ( setup % run_type )
   CASE DEFAULT
@@ -584,7 +598,7 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
   
 ! Arguments
   TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
-  TYPE ( fist_environment_type ), INTENT ( INOUT ) :: fist_env
+  TYPE ( fist_environment_type ), POINTER :: fist_env
   TYPE ( md_environment_type ), INTENT ( INOUT ) :: md_env
   TYPE ( unit_convert_type ) :: units
   TYPE ( mdio_parameters_type ) :: mdio
@@ -612,7 +626,7 @@ SUBROUTINE control_md_work ( globenv, fist_env, md_env, units, mdio )
   itimes => md_env % itimes 
   itimes = 0
   
-  CALL force ( globenv, box_change )
+  CALL force_env_calculate_force ( md_env % force_env, globenv, box_change )
 
   IF ( globenv % ionode .AND. fist_env % ewald_param % ewald_type /= 'NONE' ) &
        CALL ewald_print ( globenv % scr, md_env % cell,                 &

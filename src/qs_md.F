@@ -23,9 +23,28 @@ MODULE qs_md
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
   USE convert_units,                   ONLY: convert
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE extended_system_types,           ONLY: extended_system_type
-  USE force_control,                   ONLY: force,&
-                                             set_force_env
+  USE force_control,                   ONLY: force_env_create,&
+                                             force_env_release,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE initialize_extended_types,       ONLY: initialize_nhc_baro,&
                                              initialize_nhc_part,&
@@ -38,6 +57,7 @@ MODULE qs_md
                                              wp_size => dp_size
   USE md,                              ONLY: initialize_velocities,&
                                              mdio_parameters_type,&
+                                             qs_md_parameters_type,&
                                              read_md_section,&
                                              simulation_parameters_type,&
                                              virial_type
@@ -58,8 +78,12 @@ MODULE qs_md
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type,&
+                                             set_qs_env
   USE qs_force,                        ONLY: qs_forces
+  USE qs_wf_history_methods,           ONLY: wfi_create
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_release
   USE simulation_cell,                 ONLY: cell_type
   USE structure_types,                 ONLY: init_structure_type,&
                                              set_structure_type,&
@@ -88,7 +112,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_mol_dyn(qs_env,globenv)
+  SUBROUTINE qs_mol_dyn(qs_env,globenv, error)
 
 !   Purpose: Driver routine for MD run using QUICKSTEP.
 
@@ -98,6 +122,7 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(INOUT) :: globenv
     TYPE(qs_environment_type), POINTER           :: qs_env
+    TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
 !   *** Local parameters ***
 
@@ -129,7 +154,9 @@ CONTAINS
     REAL(wp)                                             :: ekin
     REAL(wp)                                             :: econs 
     INTEGER                                              :: i,nnodes
-    TYPE(qs_energy_type), POINTER                                 :: energy
+    TYPE(qs_energy_type), POINTER                        :: energy
+    TYPE(qs_wf_history_type), POINTER                    :: wf_history
+    TYPE(force_env_type), POINTER                        :: force_env
 
     INTEGER :: handle,istat,natom,nmolecule
 
@@ -142,7 +169,7 @@ CONTAINS
     NULLIFY (molecule)
     NULLIFY (mol_setup)
     NULLIFY (pnode)
-    NULLIFY (energy)
+    NULLIFY (energy, wf_history, force_env)
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"simpar",0)
@@ -165,6 +192,12 @@ CONTAINS
 
     CALL set_units(setup%unit_type,units)
     CALL convert(units=units,simpar=simpar)
+
+    ! activate the interpolation
+    CALL wfi_create(wf_history, &
+         interpolation_method_nr=simpar%qs_md_param%wf_interpolation_method_nr,&
+         error=error)
+    CALL set_qs_env(qs_env, wf_history=wf_history, error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
                     cell=cell,&
@@ -203,7 +236,7 @@ CONTAINS
       CALL initialize_velocities(simpar,particle_set,globenv)
     END IF
 
-    CALL set_force_env(qs_env_type=qs_env)
+    CALL force_env_create(force_env, qs_env=qs_env, error=error)
 
     ALLOCATE (struc(1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"struc",0)
@@ -220,12 +253,14 @@ CONTAINS
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
-                    cell=cell)
+                    cell=cell,&
+                    force_env=force_env)
 
     ALLOCATE (md_env%itimes,STAT=istat)
     IF (istat /= 0) CALL stop_memory (routine,"itimes",int_size)
     ALLOCATE (md_env%constant,STAT=istat)
     IF (istat /= 0) CALL stop_memory (routine,"constant",wp_size)
+    CALL force_env_release(force_env,error=error)
 
     CALL set_integrator(globenv)
 

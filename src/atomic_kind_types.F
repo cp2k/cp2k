@@ -20,6 +20,8 @@
 !******************************************************************************
 
 MODULE atomic_kind_types
+!dbg
+!dbg
   USE basis_set_types,                 ONLY: allocate_gto_basis_set,&
                                              deallocate_gto_basis_set,&
                                              get_gto_basis_set,&
@@ -68,9 +70,7 @@ MODULE atomic_kind_types
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE pao_bas_projection_types
   USE periodic_table,                  ONLY: ptable
-!dbg
   USE physcon,                         ONLY: massunit
-!dbg
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
@@ -119,10 +119,38 @@ MODULE atomic_kind_types
 
 ! *** Public data types ***
 
-  PUBLIC :: atomic_kind_type
+  PUBLIC :: atomic_kind_type, atomic_kind_1d_a_type
 
 !!***
 ! *****************************************************************************
+
+!!****s* atomic_kind_types/atomic_kind_1d_a_type [1.0] *
+!!
+!!   NAME
+!!     atomic_kind_1d_a_type
+!!
+!!   FUNCTION
+!!     having arrays of atomic kind arrays
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - atomic_kind_set: the 1d array of atomic kinds
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE atomic_kind_1d_a_type
+     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+  END TYPE atomic_kind_1d_a_type
+!!***
+  !****************************************************************************
 
 CONTAINS
 

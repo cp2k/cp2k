@@ -2,6 +2,7 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
 !-----------------------------------------------------------------------------!
+#include "cp_prep_globals.h"
 !!****** cp2k/qs_neighbor_list_types [1.0] *
 !!
 !!   NAME
@@ -21,19 +22,36 @@
 !******************************************************************************
 
 MODULE qs_neighbor_list_types
-
 ! *****************************************************************************
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE termination, ONLY: stop_memory,&
-                         stop_program
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_check,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_get_default_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   PRIVATE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN='qs_neighbor_list_types'
+  INTEGER, SAVE, PRIVATE :: last_neigh_group_id=0
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
@@ -81,7 +99,9 @@ MODULE qs_neighbor_list_types
             neighbor_list_set_p_type,&
             neighbor_list_type,&
             neighbor_node_p_type,&
-            neighbor_node_type
+            neighbor_node_type,&
+            neighbor_group_type,&
+            neighbor_group_p_type
 
 ! *** Public subroutines ***
 
@@ -99,7 +119,10 @@ MODULE qs_neighbor_list_types
             init_neighbor_list_set,&
             set_neighbor_list,&
             set_neighbor_list_set,&
-            set_neighbor_node
+            set_neighbor_node,&
+            neigh_group_create,&
+            neigh_group_retain,&
+            neigh_group_release
 
 ! *** Public functions ***
 
@@ -122,6 +145,72 @@ MODULE qs_neighbor_list_types
 
 ! *****************************************************************************
 !!***
+
+!!****s* qs_neighbor_list_types/neighbor_group_type [1.0] *
+!!
+!!   NAME
+!!     neighbor_group_type
+!!
+!!   FUNCTION
+!!     represents the upper triangualr part of a group of kind related
+!!     neighbor lists: the neighbors of atoms of kind 1 that are of
+!!     kind 1, the neighbors of atoms of kind 1 that are of
+!!     kind 2,...,the neighbors of atoms of kind 2 that are of
+!!     kind 2,...
+!!     
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - id_nr: identification number
+!!     - ref_count: reference count (see doc/ReferenceCounting.html)
+!!     - n_kinds: number of kinds
+!!     - neigh_sets: the neighbor lists
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE neighbor_group_type
+     INTEGER :: id_nr, ref_count, n_kinds
+     LOGICAL :: should_dealloc_neigh_sets
+     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: neigh_sets
+  END TYPE neighbor_group_type
+!!***
+  !****************************************************************************
+
+!!****s* qs_neighbor_list_p_types/neighbor_group_p_type [1.0] *
+!!
+!!   NAME
+!!     neighbor_group_p_type
+!!
+!!   FUNCTION
+!!     to build arrays of neighbor_group_type pointers
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - neigh_group: the neighbor_group_type
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE neighbor_group_p_type
+     TYPE(neighbor_group_type), POINTER :: neigh_group
+  END TYPE neighbor_group_p_type
+!!***
+  !****************************************************************************
 
 CONTAINS
 
@@ -971,5 +1060,183 @@ CONTAINS
   END SUBROUTINE set_neighbor_node
 
 ! *****************************************************************************
+
+!!****f* qs_neighbor_list_types/neigh_group_create [1.0] *
+!!
+!!   NAME
+!!     neigh_group_create
+!!
+!!   SYNOPSIS
+!!     Subroutine neigh_group_create(neigh_group, n_kinds, neigh_sets_ptr,&
+!!         error)
+!!       Type(neighbor_group_type), Pointer:: neigh_group
+!!       Integer, Intent (IN):: n_kinds
+!!       Type(neighbor_list_set_p_type), Dimension(:), Pointer, Optional::&
+!!         neigh_sets_ptr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine neigh_group_create
+!!
+!!   FUNCTION
+!!     creates a neighbor group
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - neigh_group: the neigh_group to create
+!!     - n_kinds: number of kinds
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE neigh_group_create(neigh_group, n_kinds, neigh_sets_ptr, error)
+  TYPE(neighbor_group_type), POINTER :: neigh_group
+  INTEGER, INTENT(in) :: n_kinds
+  TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER, OPTIONAL :: neigh_sets_ptr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_create',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat,i
+
+  failure=.FALSE.
+  
+  ALLOCATE(neigh_group,stat=stat)
+  CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+  IF (.NOT. failure) THEN
+     last_neigh_group_id=last_neigh_group_id+1
+     neigh_group%id_nr=last_neigh_group_id
+     neigh_group%ref_count=1
+     neigh_group%n_kinds=n_kinds
+     IF (PRESENT(neigh_sets_ptr)) THEN
+        neigh_group%should_dealloc_neigh_sets=.FALSE.
+        neigh_group%neigh_sets => neigh_sets_ptr
+     ELSE
+        neigh_group%should_dealloc_neigh_sets=.TRUE.
+        ALLOCATE(neigh_group%neigh_sets(n_kinds*(n_kinds+1)/2), stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        DO i=1,SIZE(neigh_group%neigh_sets)
+           NULLIFY(neigh_group%neigh_sets(i)%neighbor_list_set)
+        END DO
+     END IF
+  END IF
+END SUBROUTINE neigh_group_create
+!***************************************************************************
+
+!!****f* qs_neighbor_list_types/neigh_group_retain [1.0] *
+!!
+!!   NAME
+!!     neigh_group_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine neigh_group_retain(neigh_group, error)
+!!       Type(neighbor_group_type), Pointer:: neigh_group
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine neigh_group_retain
+!!
+!!   FUNCTION
+!!     retains a neighbor_group
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - neigh_group: the neighbor group to retain
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE neigh_group_retain(neigh_group,error)
+  TYPE(neighbor_group_type), POINTER :: neigh_group
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_retain',&
+        routineP=moduleN//':'//routineN
+  
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(neigh_group),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(neigh_group%ref_count>0,cp_failure_level,routineP,error)
+     neigh_group%ref_count=neigh_group%ref_count+1
+  END IF
+END SUBROUTINE neigh_group_retain
+!***************************************************************************
+
+!!****f* qs_neighbor_list_types/neigh_group_release [1.0] *
+!!
+!!   NAME
+!!     neigh_group_release
+!!
+!!   SYNOPSIS
+!!     Subroutine neigh_group_release(neigh_group, error)
+!!       Type(neighbor_group_type), Pointer:: neigh_group
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine neigh_group_release
+!!
+!!   FUNCTION
+!!     releases a neighbor_group
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - neigh_group: the neighbor group to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE neigh_group_release(neigh_group,error)
+  TYPE(neighbor_group_type), POINTER :: neigh_group
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='neigh_group_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat,i
+  
+  failure=.FALSE.
+  IF (ASSOCIATED(neigh_group)) THEN
+     CPPreconditionNoFail(neigh_group%ref_count>0,cp_failure_level,routineP,error)
+     neigh_group%ref_count=neigh_group%ref_count-1
+     IF (neigh_group%ref_count==0) THEN
+        neigh_group%ref_count=1
+        IF (neigh_group%should_dealloc_neigh_sets.AND.&
+             ASSOCIATED(neigh_group%neigh_sets)) THEN
+           DO i=1,SIZE(neigh_group%neigh_sets)
+              CALL deallocate_neighbor_list_set(&
+                   neigh_group%neigh_sets(i)%neighbor_list_set)
+           END DO
+           DEALLOCATE(neigh_group%neigh_sets, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
+        neigh_group%ref_count=0
+        DEALLOCATE(neigh_group, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(neigh_group)
+END SUBROUTINE neigh_group_release
+!***************************************************************************
 
 END MODULE qs_neighbor_list_types

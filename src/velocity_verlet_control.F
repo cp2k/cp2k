@@ -21,17 +21,28 @@
 !******************************************************************************
 
 MODULE velocity_verlet_control
-    
-  USE coefficient_types, ONLY : PLANEWAVES, ATOMICORBITALS
-  USE force_control, ONLY : get_force_env, FIST, QUICKSTEP, POL, KIM_GORDON
-  USE kinds, ONLY : dbl
-  USE integrator, ONLY : nve, nvt, npt_i, npt_f, nve_ao, nvt_ao, nve_pw, nvt_pw, &
-                         nvt_pimd
-  USE mathconstants, ONLY :  zero
-  USE md_environment_types, ONLY : md_environment_type
-  USE termination, ONLY : stop_program
-  USE timings, ONLY : timeset, timestop
-
+  USE coefficient_types,               ONLY: ATOMICORBITALS,&
+                                             PLANEWAVES
+  USE force_control,                   ONLY: force_env_get,&
+                                             use_fist_force,&
+                                             use_kg_force,&
+                                             use_pol_force,&
+                                             use_qs_force
+  USE integrator,                      ONLY: npt_f,&
+                                             npt_i,&
+                                             nve,&
+                                             nve_ao,&
+                                             nve_pw,&
+                                             nvt,&
+                                             nvt_ao,&
+                                             nvt_pimd,&
+                                             nvt_pw
+  USE kinds,                           ONLY: dbl
+  USE mathconstants,                   ONLY: zero
+  USE md_environment_types,            ONLY: md_environment_type
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -47,6 +58,12 @@ CONTAINS
 !!
 !!   NAME
 !!     velocity_verlet
+!!
+!!   SYNOPSIS
+!!     Subroutine velocity_verlet(md_env)
+!!       Implicit None
+!!       Type(md_environment_type), Intent (INOUT):: md_env
+!!     End Subroutine velocity_verlet
 !!
 !!   FUNCTION
 !!
@@ -72,10 +89,10 @@ SUBROUTINE velocity_verlet ( md_env )
   CALL timeset ( 'VELOCITY VERLET', 'I', ' ', handle )
 
 ! get force environment
-  CALL get_force_env ( in_use )
+  CALL force_env_get ( md_env%force_env, in_use=in_use )
 
   SELECT CASE ( in_use )
-  CASE ( FIST )
+  CASE ( use_fist_force )
     IF ( md_env % simpar % pimd_params % beads > 0 ) THEN
        SELECT CASE ( md_env % simpar % ensemble )
        CASE DEFAULT
@@ -97,7 +114,7 @@ SUBROUTINE velocity_verlet ( md_env )
           CALL npt_f ( md_env )
        END SELECT
     END IF
-  CASE ( POL )
+  CASE ( use_pol_force )
     SELECT CASE ( md_env % simpar % ensemble_coef )
     CASE DEFAULT
        CALL stop_program ( 'velocity_verlet','integrator not implemented for POL')
@@ -116,7 +133,7 @@ SUBROUTINE velocity_verlet ( md_env )
          CALL nvt_pw ( md_env )
        END SELECT
     END SELECT
-  CASE ( QUICKSTEP )
+  CASE ( use_qs_force )
     SELECT CASE (md_env%simpar%ensemble)
     CASE ("NVE")
       CALL nve(md_env)
@@ -126,7 +143,7 @@ SUBROUTINE velocity_verlet ( md_env )
       CALL stop_program("velocity_verlet",&
                         "integrator not implemented for QUICKSTEP")
     END SELECT
-  CASE ( KIM_GORDON )
+  CASE ( use_kg_force )
     IF (ASSOCIATED (  md_env % struc ( 1 ) % coef_pos  ) ) THEN 
       SELECT CASE ( md_env % simpar % ensemble )
       CASE DEFAULT

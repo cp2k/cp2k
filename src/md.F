@@ -33,6 +33,12 @@ MODULE md
                                              stop_parser,&
                                              test_next
   USE particle_types,                  ONLY: particle_type
+  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
+                                             wfi_linear_ps_method_nr,&
+                                             wfi_linear_wf_method_nr,&
+                                             wfi_use_guess_method_nr,&
+                                             wfi_use_prev_p_method_nr,&
+                                             wfi_use_prev_rho_r_method_nr
   USE read_pimd,                       ONLY: pimd_parameters_type
   USE string_utilities,                ONLY: uppercase,&
                                              xstring
@@ -42,13 +48,42 @@ MODULE md
   PRIVATE
   PUBLIC :: read_md_section, simulation_parameters_type, &
             initialize_velocities, mdio_parameters_type, &
-            virial_type
+            virial_type, qs_md_parameters_type
 
   TYPE virial_type
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_total, pv_kinetic, pv_virial, pv_constraint
      LOGICAL :: pv_availability
   END TYPE virial_type
 
+!!****s* md/qs_md_parameters_type [1.0] *
+!!
+!!   NAME
+!!     qs_md_parameters_type
+!!
+!!   FUNCTION
+!!     parameters for the quickstep md
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - wf_interpolation_method_nr: method used to interpolate between the
+!!       wavefunctions at different timesteps (see qs_wf_history_types for
+!!       the possible values
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!   SOURCE
+!***************************************************************************
+  TYPE qs_md_parameters_type
+     INTEGER :: wf_interpolation_method_nr
+  END TYPE qs_md_parameters_type
+!!***
+!****************************************************************************
 
 
   TYPE simulation_parameters_type
@@ -60,7 +95,7 @@ MODULE md
      REAL ( dbl ) :: p_ext
      CHARACTER ( LEN = 20 ) :: ensemble
      CHARACTER ( LEN = 20 ) :: read_type
-     CHARACTER ( LEN = 20 ) :: program
+     CHARACTER ( LEN = 20 ) :: PROGRAM
      CHARACTER ( LEN = 20 ) :: ensemble_coef
      CHARACTER ( LEN = 20 ) :: read_type_coef
      CHARACTER ( LEN = 20 ) :: nhcopt_coef
@@ -83,6 +118,7 @@ MODULE md
      REAL ( dbl ) :: shake_tol
      REAL ( dbl ) :: verlet_skin
      TYPE ( pimd_parameters_type ) :: pimd_params
+     TYPE ( qs_md_parameters_type ) :: qs_md_param
   END TYPE simulation_parameters_type
 
   TYPE mdio_parameters_type
@@ -107,6 +143,14 @@ CONTAINS
 !!
 !!   NAME
 !!     read_md_section
+!!
+!!   SYNOPSIS
+!!     Subroutine read_md_section(simpar, mdpar, mdio)
+!!       Implicit None
+!!       Type(simulation_parameters_type), Intent (OUT):: simpar
+!!       Type(global_environment_type), Intent (IN):: mdpar
+!!       Type(mdio_parameters_type), Intent (OUT):: mdio
+!!     End Subroutine read_md_section
 !!
 !!   FUNCTION
 !!
@@ -147,6 +191,9 @@ CONTAINS
 !!I Barostat_parameter                      parameter of barostat             I
 !!I   pressure: P         &                 pressure [bar]                    I
 !!I   timecon:  tau_cell  &                 barostat time constant            I
+!!I qs_parameter &                                                            I
+!!I   wf_interpolation: [use_guess,use_prev_p,use_prev_rho_r,linear_wf,       I
+!!I                      linear_p,linear_ps]                                  I
 !!I FILES                           &                                         I
 !!I   filebody    "filename"        &                                         I
 !!I   coordinates "filename.crd"    &                                         I
@@ -213,6 +260,7 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
   simpar % tau_nhc_coef = 1000.0_dbl
   simpar % tau_cell = 1000.0_dbl
   simpar % verlet_skin = 1.0_dbl
+  simpar % qs_md_param % wf_interpolation_method_nr = wfi_use_prev_p_method_nr
 
   iw = mdpar % scr
 
@@ -483,6 +531,52 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
                  CALL get_next ( mdio % icoef )
               END SELECT
            END DO
+
+        CASE ( 'QS_MD_' )
+           DO WHILE ( test_next() == 'C' )
+
+              ilen = 9
+              CALL get_next ( string, ilen )
+              CALL uppercase ( string )
+
+              SELECT CASE ( string )
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser ( 'read_md_section%qs_md_param', &
+                      'unknown suboption' )
+
+              CASE ( 'WF_INTERP' )
+                 ilen = 15
+                 CALL get_next ( string, ilen )
+                 CALL uppercase ( string )
+                 
+                 SELECT CASE ( string )
+                 CASE DEFAULT
+                    CALL p_error()
+                    CALL stop_parser ( 'read_md_section%qs_md_param', &
+                         'unknown wf interpolatiom method' )
+                 CASE ( 'USE_GUESS' )
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_use_guess_method_nr
+                 CASE ( 'USE_PREV_P')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_use_prev_p_method_nr
+                 CASE ( 'USE_PREV_RHO_R')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_use_prev_rho_r_method_nr
+                 CASE ( 'LINEAR_WF')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_linear_wf_method_nr
+                 CASE ( 'LINEAR_P')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_linear_p_method_nr
+                 CASE ( 'LINEAR_PS')
+                    simpar % qs_md_param % wf_interpolation_method_nr = &
+                         wfi_linear_ps_method_nr
+                 END SELECT
+              END SELECT
+           END DO
+           
         END SELECT
         CALL read_line
      END DO
@@ -576,6 +670,14 @@ END SUBROUTINE read_md_section
 !!
 !!   NAME
 !!     initialize_velocities
+!!
+!!   SYNOPSIS
+!!     Subroutine initialize_velocities(simpar, part, mdpar)
+!!       Implicit None
+!!       Type(simulation_parameters_type), Intent (IN):: simpar
+!!       Type(particle_type), Intent (INOUT), Dimension(:):: part
+!!       Type(global_environment_type), Intent (INOUT):: mdpar
+!!     End Subroutine initialize_velocities
 !!
 !!   FUNCTION
 !!     Initializes the velocities to the Maxwellian distribution

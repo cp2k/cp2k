@@ -21,36 +21,34 @@
 !******************************************************************************
 
 MODULE particle_types
-
-  USE kinds, ONLY: wp => dp, wp_size => dp_size
-
-  USE atomic_kind_types,   ONLY: allocate_atomic_kind_set,&
-                                 atomic_kind_type,&
-                                 get_atomic_kind,&
-                                 set_atomic_kind
-  USE basis_set_types,     ONLY: get_gto_basis_set,&
-                                 gto_basis_set_type
-  USE global_types,        ONLY: global_environment_type
-  USE memory_utilities,    ONLY: reallocate
-  USE periodic_table,      ONLY: ptable
-  USE physcon,             ONLY: massunit
-  USE qs_parser,           ONLY: finish_parser,&
-                                 read_object,&
-                                 search_object,&
-                                 start_parser,&
-                                 stop_parser,&
-                                 test_object
-  USE simulation_cell,     ONLY: cell_type,&
-                                 get_cell,&
-                                 pbc,&
-                                 real_to_scaled,&
-                                 scaled_to_real
-  USE string_utilities,    ONLY: integer_to_string,&
-                                 string_to_integer,&
-                                 uppercase
-  USE termination,         ONLY: stop_memory,&
-                                 stop_program
-
+  USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
+                                             atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             set_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp => dp,&
+                                             wp_size => dp_size
+  USE memory_utilities,                ONLY: reallocate
+  USE periodic_table,                  ONLY: ptable
+  USE physcon,                         ONLY: massunit
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             search_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell,&
+                                             pbc,&
+                                             real_to_scaled,&
+                                             scaled_to_real
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             string_to_integer,&
+                                             uppercase
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   IMPLICIT NONE
 
   PRIVATE
@@ -68,7 +66,7 @@ MODULE particle_types
 
 ! *** Public data types ***
 
-  PUBLIC :: particle_type
+  PUBLIC :: particle_type, particle_1d_a_type
 
 ! *** Public subroutines ***
 
@@ -82,6 +80,35 @@ MODULE particle_types
 
 !!***
 ! *****************************************************************************
+
+!!****s* particle_types/particle_1d_a_type [1.0] *
+!!
+!!   NAME
+!!     particle_1d_a_type
+!!
+!!   FUNCTION
+!!     represent a pointed to a 1d array of particles (to have arrays of
+!!     1d arrays)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - particle_set: the 1d array of particles
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     04.2003 created [fawzi]
+!!
+!!   SOURCE
+  !***************************************************************************
+  TYPE particle_1d_a_type
+     TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+  END TYPE particle_1d_a_type
+!!***
+  !****************************************************************************
 
 CONTAINS
 
