@@ -1771,6 +1771,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     INTEGER                                  :: ikind,jkind,ityp,inum,ires,imol
     INTEGER                                  :: ibond,c_intra
     LOGICAL                                  :: found
+    INTEGER                                  :: nsgf,nelectron
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1847,13 +1848,15 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 4. Set the molecule_kind_set%[kind_number,name,nhcopt]
+  ! 4. Set the molecule_kind_set%[kind_number,name,nhcopt,nsgf,nelectron]
   !-----------------------------------------------------------------------------
   counter=0
   nhcopt = topology % nhcopt
   natom = topology%natoms
   DO ikind=1,SIZE(molecule_kind_set)
     molecule_kind => molecule_kind_set(ikind)
+    nsgf=0
+    nelectron=0
     i=0
     found = .FALSE.
     DO j=1,natom-1
@@ -1871,7 +1874,9 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
     CALL set_molecule_kind(molecule_kind=molecule_kind,&
          kind_number=ikind,&
          name=TRIM(name),&
-         nhcopt=nhcopt)
+         nhcopt=nhcopt,&
+         nsgf=nsgf,&
+         nelectron=nelectron)
   END DO
 
 
