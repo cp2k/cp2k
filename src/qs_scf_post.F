@@ -191,8 +191,7 @@ CONTAINS
 !!     scf_post_calculation
 !!
 !!   FUNCTION
-!!     writes out the requested data and does various calculaion at the
-!!     end of an scf run
+!!     collects possible post - scf calculations and prints info / computes properties.
 !!
 !!   NOTES
 !!     globenv should be eliminated
@@ -210,6 +209,7 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
 !!     10.2004 moved here from qs_scf [Joost VandeVondele]
+!!             started splitting out different subroutines
 !!
 !!*** **********************************************************************
   SUBROUTINE scf_post_calculation(scf_env,qs_env,globenv,error)
@@ -255,6 +255,9 @@ CONTAINS
     CHARACTER(LEN=80) :: title
     REAL(wp)           :: volume
 
+! writes the data that is already available in qs_env 
+    CALL write_available_results(qs_env,globenv,error)
+
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
             mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
@@ -272,75 +275,13 @@ CONTAINS
             c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
             rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
 
-       IF (ASSOCIATED(qs_env%wf_history)) THEN
-          CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_wp,&
-               error=error)
-       END IF
-
-!   *** Write last wavefunction to screen ??????? ***
-
-       DO ispin=1,dft_control%nspins
-          CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
-       ENDDO
-
-
-!   *** Integrated absolute spin density ***
-       IF (dft_control%nspins.eq.2) THEN
-          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-               pw_pools=pw_pools)
-          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
-               use_data = REALDATA3D,&
-               in_space = REALSPACE, error=error)
-          CALL coeff_copy(rho%rho_r(1),wf_r)
-          CALL coeff_reduce(rho%rho_r(2),wf_r)
-          total_abs_spin_dens=calculate_total_abs_rho(wf_r)
-          IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
-               "Integrated absolute spin density : ",total_abs_spin_dens
-          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
-       ENDIF
-
+!    *** compute the mulliken charges ***
        IF (globenv%print%mulliken_analysis)  &
             CALL mulliken_charges(c,s(1)%matrix,particle_set,globenv%scr,globenv%ionode)
 
-!   *** write additional information about the converged system
-       IF (globenv%print%e_density_cube) THEN ! write the electron density
-          IF (dft_control%nspins.ne.1) THEN
-             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
-             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-                  pw_pools=pw_pools)
-             CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
-                  use_data = REALDATA3D,&
-                  in_space = REALSPACE, error=error)
-             CALL coeff_copy(rho%rho_r(1),wf_r)
-             CALL coeff_sumup(rho%rho_r(2),wf_r)
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY")
-             IF (globenv%ionode) CLOSE(21)
-             CALL coeff_copy(rho%rho_r(1),wf_r)
-             CALL coeff_reduce(rho%rho_r(2),wf_r)
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
-             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY")
-             IF (globenv%ionode) CLOSE(21)
-             CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
-          ELSE
-             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
-             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
-             IF (globenv%ionode) CLOSE(21)
-          ENDIF
-       ENDIF
-
-       IF (globenv%print%v_hartree_cube) THEN
-! write the hartree potential
-          IF (globenv%ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
-          CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
-               21,globenv%ionode,"HARTREE POTENTIAL")
-          IF (globenv%ionode) CLOSE(21)
-       ENDIF
-
+!    *** setup the grids needed to compute a wavefunction given a vector
        IF ((globenv%print%homos .OR. globenv%print%lumos .OR. globenv%print%localization) &
                    .AND. globenv%print%cubes ) THEN
-! gets the tmp grids
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools)
@@ -361,9 +302,9 @@ CONTAINS
                in_space = REALSPACE, error=error)
        END IF
 
+! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
-! write eigenvalues and a set of cubes
              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                                               eigenvalues=mo_eigenvalues,homo=homo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
@@ -393,8 +334,7 @@ CONTAINS
           ENDDO
        ENDIF
 
-!   *** Get localization info *** ! notice, computes this for whatever is in mo_eigenvectors
-!       in particular, will do it for the eigenstates if you switch on the HOMOS keyword
+! *** init the localization environment, needed e.g. for wannier functions and molecular states
        IF (globenv%print%localization)THEN
           NULLIFY(qs_loc_env)
           ALLOCATE(qs_loc_env)
@@ -404,7 +344,9 @@ CONTAINS
           IF (globenv%print%molecular_states) qs_loc_env%molecular_states = .TRUE.
        ENDIF
 
-! by default we do it for the eigenstates
+! *** gets localization info for the occupied orbs
+! *** possibly gets wannier functions
+! *** possibly gets molecular states
        IF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
@@ -465,6 +407,7 @@ CONTAINS
           ENDDO
        ENDIF
 
+! gets the lumos, and eigenvalues for the lumos 
        IF (globenv%print%lumos) THEN
           ALLOCATE(unoccupied_orbs(dft_control%nspins))
           ALLOCATE(unoccupied_evals(dft_control%nspins))
@@ -543,9 +486,9 @@ CONTAINS
 
        ENDIF
 
+! *** deallocate grids needed to compute wavefunctions
        IF ((globenv%print%lumos .OR. globenv%print%homos .OR. globenv%print%localization) &
                           .AND. globenv%print%cubes) THEN
-! put back the grids
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r,&
                error=error)
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_g,&
@@ -559,11 +502,13 @@ CONTAINS
 
        END IF
 
+! *** destroy the localization environment
        IF (globenv%print%localization) THEN
           CALL qs_loc_destroy(qs_loc_env)
           DEALLOCATE(qs_loc_env) 
        ENDIF
 
+! *** compute the optical conductivity (needs homos and lumos)
        IF (globenv%print%optical_conductivity) THEN
            IF (globenv%ionode) WRITE(globenv%scr,*) " "
            IF (globenv%ionode) WRITE(globenv%scr,*) " Computing the optical conductivity "
@@ -593,11 +538,138 @@ CONTAINS
            IF (globenv%ionode) WRITE(globenv%scr,*) " Results written to file ",File_name
        ENDIF
 
+       IF (globenv%print%lumos) THEN
+        DO ispin=1,dft_control%nspins
+           DEALLOCATE(unoccupied_evals(ispin)%evals)
+           IF (.NOT.dft_control%do_tddfpt_calculation) &
+                CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
+        ENDDO
+        DEALLOCATE(unoccupied_evals)
+        IF (.NOT.dft_control%do_tddfpt_calculation) DEALLOCATE(unoccupied_orbs)
+       ENDIF
 
+    END IF
+  END SUBROUTINE scf_post_calculation
+
+  SUBROUTINE write_available_results(qs_env,globenv,error)
+    TYPE(qs_environment_type), POINTER :: qs_env
+    TYPE(global_environment_type), INTENT(in), TARGET :: globenv
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure, ionode
+    CHARACTER(len=*), PARAMETER :: routineN='write_available_results',&
+         routineP=moduleN//':'//routineN
+    TYPE(cell_type), POINTER :: cell
+    TYPE(dft_control_type), POINTER :: dft_control
+    TYPE(pw_env_type), POINTER :: pw_env
+    TYPE(pw_pool_type), POINTER :: auxbas_pw_pool
+    TYPE(pw_pool_p_type), DIMENSION(:), POINTER :: pw_pools
+    TYPE(coeff_type) :: wf_r, wf_g
+    REAL(kind=wp) :: total_abs_spin_dens
+    TYPE(coeff_type), DIMENSION(:), POINTER :: mgrid_gspace, mgrid_rspace
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER :: c
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+    TYPE(qs_rho_type), POINTER :: rho
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_fm_type), POINTER :: mo_eigenvectors, mo_localized
+    REAL(wp), DIMENSION(:), POINTER :: mo_eigenvalues
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: ks_rmpv, s
+    TYPE(qs_loc_env_type), POINTER :: qs_loc_env
+    TYPE(scf_control_type), POINTER :: scf_control
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: unoccupied_orbs
+    TYPE(cp_fm_struct_type), POINTER :: fm_struct_tmp
+    TYPE ( molecule_structure_type ), POINTER :: molecule ( : ) 
+    TYPE evals_p_type
+         REAL(wp), DIMENSION(:), POINTER :: evals
+    END TYPE
+    TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
+    TYPE(real_matrix_type), POINTER :: pfull
+    INTEGER :: ispin,n, output_unit, stat, nmo
+    CHARACTER(LEN=6)   :: extension
+    CHARACTER(LEN=200) :: file_name
+    INTEGER            :: file_unit,ivector,nao,nlumos, homo
+    CHARACTER(LEN=80)  :: filename
+    CHARACTER(LEN=80) :: title
+    REAL(wp)           :: volume
+
+    failure=.FALSE.
+    NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,mgrid_gspace,&
+            mgrid_rspace,c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
+            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,pfull,&
+            mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env,dft_control=dft_control,molecule=molecule, &
+            c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
+
+!   *** Write last wavefunction to screen ***
+       DO ispin=1,dft_control%nspins
+          CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+       ENDDO
+
+!   *** Integrated absolute spin density ***
+       IF (dft_control%nspins.eq.2) THEN
+          CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+               pw_pools=pw_pools)
+          CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+               use_data = REALDATA3D,&
+               in_space = REALSPACE, error=error)
+          CALL coeff_copy(rho%rho_r(1),wf_r)
+          CALL coeff_reduce(rho%rho_r(2),wf_r)
+          total_abs_spin_dens=calculate_total_abs_rho(wf_r)
+          IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
+               "Integrated absolute spin density : ",total_abs_spin_dens
+          CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+       ENDIF
+
+!   *** Cube file of the electron density ***
+       IF (globenv%print%e_density_cube) THEN ! write the electron density
+          IF (dft_control%nspins.ne.1) THEN
+             CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
+             CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
+                  pw_pools=pw_pools)
+             CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
+                  use_data = REALDATA3D,&
+                  in_space = REALSPACE, error=error)
+             CALL coeff_copy(rho%rho_r(1),wf_r)
+             CALL coeff_sumup(rho%rho_r(2),wf_r)
+             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY")
+             IF (globenv%ionode) CLOSE(21)
+             CALL coeff_copy(rho%rho_r(1),wf_r)
+             CALL coeff_reduce(rho%rho_r(2),wf_r)
+             IF (globenv%ionode) OPEN(UNIT=21,FILE="SPIN_DENSITY.cube")
+             CALL rs_pw_to_cube(wf_r%pw,21,globenv%ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY")
+             IF (globenv%ionode) CLOSE(21)
+             CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
+          ELSE
+             IF (globenv%ionode) OPEN(UNIT=21,FILE="ELECTRON_DENSITY.cube")
+             CALL rs_pw_to_cube(rho%rho_r(1)%pw,21,globenv%ionode,"ELECTRON DENSITY")
+             IF (globenv%ionode) CLOSE(21)
+          ENDIF
+       ENDIF
+
+!   *** write the hartree potential ***
+       IF (globenv%print%v_hartree_cube) THEN
+          IF (globenv%ionode) OPEN(UNIT=21,FILE="V_HARTREE.cube")
+          CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
+               21,globenv%ionode,"HARTREE POTENTIAL")
+          IF (globenv%ionode) CLOSE(21)
+       ENDIF
+
+!    *** write the density matrix ***
        IF (globenv%print%density_matrix) THEN
           CALL write_sparse_matrix(rho%rho_ao(1)%matrix,4,6,qs_env,globenv)
        END IF
 
+!    *** a coarse grained version of the density matrix ***
        IF (Globenv%print%density_matrix_magnitude) THEN
           IF (globenv%num_pe > 1) THEN
              WRITE (unit=extension,fmt="(I6)") globenv%mepos
@@ -619,24 +691,14 @@ CONTAINS
           CALL deallocate_matrix(Pfull)
           CALL close_file(Unit_number=File_unit)
        ENDIF
-       IF (Globenv%print%kohn_sham_matrix) THEN
+
+!    **** the Kohn-Sham matrix itself
+       IF (globenv%print%kohn_sham_matrix) THEN
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                rebuild=.TRUE.,error=error,&
                calculate_forces=.FALSE.,just_energy=.FALSE.)
           CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv)
        END IF
-
-       IF (globenv%print%lumos) THEN
-        DO ispin=1,dft_control%nspins
-           DEALLOCATE(unoccupied_evals(ispin)%evals)
-           IF (.NOT.dft_control%do_tddfpt_calculation) &
-                CALL cp_fm_release(unoccupied_orbs(ispin)%matrix)
-        ENDDO
-        DEALLOCATE(unoccupied_evals)
-        IF (.NOT.dft_control%do_tddfpt_calculation) &
-             DEALLOCATE(unoccupied_orbs)
-       ENDIF
-
     END IF
-  END SUBROUTINE scf_post_calculation
+  END SUBROUTINE write_available_results
 END MODULE

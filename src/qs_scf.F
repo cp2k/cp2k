@@ -787,12 +787,6 @@ CONTAINS
        CALL timestop(0.0_wp,handle2)
     END DO scf_loop
 
-!   *** Write restart file ***
-    IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-            id_nr=qs_env%id_nr)
-    END IF
-
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
@@ -813,6 +807,19 @@ CONTAINS
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc,&
             "Total energy:                                  ",energy%total
+       CALL m_flush(output_unit)
+    END IF
+
+!   *** Write restart file ***
+    IF (scf_control%write_restart_each>=0) THEN
+       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+            id_nr=qs_env%id_nr)
+    END IF
+
+!   *** add the converged wavefunction to the wavefunction history
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_wp,&
+               error=error)
     END IF
 
 !   *** Undo mixing of the density matrix (restore original density) ***
