@@ -31,6 +31,7 @@ MODULE distribution_2d_types
   USE cp_blacs_env,                    ONLY: cp_blacs_env_retain, &
                                              cp_blacs_env_release,&
                                              cp_blacs_env_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_igsum2d
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -479,9 +480,9 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
         END DO
      END DO
 #ifdef __SCALAPACK
-     CALL IGSUM2D(distribution_2d%blacs_env%group,"C"," ",&
-          distribution_2d%n_row_distribution,1,g_dist(1),&
-          distribution_2d%n_row_distribution,-1,-1)
+     CALL cp_blacs_igsum2d(distribution_2d%blacs_env%group,"C"," ",&
+                           distribution_2d%n_row_distribution,1,g_dist(1),&
+                           distribution_2d%n_row_distribution,-1,-1)
      ! check if different cols have differend distributions?
      !$omp parallel do
      DO i=1,SIZE(g_dist)

@@ -26,6 +26,11 @@
 !****************************************************************************
 MODULE cp_blacs_env
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_gridinit, &
+                                             cp_blacs_gridinfo, &
+                                             cp_blacs_pinfo, &
+                                             cp_blacs_get, &
+                                             cp_blacs_gridexit
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -197,8 +202,8 @@ SUBROUTINE cp_blacs_env_create(blacs_env,group,para_env,owns_group,&
      CALL cp_para_env_retain(para_env,error=error)
      blacs_env%para_env => para_env
 #ifdef __BLACS
-     CALL blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
-     CALL blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
+     CALL cp_blacs_pinfo(blacs_env%my_pid,blacs_env%n_pid)
+     CALL cp_blacs_gridinfo(blacs_env%group,blacs_env%num_pe(1),&
           blacs_env%num_pe(2),blacs_env%mepos(1),blacs_env%mepos(2))
 #endif
      ALLOCATE(blacs_env%blacs2mpi(0:blacs_env%num_pe(1)-1,0:blacs_env%num_pe(2)-1),&
@@ -311,7 +316,7 @@ SUBROUTINE cp_blacs_env_release(blacs_env,error)
      IF (blacs_env%ref_count<1) THEN
         IF (blacs_env%owns_group) THEN
 #ifdef __BLACS
-           CALL blacs_gridexit(blacs_env%group)
+           CALL cp_blacs_gridexit(blacs_env%group)
 #endif
         END IF
         CALL cp_para_env_release(blacs_env%para_env,error=error)
@@ -472,8 +477,8 @@ END SUBROUTINE cp_blacs_env_write
     ! here we will need improvement, we want a blacs context for the given MPI group, which might be a subset
     ! of all the processes. Here, we get a grid for MPI_WORLD by default (I think).
     ! blacs_gridmap and related might be the way to go.
-    CALL blacs_pinfo(mype,npe)
-    CALL blacs_get(-1,0,context)
+    CALL cp_blacs_pinfo(mype,npe)
+    CALL cp_blacs_get(-1,0,context)
 
     SELECT CASE (globenv%blacs_grid_layout)
     CASE (BLACS_GRID_SQUARE) 
@@ -494,8 +499,8 @@ END SUBROUTINE cp_blacs_env_write
        npcol = 1
     END SELECT
 
-    CALL blacs_gridinit(context,"Row-major",nprow,npcol)
-    CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
+    CALL cp_blacs_gridinit(context,"Row-major",nprow,npcol)
+    CALL cp_blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
 
     IF (globenv%print%blacs_info) THEN
 
@@ -607,7 +612,7 @@ END SUBROUTINE cp_blacs_env_write
     CALL mp_sync(group)
 
     CALL cp_blacs_env_release(blacs_env)
-    !    CALL blacs_gridexit(context)
+    !    CALL cp_blacs_gridexit(context)
 
     !globenv%context = 0
     !globenv%nprow = 0

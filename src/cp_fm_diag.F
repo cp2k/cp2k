@@ -23,7 +23,10 @@
 ! ************************************************************************************
 
 MODULE cp_fm_diag
-
+  USE cp_blacs_calls,                  ONLY: cp_blacs_get, &
+                                             cp_blacs_gridinit, &
+                                             cp_blacs_pinfo, &
+                                             cp_blacs_gridexit
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -894,9 +897,9 @@ CONTAINS
 
     ictxt=0
 
-    CALL blacs_pinfo(mype,npe)
-    CALL blacs_get(ictxt,0,ictxt_loc)
-    CALL blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
+    CALL cp_blacs_pinfo(mype,npe)
+    CALL cp_blacs_get(ictxt,0,ictxt_loc)
+    CALL cp_blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
 
     CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
                   block_dim_col,0,0,ictxt_loc,block_dim_row,info)
@@ -971,7 +974,7 @@ CONTAINS
     ! Speicher freigeben
     DEALLOCATE(A_loc,EV_loc,c_ip)
 
-    CALL blacs_gridexit(ictxt_loc)
+    CALL cp_blacs_gridexit(ictxt_loc)
 
     ! ...und tschuess!
 

@@ -28,6 +28,8 @@
 MODULE cp_fm_types
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_dgebs2d,&
+                                             cp_blacs_dgebr2d
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -577,10 +579,10 @@ CONTAINS
 
     IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
       alpha = a(irow_local,icol_local)
-      CALL DGEBS2D(context%group, 'All', ' ', 1, 1, alpha , 1 )
+      CALL cp_blacs_dgebs2d(context%group, 'All', ' ', 1, 1, alpha , 1 )
       IF (PRESENT(local)) local=.TRUE.
     ELSE
-      CALL DGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
+      CALL cp_blacs_dgebr2d(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
       IF (PRESENT(local)) local=.FALSE.
     END IF
 

@@ -27,6 +27,11 @@ MODULE cp_sm_fm_interactions
   USE cp_array_r_utils,                ONLY: cp_1d_r_write,&
                                              cp_2d_r_p_type,&
                                              cp_2d_r_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_pnum,&
+                                             cp_blacs_gridinit,&
+                                             cp_blacs_gridinfo,&
+                                             cp_blacs_get,&
+                                             cp_blacs_gridexit
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -145,7 +150,7 @@ CONTAINS
     TYPE(cp_blacs_env_type), POINTER  :: context
 
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: blacs_pnum,indxg2l,indxg2p
+    INTEGER, EXTERNAL :: indxg2l,indxg2p
 
 #endif
     !   ---------------------------------------------------------------------------
@@ -175,7 +180,7 @@ CONTAINS
     DO iprow=0,nprow-1
        DO ipcol=0,npcol-1
 
-          ipe = blacs_pnum(context%group,iprow,ipcol)
+          ipe = cp_blacs_pnum(context%group,iprow,ipcol)
 
           IF (ipe /= mype) THEN
              nrow_local = fm%matrix_struct%nrow_locals(iprow)
@@ -354,7 +359,7 @@ CONTAINS
     LOGICAL :: failure
 
 #if defined(__SCALAPACK)
-    INTEGER, EXTERNAL :: blacs_pnum,indxg2l,indxg2p
+    INTEGER, EXTERNAL :: indxg2l,indxg2p
 #endif
     !   ---------------------------------------------------------------------------
     failure = .FALSE.
@@ -522,7 +527,7 @@ CONTAINS
                 smblock_row=iblock+cum_num_of_blocks_row(iblock_row)
                 smblock_col=jblock+cum_num_of_blocks_col(iblock_col)
                 ! ipe is the target processor for this block
-                ipe = blacs_pnum(context%group,block_info_row(3,smblock_row), &
+                ipe = cp_blacs_pnum(context%group,block_info_row(3,smblock_row), &
                      block_info_col(3,smblock_col))
                 number_of_blocks(ipe,mype)=number_of_blocks(ipe,mype)+1
                 total_size_of_blocks(ipe,mype)=total_size_of_blocks(ipe,mype)+ &
@@ -575,7 +580,7 @@ CONTAINS
                 smblock_row=iblock+cum_num_of_blocks_row(iblock_row)
                 smblock_col=jblock+cum_num_of_blocks_col(iblock_col)
                 ! ipe is the target processor for this block
-                ipe = blacs_pnum(context%group,block_info_row(3,smblock_row), &
+                ipe = cp_blacs_pnum(context%group,block_info_row(3,smblock_row), &
                      block_info_col(3,smblock_col))
                 block_send(block_offset(ipe)+1)=smblock_row
                 block_send(block_offset(ipe)+2)=smblock_col
@@ -772,9 +777,9 @@ CONTAINS
     ALLOCATE(ncol_loc(0:num_pe-1))
     ncol_loc=0
 #if defined(__SCALAPACK)
-    CALL blacs_get(-1,0,ictxt_loc)
-    CALL blacs_gridinit(ictxt_loc,'R',1,num_pe)
-    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
+    CALL cp_blacs_get(-1,0,ictxt_loc)
+    CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
+    CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     CALL descinit(desc,nrow_global,ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
     in=numroc(ncol,cb,mypcol,0,npcol)
@@ -860,7 +865,7 @@ CONTAINS
          v_out%local_data(1,1),1,1,v_out%matrix_struct%descriptor, &
          ictxt_loc)
     ! give the grid back
-    CALL blacs_gridexit(ictxt_loc)
+    CALL cp_blacs_gridexit(ictxt_loc)
     DEALLOCATE(newdat)
 #else
     DO j=1,in
@@ -937,9 +942,9 @@ CONTAINS
     ALLOCATE(ncol_loc(0:num_pe-1))
 
 #if defined(__SCALAPACK)
-    CALL blacs_get(-1,0,ictxt_loc)
-    CALL blacs_gridinit(ictxt_loc,'R',1,num_pe)
-    CALL blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
+    CALL cp_blacs_get(-1,0,ictxt_loc)
+    CALL cp_blacs_gridinit(ictxt_loc,'R',1,num_pe)
+    CALL cp_blacs_gridinfo(ictxt_loc,nprow,npcol,myprow,mypcol)
     CALL descinit(desc,nrow_global,my_ncol,rb,cb,0,0,ictxt_loc,nrow_global,info)
     CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
     in=numroc(my_ncol,cb,mypcol,0,npcol)
@@ -980,7 +985,7 @@ CONTAINS
     ENDIF
     DEALLOCATE(newdat)
     ! EXIT THE GRID 
-    CALL blacs_gridexit(ictxt_loc)
+    CALL cp_blacs_gridexit(ictxt_loc)
 #else
     in=my_ncol
     ncol_loc=0

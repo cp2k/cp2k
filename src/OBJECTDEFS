@@ -36,6 +36,7 @@ OBJECTS_GENERIC =\
  cp_array_r_utils.o\
  cp_array_utils.o\
  cp_b_matrix_structure.o\
+ cp_blacs_calls.o\
  cp_blacs_env.o\
  cp_block_matrix.o\
  cp_cfm_basic_linalg.o\

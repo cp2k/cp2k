@@ -27,6 +27,8 @@ MODULE cp_cfm_types
 
   USE cp_array_utils,                  ONLY: cp_2d_r_output,&
                                              cp_2d_r_write
+  USE cp_blacs_calls,                  ONLY: cp_blacs_zgebs2d,&
+                                             cp_blacs_zgebr2d
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_assertion_failed,&
@@ -467,9 +469,9 @@ CONTAINS
 
     IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
       alpha = a(irow_local,icol_local)
-      CALL ZGEBS2D(context%group, 'All', ' ', 1, 1, alpha , 1 )
+      CALL cp_blacs_ZGEBS2D(context%group, 'All', ' ', 1, 1, alpha , 1 )
     ELSE
-      CALL ZGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
+      CALL cp_blacs_ZGEBR2D(context%group, 'All', ' ', 1, 1, alpha , 1 , iprow, ipcol )
     END IF
 
 #else
