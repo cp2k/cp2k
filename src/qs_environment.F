@@ -37,11 +37,11 @@ MODULE qs_environment
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
   USE cp_control_types,                ONLY: dft_control_release,&
-                                             dft_control_type,&
+                                             dft_control_type
+  USE cp_control_utils,                ONLY: read_dft_control,&
+                                             read_qs_control, &
                                              write_dft_control,&
                                              write_qs_control
-  USE cp_control_utils,                ONLY: read_dft_control,&
-                                             read_qs_control
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d

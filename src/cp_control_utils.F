@@ -71,6 +71,7 @@ MODULE cp_control_utils
   USE xc_functionals,                  ONLY: xc_get_functional,&
                                              xc_print_info,&
                                              xc_set
+
   IMPLICIT NONE
 
   PRIVATE
@@ -83,7 +84,11 @@ MODULE cp_control_utils
             read_kg_control,&
             read_qs_control,&
             read_tddfpt_control,&
-            read_wave_control
+            read_wave_control, &
+            write_dft_control,&
+            write_kg_control,&
+            write_qs_control,&
+            write_wave_control
 
 !!***
 ! *****************************************************************************
@@ -995,5 +1000,357 @@ CONTAINS
   END SUBROUTINE read_wave_control
 
 ! *****************************************************************************
+
+  SUBROUTINE write_dft_control(dft_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(dft_control_type), POINTER           :: dft_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+    CHARACTER(len=20) :: tmpStr
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+
+      output_unit = globenv%scr
+
+      IF (dft_control%forces) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation","YES"
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation"," NO"
+      END IF
+
+      IF ( dft_control % nspins == 1 ) THEN
+         !do nothing
+      ELSE IF ( dft_control % nspins == 2 ) THEN
+         WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
+      ELSE
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
+            dft_control % nspins
+      END IF
+
+      IF ( dft_control % charge /= 0 ) THEN
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
+              dft_control % charge
+      END IF
+
+      WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
+        "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
+        "DFT|          gradient",dft_control%xc_control%gradient_cut
+
+      tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC density smoothing ",ADJUSTR(tmpStr)
+      tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC derivatives ",ADJUSTR(tmpStr)
+      IF ( dft_control % derive_function_rho )  &
+           WRITE ( output_unit, '( A, T79, A )' ) &
+           " DFT| Density function derivative ","ON"
+
+      IF ( dft_control % integration_grid % pw_default ) THEN
+         WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
+      ELSE
+        IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
+              WRITE ( output_unit, '( A, T51, 3I10 )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
+        IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
+              WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
+      END IF
+
+!TC      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
+      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
+                           dft_control % nspins /= 1 )
+
+    END IF
+
+  END SUBROUTINE write_dft_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_kg_control(kg_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(kg_control_type), INTENT(IN)         :: kg_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: igrid_level,ngrid_level,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      ngrid_level = SIZE(kg_control%e_cutoff)
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
+        "KG| Method:",ADJUSTR(kg_control%method)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+        "KG| Number of grid levels:",SIZE(kg_control%e_cutoff)
+      IF ( kg_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( kg_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
+      IF (ngrid_level == 1) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Density cutoff [a.u.]:",kg_control%e_cutoff(1)
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Density cutoff [a.u.]:",kg_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Multi grid cutoff [a.u.]: 1) grid level",kg_control%e_cutoff(1)
+        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
+          ("KG|                         ",igrid_level,") grid level",&
+           kg_control%e_cutoff(igrid_level),&
+           igrid_level=2,SIZE(kg_control%e_cutoff))
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "KG| Grid level progression factor:",kg_control%progression_factor
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "KG| Relative density cutoff [a.u.]:",kg_control%relative_cutoff
+      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+        "KG| Interaction thresholds: eps_pgf_orb:",&
+        kg_control%eps_pgf_orb,&
+        "KG|                         eps_core_charge:",&
+        kg_control%eps_core_charge,&
+        "KG|                         eps_rho_gspace:",&
+        kg_control%eps_rho_gspace,&
+        "KG|                         eps_rho_rspace:",&
+        kg_control%eps_rho_rspace,&
+        "KG|                         eps_gvg_rspace:",&
+        kg_control%eps_gvg_rspace  
+    END IF
+
+  END SUBROUTINE write_kg_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_qs_control(qs_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(qs_control_type), INTENT(IN)         :: qs_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: igrid_level,ngrid_level,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      ngrid_level = SIZE(qs_control%e_cutoff)
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
+        "QS| Method:",ADJUSTR(qs_control%method)
+      IF ( qs_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+        "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
+      IF (ngrid_level == 1) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Density cutoff [a.u.]:",qs_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
+        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
+          ("QS|                         ",igrid_level,") grid level",&
+           qs_control%e_cutoff(igrid_level),&
+           igrid_level=2,SIZE(qs_control%e_cutoff))
+      END IF
+      IF (qs_control%pao) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "QS| Grid level progression factor:",qs_control%progression_factor
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
+      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+        "QS| Interaction thresholds: eps_pgf_orb:",&
+        qs_control%eps_pgf_orb,&
+        "QS|                         eps_core_charge:",&
+        qs_control%eps_core_charge,&
+        "QS|                         eps_rho_gspace:",&
+        qs_control%eps_rho_gspace,&
+        "QS|                         eps_rho_rspace:",&
+        qs_control%eps_rho_rspace,&
+        "QS|                         eps_gvg_rspace:",&
+        qs_control%eps_gvg_rspace,&
+        "QS|                         eps_ppl:",&
+        qs_control%eps_ppl,&
+        "QS|                         eps_ppnl:",&
+        qs_control%eps_ppnl
+    END IF
+
+  END SUBROUTINE write_qs_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_wave_control(wave_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(wave_control_type), INTENT(IN)       :: wave_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,F10.3)")&
+        "WAVE| Plane wave cutoff [a.u.]:",wave_control%e_cutoff_wf
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.2)")&
+        "WAVE| Density cutoff (DUAL):",wave_control%e_cutoff_dual
+     END IF
+
+  END SUBROUTINE write_wave_control
+
+! *****************************************************************************
+
+!!****f* cp_control_types/xc_get_rho_smooth_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_rho_smooth_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the smoothing of rho
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_rho_smooth_id: the id that represent the smoothing
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
+  INTEGER, INTENT(in) :: xc_rho_smooth_id
+  CHARACTER(len=10) :: res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_rho_smooth_label',&
+        routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+
+  failure=.FALSE.
+  
+  SELECT CASE(xc_rho_smooth_id)
+  CASE (xc_rho_no_smooth)
+     res="NONE"
+  CASE (xc_rho_spline2_smooth)
+     res="SPLINE2"
+  CASE (xc_rho_spline3_smooth)
+     res="SPLINE3"
+  CASE (xc_rho_nn10)
+     res="NN10"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_rho_smooth_id
+  END SELECT
+END FUNCTION xc_get_rho_smooth_label
+!***************************************************************************
+
+!!****f* cp_control_types/xc_get_deriv_method_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_deriv_method_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the derivative used in the xc 
+!!     calculation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_deriv_method_id: the id that represent the derivative method
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
+  INTEGER, INTENT(in) :: xc_deriv_method_id
+  CHARACTER(len=20) :: res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_deriv_method_label',&
+        routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+  
+  failure=.FALSE.
+  
+  SELECT CASE(xc_deriv_method_id)
+  CASE (xc_deriv_pw)
+     res="PW"
+  CASE (xc_deriv_spline2)
+     res="SPLINE2"
+  CASE (xc_deriv_spline3)
+     res="SPLINE3"
+  CASE (xc_deriv_spline2_smooth)
+     res="SPLINE2_SMOOTH"
+  CASE (xc_deriv_spline3_smooth)
+     res="SPLINE3_SMOOTH"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_deriv_method_id
+  END SELECT
+END FUNCTION xc_get_deriv_method_label
+!***************************************************************************
 
 END MODULE cp_control_utils

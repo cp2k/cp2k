@@ -28,12 +28,12 @@ MODULE kg_environment
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_error_handling,               ONLY: cp_error_type
-  USE cp_control_types,                       ONLY: dft_control_type,&
-                                             dft_control_release,&
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             dft_control_release
+  USE cp_control_utils,                ONLY: read_dft_control,&
+                                             read_kg_control,&
                                              write_dft_control,&
                                              write_kg_control
-  USE cp_control_utils,                ONLY: read_dft_control,&
-                                             read_kg_control
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
