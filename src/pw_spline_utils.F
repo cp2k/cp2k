@@ -566,7 +566,7 @@ CONTAINS
     SELECT CASE(idir)
     CASE (1)
        ! x deriv
-       !$omp parallel do private(k,j,i,csVal,coeff,c12)
+       !$omp parallel do private(k,j,i,csKVal,coeff,tmp)
        DO k = bo(1,3), bo(2,3)
           csKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
           DO j = bo(1,2), bo(2,2)
@@ -590,7 +590,7 @@ CONTAINS
        END DO
     CASE(2)
        ! y deriv
-       !$omp parallel do private(k,j,i,csVal,coeff,c12)
+       !$omp parallel do private(k,j,i,csKVal,coeff,tmp)
        DO k = bo(1,3), bo(2,3)
           csKVal=COS(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
           DO j = bo(1,2), bo(2,2)
@@ -609,7 +609,7 @@ CONTAINS
        END DO
     CASE(3)
        ! z deriv
-       !$omp parallel do private(k,j,i,csVal,coeff,c12)
+       !$omp parallel do private(k,j,i,csKval,coeff,tmp)
        DO k = bo(1,3), bo(2,3)
           csKVal=SIN(twopi/n_tot(3)*REAL(k+n_tot(3)/2,wp))
           DO j = bo(1,2), bo(2,2)
