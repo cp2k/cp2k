@@ -131,9 +131,10 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   INTEGER :: i, j, natoms, isos, handle
 
   CALL timeset("qs_loc_init","I","",handle)
-
   NULLIFY(qs_loc_env%center)
   NULLIFY(qs_loc_env%para_env)
+  NULLIFY(qs_loc_env%cell)
+  NULLIFY(qs_loc_env%particle_set)
   !
   ! start replicating the s structure, we do have
   ! 6 operators (x,y,z)*(real,imag) for POSITION_OPERATOR
