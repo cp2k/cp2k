@@ -131,9 +131,9 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
 
-  NULLIFY(pw_env,auxbas_pw_pool,s,dft_control)
+  NULLIFY(pw_env,auxbas_pw_pool,matrix_s,dft_control)
   CALL timeset(routineN,'I',' ',handle)
   failure=.FALSE.
   my_rebuild_ao=.TRUE.
@@ -142,7 +142,7 @@ CONTAINS
   IF (PRESENT(rebuild_grids)) my_rebuild_grids=rebuild_grids
 
   CALL get_qs_env(qs_env, pw_env=pw_env,dft_control=dft_control,&
-       s=s,error=error)
+       matrix_s=matrix_s,error=error)
   CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,error=error)
   nspins=dft_control%nspins
 
@@ -177,7 +177,7 @@ CONTAINS
         CALL allocate_matrix_set(rho%rho_ao,nspins)
         DO i=1,nspins
            NULLIFY (rho%rho_ao(i)%matrix)
-           CALL replicate_matrix_structure(s(1)%matrix,&
+           CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                 rho%rho_ao(i)%matrix,&
                 "DENSITY_MATRIX_FOR_SPIN_"//TRIM(ADJUSTL(cp_to_string(i))))
         END DO

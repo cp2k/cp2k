@@ -388,7 +388,7 @@ SUBROUTINE pao_qs_env_did_change(qs_env,global_env,&
      IF (PRESENT(s_changed)) s_c=s_changed
      IF (PRESENT(full_reset)) full_r=full_reset
      IF (s_c.OR.full_r) THEN
-        CALL get_qs_env(qs_env, s=overlap_rmpv)
+        CALL get_qs_env(qs_env, matrix_s=overlap_rmpv)
         ! invalidate min_density_m
         pao_env%min_d_m_valid=.FALSE.
         DO i=1,SIZE(pao_env%min_density_m)
@@ -527,10 +527,10 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
 
   failure=.FALSE.
-  NULLIFY(res, atomic_ortho, block_val, pao_env, s)
+  NULLIFY(res, atomic_ortho, block_val, pao_env, matrix_s)
 
   CALL pao_qs_env_get(qs_env,global_env,pao_env=pao_env,n_atoms=n_atoms)
   CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
@@ -558,7 +558,7 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
              block_col=atom_nr)
         CPPostcondition(ASSOCIATED(res),cp_failure_level,routineP,error,failure)
      ELSE
-        CALL get_qs_env(qs_env,s=s)
+        CALL get_qs_env(qs_env,matrix_s=matrix_s)
         CALL get_block_node(cp_get_matrix(atomic_ortho),&
              BLOCK=res,block_row=atom_nr,&
              block_col=atom_nr)
@@ -575,7 +575,7 @@ FUNCTION pao_qs_env_get_atomic_ortho(qs_env,global_env,atom_nr,error)&
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
         IF (.NOT.failure) THEN
-           CALL get_block_node(s(1)%matrix,block_row=atom_nr,&
+           CALL get_block_node(matrix_s(1)%matrix,block_row=atom_nr,&
                 block_col=atom_nr,BLOCK=block_val)
            CPPrecondition(SIZE(block_val,1)==SIZE(res,1),cp_failure_level,routineP,error,failure)
            CPPrecondition(SIZE(block_val,2)==SIZE(res,2),cp_failure_level,routineP,error,failure)

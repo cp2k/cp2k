@@ -92,9 +92,6 @@ MODULE md_run
   USE physcon,                         ONLY: kelvin
   USE qs_energy,                       ONLY: qs_energies
   USE qs_energy_types,                 ONLY: qs_energy_type
-  USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
   USE qs_force,                        ONLY: qs_forces
   USE qs_parser,                       ONLY: close_file,&
                                              open_file

@@ -235,7 +235,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
        rho, rho_r,rho_g,rho_ao, S_sm_pools,s_array)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
-       dft_control=dft_control,rho=rho,s=s_array,&
+       dft_control=dft_control,rho=rho,matrix_s=s_array,&
        error=error)
   CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_pools, &
        S_sm_pools=S_sm_pools, error=error)
@@ -257,7 +257,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
      IF (PRESENT(dt)) snapshot%dt=dt
 
      IF (wf_history%store_wf) THEN
-        CALL get_qs_env(qs_env,c=mos,error=error)
+        CALL get_qs_env(qs_env,mos=mos,error=error)
         IF (.NOT.ASSOCIATED(snapshot%wf)) THEN
            CALL fm_pools_create_fm_vect(ao_mo_pools,snapshot%wf,&
                 name="ws_snap"//TRIM(ADJUSTL(cp_to_string(snapshot%id_nr)))//&
@@ -625,7 +625,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)  
   IF (.NOT. failure) THEN
-     CALL get_qs_env(qs_env, c=mos,&
+     CALL get_qs_env(qs_env, mos=mos,&
           rho=rho,error=error)
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
           error=error)

@@ -551,16 +551,16 @@ CONTAINS
     type(dft_control_type), pointer          :: dft_control
     type(qs_energy_type), pointer            :: qs_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_2, rho_ao, s
+      POINTER                                :: ks_2, rho_ao, matrix_s
 
-    nullify(ks_2,s,dft_control,qs_energy)
+    nullify(ks_2,matrix_s,dft_control,qs_energy)
     my_diff=1.0e-6_dp
     if (present(diff)) my_diff=diff
     call allocate_qs_energy(qs_energy)
 
     call qs_rho_get(rho, rho_ao=rho_ao,error=error)
     call get_qs_env(qs_env, dft_control=dft_control,&
-         s=s,error=error)
+         matrix_s=matrix_s,error=error)
 
     ! rho = rho0+h/2*rho1
     my_diff=my_diff/2.0_dp
@@ -582,7 +582,7 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     do ispin=1,dft_control%nspins
        nullify(ks_2(ispin)%matrix)
-       call replicate_matrix_structure(s(1)%matrix,ks_2(ispin)%matrix,&
+       call replicate_matrix_structure(matrix_s(1)%matrix,ks_2(ispin)%matrix,&
             target_name="tmp_ks2-"//adjustl(cp_to_string(ispin)))
     end do
 
@@ -669,13 +669,13 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     type(qs_rho_type), pointer               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
 
 ! ------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(pw_env,auxbas_pw_pool,s,rho,rho_r,rho_g)
+    NULLIFY(pw_env,auxbas_pw_pool,matrix_s,rho,rho_r,rho_g)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(kpp1_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -684,7 +684,7 @@ CONTAINS
 
 
        CALL get_qs_env(qs_env, pw_env=pw_env, dft_control=dft_control,&
-                       s=s, cell=cell, error=error, rho=rho)
+                       matrix_s=matrix_s, cell=cell, error=error, rho=rho)
 
        nspins=dft_control%nspins
 
@@ -708,7 +708,7 @@ CONTAINS
           IF (.NOT. failure) THEN
              DO ispin=1,nspins
                 NULLIFY(kpp1_env%v_ao(ispin)%matrix)
-                CALL replicate_matrix_structure(s(1)%matrix,&
+                CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                      kpp1_env%v_ao(ispin)%matrix,&
                      "kpp1%v_ao-"//ADJUSTL(cp_to_string(ispin)))
              END DO

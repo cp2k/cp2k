@@ -96,7 +96,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -104,7 +104,7 @@ CONTAINS
       POINTER                                :: force
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: k, s, w
+      POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     LOGICAL                                  :: gapw
     TYPE(qs_rho_type), POINTER               :: rho
@@ -115,15 +115,15 @@ CONTAINS
     CALL timeset(routine_name,"I","",handle)
 
     NULLIFY (atomic_kind_set)
-    NULLIFY (c)
+    NULLIFY (mos)
     NULLIFY (dft_control)
     NULLIFY (force)
-    NULLIFY (k)
+    NULLIFY (matrix_ks)
     NULLIFY (ks_env)
     NULLIFY (particle_set)
-    NULLIFY (s)
+    NULLIFY (matrix_s)
     NULLIFY (scf_control)
-    NULLIFY (w)
+    NULLIFY (matrix_w)
     NULLIFY (rho)
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -156,34 +156,34 @@ CONTAINS
     CALL qs_energies(qs_env,globenv,&
                      neighbor_lists_from_scratch=neighbor_lists_from_scratch)
 
-    CALL get_qs_env(qs_env=qs_env,c=c, k=k, ks_env=ks_env, s=s, rho=rho)
+    CALL get_qs_env(qs_env=qs_env,mos=mos, matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, rho=rho)
 
 !   *** Build W matrix ***
 !   *** C^T H_ks C (from the orthonormality constraint)
-    nspin = SIZE(c)
+    nspin = SIZE(mos)
 
-    CALL allocate_matrix_set(w,nspin)
+    CALL allocate_matrix_set(matrix_w,nspin)
 
     DO ispin=1,nspin
-      CALL replicate_matrix_structure(s(1)%matrix,w(ispin)%matrix,"W MATRIX")
-      mo_set => c(ispin)%mo_set
+      CALL replicate_matrix_structure(matrix_s(1)%matrix,matrix_w(ispin)%matrix,"W MATRIX")
+      mo_set => mos(ispin)%mo_set
       IF (scf_control%use_ot) THEN
-        CALL calculate_w_matrix(mo_set,k(ispin)%matrix,w(ispin)%matrix)
+        CALL calculate_w_matrix(mo_set,matrix_ks(ispin)%matrix,matrix_w(ispin)%matrix)
       ELSE
-        CALL calculate_w_matrix(mo_set,w(ispin)%matrix)
+        CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
       END IF
       IF (globenv%print%w_matrix) THEN
-        CALL write_sparse_matrix(w(ispin)%matrix,4,6,qs_env,globenv)
+        CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv)
       END IF
     END DO
 
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                globenv%para_env,s(1)%matrix, rho%rho_ao,w_matrix=w)
+                                globenv%para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     ENDIF
 
-    CALL set_qs_env(qs_env=qs_env,w=w)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
 !   *** compute core forces ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
@@ -241,8 +241,8 @@ CONTAINS
 
     CALL write_forces(force,atomic_kind_set,gapw,globenv)
 
-    CALL deallocate_matrix_set(w)
-    CALL set_qs_env(qs_env=qs_env,w=w)
+    CALL deallocate_matrix_set(matrix_w)
+    CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")

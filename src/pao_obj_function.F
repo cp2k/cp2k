@@ -315,7 +315,7 @@ CONTAINS
        gf_env%n_eval = 0
     END IF
     IF (.NOT.failure) THEN
-       CALL get_qs_env(gf_env%qs_env, s=full_overlap_m, pao_env=pao_env,&
+       CALL get_qs_env(gf_env%qs_env, matrix_s=full_overlap_m, pao_env=pao_env,&
             atomic_kind_set=atomic_kind_set, mpools=mpools)
        CALL pao_qs_env_get(gf_env%qs_env, global_env=global_env,&
             pao_tot_full_bas=ntot_full_bas,&
@@ -662,7 +662,7 @@ END SUBROUTINE pao_gerd_f_retain
     IF (.NOT.failure) THEN
        gf_env%n_eval = gf_env%n_eval+1
        CALL get_qs_env(gf_env%qs_env,pao_env=pao_env,&
-            k=full_h_rmpv, s=full_s_rmpv)
+            matrix_ks=full_h_rmpv, matrix_s=full_s_rmpv)
        CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
        IF (cp_debug .AND. debug_this_module) THEN
           CALL cp_1d_r_output(logger=logger,&

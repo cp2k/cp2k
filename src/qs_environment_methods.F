@@ -186,7 +186,7 @@ SUBROUTINE qs_env_setup(qs_env,error)
      CALL qs_env_rebuild_pw_env(qs_env, error=error)
 
      ! rebuilds fm_pools
-     CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%c,&
+     CALL mpools_rebuild_fm_pools(qs_env%mpools,mos=qs_env%mos,&
           blacs_env=qs_env%blacs_env, para_env=para_env,&
           nrow_block=scf_control%nrow_block,&
           ncol_block=scf_control%ncol_block,&
@@ -267,7 +267,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        particle_set=particle_set, error=error)
 
   ! *** rebuilds the S_sm_pools ***
-  CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%s,&
+  CALL mpools_rebuild_s_sm_pools(qs_env%mpools,s=qs_env%matrix_s,&
        nspins=dft_control%nspins,particle_set=particle_set,&
        para_env=para_env, error=error)
 

@@ -126,7 +126,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
 
     INTEGER                                  :: handle, i, isos, j, natoms
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
 
   CALL timeset("qs_loc_init","I",'',handle)
   NULLIFY(qs_loc_env%para_env)
@@ -139,7 +139,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   ! notice that the operator should have the same structure as S
   ! borrow para env from S
   !
-  CALL get_qs_env(qs_env=qs_env,s=s,cell=qs_loc_env%cell, &
+  CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,cell=qs_loc_env%cell, &
                    local_molecules=qs_loc_env%local_molecules,&
                    particle_set = qs_loc_env % particle_set, &
                    para_env=qs_loc_env%para_env)
@@ -160,7 +160,7 @@ SUBROUTINE qs_loc_init(qs_loc_env,qs_env)
   DO i=1, SIZE ( qs_loc_env % operator, 2 )
      DO j=1, SIZE ( qs_loc_env % operator, 1 )
        NULLIFY(qs_loc_env%operator(j,i)%matrix)
-       CALL replicate_matrix_structure(s(1)%matrix, &
+       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
             qs_loc_env%operator(j,i)%matrix,"operator")
        CALL set_matrix(qs_loc_env%operator(j,i)%matrix,0.0_dp)
      ENDDO

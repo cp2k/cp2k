@@ -249,7 +249,7 @@ CONTAINS
                                                 local_particles
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -276,7 +276,7 @@ CONTAINS
 
 !   *** Initialise the Quickstep environment ***
 
-    NULLIFY (c)
+    NULLIFY (mos)
     NULLIFY (dft_control)
     NULLIFY (energy)
     NULLIFY (force)
@@ -536,15 +536,15 @@ CONTAINS
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
 
-    ALLOCATE (c(dft_control%nspins),STAT=istat)
+    ALLOCATE (mos(dft_control%nspins),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routine_name,module_name,__LINE__,&
-                       "c",dft_control%nspins*int_size)
+                       "mos",dft_control%nspins*int_size)
     END IF
 
     DO ispin=1,dft_control%nspins
-      NULLIFY (c(ispin)%mo_set)
-      CALL allocate_mo_set(mo_set=c(ispin)%mo_set,&
+      NULLIFY (mos(ispin)%mo_set)
+      CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
                            nao=n_ao,&
                            nmo=n_mo(ispin),&
                            nelectron=nelectron_spin(ispin),&
@@ -552,7 +552,7 @@ CONTAINS
                            error=error)
     END DO
 
-    CALL set_qs_env(qs_env,c=c,error=error)
+    CALL set_qs_env(qs_env,mos=mos,error=error)
 
 !   *** Sets up pw_env, qs_charges, mpools... ***
 

@@ -429,7 +429,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -438,13 +438,13 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, ks, p, s
+      POINTER                                :: matrix_h, matrix_ks, matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,h,s,ks,p,rho,energy,scf_control,logger,&
-         pw_env, qs_charges,ks_env,c,atomic_kind_set,particle_set,&
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,energy,scf_control,logger,&
+         pw_env, qs_charges,ks_env,mos,atomic_kind_set,particle_set,&
          scf_work1,ortho,scf_work2,cell)
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -485,8 +485,8 @@ CONTAINS
          error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-         h=h,&
-         s=s,energy=energy,&
+         matrix_h=matrix_h,&
+         matrix_s=matrix_s,energy=energy,&
          particle_set=particle_set,&
          cell=cell,&
          pw_env=pw_env,&
@@ -497,8 +497,8 @@ CONTAINS
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
 
-    CALL get_qs_env(qs_env,k=ks,rho=rho,c=c)
-    p => rho%rho_ao
+    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos)
+    matrix_p => rho%rho_ao
 
     scf_env%iter_count = 0
     diis_step = .FALSE.
@@ -534,17 +534,17 @@ CONTAINS
 
           IF (logger%print_keys%density_matrix.AND.&
                logger%print_keys%each_scf_step) THEN
-             CALL write_sparse_matrix(p(ispin)%matrix,4,6,qs_env,globenv)
+             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
           IF (logger%print_keys%kohn_sham_matrix.AND.logger%print_keys%each_scf_step) THEN
-             CALL write_sparse_matrix(ks(ispin)%matrix,4,6,qs_env,globenv)
+             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
        ENDDO
 
        IF (logger%print_keys%mo_orthonormality) THEN
-          CALL calculate_orthonormality(c,s(1)%matrix,orthonormality)
+          CALL calculate_orthonormality(mos,matrix_s(1)%matrix,orthonormality)
           IF (ionode) THEN
              WRITE(output_unit,'(T8,A,T60,E20.4)')  &
                     " Maximum deviation from MO S-orthonormality",orthonormality
@@ -563,11 +563,11 @@ CONTAINS
        CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins 
-             CALL copy_sm_to_fm(ks(ispin)%matrix,scf_work1(ispin)%matrix)
+             CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
           ENDDO
 
           IF (scf_env%iter_count > 1) THEN
-             CALL qs_diis_b_step(scf_env%scf_diis_buffer,c,scf_work1,&
+             CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
                   scf_work2,scf_env%iter_delta,diis_error,diis_step,&
                   qs_env,error=error)
           END IF
@@ -602,7 +602,7 @@ CONTAINS
 
           DO ispin=1,dft_control%nspins
 
-             CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
+             CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
                   do_level_shift,scf_control%level_shift,&
                   use_cholesky=use_cholesky,&
                   work_syevx=scf_control%work_syevx,&
@@ -612,10 +612,10 @@ CONTAINS
                   error=error)
 
              IF (logger%print_keys%each_scf_step) THEN
-                CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
              END IF
 
-             CALL calculate_density_matrix(c(ispin)%mo_set,&
+             CALL calculate_density_matrix(mos(ispin)%mo_set,&
                   scf_env%p_mix_new(ispin)%matrix,error=error)
 
           ENDDO
@@ -625,13 +625,11 @@ CONTAINS
 
 ! in case of LSD the first spin qs_ot_env will drive the minimization
 
-          CALL ot_scf_mini(c,ks,s(1)%matrix,energy%total, &
+          CALL ot_scf_mini(mos,matrix_ks,matrix_s(1)%matrix,energy%total, &
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
           DO ispin=1,dft_control%nspins
-             !CALL calculate_density_matrix(c(ispin)%mo_set,&
-             !     scf_env%p_mix_new(ispin)%matrix,error=error)
-             CALL calculate_density_matrix(c(ispin)%mo_set,&
+             CALL calculate_density_matrix(mos(ispin)%mo_set,&
                    rho%rho_ao(ispin)%matrix,error=error)
           ENDDO
 
@@ -653,7 +651,7 @@ CONTAINS
                scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
        END IF
 
-! ** convergece check
+! ** convergence check
        IF (qs_env%para_env%source==qs_env%para_env%mepos) &
             INQUIRE(file="EXIT",exist=should_stop)
        CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
@@ -677,9 +675,7 @@ CONTAINS
 !   *** Write restart file ***
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-         ! CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-         !      id_nr=qs_env%id_nr)
-          CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+          CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
                id_nr=1)
        END IF
 
@@ -765,7 +761,7 @@ CONTAINS
 
 !   *** Write restart file ***
     IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
+       CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
             id_nr=1)
     END IF
 
@@ -928,16 +924,16 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, k, s
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_scf_run","I"," ",handle)
 
-    NULLIFY(scf_control,atomic_kind_set,h,s,k,dft_control,c,&
+    NULLIFY(scf_control,atomic_kind_set,matrix_h,matrix_s,matrix_ks,dft_control,mos,&
          ortho,scf_work2, mo_eigenvectors)
     failure=.FALSE.
     logger => cp_error_get_logger(error)
@@ -954,8 +950,8 @@ CONTAINS
          scf_control=scf_control,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
-         c=c,k=k,&
-         h=h,s=s, error=error)
+         mos=mos,matrix_ks=matrix_ks,&
+         matrix_h=matrix_h,matrix_s=matrix_s, error=error)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
 
@@ -983,7 +979,7 @@ CONTAINS
 ! print occupation numbers
     IF (ionode.AND.logger%print_keys%scf) THEN
        DO ispin=1,dft_control%nspins
-          CALL get_mo_set(mo_set=c(ispin)%mo_set,&
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
                homo=homo, &
                nelectron=nelectron_spin, &
                nao=nao)
@@ -1002,10 +998,10 @@ CONTAINS
     ndep = 0
     IF (scf_env%method /= ot_method_nr) THEN
        IF (scf_control%use_cholesky ) THEN
-          CALL copy_sm_to_fm(s(1)%matrix,ortho)
+          CALL copy_sm_to_fm(matrix_s(1)%matrix,ortho)
           CALL cp_fm_cholesky_decompose(ortho)
        ELSE
-          CALL calculate_ortho_matrix(ortho,s(1)%matrix,scf_work2,ndep,&
+          CALL calculate_ortho_matrix(ortho,matrix_s(1)%matrix,scf_work2,ndep,&
                scf_control%eps_eigval,scf_control%work_syevx)
           IF (ionode.and.logger%print_keys%scf) THEN
              WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
@@ -1054,16 +1050,16 @@ CONTAINS
        
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              ! constuct the preconditioner based on the first spin set. this might or might not be reasonable. Presumably it is.
-             CALL get_mo_set(mo_set=c(1)%mo_set,&
+             CALL get_mo_set(mo_set=mos(1)%mo_set,&
                   eigenvectors=mo_eigenvectors)
              CALL make_preconditioner(scf_env%ot_preconditioner, &
                   scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                  k(1)%matrix,s(1)%matrix,&
+                  matrix_ks(1)%matrix,matrix_s(1)%matrix,&
                   qs_env%kinetic(1)%matrix, &
                   mo_eigenvectors,scf_env%qs_ot_env(1)%settings%energy_gap) 
           ENDIF
           
-          CALL ot_scf_init(c,s(1)%matrix,scf_env%qs_ot_env)
+          CALL ot_scf_init(mos,matrix_s(1)%matrix,scf_env%qs_ot_env)
           
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              DO ispin=1,dft_control%nspins
@@ -1127,17 +1123,17 @@ CONTAINS
       POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: k, s
+      POINTER                                :: matrix_ks, matrix_s
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
 
-    NULLIFY(k,ao_mo_fm_pools, s, ao_mo_fmstruct, ao_ao_fmstruct,&
-         eigenvectors, dft_control, c, S_sm_pools, ks_env)
+    NULLIFY(matrix_ks,ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
+         eigenvectors, dft_control, mos, S_sm_pools, ks_env)
     failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -1145,11 +1141,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
-         c=c,&
-         k=k,&
+         mos=mos,&
+         matrix_ks=matrix_ks,&
          ks_env=ks_env,&
          atomic_kind_set=atomic_kind_set,&
-         s=s)
+         matrix_s=matrix_s)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
          gth_potential_present=gth_potential_present)
     CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools,&
@@ -1157,12 +1153,12 @@ CONTAINS
          error=error)
 
 !   *** finish initialization of the MOs ***
-    CPPrecondition(ASSOCIATED(c),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       DO ispin=1,SIZE(c)
-          CALL get_mo_set(c(ispin)%mo_set,eigenvectors=eigenvectors)
+       DO ispin=1,SIZE(mos)
+          CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
           IF (.NOT.ASSOCIATED(eigenvectors)) THEN
-             CALL init_mo_set(c(ispin)%mo_set,&
+             CALL init_mo_set(mos(ispin)%mo_set,&
                   ao_mo_fm_pools(ispin)%pool,&
                   name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
                   "%mo"//TRIM(ADJUSTL(cp_to_string(ispin))),&
@@ -1181,7 +1177,7 @@ CONTAINS
             error=error)
        CALL cp_fm_struct_get(ao_mo_fmstruct, nrow_block=nrow_block,&
             error=error)
-       CALL get_mo_set(c(1)%mo_set,nao=nao)
+       CALL get_mo_set(mos(1)%mo_set,nao=nao)
        CALL cp_fm_struct_create(fmstruct=ao_ao_fmstruct,&
             nrow_block=nrow_block,ncol_block=nrow_block,&
             nrow_global=nao, ncol_global=nao,&
@@ -1225,13 +1221,13 @@ CONTAINS
 
 !   *** Allocate k and put it in the QS environment ***
 
-    IF (.not.ASSOCIATED(k)) THEN
-       CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
+    IF (.not.ASSOCIATED(matrix_ks)) THEN
+       CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
             name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
             "KOHN-SHAM_MATRIX",&
             error=error)
        CALL set_qs_env(qs_env=qs_env,&
-            k=k)
+            matrix_ks=matrix_ks)
     END IF
 
 !   *** allocate p_mix_new ***
@@ -1256,7 +1252,7 @@ CONTAINS
   END SUBROUTINE scf_env_check_i_alloc
 !***************************************************************************
 
-  SUBROUTINE calculate_ortho_matrix(ortho,s,work,ndep,eps_eigval,&
+  SUBROUTINE calculate_ortho_matrix(ortho,matrix_s,work,ndep,eps_eigval,&
        work_syevx)
 
 !   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
@@ -1266,7 +1262,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(cp_fm_type), POINTER                :: ortho
-    TYPE(real_matrix_type), POINTER          :: s
+    TYPE(real_matrix_type), POINTER          :: matrix_s
     TYPE(cp_fm_type), POINTER                :: work
     INTEGER, INTENT(OUT)                     :: ndep
     REAL(KIND=dp), INTENT(in)                :: eps_eigval, work_syevx
@@ -1277,7 +1273,7 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I"," ",handle)
 
-    CALL copy_sm_to_fm(s,ortho)
+    CALL copy_sm_to_fm(matrix_s,ortho)
     CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep,work_syevx)
     CALL cp_fm_upper_to_full(ortho,work)
 
@@ -1287,7 +1283,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
+  SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,level_shift,&
        use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,&
        error)
 
@@ -1299,7 +1295,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_fm_type), POINTER                :: ks
+    TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(cp_fm_type), POINTER                :: ortho, work
     LOGICAL, INTENT(IN)                      :: do_level_shift
@@ -1336,58 +1332,58 @@ CONTAINS
     ENDIF
 
     IF (use_cholesky) THEN
-       CALL cp_fm_cholesky_reduce(ks,ortho)
+       CALL cp_fm_cholesky_reduce(matrix_ks,ortho)
 
        IF (use_jacobi) THEN
-          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues)
           use_cholesky = .FALSE.
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
           CALL cp_fm_to_fm(mo_eigenvectors,ortho)
        ELSE IF (smear /= 0.0_dp) THEN
-          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
+          CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        ELSE
-          CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+          CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
           CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
        END IF
 
     ELSE IF (use_jacobi) THEN
 
-       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_eigenvectors,0.0_dp,work)
+       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_eigenvectors,0.0_dp,work)
        CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_eigenvectors,&
-            0.0_dp,ks,b_first_col=homo+1)
+            0.0_dp,matrix_ks,b_first_col=homo+1)
 
 !     epsi =1e-11
 !     Anz_max=4
-!     N=ks%matrix_struct%nrow_global
+!     N=matrix_ks%matrix_struct%nrow_global
 
 !     *** Scale the elements with the inverse ***
 !     *** difference of the old eigenvalues   ***
 
-!     CALL blacs_block_jacobi_scaled(ks,work,mo_eigenvalues,&
+!     CALL blacs_block_jacobi_scaled(matrix_ks,work,mo_eigenvalues,&
 !                                    jacobi_threshold,homo+1)
 
 !     *** Klassisches Jacobi-Block-Verfrahren ***
 !     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
 
-       CALL cp_fm_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
+       CALL cp_fm_block_jacobi_classic(matrix_ks,mo_eigenvectors,mo_eigenvalues,&
             jacobi_threshold,homo+1)
 
     ELSE ! full S^-1 has been computed
 
-       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
-       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)
+       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work)
+       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks)
 
        IF (do_level_shift) THEN
           DO imo=homo+1,nmo
              ! now unnecessary broadcast of element
-             CALL cp_fm_get_element(ks,imo,imo,alpha)
+             CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
              alpha=alpha+level_shift
-             CALL cp_fm_set_element(ks,imo,imo,alpha)
+             CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
           END DO
        END IF
 
-       CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
+       CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
 
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
             mo_eigenvectors)
@@ -1557,7 +1553,7 @@ CONTAINS
     CALL timeset("calculate_first_density_matrix","I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
-         particle_set=particle_set,c=mo_array, s=s_sparse,&
+         particle_set=particle_set,mos=mo_array, matrix_s=s_sparse,&
          scf_control=scf_control, id_nr=qs_env_id, dft_control=dft_control,&
          error=error)
     nspin=dft_control%nspins
@@ -1844,8 +1840,8 @@ CONTAINS
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF (.NOT.orthogonal_wf.AND.scf_env%method==ot_method_nr.AND. &
                                 .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
-             DO ispin=1,SIZE(qs_env%c)
-                CALL get_mo_set(qs_env%c(ispin)%mo_set, &
+             DO ispin=1,SIZE(qs_env%mos)
+                CALL get_mo_set(qs_env%mos(ispin)%mo_set, &
                      eigenvectors=eigenvectors, nmo=nmo)
                 CALL qs_env_reorthogonalize_vectors(qs_env, &
                      v_matrix=eigenvectors, ispin=ispin, n_col=nmo,&

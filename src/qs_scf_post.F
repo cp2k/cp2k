@@ -176,7 +176,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -187,7 +187,7 @@ CONTAINS
     TYPE(qs_loc_env_type), POINTER           :: qs_loc_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, s, p
+      POINTER                                :: ks_rmpv, matrix_s, matrix_p
     TYPE(scf_control_type), POINTER          :: scf_control
 
     TYPE evals_p_type
@@ -209,8 +209,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            c,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
-            ks_rmpv,s,qs_loc_env,scf_control,unoccupied_orbs,&
+            mos,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
+            ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -221,13 +221,14 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,rho_core=rho_core,error=error)
+            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s, &
+            cell=cell,rho_core=rho_core,error=error)
        CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
 
 !    *** compute the mulliken charges ***
        IF (globenv%print%mulliken_analysis)  &
-            CALL mulliken_charges(rho%rho_ao,s(1)%matrix,globenv%para_env,particle_set, &
+            CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
                                   globenv%scr,globenv%ionode)
 
 !    *** setup the grids needed to compute a wavefunction given a vector
@@ -246,7 +247,7 @@ CONTAINS
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
@@ -291,7 +292,7 @@ CONTAINS
 ! *** possibly gets molecular states
        IF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                              eigenvalues=mo_eigenvalues)
              ! just get eigenstates
              IF (.NOT.globenv%print%homos) THEN
@@ -342,7 +343,7 @@ CONTAINS
                   CALL construct_molecular_states ( molecule_set, mo_localized, &
                                                     mo_eigenvectors, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
-                                                    s(1)%matrix, &
+                                                    matrix_s(1)%matrix, &
                                                     globenv, qs_env,    &
                                                     wf_r, wf_g)
              ENDIF
@@ -367,7 +368,7 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
-             CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao,nmo=nmo)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao,nmo=nmo)
              CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n)
              nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
@@ -377,7 +378,7 @@ CONTAINS
              CALL cp_fm_struct_release(fm_struct_tmp)
              CALL cp_fm_init_random(unoccupied_orbs(ispin)%matrix,nlumos)
 
-             CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=s(1)%matrix, &
+             CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
                   matrix_orthogonal_space=mo_eigenvectors, &
                   eps_gradient=scf_control%eps_lumos, &
@@ -468,9 +469,9 @@ CONTAINS
            ENDIF
            CALL get_cell(cell,deth=volume)
            DO ispin=1,dft_control%nspins
-              CALL get_mo_set(mo_set=c(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
                                                      eigenvalues=mo_eigenvalues)
-              CALL optical_conductivity(s,mo_eigenvectors,mo_eigenvalues, &
+              CALL optical_conductivity(matrix_s,mo_eigenvectors,mo_eigenvalues, &
                                           unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
                                           volume,globenv%ionode,File_unit) 
            ENDDO
@@ -511,7 +512,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -521,7 +522,7 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_rmpv, s
+      POINTER                                :: ks_rmpv, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
     TYPE evals_p_type
@@ -536,8 +537,8 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            c,atomic_kind_set,particle_set,rho,&
-            ks_rmpv,s,scf_control,pfull,&
+            mos,atomic_kind_set,particle_set,rho,&
+            ks_rmpv,matrix_s,scf_control,pfull,&
             molecule_set)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -546,12 +547,12 @@ CONTAINS
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env,dft_control=dft_control,molecule_set=molecule_set, &
-            c=c,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
-            rho=rho,k=ks_rmpv,scf_control=scf_control,s=s,cell=cell,error=error)
+            mos=mos,atomic_kind_set=atomic_kind_set,particle_set=particle_set,&
+            rho=rho,matrix_ks=ks_rmpv,scf_control=scf_control,matrix_s=matrix_s,cell=cell,error=error)
 
 !   *** Write last wavefunction to screen ***
        DO ispin=1,dft_control%nspins
-          CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
+          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
        ENDDO
 
 !   *** Integrated absolute spin density and spin contamination ***
@@ -568,7 +569,7 @@ CONTAINS
           IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
-          CALL compute_s_square(mos=c, matrix_s=s, s_square=s_square, s_square_ideal=s_square_ideal)
+          CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square, s_square_ideal=s_square_ideal)
           IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square
        ENDIF
@@ -630,9 +631,9 @@ CONTAINS
                unit_number=file_unit)
 
           NULLIFY(pfull) 
-          CALL replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
+          CALL replicate_matrix(matrix_s(1)%matrix,Pfull,"Full Density Matrix",.FALSE.)
           CALL add_all_real_matrix_blocks(Pfull,Globenv)
-          CALL calculate_density_matrix(c(1)%mo_set,Pfull,error=error)
+          CALL calculate_density_matrix(mos(1)%mo_set,Pfull,error=error)
           CALL write_blocks_maxabsval(Pfull,File_unit)
           CALL deallocate_matrix(Pfull)
           CALL close_file(Unit_number=File_unit)

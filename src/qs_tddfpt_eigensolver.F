@@ -120,11 +120,11 @@ CONTAINS
     n_reortho = qs_env%dft_control%tddfpt_control%n_reortho
     iter = 1
     DO spin=1, n_spins
-       CALL get_matrix_info(qs_env%k(spin)%matrix, nrow=K_rows)
+       CALL get_matrix_info(qs_env%matrix_ks(spin)%matrix, nrow=K_rows)
        ALLOCATE(K_diagonal(K_rows), S_diagonal(K_rows))
-       CALL get_matrix_diagonal(qs_env%k(spin)%matrix, K_diagonal)
-       CALL get_matrix_diagonal(qs_env%s(spin)%matrix, S_diagonal)
-       CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvalues=occ_evals)
+       CALL get_matrix_diagonal(qs_env%matrix_ks(spin)%matrix, K_diagonal)
+       CALL get_matrix_diagonal(qs_env%matrix_s(spin)%matrix, S_diagonal)
+       CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=occ_evals)
     END DO
 
 
@@ -178,13 +178,13 @@ CONTAINS
           CALL p_preortho(p_env, qs_env, b(i,:))
           CALL reorthogonalize(b(i,:), b, Sb, i-1)
        END DO
-       CALL normalize(b(i,:), R, qs_env%S, glob_env)
+       CALL normalize(b(i,:), R, qs_env%matrix_s, glob_env)
        DO spin=1, n_spins
           CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
        END DO
        CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
        DO spin=1, n_spins
-          CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
+          CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                                  b(i,spin)%matrix, &
                                  Sb(i,spin)%matrix, &
                                  p_env%n_mo(spin), &
@@ -298,13 +298,13 @@ CONTAINS
              CALL p_preortho(p_env, qs_env, b(i,:))
              CALL reorthogonalize(b(i,:), b, Sb, i-1)
           END DO
-          CALL normalize(b(i,:), R, qs_env%S, glob_env)
+          CALL normalize(b(i,:), R, qs_env%matrix_s, glob_env)
           DO spin=1, n_spins
              CALL cp_fm_to_fm(b(i,spin)%matrix, X(spin)%matrix)
           END DO
           CALL apply_op(X, Ab(i,:), t_env, p_env, qs_env)
           DO spin=1, n_spins
-             CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, &
+             CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, &
                   b(i,spin)%matrix, &
                   Sb(i,spin)%matrix, &
                   p_env%n_mo(spin), &

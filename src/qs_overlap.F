@@ -140,7 +140,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: s
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
 
     REAL(KIND = dp), DIMENSION(3)                :: rab
     REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: sab,work
@@ -167,7 +167,7 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     particle_set=particle_set,&
-                    s=s,&
+                    matrix_s=matrix_s,&
                     sab_orb=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
@@ -188,7 +188,7 @@ CONTAINS
 
     maxder = ncoset(nder)
 
-    CALL allocate_matrix_set(s,maxder)
+    CALL allocate_matrix_set(matrix_s,maxder)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,nsgf=nsgf)
 
@@ -203,7 +203,7 @@ CONTAINS
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
 
-    CALL allocate_matrix(matrix=s(1)%matrix,&
+    CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
                          nrow=nsgf,&
@@ -228,8 +228,8 @@ CONTAINS
              "W.R.T. THE NUCLEAR COORDINATES"
       CALL compress(name)
       CALL uppercase(name)
-      CALL replicate_matrix_structure(source=s(1)%matrix,&
-                                      TARGET=s(i)%matrix,&
+      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
+                                      TARGET=matrix_s(i)%matrix,&
                                       target_name=TRIM(name),&
                                       target_symmetry="antisymmetric")
     END DO
@@ -353,7 +353,7 @@ CONTAINS
               END IF
               DO i=1,maxder
                 NULLIFY (sint(i)%block)
-                CALL add_block_node(matrix=s(i)%matrix,&
+                CALL add_block_node(matrix=matrix_s(i)%matrix,&
                                     block_row=irow,&
                                     block_col=icol,&
                                     BLOCK=sint(i)%block)
@@ -462,15 +462,15 @@ CONTAINS
 
 !   *** Print the overlap matrix distribution ***
 
-    CALL write_matrix_distribution(s(1)%matrix,globenv)
+    CALL write_matrix_distribution(matrix_s(1)%matrix,globenv)
 
 !   *** Print the overlap matrix, if requested ***
 
     IF (globenv%print%overlap_matrix) THEN
-      CALL write_sparse_matrix(s(1)%matrix,4,6,qs_env,globenv)
+      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv)
       IF (globenv%print%derivatives) THEN
         DO i=2,maxder
-          CALL write_sparse_matrix(s(i)%matrix,4,6,qs_env,globenv)
+          CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv)
         END DO
       END IF
     END IF

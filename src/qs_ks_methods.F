@@ -266,14 +266,14 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, s
+      POINTER                                :: matrix_h, matrix_s
     REAL(dp)                                 :: tot1_h, tot1_s
     TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! shorter for output
 
     failure=.FALSE.
-    NULLIFY(h,s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
+    NULLIFY(matrix_h,matrix_s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
          pw_env,rho_core,rho0_s_gs,cell, logger, v_rspace_new, v_tau_rspace)
 
     !   -----------------------------------------------------------------------
@@ -290,8 +290,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          atomic_kind_set=atomic_kind_set,&
-         h=h,&
-         s=s,&
+         matrix_h=matrix_h,&
+         matrix_s=matrix_s,&
          pw_env=pw_env,&
          cell=cell,&
          para_env=para_env,&
@@ -300,8 +300,8 @@ CONTAINS
          qs_charges=qs_charges)
 
     nspins=dft_control%nspins
-    CPPrecondition(ASSOCIATED(h),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(s),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix_s),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
@@ -439,7 +439,7 @@ CONTAINS
 
           DO ispin=1,nspins
              ! copy the core ham into the ks matrix
-             CALL transfer_matrix(h(1)%matrix,ks_matrix(ispin)%matrix)
+             CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
           END DO
           IF (ASSOCIATED(v_rspace_new)) THEN
              DO ispin=1,nspins
@@ -522,10 +522,10 @@ CONTAINS
        IF (dft_control%qs_control%mulliken_restraint) THEN
            IF (just_energy) THEN
                CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                             para_env,s(1)%matrix, rho%rho_ao,energy=energy%mulliken)
+                             para_env,matrix_s(1)%matrix, rho%rho_ao,energy=energy%mulliken)
            ELSE
                CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control,&
-                             para_env,s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
+                             para_env,matrix_s(1)%matrix,rho%rho_ao,energy=energy%mulliken, &
                              ks_matrix=ks_matrix)
            ENDIF
        ENDIF
@@ -616,7 +616,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: h, ks
+      POINTER                                :: matrix_h, matrix_ks
 
   c_forces=.FALSE.
   energy_only = .FALSE.
@@ -631,7 +631,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
 
   failure=.FALSE.
   did_update=.FALSE.
-  NULLIFY(ks,h,energy, logger, rho, dft_control, para_env)
+  NULLIFY(matrix_ks,matrix_h,energy, logger, rho, dft_control, para_env)
   logger => cp_error_get_logger(error)
 
   CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
@@ -641,15 +641,15 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
      IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR.&
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
-        CALL get_qs_env(qs_env,k=ks,rho=rho,&
+        CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
              energy=energy,&
              dft_control=dft_control,&
-             h=h,para_env=para_env,error=error)
+             matrix_h=matrix_h,para_env=para_env,error=error)
 
         ! update ecore
         energy%core=0.0_dp
         DO ispin=1,dft_control%nspins
-          CALL calculate_ecore(h=h(1)%matrix,&
+          CALL calculate_ecore(h=matrix_h(1)%matrix,&
                                p=rho%rho_ao(ispin)%matrix,&
                                ecore=ecore,&
                                para_env=para_env)
@@ -657,7 +657,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
         END DO
 
         CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-             ks_matrix=ks,&
+             ks_matrix=matrix_ks,&
              rho=rho,&
              energy=energy,&
              calculate_forces=c_forces,just_energy=energy_only,&

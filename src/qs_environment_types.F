@@ -176,7 +176,7 @@ MODULE qs_environment_types
 !!     - cell: the simulation cell (box)
 !!     - dft_control: object that contains the values of various parameters
 !!       relevant to a dft calculation
-!!     - c: the molecular orbitals, in LSD array with the different spins
+!!     - mos: the molecular orbitals, in LSD array with the different spins
 !!     - sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl:
 !!       neighbor lists for the calculation of the core Hamiltonian matrix
 !!     - sac_oce,sbc_oce: neighbor lists for the calculation of the expansion
@@ -187,12 +187,12 @@ MODULE qs_environment_types
 !!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !!     - pao_env: things needed by the pao method
 !!     - energy: place where the energies calculated are stored
-!!     - h: core hamiltonian (h(1)), if needed by the calculation also
-!!       its derivatives wrt. x,y, and z (h(2:4))
-!!     - k: Khon-Sham matrix (filtred by the structure of S).
+!!     - matrix_h: core hamiltonian (matrix_h(1)), if needed by the calculation also
+!!       its derivatives wrt. x,y, and z (matrix_h(2:4))
+!!     - matrix_ks: Khon-Sham matrix (filtred by the structure of S).
 !!       with LSD an array with the differents orbitals
-!!     - s: the overlap matrix (s(1)), if needed by the calculation also
-!!       its derivatives wrt. x,y, and z (s(2:4))
+!!     - matrix_s: the overlap matrix (matrix_s(1)), if needed by the calculation also
+!!       its derivatives wrt. x,y, and z (matrix_s(2:4))
 !!     - kinetic: kinetic part of h
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - rho_soft: soft density in GAPW
@@ -232,6 +232,7 @@ MODULE qs_environment_types
 !!
 !!   MODIFICATION HISTORY
 !!     11.2002 added doc and attribute description [fawzi]
+!!     08.2004 renamed some of the very short names (s,c,k,h) for easier grepping
 !!
 !!*** *********************************************************************
 
@@ -243,7 +244,7 @@ MODULE qs_environment_types
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: c
+    TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
@@ -252,7 +253,7 @@ MODULE qs_environment_types
     TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,s,kinetic,w
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,matrix_ks,matrix_s,kinetic,matrix_w
     TYPE(qs_rho_type), POINTER                            :: rho
     TYPE(qs_rho_type), POINTER                            :: rho_soft
     TYPE(scf_control_type), POINTER                       :: scf_control
@@ -305,10 +306,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,cell_ref,use_ref_cell,&
-                        dft_control,c,sab_orb,qmmm,&
+                        dft_control,mos,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        pao_env,particle_set,energy,force,h,k,s,w,&
+                        pao_env,particle_set,energy,force,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,&
                         rho,rho_soft, pw_env, mpools,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
@@ -334,7 +336,7 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: c
+      OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
                                                 sac_ppnl, sbc_ppnl,&
@@ -348,7 +350,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: h, k, s, w
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_soft
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
@@ -422,7 +424,7 @@ CONTAINS
     IF (PRESENT(use_ref_cell)) use_ref_cell = qs_env%use_ref_cell
     IF (PRESENT(qmmm)) qmmm = qs_env%qmmm
     IF (PRESENT(dft_control)) dft_control => qs_env%dft_control
-    IF (PRESENT(c)) c => qs_env%c
+    IF (PRESENT(mos)) mos => qs_env%mos
     IF (PRESENT(sab_orb)) sab_orb => qs_env%sab_orb
     IF (PRESENT(sac_erfc)) sac_erfc => qs_env%sac_erfc
     IF (PRESENT(sac_ppl)) sac_ppl => qs_env%sac_ppl
@@ -436,11 +438,11 @@ CONTAINS
     IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
-    IF (PRESENT(h)) h => qs_env%h
-    IF (PRESENT(k)) k => qs_env%k
+    IF (PRESENT(matrix_h)) matrix_h => qs_env%matrix_h
+    IF (PRESENT(matrix_ks)) matrix_ks => qs_env%matrix_ks
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
-    IF (PRESENT(s)) s => qs_env%s
-    IF (PRESENT(w)) w => qs_env%w
+    IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
+    IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(rho_soft)) rho_soft => qs_env%rho_soft
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
@@ -518,7 +520,7 @@ CONTAINS
     NULLIFY (qs_env%cell)
     NULLIFY (qs_env%cell_ref)
     NULLIFY (qs_env%dft_control)
-    NULLIFY (qs_env%c)
+    NULLIFY (qs_env%mos)
     NULLIFY (qs_env%sab_orb)
     NULLIFY (qs_env%sac_erfc)
     NULLIFY (qs_env%sac_ppl)
@@ -532,11 +534,11 @@ CONTAINS
     NULLIFY (qs_env%pao_env)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
-    NULLIFY (qs_env%h)
-    NULLIFY (qs_env%k)
+    NULLIFY (qs_env%matrix_h)
+    NULLIFY (qs_env%matrix_ks)
     NULLIFY (qs_env%kinetic)
-    NULLIFY (qs_env%s)
-    NULLIFY (qs_env%w)
+    NULLIFY (qs_env%matrix_s)
+    NULLIFY (qs_env%matrix_w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%rho_soft)
@@ -572,10 +574,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_qs_env(qs_env,cell,cell_ref,use_ref_cell, &
-                        dft_control,c,qmmm,&
+                        dft_control,mos,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        pao_env,energy,force,h,k,s,w,&
+                        pao_env,energy,force,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,&
                         pw_env,mpools,rho,rho_soft,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,&
@@ -596,7 +599,7 @@ CONTAINS
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: c
+      OPTIONAL, POINTER                      :: mos
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
@@ -608,7 +611,7 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: h, k, s, w
+      OPTIONAL, POINTER                      :: matrix_h, matrix_ks, matrix_s, matrix_w
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -673,7 +676,7 @@ CONTAINS
     END IF
     IF ( PRESENT ( use_ref_cell ) ) qs_env%use_ref_cell = use_ref_cell
     IF ( PRESENT ( qmmm ) ) qs_env%qmmm = qmmm
-    IF (PRESENT(c)) qs_env%c => c
+    IF (PRESENT(mos)) qs_env%mos => mos
     IF (PRESENT(sab_orb)) qs_env%sab_orb => sab_orb
     IF (PRESENT(sac_erfc)) qs_env%sac_erfc => sac_erfc
     IF (PRESENT(sac_ppl)) qs_env%sac_ppl => sac_ppl
@@ -687,10 +690,10 @@ CONTAINS
     IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
-    IF (PRESENT(h)) qs_env%h => h
-    IF (PRESENT(k)) qs_env%k => k
-    IF (PRESENT(s)) qs_env%s => s
-    IF (PRESENT(w)) qs_env%w => w
+    IF (PRESENT(matrix_h)) qs_env%matrix_h => matrix_h
+    IF (PRESENT(matrix_ks)) qs_env%matrix_ks => matrix_ks
+    IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
+    IF (PRESENT(matrix_w)) qs_env%matrix_w => matrix_w
     IF (PRESENT(oce)) qs_env%oce => oce
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
@@ -914,11 +917,11 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL cell_release(qs_env%cell)
         CALL cell_release(qs_env%cell_ref)
         CALL dft_control_release(qs_env%dft_control, error=error)
-        IF (ASSOCIATED(qs_env%c)) THEN
-           DO i=1,SIZE(qs_env%c)
-              CALL deallocate_mo_set(qs_env%c(i)%mo_set)
+        IF (ASSOCIATED(qs_env%mos)) THEN
+           DO i=1,SIZE(qs_env%mos)
+              CALL deallocate_mo_set(qs_env%mos(i)%mo_set)
            END DO
-           DEALLOCATE(qs_env%c, stat=stat)
+           DEALLOCATE(qs_env%mos, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
 
@@ -1006,14 +1009,14 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL deallocate_qs_energy(qs_env%energy)
         IF (ASSOCIATED(qs_env%force))&
              CALL deallocate_qs_force(qs_env%force)
-        IF (ASSOCIATED(qs_env%h)) CALL deallocate_matrix_set(qs_env%h)
+        IF (ASSOCIATED(qs_env%matrix_h)) CALL deallocate_matrix_set(qs_env%matrix_h)
 
-        IF (ASSOCIATED(qs_env%k)) THEN
+        IF (ASSOCIATED(qs_env%matrix_ks)) THEN
             CALL mpools_get(qs_env%mpools, S_sm_pools=S_sm_pools, error=error)
-            CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % k,error=error)
+            CALL sm_pools_give_back_matrix_vect(S_sm_pools,qs_env % matrix_ks,error=error)
         ENDIF 
-        IF (ASSOCIATED(qs_env%s)) CALL deallocate_matrix_set(qs_env%s)
-        IF (ASSOCIATED(qs_env%w)) CALL deallocate_matrix_set(qs_env%w)
+        IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s)
+        IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w)
         IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
 
         IF (ASSOCIATED(qs_env%local_rho_set)) THEN 
@@ -1109,11 +1112,11 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
   failure=.FALSE.
-  NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,s,mpools)
+  NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,matrix_s,mpools)
   CALL timeset(routineN,'I',' ',handle)
   
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1126,7 +1129,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      CALL get_qs_env(qs_env,mpools=mpools,&
           scf_env=scf_env,&
           scf_control=scf_control,&
-          s=s,&
+          matrix_s=matrix_s,&
           error=error)
      CALL mpools_get(mpools,maxao_maxmo_fm_pool=maxao_maxmo_fm_pool,&
           error=error)
@@ -1144,7 +1147,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      ELSE
         ! CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
         CALL cp_fm_create(sv,v_matrix%matrix_struct)
-        CALL cp_sm_fm_multiply(sparse_matrix=s(1)%matrix,v_in=v_matrix,&
+        CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,v_in=v_matrix,&
              v_out=sv,ncol=my_n_col,para_env=qs_env%para_env, &
              error=error)
         CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&

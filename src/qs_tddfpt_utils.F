@@ -143,7 +143,7 @@ CONTAINS
     ALLOCATE(psi0d(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
     DO spin=1, n_spins
-       CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
+       CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
     END DO
     CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
                       orthogonal_orbitals=.TRUE.)
@@ -197,7 +197,7 @@ CONTAINS
        ! Compute the inverse of S using cholesky factorization !
        !-------------------------------------------------------!
        DO spin=1, n_spins
-          CALL copy_sm_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+          CALL copy_sm_to_fm(qs_env%matrix_s(spin)%matrix, t_env%invS(spin)%matrix)
           CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
           CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
        END DO
@@ -327,7 +327,7 @@ CONTAINS
 
        IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
 
-          CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+          CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
 
           n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
 
@@ -446,7 +446,7 @@ CONTAINS
 
        IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
 
-          CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+          CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvalues=orbital_eigenvalues)
 
           n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
 

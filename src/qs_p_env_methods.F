@@ -221,7 +221,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO spin=1, n_spins
              NULLIFY(p_env%p1(spin)%matrix)
-             CALL replicate_matrix_structure(qs_env%s(1)%matrix, p_env%p1(spin)%matrix,&
+             CALL replicate_matrix_structure(qs_env%matrix_s(1)%matrix, p_env%p1(spin)%matrix,&
                   target_name="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
                   "%p1-"//TRIM(ADJUSTL(cp_to_string(spin))))
              CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dp)
@@ -239,7 +239,7 @@ CONTAINS
              CALL cp_fm_get_info(psi0d(spin)%matrix, &
                   ncol_global=n_mo, nrow_global=n_ao)
           ELSE
-             CALL get_mo_set(qs_env%c(spin)%mo_set, eigenvectors=qs_env_c)
+             CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvectors=qs_env_c)
              CALL cp_fm_get_info(qs_env_c, &
                   ncol_global=n_mo, nrow_global=n_ao)
           END IF
@@ -327,18 +327,18 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(dft_control,s)
+    NULLIFY(dft_control,matrix_s)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        IF (.not.ASSOCIATED(p_env%kpp1)) THEN
-          CALL get_qs_env(qs_env,dft_control=dft_control, s=s,error=error)
+          CALL get_qs_env(qs_env,dft_control=dft_control, matrix_s=matrix_s,error=error)
           nspins=dft_control%nspins
           
           ALLOCATE(p_env%kpp1(nspins),stat=stat)
@@ -348,7 +348,7 @@ CONTAINS
              CALL compress(name,full=.TRUE.)
              DO ispin=1,nspins
                 NULLIFY(p_env%kpp1(ispin)%matrix)
-                CALL replicate_matrix_structure(s(1)%matrix,&
+                CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                      p_env%kpp1(ispin)%matrix,&
                      TRIM(name)//ADJUSTL(cp_to_string(ispin)))
              END DO
@@ -500,18 +500,18 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: c
+      POINTER                                :: mos
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: S
+      POINTER                                :: matrix_s
 
 ! code
 
     CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
-    NULLIFY(ao_mo_fm_pools,c,my_psi0,S,c, para_env,ks_env, rho, &
+    NULLIFY(ao_mo_fm_pools,mos,my_psi0,matrix_s,mos, para_env,ks_env, rho, &
          S_sm_pools)
     n_spins = qs_env%dft_control%nspins
 
@@ -522,7 +522,7 @@ END SUBROUTINE p_env_did_change
        p_env%iter=p_env%iter+1
 
        CALL get_qs_env(qs_env,&
-            c=c, S=S, para_env=para_env, ks_env=ks_env, rho=rho,&
+            mos=mos, matrix_s=matrix_s, para_env=para_env, ks_env=ks_env, rho=rho,&
             error=error)
        CALL mpools_get(qs_env%mpools,S_sm_pools=S_sm_pools,&
             ao_mo_fm_pools=ao_mo_fm_pools, error=error)
@@ -535,7 +535,7 @@ END SUBROUTINE p_env_did_change
           IF (.NOT.failure) THEN
              DO spin=1,n_spins
                 NULLIFY(my_psi0(spin)%matrix)
-                CALL get_mo_set(c(spin)%mo_set,&
+                CALL get_mo_set(mos(spin)%mo_set,&
                      eigenvectors=my_psi0(spin)%matrix)
              END DO
           END IF
@@ -555,7 +555,7 @@ END SUBROUTINE p_env_did_change
           DO spin=1,n_spins
              ! m_epsilon=choleski_decomposition(my_psi0^T S my_psi0)^-1
              ! could be optimized by combining next two calls
-             CALL cp_sm_fm_multiply(sparse_matrix=S(1)%matrix,&
+             CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,&
                   v_in=my_psi0(spin)%matrix,&
                   v_out=p_env%S_psi0(spin)%matrix,&
                   ncol=p_env%n_mo(spin), para_env=para_env, &
@@ -601,7 +601,7 @@ END SUBROUTINE p_env_did_change
                   n_cols=p_env%n_mo(spin),error=error)
              
              ! updates P
-             CALL get_mo_set(c(spin)%mo_set,lfomo=lfomo,&
+             CALL get_mo_set(mos(spin)%mo_set,lfomo=lfomo,&
                   nmo=nmo,maxocc=maxocc)
              IF (lfomo>nmo) THEN
                 CALL set_matrix(qs_env%rho%rho_ao(spin)%matrix,&
@@ -640,7 +640,7 @@ END SUBROUTINE p_env_did_change
        !-----------------------------------------------------------------------|
        DO spin=1, n_spins   
           ! S_psi0 = k times psi0d
-          CALL cp_sm_fm_multiply(qs_env%k(spin)%matrix, &
+          CALL cp_sm_fm_multiply(qs_env%matrix_ks(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, p_env%n_mo(spin), &
                para_env)
@@ -662,9 +662,9 @@ END SUBROUTINE p_env_did_change
        ! calculating this reduces the mat mult without storing a full aoxao
        ! matrix (for P). If nspin>1 you might consider calculating it on the
        ! fly to spare some memory
-       CALL get_qs_env(qs_env, s=S)
+       CALL get_qs_env(qs_env, matrix_s=matrix_s)
        DO spin=1,n_spins
-          CALL cp_sm_fm_multiply(S(1)%matrix, &
+          CALL cp_sm_fm_multiply(matrix_s(1)%matrix, &
                my_psi0(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, &
                p_env%n_mo(spin), para_env=para_env)
@@ -837,7 +837,7 @@ END SUBROUTINE p_env_did_change
          error=error)
     CALL fm_pool_create_fm(maxao_maxmo_fm_pool, tmp, error=error)
     
-    k_p => qs_env%k(spin)%matrix
+    k_p => qs_env%matrix_ks(spin)%matrix
     CALL cp_fm_get_info(v, ncol_global=ncol)
     
     IF (p_env%orthogonal_orbitals) THEN
@@ -850,7 +850,7 @@ END SUBROUTINE p_env_did_change
 
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1._dbl, &
          p_env%m_epsilon(spin)%matrix, v, 0._dbl, tmp)
-    CALL cp_sm_fm_multiply(qs_env%s(spin)%matrix, tmp, &
+    CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, tmp, &
          res, p_env%n_mo(spin), para_env=para_env, alpha=1.0_dbl,beta=1.0_dbl)    
     CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,tmp); NULLIFY(tmp)
 
@@ -1349,7 +1349,7 @@ END SUBROUTINE p_env_did_change
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p1_new, s
+      POINTER                                :: p1_new, matrix_s
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1361,7 +1361,7 @@ END SUBROUTINE p_env_did_change
     IF (PRESENT(beta)) my_beta=beta
 
     iter=iter+1
-    NULLIFY(p1_new, s, dft_control, para_env, rho, mos)
+    NULLIFY(p1_new, matrix_s, dft_control, para_env, rho, mos)
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(p_env),cp_failure_level,routineP,error,failure)
@@ -1371,7 +1371,7 @@ END SUBROUTINE p_env_did_change
        CALL p_env_check_i_alloc(p_env,qs_env=qs_env,error=error)
 
        CALL get_qs_env(qs_env,dft_control=dft_control,&
-            para_env=para_env, rho=rho, s=s,c=mos,&
+            para_env=para_env, rho=rho, matrix_s=matrix_s,mos=mos,&
             error=error)
        n_spins=dft_control%nspins
 

@@ -694,7 +694,7 @@ CONTAINS
     TYPE(cp_matrix_block_iterator)           :: iterator
     TYPE(pao_local_angles_type)              :: l_angles_col, l_angles_row
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
 
 ! make target?
 ! make target?
@@ -711,7 +711,7 @@ CONTAINS
        CALL cp_init(l_angles_row,atom_nr=1, &
             glob_angles=glob_angles, qs_env=qs_env, global_env=global_env,&
             error=error)
-       CALL get_qs_env(qs_env,s=s)
+       CALL get_qs_env(qs_env,matrix_s=matrix_s)
        CALL pao_qs_env_get(qs_env,global_env=global_env,&
             pao_max_full_bas=max_bsize)
        ALLOCATE(t1_m(max_bsize,max_bsize),t2_m(max_bsize,max_bsize), stat=stat)
@@ -744,9 +744,9 @@ CONTAINS
                      error,failure)
              END IF
 
-             CALL get_block_node(s(1)%matrix,block_row=bcol,block_col=bcol,&
+             CALL get_block_node(matrix_s(1)%matrix,block_row=bcol,block_col=bcol,&
                   BLOCK=s_col)
-             CALL get_block_node(s(1)%matrix,block_row=brow,block_col=brow,&
+             CALL get_block_node(matrix_s(1)%matrix,block_row=brow,block_col=brow,&
                   BLOCK=s_row)
              IF (.not.failure) THEN
                 CALL cp_assert(SIZE(s_col,1)==SIZE(block_val,2).AND.&
@@ -903,7 +903,7 @@ CONTAINS
     !call timeset(routineN//','//moduleN,'I',"",handle)
     CPPrecondition(glob_angles%initialized,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL get_qs_env(qs_env,k=full_h,s=full_s,pao_env=pao_env)
+       CALL get_qs_env(qs_env,matrix_ks=full_h,matrix_s=full_s,pao_env=pao_env)
        CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
     END IF
     IF (.not.failure) THEN

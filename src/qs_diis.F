@@ -309,7 +309,7 @@ CONTAINS
                                                 parameters
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: s
+      POINTER                                :: matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
@@ -318,7 +318,7 @@ CONTAINS
 
     nspin=SIZE(mo_array)
     failure=.FALSE.
-    NULLIFY(c,scf_control,s,new_errors,old_errors,parameters,matrix_struct,a,b)
+    NULLIFY(c,scf_control,matrix_s,new_errors,old_errors,parameters,matrix_struct,a,b)
     logger => cp_error_get_logger(error)
 
     diis_step = .FALSE.
@@ -330,7 +330,7 @@ CONTAINS
         output_unit= 0
     ENDIF
 
-    CALL get_qs_env(qs_env=qs_env,s=s,scf_control=scf_control)
+    CALL get_qs_env(qs_env=qs_env,matrix_s=matrix_s,scf_control=scf_control)
 
     eps_diis=scf_control%eps_diis
 
@@ -364,7 +364,7 @@ CONTAINS
 
        new_errors => diis_buffer%error(ib,ispin)%matrix
        ! I guess that this copy can be avoided for LSD
-       CALL copy_sm_to_fm(s(1)%matrix,new_errors)
+       CALL copy_sm_to_fm(matrix_s(1)%matrix,new_errors)
        CALL cp_fm_symm("L","U",nao,nmo,2.0_dp,new_errors,c,0.0_dp,sc)
 
        CALL cp_fm_gemm("N","T",nao,nao,nmo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
