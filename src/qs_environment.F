@@ -85,7 +85,7 @@ MODULE qs_environment
                                              mol_local_particles_create
   USE input_types,                     ONLY: setup_parameters_type
   USE kinds,                           ONLY: int_size,&
-                                             wp => dp
+                                             dp
   USE machine,                         ONLY: m_flush
   USE mol_kind_list_types,             ONLY: mol_kind_list_create,&
                                              mol_kind_list_release,&
@@ -226,7 +226,7 @@ CONTAINS
                n_mo(2), n_ao, nelectron, ispin, nelectron_spin(2), &
                natom, nmoltype, nnodes, nsh, nmol, i,nmolecule
     LOGICAL :: ionode, failure
-    REAL(KIND=wp) :: maxocc
+    REAL(KIND=dp) :: maxocc
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: natom_of_kind
 
@@ -495,13 +495,13 @@ CONTAINS
      ! this should allow the use of fractional occupations later on
 
      IF (dft_control%nspins.eq.1) THEN
-        maxocc=2.0_wp
+        maxocc=2.0_dp
         nelectron_spin(1)=nelectron
         nelectron_spin(2)=0
         n_mo(1) = nelectron / 2
         n_mo(2) = 0
      ELSE
-        maxocc=1.0_wp
+        maxocc=1.0_dp
         ! the simplist spin distribution is written here. Special cases will need additional user input
         IF (MOD(nelectron + multiplicity - 1,2).ne.0) & 
            CALL stop_program("qs_environment"," LSD : Try to use a different multiplicity") 
@@ -516,9 +516,9 @@ CONTAINS
      ! some options require that all MOs are computed ... 
 
      IF (globenv%print%mo_eigenvalues.OR.&
-          (scf_control%level_shift /= 0.0_wp).OR.&
-          (scf_control%smear /= 0.0_wp).OR.&
-          (scf_control%eps_jacobi /= 0.0_wp)) THEN
+          (scf_control%level_shift /= 0.0_dp).OR.&
+          (scf_control%smear /= 0.0_dp).OR.&
+          (scf_control%eps_jacobi /= 0.0_dp)) THEN
         n_mo(1) = n_ao
         IF (n_mo(2).ne.0) n_mo(2) = n_ao
      END IF
@@ -550,7 +550,7 @@ CONTAINS
 
     IF (ionode) CALL m_flush(output_unit)
 
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
