@@ -1036,12 +1036,18 @@ END SUBROUTINE deallocate_ff_type
     failure = .false.
 !   ---------------------------------------------------------------------------
 
+  IF(ASSOCIATED(torsion_kind%k)) THEN
     DEALLOCATE(torsion_kind%k,STAT=istat)
     IF(istat/=0) CALL stop_memory(routineN,"k")
+  END IF
+  IF(ASSOCIATED(torsion_kind%m)) THEN
     DEALLOCATE(torsion_kind%m,STAT=istat)
     IF(istat/=0) CALL stop_memory(routineN,"m")
+  END IF
+  IF(ASSOCIATED(torsion_kind%cosphi0)) THEN
     DEALLOCATE(torsion_kind%cosphi0,STAT=istat)
     IF(istat/=0) CALL stop_memory(routineN,"cosphi0")
+  END IF
 
   END SUBROUTINE torsion_kind_dealloc_ref
 

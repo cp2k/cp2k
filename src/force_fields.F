@@ -56,6 +56,8 @@ MODULE force_fields
                                              allocate_bend_kind_set,&
                                              allocate_ub_kind_set,&
                                              ub_kind_dealloc_ref,&
+                                             torsion_kind_dealloc_ref,&
+                                             impr_kind_dealloc_ref,&
                                              allocate_onfo_kind_set,&
                                              deallocate_bond_kind_set,&
                                              deallocate_bend_kind_set,&
@@ -3263,11 +3265,20 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
   TYPE(ub_kind_type), DIMENSION(:), POINTER         :: new_ub_kind_set
   TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list
   TYPE(ub_type), DIMENSION(:), POINTER              :: new_ub_list
+  TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set
+  TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: new_torsion_kind_set
+  TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list
+  TYPE(torsion_type), DIMENSION(:), POINTER         :: new_torsion_list
+  TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set
+  TYPE(impr_kind_type), DIMENSION(:), POINTER       :: new_impr_kind_set
+  TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list
+  TYPE(impr_type), DIMENSION(:), POINTER            :: new_impr_list
   INTEGER                                  :: ikind,newkind,ibond,ibend,iub
+  INTEGER                                  :: itorsion,iimpr
   TYPE(molecule_kind_type), POINTER        :: molecule_kind
   INTEGER, POINTER                         :: bad1(:),bad2(:)
   INTEGER                                  :: counter
-  INTEGER                                  :: nbond,nbend,nub
+  INTEGER                                  :: nbond,nbend,nub,ntorsion,nimpr
   INTEGER                                  :: idist,ndist
   INTEGER                                  :: ig3x3,ng3x3
   INTEGER                                  :: ig4x6,ng4x6
@@ -3699,6 +3710,188 @@ SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv)
       IF(istat/=0) CALL stop_memory('clean_intra_force_kind','ub_list')
       IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New UB Count: ",&
                           SIZE(new_ub_list),SIZE(new_ub_kind_set)
+    END IF
+    DEALLOCATE(bad1,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+   END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 9. Count the number of UNSET torsion kinds there are
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           ntorsion=ntorsion,&
+                           torsion_kind_set=torsion_kind_set,&
+                           torsion_list=torsion_list)
+   IF(ntorsion>0) THEN
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old IMPROPER Count: ",&
+                        SIZE(torsion_list),SIZE(torsion_kind_set)
+    NULLIFY(bad1,bad2)
+    ALLOCATE(bad1(SIZE(torsion_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+    bad1(:)=0
+    DO itorsion=1,SIZE(torsion_kind_set)
+      unsetme=.FALSE.
+      IF(torsion_kind_set(itorsion)%name=="UNSET") unsetme = .TRUE.
+      valid_kind=.FALSE.
+      DO i=1,SIZE(torsion_list)
+        IF(torsion_list(i)%name/="UNSET".AND.&
+           torsion_list(i)%torsion_kind%kind_number==itorsion) THEN
+          valid_kind=.TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.valid_kind) unsetme = .TRUE.
+      IF(unsetme) bad1(itorsion) = 1
+    END DO
+    IF(SUM(bad1)/=0) THEN
+      counter = SIZE(torsion_kind_set)-SUM(bad1)
+      CALL allocate_torsion_kind_set(new_torsion_kind_set,counter)
+      counter=0
+      DO itorsion=1,SIZE(torsion_kind_set)
+        IF(bad1(itorsion)==0) THEN
+          counter=counter+1
+          new_torsion_kind_set(counter)= torsion_kind_set(itorsion)     
+        END IF
+      END DO
+      counter=0
+      ALLOCATE(bad2(SIZE(torsion_list)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      bad2(:)=0
+      DO itorsion=1,SIZE(torsion_list)
+        unsetme = .FALSE.
+        IF(torsion_list(itorsion)%torsion_kind%name=="UNSET") unsetme = .TRUE.
+        IF(torsion_list(itorsion)%name=="UNSET")           unsetme = .TRUE.
+        IF(unsetme) bad2(itorsion) = 1
+      END DO
+      IF(SUM(bad2)/=0) THEN
+        counter = SIZE(torsion_list)-SUM(bad2)
+        ALLOCATE(new_torsion_list(counter),STAT=istat)
+        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_torsion_list')
+        counter=0
+        DO itorsion=1,SIZE(torsion_list)
+          IF(bad2(itorsion)==0) THEN
+            counter=counter+1
+            new_torsion_list(counter) = torsion_list(itorsion)
+            newkind = torsion_list(itorsion)%torsion_kind%kind_number
+            newkind = newkind - SUM(bad1(1:newkind))
+            new_torsion_list(counter)%torsion_kind => new_torsion_kind_set(newkind)
+          END IF
+        END DO
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               ntorsion=SIZE(new_torsion_list),&
+                               torsion_kind_set=new_torsion_kind_set,&
+                               torsion_list=new_torsion_list)
+        DO itorsion=1,SIZE(new_torsion_kind_set)
+          new_torsion_kind_set(itorsion)%kind_number=itorsion
+        END DO
+      END IF
+      DEALLOCATE(bad2,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
+      DO itorsion=1,SIZE(torsion_kind_set)
+        CALL torsion_kind_dealloc_ref(torsion_kind_set(itorsion))
+      END DO
+      DEALLOCATE(torsion_kind_set,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','torsion_kind_set')
+      DEALLOCATE(torsion_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','torsion_list')
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New IMPROPER Count: ",&
+                          SIZE(new_torsion_list),SIZE(new_torsion_kind_set)
+    END IF
+    DEALLOCATE(bad1,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+   END IF
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 10. Count the number of UNSET improper kinds there are
+  !-----------------------------------------------------------------------------
+  DO ikind=1,SIZE(molecule_kind_set)
+    molecule_kind => molecule_kind_set(ikind)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           nimpr=nimpr,&
+                           impr_kind_set=impr_kind_set,&
+                           impr_list=impr_list)
+   IF(nimpr>0) THEN
+    IF(PM1) WRITE(iw,*) "    Mol(",ikind,") Old IMPROPER Count: ",&
+                        SIZE(impr_list),SIZE(impr_kind_set)
+    NULLIFY(bad1,bad2)
+    ALLOCATE(bad1(SIZE(impr_kind_set)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')
+    bad1(:)=0
+    DO iimpr=1,SIZE(impr_kind_set)
+      unsetme=.FALSE.
+      IF(impr_kind_set(iimpr)%name=="UNSET") unsetme = .TRUE.
+      valid_kind=.FALSE.
+      DO i=1,SIZE(impr_list)
+        IF(impr_list(i)%name/="UNSET".AND.&
+           impr_list(i)%impr_kind%kind_number==iimpr) THEN
+          valid_kind=.TRUE.
+          EXIT
+        END IF
+      END DO
+      IF(.NOT.valid_kind) unsetme = .TRUE.
+      IF(unsetme) bad1(iimpr) = 1
+    END DO
+    IF(SUM(bad1)/=0) THEN
+      counter = SIZE(impr_kind_set)-SUM(bad1)
+      CALL allocate_impr_kind_set(new_impr_kind_set,counter)
+      counter=0
+      DO iimpr=1,SIZE(impr_kind_set)
+        IF(bad1(iimpr)==0) THEN
+          counter=counter+1
+          new_impr_kind_set(counter)= impr_kind_set(iimpr)     
+        END IF
+      END DO
+      counter=0
+      ALLOCATE(bad2(SIZE(impr_list)),STAT=istat)
+      IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad2')
+      bad2(:)=0
+      DO iimpr=1,SIZE(impr_list)
+        unsetme = .FALSE.
+        IF(impr_list(iimpr)%impr_kind%name=="UNSET") unsetme = .TRUE.
+        IF(impr_list(iimpr)%name=="UNSET")           unsetme = .TRUE.
+        IF(unsetme) bad2(iimpr) = 1
+      END DO
+      IF(SUM(bad2)/=0) THEN
+        counter = SIZE(impr_list)-SUM(bad2)
+        ALLOCATE(new_impr_list(counter),STAT=istat)
+        IF(istat/=0) CALL stop_memory('clean_intra_force_kind','new_impr_list')
+        counter=0
+        DO iimpr=1,SIZE(impr_list)
+          IF(bad2(iimpr)==0) THEN
+            counter=counter+1
+            new_impr_list(counter) = impr_list(iimpr)
+            newkind = impr_list(iimpr)%impr_kind%kind_number
+            newkind = newkind - SUM(bad1(1:newkind))
+            new_impr_list(counter)%impr_kind => new_impr_kind_set(newkind)
+          END IF
+        END DO
+        CALL set_molecule_kind(molecule_kind=molecule_kind,&
+                               nimpr=SIZE(new_impr_list),&
+                               impr_kind_set=new_impr_kind_set,&
+                               impr_list=new_impr_list)
+        DO iimpr=1,SIZE(new_impr_kind_set)
+          new_impr_kind_set(iimpr)%kind_number=iimpr
+        END DO
+      END IF
+      DEALLOCATE(bad2,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','bad2')
+      DO iimpr=1,SIZE(impr_kind_set)
+        CALL impr_kind_dealloc_ref(impr_kind_set(iimpr))
+      END DO
+      DEALLOCATE(impr_kind_set,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','impr_kind_set')
+      DEALLOCATE(impr_list,STAT=istat)
+      IF(istat/=0) CALL stop_memory('clean_intra_force_kind','impr_list')
+      IF(PM1) WRITE(iw,*) "    Mol(",ikind,") New IMPROPER Count: ",&
+                          SIZE(new_impr_list),SIZE(new_impr_kind_set)
     END IF
     DEALLOCATE(bad1,STAT=istat)
     IF (istat /= 0) CALL stop_memory('clean_intra_force_kind','bad1')

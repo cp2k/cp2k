@@ -1217,12 +1217,6 @@ CONTAINS
                                    ntorsion=ntors,&
                                    nimpr=nimpr,&
                                    nonfo=nonfo)
-          !nbond    = nbond    + molecule_kind%nbond
-          !nbend    = nbend    + molecule_kind%nbend
-          !nub      = nub      + molecule_kind%nub
-          !ntorsion = ntorsion + molecule_kind%ntorsion
-          !nimpr    = nimpr    + molecule_kind%nimpr
-          !nonfo    = nonfo    + molecule_kind%nonfo
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
           "Total Number of bonds:       ",nbond
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&
