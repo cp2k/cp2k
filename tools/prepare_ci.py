@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # prepares cp2k for checkin
 
-import sys, re, os, os.path, commands, time
+import sys, re, os, os.path, commands, time, shutil
 from sys import argv
 from os.path import join
 import prettify
@@ -34,7 +34,7 @@ def buildCp2k(cp2kRoot,buildType="sopt",logFilePath=None,clean=None):
 
 # read directives
 directives={"normalize-use":1,"upcase-keywords":1,"clean":1,
-            "replace":0,"synopsis":1,"prettify-cvs":0,"popt":0}
+            "replace":0,"synopsis":1,"prettify-cvs":1,"popt":0}
 directiveRe=re.compile(r"--(no-)?(normalize-use|upcase-keywords|"+
                        r"replace|synopsis|prettify-cvs|clean|popt)$")
 descStr=("usage:"+sys.argv[0]+"""
@@ -79,6 +79,7 @@ for instantiationFile in instantiationFiles:
     templateInstances.extend(
         instantiateTemplates.evaluateInstantiationFile(instantiationFile,
                                                        logFile,templateDir))
+
 mainLog.write(" template generation logFile in '%s'\n"%
               os.path.basename(logFile.name))
 logFile.close()
@@ -103,9 +104,7 @@ outDir=join(logDirPath,"prettifyDir")
 if os.access(outDir,os.W_OK): commands.getoutput('rm -rf "'+outDir+'"')
 os.mkdir(outDir)
 
-filesToPret2=(glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))+
-            glob.glob(os.path.join(cp2kRoot,"src","pao_*.F"))+
-            glob.glob(os.path.join(templateDir,"*.F")))
+filesToPret2=[] # glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))
 filesToPret=templateInstances
 baseNames=map(os.path.basename,filesToPret)
 for fileToPret in filesToPret2:
@@ -183,6 +182,10 @@ for fileP in filesToPret:
         logFile.write('-'*60+"\n")
         logFile.flush()
         errors=errors+1
+        if fileP in templateInstances:
+            shutil.copyfile(fileP,os.path.join(outDir,os.path.basename(fileP)))
+            logFile.write("+ used unprettified template instance for file "+
+                          os.path.basename(fileP)+"\n")
 os.mkdir(os.path.join(outDir,"orig"))
 os.chdir(outDir)
 for fileP in os.listdir(outDir):
