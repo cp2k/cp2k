@@ -45,9 +45,8 @@ MODULE simulation_cell
 !MK  PRIVATE works currently only for the QS modules
      TYPE(greens_function_type) :: green
      CHARACTER(LEN=8)           :: unit_of_length_name
-     REAL(wp)                   :: deth,unit_of_length
+     REAL(wp)                   :: deth,subcells,unit_of_length
      LOGICAL                    :: orthorhombic,scaled_coordinates
-     INTEGER                    :: nsubcell
      INTEGER, DIMENSION(3)      :: perd
      REAL(wp), DIMENSION(3,3)   :: hmat,h_inv
    END TYPE cell_type
@@ -84,7 +83,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_cell(cell,unit_of_length_name,alpha,beta,deth,gamma,&
-                      unit_of_length,nsubcell,orthorhombic,scaled_coordinates,&
+                      subcells,unit_of_length,orthorhombic,scaled_coordinates,&
                       abc,periodic,h,h_inv)
 
 !   Purpose: Get informations about a simulation cell.
@@ -96,8 +95,7 @@ CONTAINS
     TYPE(cell_type), POINTER                        :: cell
     CHARACTER(LEN=8), OPTIONAL, INTENT(OUT)         :: unit_of_length_name
     REAL(wp), OPTIONAL, INTENT(OUT)                 :: alpha,beta,deth,gamma,&
-                                                       unit_of_length
-    INTEGER, OPTIONAL, INTENT(OUT)                  :: nsubcell
+                                                       subcells,unit_of_length
     LOGICAL, OPTIONAL, INTENT(OUT)                  :: orthorhombic,&
                                                        scaled_coordinates
     REAL(wp), DIMENSION(3), OPTIONAL, INTENT(OUT)   :: abc
@@ -117,8 +115,8 @@ CONTAINS
     IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
     IF (PRESENT(scaled_coordinates))&
       scaled_coordinates = cell%scaled_coordinates
-    IF (PRESENT(nsubcell)) nsubcell = cell%nsubcell
     IF (PRESENT(periodic)) periodic(:) = cell%perd(:)
+    IF (PRESENT(subcells)) subcells = cell%subcells
     IF (PRESENT(h)) h(:,:) = cell%hmat(:,:)
     IF (PRESENT(h_inv)) h_inv(:,:) = cell%h_inv(:,:)
 
@@ -581,7 +579,7 @@ CONTAINS
     cell%unit_of_length = 1.0_wp
     cell%orthorhombic = .TRUE.
     cell%scaled_coordinates = .FALSE.
-    cell%nsubcell = 2
+    cell%subcells = 1.5_wp
     cell%perd(:) = 1
     cell%hmat(:,:) = 0.0_wp
     cell%h_inv(:,:) = 0.0_wp
@@ -614,8 +612,8 @@ CONTAINS
         CALL read_object(cell%hmat(1,3))
         CALL read_object(cell%hmat(2,3))
         CALL read_object(cell%hmat(3,3))
-      CASE ("NSUBCELL")
-        CALL read_object(cell%nsubcell)
+      CASE ("SUBCELLS")
+        CALL read_object(cell%subcells)
       CASE ("UNIT")
         CALL read_object(string,lower_to_upper=.TRUE.)
         SELECT CASE (TRIM(string))
@@ -758,8 +756,8 @@ CONTAINS
         "CELL| Angle (b,c) [degree]: ",alpha,&
         "CELL| Angle (a,c) [degree]: ",beta,&
         "CELL| Angle (a,b) [degree]: ",gamm
-      WRITE (UNIT=output_unit,FMT="(T2,A,T70,I11)")&
-        "CELL| Grid size for subcell generation",cell%nsubcell
+      WRITE (UNIT=output_unit,FMT="(T2,A,T70,F11.3)")&
+        "CELL| Grid size for subcell generation",cell%subcells
 
     END IF
 

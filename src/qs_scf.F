@@ -308,8 +308,6 @@ CONTAINS
 
     CALL timeset("scf","I","",handle)
 
-    t1 = cputime()
-
     ionode = globenv%ionode
     output_unit = globenv%scr
     energy_only = .FALSE.
@@ -382,10 +380,12 @@ CONTAINS
 
 
     scf_loop: DO
+
       IF (ionode) CALL m_flush(output_unit)
 
       iscf = iscf + 1
 
+      t1 = cputime()
 
       IF (globenv%print%density_matrix.AND.globenv%print%each_scf_step) THEN
         CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)

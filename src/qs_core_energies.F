@@ -179,12 +179,12 @@ CONTAINS
     REAL(wp)                        :: a_max,a_min,aab,&
                                        b_max,b_min,&
                                        c_max,c_min,dab,eab,ecore_overlap,f0,&
-                                       rab_max,rab2,rab2_max,rootaab,&
+                                       rab_max,rab2,rab2_max,rootaab,subcells,&
                                        unit_of_length,zab
     INTEGER                         :: atom_a,handle,iatom,icell,igrid,iijk,&
                                        ikind,istat,jatom,jcell,jgrid,jkind,&
                                        kcell,kgrid,maxatom,natom_a,nkind,&
-                                       nsubcell,output_unit
+                                       output_unit
     LOGICAL                         :: equal_kinds,ionode
 
     REAL(wp), DIMENSION(3) :: deab,r,ra_pbc,rab,rb,sa_pbc,sab,sab_max,sb,&
@@ -223,8 +223,8 @@ CONTAINS
                              maxatom=maxatom)
 
     CALL get_cell(cell=cell,&
-                  nsubcell=nsubcell,&
                   periodic=periodic,&
+                  subcells=subcells,&
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)
 
@@ -337,7 +337,7 @@ CONTAINS
         sab_max(:) = real_to_scaled(r(:),cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        ngrid(:) = MAX(1,NINT(0.5_wp*REAL(nsubcell,wp)/sab_max(:)))
+        ngrid(:) = MAX(1,NINT(0.5_wp*subcells/sab_max(:)))
 
 !       *** Print subcell information for the current atomic kind pair ***
 

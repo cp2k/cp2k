@@ -353,24 +353,28 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    neighbor_list => neighbor_list_set%first_neighbor_list
+    IF (ASSOCIATED(neighbor_list_set)) THEN
 
-    DO WHILE (ASSOCIATED(neighbor_list))
-      next_neighbor_list => neighbor_list%next_neighbor_list
-      neighbor_node => neighbor_list%first_neighbor_node
-      DO WHILE (ASSOCIATED(neighbor_node))
-        next_neighbor_node => neighbor_node%next_neighbor_node
-        DEALLOCATE (neighbor_node,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
-        neighbor_node => next_neighbor_node
+      neighbor_list => neighbor_list_set%first_neighbor_list
+
+      DO WHILE (ASSOCIATED(neighbor_list))
+        next_neighbor_list => neighbor_list%next_neighbor_list
+        neighbor_node => neighbor_list%first_neighbor_node
+        DO WHILE (ASSOCIATED(neighbor_node))
+          next_neighbor_node => neighbor_node%next_neighbor_node
+          DEALLOCATE (neighbor_node,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routine,"neighbor_node")
+          neighbor_node => next_neighbor_node
+        END DO
+        DEALLOCATE (neighbor_list,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
+        neighbor_list => next_neighbor_list
       END DO
-      DEALLOCATE (neighbor_list,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list")
-      neighbor_list => next_neighbor_list
-    END DO
 
-    DEALLOCATE (neighbor_list_set,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set")
+      DEALLOCATE (neighbor_list_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"neighbor_list_set")
+
+    END IF
 
   END SUBROUTINE deallocate_neighbor_list_set
 
@@ -480,7 +484,7 @@ CONTAINS
 !   Purpose: Return a pointer to the neighbor list of atom "atom" in a
 !            neighbor list set.
 
-!   History: - Creation (14.09.2000, Matthias Krack)
+!   History: - Creation (14.09.2000,MK)
 
 !   ***************************************************************************
 
@@ -508,7 +512,7 @@ CONTAINS
 !   Purpose: Return a pointer to the neighbor list of atom "atom" in cell
 !            "cell" in a neighbor list set.
 
-!   History: - Creation (14.09.2000, Matthias Krack)
+!   History: - Creation (14.09.2000,MK)
 
 !   ***************************************************************************
 
