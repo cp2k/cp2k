@@ -70,7 +70,7 @@ CONTAINS
 
     !Locals
     REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f, g
-    REAL ( dbl ) :: corr ( 3 )                            ! corrections needed for numerov
+    REAL ( dbl ) :: corr ( 3 )                            ! corrections needed for long range potentials
     REAL ( dbl ) :: rn, res
     INTEGER :: n                                          ! the number of grid points in rg
     INTEGER :: ierr, i
@@ -90,7 +90,6 @@ CONTAINS
     vh ( 0 ) = 0._dbl
     vh(n+1) = res / (rg%rmax**nu)
 
-!    rn = REAL ( nu, dbl )
     rn = DBLE(nu)
     f ( 0 ) = 0._dbl
     g ( 0 ) = 0._dbl

@@ -1,20 +1,18 @@
 MODULE atom_calculations
 
-  USE atom_type
+  USE atom_type, ONLY : atom_info, atom_init
   USE kinds, ONLY : dbl
   USE termination, ONLY : stop_program
-  USE util
-  USE radial_util
+  USE radial_util, ONLY : radial_integrate
   USE radial_grids, ONLY : radial_grid_type
   
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: bfsdm, bff, testfsdm, normalize, reportf
+  PUBLIC :: bfsdm, bff, testfsdm, normalize, reportf, count_nodes, &
+       calc_electron_density, guess_ew
   
   CONTAINS
-
-
 
   !! ===========================================================================
   !! Build the Full Second Derivative Matrix
@@ -51,23 +49,36 @@ MODULE atom_calculations
   !! ===========================================================================
   !! Build the F-Function
   !! ===========================================================================
-  SUBROUTINE bff(f, l, atom)
+  SUBROUTINE bff(f, n, l, atom, rho)
+
+    USE mathconstants, ONLY : pi
     
     IMPLICIT NONE
     
     REAL(DBL), DIMENSION(:), INTENT(OUT) :: f  ! f to compute
-    INTEGER :: l                               ! angular quantum number
+    INTEGER, INTENT(IN) :: n, l                ! main and angular quantum number
     TYPE(atom_info), INTENT(IN) :: atom        ! info on the atom to be computed
+    REAL(DBL), DIMENSION(:), INTENT(IN) :: rho ! the electron density
 
-    INTEGER :: k, n
 
+    ! generally needed
+    INTEGER :: i,j
+    INTEGER :: k, ngp
     REAL(DBL), DIMENSION(atom%rg%n) :: v
     REAL(DBL) :: r, w
+
+    ! needed for DFT
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: y0   ! r times coulomb repulsion potential
+    REAL(DBL), DIMENSION(0:atom%rg%n+1) :: rho_calc ! for the calculations in radial_poission
+                                                ! we need a rho with dimension ngp+2
+
+    ! needed for IPM
+    INTEGER :: totnel                           ! total number of electrons
     REAL(DBL) :: omega, etha, xi
 
-    n = atom%rg%n
+    ngp = atom%rg%n
 
-    DO k=1, n
+    DO k=1, ngp
        r = atom%rg%r(k)
        v(k) = DBLE(l)*(DBLE(l)+1.0_dbl)/(2.0_dbl*r*r)          ! zentrifugal term
     END DO
@@ -76,37 +87,90 @@ MODULE atom_calculations
     CASE DEFAULT
 
     CASE ('DFT')
-       DO k=1, n
+       
+       rho_calc = 0.0_dbl
+       rho_calc(1:ngp) = rho(1:ngp)
+
+       CALL radial_poisson(rho_calc, y0, 0, atom%rg, 'NUMEROV')
+
+!!       do k=1, ngp, ngp/20
+!!          r = atom%rg%r(k)
+!!          write (6,'(1x,3F14.8)') r, y0(k)/r, rho_calc(k)
+!!       end do
+!!       write (6,*) 
+!!       write (6,*)
+
+       DO k=1, ngp
           r = atom%rg%r(k)
-          v(k) = v(k) - DBLE(atom%z)/r
-          v(k) = v(k)
+          
+          v(k) = v(k) - DBLE(atom%z)/r ! electron-ion interaction
+          v(k) = v(k) + y0(k)/r        ! electron-electron interaction
           v(k) = v(k)
        END DO
        
     CASE ('HF')
        
     CASE ('IPM')
-       DO k=1, n
+       DO k=1, ngp
           r = atom%rg%r(k)
+          totnel = SUM(atom%nel)
+
+          ! N = 2 hardcoded for now
+          ! read from a table later
+          etha = 1.770_dbl + 1.1402_dbl * DBLE(atom%z - totnel)
+          xi = 2.625_dbl + 1.2996_dbl * DBLE(atom%z -totnel)
+
           omega = 1.0_dbl/((etha/xi)*(EXP(xi*r)-1.0_dbl) + 1.0_dbl)
-          v(k) = v(k) + 2.0_dbl*((DBLE(SUM(atom%nel))-1.0_dbl)*(1.0_dbl-omega)-DBLE(atom%z))/r
+          v(k) = v(k) + 2.0_dbl*(DBLE(totnel - 1)*(1.0_dbl - omega) - DBLE(atom%z))/r
        END DO
 
     CASE ('SIMPLE')
-       DO k=1, n
+       totnel = 0
+       DO i=1, n-1
+          totnel = totnel + SUM(atom%elconf(i,:))
+       END DO
+       IF (l>0) totnel = totnel + SUM(atom%elconf(n,0:l-1))
+       !! testing
+       totnel = 0
+       DO k=1, ngp
           r = atom%rg%r(k)
-          v(k) = v(k) - DBLE(atom%z)/r
+          v(k) = v(k) - DBLE(atom%z - totnel)/r
        END DO
 
     END SELECT
 
     ! transform the function for s-space
-    DO k=1, n
+    DO k=1, ngp
        w = atom%rg%w(k)
-       f(k) = -(atom%rg%wdd(k))/w - (2.0_dbl/(w**4))*v(k)       ! build the f-function (s-space)
+       f(k) = -(atom%rg%wdd(k))/w - (2.0_dbl/(w**4))*v(k)    ! build the f-function (s-space)
     END DO
     
   END SUBROUTINE bff
+
+  
+  !! ===========================================================================
+  !! calculate the electron density
+  !! ===========================================================================
+  SUBROUTINE calc_electron_density(rho, wf, atom)
+    IMPLICIT NONE
+    REAL(DBL), DIMENSION(:), INTENT(OUT) :: rho
+    REAL(DBL), DIMENSION(:,:), INTENT(IN) :: wf
+    TYPE(atom_info), INTENT(IN) :: atom
+
+    INTEGER :: n, l ! main and angular quantum numbers
+    INTEGER :: k    ! loop index
+    
+    rho = 0.0_dbl
+    DO k=1, atom%rg%n
+       DO n=1, 10
+          DO l=0, n-1
+             IF (atom%elconf(n,l) /= 0) &
+                  rho(k) = rho(k) + DBLE(2*(2*l+1)) * wf(k, n*(n-1)/2+1+l)**2
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE calc_electron_density
 
 
   !! ===========================================================================
@@ -207,5 +271,66 @@ MODULE atom_calculations
     END DO
     WRITE (6,*)
   END SUBROUTINE reportf
+
+  
+  ! counts the nuber of nodes in a function f
+  ! f must start positively
+  SUBROUTINE count_nodes(f, nodes)
+
+    IMPLICIT NONE
+
+    REAL(DBL), DIMENSION(:), INTENT(IN) :: f
+    INTEGER, INTENT(OUT) :: nodes
+    
+    INTEGER :: n, i
+    INTEGER :: signum
+
+    n = SIZE(f)
+    IF ((n < 4) .OR. (f(2) < 0.0_dbl)) THEN ! not enough or bad function data
+       nodes = -1
+       RETURN
+    END IF
+    
+    nodes = 0
+    signum = 1
+    DO i=3, n-1
+       IF (int(f(i)/abs(f(i))) /= signum) THEN
+          nodes = nodes + 1
+          signum = int(f(i)/abs(f(i)))
+       END IF
+    END DO
+          
+  END SUBROUTINE count_nodes
+
+  SUBROUTINE guess_ew(ew, atom)
+    
+    IMPLICIT NONE
+    REAL(DBL), DIMENSION(:), INTENT(OUT) :: ew ! the vector with the eigenvalues
+    TYPE(atom_info), INTENT(IN) :: atom        ! 
+
+    INTEGER :: n, l                            ! main and angular quantum numbers
+    INTEGER :: counter, index
+
+    counter = 0
+    DO n=1, 10 ! arbitrary limit
+       DO l=0, n-1
+
+          IF (atom%elconf(n,l) == 0) CYCLE
+
+          index = n*(n-1)/2 + 1 + l
+
+          IF (atom%method == 'SIMPLE') THEN
+             ew(index) = -0.5_dbl * (dble(atom%z)/dble(n))**2
+          ELSE
+             ew(index) = -0.5_dbl * (dble(atom%z - counter)/dble(n))**2
+          END IF
+          ew(index) = ew(index) * (1.01_dbl + 0.0_dbl*atom%precision)
+
+          ! calculate the running total of electrons
+          counter = counter + atom%elconf(n,l)
+
+       END DO
+    END DO
+  END SUBROUTINE guess_ew
 
 END MODULE atom_calculations
