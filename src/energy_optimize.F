@@ -144,14 +144,14 @@
   TYPE ( kpoint_type ), INTENT ( IN ) :: kp
   TYPE ( energy_min_type ), INTENT (INOUT) :: energy_min
   INTEGER, intent (in) :: iter
-  REAL (DBL), intent (inout) :: step
+  REAL ( dbl ), intent (inout) :: step
 
 ! locals
-  REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old, f_old
+  REAL( dbl ), DIMENSION(:), ALLOCATABLE, SAVE ::  c_old, f_old
   INteger :: ios, ncoef, iw, i
-  REAL (DBL ) :: ezero, deltae
+  REAL ( dbl ) :: ezero, deltae
 
-  ezero = 1.0E-50
+  ezero = 1.0E-50_dbl
   ncoef = size ( struc % coef_pos (1) % ao % cr )
   iw = globenv % scr
 
