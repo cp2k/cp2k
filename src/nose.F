@@ -799,6 +799,8 @@ SUBROUTINE yoshida_coef ( nhcp, dt )
 !------------------------------------------------------------------------------
   
   SELECT CASE (nhcp % nyosh)
+  CASE DEFAULT
+     CALL stop_prg ( 'yoshida_coef', 'Value not available' )
   CASE (1)
      yosh_wt(1) = 1.0_dbl
   CASE (3)
@@ -819,8 +821,35 @@ SUBROUTINE yoshida_coef ( nhcp, dt )
      yosh_wt(5) = yosh_wt(3)
      yosh_wt(6) = yosh_wt(2)
      yosh_wt(7) = yosh_wt(1)
+  CASE (9)
+     yosh_wt(1) = 0.192_dbl
+     yosh_wt(2) = 0.554910818409783619692725006662999_dbl
+     yosh_wt(3) = 0.124659619941888644216504240951585_dbl
+     yosh_wt(4) = -0.843182063596933505315033808282941_dbl
+     yosh_wt(5) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+                  yosh_wt(3)+yosh_wt(4))
+     yosh_wt(6) = yosh_wt(4)
+     yosh_wt(7) = yosh_wt(3)
+     yosh_wt(8) = yosh_wt(2)
+     yosh_wt(9) = yosh_wt(1)
+  CASE (15)
+     yosh_wt(1) = 0.102799849391985_dbl
+     yosh_wt(2) = -0.196061023297549e1_dbl
+     yosh_wt(3) = 0.193813913762276e1_dbl
+     yosh_wt(4) = -0.158240635368243_dbl
+     yosh_wt(5) = -0.144485223686048e1_dbl
+     yosh_wt(6) = 0.253693336566229_dbl
+     yosh_wt(7) = 0.914844246229740_dbl
+     yosh_wt(8) = 1.0_dbl - 2.0_dbl*(yosh_wt(1)+yosh_wt(2)+&
+                 yosh_wt(3)+yosh_wt(4)+yosh_wt(5)+yosh_wt(6)+yosh_wt(7))
+     yosh_wt(9) = yosh_wt(7)
+     yosh_wt(10) = yosh_wt(6)
+     yosh_wt(11) = yosh_wt(5)
+     yosh_wt(12) = yosh_wt(4)
+     yosh_wt(13) = yosh_wt(3)
+     yosh_wt(14) = yosh_wt(2)
+     yosh_wt(15) = yosh_wt(1)
   END SELECT
-  
   nhcp % dt_yosh = dt * yosh_wt / REAL ( nhcp % nc, dbl )
   
 END SUBROUTINE yoshida_coef

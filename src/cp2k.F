@@ -27,14 +27,12 @@ PROGRAM cp2k
   
   USE cp2k_input, ONLY : read_cp2k_section
   USE environment, ONLY : initialisation, trailer
-  USE fist, ONLY : fist_main
-  USE fist_global, ONLY : set_fist_global
+  USE control_module, ONLY : control
   USE global_types, ONLY : global_environment_type
+  USE library_tests,ONLY : lib_test
   USE kinds, ONLY : dbl, print_kind_info
   USE parallel, ONLY : start_parallel, end_parallel
   USE physcon, ONLY : print_physcon
-  USE tbmd, ONLY : tbmd_main
-  USE tbmd_global, ONLY : set_tbmd_global
   
   IMPLICIT NONE
   
@@ -53,17 +51,19 @@ PROGRAM cp2k
   IF ( globenv % ionode .AND. globenv % print_level > 4 ) &
        CALL print_physcon ( globenv % scr )
   
-  IF ( globenv % program_name == 'FIST' ) THEN
-     CALL set_fist_global ( globenv )
-     CALL fist_main()
+  IF ( globenv % program_name == 'FIST' .OR. &
+       globenv % program_name == 'TBMD' ) THEN
+
+     CALL control ( globenv )
      
-  ELSE IF ( globenv % program_name == 'TBMD' ) THEN
-     CALL set_tbmd_global ( globenv )
-     CALL tbmd_main()
+  ELSE IF ( globenv % program_name == 'TEST' ) THEN
+
+     CALL lib_test ( globenv )
+
   END IF
   
   CALL trailer ( globenv )
   
-  CALL end_parallel()
+  CALL end_parallel ( )
   
 END PROGRAM cp2k

@@ -9,20 +9,30 @@ MODULE structure_types
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
+  USE pair_potential, ONLY : potentialparm_type
+  USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
   
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: structure_type
+  PUBLIC :: structure_type, interaction_type
+
   PUBLIC :: cell_type, particle_type, particle_node_type
   PUBLIC :: molecule_structure_type
+  PUBLIC :: potentialparm_type, tbatom_param_type, tb_hopping_type
   
   TYPE structure_type
      CHARACTER ( LEN = 30 ) :: name
-     TYPE (cell_type ) :: box
-     TYPE (particle_type ), POINTER :: part ( : )
-     TYPE (particle_node_type ), POINTER :: pnode ( : )
-     TYPE (molecule_structure_type ), POINTER :: molecule ( : )
+     TYPE ( cell_type ) :: box
+     TYPE ( particle_type ), POINTER :: part ( : )
+     TYPE ( particle_node_type ), POINTER :: pnode ( : )
+     TYPE ( molecule_structure_type ), POINTER :: molecule ( : )
   END TYPE structure_type
   
+  TYPE interaction_type
+     TYPE ( potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
+     TYPE ( tbatom_param_type ), DIMENSION ( : ), POINTER :: tbatom
+     TYPE ( tb_hopping_type ), DIMENSION ( :, : ), POINTER :: tbhop
+  END TYPE interaction_type
+
 END MODULE structure_types

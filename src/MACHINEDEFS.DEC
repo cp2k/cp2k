@@ -6,6 +6,7 @@ CPP	= cpp
 FC	= f95 -free
 FCfixed	= f95 -fixed
 LDR	= f95
+AR	= ar -r
 
 CDEFS	= -D__DEC -D__FFTW
 

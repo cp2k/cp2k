@@ -54,11 +54,11 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff )
   
   pw_grid % ngpts = PRODUCT ( pw_grid % npts )
   
-  IF ( PRESENT ( cutoff ) ) THEN
-     write ( 6, '( A, I8 )' ) "pw_grid_setup: #gpts = ", pw_grid % ngpts_cut
-  ELSE
-     write ( 6, '( A, I8 )' ) "pw_grid_setup: #gpts = ", pw_grid % ngpts
-  END IF
+! IF ( PRESENT ( cutoff ) ) THEN
+!    write ( 6, '( A, I8 )' ) " PW_grid_setup| #gpts = ", pw_grid % ngpts_cut
+! ELSE
+!    write ( 6, '( A, I8 )' ) " PW_grid_setup| #gpts = ", pw_grid % ngpts
+! END IF
   
   ! Allocate the grid fields
   CALL pw_grid_allocate ( pw_grid )

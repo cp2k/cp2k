@@ -9,6 +9,7 @@ MODULE ewalds
   USE dgs, ONLY : dg_grid_setup
   USE dg_types, ONLY : dg_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : pi, zero
   USE md, ONLY : thermodynamic_type
@@ -317,19 +318,18 @@ END SUBROUTINE ewald_print
 !******************************************************************************
 
 SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
-     thermo, iounit, ewald_grid, pme_small_grid, pme_big_grid )
+     thermo, ewald_grid, pme_small_grid, pme_big_grid )
   
   IMPLICIT NONE
   
 ! Arguments
   TYPE ( dg_type ), INTENT ( OUT ) :: dg
-  TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
+  TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
   TYPE ( particle_type ), DIMENSION ( : ), INTENT ( IN ) :: part
   TYPE ( particle_node_type ), DIMENSION ( : ), INTENT ( IN ) :: pnode
-  INTEGER, INTENT ( IN ) :: pnode_grp
+  TYPE ( global_environment_type ), INTENT ( IN ) :: pnode_grp
   TYPE ( cell_type ), INTENT ( IN ) :: box
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
-  INTEGER, INTENT ( IN ) :: iounit
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: ewald_grid
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_small_grid
   TYPE ( pw_grid_type ), INTENT ( OUT ), OPTIONAL :: pme_big_grid
@@ -342,34 +342,36 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
 
 ! parallelisation is over atoms (pnodes), so the group of processors
 ! has to be the same as the group for the pnodes
-  ewald_grp = pnode_grp
+  ewald_grp = pnode_grp % group
 
 ! writing output to unit iounit
-  iw = iounit
+  iw = pnode_grp % scr
   
   natoms = SIZE ( part )
   
-  IF ( ewald_param % ewald_type /= 'NONE' ) THEN
+  IF ( pnode_grp % ionode ) THEN
+    IF ( ewald_param % ewald_type /= 'NONE' ) THEN
      
-     WRITE ( iw, '( A,T71,A )' ) '  Ewald summation is done by:', &
-          ewald_param % ewald_type
-     WRITE ( iw, '( A,T71,F10.4 )' ) '  Ewald alpha parameter [A]', &
-          ewald_param % alpha
-     SELECT CASE ( ewald_param % ewald_type ( 1:3 ) )
-     CASE DEFAULT
-        WRITE ( iw, '( A,T71,I10 )' ) &
-             '  Ewald G-space max. Miller index', ewald_param % gmax
-        CASE ( 'PME')
-        WRITE ( iw, '( A,T71,I10 )' ) &
-             ' PME max small-grid points ', ewald_param % ns_max
-        WRITE ( iw, '( A,T71,F10.4 )' ) &
-             ' PME gaussian tolerance ', ewald_param % epsilon
-     END SELECT
+       WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
+            ADJUSTR(ewald_param % ewald_type)
+       WRITE ( iw, '( A,T71,F10.4 )' ) ' Ewald| Alpha parameter [A]', &
+            ewald_param % alpha
+       SELECT CASE ( ewald_param % ewald_type ( 1:3 ) )
+       CASE DEFAULT
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' Ewald| G-space max. Miller index', ewald_param % gmax
+          CASE ( 'PME')
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' PME| Max small-grid points (input) ', ewald_param % ns_max
+          WRITE ( iw, '( A,T71,E10.4 )' ) &
+               ' PME| Gaussian tolerance (input) ', ewald_param % epsilon
+       END SELECT
      
-  ELSE
+    ELSE
      
-     WRITE ( iw, '( A )' ) ' No Ewald summation is performed'
+       WRITE ( iw, '( A, T73, A )' ) ' Ewald| ','not used'
      
+    END IF
   END IF
   
 ! fire up the reciprocal space and compute self interaction and
@@ -383,7 +385,8 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
      IF ( PRESENT ( ewald_grid ) ) THEN
         gmax = ewald_param % gmax
         IF ( gmax == 2 * ( gmax / 2 ) ) THEN
-           CALL stop_prg ( "initialize_ewalds", "gmax has to be odd" )
+           IF ( pnode_grp % ionode ) &
+             CALL stop_prg ( "initialize_ewalds", "gmax has to be odd" )
         END IF
         ewald_grid % bounds ( 1, : ) = -gmax / 2
         ewald_grid % bounds ( 2, : ) = +gmax / 2
@@ -401,16 +404,22 @@ SUBROUTINE ewald_initialize ( dg, part, pnode, pnode_grp, ewald_param, box, &
      
      IF ( PRESENT ( pme_small_grid ) .AND. PRESENT ( pme_big_grid ) ) THEN
         npts_s ( : ) = ewald_param % ns_max
-        pme_small_grid % bounds ( 1, : ) =   -npts_s ( : ) / 2
-        pme_small_grid % bounds ( 2, : ) = ( +npts_s ( : ) - 1 ) / 2
-        pme_small_grid % grid_span = HALFSPACE
-        pme_big_grid % grid_span = HALFSPACE
         
         CALL dg_grid_setup ( box, npts_s, ewald_param % epsilon, &
              ewald_param % alpha, pme_small_grid, &
              pme_big_grid, ewald_param % ewald_type )
         
         CALL pme_setup (pnode, pme_small_grid, ewald_param, dg )
+
+        IF ( pnode_grp % ionode ) THEN
+          WRITE ( iw, '( A,T71,E10.4 )' ) &
+             ' PME| Gaussian tolerance (effective) ', ewald_param % epsilon
+          WRITE ( iw, '( A,T63,3I6 )' ) &
+             ' PME| Small box grid ', pme_small_grid % npts
+          WRITE ( iw, '( A,T63,3I6 )' ) &
+             ' PME| Full box grid ', pme_big_grid % npts
+        END IF
+
      END IF
      
   END IF
@@ -420,3 +429,5 @@ END SUBROUTINE ewald_initialize
 !******************************************************************************
 
 END MODULE ewalds
+
+!******************************************************************************

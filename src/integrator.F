@@ -9,6 +9,7 @@ MODULE integrator
 !       pv_constraint, initialize_roll, rattle_roll_control, &
 !       shake_roll_control
   USE constraint
+  USE global_types, ONLY: global_environment_type
   USE eigenvalueproblems, ONLY : diagonalise
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE force_control, ONLY : force
@@ -22,11 +23,10 @@ MODULE integrator
        linklist_atoms
   USE message_passing, ONLY : mp_sum
   USE nose, ONLY : extended_parameters_type, lnhc, lnhcp, lnhcpf
-  USE pair_potential, ONLY : potentialparm_type
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : get_cell_param
   USE stop_program, ONLY : stop_prg, stop_memory
-  USE structure_types, ONLY : structure_type
+  USE structure_types, ONLY : structure_type, interaction_type
   USE timings, ONLY : timeset, timestop
   USE util, ONLY : get_unit
   
@@ -65,11 +65,15 @@ MODULE integrator
   INTEGER :: crd, vel, ptn, ene, tem, scr
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
   
+  TYPE ( global_environment_type ) :: intenv
+
+!******************************************************************************
+
 CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE velocity_verlet ( itimes, constant, simpar, potparm, &
+SUBROUTINE velocity_verlet ( itimes, constant, simpar, inter, &
      thermo, struc, ewald_param, nhcp )
   
   IMPLICIT NONE
@@ -82,26 +86,30 @@ SUBROUTINE velocity_verlet ( itimes, constant, simpar, potparm, &
   TYPE ( structure_type ), INTENT ( INOUT ) :: struc
   TYPE ( extended_parameters_type ), INTENT ( INOUT ) :: nhcp
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+  TYPE ( interaction_type ), INTENT ( IN ) :: inter
   
+  INTEGER :: handle
+
 !------------------------------------------------------------------------------
-  
+  CALL timeset ( 'VERLET', 'I', ' ', handle )
   SELECT CASE ( simpar % ensemble )
   CASE DEFAULT
      CALL stop_prg ( 'velocity_verlet','integrator not implemented')
   CASE ( 'NVE')
-     CALL nve(itimes,constant,simpar,potparm,thermo,struc,ewald_param)
+     CALL nve(itimes,constant,simpar,inter,thermo,struc,ewald_param)
      CALL energy(itimes,constant,simpar,struc,thermo,nhcp)
   CASE ( 'NVT')
-     CALL nvt(itimes,constant,simpar,potparm,thermo,struc,ewald_param,nhcp)
+     CALL nvt(itimes,constant,simpar,inter,thermo,struc,ewald_param,nhcp)
      CALL energy(itimes,constant,simpar,struc,thermo,nhcp)
   CASE ( 'NPT_I')
-     CALL npt_i(itimes,constant,simpar,potparm,thermo,struc,ewald_param,nhcp)
+     CALL npt_i(itimes,constant,simpar,inter,thermo,struc,ewald_param,nhcp)
      CALL energy(itimes,constant,simpar,struc,thermo,nhcp)
   CASE ( 'NPT_F')
-     CALL npt_f(itimes,constant,simpar,potparm,thermo,struc,ewald_param,nhcp)
+     CALL npt_f(itimes,constant,simpar,inter,thermo,struc,ewald_param,nhcp)
      CALL energy(itimes,constant,simpar,struc,thermo,nhcp)
   END SELECT
+
+  CALL timestop ( zero, handle )
   
 END SUBROUTINE velocity_verlet
 
@@ -110,20 +118,20 @@ END SUBROUTINE velocity_verlet
 ! call this subroutine before the first call to energy or velocity_verlet
 !    or if you want to change ionode and/or output files
 
-SUBROUTINE set_integrator ( ion, group, iw, mdio )
+SUBROUTINE set_integrator ( globenv, mdio )
   IMPLICIT NONE
   
 ! Arguments
-  LOGICAL, INTENT (IN) :: ion
-  INTEGER, INTENT (IN) :: group
-  INTEGER, INTENT (IN) :: iw
   TYPE(mdio_parameters_type), INTENT (IN) :: mdio
+  TYPE ( global_environment_type ), INTENT (IN) :: globenv
   
 !------------------------------------------------------------------------------
   
-  ionode = ion
-  int_group = group
-  scr = iw
+  intenv = globenv 
+
+  ionode = globenv % ionode
+  int_group = globenv % group
+  scr = globenv % scr
   
   crd_file_name = mdio % crd_file_name
   vel_file_name = mdio % vel_file_name
@@ -139,12 +147,6 @@ SUBROUTINE set_integrator ( ion, group, iw, mdio )
   itemp = mdio % itemp
   idump = mdio % idump
   iscreen = mdio % iscreen
-  
-  crd = get_unit()
-  vel = get_unit()
-  ptn = get_unit()
-  ene = get_unit()
-  tem = get_unit()
   
 END SUBROUTINE set_integrator
 
@@ -197,13 +199,18 @@ SUBROUTINE energy ( itimes, constant, simpar, struc, thermo, nhcp )
   
 !------------------------------------------------------------------------------
   
-  CALL timeset ( 'ENERGY', 'I', ' ', handle )
+  CALL timeset ( 'ENERGY', 'E', ' ', handle )
   
   IF ( ionode .AND. itimes == 0 ) THEN
+     tem = get_unit()
      OPEN ( UNIT = tem, FILE = temp_file_name )
+     ene = get_unit()
      OPEN ( UNIT = ene, FILE = ener_file_name )
+     crd = get_unit()
      OPEN ( UNIT = crd, FILE = crd_file_name )
+     vel = get_unit()
      OPEN ( UNIT = vel, FILE = vel_file_name )
+     ptn = get_unit()
      OPEN ( UNIT = ptn, FILE = ptens_file_name )
   END IF
   
@@ -444,7 +451,7 @@ END SUBROUTINE energy
 ! nve integrator for particle positions & momenta
 !    velocity Verlet
 
-SUBROUTINE nve(itimes,constant,simpar,potparm,thermo,struc,ewald_param)
+SUBROUTINE nve(itimes,constant,simpar,inter,thermo,struc,ewald_param)
   IMPLICIT NONE
   INTEGER, INTENT ( IN ) :: itimes
   REAL ( dbl ), INTENT ( INOUT ) :: constant
@@ -452,7 +459,7 @@ SUBROUTINE nve(itimes,constant,simpar,potparm,thermo,struc,ewald_param)
   TYPE (thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
   
   INTEGER :: i, nnodes
   REAL ( dbl ) :: dtom
@@ -489,7 +496,7 @@ SUBROUTINE nve(itimes,constant,simpar,potparm,thermo,struc,ewald_param)
 !
 ! get new forces
 !
-  CALL force ( struc, potparm, thermo, simpar, ewald_param )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
   
 !
 ! second half of velocity verlet
@@ -519,7 +526,7 @@ END SUBROUTINE nve
 
 !******************************************************************************
 
-SUBROUTINE nvt(itimes,constant,simpar,potparm,thermo,struc, &
+SUBROUTINE nvt(itimes,constant,simpar,inter,thermo,struc, &
      ewald_param,nhcp)
   
   IMPLICIT NONE
@@ -532,7 +539,7 @@ SUBROUTINE nvt(itimes,constant,simpar,potparm,thermo,struc, &
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   TYPE (extended_parameters_type ), INTENT ( INOUT ) :: nhcp
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
   
 ! Locals
   INTEGER :: i, nnodes
@@ -572,7 +579,7 @@ SUBROUTINE nvt(itimes,constant,simpar,potparm,thermo,struc, &
 !
 ! get new forces
 !
-  CALL force ( struc, potparm, thermo, simpar, ewald_param )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
   
 !
 ! second half of velocity verlet
@@ -604,7 +611,7 @@ END SUBROUTINE nvt
 
 !******************************************************************************
 
-SUBROUTINE npt_i ( itimes, constant, simpar, potparm, thermo, struc, &
+SUBROUTINE npt_i ( itimes, constant, simpar, inter, thermo, struc, &
      ewald_param, nhcp )
   
   IMPLICIT NONE
@@ -617,7 +624,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, potparm, thermo, struc, &
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   TYPE (extended_parameters_type ), INTENT ( INOUT ) :: nhcp
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
   
 ! Locals
   INTEGER :: i, nnodes, iroll
@@ -700,7 +707,7 @@ SUBROUTINE npt_i ( itimes, constant, simpar, potparm, thermo, struc, &
 !
 ! get new forces
 !
-  CALL force(struc,potparm,thermo,simpar,ewald_param)
+  CALL force(struc,inter,thermo,simpar,ewald_param,intenv)
   
 !
 ! second half of velocity verlet
@@ -757,10 +764,13 @@ SUBROUTINE pressure ( pnode, thermo )
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   
 ! Locals
-  INTEGER :: i, j, iatom, nnodes
+  INTEGER :: i, j, iatom, nnodes, handle
+  REAL ( dbl ) :: mfl
   
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
+
   thermo%pv_kin = 0._dbl
   nnodes = size(pnode)
   DO i = 1, 3
@@ -772,6 +782,7 @@ SUBROUTINE pressure ( pnode, thermo )
         END DO
      END DO
   END DO
+  mfl = REAL( 9 * nnodes, dbl ) * 2._dbl * 1.e-6_dbl
   
 #if defined(__parallel)
   CALL mp_sum(thermo%pv_kin,int_group)
@@ -780,6 +791,8 @@ SUBROUTINE pressure ( pnode, thermo )
 ! total virial
   thermo%ptens = thermo%pv + thermo%pv_kin + thermo%pv_const
   
+  CALL timestop ( mfl, handle )
+
 END SUBROUTINE pressure
 
 !******************************************************************************
@@ -794,11 +807,13 @@ SUBROUTINE update_structure(struc,task)
   
 ! Locals
   REAL ( dbl ), ALLOCATABLE, DIMENSION ( :, : ) :: atot
-  INTEGER :: natoms, ios, imol, atombase, iat, i
+  INTEGER :: natoms, ios, imol, atombase, iat, i, handle
   TYPE (linklist_atoms), POINTER :: current_atom
   
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'UPDATE_STRUCTURE', 'E', ' ', handle )
+
   natoms = size(struc%part)
   ALLOCATE (atot(3,natoms),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'update_structure', 'atot', 3 * natoms )
@@ -840,6 +855,8 @@ SUBROUTINE update_structure(struc,task)
   
   DEALLOCATE ( atot, STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'update_structure', 'atot' )
+
+  CALL timestop ( zero, handle )
   
 END SUBROUTINE update_structure
 
@@ -910,7 +927,7 @@ END SUBROUTINE set
 
 !******************************************************************************
 
-SUBROUTINE npt_f ( itimes, constant, simpar, potparm, thermo, struc, &
+SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
      ewald_param, nhcp )
   
   IMPLICIT NONE
@@ -923,7 +940,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, potparm, thermo, struc, &
   TYPE (structure_type ), INTENT ( INOUT ) :: struc
   TYPE (extended_parameters_type ), INTENT ( INOUT ) :: nhcp
   TYPE (ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE (potentialparm_type ), INTENT ( IN ), DIMENSION ( :, : ) :: potparm
+  TYPE (interaction_type ), INTENT ( IN ) :: inter
   
 ! Locals
   INTEGER :: i, j, nnodes, iroll
@@ -1009,7 +1026,7 @@ SUBROUTINE npt_f ( itimes, constant, simpar, potparm, thermo, struc, &
 !
 ! get new forces
 !
-  CALL force ( struc, potparm, thermo, simpar, ewald_param )
+  CALL force ( struc, inter, thermo, simpar, ewald_param, intenv )
   
 !
 ! second half of velocity verlet

@@ -6,21 +6,21 @@
 MODULE tbmd_debug
   
   USE ewald_parameters_types, ONLY : ewald_parameters_type
+  USE fist_force_numer, ONLY : force_nonbond_numer, force_recip_numer, &
+       ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
+       energy_recip_numer
+  USE tbmd_force, ONLY : force_control, debug_variables_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
+  USE linklists, ONLY : dist_constraints, g3x3_constraints
   USE md, ONLY : thermodynamic_type
   USE molecule_types, ONLY : molecule_structure_type, particle_node_type
   USE particle_types, ONLY : particle_type
   USE pair_potential, ONLY : potentialparm_type, ener_coul
-  USE tbmd_force, ONLY : force_control, debug_variables_type
-  USE fist_force_numer, ONLY : force_nonbond_numer, force_recip_numer, &
-       ptens_numer, pvg_numer, potential_g_numer, de_g_numer, &
-       energy_recip_numer
-  USE linklists, ONLY : dist_constraints, g3x3_constraints
-  USE pw_grid_types, ONLY : pw_grid_type
-  USE pw_grids, ONLY : pw_grid_setup
+  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
+  USE pw_grids, ONLY : pw_find_cutoff, pw_grid_setup
   USE simulation_cell, ONLY : cell_type
-  USE stop_program, ONLY : stop_memory
+  USE stop_program, ONLY : stop_memory, stop_prg
   
   IMPLICIT NONE
   
@@ -51,16 +51,16 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   
 ! Locals
   TYPE ( debug_variables_type ) :: dbg
-  TYPE ( pw_grid_type ) :: pw_grid
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
-  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
-  INTEGER :: iflag, i, natoms, isos, iatom, iw, ir
+  TYPE ( pw_grid_type ) :: ewald_grid
+  INTEGER :: iflag, i, natoms, isos, iatom, iw, ir, npts_s(3), gmax
   INTEGER, DIMENSION ( 2 ) :: dum
-  REAL ( dbl ) :: delta, energy_numer
+  REAL ( dbl ) :: delta, energy_numer, cutoff
   REAL ( dbl ) :: e_numer, pv_test ( 3, 3 )
   REAL ( dbl ) :: err1, numer, denom1, vec ( 3 ), e_bc, e_real, energy_tot
   REAL ( dbl ) :: denom2, err2
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_bc, f_real
+  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: f_numer
+  REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rel, diff
   
 !------------------------------------------------------------------------------
   
@@ -107,8 +107,8 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
      ELSE
         WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
      END IF
-     CALL force_nonbond_numer ( pnode, box, potparm, delta, f_numer, &
-          energy_numer )
+     CALL force_nonbond_numer ( ewald_param, pnode, box, potparm,  &
+          delta, f_numer, energy_numer )
      WRITE ( iw, '( A, T61, E20.14 )' ) ' NON BOND NUMER ENERGY = ', &
           energy_numer
      WRITE ( iw, '( A, T61, E20.14 )' ) ' NON BOND ANAL  ENERGY = ', &
@@ -144,101 +144,112 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
   END IF
   
 ! Debug g-space 
-! IF ( ewald_param % ewald_type /= 'NONE' ) THEN
-!    WRITE ( iw, '( A )' ) ' DO YOU WANT TO DEBUG YOUR G-SPACE (1=yes)?'
-!    READ ( ir, * ) iflag
-!    IF ( iflag == 1 ) THEN
-!       CALL pw_grid_setup ( box, pw_grid, ewald_param % gmax )
-!       WRITE ( iw, '( A )' ) &
-!            ' DO YOU WANT TO DEBUG YOUR G-SPACE ENERGIES (1=yes)?'
-!       READ ( ir, * ) iflag
-!       IF ( iflag == 1 ) THEN
-!          WRITE ( iw, '( A, T71, I10 )' ) 'TOTAL NUMBER OF G-VECTORS= ', &
-!               pw_grid % ngpts_cut
-!          WRITE ( iw, '( A, T71, F10.4 )' ) 'ALPHA= ', &
-!               ewald_param % alpha
-!          CALL energy_recip_numer ( pnode, box, potparm, pw_grid, &
-!               energy_numer, pw_grid % ngpts_cut )
-!          WRITE ( iw, '( A, T61, G20.14 )' ) 'G-SPACE ANAL ENERGY = ', &
-!               dbg % pot_g
-!          WRITE ( iw, '( A, T61, G20.14 )' ) &
-!               'G-SPACE NUMERICAL ENERGY = ', energy_numer
-!       END IF
-!       WRITE ( iw, '( A )' ) &
-!            ' DO YOU WANT TO DEBUG YOUR G-SPACE FORCES (1=yes)?'
-!       READ ( ir, * ) iflag
-!       IF ( iflag == 1 ) THEN
-!          WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
-!          READ ( ir, * ) delta
-!          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-!             delta = 1.0E-5_dbl
-!             WRITE ( iw, '( A, T71, F10.6 )' ) &
-!                  ' DELTA (changed to default) = ', delta
-!          ELSE
-!             WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
-!          END IF
-!          
-!          CALL force_recip_numer ( pnode, box, potparm, gvec, delta, f_numer )
-!          
+ IF ( ewald_param % ewald_type /= 'NONE' ) THEN
+    WRITE ( iw, '( A )' ) ' DO YOU WANT TO DEBUG YOUR G-SPACE (1=yes)?'
+    READ ( ir, * ) iflag
+    IF ( iflag == 1 ) THEN
+       gmax = ewald_param % gmax
+       ewald_grid % bounds ( 1, : ) = -gmax / 2
+       ewald_grid % bounds ( 2, : ) = +gmax / 2
+       npts_s = (/ gmax, gmax, gmax /)
+       ewald_grid % grid_span = HALFSPACE
+        
+       CALL pw_find_cutoff ( npts_s, box, cutoff )
+        
+       CALL pw_grid_setup( box, ewald_grid, cutoff)
+
+       WRITE ( iw, '( A )' ) &
+            ' DO YOU WANT TO DEBUG YOUR G-SPACE ENERGIES (1=yes)?'
+       READ ( ir, * ) iflag
+       IF ( iflag == 1 ) THEN
+          WRITE ( iw, '( A, T71, I10 )' ) 'TOTAL NUMBER OF G-VECTORS= ', &
+               ewald_grid % ngpts_cut
+          WRITE ( iw, '( A, T71, F10.4 )' ) 'ALPHA= ', &
+               ewald_param % alpha
+          CALL energy_recip_numer ( ewald_param, pnode, box,  &
+	          ewald_grid, energy_numer, ewald_grid % ngpts_cut )
+          WRITE ( iw, '( A, T61, G20.14 )' ) 'G-SPACE ANAL ENERGY = ', &
+               dbg % pot_g
+          WRITE ( iw, '( A, T61, G20.14 )' ) &
+               'G-SPACE NUMERICAL ENERGY = ', energy_numer
+       END IF
+       WRITE ( iw, '( A )' ) &
+            ' DO YOU WANT TO DEBUG YOUR G-SPACE FORCES (1=yes)?'
+       READ ( ir, * ) iflag
+       IF ( iflag == 1 ) THEN
+          WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+          READ ( ir, * ) delta
+          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+             delta = 1.0E-5_dbl
+             WRITE ( iw, '( A, T71, F10.6 )' ) &
+                  ' DELTA (changed to default) = ', delta
+          ELSE
+             WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
+          END IF
+          
+          CALL force_recip_numer ( ewald_param, pnode, box, ewald_grid, &
+	                           delta, f_numer )
+          
 ! computing the absolute value of the differences in the forces
-!          diff = ABS ( dbg % f_g - f_numer )
-!          rel = diff / dbg % f_g
-!          
+          diff = ABS ( dbg % f_g - f_numer )
+          rel = diff / dbg % f_g
+          
 ! find the maximum difference and the relative and absolute errors.
-!          WRITE ( iw, '( A,T61,G20.14 )' ) &
-!               'MAXIMUM ABSOLUTE ERROR = ', maxval(diff)
-!          WRITE ( iw, '( A,T61,G20.14 )' ) &
-!               'MAXIMUM RELATIVE ERROR = ', maxval(rel)
+          WRITE ( iw, '( A,T61,G20.14 )' ) &
+               'MAXIMUM ABSOLUTE ERROR = ', maxval(diff)
+          WRITE ( iw, '( A,T61,G20.14 )' ) &
+               'MAXIMUM RELATIVE ERROR = ', maxval(rel)
 !          
-! write out the particle number and forces of 
-!    the max absolute and relative error         
-!          dum = MAXLOC ( diff )
-!          WRITE ( iw, '( A,T71,I10 )' ) &
-!               ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
-!          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_ANAL G-SPACE =', &
-!               dbg % f_g(:,dum(2))
-!          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
-!               f_numer(:,dum(2))
-!          
-!          dum = MAXLOC ( rel )
-!          WRITE ( iw, '( A,T71,I10 )' ) &
-!               'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
-!          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_ANAL G-SPACE =', &
-!               dbg % f_g(:,dum(2))
-!          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
-!               f_numer(:,dum(2))
-!       END IF
-!       
-!       WRITE ( iw, '( A )' ) &
-!            ' DO YOU WANT TO DEBUG YOUR G-SPACE VIRIAL (1=yes)?'
-!       READ ( ir, * ) iflag
-!       IF ( iflag == 1 ) THEN
+! write out the particle number and forces of the max absolute  
+! and relative error         
+          dum = MAXLOC ( diff )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               ' PARTICLE WITH MAX ABSOLUTE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_ANAL G-SPACE =', &
+               dbg % f_g(:,dum(2))
+          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
+               f_numer(:,dum(2))
+          
+          dum = MAXLOC ( rel )
+          WRITE ( iw, '( A,T71,I10 )' ) &
+               'PARTICLE WITH MAX RELATIVE ERROR IS ', dum(2)
+          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_ANAL G-SPACE =', &
+               dbg % f_g(:,dum(2))
+          WRITE ( iw, '( A,T21,3G20.14 )' ) ' F_NUMR G-SPACE =', &
+               f_numer(:,dum(2))
+       END IF
+       
+       WRITE ( iw, '( A )' ) &
+            ' DO YOU WANT TO DEBUG YOUR G-SPACE VIRIAL (1=yes)?'
+       READ ( ir, * ) iflag
+       IF ( iflag == 1 ) THEN
 !          
 ! get numerical virial
-!          WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
-!          READ ( ir, * ) delta
-!          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
-!             delta = 1.0E-5_dbl
-!             WRITE ( iw, '( A,T71,F10.6 )' ) &
-!                  ' DELTA (changed to default) = ', delta
-!          ELSE
-!             WRITE ( iw, '( A,T71,F10.6 )' ) ' DELTA = ', delta
-!          END IF
-!          CALL pvg_numer ( pnode, box, potparm, gvec, pv_test, delta )
-!          
+          WRITE ( iw, '( A )' ) ' ENTER A DELTA LESS THAN 1'
+          READ ( ir, * ) delta
+          IF ( delta >= 1.0_dbl .OR. delta <= 0.0_dbl ) THEN
+             delta = 1.0E-5_dbl
+             WRITE ( iw, '( A,T71,F10.6 )' ) &
+                  ' DELTA (changed to default) = ', delta
+          ELSE
+             WRITE ( iw, '( A,T71,F10.6 )' ) ' DELTA = ', delta
+          END IF
+          CALL pvg_numer ( ewald_param, pnode, box, &
+	                   ewald_grid, pv_test, delta )
+          
 ! writing out the virials
-!          WRITE ( iw, '( A )' ) ' PV G-SPACE NUMERICAL'
-!          DO i = 1, 3
-!             WRITE ( iw, '( T21,3G20.14 )' ) pv_test(i,:)
-!          END DO
-!          WRITE ( iw, '( A )' ) ' PV G-SPACE'
-!          DO i = 1, 3
-!             WRITE ( iw, '( T21,3G20.14 )' ) dbg % pv_g(i,:)
-!          END DO
-!       END IF
-!    END IF
-! END IF
-! 
+          WRITE ( iw, '( A )' ) ' PV G-SPACE NUMERICAL'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.14 )' ) pv_test(i,:)
+          END DO
+          WRITE ( iw, '( A )' ) ' PV G-SPACE'
+          DO i = 1, 3
+             WRITE ( iw, '( T21,3G20.14 )' ) dbg % pv_g(i,:)
+          END DO
+       END IF
+    END IF
+ END IF
+ 
 ! Debug real-space virial
   WRITE ( iw, '( A )' ) &
        ' DO YOU WANT TO DEBUG YOUR NON BOND (REAL SPACE) VIRIAL (1=yes)?'
@@ -255,7 +266,7 @@ SUBROUTINE debug_control ( globenv, ewald_param, part, pnode, molecule, box, &
      ELSE
         WRITE ( iw, '( A, T71, F10.6 )' ) ' DELTA = ', delta
      END IF
-     CALL ptens_numer ( pnode, box, potparm, pv_test, delta )
+     CALL ptens_numer ( ewald_param, pnode, box, potparm, pv_test, delta )
 !    
 ! writing out the virials
      WRITE ( iw, '( A )' ) ' PV NUMERICAL'

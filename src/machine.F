@@ -31,4 +31,16 @@ MODULE machine
   PUBLIC :: m_walltime, m_cputime, m_datum
   PUBLIC :: m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
   
+!
+! FUNCTION m_cputime()
+! FUNCTION m_walltime()
+! SUBROUTINE m_datum(cal_date)
+! SUBROUTINE m_hostnm(hname)
+! SUBROUTINE m_getcwd(curdir)
+! SUBROUTINE m_getlog(user)
+! SUBROUTINE m_getuid(uid)
+! SUBROUTINE m_getpid(pid)
+! SUBROUTINE m_getarg(i,arg)
+!
+
 END MODULE machine

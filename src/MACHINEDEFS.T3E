@@ -6,6 +6,7 @@ CPP	= cpp
 FC	= f90 -f free
 FCfixed	= f90 -f fixed
 LDR	= f90
+AR	= ar -r
 
 CDEFS	= -D__T3E -D__FFTW
 

@@ -61,7 +61,7 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
   
 ! Locals
-  INTEGER :: id, i, natoms, nnodes, handle, isos
+  INTEGER :: id, i, ii, natoms, nnodes, handle, isos
   REAL ( dbl ) :: pot_nonbond, pot_bond, pot_bend, vg_coulomb
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond, pv_bond, pv_bend
@@ -80,21 +80,27 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   natoms = SIZE ( part )
   isos = 0
   first_time = .NOT. ALLOCATED ( f_nonbond )
-  IF ( .NOT. ALLOCATED ( f_nonbond )  ) &
-       ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
-  IF ( isos /= 0 ) &
+  IF ( .NOT. ALLOCATED ( f_nonbond )  ) THEN
+    ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
+    IF ( isos /= 0 ) &
        CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+  ELSE IF ( SIZE ( f_nonbond ( 1, : ) ) < natoms ) THEN
+    DEALLOCATE ( f_nonbond, STAT = isos )
+    IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'f_nonbond' )
+    ALLOCATE ( f_nonbond ( 3,natoms ), STAT = isos )
+    IF ( isos /= 0 ) &
+       CALL stop_memory ( 'force_control', 'f_nonbond', 3 * natoms )
+  END IF
 
 ! initialize ewalds
   IF ( first_time ) THEN
      SELECT CASE ( ewald_param % ewald_type )
      CASE ( 'EWALD_GAUSS' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global % group, &
-             ewald_param, box, thermo, fc_global % scr, &
-             ewald_grid = grid_ewald )
+        CALL ewald_initialize ( dg, part, pnode, fc_global, &
+             ewald_param, box, thermo, ewald_grid = grid_ewald )
      CASE ( 'PME_GAUSS' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global % group, &
-             ewald_param, box, thermo, fc_global % scr, &
+        CALL ewald_initialize ( dg, part, pnode, fc_global, &
+             ewald_param, box, thermo, &
              pme_small_grid = grid_s, pme_big_grid = grid_b )
      END SELECT
   END IF
@@ -200,19 +206,19 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
 ! add up all the forces
 ! nonbonded forces might be claculated for atoms not on this node
 ! ewald forces are strictly local -> sum only over pnode
+! We first sum the forces in f_nonbond, this allows for a more efficient
+! global sum in the parallel code and in the end copy them back to part
   DO i = 1, natoms
-     part ( i ) % f ( 1 ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
-     part ( i ) % f ( 2 ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
-     part ( i ) % f ( 3 ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
+     f_nonbond ( 1, i ) = part ( i ) % f ( 1 ) + f_nonbond ( 1, i )
+     f_nonbond ( 2, i ) = part ( i ) % f ( 2 ) + f_nonbond ( 2, i )
+     f_nonbond ( 3, i ) = part ( i ) % f ( 3 ) + f_nonbond ( 3, i )
   END DO
   IF ( ewald_param % ewald_type /= 'NONE' ) THEN
      DO i = 1, nnodes
-        pnode ( i ) % p % f ( 1 ) = pnode ( i ) % p % f ( 1 ) &
-             + fg_coulomb ( 1, i )
-        pnode ( i ) % p % f ( 2 ) = pnode ( i ) % p % f ( 2 ) &
-             + fg_coulomb ( 2, i )
-        pnode ( i ) % p % f ( 3 ) = pnode ( i ) % p % f ( 3 ) &
-             + fg_coulomb ( 3, i )
+        ii = pnode ( i ) % p % iatom
+        f_nonbond ( 1, ii ) = f_nonbond ( 1, ii ) + fg_coulomb ( 1, i )
+        f_nonbond ( 2, ii ) = f_nonbond ( 2, ii ) + fg_coulomb ( 2, i )
+        f_nonbond ( 3, ii ) = f_nonbond ( 3, ii ) + fg_coulomb ( 3, i )
      END DO
   END IF
 
@@ -265,10 +271,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   IF ( isos /= 0 ) CALL stop_memory ( 'force_control', 'fg_coulomb' )
   
 #if defined ( __parallel )
-  DO i = 1, natoms
-     CALL mp_sum ( part ( i ) % f, fc_global % group )
-  END DO
+  CALL mp_sum ( f_nonbond, fc_global % group )
 #endif
+
+  DO i = 1, natoms
+    part ( i ) % f ( 1 ) = f_nonbond ( 1, i )
+    part ( i ) % f ( 2 ) = f_nonbond ( 2, i )
+    part ( i ) % f ( 3 ) = f_nonbond ( 3, i )
+  END DO
   
   CALL timestop ( zero, handle )
   

@@ -6,12 +6,12 @@
 MODULE dgs
   
   USE coefficient_types, ONLY : coeff_type
-  USE fft_tools, ONLY : fft_radix_operations, &
-       FFT_RADIX_ALLOWED, FFT_RADIX_DISALLOWED, BWFFT, FWFFT, &
-       fft3d => fft_wrap
+  USE fft_tools, ONLY : fft_radix_operations, fft3d, &
+       FFT_RADIX_ALLOWED, FFT_RADIX_DISALLOWED, FFT_RADIX_NEXT, &
+       FFT_RADIX_CLOSEST, BWFFT, FWFFT
   USE kinds, ONLY : dbl, sgl
   USE mathconstants, ONLY : twopi, pi
-  USE pw_grid_types, ONLY : pw_grid_type
+  USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE
   USE pw_grids, ONLY : pw_grid_setup, pw_find_cutoff
   USE pw_types, ONLY : COMPLEXDATA3D
   USE pws, ONLY : fft_wrap
@@ -38,46 +38,43 @@ SUBROUTINE dg_grid_setup ( box_b, npts_s, epsilon, alpha, grid_s, grid_b, &
   
 ! Arguments
   INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts_s
-  REAL ( dbl ), INTENT ( IN ) :: epsilon, alpha
+  REAL ( dbl ), INTENT ( INOUT ) :: epsilon
+  REAL ( dbl ), INTENT ( IN ) :: alpha
   TYPE ( cell_type ), INTENT ( IN ) :: box_b
   CHARACTER( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
   
   TYPE ( pw_grid_type ), INTENT ( INOUT ) :: grid_s, grid_b
   
 ! Locals
-  INTEGER :: check
+  INTEGER :: nout ( 3 )
   REAL ( dbl ) :: dr ( 3 ), cutoff
   REAL ( dbl ) :: cell_lengths ( 3 )
   TYPE ( cell_type ) :: unit_box, box_s
   
-  INTEGER :: foo ( 3 ) !*apsi
 !------------------------------------------------------------------------------
-  
-  CALL fft_radix_operations ( npts_s ( 1 ), check, &
-       operation = FFT_RADIX_ALLOWED )
-  IF ( check /= FFT_RADIX_ALLOWED ) THEN
-     CALL stop_prg ( "dg_grid_setup", "disallowed small FFT length #1" )
-  END IF
-  CALL fft_radix_operations ( npts_s ( 2 ), check, &
-       operation = FFT_RADIX_ALLOWED )
-  IF ( check /= FFT_RADIX_ALLOWED ) THEN
-     CALL stop_prg ( "dg_grid_setup", "disallowed small FFT length #2" )
-  END IF
-  CALL fft_radix_operations ( npts_s ( 3 ), check, &
-       operation = FFT_RADIX_ALLOWED )
-  IF ( check /= FFT_RADIX_ALLOWED ) THEN
-     CALL stop_prg ( "dg_grid_setup", "disallowed small FFT length #3" )
-  END IF
+
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 1 ), &
+       operation = FFT_RADIX_NEXT )
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 2 ), &
+       operation = FFT_RADIX_NEXT )
+  CALL fft_radix_operations ( npts_s ( 1 ), nout ( 3 ), &
+       operation = FFT_RADIX_NEXT )
 
   CALL get_cell_param ( box_b, cell_lengths )
   
-  CALL dg_get_spacing ( npts_s, epsilon, alpha, dg_gaussian_type, dr )
+  CALL dg_get_spacing ( nout, epsilon, alpha, dg_gaussian_type, dr )
   
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
   
+  CALL dg_get_epsilon ( nout, epsilon, alpha, dg_gaussian_type, dr )
+
   grid_b % bounds ( 1, : ) = - grid_b % npts / 2
   grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
-  grid_s % npts ( : ) = grid_s % bounds ( 2, : ) - grid_s % bounds ( 1, : ) + 1
+  grid_b % grid_span = HALFSPACE
+  grid_s % bounds ( 1, : ) =   -nout ( : ) / 2
+  grid_s % bounds ( 2, : ) = ( +nout ( : ) - 1 ) / 2
+  grid_s % grid_span = HALFSPACE
+  grid_s % npts = nout
   
   CALL pw_find_cutoff ( grid_b % npts, box_b, cutoff )
   
@@ -109,8 +106,6 @@ SUBROUTINE dg_get_spacing ( npts, epsilon, alpha, dg_gaussian_type, dr )
   
 !------------------------------------------------------------------------------
   
-  write(6,*) "dg_get_spacing, please check n/2 vs REAL(n)/2.0 !!!"
-  
   SELECT CASE ( dg_gaussian_type )
      
   CASE ( "PME_GAUSS" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
@@ -137,18 +132,71 @@ END SUBROUTINE dg_get_spacing
 
 !******************************************************************************
 
+SUBROUTINE dg_get_epsilon ( npts, epsilon, alpha, dg_gaussian_type, dr )
+
+  IMPLICIT NONE
+
+! Arguments
+  INTEGER, DIMENSION ( : ), INTENT ( IN ) :: npts
+  REAL ( dbl ), INTENT ( OUT ) :: epsilon
+  REAL ( dbl ), INTENT ( IN ) :: alpha
+  CHARACTER ( LEN = * ), INTENT ( IN ) :: dg_gaussian_type
+
+  REAL ( dbl ), DIMENSION ( : ), INTENT ( OUT ) :: dr
+
+! Locals
+  REAL ( dbl ) :: alphasq, norm, rlen
+
+!------------------------------------------------------------------------------
+
+  SELECT CASE ( dg_gaussian_type )
+
+  CASE ( "PME_GAUSS" )  ! use a Gaussian of form N exp(-2*alpha^2*r^2)
+     rlen = MAXVAL ( REAL ( npts, dbl ) * dr ) * 0.5_dbl
+     alphasq = alpha ** 2
+     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
+     epsilon = norm * exp ( - 2._dbl * alphasq * rlen * rlen )
+
+  CASE ( "S" )          ! use a Gaussian of form N exp(-2*alpha^2*r^2)
+     rlen = MAXVAL ( REAL ( npts, dbl ) * dr ) * 0.5_dbl
+     alphasq = alpha ** 2
+     norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
+     epsilon = norm * exp ( - 2._dbl * alphasq * rlen * rlen )
+
+  CASE ( "P" )
+     CALL stop_prg ( "dg_get_spacing", "'P; gaussian type not defined" )
+
+  CASE DEFAULT
+     CALL stop_prg ( "dg_get_spacing", "no suitable gaussian type specified" )
+
+  END SELECT
+
+END SUBROUTINE dg_get_epsilon
+
+!******************************************************************************
+
 SUBROUTINE dg_find_radix ( dr, cell_lengths, npts )
   
   IMPLICIT NONE
   
 ! Arguments
-  REAL ( dbl ), INTENT ( IN ) :: dr ( 3 )
+  REAL ( dbl ), INTENT ( INOUT ) :: dr ( 3 )
   REAL ( dbl ), INTENT ( IN ) :: cell_lengths ( 3 )
   INTEGER, DIMENSION ( : ), INTENT ( OUT ) :: npts
+
+! Locals
+  INTEGER, DIMENSION ( 3 ) :: nin 
   
 !------------------------------------------------------------------------------
   
-  npts ( : ) = NINT ( cell_lengths ( : ) / dr ( : ) )
+  nin ( : ) = NINT ( cell_lengths ( : ) / dr ( : ) )
+  CALL fft_radix_operations ( nin ( 1 ), npts ( 1 ), &
+       operation = FFT_RADIX_CLOSEST )
+  CALL fft_radix_operations ( nin ( 2 ), npts ( 2 ), &
+       operation = FFT_RADIX_CLOSEST )
+  CALL fft_radix_operations ( nin ( 3 ), npts ( 3 ), &
+       operation = FFT_RADIX_CLOSEST )
+  dr ( : ) = cell_lengths ( : ) / REAL ( npts ( : ), dbl )
   
 END SUBROUTINE dg_find_radix
 

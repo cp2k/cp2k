@@ -6,6 +6,7 @@ CPP	= cpp
 FC	= pgf90 -Mfree
 FCfixed	= pgf90 -Mfixed
 LDR	= pgf90
+AR	= ar -r
 
 CDEFS	= -D__PGI -D__FFTW
 

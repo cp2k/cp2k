@@ -19,6 +19,7 @@ MODULE linklist_control
   USE particle_types, ONLY : particle_type
   USE simulation_cell, ONLY : cell_type
   USE stop_program, ONLY : stop_prg, stop_memory
+  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
   
@@ -162,11 +163,13 @@ SUBROUTINE list_control ( pnode, part, box )
   REAL ( dbl ), ALLOCATABLE, SAVE :: r_last_update ( :, : )
   REAL ( dbl ) :: displace, max_displace
   LOGICAL :: list_update_flag, ionode
-  INTEGER :: i, nnodes, isos, iw
+  INTEGER :: i, nnodes, isos, iw, handle
   CHARACTER ( LEN = 36 ) :: string
   
 !------------------------------------------------------------------------------
   
+  CALL timeset ( 'LIST_CONTROL','I',' ',handle )
+
   nnodes = SIZE ( pnode )
   IF ( .NOT. ALLOCATED ( r_last_update ) ) THEN
      ALLOCATE ( r_last_update ( 3, nnodes ), STAT = isos )
@@ -234,6 +237,8 @@ SUBROUTINE list_control ( pnode, part, box )
   END IF
   
   counter = counter + 1
+
+  CALL timestop ( 0._dbl, handle )
   
 END SUBROUTINE list_control
 

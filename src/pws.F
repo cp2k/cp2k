@@ -7,7 +7,7 @@ MODULE pws
   
   USE coefficient_types, ONLY : coeff_type, coeff_allocate, coeff_deallocate, &
        SQUARE, SQUAREROOT
-  USE fft_tools, ONLY : fft3d => fft_wrap, &
+  USE fft_tools, ONLY : fft3d, &
        FWFFTu => FWFFT, BWFFTu => BWFFT, FWFFTw => FWFFT, BWFFTw => BWFFT
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : fourpi

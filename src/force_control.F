@@ -7,14 +7,12 @@ MODULE force_control
 
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fist_force, ONLY : fist_force_control => force_control
-  USE fist_global, ONLY : fistpar
+  USE global_types, ONLY : global_environment_type
   USE tbmd_force, ONLY : tbmd_force_control => force_control
-  USE tbmd_global, ONLY : tbmdpar
   USE kinds, ONLY : dbl
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
-  USE pair_potential, ONLY : potentialparm_type
   USE stop_program, ONLY : stop_prg
-  USE structure_types, ONLY : structure_type
+  USE structure_types, ONLY : structure_type, interaction_type
   
   IMPLICIT NONE
   
@@ -25,7 +23,7 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE force ( struc, potparm, thermo, simpar, ewald_param )
+SUBROUTINE force ( struc, inter, thermo, simpar, ewald_param, globenv )
   
   IMPLICIT NONE
   
@@ -34,7 +32,8 @@ SUBROUTINE force ( struc, potparm, thermo, simpar, ewald_param )
   TYPE ( thermodynamic_type ), INTENT ( INOUT ) :: thermo
   TYPE ( simulation_parameters_type ), INTENT ( IN ) :: simpar
   TYPE ( ewald_parameters_type ), INTENT ( INOUT ) :: ewald_param
-  TYPE ( potentialparm_type ), DIMENSION ( :, : ), INTENT ( IN ) :: potparm
+  TYPE ( interaction_type ), INTENT ( IN ) :: inter
+  TYPE ( global_environment_type), INTENT ( IN ) :: globenv
   
 !------------------------------------------------------------------------------
   
@@ -44,13 +43,13 @@ SUBROUTINE force ( struc, potparm, thermo, simpar, ewald_param )
      
   CASE ( 'FIST' )
      CALL fist_force_control ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, thermo, potparm, ewald_param, simpar % ensemble, &
-          fistpar )
+          struc % box, thermo, inter%potparm, ewald_param, simpar % ensemble, &
+          globenv )
      
   CASE ( 'TBMD' )
      CALL tbmd_force_control ( struc % molecule, struc % pnode, struc % part, &
-          struc % box, thermo, potparm, ewald_param, simpar % ensemble, &
-          tbmdpar )
+          struc % box, thermo, inter%potparm, ewald_param, simpar % ensemble, &
+          globenv )
      
   END SELECT
   

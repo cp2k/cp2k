@@ -87,12 +87,11 @@ SUBROUTINE force_control ( molecule, pnode, part, box, thermo, &
   IF ( first_time ) THEN
      SELECT CASE ( ewald_param % ewald_type )
      CASE ( 'EWALD_GAUSS' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global % group, &
-             ewald_param, box, thermo, fc_global % scr, &
-             ewald_grid = grid_ewald )
+        CALL ewald_initialize ( dg, part, pnode, fc_global, &
+             ewald_param, box, thermo, ewald_grid = grid_ewald )
      CASE ( 'PME_GAUSS' )
-        CALL ewald_initialize ( dg, part, pnode, fc_global % group, &
-             ewald_param, box, thermo, fc_global % scr, &
+        CALL ewald_initialize ( dg, part, pnode, fc_global, &
+             ewald_param, box, thermo, &
              pme_small_grid = grid_s, pme_big_grid = grid_b )
      END SELECT
   END IF

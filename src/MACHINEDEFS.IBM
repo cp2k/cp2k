@@ -6,6 +6,7 @@ CPP	= cpp
 FC	= xlf90
 FCfixed	= xlf90 -qfixed
 LDR	= xlf90
+AR	= ar -r
 
 CDEFS	= -D__AIX -D__FFTW
 

@@ -135,6 +135,7 @@ SUBROUTINE exclusion(molecule,pnode)
            bond(2) = ll_bond%p2%iatom
            
 ! checking to see if jatom is bonded
+           match=.FALSE.
            DO ii = 1, 2
               IF (jatom==bond(ii)) THEN
                  match = .TRUE.

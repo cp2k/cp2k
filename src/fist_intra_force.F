@@ -10,6 +10,7 @@ MODULE fist_intra_force
        get_pv_bond, get_pv_bend, get_pv_torsion
   USE molecule_types, ONLY : molecule_structure_type, linklist_bonds, &
        linklist_bends
+  USE timings, ONLY : timeset, timestop
   
   IMPLICIT NONE
   
@@ -39,9 +40,11 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
   REAL ( dbl ), DIMENSION (3) :: rij, b12, b32, g1, g2, g3
   TYPE (linklist_bonds), POINTER :: llbond
   TYPE (linklist_bends), POINTER :: llbend
-  INTEGER :: ibond, ibend, imol
+  INTEGER :: ibond, ibend, imol, handle
   
 !------------------------------------------------------------------------------
+
+  CALL timeset ( 'FORCE_INTRA_CONTROL','I',' ',handle )
   
   IF ( PRESENT ( f_bond)) f_bond = 0._dbl
   IF ( PRESENT ( f_bend)) f_bend = 0._dbl
@@ -110,6 +113,8 @@ SUBROUTINE force_intra_control ( molecule, v_bond, v_bend, pvbond, pvbend, &
      END DO BEND
      
   END DO MOL
+
+  CALL timestop ( 0._dbl, handle )
   
 END SUBROUTINE force_intra_control
 

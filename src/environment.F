@@ -15,6 +15,7 @@ MODULE environment
   USE timesl, ONLY : walltime, cputime, datum
   USE timings, ONLY : timeprint, timeset, timestop
   USE util, ONLY : ran2
+  USE fft_tools, ONLY : init_fft
   
   IMPLICIT NONE
   
@@ -86,6 +87,9 @@ SUBROUTINE initialisation ( globenv )
   
 ! initialize physical constants
   CALL init_physcon()
+
+! initialize FFT library
+  CALL init_fft ( )
   
 END SUBROUTINE initialisation
 

@@ -5,138 +5,27 @@
     MODULE tbmd_input
 !------------------------------------------------------------------------------!
       USE kinds, ONLY : dbl
-      USE tbmd_global, ONLY : tbatom, tbhop
+      USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
       USE stop_program, ONLY : stop_prg, stop_memory
       USE util, ONLY : get_unit
       USE string_utilities, ONLY : uppercase, xstring, &
         str_search, str_comp, make_tuple
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
         cfield, p_error, get_real, get_int, stop_parser
-      USE message_passing, ONLY : mp_bcast
-      USE ewald_parameters_types, ONLY : ewald_parameters_type
       USE input_types, ONLY : setup_parameters_type
       USE global_types, ONLY : global_environment_type
       IMPLICIT NONE
 ! 
       PRIVATE
-      PUBLIC :: read_tbmd_section, read_tb_hamiltonian, &
-                read_tb_hopping_elements
+      PUBLIC :: read_tb_hamiltonian, read_tb_hopping_elements
 ! 
 !------------------------------------------------------------------------------!
 ! 
     CONTAINS
 ! 
-!!>----------------------------------------------------------------------------!
-!!  SECTION: &tbmd ... &end                                                    !
-!!                                                                             !
-!!  simulation       [energy,md,debug]                                         !
-!!  units            [atomic]                                                  !
-!!  periodic         [0,1][0,1][0,1]                                           !
-!!  set_file         "filename"                                                !
-!!  input_file       "filename"                                                !
-!!                                                                             !
-!!tmptmptmptmptmp (to be included)????
-!!  symmetry         [on,off]                                                  !
-!!<----------------------------------------------------------------------------!
-
-SUBROUTINE read_tbmd_section ( setup, ewald_param, tbmdpar )
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE(setup_parameters_type), INTENT(INOUT) :: setup
-  TYPE(ewald_parameters_type), INTENT(INOUT) :: ewald_param
-  TYPE(global_environment_type), INTENT(INOUT) :: tbmdpar
-
-! Locals
-  INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
-  CHARACTER (len=20) :: string
-  CHARACTER (len=5) :: label, str2
-  CHARACTER (len=3), PARAMETER :: yn(0:1) = (/ ' NO', 'YES'/)
-
-!------------------------------------------------------------------------------!
-!..defaults
-  setup % run_type = 'ENERGY'
-  setup % unit_type = 'ATOMIC'
-  setup % perd = 1
-  ewald_param % alpha = 0.4_dbl
-  ewald_param % gmax = 10
-  ewald_param % ns_max = 10
-  ewald_param % epsilon = 1.e-6_dbl
-  ewald_param % ewald_type = 'NONE'
-  CALL xstring(tbmdpar%project_name,ia,ie)
-  setup % set_file_name = tbmdpar%project_name(ia:ie) // '.set'
-  setup % input_file_name = tbmdpar%project_name(ia:ie) // '.dat'
-
-  iw = tbmdpar % scr
-
-!..parse the input section
-  label = '&TBMD'
-  CALL parser_init(tbmdpar%input_file_name,label,ierror,tbmdpar)
-  IF (ierror/=0) THEN
-     IF (tbmdpar%ionode) &
-       WRITE (iw,'(a)') ' No input section &TBMD found '
-  ELSE
-    CALL read_line
-    DO WHILE (test_next()/='X')
-      ilen = 8
-      CALL cfield(string,ilen)
-      CALL uppercase(string)
-      SELECT CASE (string)
-      CASE DEFAULT
-        CALL p_error()
-        CALL stop_parser('read_tbmd','unknown option')
-      CASE ('SIMULATI')
-        ilen = 20
-        CALL cfield(setup%run_type,ilen)
-        CALL uppercase(setup%run_type)
-      CASE ('PRINTLEV')
-        tbmdpar%print_level = get_int()
-      CASE ('UNITS')
-        ilen = 20
-        CALL cfield(setup%unit_type,ilen)
-        CALL uppercase(setup%unit_type)
-      CASE ('PERIODIC')
-        setup%perd(1) = get_int()
-        setup%perd(2) = get_int()
-        setup%perd(3) = get_int()
-      CASE ('SET_FILE')
-        ilen = 20
-        CALL cfield(setup%set_file_name,ilen)
-      CASE ('INP_FILE')
-        ilen = 20
-        CALL cfield(setup%input_file_name,ilen)
-      END SELECT
-      CALL read_line
-    END DO
-  END IF
-  CALL parser_end
-!..end of parsing the input section
-!..write some information to output
-  IF (tbmdpar%ionode) THEN
-     IF (tbmdpar%print_level>=0) THEN
-       WRITE (iw,'(A,T71,A)') ' TBMD| Run type ', adjustr(setup%run_type)
-       WRITE (iw,'(A,T71,A)') ' TBMD| Unit type ', adjustr(setup%unit_type)
-       WRITE (iw,'(A,T78,A)') ' TBMD| Periodic in X direction ', &
-         yn(setup%perd(1))
-       WRITE (iw,'(A,T78,A)') ' TBMD| Periodic in Y direction ', &
-         yn(setup%perd(2))
-       WRITE (iw,'(A,T78,A)') ' TBMD| Periodic in Z direction ', &
-         yn(setup%perd(3))
-       WRITE (iw,'(A,T61,A)') ' TBMD| Set file name', &
-         adjustr(setup%set_file_name)
-       WRITE (iw,'(A,T61,A)') ' TBMD| Input file name', &
-         adjustr(setup%input_file_name)
-       WRITE (iw,'(A,T76,I5)') ' TBMD| Print level ', tbmdpar%print_level
-       WRITE (iw,*)
-     END IF
-  END IF
-
-END SUBROUTINE read_tbmd_section
-
 !------------------------------------------------------------------------------!
 
-SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbmdpar )
+SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
 
   IMPLICIT NONE
 
@@ -144,6 +33,8 @@ SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbmdpar )
   TYPE(setup_parameters_type), INTENT(INOUT) :: setup
   TYPE(global_environment_type), INTENT(IN) :: tbmdpar
   CHARACTER ( LEN = * ), INTENT(IN) :: atom_names ( : )
+  TYPE (tbatom_param_type), DIMENSION (:), POINTER :: tbatom
+
 
 ! Locals
   INTEGER :: ierror, ilen, i, j, k, n, iw, source, group, iat, nt, ios, i1
@@ -263,7 +154,7 @@ SUBROUTINE set_basis(basis,bsf)
 END SUBROUTINE set_basis
 
 !------------------------------------------------------------------------------!
-SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbmdpar )
+SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar )
 
   IMPLICIT NONE
 
@@ -271,6 +162,8 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbmdpar )
   TYPE(setup_parameters_type), INTENT(INOUT) :: setup
   TYPE(global_environment_type), INTENT(INOUT) :: tbmdpar
   CHARACTER ( LEN = * ), INTENT(IN) :: atom_names ( : )
+  TYPE (tbatom_param_type), DIMENSION (:) :: tbatom
+  TYPE (tb_hopping_type), DIMENSION (:,:), POINTER :: tbhop
 
   INTEGER :: ierror, ilen, i, j, k, l, n, iw, source, group, iat, ios
   INTEGER :: l1, l2, k1, k2, kk, nk, lu, ku
