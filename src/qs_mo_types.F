@@ -1057,7 +1057,6 @@ CONTAINS
             DO ishell=1,nshell(iset)
               lshell = l(ishell,iset)
               DO iso=1,nso(lshell)
-                write(UNIT=output_unit,FMT=*) iset,ishell,iso
                 WRITE (UNIT=output_unit,FMT=fmtstr3)&
                   irow,iatom,element_symbol,sgf_symbol(isgf),&
                   (matrix(irow,jcol),jcol=from,to)
