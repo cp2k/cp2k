@@ -141,9 +141,9 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE calculate_rho_elec(p,p_old,rebuild_rho,rho,rho_rspace_old,rho_gspace,&
-                                gridlevel_info, &
-                                cube_info,l_info, &
-                                total_rho,nproduct,globenv)
+       gridlevel_info, &
+       cube_info,l_info, &
+       total_rho,nproduct,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(coeff_type), pointer, DIMENSION(:)   :: rho
@@ -157,249 +157,106 @@ CONTAINS
     REAL(wp), INTENT(OUT)                     :: total_rho
     INTEGER, INTENT(OUT)                      :: nproduct
 
-!   *** Local variables ***
+    !   *** Local variables ***
 
-    TYPE(gto_basis_set_type), POINTER :: basis_set_a,basis_set_b
+    TYPE(gto_basis_set_type), POINTER :: basis_set_a, basis_set_b
     TYPE(neighbor_list_type), POINTER :: orb_neighbor_list
 
-    REAL(wp) :: dab,scale,rab2,radius_kind_a,radius_kind_b,radius_set_a,&
-                radius_set_b
-    INTEGER  :: first_isgf,first_jpgf,first_jset,first_jsgf,first_sgfa,&
-                first_sgfb,handle,iatom,ikind,ineighbor,ipgf,iset,isgf,isgfa,&
-                isgfb,ishell,istat,jatom,jkind,jneighbor,jpgf,jset,jsgf,&
-                jshell,la_max,la_min,last_sgfa,last_sgfb,lb_max,lb_min,&
-                na1,na2,nb1,nb2,nsgfa,nsgfb,ncoa,ncob,npgfa,npgfb,nseta,nsetb,&
-                nshella,nshellb
+    REAL(wp) :: radius_kind_a, radius_set_a, rab2
 
-    REAL(wp), DIMENSION(3) :: ra,rab
+    INTEGER  :: handle, iatom, ineighbor, jatom, nseta
+         
+    REAL(wp), DIMENSION(3) :: ra, rab
 
-    INTEGER, DIMENSION(:), POINTER    :: lb_grid,orb_neighbors
-    integer                           :: igrid_level
-    REAL(wp), DIMENSION(:), POINTER   :: orb_r2,rpgfa,rpgfb,zeta,zetb
-    REAL(wp), DIMENSION(:,:), POINTER :: orb_r,p_block,pab,pab_old,s_block, &
-                                         work,p_old_block
+    INTEGER, DIMENSION(:), POINTER    :: orb_neighbors
+    INTEGER                           :: igrid_level
+    REAL(wp), DIMENSION(:), POINTER   :: orb_r2
+    REAL(wp), DIMENSION(:,:), POINTER :: orb_r, pab, pab_old, work, p_old_block
 
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_rho_elec","I","",handle)
 
-!   get the right density to start with
+    !   get the right density to start with
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-        if (rebuild_rho) then
+       if (rebuild_rho) then
           CALL coeff_zero(rho(igrid_level))
-        else
+       else
           CALL coeff_copy(rho_rspace_old(igrid_level),rho(igrid_level))
-        endif
+       endif
     ENDDO
 
     npgf_product = 0
 
-!   *** Allocate work storage ***
+    !   *** Allocate work storage ***
 
     NULLIFY (pab,work)
     pab => reallocate(pab,1,maxco,1,maxco)
     work => reallocate(work,1,maxco,1,maxsgf_set)
-     
+
     if (.not.rebuild_rho) then 
-      NULLIFY (pab_old)
-      pab_old => reallocate(pab_old,1,maxco,1,maxco)
+       NULLIFY (pab_old)
+       pab_old => reallocate(pab_old,1,maxco,1,maxco)
     endif
 
     NULLIFY (orb_neighbor_list,orb_neighbors,orb_r,orb_r2)
 
-!   *** Loop over all atoms ***
+    !   *** Loop over all atoms ***
 
     orb_neighbor_list => first_neighbor_list(orb_neighbor_list_set)
 
     DO WHILE (ASSOCIATED(orb_neighbor_list))
 
-      CALL get_neighbor_list(orb_neighbor_list,iatom)
+       CALL get_neighbor_list(orb_neighbor_list,iatom)
 
-      CALL extract_neighbor_list(orb_neighbor_list,orb_r2,orb_neighbors,orb_r)
+       CALL extract_neighbor_list(orb_neighbor_list,orb_r2,orb_neighbors,orb_r)
 
-      ikind = atom_info(iatom)%kind
-      first_isgf = atom_info(iatom)%first_sgf
-      ra(:) = atom_info(iatom)%r_pbc(:)
-      basis_set_a => kind_info(ikind)%orb_basis_set
-      nseta = basis_set_a%nset
-      radius_kind_a = basis_set_a%kind_radius
-
-!     *** Loop over all neighbor atoms of the current atom "iatom" ***
-
-      DO ineighbor=1,SIZE(orb_neighbors)
-
-        jatom = orb_neighbors(ineighbor)
-
-!       *** Skip all atomic blocks in the lower triangle matrix ***
+       ra(:) = atom_info(iatom)%r_pbc(:)
+       basis_set_a => kind_info(atom_info(iatom)%kind)%orb_basis_set
+       nseta = basis_set_a%nset
+       radius_kind_a = basis_set_a%kind_radius
 
 
-        IF (iatom > jatom) CYCLE
+       !     *** Loop over all neighbor atoms of the current atom "iatom" ***
+!$omp parallel do &
+!$omp default ( private ) &
+!$omp shared ( p, p_old, pab, pab_old, work ) &
+       DO ineighbor=1,SIZE(orb_neighbors)
+
+          jatom = orb_neighbors(ineighbor)
+
+          ! *** Skip all atomic blocks in the lower triangle matrix ***
+          IF (iatom > jatom) CYCLE
+
+          rab(:) = orb_r(:,ineighbor)
+          rab2 = orb_r2(ineighbor)
+
+          CALL ineighbor_loop_work ( &
+               ineighbor, iatom, jatom, &
+               p, p_old, rho, rebuild_rho, &
+               basis_set_a, nseta, radius_kind_a, &
+               ra, rab, rab2, &
+               gridlevel_info, cube_info, l_info, &
+               pab, pab_old, work )
 
 
-        jkind = atom_info(jatom)%kind
-        first_jsgf = atom_info(jatom)%first_sgf
-        rab2 = orb_r2(ineighbor)
-        rab(:) = orb_r(:,ineighbor)
-        dab = SQRT(rab2)
-        basis_set_b => kind_info(jkind)%orb_basis_set
-        nsetb = basis_set_b%nset
-        radius_kind_b = basis_set_b%kind_radius
+       END DO
+!$omp end parallel do
 
-
-        CALL get_block_node(matrix=p%matrix,&
-                            block_row=iatom,&
-                            block_col=jatom,&
-                            block=p_block)
-
-
-        IF (.NOT.ASSOCIATED(p_block)) CYCLE
-        IF (rebuild_rho) then
-           IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-18_wp) CYCLE
-        ELSE
-           CALL get_block_node(matrix=p_old%matrix,&
-                            block_row=iatom,&
-                            block_col=jatom,&
-                            block=p_old_block)
-           IF (MAXVAL(ABS(p_block(:,:)-p_old_block(:,:))) < 1.0E-18_wp) CYCLE
-        ENDIF
-
-
-        DO iset=1,nseta
-
-          radius_set_a = basis_set_a%set_radius(iset)
-
-          IF (radius_set_a + radius_kind_b < dab) CYCLE
-
-          la_max = basis_set_a%lmax(iset)
-          la_min = basis_set_a%lmin(iset)
-          npgfa = basis_set_a%npgf(iset)
-          nshella = basis_set_a%nshell(iset)
-          rpgfa => basis_set_a%pgf_radius(1:npgfa,iset)
-          zeta => basis_set_a%zet(1:npgfa,iset)
-
-          first_sgfa = basis_set_a%first_sgf(1,iset)
-          last_sgfa = basis_set_a%last_sgf(nshella,iset)
-          nsgfa = last_sgfa - first_sgfa + 1
-          ncoa = npgfa*ncoset(la_max)
-
-          IF (iatom == jatom) THEN
-            first_jset = iset
-          ELSE
-            first_jset = 1
-          END IF
-
-          DO jset=first_jset,nsetb
-
-            radius_set_b = basis_set_b%set_radius(jset)
-
-            IF (radius_set_a + radius_set_b < dab) CYCLE
-
-            lb_max = basis_set_b%lmax(jset)
-            lb_min = basis_set_b%lmin(jset)
-            npgfb = basis_set_b%npgf(jset)
-            nshellb = basis_set_b%nshell(jset)
-            rpgfb => basis_set_b%pgf_radius(1:npgfb,jset)
-            zetb => basis_set_b%zet(1:npgfb,jset)
-            first_sgfb = basis_set_b%first_sgf(1,jset)
-            last_sgfb = basis_set_b%last_sgf(nshellb,jset)
-            nsgfb = last_sgfb - first_sgfb + 1
-            ncob = npgfb*ncoset(lb_max)
-
-!           *** Decontract the density matrix set block ***
-
-            CALL dgemm("N","N",ncoa,nsgfb,nsgfa,1.0_wp,&
-                       basis_set_a%sphi(1,first_sgfa),&
-                       SIZE(basis_set_a%sphi,1),&
-                       p_block(first_sgfa,first_sgfb),SIZE(p_block,1),&
-                       0.0_wp,work(1,1),SIZE(work,1))
-            CALL dgemm("N","T",ncoa,ncob,nsgfb,1.0_wp,&
-                       work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
-                       SIZE(basis_set_b%sphi,1),0.0_wp,pab(1,1),SIZE(pab,1))
-
-            if (.not.rebuild_rho) then
-              CALL dgemm("N","N",ncoa,nsgfb,nsgfa,1.0_wp,&
-                       basis_set_a%sphi(1,first_sgfa),&
-                       SIZE(basis_set_a%sphi,1),&
-                       p_old_block(first_sgfa,first_sgfb),SIZE(p_old_block,1),&
-                       0.0_wp,work(1,1),SIZE(work,1))
-              CALL dgemm("N","T",ncoa,ncob,nsgfb,1.0_wp,&
-                       work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
-                       SIZE(basis_set_b%sphi,1),0.0_wp,pab_old(1,1),SIZE(pab_old,1))
-
-              pab(:,:)=pab(:,:)-pab_old(:,:)
-            endif
-
-
-
-            DO ipgf=1,npgfa
-
-              IF (rpgfa(ipgf) + radius_set_b < dab) CYCLE
-
-              na1 = (ipgf - 1)*ncoset(la_max) + 1
-              na2 = ipgf*ncoset(la_max)
-
-              IF ((iatom == jatom).AND.(iset == jset)) THEN
-                first_jpgf = ipgf
-              ELSE
-                first_jpgf = 1
-              END IF
-
-              DO jpgf=first_jpgf,npgfb
-
-                IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) CYCLE
-
-                nb1 = (jpgf - 1)*ncoset(lb_max) + 1
-                nb2 = jpgf*ncoset(lb_max)
-
-                IF ((iatom == jatom).AND.&
-                    (iset == jset).AND.&
-                    (ipgf == jpgf)) THEN
-                  scale = 1.0_wp
-                ELSE
-                  scale = 2.0_wp
-                END IF
-                ! at this point calling this with gspace might be rather wrong
-                IF (ASSOCIATED(rho(1)%pw%cc3d)) THEN
-                  CALL collocate_pgf_product_gspace(la_max,zeta(ipgf),la_min,&
-                                                    lb_max,zetb(jpgf),lb_min,&
-                                                    ra,rab,rab2,scale,&
-                                                    pab(na1:na2,nb1:nb2),&
-                                                    rho(1)%pw)
-                ELSE IF (ASSOCIATED(rho(1)%pw%cr3d)) THEN
-                  igrid_level=gaussian_gridlevel(gridlevel_info,zeta(ipgf)+zetb(jpgf))
-                  CALL collocate_pgf_product_rspace(la_max,zeta(ipgf),la_min,&
-                                                    lb_max,zetb(jpgf),lb_min,&
-                                                    ra,rab,rab2,scale,&
-                                                    pab(na1:na2,nb1:nb2),&
-                                                    rho(igrid_level)%pw, &
-                                                    cube_info(igrid_level),l_info)
-                END IF
-
-              END DO
-
-            END DO
-
-
-          END DO
-
-        END DO
-
-      END DO
-
-      orb_neighbor_list => next_neighbor_list(orb_neighbor_list)
+       orb_neighbor_list => next_neighbor_list(orb_neighbor_list)
 
     ENDDO
 
 
-!   *** storage ***
+    !   *** storage ***
     DO igrid_level=1,gridlevel_info%ngrid_levels
-      CALL coeff_copy(rho(igrid_level),rho_rspace_old(igrid_level))
+       CALL coeff_copy(rho(igrid_level),rho_rspace_old(igrid_level))
     ENDDO
 
-!   *** get the density on the highest cutoff grid
+    !   *** get the density on the highest cutoff grid
 
-   
+
     if ((gridlevel_info%ngrid_levels.gt.1) .or. (rho_gspace(1)%pw%in_use/=COMPLEXDATA3D )) then
        CALL coeff_transform_space(rho(1),rho_gspace(1))
     endif
@@ -409,15 +266,15 @@ CONTAINS
     enddo
     ! the latter is needed for a consistent density in rho and g space
     if ((gridlevel_info%ngrid_levels.gt.1) .or. (rho_gspace(1)%pw%in_use/=COMPLEXDATA3D )) then
-        CALL coeff_transform_space(rho_gspace(1),rho(1))
+       CALL coeff_transform_space(rho_gspace(1),rho(1))
     endif
 
-!   *** Release work storage ***
+    !   *** Release work storage ***
 
     DEALLOCATE (pab,work)
 
     if (.not.rebuild_rho) then
-      deallocate(pab_old) 
+       deallocate(pab_old) 
     endif
 
     CALL mp_sum(npgf_product,globenv%group)
@@ -425,9 +282,9 @@ CONTAINS
     nproduct = npgf_product
 
     IF (ASSOCIATED(rho(1)%pw%cc3d)) THEN
-      CALL mp_sum(rho(1)%pw%cc3d,globenv%group)
+       CALL mp_sum(rho(1)%pw%cc3d,globenv%group)
     ELSE IF (ASSOCIATED(rho(1)%pw%cr3d)) THEN
-      CALL mp_sum(rho(1)%pw%cr3d,globenv%group)
+       CALL mp_sum(rho(1)%pw%cr3d,globenv%group)
     END IF
 
     total_rho = calculate_total_rho(rho(1))
@@ -1387,4 +1244,197 @@ CONTAINS
   END SUBROUTINE
 
 ! *****************************************************************************
+
+  SUBROUTINE ineighbor_loop_work ( &
+       ineighbor, iatom, jatom, &
+       p, p_old, rho, rebuild_rho, &
+       basis_set_a, nseta, radius_kind_a, &
+       ra, rab, rab2, &
+       gridlevel_info, cube_info, l_info, &
+       pab, pab_old, work )
+
+    IMPLICIT NONE
+
+    ! ARGUMENTS
+    INTEGER, INTENT(IN) :: ineighbor, iatom, jatom, nseta
+
+    LOGICAL, INTENT(IN) :: rebuild_rho
+
+    REAL(wp), INTENT(IN) :: radius_kind_a, rab2
+    REAL(wp), DIMENSION(3), INTENT(IN) :: ra, rab
+    REAL(wp), DIMENSION(:,:), POINTER :: pab, pab_old, work ! INTENT(INOUT)
+
+    TYPE(coeff_type), POINTER, DIMENSION(:) :: rho ! INTENT(INOUT)
+    TYPE(gridlevel_info_type), INTENT(IN) :: gridlevel_info
+    TYPE(gto_basis_set_type), POINTER :: basis_set_a ! INTENT(IN)
+    TYPE(real_matrix_set_type), INTENT(IN) :: p, p_old
+    TYPE(cube_info_type), POINTER, DIMENSION(:) :: cube_info
+    TYPE(l_info_type), INTENT(IN) :: l_info
+
+    ! LOCALS
+    INTEGER :: jpgf, jset, &
+         first_jset, first_sgfa, first_jpgf, &
+         first_sgfb, ipgf, iset, &
+         la_max, la_min, last_sgfa, last_sgfb, lb_max, lb_min, &
+         na1, na2, nb1, nb2, nsgfa, nsgfb, ncoa, ncob, npgfa, npgfb, &
+         nsetb, nshella, nshellb, &
+         igrid_level
+
+    REAL(wp) :: scale, dab, radius_set_a, radius_kind_b, radius_set_b
+    REAL(wp), DIMENSION(:), POINTER :: rpgfa, rpgfb, zeta, zetb
+    REAL(wp), DIMENSION(:,:), POINTER :: p_block, p_old_block
+
+    TYPE(gto_basis_set_type), POINTER :: basis_set_b
+
+!   ---------------------------------------------------------------------------
+
+    dab = SQRT(rab2)
+    basis_set_b => kind_info(atom_info(jatom)%kind)%orb_basis_set
+    nsetb = basis_set_b%nset
+    radius_kind_b = basis_set_b%kind_radius
+
+    CALL get_block_node(matrix=p%matrix,&
+         block_row=iatom,&
+         block_col=jatom,&
+         block=p_block)
+
+
+!!!    IF (.NOT.ASSOCIATED(p_block)) CYCLE
+    IF (.NOT.ASSOCIATED(p_block)) RETURN
+
+    IF (rebuild_rho) then
+!!!       IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-18_wp) CYCLE
+       IF (MAXVAL(ABS(p_block(:,:))) < 1.0E-18_wp) RETURN
+    ELSE
+       CALL get_block_node(matrix=p_old%matrix,&
+            block_row=iatom,&
+            block_col=jatom,&
+            block=p_old_block)
+!!!       IF (MAXVAL(ABS(p_block(:,:)-p_old_block(:,:))) < 1.0E-18_wp) CYCLE
+       IF (MAXVAL(ABS(p_block(:,:)-p_old_block(:,:))) < 1.0E-18_wp) RETURN
+    ENDIF
+
+
+    DO iset=1,nseta
+
+       radius_set_a = basis_set_a%set_radius(iset)
+
+       IF (radius_set_a + radius_kind_b < dab) CYCLE
+
+       la_max = basis_set_a%lmax(iset)
+       la_min = basis_set_a%lmin(iset)
+       npgfa = basis_set_a%npgf(iset)
+       nshella = basis_set_a%nshell(iset)
+       rpgfa => basis_set_a%pgf_radius(1:npgfa,iset)
+       zeta => basis_set_a%zet(1:npgfa,iset)
+
+       first_sgfa = basis_set_a%first_sgf(1,iset)
+       last_sgfa = basis_set_a%last_sgf(nshella,iset)
+       nsgfa = last_sgfa - first_sgfa + 1
+       ncoa = npgfa*ncoset(la_max)
+
+       IF (iatom == jatom) THEN
+          first_jset = iset
+       ELSE
+          first_jset = 1
+       END IF
+
+       DO jset=first_jset,nsetb
+
+          radius_set_b = basis_set_b%set_radius(jset)
+
+          IF (radius_set_a + radius_set_b < dab) CYCLE
+
+          lb_max = basis_set_b%lmax(jset)
+          lb_min = basis_set_b%lmin(jset)
+          npgfb = basis_set_b%npgf(jset)
+          nshellb = basis_set_b%nshell(jset)
+          rpgfb => basis_set_b%pgf_radius(1:npgfb,jset)
+          zetb => basis_set_b%zet(1:npgfb,jset)
+          first_sgfb = basis_set_b%first_sgf(1,jset)
+          last_sgfb = basis_set_b%last_sgf(nshellb,jset)
+          nsgfb = last_sgfb - first_sgfb + 1
+          ncob = npgfb*ncoset(lb_max)
+
+          ! *** Decontract the density matrix set block ***
+
+          CALL dgemm("N","N",ncoa,nsgfb,nsgfa,1.0_wp,&
+               basis_set_a%sphi(1,first_sgfa),&
+               SIZE(basis_set_a%sphi,1),&
+               p_block(first_sgfa,first_sgfb),SIZE(p_block,1),&
+               0.0_wp,work(1,1),SIZE(work,1))
+          CALL dgemm("N","T",ncoa,ncob,nsgfb,1.0_wp,&
+               work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
+               SIZE(basis_set_b%sphi,1),0.0_wp,pab(1,1),SIZE(pab,1))
+
+          if (.not.rebuild_rho) then
+             CALL dgemm("N","N",ncoa,nsgfb,nsgfa,1.0_wp,&
+                  basis_set_a%sphi(1,first_sgfa),&
+                  SIZE(basis_set_a%sphi,1),&
+                  p_old_block(first_sgfa,first_sgfb),SIZE(p_old_block,1),&
+                  0.0_wp,work(1,1),SIZE(work,1))
+             CALL dgemm("N","T",ncoa,ncob,nsgfb,1.0_wp,&
+                  work(1,1),SIZE(work,1),basis_set_b%sphi(1,first_sgfb),&
+                  SIZE(basis_set_b%sphi,1),0.0_wp,pab_old(1,1),SIZE(pab_old,1))
+
+             pab(:,:)=pab(:,:)-pab_old(:,:)
+          endif
+
+
+          DO ipgf=1,npgfa
+
+             IF (rpgfa(ipgf) + radius_set_b < dab) CYCLE
+
+             na1 = (ipgf - 1)*ncoset(la_max) + 1
+             na2 = ipgf*ncoset(la_max)
+
+             IF ((iatom == jatom).AND.(iset == jset)) THEN
+                first_jpgf = ipgf
+             ELSE
+                first_jpgf = 1
+             END IF
+
+             DO jpgf=first_jpgf,npgfb
+
+                IF (rpgfa(ipgf) + rpgfb(jpgf) < dab) CYCLE
+
+                nb1 = (jpgf - 1)*ncoset(lb_max) + 1
+                nb2 = jpgf*ncoset(lb_max)
+
+                IF ((iatom == jatom).AND.&
+                     (iset == jset).AND.&
+                     (ipgf == jpgf)) THEN
+                   scale = 1.0_wp
+                ELSE
+                   scale = 2.0_wp
+                END IF
+                ! at this point calling this with gspace might be rather wrong
+                IF (ASSOCIATED(rho(1)%pw%cc3d)) THEN
+                   CALL collocate_pgf_product_gspace(la_max,zeta(ipgf),la_min,&
+                        lb_max,zetb(jpgf),lb_min,&
+                        ra,rab,rab2,scale,&
+                        pab(na1:na2,nb1:nb2),&
+                        rho(1)%pw)
+                ELSE IF (ASSOCIATED(rho(1)%pw%cr3d)) THEN
+                   igrid_level=gaussian_gridlevel(gridlevel_info,zeta(ipgf)+zetb(jpgf))
+                   CALL collocate_pgf_product_rspace(la_max,zeta(ipgf),la_min,&
+                        lb_max,zetb(jpgf),lb_min,&
+                        ra,rab,rab2,scale,&
+                        pab(na1:na2,nb1:nb2),&
+                        rho(igrid_level)%pw, &
+                        cube_info(igrid_level),l_info)
+                END IF
+
+             END DO ! jpgf
+
+          END DO ! ipgf
+
+       END DO ! jset
+
+    END DO ! iset
+          
+  END SUBROUTINE ineighbor_loop_work
+
+! *****************************************************************************
+
 END MODULE collocate_density
