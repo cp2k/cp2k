@@ -3421,8 +3421,7 @@ END SUBROUTINE blacs_scale_and_d
     ictxt=0
 
     CALL blacs_pinfo(mype,npe)
-    CALL blacs_get(ictxt,10,ictxt_loc)
-
+    CALL blacs_get(ictxt,0,ictxt_loc)
     CALL blacs_gridinit(ictxt_loc,'Row-major',NPROW*NPCOL,1)
 
     CALL descinit(desc_a_block,block_dim_row,block_dim_col,block_dim_row,&
@@ -3503,6 +3502,8 @@ END SUBROUTINE blacs_scale_and_d
 
     ! Speicher freigeben
     DEALLOCATE(A_loc,EV_loc,c_ip)
+
+    CALL blacs_gridexit(ictxt_loc)
 
     ! ...und tschuess!
 
