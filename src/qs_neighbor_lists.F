@@ -539,7 +539,8 @@ CONTAINS
 
     IF (ASSOCIATED(ab)) THEN
       DO iab=1,SIZE(ab)
-        CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
+        IF (ASSOCIATED(ab(iab)%neighbor_list_set)) &
+            CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
       END DO
       DEALLOCATE (ab,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ab")
@@ -869,7 +870,8 @@ CONTAINS
 
     IF (ASSOCIATED(ac)) THEN
       DO iac=1,SIZE(ac)
-        CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
+        IF (ASSOCIATED(ac(iac)%neighbor_list_set)) &
+            CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
@@ -1184,7 +1186,8 @@ CONTAINS
 
     IF (ASSOCIATED(ac)) THEN
       DO iac=1,SIZE(ac)
-        CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
+         IF (ASSOCIATED(ac(iac)%neighbor_list_set)) &
+            CALL deallocate_neighbor_list_set(ac(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (ac,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"ac")
@@ -1192,7 +1195,8 @@ CONTAINS
 
     IF (ASSOCIATED(bc)) THEN
       DO iac=1,SIZE(bc)
-        CALL deallocate_neighbor_list_set(bc(iac)%neighbor_list_set)
+         IF (ASSOCIATED(bc(iac)%neighbor_list_set)) &
+             CALL deallocate_neighbor_list_set(bc(iac)%neighbor_list_set)
       END DO
       DEALLOCATE (bc,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,"bc")
