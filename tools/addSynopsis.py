@@ -147,8 +147,8 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
 			    outfile.write(line.lstrip())
 			    status=0
 			    raise e
-			elif defs[name]:
-			    writeSynopsis(defs[name],outfile,logFile)
+			#elif defs[name]:
+			#    writeSynopsis(defs[name],outfile,logFile)
 		    status=0
 		elif status==2: # searching for name
 		    status=1
@@ -170,7 +170,7 @@ def insertSynopsis(defs,infile,outfile,logFile=sys.stdout):
 	    elif match.groups()[directivePos]:
 		if status==4: status=3
 		if status==1 and name and defs.has_key(name) and defs[name]:
-		    writeSynopsis(defs[name],outfile)
+		    # writeSynopsis(defs[name],outfile)
 		    status=3
 		if match.groups()[directivePos]=="NAME":
 		    status=2
