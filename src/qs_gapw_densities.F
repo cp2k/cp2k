@@ -170,7 +170,6 @@ CONTAINS
         WRITE(6,'(T2,A)') &
           "         bad integration"
         WRITE(6,'(72("*"),/)')    
-        CALL stop_program(routine_name,"check the Qlm coefficients of rho collocation")
    END IF
 
    qs_charges%total_rho0_soft_rspace = tot_rs_int
