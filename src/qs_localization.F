@@ -35,6 +35,7 @@ MODULE qs_localization
                                              cp_fm_release, &
                                              cp_fm_get_element
   USE kinds,                           ONLY: wp => dp
+  USE message_passing,                 ONLY: mp_sum
   USE cp_para_env,                     ONLY: cp_para_env_retain, &
                                              cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -207,8 +208,7 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode)
   CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k, &
             ncol_global=k,para_env=vectors%matrix_struct%para_env, &
             context=vectors%matrix_struct%context)
-  write(6,*) "nrow_local",tmp_fm_struct%nrow_local,"ncol_local",tmp_fm_struct%ncol_local,&
-             "nrow_block",tmp_fm_struct%nrow_block,"ncol_block",tmp_fm_struct%ncol_block
+
   ! make the actual matrices
   DO i=1,3
     DO j=1,2
@@ -233,8 +233,12 @@ SUBROUTINE qs_loc_compute_set(qs_loc_env,vectors,ionode)
   IF (ionode) OPEN(UNIT=17,FILE="WAVEFUNCTION_CENTERS.xyz")
   DO l=1,k
     DO i=1,3
+       ! only the cpu that has the data can return it. others give 0
        CALL cp_fm_get_element(result(1,i)%matrix,l,l,realpart)
        CALL cp_fm_get_element(result(2,i)%matrix,l,l,imagpart)
+       ! we have to sum the data so we have it on CPU 0
+       CALL mp_sum(realpart,result(1,i)%matrix%matrix_struct%para_env%group) 
+       CALL mp_sum(imagpart,result(1,i)%matrix%matrix_struct%para_env%group) 
        z=cmplx(realpart,imagpart)
        pos(i)=(angstrom*qs_loc_env%box_L(i)/(twopi))*IMAG(log(z))
        if (pos(i).lt.0.0_wp) pos(i)=pos(i)+qs_loc_env%box_L(i)*angstrom        ! :-(
