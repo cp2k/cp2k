@@ -194,7 +194,7 @@ CONTAINS
 ! calculate the new energy of the system and grab the coordinates
       IF(box_flag(1) == 1) THEN
 !!!!!!!!!!!!!!!!!!!!!
-!         CALL force_env_calculate_energy(force_env_1)
+         CALL force_env_calculate_energy(force_env_1)
          CALL force_env_get(force_env_1,subsys=subsys_1,&
             potential_energy=new_energy(1),error=error)
          CALL cp_subsys_get(subsys_1(1)%subsys, &
@@ -207,7 +207,7 @@ CONTAINS
             particles=particles_1,error=error)
       ENDIF
       IF(box_flag(2) == 1) THEN
-!         CALL force_env_calculate_energy(force_env_2)
+         CALL force_env_calculate_energy(force_env_2)
          CALL force_env_get(force_env_2,subsys=subsys_2,&
             potential_energy=new_energy(2),error=error)
          CALL cp_subsys_get(subsys_2(1)%subsys, &
@@ -228,12 +228,12 @@ CONTAINS
                classical_energy_new(1),&
                nchain(1),1,nchain(1),6.211D0/angstrom)
 !!!!!!!!!!!!
-            new_energy(1)=classical_energy_new(1)
+!            new_energy(1)=classical_energy_new(1)
             CALL mc_classical_energy(force_env_2,&
                classical_energy_new(2),&
                nchain(2),1,nchain(2),6.211D0/angstrom)
 !!!!!!!!!!!!
-            new_energy(2)=classical_energy_new(2)
+!            new_energy(2)=classical_energy_new(2)
             
             classical_energy_old(1)=moves_1%classical_energy
             classical_energy_old(2)=moves_2%classical_energy
@@ -767,7 +767,7 @@ CONTAINS
 
 ! calculate the energies
 !!!!!!!!!!!!!!!!!!!!
-!      CALL force_env_calculate_energy(insert_env)
+      CALL force_env_calculate_energy(insert_env)
       CALL force_env_get(insert_env,&
          potential_energy=new_energy(insert_box),error=error)
 ! now change the total number of units and chains in the mc_par
@@ -777,14 +777,14 @@ CONTAINS
          nchain(insert_box)+1,6.211D0/angstrom)
 
 !!!!!!!!!!!!!!!!!
-      new_energy(insert_box)=classical_energy_new(insert_box)
+!      new_energy(insert_box)=classical_energy_new(insert_box)
 
       IF (nchain(remove_box)-1 == 0) THEN
          new_energy(remove_box)=0.0D0
          classical_energy_new(remove_box)=0.0D0
       ELSE
 !!!!!!!!!!!!!!!!!
-!         CALL force_env_calculate_energy(remove_env)
+         CALL force_env_calculate_energy(remove_env)
          CALL force_env_get(remove_env,&
             potential_energy=new_energy(remove_box),error=error)
          CALL mc_classical_energy(remove_env,&
@@ -793,7 +793,7 @@ CONTAINS
             nchain(remove_box)-1,6.211D0/angstrom)
          
 !!!!!!!!!!!!!!!!!!!!!
-         new_energy(remove_box)=classical_energy_new(remove_box)
+!         new_energy(remove_box)=classical_energy_new(remove_box)
          
       ENDIF
       
@@ -1313,21 +1313,19 @@ CONTAINS
       DO i=1,2
 ! remake the force environment and calculate the energy
 
-            CALL force_env_release(test_env(i)%force_env,error=error)
+         CALL force_env_release(test_env(i)%force_env,error=error)
             
-            globenv%input_file_name=dat_file(i)
-            CALL quickstep_create_force_env(test_env(i)%force_env, &
-               globenv, error=error)
-
+         globenv%input_file_name=dat_file(i)
+         CALL quickstep_create_force_env(test_env(i)%force_env, &
+            globenv, error=error)
+         
          IF (lempty(i)) THEN
             new_energy(i)=0.0d0
          ELSE
 !!!!!!!!!!!!!!!!!!!!!!!!!!
-!           CALL force_env_calculate_energy(test_env(i)%force_env)
-
-! now grab the energy
-!            CALL force_env_get(test_env(i)%force_env,&
-!               potential_energy=new_energy(i),error=error)
+            CALL force_env_calculate_energy(test_env(i)%force_env)
+            CALL force_env_get(test_env(i)%force_env,&
+               potential_energy=new_energy(i),error=error)
          ENDIF
       ENDDO
 
@@ -1372,10 +1370,11 @@ CONTAINS
 
             WRITE(cl,*) nnstep,test_cell_length(1)*&
                angstrom,vol_dis*(angstrom)**3,test_cell_length(2)*&
-               angstrom,vol_dis*(angstrom)**3
+               angstrom
             WRITE(cl,*) nnstep,new_energy(1),&
                old_energy(1),new_energy(2),old_energy(2),&
                classical_energy_diff(1:2)
+            WRITE(cl,*) prefactor,w
 
             DO i=1,2
 ! accept the move
@@ -1426,10 +1425,11 @@ CONTAINS
 
             WRITE(cl,*) nnstep,test_cell_length(1)*&
                angstrom,vol_dis*(angstrom)**3,test_cell_length(2)*&
-               angstrom,vol_dis*(angstrom)**3
+               angstrom
             WRITE(cl,*) nnstep,new_energy(1),&
                old_energy(1),new_energy(2),old_energy(2),&
                classical_energy_diff(1:2)
+            WRITE(cl,*) prefactor,w
 
          ENDIF
 
