@@ -62,6 +62,7 @@ MODULE fist_force_numer
                                             next
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell,&
+                                             plane_distance,&
                                              pbc,&
                                              real_to_scaled,&
                                              scaled_to_real, &
@@ -3046,7 +3047,7 @@ END SUBROUTINE potential_nonbond
     REAL(KIND=dp)                                 :: rab2, rab2_max,&
                                                  qi, qj
     REAL(KIND=dp), DIMENSION(3)                   :: r, rab, rb, s, sab, sab_max, &
-                                                sb, sb_max, sb_min, sb_pbc, abc
+                                                sb, sb_max, sb_min, sb_pbc
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
@@ -3064,7 +3065,6 @@ END SUBROUTINE potential_nonbond
 !   *** Load informations about the simulation cell ***
 
     CALL get_cell(cell=cell,&
-                  abc = abc, &
                   periodic=periodic)
 
 !   *** Loop over all atomic kind pairs ***
@@ -3086,7 +3086,9 @@ END SUBROUTINE potential_nonbond
 
         rab2_max = potparm ( ikind, jkind ) % rcutsq 
         r(:) = SQRT ( rab2_max )
-        sab_max(:) = r(:)/abc(:)
+        sab_max(1) = r(1)/plane_distance(1,0,0,cell)
+        sab_max(2) = r(2)/plane_distance(0,1,0,cell)
+        sab_max(3) = r(3)/plane_distance(0,0,1,cell)
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
 
