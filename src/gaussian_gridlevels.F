@@ -105,7 +105,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
 
 ! ***************************************************************
   FUNCTION gaussian_gridlevel(gridlevel_info,exponent) RESULT(gridlevel)
-    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     REAL(KIND=dp)                            :: exponent
     INTEGER                                  :: gridlevel
 

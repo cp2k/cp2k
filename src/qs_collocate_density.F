@@ -389,7 +389,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     LOGICAL                                  :: failure, map_consistent
-    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type)                        :: l_info
@@ -432,7 +432,7 @@ CONTAINS
                     pw_env=pw_env)
 
     ! *** assign from pw_env
-    gridlevel_info=pw_env%gridlevel_info
+    gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
 
@@ -1027,7 +1027,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     LOGICAL                                  :: failure
-    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type)                        :: l_info
@@ -1079,7 +1079,7 @@ CONTAINS
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
 
-    gridlevel_info=pw_env%gridlevel_info
+    gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
     ! *** set up rs multi-grids

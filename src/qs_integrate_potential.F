@@ -355,7 +355,7 @@ CONTAINS
       POINTER                                :: pw_pools
     LOGICAL                                  :: failure,map_consistent
     INTEGER                                  :: auxbas_grid,j,k
-    TYPE(gridlevel_info_type)                :: gridlevel_info
+    TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(l_info_type)                        :: l_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
@@ -403,7 +403,7 @@ CONTAINS
 
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
-    gridlevel_info=pw_env%gridlevel_info
+    gridlevel_info=>pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
 

@@ -98,7 +98,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
@@ -414,7 +414,7 @@ CONTAINS
 
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
@@ -728,7 +728,7 @@ CONTAINS
     TYPE(coeff_type)                         :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
     INTEGER, INTENT(IN)                      :: auxbas_grid
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
@@ -968,7 +968,7 @@ CONTAINS
     TYPE(coeff_type)                         :: v_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
     INTEGER, INTENT(IN)                      :: auxbas_grid
-    TYPE(gridlevel_info_type), INTENT(IN)    :: gridlevel_info
+    TYPE(gridlevel_info_type), INTENT(INOUT) :: gridlevel_info
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
