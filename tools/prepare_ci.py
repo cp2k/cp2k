@@ -9,6 +9,7 @@ import commands
 import addSynopsis # .addSynopsisInDir
 import instantiateTemplates # .evaluateInstantiationFile
 import time
+import diffEpsilon
 
 def buildCp2k(cp2kRoot,buildType="sopt",logFilePath=None,clean=None):
     if not logFilePath:
@@ -21,7 +22,7 @@ def buildCp2k(cp2kRoot,buildType="sopt",logFilePath=None,clean=None):
     os.chdir(join(cp2kRoot,"makefiles"))
     if os.access("/usr/bin/gnumake",os.X_OK): makeCmd="/usr/bin/gnumake"
     else: makeCmd="gmake"
-    pipe=os.popen("{ { "+makeCmd+" "+buildType+"; } 2>&1 ; } >>"+logFilePath)
+    pipe=os.popen("{ { "+makeCmd+" -f Makefile_cpp "+buildType+"; } 2>&1 ; } >>"+logFilePath)
     logFile=open(logFilePath,'a')
     if (pipe.close()):
         logFile.write("\n+++ ERROR, build "+buildType+" FAILED! +++\n")
@@ -55,12 +56,14 @@ mainLog.write("===== instantiating templates =====\n")
 mainLog.flush()
 import glob
 logFile=open(os.path.join(logDirPath,"templateInstantiation.log"),'w')
+templateDir=join(logDirPath,"outTemplates")
+os.mkdir(templateDir)
 instantiationFiles=glob.glob(os.path.join(cp2kRoot,"src","*.instantiation"))
 templateInstances=[]
 for instantiationFile in instantiationFiles:
     templateInstances.extend(
         instantiateTemplates.evaluateInstantiationFile(instantiationFile,
-                                                       logFile))
+                                                       logFile,templateDir))
 mainLog.write(" template generation logFile in '%s'\n"%
               os.path.basename(logFile.name))
 logFile.close()
@@ -81,22 +84,36 @@ logFile=open(os.path.join(logDirPath,"addSynopsis.log"),'w')
 buildDir= join(cp2kRoot,"obj",
     commands.getoutput(join(cp2kRoot,"tools","get_arch_code")),
     "sdbg")
-outDir=join(cp2kRoot,"src","outDir")
+outDir=join(logDirPath,"synopsisDir")
 if os.access(outDir,os.W_OK): commands.getoutput('rm -rf "'+outDir+'"')
 os.mkdir(outDir)
 
-filesToSyn=(glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))+
-            glob.glob(os.path.join(cp2kRoot,"src","pao_*.F")))
-for fileToSyn in templateInstances:
-    if not fileToSyn[0:2]=="cp_":
+filesToSyn2=(glob.glob(os.path.join(cp2kRoot,"src","cp_*.F"))+
+            glob.glob(os.path.join(cp2kRoot,"src","pao_*.F"))+
+            glob.glob(os.path.join(templateDir,"*.F")))
+filesToSyn=templateInstances
+baseNames=map(os.path.basename,filesToSyn)
+for fileToSyn in filesToSyn2:
+    if not os.path.basename(fileToSyn) in baseNames:
 	filesToSyn.append(fileToSyn)
 addSynopsis.addSynopsisInDir(buildDir,outDir,filesToSyn,logFile)
+
 
 # check synopsis diffs
 os.chdir(outDir)
 filesSyn=glob.glob("*.F")
 for fileSyn in filesSyn:
-    diffs=commands.getoutput("diff "+fileSyn+" ../"+fileSyn)
+    if not os.path.exists(join(cp2kRoot,"src",fileSyn)):
+        os.rename(fileSyn,join(cp2kRoot,"src",fileSyn))
+        diffs=''
+    else:
+        origFilePath=join(cp2kRoot,"src",fileSyn)
+        diffs=commands.getoutput("diff "+fileSyn+" "+
+                                 origFilePath)
+        if diffs!='' and fileSyn in baseNames:
+            origFilePath=templateInstances[baseNames.index(fileSyn)]
+            diffs=commands.getoutput("diff "+fileSyn+" "+
+                                     origFilePath)
     if diffs=='':
         diffOk=None
     else:
@@ -111,38 +128,59 @@ for fileSyn in filesSyn:
                 diffOk=None
                 break
     if diffOk:
-        os.rename(fileSyn,join("..",fileSyn))
+        os.rename(fileSyn,join(cp2kRoot,"src",os.path.basename(fileSyn)))
 mainLog.write("  addSynopsis logFile in '%s'\n"%os.path.basename(logFile.name))
 logFile.close()
 
-# clean compile
-mainLog.write("====== clean compile cp2k sopt ======\n")
+# clean? compile
+shouldClean=not "-noclean" in sys.argv[1:]
+mainLog.write("====== clean="+`shouldClean`+" compile cp2k sopt ======\n")
 mainLog.flush()
 mainLog.write("  compilation logFile in 'cp2kBuildSopt.log'\n")
-if not buildCp2k(cp2kRoot,"sopt",join(logDirPath,"cp2kBuildSopt.log"),clean=1):
+if not buildCp2k(cp2kRoot,"sopt",join(logDirPath,"cp2kBuildSopt.log"),
+                 clean=shouldClean):
     mainLog.write("+++ ERROR, build FAILED! +++\n")
 else:
     mainLog.write("+++ build SUCESSFULL! +++\n")
 
 # do tests
+exePath= join(cp2kRoot,"exe",
+              commands.getoutput(join(cp2kRoot,"tools","get_arch_code")),
+              "cp2k.sopt")
+log1Path=join(logDirPath,"Ar.out")
+os.chdir(join(cp2kRoot,"tests","QS"))
+commands.getoutput("{ { "+exePath+" "+join(cp2kRoot,"tests","QS","Ar.inp")+
+                   " ; } 2>&1 ; } > "+log1Path)
+logFile=open(os.path.join(logDirPath,"Ar.diffs"),'w')
+file1=open(join(cp2kRoot,"tests","QS","Ar.out"),'r')
+file2=open(log1Path)
+diffVal=diffEpsilon.compareCp2kOutput(file1,file2,
+                                      0.0001,logFile)
+file1.close(); file2.close()
+logFile.write("totalDiff="+`diffVal`+"\n")
+if diffVal>0.0001:
+    mainLog.write("+++ ERROR, Argon test failed +++\n diff="+`diffVal`+
+                  " more info in Argon.diffs\n")
+else:
+    mainLog.write("+++ Argon test SUCESSFULL (diff="+`diffVal`+")! +++\n")
+logFile.close()
+
 
 # cvs
-for arg in argv[1:]:
-    if (arg.lowercase()=='cvs'):
-        os.chdir(cp2kRoot)
-        # cvs -n update
-        mainLog.write("====== cvs -n update ======\n")
-        mainLog.flush()
-        os.popen('{ { cvs -n update; } 2>&1 ; } >"%s"'%
-                 os.path.join(logDirPath,"cvsUpdate.log"))
-        mainLog.write("  cvs update log in 'cvsUpdate.log'\n")
+if "-cvs" in sys.argv[1:]:
+    os.chdir(cp2kRoot)
+    # cvs -n update
+    mainLog.write("====== cvs -n update ======\n")
+    mainLog.flush()
+    os.popen('{ { cvs -n update; } 2>&1 ; } >"%s"'%
+             os.path.join(logDirPath,"cvsUpdate.log"))
+    mainLog.write("  cvs update log in 'cvsUpdate.log'\n")
 
-        # cvs diff
-        mainLog.write("====== cvs diff ======\n")
-        mainLog.flush()
-        os.popen('{ { cvs diff; } 2>&1 ; } >"%s"'%
-                 os.path.join(logDirPath,"cvsDiff.log"))
-        mainLog.write("  cvs diff log in 'cvsDiff.log'\n")
-        break
+    # cvs diff
+    mainLog.write("====== cvs diff ======\n")
+    mainLog.flush()
+    os.popen('{ { cvs diff; } 2>&1 ; } >"%s"'%
+             os.path.join(logDirPath,"cvsDiff.log"))
+    mainLog.write("  cvs diff log in 'cvsDiff.log'\n")
 
 mainLog.close()

@@ -223,7 +223,7 @@ def addSynopsisInDir(interfaceDir, outDir,filePaths,logFile=sys.stdout):
             fileName=os.path.basename(sourceFilePath)
             fileName=fileName[:string.rfind(fileName,".")]
             interfaceFilePath=interfaceDir+"/"+fileName+".int"
-            outFilePath=outDir+"/"+os.path.basename(sourceFilePath)
+            outFilePath=os.path.join(outDir,os.path.basename(sourceFilePath))
             logFile.write("=== began brocessing of"+sourceFilePath+"\n")
             ifile = open(interfaceFilePath,'r')
             sfile = open(sourceFilePath,'r')

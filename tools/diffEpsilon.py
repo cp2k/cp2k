@@ -28,12 +28,17 @@ def diffEpsilon(str1, str2,incomparable_val=1):
 
 def getCoreLine(file,lineNr):
   import re
-  bannerRe=re.compile("[ *]+PROGRAM ")
+  bannerRe=re.compile("([ *]+PROGRAM | CP2K\\| Input file name)")
   timingRe=re.compile(" *- +T I M I N G +- *$")
+  scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
   line=file.readline()
   while bannerRe.match(line):
     lineNr=lineNr+1
     line=file.readline()
+  if scfLineRe.match(line):
+    # print "found scfLine=",`line`
+    groups=scfLineRe.match(line).groups()
+    line=groups[0]+" "+groups[1]+" "+groups[2]+" - "+groups[4]+" "+groups[5]
   if timingRe.match(line):
     while not line=="":
       lineNr=lineNr+1
@@ -42,7 +47,7 @@ def getCoreLine(file,lineNr):
     lineNr=lineNr+1
   return (line,lineNr)
 
-def compare(file1,file2, epsilon=0.01,logFile=sys.stdout):
+def compareCp2kOutput(file1,file2, epsilon=0.01,logFile=sys.stdout):
     lineNr1=lineNr2=0
     distance=0.0
     try:
@@ -59,8 +64,8 @@ def compare(file1,file2, epsilon=0.01,logFile=sys.stdout):
     except:
       import sys, traceback
       logFile.write('-'*60+"\n")
-      logFile.write(file1.name+":"+`lineNr1`+", "+file2.name+":"+`lineNr2`+"\n")
       traceback.print_exc(file=logFile)
+      logFile.write(file1.name+":"+`lineNr1`+", "+file2.name+":"+`lineNr2`+"\n")
       logFile.write('-'*60+"\n")
     return distance
 
@@ -72,5 +77,5 @@ if __name__ == '__main__':
         file2=open(sys.argv[2],"r")
         epsilon=0.01
         if len(sys.argv)==4: epsilon=float(sys.argv[3])
-        print "distance=",compare(file1,file2,epsilon,sys.stdout)
+        print "distance=",compareCp2kOutput(file1,file2,epsilon,sys.stdout)
         

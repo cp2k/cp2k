@@ -68,7 +68,8 @@ def instantiateTemplate(infile,outfile,subs,logFile=sys.stdout):
   outfile.close()
   infile.close()
 
-def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout):
+def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout,outDir=None):
+    import os
     generatedFiles=[]
     try:
       input = open(instantiationFile,'r')
@@ -89,6 +90,8 @@ def evaluateInstantiationFile(instantiationFile,logFile=sys.stdout):
           outName=outName.replace("_"+token+"_",
                                   substitution[token])
         outName=outName+".F"
+        if outDir:
+          outName=os.path.join(outDir,os.path.basename(outName))
         try: outfile=open(outName,'w')
         except:
           logFile.write("ERROR opening template '"+outName+"'\n")
