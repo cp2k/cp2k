@@ -48,7 +48,8 @@ MODULE mc_moves
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -955,7 +956,8 @@ CONTAINS
       classical_energy_original, classical_energy_test, new_cell_length, &
       new_energy, old_cell_length, rand, test_cell_length, vol_dis, w
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
-                                                center_of_mass_new, diff
+                                                center_of_mass_new, diff,&
+                                                abc
     TYPE(force_env_type), POINTER            :: test_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys, testsys
@@ -998,12 +1000,13 @@ CONTAINS
 ! now let's grab the cell length and particle positions
       CALL force_env_get(force_env,subsys=oldsys,cell=cell_old,&
                             error=error)
+      CALL get_cell(cell_old,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
              particles=particles_old, error=error)
 
 ! find the old cell length
-      old_cell_length=cell_old%hmat(1,1)
-      test_cell_length=cell_old%hmat(1,1)
+      old_cell_length=abc(1)
+      test_cell_length=abc(1)
       IF (mc_par%ionode) THEN
 
 ! find the old classical energy
@@ -1047,7 +1050,7 @@ CONTAINS
             CALL RANDOM_NUMBER(rand)
 !!!!!!!!!!!!
 !            vol_dis=mc_par%rmvolume*(rand-0.5d0)*2.0d0
-            vol_dis=25.0d0/angstrom**3
+            vol_dis=5.0d0/angstrom**3
 
             new_cell_length=(vol_dis+&
                test_cell_length**3)**(1.0d0/3.0d0)

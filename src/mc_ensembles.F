@@ -71,7 +71,8 @@ MODULE mc_ensembles
   USE physcon,                         ONLY: angstrom
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -128,6 +129,7 @@ CONTAINS
     LOGICAL                               :: PM0, PM1, PM2, PM3, PM4, &
                                               should_stop,ionode,exists,&
                                               should_retain
+    REAL(KIND=dp), DIMENSION(1:3)        :: abc
     REAL(KIND=dp)                    :: energy_check, initial_energy, &
                                          old_energy, rand,final_energy,&
                                          classical_energy,&
@@ -211,6 +213,7 @@ CONTAINS
 
       CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          potential_energy=old_energy,error=error)
+      CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
          particles=particles_old, error=error)
 
@@ -242,7 +245,7 @@ CONTAINS
                  unit_number=cell_unit,&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(cell_unit,*) 'Initial Cell Length:       ',&
-               cell%hmat(1,1)*angstrom
+               abc(1)*angstrom
          CALL open_file(file_name=mc_par%cell_file,&
                  unit_number=mc_par%cl,&
                  file_action='WRITE',file_status='REPLACE')
@@ -265,7 +268,7 @@ CONTAINS
       ENDIF
 
 ! find out how many steps we're doing
-      IF (mc_par%lstop .EQ. 'no') THEN
+      IF (.NOT. mc_par%lstop ) THEN
          mc_par%nstep=mc_par%nstep*mc_par%nchain
       ENDIF
 
@@ -366,6 +369,7 @@ CONTAINS
 !    have changed
          CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
             error=error)
+         CALL get_cell(cell,abc=abc)
          CALL cp_subsys_get(oldsys(1)%subsys,&
             particles=particles_old, error=error)
 
@@ -390,10 +394,10 @@ CONTAINS
 
             averages%ave_cell_length=averages%ave_cell_length*&
                      REAL(nnstep-mc_par%nstart-1,dbl)&
-                     /REAL(nnstep-mc_par%nstart,dbl)+cell%hmat(1,1)/&
+                     /REAL(nnstep-mc_par%nstart,dbl)+abc(1)/&
                      REAL(nnstep-mc_par%nstart,dbl)
 
-            WRITE(cell_unit,*) nnstep,cell%hmat(1,1)*angstrom
+            WRITE(cell_unit,*) nnstep,abc(1)*angstrom
 
 ! find bond lengths and angle for current water config
             CALL get_water_data(force_env,averages,&
@@ -546,6 +550,7 @@ CONTAINS
     REAL(KIND=dp)                            :: rand
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: particle_positions, r_old
+    REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc
     REAL(KIND=dp), DIMENSION(1:2)            :: classical_energy, &
                                                 energy_check, final_energy, &
                                                 initial_energy, old_energy
@@ -668,6 +673,7 @@ CONTAINS
       CALL force_env_get(force_env(1)%force_env,subsys=oldsys_1,&
          cell=cell_1,&
          error=error)
+      CALL get_cell(cell_1,abc=abc(:,1))
       CALL cp_subsys_get(oldsys_1(1)%subsys, &
          particles=particles_old_1, error=error)
       
@@ -677,6 +683,7 @@ CONTAINS
       CALL force_env_get(force_env(2)%force_env,subsys=oldsys_2,&
          cell=cell_2,&
          error=error)
+      CALL get_cell(cell_2,abc=abc(:,2))
       CALL cp_subsys_get(oldsys_2(1)%subsys, &
          particles=particles_old_2, error=error)
 
@@ -730,7 +737,7 @@ CONTAINS
                  unit_number=cell_unit,&
                  file_action='WRITE',file_status='REPLACE')
          WRITE(cell_unit,*) 'Initial Cell Lengths: ',&
-            cell_1%hmat(1,1)*angstrom,cell_2%hmat(1,1)*angstrom
+            abc(1,1)*angstrom,abc(1,2)*angstrom
          CALL open_file(file_name='combined_energies',&
                  unit_number=com_ene,&
                  file_action='WRITE',file_status='REPLACE')
@@ -762,7 +769,7 @@ CONTAINS
       ENDIF
 
 ! find out how many steps we're doing
-      IF (mc_par(1)%mc_par%lstop .EQ. 'no') &
+      IF (.NOT. mc_par(1)%mc_par%lstop) &
          mc_par(1)%mc_par%nstep=mc_par(1)%mc_par%nstep*&
             (mc_par(1)%mc_par%nchain+mc_par(2)%mc_par%nchain)
 
@@ -922,10 +929,12 @@ CONTAINS
 !    have changed
          CALL force_env_get(force_env(1)%force_env,cell=cell_1,&
             subsys=oldsys_1,error=error)
+         CALL get_cell(cell_1,abc=abc(:,1))
          CALL cp_subsys_get(oldsys_1(1)%subsys,&
             particles=particles_old_1, error=error)
          CALL force_env_get(force_env(2)%force_env,cell=cell_2,&
             subsys=oldsys_2,error=error)
+         CALL get_cell(cell_2,abc=abc(:,2))
          CALL cp_subsys_get(oldsys_2(1)%subsys, &
             particles=particles_old_2, error=error)
 
@@ -967,15 +976,15 @@ CONTAINS
                averages(1)%averages%ave_cell_length*&
                REAL(nnstep-mc_par(1)%mc_par%nstart-1,dbl)/&
                REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)+&
-               cell_1%hmat(1,1)/REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)
+               abc(1,1)/REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)
             averages(2)%averages%ave_cell_length=&
                averages(2)%averages%ave_cell_length*&
                REAL(nnstep-mc_par(1)%mc_par%nstart-1,dbl)/&
                REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)+&
-               cell_2%hmat(1,1)/REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)
+               abc(1,2)/REAL(nnstep-mc_par(1)%mc_par%nstart,dbl)
 
-            WRITE(cell_unit,*) nnstep,cell_1%hmat(1,1)*angstrom,&
-               cell_2%hmat(1,1)*angstrom
+            WRITE(cell_unit,*) nnstep,abc(1,1)*angstrom,&
+               abc(1,2)*angstrom
             
             
 

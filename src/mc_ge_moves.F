@@ -56,7 +56,8 @@ MODULE mc_ge_moves
   USE physcon,                         ONLY: angstrom
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE simulation_cell,                 ONLY: cell_type,&
-                                             cell_p_type
+                                             cell_p_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -429,7 +430,8 @@ CONTAINS
                                                 classical_energy_old
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 displace_molecule, mass, &
-                                                pos_insert
+                                                pos_insert,abc_insert,&
+                                                abc_remove
     TYPE(cell_type), POINTER                 :: cell_insert, cell_remove
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
@@ -540,21 +542,21 @@ CONTAINS
       ins_atoms=mc_par(insert_box)%mc_par%nunits_tot+natom
       mass(1:3)=(/ 15.999d0,1.008d0,1.008d0 /)
       rem_atoms=mc_par(remove_box)%mc_par%nunits_tot-natom
-!      IF(ionode) WRITE(6,*) 'kdjsfljkds',insert_box,ins_atoms,mc_par(insert_box)%mc_par%nunits_tot,natom,rem_atoms
-
 
       IF(ionode) THEN
 ! grab the cells for later...acceptance and insertion
          CALL force_env_get(force_env(insert_box)%force_env,&
             cell=cell_insert,error=error)
+         CALL get_cell(cell_insert,abc=abc_insert)
          CALL force_env_get(force_env(remove_box)%force_env,&
             cell=cell_remove,error=error)
+         CALL get_cell(cell_remove,abc=abc_remove)
          
 ! prepare the insertion box
 ! choose an insertion point
          DO i=1,3
             CALL RANDOM_NUMBER(rand)
-            pos_insert(i)=rand*cell_insert%hmat(1,1)
+            pos_insert(i)=rand*abc_insert(1)
          ENDDO
       ENDIF
 
@@ -604,10 +606,10 @@ CONTAINS
       
 ! fold the coordinates into the box and check for overlaps
          CALL mc_coordinate_fold(r_insert(:,:),ins_atoms,&
-            cell_insert%hmat(1,1))
+            abc_insert(1))
          loverlap=.FALSE.
          CALL check_for_overlap(r_insert(:,:),ins_atoms,&
-            cell_insert%hmat(1,1),loverlap)
+            abc_insert(1),loverlap)
       ENDIF
       
       CALL mp_bcast(loverlap,source,group)
@@ -645,7 +647,7 @@ CONTAINS
       IF (ionode) THEN
 
          CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
-            cell_insert%hmat(1,1)*angstrom,&
+            abc_insert(1)*angstrom,&
             mc_par(insert_box)%mc_par%dat_file)
          
 ! now do the same for the removal box...be careful not to make an empty box
@@ -656,7 +658,7 @@ CONTAINS
 !     make the .dat file
             IF (ionode) &
             CALL mc_make_dat_file(r_remove(:,:),3,&
-               cell_remove%hmat(1,1)*angstrom,&
+               abc_remove(1)*angstrom,&
                mc_par(remove_box)%mc_par%dat_file)
          ELSE
             IF(imolecule == 1) THEN
@@ -680,7 +682,7 @@ CONTAINS
 ! make the .dat file
             IF (ionode) &
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
-                cell_remove%hmat(1,1)*angstrom,&
+                abc_remove(1)*angstrom,&
                 mc_par(remove_box)%mc_par%dat_file)
          ENDIF
       ENDIF
@@ -812,9 +814,9 @@ CONTAINS
 
       IF (ionode) THEN
          prefactor=REAL(mc_par(remove_box)%mc_par%nchain,dbl)*&
-            cell_insert%hmat(1,1)/&
+            abc_insert(1)/&
             (REAL(mc_par(insert_box)%mc_par%nchain+1,dbl)&
-            *cell_remove%hmat(1,1))
+            *abc_remove(1))
 
 ! now to calculate the full weight
          del_quickstep_energy=new_energy(insert_box)-&
@@ -996,6 +998,7 @@ CONTAINS
       classical_energy_test, new_cell_length, new_energy, &
       old_cell_length, test_cell_length, volume_new,&
       volume_old
+    REAL(KIND=dp), DIMENSION(1:3,1:2)        :: abc
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff
     TYPE(force_env_p_type), DIMENSION(:),POINTER &
@@ -1076,12 +1079,13 @@ CONTAINS
       DO i=1,2
          CALL force_env_get(force_env(i)%force_env,&
             subsys=oldsys(i)%subsys,cell=cell_old(i)%cell,error=error)
+         CALL get_cell(cell_old(i)%cell,abc=abc(:,i))
          CALL cp_subsys_get(oldsys(i)%subsys(1)%subsys, &
             particles=particles_old(i)%list, error=error)
 
 ! find the old cell length
-         old_cell_length(i)=cell_old(i)%cell%hmat(1,1)
-         test_cell_length(i)=cell_old(i)%cell%hmat(1,1)
+         old_cell_length(i)=abc(1,i)
+         test_cell_length(i)=abc(1,i)
 
       ENDDO
 

@@ -34,7 +34,8 @@ MODULE mc_coordinates
                                              n_avogadro
   USE qs_parser,                       ONLY: close_file,&
                                              open_file
-  USE simulation_cell,                 ONLY: cell_type
+  USE simulation_cell,                 ONLY: cell_type,&
+                                             get_cell
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -212,7 +213,8 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
     REAL(KIND=dp) :: bend_energy, box_length, charge_energy, dist, kstretch, &
       LJ_energy, mag_HH, OH_bond1, OH_bond2, rcut, rijx, rijy, rijz, &
       stretch_energy, unit_energy, charge_energy_mol,LJ_energy_mol
-    REAL(KIND=dp), DIMENSION(1:3)            :: charges, HH, kbend, RIJ
+    REAL(KIND=dp), DIMENSION(1:3)            :: charges, HH, kbend, RIJ,&
+                                                abc
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -242,13 +244,14 @@ SUBROUTINE mc_classical_energy ( force_env, classical_energy_new,&
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
+      CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles, error=error)
 
       IF( PRESENT(cell_length)) THEN
          box_length=cell_length
       ELSE
-         box_length=cell%hmat(1,1)
+         box_length=abc(1)
       ENDIF
 
 !!!!!!!!!!
@@ -777,7 +780,7 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
     REAL(KIND=dp), DIMENSION(:),&
       ALLOCATABLE                            :: boltz_weight
     REAL(KIND=dp), DIMENSION(1:3)            :: r_insert,center_of_mass,&
-                                                diff
+                                                diff,abc
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(cp_error_type)                      :: error
@@ -792,12 +795,13 @@ SUBROUTINE generate_cbmc_swap_config( force_env, BETA, nswapmoves,&
 
 ! get the particle coordinates and the cell length
       CALL force_env_get(force_env,cell=cell,subsys=oldsys,error=error)
+      CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(oldsys(1)%subsys, &
             particles=particles, error=error)
 
       natoms=SIZE(particles%els(:))
       nmols=natoms/3
-      cell_length=cell%hmat(1,1)
+      cell_length=abc(1)
       IF(PRESENT(rem_molecule) ) THEN
          imolecule=rem_molecule ! this the the molecule we're removing
          start_atom=3*imolecule-2

@@ -33,15 +33,15 @@ MODULE qs_mc
                                              force_env_type,&
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
-  USE mc_control,                      ONLY: read_mc_restart,&
-                                             read_mc_section
+  USE mc_control,                      ONLY: read_mc_restart
   USE mc_ensembles,                    ONLY: gemc_nvt,&
                                              mc_traditional_ensemble
   USE mc_environment_types,            ONLY: mc_env_release,&
                                              mc_env_create,&
                                              mc_environment_type,&
                                              set_mc_env
-  USE mc_types,                        ONLY: mc_simulation_parameters_type
+  USE mc_types,                        ONLY: mc_simulation_parameters_type,&
+                                             read_mc_section
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
