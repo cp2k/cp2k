@@ -77,7 +77,7 @@ MODULE qs_init
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_rebuild_aomo_pool,&
-                                             qs_env_rebuild_pw_pools
+                                             qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              init_qs_env,&
                                              qs_environment_type,&
@@ -300,6 +300,7 @@ CONTAINS
                     energy=energy,&
                     force=force,&
                     scf_control=scf_control)
+    CALL scf_c_release(scf_control)
 
 !   *** Initialize pools ***
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set, &
@@ -323,9 +324,7 @@ CONTAINS
      CALL qs_env_rebuild_aomo_pool(qs_env,fmstruct,error=error)
      CALL cp_fmstruct_release(fmstruct,error=error)
 
-     CALL qs_env_rebuild_pw_pools(qs_env,error=error)
-
-    CALL scf_c_release(scf_control)
+     CALL qs_env_rebuild_pw_env(qs_env,error=error)
 
 !   *** Read the pao section ***
 
