@@ -112,6 +112,7 @@ CONTAINS
       CALL qs_mol_dyn(qs_env,globenv)
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
+      CALL tddfpt_calculation(qs_env, globenv)
     CASE ("EP")
       CALL qs_ep_calculation(qs_env,globenv)
     CASE DEFAULT
@@ -120,8 +121,6 @@ CONTAINS
                                 "> was specified for "//&
                                 TRIM(globenv%program_name),globenv)
     END SELECT
-
-    CALL tddfpt_calculation(qs_env, globenv)
 
     CALL qs_finalize(qs_env,globenv)
 
