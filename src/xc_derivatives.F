@@ -238,9 +238,6 @@ CONTAINS
 !!   AUTHOR
 !!     fawzi
 !!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
 !!*** **********************************************************************
 SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      needs, max_deriv, error)
@@ -255,6 +252,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_get_info', &
       routineP = moduleN//':'//routineN
+
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -302,12 +300,6 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("HCTH93")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(93,reference, shortform, needs=needs, error=error)
-     CASE("HCTH120_CPMD")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL hcth_lda_info(-120,reference, shortform, needs=needs, error=error)
-     CASE("HCTH407_CPMD")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL hcth_lda_info(-407,reference, shortform, needs=needs, error=error)
      CASE("HCTH120")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_info(120,reference, shortform, needs=needs, error=error)
@@ -397,8 +389,8 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_functional_eval', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    integer :: handle
     REAL(KIND=dp)                            :: density_cut, gradient_cut
 
     CALL timeset(routineN,"I","",handle)
@@ -459,14 +451,6 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("HCTH93")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
         CALL hcth_lda_eval(iparset=93,rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=deriv_order,error=error)
-     CASE("HCTH120_CPMD")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL hcth_lda_eval(iparset=-120,rho_set=rho_set,deriv_set=deriv_set,&
-                grad_deriv=deriv_order,error=error)
-     CASE("HCTH407_CPMD")
-        CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)
-        CALL hcth_lda_eval(iparset=-407,rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=deriv_order,error=error)
      CASE("HCTH120")
         CPPrecondition(.NOT.lsd,cp_warning_level,routineP,error,failure)

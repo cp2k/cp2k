@@ -102,22 +102,6 @@ CONTAINS
        IF ( PRESENT ( shortform ) ) THEN
           shortform = "HCTH/93 xc energy functional (LDA)"
        END IF
-    CASE(-120)
-       IF ( PRESENT ( reference ) ) THEN
-          reference = "A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik, J. Chem. Phys. 112, 1670 (2000);"//&
-               " HCTH/120 xc functional {LDA CPMD version}"
-       END IF
-       IF ( PRESENT ( shortform ) ) THEN
-          shortform = "HCTH/120 xc energy functional (LDA CPMD)"
-       END IF
-    CASE(120)
-       IF ( PRESENT ( reference ) ) THEN
-          reference = "A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik, J. Chem. Phys. 112, 1670 (2000);"//&
-               " HCTH/120 xc functional {LDA version}"
-       END IF
-       IF ( PRESENT ( shortform ) ) THEN
-          shortform = "HCTH/120 xc energy functional (LDA)"
-       END IF
     CASE(147)
        IF ( PRESENT ( reference ) ) THEN
           reference = "A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik, J. Chem. Phys. 112, 1670 (2000);"//&
@@ -133,14 +117,6 @@ CONTAINS
        END IF
        IF ( PRESENT ( shortform ) ) THEN
           shortform = "HCTH/407 xc energy functional (LDA)"
-       END IF
-    CASE(-407)
-       IF ( PRESENT ( reference ) ) THEN
-          reference = "A. D. Boese and N. C. Handy, J. Chem. Phys. 114, 5497 (2001);"//&
-               "HCTH/407 xc functional {LDA version}"
-       END IF
-       IF ( PRESENT ( shortform ) ) THEN
-          shortform = "HCTH/407 xc energy functional (LDA CPMD)"
        END IF
     CASE default
        CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -164,9 +140,10 @@ CONTAINS
 !!   SYNOPSIS
 !!     Subroutine hcth_lda_eval(iparset, rho_set, deriv_set, grad_deriv,&
 !!         error)
+!!       Integer, Intent (IN):: iparset
 !!       Type(xc_rho_set_type), Pointer:: rho_set
 !!       Type(xc_derivative_set_type), Pointer:: deriv_set
-!!       Integer, Intent (IN):: grad_deriv, iparset
+!!       Integer, Intent (IN):: grad_deriv
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine hcth_lda_eval
 !!
@@ -242,22 +219,10 @@ CONTAINS
                error=error, error_level=cp_failure_level)
        END IF
 
-       IF (iparset==-120) THEN
-          CALL hcth120_lda_calc(rho=rho, norm_drho=norm_drho,&
-               e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-               npoints=npoints,epsilon_rho=epsilon_rho,&
-               epsilon_drho=epsilon_drho, error=error)
-       ELSEIF (iparset==-407) THEN
-          CALL hcth407_lda_calc(rho=rho, norm_drho=norm_drho,&
-               e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-               npoints=npoints,epsilon_rho=epsilon_rho,&
-               epsilon_drho=epsilon_drho, error=error)
-       ELSE
-          CALL hcth_lda_calc(iparset=iparset,rho=rho, norm_drho=norm_drho,&
-               e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
-               npoints=npoints,epsilon_rho=epsilon_rho,&
-               epsilon_drho=epsilon_drho, error=error)
-       END IF
+       CALL hcth_lda_calc(iparset=iparset,rho=rho, norm_drho=norm_drho,&
+            e_0=e_0,e_rho=e_rho,e_ndrho=e_ndrho,&
+            npoints=npoints,epsilon_rho=epsilon_rho,&
+            epsilon_drho=epsilon_drho, error=error)
     END IF
   END SUBROUTINE hcth_lda_eval
   !***************************************************************************
@@ -281,8 +246,6 @@ CONTAINS
 !!                 J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
 !!               - J. P. Perdew and Y. Wang,
 !!                 Phys. Rev. B 45, 13244 (1992) -> PW92
-!!     (routine shamelessly copied from the one that Matthias Krack had 
-!!     taken from CPMD)
 !!
 !!   ARGUMENTS
 !!     - iparset: the parameter set that should be used (93,120,147,407)
@@ -296,10 +259,7 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 rewamped [fawzi]
+!!     fawzi (copying from the routine of Matthias Krack in functionals.F)
 !!
 !!*** *********************************************************************
   SUBROUTINE hcth_lda_calc(iparset,rho,norm_drho,e_0,e_rho,e_ndrho,&
@@ -530,364 +490,5 @@ CONTAINS
 
   END SUBROUTINE hcth_lda_calc
   !***************************************************************************
-
-!!****f* xc_hcth/hcth120_lda_cpmd_calc *
-!!
-!!   NAME
-!!     hcth_lda_calc
-!!
-!!   FUNCTION
-!!     Calculate the gradient-corrected xc energy and potential
-!!     of Hamprecht, Cohen, Tozer, and Handy (HCTH) for a closed shell
-!!     density.
-!!
-!!   NOTES
-!!    Literature:- F. A. Hamprecht, A. J. Cohen, D. J. Tozer, and N. C. Handy,
-!!                 J. Chem. Phys. 109, 6264 (1998) -> HCTH/93
-!!               - A. D. Boese, N. L. Doltsinis, N. C. Handy, and M. Sprik,
-!!                 J. Chem. Phys. 112, 1670 (2000) -> HCTH/120 and HCTH/147
-!!               - A. D. Boese and N. C. Handy,
-!!                 J. Chem. Phys. 114, 5497 (2001) -> HCTH/407
-!!               - J. P. Perdew and Y. Wang,
-!!                 Phys. Rev. B 45, 13244 (1992) -> PW92
-!!     (routine shamelessly copied from CPMD, for testing, should be removed soon)
-!!
-!!   ARGUMENTS
-!!     - iparset: the parameter set that should be used (93,120,147,407)
-!!     - rho: the density
-!!     - norm_drho: the norm of the gradient of the density
-!!     - e_0: the value of the functional in that point
-!!     - e_rho: the derivative of the functional wrt. rho
-!!     - e_ndrho: the derivative of the functional wrt. norm_drho
-!!     - epsilon_rho: the cutoff on rho
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 rewamped [fawzi]
-!!
-!!*** *********************************************************************
-  SUBROUTINE hcth120_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,error)
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
-    REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    REAL(kind=dp), PARAMETER :: fr83 = 8._dp/3._dp, o3 = 1.0e0_dp/3.0e0_dp, &
-      o34 = 4.0e0_dp/3.0e0_dp , small = 1.e-24_dp
-
-    INTEGER                                  :: i, ii
-    REAL(kind=dp) :: BYGR, DENAA, DENAB, DENX, DERA1_DRA, DERAB0_DRAB, &
-      DEX_DRHO, DFFAA_DRHO, DFFAB_DRHO, DG, DGAA_DGR, DGAA_DRHO, DGAB_DGR, &
-      DGAB_DRHO, DGX_DGR, DGX_DRHO, DRA_DRHO, DRAB_DRHO, ERA1, ERAB0, EX, &
-      F83RHO, FFAA, FFAB, G, GAA, GAB, GR, GX, myrho, R3PI, R3Q2, RA, RAB, &
-      TAA, TAB, TXX, UAA, UAB, UX, XA, XA2
-    REAL(kind=dp), DIMENSION(6)              :: caa, cab, cg0, cg1, cx
-
-    r3q2=2.e0_dp**(-o3)
-    r3pi=(3.e0_dp/pi)**o3
-    !.....coefficients for PW correlation......................................
-    cg0(1)= 0.031091e0_dp
-    cg0(2)= 0.213700e0_dp
-    cg0(3)= 7.595700e0_dp
-    cg0(4)= 3.587600e0_dp
-    cg0(5)= 1.638200e0_dp
-    cg0(6)= 0.492940e0_dp
-    cg1(1)= 0.015545e0_dp
-    cg1(2)= 0.205480e0_dp
-    cg1(3)=14.118900e0_dp
-    cg1(4)= 6.197700e0_dp
-    cg1(5)= 3.366200e0_dp
-    cg1(6)= 0.625170e0_dp
-    !......HCTH-19-4.....................................
-    caa(1)=  0.489508e+00_dp
-    caa(2)= -0.260699e+00_dp
-    caa(3)=  0.432917e+00_dp
-    caa(4)= -0.199247e+01_dp
-    caa(5)=  0.248531e+01_dp
-    caa(6)=  0.200000e+00_dp
-    cab(1)=  0.514730e+00_dp
-    cab(2)=  0.692982e+01_dp
-    cab(3)= -0.247073e+02_dp
-    cab(4)=  0.231098e+02_dp
-    cab(5)= -0.113234e+02_dp
-    cab(6)=  0.006000e+00_dp
-    cx(1) =  0.109163e+01_dp
-    cx(2) = -0.747215e+00_dp
-    cx(3) =  0.507833e+01_dp
-    cx(4) = -0.410746e+01_dp
-    cx(5) =  0.117173e+01_dp
-    cx(6)=   0.004000e+00_dp
-    !...........................................................................
-
-    DO ii=1,npoints
-
-       IF (rho(ii)> epsilon_rho .AND. norm_drho(ii)> epsilon_drho) THEN
-          gr=norm_drho(ii)
-          myrho=rho(ii)
-          xa=2.0e0_dp**o3*gr/myrho**(4.0e0_dp*o3)
-          xa2=xa*xa
-          ra=(3.0e0_dp/(2.0e0_dp*pi*myrho))**o3
-          rab=r3q2*ra
-          dra_drho=-(18d0*pi*myrho**4.0e0_dp)**(-o3)
-          drab_drho=r3q2*dra_drho
-          CALL pwcorr(ra,cg1,g,dg)
-          era1=g
-          dera1_dra=dg
-          CALL pwcorr(rab,cg0,g,dg)
-          erab0=g
-          derab0_drab=dg
-          ex=-0.75e0_dp*r3pi*myrho**o34
-          dex_drho=-r3pi*myrho**o3
-          uaa=caa(6)*xa2
-          uaa=uaa/(1.0e0_dp+uaa)
-          uab=cab(6)*xa2
-          uab=uab/(1.0e0_dp+uab)
-          ux=cx(6)*xa2
-          ux=ux/(1.0e0_dp+ux)
-          ffaa=myrho*era1
-          ffab=myrho*erab0-ffaa
-          dffaa_drho=era1+myrho*dera1_dra*dra_drho
-          dffab_drho=erab0+myrho*derab0_drab*drab_drho-dffaa_drho
-          gaa=0d0
-          gab=0d0
-          gx=0d0
-          dgaa_drho=0d0
-          dgab_drho=0d0
-          dgx_drho=0d0
-          dgaa_dgr=0d0
-          dgab_dgr=0d0
-          dgx_dgr=0d0
-          !mb-> non i-dependent stuff
-          denaa=1.e0_dp/(1.0e0_dp+caa(6)*xa2)
-          denab=1.e0_dp/(1.0e0_dp+cab(6)*xa2)
-          denx =1.e0_dp/(1.0e0_dp+cx(6)*xa2)
-          f83rho=fr83/myrho
-          bygr=2.0e0_dp/MAX(gr,small)
-          DO i=0,4
-             taa=caa(i+1)*uaa**i
-             tab=cab(i+1)*uab**i
-             txx=cx(i+1)*ux**i
-             gaa=gaa+taa
-             gab=gab+tab
-             gx=gx+txx
-             dgaa_drho=dgaa_drho-f83rho*denaa*taa*REAL(i,dp)
-             dgab_drho=dgab_drho-f83rho*denab*tab*REAL(i,dp)
-             dgx_drho=dgx_drho-f83rho*denx*txx*REAL(i,dp)
-             dgaa_dgr=dgaa_dgr+bygr*denaa*taa*REAL(i,dp)
-             dgab_dgr=dgab_dgr+bygr*denab*tab*REAL(i,dp)
-             dgx_dgr=dgx_dgr+bygr*denx*txx*REAL(i,dp)
-          ENDDO
-          e_0(ii)=e_0(ii)&
-               +ex*gx+ffaa*gaa+ffab*gab
-          e_rho(ii)=e_rho(ii)&
-               +dex_drho*gx+ex*dgx_drho &
-               +dffaa_drho*gaa+ffaa*dgaa_drho &
-               +dffab_drho*gab+ffab*dgab_drho
-          e_ndrho(ii)=e_ndrho(ii)&
-               +(ex*dgx_dgr+ffaa*dgaa_dgr+ffab*dgab_dgr)
-       END IF
-    END DO
-
-  END SUBROUTINE hcth120_lda_calc
-
-  SUBROUTINE pwcorr(r,c,g,dg)
-    REAL(kind=dp), INTENT(in)                :: r
-    REAL(kind=dp), DIMENSION(6), INTENT(in)  :: c
-    REAL(kind=dp), INTENT(out)               :: g, dg
-
-    REAL(kind=dp)                            :: drb, r12, r2, r32, rb, sb
-
-    r12=dsqrt(r)
-    r32=r*r12
-    r2=r*r
-    rb=c(3)*r12+c(4)*r+c(5)*r32+c(6)*r2
-    sb=1.0e0_dp+1.0e0_dp/(2.0e0_dp*c(1)*rb)
-    g=-2.0e0_dp*c(1)*(1.0e0_dp+c(2)*r)*dlog(sb)
-    drb=c(3)/(2.0e0_dp*r12)+c(4)+1.5e0_dp*c(5)*r12+2.0e0_dp*c(6)*r
-    dg=(1.0e0_dp+c(2)*r)*drb/(rb**2.0e0_dp*sb)-2.0e0_dp*c(1)*c(2)*dlog(sb)
-  END SUBROUTINE pwcorr
-
-!!****f* xc_hcth/hcth120_lda_cpmd_calc *
-!!
-!!   NAME
-!!     hcth_lda_calc
-!!
-!!   FUNCTION
-!!     Calculate the gradient-corrected xc energy and potential
-!!     of Hamprecht, Cohen, Tozer, and Handy (HCTH) for a closed shell
-!!     density.
-!!
-!!   NOTES
-!!     HCTH/407, Handy et al. JCP 114, p. 5497 (2001)
-!!     Present release: Tsukuba, 15/5/2002 Mauro Boero
-!!     (routine shamelessly copied from CPMD, for testing, shoud be removed soon)
-!!
-!!   ARGUMENTS
-!!     - iparset: the parameter set that should be used (93,120,147,407)
-!!     - rho: the density
-!!     - norm_drho: the norm of the gradient of the density
-!!     - e_0: the value of the functional in that point
-!!     - e_rho: the derivative of the functional wrt. rho
-!!     - e_ndrho: the derivative of the functional wrt. norm_drho
-!!     - epsilon_rho: the cutoff on rho
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** *********************************************************************
-  SUBROUTINE hcth407_lda_calc(rho,norm_drho,e_0,e_rho,e_ndrho,&
-       epsilon_rho,epsilon_drho,npoints,error)
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, norm_drho
-    REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_0, e_rho, e_ndrho
-    REAL(kind=dp), INTENT(in)                :: epsilon_rho, epsilon_drho
-    INTEGER, INTENT(in)                      :: npoints
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    REAL(kind=dp), PARAMETER :: fr83 = 8._dp/3._dp, o3 = 1.0e0_dp/3.0e0_dp, &
-      o34 = 4.0e0_dp/3.0e0_dp, small = 1.e-24_dp
-
-    INTEGER                                  :: i, ii
-    REAL(kind=dp) :: bygr, denaa, denab, denx, dera1_dra, derab0_drab, &
-      dex_drho, dffaa_drho, dffab_drho, dg, dgaa_dgr, dgaa_drho, dgab_dgr, &
-      dgab_drho, dgx_dgr, dgx_drho, dra_drho, drab_drho, era1, erab0, ex, &
-      f83rho, ffaa, ffab, g, gaa, gab, gr, gx, my_rho, r3pi, r3q2, ra, rab, &
-      taa, tab, txx, uaa, uab, ux, xa, xa2
-    REAL(kind=dp), DIMENSION(6)              :: caa, cab, cg0, cg1, cx
-
-    r3q2=2.e0_dp**(-o3)
-    r3pi=(3.e0_dp/pi)**o3
-    !.....coefficients for PW correlation...............
-    cg0(1)= 0.031091e0_dp
-    cg0(2)= 0.213700e0_dp
-    cg0(3)= 7.595700e0_dp
-    cg0(4)= 3.587600e0_dp
-    cg0(5)= 1.638200e0_dp
-    cg0(6)= 0.492940e0_dp
-    cg1(1)= 0.015545e0_dp
-    cg1(2)= 0.205480e0_dp
-    cg1(3)=14.118900e0_dp
-    cg1(4)= 6.197700e0_dp
-    cg1(5)= 3.366200e0_dp
-    cg1(6)= 0.625170e0_dp
-    !......HCTH/407.....................................
-    caa(1)=  1.18777e+00_dp
-    caa(2)= -2.40290e+00_dp
-    caa(3)=  5.61740e+00_dp
-    caa(4)= -9.17920e+00_dp
-    caa(5)=  6.24800e+00_dp
-    caa(6)=  0.20000e+00_dp
-    cab(1)=  0.58908e+00_dp
-    cab(2)=  4.42370e+00_dp
-    cab(3)=-19.22200e+00_dp
-    cab(4)= 42.57200e+00_dp
-    cab(5)=-42.00500e+00_dp
-    cab(6)=  0.00600e+00_dp
-    cx(1) =  1.08184e+00_dp
-    cx(2) = -0.51830e+00_dp
-    cx(3) =  3.42560e+00_dp
-    cx(4) = -2.62900e+00_dp
-    cx(5) =  2.28860e+00_dp
-    cx(6)=   0.00400e+00_dp
-    !...........................................................................
-
-    DO ii=1,npoints
-
-       IF (rho(ii)> epsilon_rho) THEN
-          my_rho=rho(ii)
-          gr=norm_drho(ii)
-          xa=2.0e0_dp**o3*gr/my_rho**(4.0e0_dp*o3)
-          xa2=xa*xa
-          ra=(3.0e0_dp/(2.0e0_dp*pi*my_rho))**o3
-          rab=r3q2*ra
-          dra_drho=-(18d0*pi*my_rho**4.0e0_dp)**(-o3)
-          drab_drho=r3q2*dra_drho
-          CALL pwc407(ra,cg1,g,dg)
-          era1=g
-          dera1_dra=dg
-          CALL pwc407(rab,cg0,g,dg)
-          erab0=g
-          derab0_drab=dg
-          ex=-0.75e0_dp*r3pi*my_rho**o34
-          dex_drho=-r3pi*my_rho**o3
-          uaa=caa(6)*xa2
-          uaa=uaa/(1.0e0_dp+uaa)
-          uab=cab(6)*xa2
-          uab=uab/(1.0e0_dp+uab)
-          ux=cx(6)*xa2
-          ux=ux/(1.0e0_dp+ux)
-          ffaa=my_rho*era1
-          ffab=my_rho*erab0-ffaa
-          dffaa_drho=era1+my_rho*dera1_dra*dra_drho
-          dffab_drho=erab0+my_rho*derab0_drab*drab_drho-dffaa_drho
-          gaa=0._dp
-          gab=0._dp
-          gx=0._dp
-          dgaa_drho=0._dp
-          dgab_drho=0._dp
-          dgx_drho=0._dp
-          dgaa_dgr=0._dp
-          dgab_dgr=0._dp
-          dgx_dgr=0._dp
-          !mb-> non i-dependent stuff
-          denaa=1.e0_dp/(1.0e0_dp+caa(6)*xa2)
-          denab=1.e0_dp/(1.0e0_dp+cab(6)*xa2)
-          denx =1.e0_dp/(1.0e0_dp+cx(6)*xa2)
-          f83rho=fr83/my_rho
-          bygr=2.0e0_dp/MAX(gr,small)
-          DO i=0,4
-             taa=caa(i+1)*uaa**i
-             tab=cab(i+1)*uab**i
-             txx=cx(i+1)*ux**i
-             gaa=gaa+taa
-             gab=gab+tab
-             gx=gx+txx
-             dgaa_drho=dgaa_drho-f83rho*denaa*taa*REAL(i,dp)
-             dgab_drho=dgab_drho-f83rho*denab*tab*REAL(i,dp)
-             dgx_drho=dgx_drho-f83rho*denx*txx*REAL(i,dp)
-             dgaa_dgr=dgaa_dgr+bygr*denaa*taa*REAL(i,dp)
-             dgab_dgr=dgab_dgr+bygr*denab*tab*REAL(i,dp)
-             dgx_dgr=dgx_dgr+bygr*denx*txx*REAL(i,dp)
-          ENDDO
-          e_0(ii)=e_0(ii)&
-               +ex*gx+ffaa*gaa+ffab*gab
-          e_rho(ii)=e_rho(ii)&
-               +dex_drho*gx+ex*dgx_drho &
-               +dffaa_drho*gaa+ffaa*dgaa_drho &
-               +dffab_drho*gab+ffab*dgab_drho
-          e_ndrho(ii)=e_ndrho(ii)&
-               +ex*dgx_dgr+ffaa*dgaa_dgr+ffab*dgab_dgr
-       END IF
-    END DO
-  END SUBROUTINE hcth407_lda_calc
-! =-------------------------------------------------------------------=
-  SUBROUTINE pwc407(r,c,g,dg)
-    REAL(kind=dp), INTENT(in)                :: r
-    REAL(kind=dp), DIMENSION(6), INTENT(in)  :: c
-    REAL(kind=dp), INTENT(out)               :: g, dg
-
-    REAL(kind=dp)                            :: drb, r12, r2, r32, rb, sb
-
-    r12=dsqrt(r)
-    r32=r*r12
-    r2=r*r
-    rb=c(3)*r12+c(4)*r+c(5)*r32+c(6)*r2
-    sb=1.0e0_dp+1.0e0_dp/(2.0e0_dp*c(1)*rb)
-    g=-2.0e0_dp*c(1)*(1.0e0_dp+c(2)*r)*dlog(sb)
-    drb=c(3)/(2.0e0_dp*r12)+c(4)+1.5e0_dp*c(5)*r12+2.0e0_dp*c(6)*r
-    dg=(1.0e0_dp+c(2)*r)*drb/(rb**2.0e0_dp*sb)-2.0e0_dp*c(1)*c(2)*dlog(sb)
-  END SUBROUTINE pwc407
-!-----------------------------------------------------------------------------
 
 END MODULE xc_hcth
