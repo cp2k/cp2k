@@ -1,4 +1,4 @@
-ODULE mathlib
+MODULE mathlib
 
 ! Purpose: Collection of simple mathematical functions and subroutines.
 
