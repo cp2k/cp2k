@@ -174,8 +174,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routine_name = "md_env_create",&
          routineP=moduleN//':'//routine_name
     INTEGER :: istat
-    INTEGER, TARGET :: itimes_local = 0
-    REAL ( dbl ), TARGET :: constant_local=0._dbl, used_time_local=0._dbl
 
 !   ---------------------------------------------------------------------------
     ALLOCATE ( md_env, stat=istat )
@@ -201,11 +199,15 @@ CONTAINS
 !    NULLIFY ( md_env % pimd_env )
     md_env % para_env => para_env 
     CALL cp_para_env_retain ( md_env % para_env )
-    constant_local = 0._dbl
-    used_time_local = 0._dbl
-    md_env % itimes => itimes_local
-    md_env % constant => constant_local
-    md_env % used_time => used_time_local
+    ALLOCATE( md_env % itimes , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE( md_env % constant , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    ALLOCATE( md_env % used_time , stat=istat )
+    CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+    md_env % itimes    = 0
+    md_env % constant  = 0
+    md_env % used_time = 0
 
   END SUBROUTINE md_env_create
 !***************************************************************************
@@ -293,7 +295,7 @@ SUBROUTINE md_env_release(md_env, error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='md_env_release',&
         routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+  INTEGER :: stat,i,istat
 
   failure=.FALSE.
   
@@ -303,8 +305,12 @@ SUBROUTINE md_env_release(md_env, error)
      IF (md_env%ref_count==0) THEN
         md_env%ref_count=1
         CALL cp_para_env_release ( md_env % para_env, error = error )
-        NULLIFY ( md_env % itimes )
-        NULLIFY ( md_env % constant )
+        DEALLOCATE( md_env % itimes , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % constant , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
+        DEALLOCATE( md_env % used_time , stat=istat )
+        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
         NULLIFY ( md_env % cell )
         NULLIFY ( md_env % simpar )
         NULLIFY ( md_env % coef_pos )
@@ -359,9 +365,6 @@ END SUBROUTINE md_env_release
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_md_env",&
          routineP=moduleN//':'//routine_name
-
-    INTEGER, TARGET :: itimes_local
-    REAL ( dbl ), TARGET :: constant_local, used_time_local
 
     IF ( PRESENT ( cell ) ) md_env % cell => cell
     IF ( PRESENT ( coef_pos ) ) md_env % coef_pos => coef_pos
