@@ -51,6 +51,7 @@ PROGRAM cp2k
   USE library_tests,ONLY : lib_test
   USE parallel, ONLY : start_parallel, end_parallel
   USE physcon, ONLY : write_physcon
+  USE wave_module, ONLY : wave
   USE qs_main, ONLY : quickstep
   USE termination,  ONLY: stop_program
 
@@ -78,9 +79,13 @@ PROGRAM cp2k
      CALL stop_program ( "cp2k", "No valid program name given "&
                          //globenv % program_name )
 
-  CASE ( "FIST", "TBMD", "WAVE", "FIT", "POL" )
+  CASE ( "FIST", "TBMD", "FIT", "POL" )
 
      CALL control ( globenv )
+
+  CASE ( "WAVE" )
+
+     CALL wave ( globenv )
 
   CASE ( "QUICKSTEP", "QS" )
 

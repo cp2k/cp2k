@@ -47,7 +47,9 @@ CONTAINS
 !!     JGH 17-NOV-2000
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     TCH 17-OCT-2001: - changed the way, how f and g are passed 
+!!                        to the solver. they must no longer be 
+!!                        multiplied by the factor h^2/12
 !!
 !!   SOURCE
 !-----------------------------------------------------------------------------!
@@ -59,10 +61,9 @@ CONTAINS
     !Arguments
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: f    ! the potential (in s-form)
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( INOUT ) :: g ! first the inhomegenity (in s-form) 
-    ! then the solution
+                                                          ! later the solution
     REAL ( dbl ), DIMENSION ( 0: ), INTENT ( IN ) :: w    ! the weights W
-    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr  ! 
-
+    REAL ( dbl ), DIMENSION ( : ), INTENT ( IN ) :: corr  ! corrections for the boundaries
 
     !Locals
     INTEGER :: n, ierr, info, i
@@ -89,12 +90,6 @@ CONTAINS
 
     ab = 0._dbl
     DO i = 1, n
-
-       ! factor h^2/12 left out in original code. why?
-       ! because the functions f and g were externally
-       ! multiplied by this factor
-       !    s ( i ) = g(i-1) + 10._dbl*g(i) + g(i+1)
-       !    e = 1._dbl + f ( i )
        
        ! g(0) and g(n+1) must be 0 for this!
        s ( i ) = (g(i-1) + 10._dbl*g(i) + g(i+1))*h212
@@ -114,11 +109,7 @@ CONTAINS
     ! elements that need corrections
     ab ( 3, 1 ) = ab ( 3, 1 ) + corr ( 1 )
     ab ( 2, 2 ) = ab ( 2, 2 ) + corr ( 2 )
-    s(n) = s(n) + corr(3)*(1._dbl + f(n+1))
-
-    ! original code 
-    !s ( n ) = s ( n ) - corr ( 3 ) * ( 1._dbl + f ( n+1 ) )
-    ! mein code mit h^2/12 noch nicht drin.
+    s(n) = s(n) - corr(3)*(1._dbl + h212*f(n+1))
 
     ! finally multiply each column of a with the corresponding weight
     DO i = 1, n
@@ -150,8 +141,12 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     6 point Lagrange differentiation solver
-!!     solves (in s-space)
-!!     [d^2/ds^2 + f]wP = g for P
+!!     solves (in s-space):
+!!        [d^2/ds^2 + f]wP = g for P.
+!!     The solution must be 0 at the origin! If the solution
+!!     is known to decay only slowly, then a correction is required
+!!     to compensate for a finite value of the solution at the 
+!!     upper boundary.
 !!
 !!   AUTHOR
 !!     JGH 17-NOV-2000
@@ -159,11 +154,15 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!     TCH 09-OCT-2001: - implemented the algo 
 !!                      - changed name from diff5p to diff6p
+!!     TCH 16-OCT-2001: - implemented the upper boundary correction
+!!                      - added some on function description
+!!     TCH 17-OCT-2001: - added the correction term (for long range
+!!                        potentials) and made it an optional argument
 !!
 !!   SOURCE
 !-----------------------------------------------------------------------------!
 
-  SUBROUTINE diff6p ( f, g, w )
+  SUBROUTINE diff6p ( f, g, w, corr )
 
     IMPLICIT NONE
 
@@ -172,6 +171,9 @@ CONTAINS
     REAL(DBL), DIMENSION(0:), INTENT(INOUT) :: g ! on input an inhomogenity on output
                                                  ! the solution 
     REAL(DBL), DIMENSION(0:), INTENT(IN) :: w    ! weights from the variable transformation
+    REAL(DBL), INTENT(IN), OPTIONAL :: corr      ! correction for the case that
+                                                 ! y(n+1) /= 0
+                                                 ! value should be w(n+1)*y(n+1)
 
     !Locals
     INTEGER :: n, ierr, info
@@ -213,16 +215,16 @@ CONTAINS
     
     ab(6,1)=80._dbl; ab(5,2)=-150._dbl; ab(4,3)=80._dbl; ab(3,4)=-5._dbl 
     ab(4,n)=80._dbl; ab(5,n-1)=-150._dbl; ab(6,n-2)=80._dbl; ab(7,n-3)=-5._dbl
-    
+
     ! special treatment of first and last row to make the matrix banded 
     ! with 2 lower and upper diagonals
     ab(5,1) = 720._dbl
     ab(4,2) = -1440._dbl + 10._dbl*h2_60*f(2)
     ab(3,3) = 720._dbl + h2_60*f(3)
 
-    ab(5,n) = 720._dbl + h2_60*f(n)
+    ab(5,n) = 720._dbl
     ab(6,n-1) = -1440._dbl + 10._dbl*h2_60*f(n-1)
-    ab(7,n-2) = 720._dbl
+    ab(7,n-2) = 720._dbl + h2_60*f(n-2)
 
     g(1) = g(1) + 10._dbl*g(2) + g(3)
     g(n) = g(n) + 10._dbl*g(n-1) + g(n-2)
@@ -232,6 +234,9 @@ CONTAINS
        ab(5,j) = ab(5,j) + h2_60*f(j)
        g(j) = h2_60*g(j)
     END DO
+
+    ! apply the correction
+    IF (PRESENT(corr)) g(n-1) = g(n-1) + 5._dbl*corr
 
     ! now multiply each column of the matrix a with the corresponding weight
     DO j=1, n
@@ -245,7 +250,7 @@ CONTAINS
     CALL dgbsv(n,2,2,1,ab,7,ipiv,g(1:n),n,info)
     IF (info /= 0) CALL stop_program("radial_solver/diff6p", "DGBSV: info /= 0")
 
-    ! g(1:n) should now contain the solution to the problem
+    ! g(1:n) now contains the solution to the problem
 
     DEALLOCATE(ab, stat=ierr)
     IF (ierr /= 0) CALL stop_memory("radial_solver/diff6p", "ab")

@@ -52,7 +52,7 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!I SECTION: &cntl ... &end                                                   I
 !!I                                                                           I
-!!I simulation       [md,pimd,debug,min,amoeba]                               I
+!!I simulation       [md,debug,min,amoeba]                                    I
 !!I printlevel       globenv%print_level                                      I
 !!I units            [kelvin,atomic]                                          I
 !!I periodic         [0,1][0,1][0,1]                                          I
@@ -61,6 +61,7 @@ CONTAINS
 !!I set_file         "filename"                                               I
 !!I input_file       "filename"                                               I
 !!I symmetry         [on,off]                                                 I
+!!I path_integrals   [on,off]                                                 I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!   SOURCE
@@ -88,6 +89,7 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
   setup % unit_type = 'KELVIN'
   setup % perd = 1
   setup % symmetry = .false.
+  setup % path_integrals = .false.
   ewald_param % alpha = 0.4_dbl
   ewald_param % gmax = 10
   ewald_param % o_spline = 5
@@ -171,6 +173,12 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
            CALL uppercase(str2)
            IF ( str2(1:2) == "ON" ) setup%symmetry=.true.
            IF ( str2(1:3) == "OFF" ) setup%symmetry=.false.
+        CASE ('PATH_INTEGRALS')
+           ilen = 3
+           CALL cfield(str2,ilen)
+           CALL uppercase(str2)
+           IF ( str2(1:2) == "ON" ) setup%path_integrals=.true.
+           IF ( str2(1:3) == "OFF" ) setup%path_integrals=.false.
         CASE ( 'SET_FILE')
            ilen = 40
            CALL cfield(setup % set_file_name,ilen)
@@ -204,6 +212,11 @@ SUBROUTINE read_cntl_section ( setup, ewald_param, globenv )
            WRITE (iw,'(A,T78,A)') ' CONTROL| Use of symmetry ','Yes'
         ELSE
            WRITE (iw,'(A,T78,A)') ' CONTROL| Use of symmetry ',' No'
+        END IF
+        IF ( setup%path_integrals ) THEN
+           WRITE (iw,'(A,T78,A)') ' CONTROL| Path Integrals ','Yes'
+        ELSE
+           WRITE (iw,'(A,T78,A)') ' CONTROL| Path Integrals ',' No'
         END IF
         WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name', &
              ADJUSTR ( setup % set_file_name )

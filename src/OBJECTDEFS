@@ -13,6 +13,8 @@ OBJECTS_GENERIC =\
  atomic_kinds.o\
  atoms.o\
  atoms_input.o\
+ atom_calculations.o\
+ atom_type.o\
  band.o\
  basis_set_types.o\
  bessel_lib.o\
@@ -188,6 +190,7 @@ OBJECTS_GENERIC =\
  transformations.o\
  unit.o\
  util.o\
+ wave.o\
  wf_types.o\
  wfs.o\
  xc.o

@@ -37,11 +37,11 @@ CONTAINS
 !******************************************************************************
 
 !!>---------------------------------------------------------------------------!
-!! SECTION: &energy ... &end                                                     !
+!! SECTION: &energy ... &end                                                  !
 !!                                                                            !
-!!  mintype:  [DIIS, SD]                 METHOD for minimization            !
+!!  mintype:  [DIIS, SD]                 METHOD for minimization              !
 !!  sd_delta: delta                      delta t for steepest descent         !
-!!  max_tol:      max_tol                    maximum tolerance for convergence    !
+!!  max_tol:  max_tol                    maximum tolerance for convergence    !
 !!  iter:     max_iter                   maximum number of iterations         !
 !!  ndiis:    ndiis                      number of DIIS vectors               !
 !!                                                                            !

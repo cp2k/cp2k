@@ -2,25 +2,23 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/control_module [1.0] *
+!!****** cp2k/wave [1.0] *
 !!
 !!   NAME
-!!     control_module
+!!     wave
 !!
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     JGH, 14-NOV-2000
+!!     JGH, 18-NOV-2001
 !!
 !!   MODIFICATION HISTORY
-!!     CJM, 20-Feb-2001:  Now contains logic for restart options
-!!     'INIT' and 'ALL'. Also deallocates new ammendments to
-!!      system_type. Passes box_ref to ewald routines for
-!!      consistent restarts
+!!     none
+!!
 !!   SOURCE
 !******************************************************************************
 
-MODULE control_module
+MODULE wave_module
 
   USE atoms_input, ONLY : read_coord_vel, system_type
   USE band, ONLY : band_structure_type, init_band_structure
@@ -38,14 +36,13 @@ MODULE control_module
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE extended_system_types, ONLY : extended_system_type
   USE fermi, ONLY : fermi_distribution_type, init_fermi_dist, fermi_info
-  USE fist_debug, ONLY : fist_debug_control => debug_control
   USE force_control, ONLY : force
   USE fit_parameters_types, ONLY : fit_parameter_type
   USE fit_input, ONLY : read_fit_section
   USE fit_module, ONLY : control_fit
   USE force_fields, ONLY : read_force_field_section, ATOMNAMESLENGTH
   USE global_types, ONLY : global_environment_type
-  USE header, ONLY : fist_header, tbmd_header, wave_header
+  USE header, ONLY : wave_header
   USE initialize_extended_types, ONLY : initialize_nhc_part, initialize_nhc_baro,&
                                         initialize_npt_type, initialize_nhc_pol, &
                                         assign_extended_parameters
@@ -67,18 +64,12 @@ MODULE control_module
   USE molecule_types, ONLY : molecule_type, intra_parameters_type
   USE pair_potential, ONLY : spline_nonbond_control
   USE particle_types, ONLY : particle_prop_type, particle_type
-  USE pol_coefs, ONLY :  allocate_pol_coefs, initialize_pol_coefs, dump_pol_coefs
-  USE pol_debug, ONLY : pol_debug_control => debug_control
-  USE pol_setup, ONLY : read_pol_basis_sets , get_rcutsq_cgf
   USE physcon, ONLY : boltzmann, h_planck
   USE read_pimd, ONLY : read_pimd_section
   USE simulation_cell, ONLY : cell_type, get_hinv, init_cell
   USE string_utilities, ONLY : xstring, integer_to_string
   USE structure_types, ONLY : structure_type, interaction_type
   USE termination, ONLY : stop_program, stop_memory
-  USE tbmd_debug, ONLY : tbmd_debug_control => debug_control
-  USE tbmd_initialize, ONLY : tbmd_init, tb_get_numel
-  USE tbmd_input, ONLY : read_tb_hamiltonian, read_tb_hopping_elements
   USE transformations, ONLY : fr2fu, v2ud, ud2v
   USE timings, ONLY : timeset, timestop, trace_debug
   USE unit, ONLY : unit_convert_type, set_units
@@ -87,7 +78,7 @@ MODULE control_module
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: control
+  PUBLIC :: wave
   
 !!*****
 !-----------------------------------------------------------------------------!
@@ -97,30 +88,24 @@ CONTAINS
 !-----------------------------------------------------------------------------!
 ! CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL CNTL  !
 !-----------------------------------------------------------------------------!
-!!****** control_module/control [1.0] *
+!!****** wave_module/wave [1.0] *
 !!
 !!   NAME
-!!     control
+!!     wave
 !!
 !!   FUNCTION
-!!     Controls program flow for FIST and TBMD
+!!     Controls program flow for WAVE
 !!
 !!   AUTHOR
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     Harald Forbert (Dec-2000): enable multiple linked lists
-!!     Harald Forbert (Feb-2001): added path integral support
-!!     CJM (June-2001): added pol support and new structure
-!!                      for extended system variables
-!!
-!!   USED BY
-!!     cp2k
+!!     none
 !!
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE control ( globenv )
+SUBROUTINE wave ( globenv )
 
   IMPLICIT NONE
 
@@ -130,7 +115,7 @@ SUBROUTINE control ( globenv )
 ! Locals
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut
   REAL ( dbl ), DIMENSION ( :, : ), ALLOCATABLE :: rcut_cgf
-  INTEGER :: handle1, handle2, isos
+  INTEGER :: handle, isos
   INTEGER :: nel, ibead, beads, ia, ib
   INTEGER :: ncoef, nll, nbasis_types, i
   INTEGER :: maxder
@@ -138,7 +123,7 @@ SUBROUTINE control ( globenv )
   CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
   CHARACTER ( LEN = 40 ) :: set_fn, project_name
   CHARACTER ( LEN = 5 ) :: tag
-  LOGICAL :: tbmd, fist, dft, wave, quickstep, fit , pol, pimd
+  LOGICAL :: pimd
   
   TYPE ( particle_prop_type ), DIMENSION ( : ), POINTER :: pstat
   TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
@@ -163,46 +148,9 @@ SUBROUTINE control ( globenv )
 
 ! IF( globenv % ionode ) CALL trace_debug ( "START" )
 
-  CALL timeset ( 'CONTROL', 'I', ' ', handle1 )
-  CALL timeset ( 'CNTL_INIT', 'I', ' ', handle2 )
+  CALL timeset ( 'WAVE', 'I', ' ', handle )
 
-!*apsi* 130201: Waiting for Matthias + Jürg :*)
-  quickstep = .FALSE.
-! This makes sure that we are only running one method a time
-  
-  IF ( globenv % program_name == 'FIST' ) THEN
-    fist = .true.
-    tbmd = .false.
-    wave = .false.
-    fit = .false.
-    pol = .false.
-  ELSE IF ( globenv % program_name == 'TBMD' ) THEN
-    tbmd = .true.
-    fist = .false.
-    wave = .false.
-    fit = .false.
-    pol = .false.
-  ELSE IF ( globenv % program_name == 'WAVE' ) THEN
-    tbmd = .false.
-    fist = .false.
-    wave = .true.
-    fit = .false.
-    pol = .false.
-  ELSE IF ( globenv % program_name == 'FIT' ) THEN
-    tbmd = .false.
-    fist = .false.
-    wave = .false.
-    fit = .true.
-    pol = .false.
-  ELSE IF ( globenv % program_name == 'POL' ) THEN
-    tbmd = .false.
-    fist = .false.
-    wave = .false.
-    fit = .false.
-    pol = .true.
-  ELSE
-    CALL stop_program ( ' control ',' program_name not specified' )
-  END IF
+  CALL wave_header ( globenv % scr )
 
 ! read control section
   CALL read_cntl_section ( setup, ewald_param, globenv )
@@ -211,8 +159,6 @@ SUBROUTINE control ( globenv )
     pimd = .true.
     CALL read_pimd_section ( simpar % pimd_params, globenv )
     beads = simpar % pimd_params % beads
-    IF ( pol .OR. wave .OR. fit .OR. tbmd ) &
-    CALL stop_program ( ' control ','PIMD not implemented with program' )
   ELSE
     pimd = .false.
     beads = 1
@@ -228,12 +174,8 @@ SUBROUTINE control ( globenv )
   ALLOCATE ( extended_type % nhc_baro ( beads ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'nhc_baro', beads )
 
-  IF ( pol ) THEN 
-    IF ( pimd ) CALL stop_program ( ' control ','PIMD not implemented with program POL' )
-    nll = 2
-  ELSE
-    nll = 1
-  ENDIF
+! total number of neighbor linked lists needed
+  nll = 1
 
   DO ibead = 1, beads
     ALLOCATE ( struc ( ibead ) % ll_data ( nll ), STAT = isos )
@@ -258,62 +200,15 @@ SUBROUTINE control ( globenv )
     END DO
   END DO
 
-  dft = wave .OR. quickstep
-  
-  IF ( globenv % ionode ) THEN
-    IF ( fist ) CALL fist_header ( globenv % scr )
-    IF ( tbmd ) CALL tbmd_header ( globenv % scr )
-    IF ( wave ) CALL wave_header ( globenv % scr )
-  END IF
-  
+! read the dft and wave section inputs
+  CALL read_dft_section ( dft_control, globenv )
+  CALL read_wave_section ( dft_control % wave_control, globenv )
 
 ! read from the setup and molecule section of *.set
-
   set_fn = setup % set_file_name
-
   CALL read_setup_section ( mol_setup, set_fn, globenv )
-
   CALL read_molecule_section ( mol_setup, set_fn, globenv )
-
-! read force_field information for classical MD
-! read pair potential information for TB
-
-  CALL read_force_field_section ( setup, mol_setup, set_fn, &
-       intra_param, inter%potparm, atom_names, pstat, globenv )
-
-!..read Hamiltonian section
-
-  IF ( tbmd ) THEN
-     CALL read_tb_hamiltonian ( setup, atom_names, inter%tbatom, globenv )
-     CALL read_tb_hopping_elements ( setup, atom_names, &
-          inter%tbatom, inter%tbhop, globenv )
-  END IF
-  
-  IF ( dft ) THEN
-     
-     IF ( wave ) THEN
         
-        CALL read_dft_section ( dft_control, globenv )
-        
-        CALL read_wave_section ( dft_control % wave_control, globenv )
-        
-     ELSE
-        CALL stop_program ( "control", "DFT method not implemented" )
-     END IF
-     
-  END IF
-
-! .. read the input of the FIT section
-  IF ( fit ) THEN
-    
-     CALL read_fit_section ( fit_param, globenv )       
-
-  END IF
-
- IF ( setup % run_type == 'ENERGY') THEN 
-    CALL read_energy_section ( energy_min, globenv )
- END IF
-      
 ! read the input of the molecular dynamics section
   CALL read_md_section ( simpar, globenv, mdio )
   simpar % program = globenv % program_name
@@ -412,10 +307,8 @@ SUBROUTINE control ( globenv )
 !..K-Points
   IF ( SUM ( struc ( 1 ) % box % perd ) == 0 ) THEN
     kp % scheme = "NULL"
-  ELSE IF ( tbmd .OR. wave ) THEN
-    CALL kpoint_input ( kp, globenv )
   ELSE
-    kp % scheme = "NULL"
+    CALL kpoint_input ( kp, globenv )
   END IF
   
   CALL set_energy_parm ( units % pconv, units % econv, units % l_label, &
@@ -434,53 +327,6 @@ SUBROUTINE control ( globenv )
     NULLIFY ( struc ( i ) % coef_vel )
     NULLIFY ( struc ( i ) % coef_force )
   ENDDO
-
-  IF ( pol ) then
-
-     IF (( setup % run_type == 'DEBUG' ).OR.( setup % run_type == 'MD'))  THEN
-        maxder = 1    
-        CALL get_maxder(maxder)
-     ELSE 
-        maxder = 0    
-        CALL get_maxder(maxder)
-     ENDIF
-
-     ALLOCATE ( struc ( 1 ) % coef_pos ( 1 ) , STAT = isos )
-     IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_pos', 1 )
-
-     ALLOCATE ( struc ( 1 ) % coef_vel ( 1 ) , STAT = isos )
-     IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_vel', 1 )
-
-     ALLOCATE ( struc ( 1 ) % coef_force ( 1 ) , STAT = isos )
-     IF ( isos /=0 ) CALL stop_memory ( 'control', 'coef_force', 1 )
-  
-     CALL read_pol_basis_sets( struc ( 1 ) % rho0_basis_info, struc ( 1 ) % drho_basis_info, &
-                               mol_setup, struc ( 1 ) % part, atom_names, ncoef, globenv )
-
-     nbasis_types  = size ( struc ( 1 ) % drho_basis_info )
-
-     CALL read_empirical_parameters ( struc (1) % drho_basis_info, set_fn, &
-                atom_names, inter%empparm, globenv )
-     
-     ALLOCATE (rcut_cgf ( nbasis_types, nbasis_types ), STAT = isos)
-      IF ( isos /=0 ) CALL stop_memory ( 'control', 'rcut_cgf', 0 )
-
-     CALL get_rcutsq_cgf ( struc ( 1 ) % drho_basis_info, rcut_cgf )
-
-
-     CALL allocate_pol_coefs ( ncoef, struc ( 1 ) % coef_pos ( 1 ),  &
-          struc ( 1 ) % coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ) )
-
-     CALL initialize_pol_coefs ( simpar, struc ( 1 ) % drho_basis_info, &
-          struc ( 1 ) % part, struc ( 1 ) % coef_pos ( 1 ),  &
-          struc ( 1 )% coef_vel ( 1 ), struc ( 1 ) % coef_force ( 1 ), globenv )
-
-     CALL initialize_nhc_pol ( simpar, struc ( 1 ) % coef_vel ( 1 ),  &
-                               globenv, extended_type % nhc_pol )
-
-  END IF
-
-
 
 !...initialize splines
 
@@ -502,66 +348,20 @@ SUBROUTINE control ( globenv )
        printlevel = globenv % print_level, ltype = 'NONBOND' )
   END DO
 
-! construct the lists for the overlaps
-
-  IF ( pol ) THEN
-
-     CALL set_ll_parm ( struc ( 1 ) % ll_data ( 2 ), globenv, simpar % verlet_skin, &
-          nbasis_types, rcut_cgf, simpar % n_cell )
-
-     CALL set_ll_parm ( struc ( 1 ) % ll_data ( 2 ), globenv,  &
-          printlevel = globenv % print_level, ltype = 'OVERLAP' )
-
-  END IF
-
   DEALLOCATE ( rcut, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'control', 'rcut' )
 
-  IF (pol) THEN
-    DEALLOCATE ( rcut_cgf, STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'control', 'rcut_cgf' )
-  END IF  
-
-
-!
-!..initialize the on-site terms for TB
-  IF ( tbmd ) CALL tbmd_init ( struc ( 1 ) % part, inter%tbatom, inter%tbhop )
-  
 !
 ! Symmetry and K-points
 !
-  IF ( SUM ( struc ( 1 ) % box % perd ) == 0 ) THEN
-!!!!!! symmetry setup for molecules
-  ELSE IF ( tbmd ) THEN
     CALL initialize_kpoints ( globenv, kp, setup % symmetry, &
          struc ( 1 ) % box % hmat, struc ( 1 ) % part )
     IF ( globenv%ionode .AND. globenv%print_level > 0) &
        CALL brillouin_info ( kp, globenv%scr )
-  END IF
-  
-! nota bene: we use the defaults for the elctron temperature and
-!             spin polarisation
-  IF ( tbmd ) then
-    nel = tb_get_numel ( inter % tbatom, charge )
-    CALL init_fermi_dist ( fd, nel )
-    IF ( globenv % ionode ) &
-         CALL fermi_info ( fd, globenv % print_level, globenv % scr )
-    CALL init_band_structure ( bs, fd, kp )
-  END IF
-  
-  CALL timestop ( zero, handle2 )
-
-  IF ( fit ) then
-
-    CALL control_fit( struc ( 1 ), inter % potparm, simpar, fit_param, pstat, &  
-        ewald_param, atom_names, globenv)             
-
-  ELSE  
   
     CALL control_work ( globenv, units, simpar, struc, inter, extended_type, &
-                    ewald_param, dft_control, setup, mdio, tbmd, fist, pol, &
+                    ewald_param, dft_control, setup, mdio, .false., .false., .false., &
                     kp, energy_min )
-  END  IF
 
 ! deallocate memory for atoms and molecules
   DO ibead = 1, beads
@@ -569,9 +369,9 @@ SUBROUTINE control ( globenv )
   END DO
   DEALLOCATE ( struc, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'control', 'struc' )
-  CALL timestop ( zero, handle1 )
+  CALL timestop ( zero, handle )
   
-END SUBROUTINE control
+END SUBROUTINE wave
 
 
 !-----------------------------------------------------------------------------!
@@ -720,19 +520,19 @@ SUBROUTINE control_debug_work ( globenv, simpar, struc, inter, ewald_param, &
   CALL set_integrator ( globenv, mdio )
   
   IF ( fist ) then
-     CALL fist_debug_control ( globenv, ewald_param, struc%part, &
-          struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
-          inter%potparm, struc % ll_data ( 1 ) )
+!    CALL fist_debug_control ( globenv, ewald_param, struc%part, &
+!         struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
+!         inter%potparm, struc % ll_data ( 1 ) )
   ELSE IF ( tbmd ) THEN
-     CALL tbmd_debug_control ( globenv, ewald_param, struc%part, &
-          struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
-          inter%potparm, struc % ll_data ( 1 ) )
+!    CALL tbmd_debug_control ( globenv, ewald_param, struc%part, &
+!         struc%pnode, struc%molecule, struc%box, struc%box_ref, thermo, &
+!         inter%potparm, struc % ll_data ( 1 ) )
   ELSE IF ( pol ) then
-    CALL pol_debug_control ( globenv, ewald_param, struc % pnode, struc % part, &
-          struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
-          struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
-          struc % coef_force ( 1 ), thermo, inter % potparm, inter % empparm,  &
-          struc % ll_data )
+!   CALL pol_debug_control ( globenv, ewald_param, struc % pnode, struc % part, &
+!         struc % molecule, struc % box, struc % box_ref, struc % drho_basis_info, &
+!         struc % rho0_basis_info, struc % coef_pos ( 1 ), struc % coef_vel ( 1 ), &
+!         struc % coef_force ( 1 ), thermo, inter % potparm, inter % empparm,  &
+!         struc % ll_data )
   ELSE
      CALL stop_program ( "control_debug_work", "no method to debug found" )
   END IF
@@ -798,8 +598,8 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 
 !    write  coefficents to restart file
      IF (( MOD ( itimes, mdio % idump ) == 0 ) .AND. (coef_flag)) THEN
-        CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
-                           struc % coef_force (1))
+!       CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
+!                          struc % coef_force (1))
      END IF 
 
 !   convergence acheived
@@ -810,8 +610,8 @@ SUBROUTINE control_energy_work ( globenv, units, simpar, struc, inter, &
 
   END DO
 
-  CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
-                           struc % coef_force (1))
+! CALL dump_pol_coefs (struc % coef_pos (1) , struc % coef_vel (1), &
+!                          struc % coef_force (1))
   CALL print_convergence ( conv_flag, globenv )
   
 END SUBROUTINE control_energy_work
@@ -903,8 +703,8 @@ SUBROUTINE control_md_work ( globenv, units, simpar, struc, inter, &
                mdio % dump_file_name, globenv, pimd )
           IF ( pimd ) CALL v2ud ( struc, simpar )
           IF ( coef_flag ) THEN
-              CALL dump_pol_coefs (struc (1) % coef_pos (1) , struc (1) % coef_vel (1), &
-                                   struc (1) % coef_force (1))
+!             CALL dump_pol_coefs (struc (1) % coef_pos (1) , struc (1) % coef_vel (1), &
+!                                  struc (1) % coef_force (1))
           END IF
      END IF
   END DO
@@ -1027,4 +827,4 @@ END SUBROUTINE deallocmem
 
 !******************************************************************************
 
-END MODULE control_module
+END MODULE wave_module

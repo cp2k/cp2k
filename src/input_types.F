@@ -30,6 +30,7 @@ MODULE input_types
      CHARACTER ( LEN = 40 ) :: input_file_name
      CHARACTER ( LEN = 20 ) :: run_type
      CHARACTER ( LEN = 20 ) :: unit_type
+     LOGICAL                :: path_integrals
   END TYPE setup_parameters_type
 
   PRIVATE

@@ -263,7 +263,7 @@ SUBROUTINE read_molecule_section ( mol_setup, set_fn, globenv )
         WRITE ( iw, '( T2, A )' ) set_fn
      END IF
      CALL stop_parser ( 'read_molecule_section', '&MOLEC' )
-     ELSE
+  ELSE
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 8

@@ -138,8 +138,8 @@ SUBROUTINE wave_header ( iw )
        '  ******     ****** ****   **** *******    **********  ', &
        '   ****       ****   ****  ****  ******     ********   ', &
        '                                                       ', &
-       '           MPI Festkoerperforschung Stuttgart          ', &
-       '                        1999                           ', &
+       '                  UNIVERSITY OF ZURICH                 ', &
+       '                          2001                         ', &
        '                                                       ', &
        '                     Version 0.0                       ', &
        '                                                       '

@@ -4,16 +4,10 @@
 !-----------------------------------------------------------------------------!
 !!****** cp2k/atom_module [1.0] *
 !!
-!!   NAME
-!!     atom_module
-!!
 !!   FUNCTION
 !!
-!!   AUTHOR
-!!     JGH, 17-NOV-2000
-!!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH, 17-NOV-2000, began work
 !!
 !!   SOURCE
 !******************************************************************************
@@ -25,131 +19,203 @@ MODULE atom_module
   USE kinds, ONLY : dbl
   USE mathconstants, ONLY : zero, pi
   USE timings, ONLY : timeset, timestop
-!deb
-  USE radial_grids, ONLY : radial_grid_type, init_radial_grid
-  USE radial_operators, ONLY : rad_kinetic
-  USE radial_poisson, ONLY : rg_poisson
-  USE radial_util, ONLY : radial_integrate, radial_diff
-!deb
+  USE termination
+
+  USE atom_calculations
+  USE atom_type
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: atomic_code
+  PUBLIC :: atomic_code, atom_do_calc
 
-!!*****
-!-----------------------------------------------------------------------------!
+  !!*****
+  !-----------------------------------------------------------------------------!
 
 CONTAINS
 
-!-----------------------------------------------------------------------------!
-!!****** atom_module/atomic_code [1.0] *
-!!
-!!   NAME
-!!     atomic_code
-!!
-!!   FUNCTION
-!!
-!!   AUTHOR
-!!     JGH, 17-NOV-2000
-!!
-!!   MODIFICATION HISTORY
-!!     none
-!!
-!!   SOURCE
-!******************************************************************************
+  !-----------------------------------------------------------------------------!
+  !!****** atom_module/atomic_code [1.0] *
+  !!
+  !!   FUNCTION
+  !!
+  !!
+  !!   MODIFICATION HISTORY
+  !!     JGH, 17-NOV-2000, began work
+  !!
+  !!   SOURCE
+  !******************************************************************************
 
-  SUBROUTINE atomic_code ( globenv )
+  SUBROUTINE atomic_code(globenv)
 
     IMPLICIT NONE
 
-!Arguments
-    TYPE ( global_environment_type ), INTENT ( INOUT ) :: globenv
+    !Arguments
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
-!Locals
-    REAL ( dbl ) :: xx
-    INTEGER :: handle
+    !Locals
+    TYPE(atom_info) :: this     ! the atom itself
 
-!deb
-  REAL ( dbl ), DIMENSION ( : ), ALLOCATABLE :: f,df,fp,p
-  REAL ( dbl ) :: h, x, res, erf, z, b(3), rmax
-  Integer :: n, ierr, i, l
-  TYPE ( radial_grid_type ) :: rg
-!deb
-!------------------------------------------------------------------------------
+    CHARACTER(20) :: tempstring
 
+    INTEGER :: handle           ! a handle for the timer
+    INTEGER :: i                ! loop variable
+
+    !------------------------------------------------------------------------------
     CALL timeset ( 'ATOMIC_CODE', 'I', ' ', handle )
 
     IF ( globenv % ionode ) CALL atom_header ( globenv % scr )
 
-!debdebdebdebdeb
-    n = 100
-    z=1._dbl
-    b(1)=1._dbl
-    b(2)=4._dbl
-    rmax=10._dbl
-    CALL init_radial_grid ( rg, "LINEAR", n, z, b, rmax )
-!   CALL init_radial_grid ( rg, "LOG", n, z, b, rmax )
-!   CALL init_radial_grid ( rg, "POWER", n, z, b, rmax )
-!   CALL init_radial_grid ( rg, "RATIONAL", n, z, b, rmax )
-!   CALL init_radial_grid ( rg, "ALGEBRAIC SQUARE ROOT", n, z, b, rmax )
-    allocate ( f(0:n+1) )
-    allocate ( p(0:n+1) )
-    allocate ( fp(0:n+1) )
-    allocate ( df(0:n+1) )
-    do i = 0, n+1
-      x = rg % r ( i )
-      f ( i ) = exp ( - x*x )
-      p ( i ) = x * f ( i )
-      fp ( i ) = -2._dbl*x*f(i)
-    enddo
-    l = 0
-    call rad_kinetic ( p, p, l, rg, res )
-    res = res * 4._dbl * pi
-    write ( 6,*) ' KINETIC ',res
-    write ( 6,*) ' KINETIC ',1.5_dbl * ( 0.5_dbl*pi )**1.5_dbl
-    write ( 6,*) ' KINETIC ',res - 1.5_dbl * ( 0.5_dbl*pi )**1.5_dbl
-    call radial_diff ( n+2, f(0:n+1),df(0:n+1),1,rg,ierr )
-    call radial_integrate ( n+2,f(0:n+1),rg,res,ierr )
-    write ( 6,*) ' INTEGRAL ',res
-    write ( 6,*) ' INTEGRAL ',0.5_dbl * sqrt ( pi ) !* erf (rmax)
-    write ( 6,*) ' INTEGRAL ',res - 0.5_dbl * sqrt ( pi ) !* erf (rmax)
-    write ( 6,*) ' DIFF     ',sum ( abs ( df - fp ) ) / real ( n )
-    write ( 6,*) ' DIFF     ',minval ( abs ( df - fp ) )
-    write ( 6,*) ' DIFF     ',maxval ( abs ( df - fp ) )
+    ! read input file and setup calculations
+    CALL atom_init(this, globenv, .true.)
 
-    do i = 0, n+1
-      x = rg % r ( i )
-      f ( i ) = exp ( - x*x )
-      fp ( i ) = (4._dbl*x*x-2._dbl)*f(i)
-    enddo
-    call radial_diff ( n+2, f(0:n+1),df(0:n+1),2,rg,ierr )
-    write ( 6,*) ' d2DIFF     ',sum ( abs ( df - fp ) ) / real ( n )
-    write ( 6,*) ' d2DIFF     ',minval ( abs ( df - fp ) )
-    write ( 6,*) ' d2DIFF     ',maxval ( abs ( df - fp ) )
-    do i = 0, n+1
-      x = rg % r ( i )
-      f ( i ) = -z* (pi)**(-1.5) * x*x*exp ( - x*x ) * 4._dbl*pi
-      p ( i ) = -z*erf ( x )
-    enddo
-!   call rg_poisson ( f, fp, l, rg, "NUMEROV" )
-    call rg_poisson ( f, fp, l, rg, "DIFF5P" )
-    write ( 6,*) ' POISSON  ',sum ( abs ( fp - p ) ) / real ( n )
-    write ( 6,*) ' POISSON  ',minval ( abs ( fp - p ) )
-    write ( 6,*) ' POISSON  ',maxval ( abs ( fp - p ) )
-    do i = 0, n+1
-      write(99,*) fp(i),p(i)
-    enddo
-
-    deallocate ( f,df,fp,p )
-!debdebdebdebdeb
+    ! do calculations
+    CALL atom_do_calc(this)
 
     CALL timestop ( zero, handle )
 
   END SUBROUTINE atomic_code
 
-!!*****
-!******************************************************************************
+  !-----------------------------------------------------------------------------!
+  !!****** atom_module/atom_do_calc [1.0] *
+  !!
+  !!   FUNCTION
+  !!     Does the actual computation using the independend particle model
+  !!     (no interactions)
+  !!
+  !!   HISTORY
+  !!     TCH, 28-OCT-2001, began work
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE atom_do_calc(this)
+
+    USE radial_util, ONLY : radial_integrate
+    
+    IMPLICIT NONE
+    
+    ! arguments
+    TYPE(atom_info), INTENT(IN) :: this ! the atom_info record
+
+    ! variables
+    INTEGER :: errorcode      ! to store an errorcode
+    INTEGER :: g, i, j, k     ! loop variables
+    INTEGER :: n              ! holds the number of interior grid points
+    
+    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: sdm          ! second derivative matrix 
+    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: hm           ! h operator matrix
+    REAL(DBL), DIMENSION(this%rg%n, this%rg%n) :: hcalcm       ! h operator matrix for lapack calculations
+    REAL(DBL), DIMENSION(:,:), ALLOCATABLE :: wf               ! the wavefunctions
+
+    REAL(DBL), DIMENSION(this%rg%n) :: f, ipiv, y
+    REAL(DBL), DIMENSION(:), ALLOCATABLE :: ew                 ! vector of eigenwerte
+ 
+    REAL(DBL) :: sigma        ! guess for the eigenwert
+    REAL(DBL) :: old_ew       ! store the old eigenwert for sc criterium
+    REAL(DBL) :: w            ! cache for the weights of the radial transformation
+    REAL(DBL) :: r ! DEBUGGING ONLY
+         
+    INTEGER :: l              ! angular quantum number
+    INTEGER :: index, counter ! to keep track which wf we are computing
+
+    CHARACTER(50) :: fmt
+
+    ! execution section
+    
+    n = this%rg%n
+
+    ALLOCATE(ew(SUM(this%nel)), STAT=errorcode)
+    IF (errorcode /= 0) CALL stop_memory("atom_module/atom_ipm", "ew", SUM(this%nel))
+    ALLOCATE(wf(1:n, 0:SUM(this%nel)), STAT=errorcode)
+    IF (errorcode /= 0) CALL stop_memory("atom_module/atom_ipm", "wf", n*(SUM(this%nel)+1))
+
+    sdm = 0.0_dbl
+    CALL bfsdm(sdm, this%rg%h, n)
+
+    ! construct the starting functions
+    wf = 1.0_dbl
+    CALL normalize(wf(:,1), this%rg)
+    DO k=2, SUM(this%nel)
+       wf(:,k) = wf(:,1)
+    END DO
+
+    counter = 0
+    DO l=0, 9
+       
+       IF (this%nel(l) > 0) THEN 
+          
+          WRITE (6,'(1X,(A),I1)') "l = ", l
+
+          DO index=1+counter, this%nel(l)+counter
+
+             sigma = dble(this%z)**2*0.5_dbl/(DBLE(index-counter+l)**2) + 1000.0_dbl*this%precision
+             old_ew = sigma
+
+             DO                        ! self-consistent loop
+                CALL bff(f, l, this)
+
+                hm = sdm
+                DO j=1, n
+                   hm(j,j) = hm(j,j) + f(j)
+                   w = this%rg%w(j)
+                   DO i=1, n
+                      hm(i,j) = hm(i,j) * (w**4) / 2.0_dbl
+                   END DO
+                END DO
+
+                ! build the operator for the eigenvector calculation
+                hcalcm = hm
+                DO k=1, n
+                   hcalcm(k,k) = hcalcm(k,k) - sigma
+                END DO
+
+                CALL dgesv(n, 1, hcalcm, n, ipiv, wf(:,index), n, errorcode) ! solve the linear equations
+
+                ! normalize and take the positive solution
+                CALL normalize(wf(:,index), this%rg)
+                ! choose the solution that starts positively
+                IF (wf(1,index) < 0.0_dbl) wf(:,index) = -1.0_dbl * wf(:,index) 
+
+                ! compute the approximation to the eigenvalue
+                y = 0.0_dbl
+                DO i=1, n
+                   DO j=1, n
+                      y(i)=y(i) + hm(i,j)*wf(j,index)
+                   END DO
+                END DO
+                CALL radial_integrate(this%rg%n, wf(:,index)*y, this%rg, ew(index), errorcode)   
+!!                write (6,"1X,F12.9") -ew(index)
+                IF (ABS((ew(index) - old_ew)/ew(index)) < this%precision) EXIT
+                old_ew = ew(index)
+
+             END DO
+             WRITE (6, '(1X,F12.9)') -ew(index)
+
+             DO k=1, n
+                r = this%rg%r(k)
+                w = this%rg%w(k)
+                wf(k,index) = wf(k,index) * (w**3) / 2.0_dbl
+
+                wf(k,0) = 2.0 * (real(this%z)/2.0)**1.5 * (1.0 - real(this%z)*r/2.0) * exp(-0.5*dble(this%z)*r) * r
+             END DO
+             CALL normalize(wf(:,index), this%rg)
+             IF (wf(1,index) < 0.0_dbl) wf(:,index) = -1.0_dbl * wf(:,index) 
+             
+
+             CALL reportf(wf(:,index), wf(:,0), this%rg)
+
+          END DO ! index loop
+          counter = counter + this%nel(l)
+
+          
+          WRITE (6,*)
+
+       END IF
+    END DO ! l loop
+
+    DEALLOCATE(ew, wf)
+
+  END SUBROUTINE atom_do_calc
 
 END MODULE atom_module
 
