@@ -346,7 +346,7 @@ CONTAINS
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
             nao=nao,&
             homo=nmo,&
-            eigenvectors=c)
+            mo_coeff=c)
 
 
        parameters => diis_buffer%parameter(ib,ispin)%matrix

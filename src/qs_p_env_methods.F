@@ -246,7 +246,7 @@ CONTAINS
              CALL cp_fm_get_info(psi0d(spin)%matrix, &
                   ncol_global=n_mo, nrow_global=n_ao)
           ELSE
-             CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvectors=qs_env_c)
+             CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=qs_env_c)
              CALL cp_fm_get_info(qs_env_c, &
                   ncol_global=n_mo, nrow_global=n_ao)
           END IF
@@ -559,7 +559,7 @@ END SUBROUTINE p_env_did_change
              DO spin=1,n_spins
                 NULLIFY(my_psi0(spin)%matrix)
                 CALL get_mo_set(mos(spin)%mo_set,&
-                     eigenvectors=my_psi0(spin)%matrix)
+                     mo_coeff=my_psi0(spin)%matrix)
              END DO
           END IF
        END IF

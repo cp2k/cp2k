@@ -657,7 +657,7 @@ END SUBROUTINE qs_ep_calculation
           DO ispin=1,dft_control%nspins
              NULLIFY(psi0(ispin)%matrix)
              CALL get_mo_set(ep_env%main_qs_env%mos(ispin)%mo_set,&
-                  eigenvectors=psi0(ispin)%matrix)
+                  mo_coeff=psi0(ispin)%matrix)
           END DO
        END IF
        ! initializes the preconditioner
@@ -723,7 +723,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -732,7 +732,7 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
       POINTER                                :: matrix_ks, matrix_s
 
   failure=.FALSE.
-  NULLIFY(ks_env, mos, eigenvectors, dft_control,matrix_ks,matrix_s)
+  NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s)
 
   CALL timeset(routineN,"I","",handle)
 
@@ -758,8 +758,8 @@ SUBROUTINE ep_env_finish_qs_init(qs_env,globenv,error)
   CPPrecondition(ASSOCIATED(mos),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      DO ispin=1,SIZE(mos)
-        CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-        IF (.NOT.ASSOCIATED(eigenvectors)) THEN
+        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+        IF (.NOT.ASSOCIATED(mo_coeff)) THEN
            CALL init_mo_set(mos(ispin)%mo_set, &
                 qs_env%mpools%ao_mo_fm_pools(ispin)%pool,&
                 name="qs_env"//TRIM(ADJUSTL(cp_to_string(qs_env%id_nr)))//&
@@ -851,12 +851,12 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
      CALL get_qs_env(main_qs_env,mos=mos,error=error)
      DO ispin=1,nspins ! transfer also occupation_numbers ?
         start_col=1
-        CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=orbitals,nmo=nmo)
+        CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=orbitals,nmo=nmo)
         CALL cp_fm_set_all(orbitals,0.0_dp,error=error)
 
         DO isub=1,SIZE(sub_qs_env)
            CALL get_qs_env(sub_qs_env(isub)%qs_env,mos=sub_mos,error=error)
-           CALL get_mo_set(sub_mos(ispin)%mo_set,eigenvectors=sub_orbitals,&
+           CALL get_mo_set(sub_mos(ispin)%mo_set,mo_coeff=sub_orbitals,&
                 nmo=sub_nmo)
            CPInvariant(start_col+sub_nmo<nmo+2,cp_failure_level,routineP,error,failure)
            IF (debug_this_module .AND. logger%print_keys%ep_matrixes) THEN

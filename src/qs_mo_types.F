@@ -80,10 +80,10 @@ MODULE qs_mo_types
 
   TYPE mo_set_type
     ! the actual MO coefficients as a matrix
-    TYPE(cp_fm_type), POINTER :: eigenvectors
-    ! number of molecular orbitals (# cols in eigenvectors)
+    TYPE(cp_fm_type), POINTER :: mo_coeff
+    ! number of molecular orbitals (# cols in mo_coeff)
     INTEGER                                   :: nmo       
-    ! number of atomic orbitals (# rows in eigenvectors)
+    ! number of atomic orbitals (# rows in mo_coeff)
     INTEGER                                   :: nao       
     ! occupation - eigenvalues  of the nmo states (if eigenstates)
     REAL(KIND = dp), DIMENSION(:), POINTER    :: eigenvalues,occupation_numbers
@@ -208,7 +208,7 @@ CONTAINS
 
     NULLIFY (mo_set%eigenvalues)
     NULLIFY (mo_set%occupation_numbers)
-    NULLIFY (mo_set%eigenvectors)
+    NULLIFY (mo_set%mo_coeff)
 
   END SUBROUTINE allocate_mo_set
 
@@ -229,7 +229,7 @@ CONTAINS
 !!
 !!   FUNCTION
 !!     initializes an allocated mo_set.
-!!     eigenvalues, eigenvectors, occupation_numbers are valid only
+!!     eigenvalues, mo_coeff, occupation_numbers are valid only
 !!     after this call.
 !!
 !!   NOTES
@@ -264,7 +264,7 @@ CONTAINS
     LOGICAL                                  :: failure
 
     failure=.FALSE.
-    CPPrecondition(.NOT.ASSOCIATED(mo_set%eigenvectors),cp_failure_level,routineP,error,failure)
+    CPPrecondition(.NOT.ASSOCIATED(mo_set%mo_coeff),cp_failure_level,routineP,error,failure)
 
     ALLOCATE (mo_set%eigenvalues(mo_set%nmo),STAT=istat)
     IF (istat /= 0) THEN
@@ -278,9 +278,9 @@ CONTAINS
     END IF
     CALL set_mo_occupation(mo_set=mo_set,smear=0.0_dp)
 
-    CALL fm_pool_create_fm(fm_pool,mo_set%eigenvectors,&
+    CALL fm_pool_create_fm(fm_pool,mo_set%mo_coeff,&
          name=name,error=error)
-    CALL cp_fm_get_info(mo_set%eigenvectors, nrow_global=nao, &
+    CALL cp_fm_get_info(mo_set%mo_coeff, nrow_global=nao, &
          ncol_global=nmo,error=error)
     CPPostcondition(nao>=mo_set%nao,cp_failure_level,routineP,error,failure)
     CPPostcondition(nmo>=mo_set%nmo,cp_failure_level,routineP,error,failure)
@@ -326,7 +326,7 @@ CONTAINS
 
     ! first nmo_beta orbitals are copied from alpha to beta
     IF (.NOT. failure) THEN
-       CALL cp_fm_to_fm(mo_array(1)%mo_set%eigenvectors,mo_array(2)%mo_set%eigenvectors,mo_array(2)%mo_set%nmo)
+       CALL cp_fm_to_fm(mo_array(1)%mo_set%mo_coeff,mo_array(2)%mo_set%mo_coeff,mo_array(2)%mo_set%nmo)
     ENDIF
 
     CALL timestop(0.0_dp,handle)
@@ -391,7 +391,7 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routine,"mo_set%occupation_numbers")
        END IF
 
-       CALL cp_fm_release(mo_set%eigenvectors)
+       CALL cp_fm_release(mo_set%mo_coeff)
 
        DEALLOCATE (mo_set,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"mo_set")
@@ -402,7 +402,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_mo_set(mo_set,maxocc,homo,lfomo,nao,nelectron,nmo,&
-                        eigenvalues,occupation_numbers,eigenvectors)
+                        eigenvalues,occupation_numbers,mo_coeff)
 
 !   Purpose: Get the components of a MO set data structure.
 
@@ -417,7 +417,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: eigenvalues, &
                                                 occupation_numbers
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: eigenvectors
+    TYPE(cp_fm_type), OPTIONAL, POINTER      :: mo_coeff
 
 !   ---------------------------------------------------------------------------
 
@@ -431,7 +431,7 @@ CONTAINS
     IF (PRESENT(occupation_numbers)) THEN
       occupation_numbers => mo_set%occupation_numbers
     END IF
-    IF (PRESENT(eigenvectors)) eigenvectors => mo_set%eigenvectors
+    IF (PRESENT(mo_coeff)) mo_coeff => mo_set%mo_coeff
 
   END SUBROUTINE get_mo_set
 
@@ -655,7 +655,7 @@ CONTAINS
       END IF
       ! this and the corresponding in read should be blocked for efficiency
       DO i=1,nmo
-        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,1,i,nao,1,transpose=.TRUE.)
+        CALL cp_fm_get_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.)
         IF (globenv%ionode) WRITE (restart_unit) vecbuffer
       END DO
 
@@ -790,7 +790,7 @@ CONTAINS
 
       mo_array(ispin)%mo_set%eigenvalues(:) = 0.0_dp
       mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
-      CALL cp_fm_set_all(mo_array(ispin)%mo_set%eigenvectors,0.0_dp)
+      CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp)
 
       IF (globenv%ionode) THEN
         READ (restart_unit) nmo_read,&
@@ -888,7 +888,7 @@ CONTAINS
         END IF
 
         CALL mp_bcast(vecbuffer,source,group)
-        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%eigenvectors,vecbuffer,1,i,nao,1,transpose=.TRUE.)
+        CALL cp_fm_set_submatrix(mo_array(ispin)%mo_set%mo_coeff,vecbuffer,1,i,nao,1,transpose=.TRUE.)
         did_change=.FALSE.
 
       END DO
@@ -927,7 +927,7 @@ CONTAINS
                                          before,after,globenv)
 
 !   Purpose: Write the MO eigenvalues, MO occupation numbers and
-!            MO eigenvectors.
+!            MO mo_coeff.
 
 !   History: - Creation (15.05.2001,MK)
 
@@ -973,9 +973,9 @@ CONTAINS
     output_unit = globenv%scr
 
     IF (globenv%print%mo_eigenvectors) THEN
-      CALL cp_fm_get_info(mo_set%eigenvectors,nrow_global=nrow_global,ncol_global=ncol_global)
+      CALL cp_fm_get_info(mo_set%mo_coeff,nrow_global=nrow_global,ncol_global=ncol_global)
       ALLOCATE(matrix(nrow_global,ncol_global))
-      CALL cp_fm_get_submatrix(mo_set%eigenvectors,matrix)
+      CALL cp_fm_get_submatrix(mo_set%mo_coeff,matrix)
       IF (.NOT.globenv%ionode) DEALLOCATE(matrix)
     END IF
 

@@ -149,12 +149,12 @@ END SUBROUTINE destroy_preconditioner
 !*******************************************************************************
 
 SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h, matrix_s, &
-                                      matrix_t,mo_eigenvectors, energy_gap )
+                                      matrix_t,mo_coeff, energy_gap )
 
     TYPE(preconditioner_type)                :: preconditioner_env
     CHARACTER(LEN=*)                         :: precon_type
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s, matrix_t
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     REAL(KIND=dp)                            :: energy_gap
 
     INTEGER                                  :: handle, k
@@ -165,10 +165,10 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 
   CALL timeset("make_preconditioner","I","",handle)
 
-  CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k) 
+  CALL cp_fm_get_info(mo_coeff,ncol_global=k) 
   ALLOCATE(eigenvalues_ot(k))
   ! XXXXXXXXXXXXXXXX do not touch the initial MOs, as needed in the case of non-equivalent MOs
-  CALL calculate_subspace_eigenvalues(mo_eigenvectors,matrix_h,&
+  CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
           eigenvalues_ot,para_env=preconditioner_env%para_env, &
                          do_rotation = .FALSE. ) 
 

@@ -74,13 +74,13 @@ CONTAINS
 ! *****************************************************************************
 
 SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
-                                   mo_eigenvectors, mo_eigenvalues, &
+                                   mo_coeff, mo_eigenvalues, &
                                    Hks,matrix_S,globenv,qs_env,wf_r,wf_g)
 
 
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(cp_fm_type), POINTER                :: mo_localized, mo_eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_localized, mo_coeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
     TYPE(global_environment_type), &
@@ -135,8 +135,8 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                       ncol_global=ncol_global, &
                       nrow_global=nrow_global )
   NULLIFY(smo)
-  CALL cp_fm_create(smo,mo_eigenvectors%matrix_struct)
-  CALL cp_sm_fm_multiply(matrix_S,mo_eigenvectors,smo,ncol_global,qs_env%para_env)
+  CALL cp_fm_create(smo,mo_coeff%matrix_struct)
+  CALL cp_sm_fm_multiply(matrix_S,mo_coeff,smo,ncol_global,qs_env%para_env)
 
 
   !-----------------------------------------------------------------------------

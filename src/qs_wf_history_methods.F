@@ -216,7 +216,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_g, rho_r
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_pools
-    TYPE(cp_fm_type), POINTER                :: eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -231,7 +231,7 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
   CALL timeset(routineN,"I","",handle)
 
   failure=.FALSE.
-  NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, eigenvectors,&
+  NULLIFY(pw_env, auxbas_pw_pool, ao_mo_pools, dft_control, mos, mo_coeff,&
        rho, rho_r,rho_g,rho_ao, S_sm_pools,s_array)
   CALL get_qs_env(qs_env, pw_env=pw_env,&
        dft_control=dft_control,rho=rho,matrix_s=s_array,&
@@ -264,8 +264,8 @@ SUBROUTINE wfs_update(snapshot,wf_history,qs_env,dt,error)
            CPPostcondition(nspins==SIZE(snapshot%wf),cp_failure_level,routineP,error,failure)
         END IF
         DO ispin=1,nspins
-           CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
-           CALL cp_fm_to_fm(eigenvectors,snapshot%wf(ispin)%matrix)
+           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
+           CALL cp_fm_to_fm(mo_coeff,snapshot%wf(ispin)%matrix)
         END DO
      ELSE IF (ASSOCIATED(snapshot%wf)) THEN
         CALL fm_pools_give_back_fm_vect(ao_mo_pools,snapshot%wf,&
@@ -606,13 +606,13 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
-    TYPE(cp_fm_type), POINTER                :: csc, eigenvectors, fm_tmp
+    TYPE(cp_fm_type), POINTER                :: csc, mo_coeff, fm_tmp
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
 
-  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, eigenvectors, rho)
+  NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, rho)
   failure=.FALSE.
   my_gapw = .FALSE. 
   IF(PRESENT(gapw)) my_gapw = gapw
@@ -668,10 +668,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
         DO ispin=1,SIZE(mos)
-           CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors,&
+           CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                 nmo=nmo)
            CALL qs_env_reorthogonalize_vectors(qs_env,&
-                v_matrix=eigenvectors,ispin=ispin,&
+                v_matrix=mo_coeff,ispin=ispin,&
                 n_col=nmo, error=error)
            CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                 density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -719,19 +719,19 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            t1=t1_state%dt
            t2=t1+dt
            DO ispin=1,SIZE(mos)
-              CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors,&
+              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                    nmo=nmo)
               CALL cp_fm_scale_and_add(alpha=0.0_dp,&
-                   matrix_a=eigenvectors,&
+                   matrix_a=mo_coeff,&
                    matrix_b=t1_state%wf(ispin)%matrix,&
                    beta=(t2-t0)/(t1-t0),&
                    error=error) ! this copy should be unnecessary
               CALL cp_fm_scale_and_add(alpha=1.0_dp,&
-                   matrix_a=eigenvectors,&
+                   matrix_a=mo_coeff,&
                    beta=(t1-t2)/(t1-t0), matrix_b=t0_state%wf(ispin)%matrix,&
                    error=error)
               CALL qs_env_reorthogonalize_vectors(qs_env,&
-                   v_matrix=eigenvectors,ispin=ispin,&
+                   v_matrix=mo_coeff,ispin=ispin,&
                    n_col=nmo, error=error)
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -757,7 +757,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            t1=t1_state%dt
            t2=t1+dt
            DO ispin=1,SIZE(mos)
-              CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=eigenvectors)
+              CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff)
               CALL cp_sm_scale_and_add(alpha=0.0_dp,&
                    matrix_a=rho%rho_ao(ispin)%matrix,&
                    matrix_b=t1_state%rho_ao(ispin)%matrix,&
@@ -795,23 +795,23 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            ! use PS_2=2 PS_1-PS_0
            ! C_2 comes from using PS_2 as a projector acting on C_1
            DO ispin=1,SIZE(mos)
-              NULLIFY(eigenvectors,matrix_struct,matrix_struct_new,csc)
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=eigenvectors)
-              CALL cp_fm_get_info(eigenvectors,nrow_global=n,ncol_global=k, &
+              NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc)
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
                    matrix_struct=matrix_struct)
               CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
                                        nrow_global=k,ncol_global=k)
               CALL cp_fm_create(csc,matrix_struct_new)
               CALL cp_fm_struct_release(matrix_struct_new)
 
-              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,eigenvectors, &
-                                     k,eigenvectors%matrix_struct%para_env)
-              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,eigenvectors,0.0_dp,csc)
-              CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,eigenvectors)
+              CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,mo_coeff, &
+                                     k,mo_coeff%matrix_struct%para_env)
+              CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,mo_coeff,0.0_dp,csc)
+              CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,mo_coeff)
               CALL cp_fm_release(csc)
-              CALL cp_fm_scale_and_add(-1.0_dp,eigenvectors,2.0_dp,t1_state%wf(ispin)%matrix)
+              CALL cp_fm_scale_and_add(-1.0_dp,mo_coeff,2.0_dp,t1_state%wf(ispin)%matrix)
               CALL qs_env_reorthogonalize_vectors(qs_env,&
-                   v_matrix=eigenvectors,ispin=ispin,&
+                   v_matrix=mo_coeff,ispin=ispin,&
                    n_col=k, error=error)
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
@@ -829,9 +829,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
            my_orthogonal_wf=.TRUE.
            DO ispin=1,SIZE(mos)
-              NULLIFY(eigenvectors,matrix_struct,matrix_struct_new,csc,fm_tmp)
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=eigenvectors)
-              CALL cp_fm_get_info(eigenvectors,nrow_global=n,ncol_global=k, &
+              NULLIFY(mo_coeff,matrix_struct,matrix_struct_new,csc,fm_tmp)
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff)
+              CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k, &
                    matrix_struct=matrix_struct)
               CALL cp_fm_create(fm_tmp,matrix_struct)
               CALL cp_fm_struct_create(matrix_struct_new,template_fmstruct=matrix_struct, &
@@ -842,24 +842,24 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
 
               ! first the most recent
               t1_state => wfi_get_snapshot(wf_history, index=1, error=error)
-              CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,eigenvectors)
+              CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
               alpha = nvec
-              CALL cp_fm_scale(alpha,eigenvectors)
+              CALL cp_fm_scale(alpha,mo_coeff)
              
               DO i=2,nvec 
                  t0_state => wfi_get_snapshot(wf_history, index=i, error=error)
                  CALL cp_sm_fm_multiply(t0_state%overlap,t1_state%wf(ispin)%matrix,fm_tmp, &
-                                        k,eigenvectors%matrix_struct%para_env)
+                                        k,mo_coeff%matrix_struct%para_env)
                  CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,t0_state%wf(ispin)%matrix,fm_tmp,0.0_dp,csc)
                  CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
                  alpha = -1.0_dp * alpha * REAL(nvec - i + 1 , dp ) / REAL(i , dp ) 
-                 CALL cp_fm_scale_and_add(1.0_dp,eigenvectors,alpha,fm_tmp)
+                 CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp)
               ENDDO
 
               CALL cp_fm_release(csc)
               CALL cp_fm_release(fm_tmp)
               CALL qs_env_reorthogonalize_vectors(qs_env,&
-                   v_matrix=eigenvectors,ispin=ispin,&
+                   v_matrix=mo_coeff,ispin=ispin,&
                    n_col=k, error=error)
               CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)

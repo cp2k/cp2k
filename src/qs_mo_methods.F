@@ -275,7 +275,7 @@ CONTAINS
 
   SUBROUTINE calculate_density_matrix_blacs(mo_set,density_matrix,error)
 
-!   Purpose: Calculate the density matrix from the MO eigenvectors and the
+!   Purpose: Calculate the density matrix from the MO coeff and the
 !            MO occupation numbers.
 
 !   History: - Creation (01.05.2001,MK)
@@ -293,14 +293,14 @@ CONTAINS
 
     CALL timeset("calculate_density_matrix_blacs","I","",handle)
 
-    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%eigenvectors,&
+    CALL cp_fm_syrk("U","N",mo_set%lfomo-1,mo_set%maxocc,mo_set%mo_coeff,&
                     1,1,0.0_dp,density_matrix)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL cp_fm_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%eigenvectors,1,imo,1.0_dp,density_matrix)
+                      mo_set%mo_coeff,1,imo,1.0_dp,density_matrix)
     END DO
 
     CALL timestop(0.0_dp,handle)
@@ -335,18 +335,18 @@ CONTAINS
 
     IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
        NULLIFY(fm_tmp)
-       CALL cp_fm_create(fm_tmp,mo_set%eigenvectors%matrix_struct)
-       CALL cp_fm_to_fm(mo_set%eigenvectors,fm_tmp)
+       CALL cp_fm_create(fm_tmp,mo_set%mo_coeff%matrix_struct)
+       CALL cp_fm_to_fm(mo_set%mo_coeff,fm_tmp)
        CALL cp_fm_column_scale(fm_tmp,mo_set%occupation_numbers(1:mo_set%homo))
        alpha=1.0_dp
     ELSE
        alpha=mo_set%maxocc
-       fm_tmp => mo_set%eigenvectors
+       fm_tmp => mo_set%mo_coeff
        CALL cp_fm_retain(fm_tmp)
     ENDIF
 
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
+                            matrix_v=mo_set%mo_coeff,&
                             matrix_g=fm_tmp,&
                             ncol=mo_set%homo,&
                             alpha=alpha)
@@ -513,29 +513,29 @@ CONTAINS
    DO ispin=1,nspin
       IF (PRESENT(matrix_s)) THEN
         ! get S*C
-        CALL cp_fm_create(svec,mo_array(ispin)%mo_set%eigenvectors%matrix_struct)       
-        CALL cp_fm_get_info(mo_array(ispin)%mo_set%eigenvectors,&
+        CALL cp_fm_create(svec,mo_array(ispin)%mo_set%mo_coeff%matrix_struct)       
+        CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
              nrow_global=n,ncol_global=k)
-        CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%eigenvectors,&
-             svec,k,para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env)
+        CALL cp_sm_fm_multiply(matrix_s,mo_array(ispin)%mo_set%mo_coeff,&
+             svec,k,para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env)
         ! get C^T (S*C)
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
-             para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
-             context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
+             para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
         CALL cp_fm_create(overlap,tmp_fm_struct)       
         CALL cp_fm_struct_release(tmp_fm_struct)
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,&
+        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
              svec,0.0_dp,overlap)
         CALL cp_fm_release(svec)
       ELSE
         ! orthogonal basis C^T C
         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=k,ncol_global=k, &
-             para_env=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%para_env, &
-             context=mo_array(ispin)%mo_set%eigenvectors%matrix_struct%context)
+             para_env=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%para_env, &
+             context=mo_array(ispin)%mo_set%mo_coeff%matrix_struct%context)
         CALL cp_fm_create(overlap,tmp_fm_struct)       
         CALL cp_fm_struct_release(tmp_fm_struct)
-        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%eigenvectors,&
-             mo_array(ispin)%mo_set%eigenvectors,0.0_dp,overlap)
+        CALL cp_fm_gemm('T','N',k,k,n,1.0_dp, mo_array(ispin)%mo_set%mo_coeff,&
+             mo_array(ispin)%mo_set%mo_coeff,0.0_dp,overlap)
         CALL cp_fm_release(svec)
       ENDIF
       CALL cp_fm_get_info(overlap,nrow_local=nrow_local,ncol_local=ncol_local, &
@@ -549,7 +549,7 @@ CONTAINS
       ENDDO
       CALL cp_fm_release(overlap)
     ENDDO
-    CALL mp_max(max_alpha,mo_array(1)%mo_set%eigenvectors%matrix_struct%para_env%group)
+    CALL mp_max(max_alpha,mo_array(1)%mo_set%mo_coeff%matrix_struct%para_env%group)
     orthonormality=max_alpha
     ! write(6,*) "max deviation from orthonormalization ",orthonormality
 

@@ -669,7 +669,7 @@ CONTAINS
     LOGICAL                                  :: ionode
 !    TYPE(atomic_kind_type), DIMENSION(:), &
 !      POINTER                                :: atomic_kind_set
-!    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, ortho, &
+!    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, &
 !                                                scf_work2
 !    TYPE(mo_set_p_type), DIMENSION(:), &
 !      POINTER                                :: c
@@ -905,7 +905,7 @@ CONTAINS
 !    INTEGER                                  :: handle, homo, imo, nao, nmo
 !    REAL(KIND=dp)                            :: alpha
 !    REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
-!    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+!    TYPE(cp_fm_type), POINTER                :: mo_coeff
 !
 !!   ---------------------------------------------------------------------------
 !
@@ -918,7 +918,7 @@ CONTAINS
 !         nmo=nmo,&
 !         homo=homo, &
 !         eigenvalues=mo_eigenvalues,&
-!         eigenvectors=mo_eigenvectors)
+!         mo_coeff=mo_coeff)
 !
 !    IF (do_level_shift) THEN
 !       IF (use_cholesky) THEN
@@ -933,20 +933,20 @@ CONTAINS
 !       IF (use_jacobi) THEN
 !          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
 !          use_cholesky = .FALSE.
-!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
-!          CALL cp_fm_to_fm(mo_eigenvectors,ortho)
+!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
+!          CALL cp_fm_to_fm(mo_coeff,ortho)
 !       ELSE IF (smear /= 0.0_dp) THEN
 !          CALL cp_fm_syevd(ks,work,mo_eigenvalues)
-!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE")
+!          CALL cp_fm_cholesky_restore(work,nmo,ortho,mo_coeff,"SOLVE")
 !       ELSE
 !          CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
-!          CALL cp_fm_cholesky_restore(work,homo,ortho,mo_eigenvectors,"SOLVE")
+!          CALL cp_fm_cholesky_restore(work,homo,ortho,mo_coeff,"SOLVE")
 !       END IF
 !
 !    ELSE IF (use_jacobi) THEN
 !
-!       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_eigenvectors,0.0_dp,work)
-!       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_eigenvectors,&
+!       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_coeff,0.0_dp,work)
+!       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
 !            0.0_dp,ks,b_first_col=homo+1)
 !
 !!     epsi =1e-11
@@ -962,7 +962,7 @@ CONTAINS
 !!     *** Klassisches Jacobi-Block-Verfrahren ***
 !!     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
 !
-!       CALL cp_fm_block_jacobi_classic(ks,mo_eigenvectors,mo_eigenvalues,&
+!       CALL cp_fm_block_jacobi_classic(ks,mo_coeff,mo_eigenvalues,&
 !            jacobi_threshold,homo+1)
 !
 !    ELSE
@@ -982,7 +982,7 @@ CONTAINS
 !       CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
 !
 !       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
-!            mo_eigenvectors)
+!            mo_coeff)
 !
 !       IF (do_level_shift) THEN
 !
@@ -990,7 +990,7 @@ CONTAINS
 !
 !!     *** Use last MO set as orthogonalization matrix ***
 !
-!          CALL cp_fm_to_fm(mo_eigenvectors,ortho)
+!          CALL cp_fm_to_fm(mo_coeff,ortho)
 !
 !       END IF
 !
@@ -1126,7 +1126,7 @@ CONTAINS
 !    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 !    TYPE(cp_fm_p_type), DIMENSION(:), &
 !      POINTER                                :: work1
-!    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, ortho, sv, &
+!    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, sv, &
 !                                                work2
 !    TYPE(dft_control_type), POINTER          :: dft_control
 !    TYPE(gth_potential_type), POINTER        :: gth_potential
@@ -1141,7 +1141,7 @@ CONTAINS
 !
 !!   ---------------------------------------------------------------------------
 !
-!    NULLIFY(all_potential,atomic_kind, mo_eigenvectors, sv,&
+!    NULLIFY(all_potential,atomic_kind, mo_coeff, sv,&
 !         gth_potential, orb_basis_set, atomic_kind_set, particle_set,&
 !         ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
 !         dft_control)
@@ -1177,17 +1177,17 @@ CONTAINS
 !       DO ispin=1,nspin
 !          IF (scf_control%level_shift /= 0.0_dp) THEN
 !             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!                  eigenvectors=mo_eigenvectors)
-!             CALL cp_fm_to_fm(mo_eigenvectors,ortho)
+!                  mo_coeff=mo_coeff)
+!             CALL cp_fm_to_fm(mo_coeff,ortho)
 !          END IF
 !
 !          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!               eigenvectors=mo_eigenvectors, homo=homo)
+!               mo_coeff=mo_coeff, homo=homo)
 !! ortho so that one can restart for different positions (basis sets?)
-!          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
-!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,homo,&
+!          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
+!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,homo,&
 !               para_env=qs_env%para_env)
-!          CALL make_basis(mo_eigenvectors,homo, &
+!          CALL make_basis(mo_coeff,homo, &
 !               ortho=sv,otype="SV")
 !          CALL cp_fm_release(sv)
 !          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -1198,13 +1198,13 @@ CONTAINS
 !
 !       DO ispin=1,nspin
 !          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!               eigenvectors=mo_eigenvectors, nmo=nmo)
-!          CALL cp_fm_init_random(mo_eigenvectors,nmo)
+!               mo_coeff=mo_coeff, nmo=nmo)
+!          CALL cp_fm_init_random(mo_coeff,nmo)
 !! ortho so that one can restart for different positions (basis sets?)
-!          CALL cp_fm_create(sv,mo_eigenvectors%matrix_struct,"SV")
-!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_eigenvectors,sv,nmo,&
+!          CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
+!          CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo,&
 !               para_env=qs_env%para_env)
-!          CALL make_basis(mo_eigenvectors,nmo, &
+!          CALL make_basis(mo_coeff,nmo, &
 !               ortho=sv,otype="SV")
 !          CALL cp_fm_release(sv)
 !          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
@@ -1233,8 +1233,8 @@ CONTAINS
 !               error=error)
 !          IF (scf_control%level_shift /= 0.0_dp) THEN
 !             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!                  eigenvectors=mo_eigenvectors)
-!             CALL cp_fm_to_fm(mo_eigenvectors,ortho)
+!                  mo_coeff=mo_coeff)
+!             CALL cp_fm_to_fm(mo_coeff,ortho)
 !          END IF
 !          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
 !               p_rmpv(ispin)%matrix,error=error)
@@ -1413,12 +1413,12 @@ CONTAINS
 !    INTEGER                                  :: extrapolation_method_nr, &
 !                                                handle, ispin, nmo
 !    LOGICAL                                  :: failure, ionode, orthogonal_wf
-!    TYPE(cp_fm_type), POINTER                :: eigenvectors
+!    TYPE(cp_fm_type), POINTER                :: mo_coeff
 !    TYPE(cp_logger_type), POINTER            :: logger
 !
 !    CALL timeset(routineN,"I"," ",handle)
 !    failure=.FALSE.
-!    NULLIFY(eigenvectors)
+!    NULLIFY(mo_coeff)
 !    logger => cp_error_get_logger(error)
 !    ionode = logger%para_env%source==logger%para_env%mepos
 !    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -1436,9 +1436,9 @@ CONTAINS
 !                                .NOT.extrapolation_method_nr==wfi_use_guess_method_nr) THEN
 !             DO ispin=1,SIZE(qs_env%c)
 !                CALL get_mo_set(qs_env%c(ispin)%mo_set, &
-!                     eigenvectors=eigenvectors, nmo=nmo)
+!                     mo_coeff=mo_coeff, nmo=nmo)
 !                CALL qs_env_reorthogonalize_vectors(qs_env, &
-!                     v_matrix=eigenvectors, ispin=ispin, n_col=nmo,&
+!                     v_matrix=mo_coeff, ispin=ispin, n_col=nmo,&
 !                     error=error)
 !             END DO
 !          END IF

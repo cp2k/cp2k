@@ -275,7 +275,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_dedc
 
     INTEGER                                  :: handle, ispin, nspin
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, hc_tmp
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, hc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor
     INTEGER                                  :: k,k2,n
@@ -290,9 +290,9 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
     IF ( .NOT. energy_only) THEN
        IF (qs_ot_env(1)%settings%do_rotation) THEN
           DO ispin=1,nspin
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
-             CALL cp_fm_get_info(mo_eigenvectors,nrow_global=n,ncol_global=k)
-             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_eigenvectors,matrix_dedc(ispin)%matrix, &
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_coeff,matrix_dedc(ispin)%matrix, &
                              0.0_dp,qs_ot_env(ispin)%rot_mat_chcf)
           ENDDO
        ENDIF
@@ -311,8 +311,8 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
                                        qs_ot_env(ispin)%settings%k,&
                                        para_env=globenv%para_env)
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
-       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
-       CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
+       CALL qs_ot_get_orbitals(mo_coeff,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
     IF (qs_ot_env(1)%restricted) THEN
        CALL mo_set_restrict(mo_array)
@@ -321,7 +321,7 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
 
 END SUBROUTINE
 !
-! initialises qs_ot_env so that mo_eigenvectors is the current point
+! initialises qs_ot_env so that mo_coeff is the current point
 ! and that the mimizization can be started.
 !
 SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
@@ -333,7 +333,7 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 
     INTEGER                                  :: handle, ispin, k, n, &
                                                 ncol_block, nrow_block, nspin
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
 
 ! executable
 
@@ -343,9 +343,9 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
     nspin=SIZE(qs_ot_env)
 
     DO ispin=1,nspin
-       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+       CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff)
        
-       CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
+       CALL cp_fm_get_info(mo_coeff,nrow_block=nrow_block, &
                                            ncol_block=ncol_block, &
                                                    nrow_global=n, &
                                                      ncol_global=k)
@@ -358,14 +358,14 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
        qs_ot_env(ispin)%settings%ncol_block=ncol_block
 
        ! allocate
-       CALL qs_ot_allocate(qs_ot_env(ispin),mo_eigenvectors%matrix_struct%para_env, &
-                                            mo_eigenvectors%matrix_struct%context)
+       CALL qs_ot_allocate(qs_ot_env(ispin),mo_coeff%matrix_struct%para_env, &
+                                            mo_coeff%matrix_struct%context)
    
        ! set c0,sc0
-       CALL cp_fm_to_fm(mo_eigenvectors,qs_ot_env(ispin)%matrix_c0)
+       CALL cp_fm_to_fm(mo_coeff,qs_ot_env(ispin)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_c0, &
                               qs_ot_env(ispin)%matrix_sc0,qs_ot_env(ispin)%settings%k, &
-                                                para_env=mo_eigenvectors%matrix_struct%para_env)
+                                                para_env=mo_coeff%matrix_struct%para_env)
 
        ! init
        CALL qs_ot_init(qs_ot_env(ispin))

@@ -303,7 +303,7 @@ CONTAINS
     TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
     INTEGER :: n,k,k2
     REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
-    TYPE(cp_fm_type), POINTER            :: mo_eigenvectors,hc_tmp
+    TYPE(cp_fm_type), POINTER            :: mo_coeff,hc_tmp
 
 ! shorter for output
 
@@ -518,10 +518,10 @@ CONTAINS
        IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
           DO ispin=1,SIZE(mo_derivs)          
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
                              occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_eigenvectors,nrow_global=n,ncol_global=k)
-             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_eigenvectors,&
+             CALL cp_fm_get_info(mo_coeff,nrow_global=n,ncol_global=k)
+             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
                                           mo_derivs(ispin)%matrix,&
                                           k, para_env=mo_derivs(ispin)%matrix%matrix_struct%para_env)
              ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
@@ -538,11 +538,11 @@ CONTAINS
                  CALL cp_fm_set_all(hc_tmp,0.0_dp)
                  CALL cp_fm_get_info(hc_tmp,ncol_global=k2)
 
-                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,eigenvectors=mo_eigenvectors, &
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mo_coeff, &
                                  occupation_numbers=occupation_numbers )
-                 CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k)
-                 CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_eigenvectors,&
-                                        hc_tmp, k, para_env=mo_eigenvectors%matrix_struct%para_env)
+                 CALL cp_fm_get_info(mo_coeff,ncol_global=k)
+                 CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_coeff,&
+                                        hc_tmp, k, para_env=mo_coeff%matrix_struct%para_env)
                  ALLOCATE(scaling_factor(k2))
                  scaling_factor=0.0_dp
                  scaling_factor(1:k)=2.0_dp*occupation_numbers(1:k)
@@ -1089,8 +1089,8 @@ END SUBROUTINE qs_vxc_create
     NULLIFY(weighted_vectors)
 
     CALL set_matrix(w_matrix,0.0_dp)
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
+    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors")
+    CALL cp_fm_to_fm(mo_set%mo_coeff,weighted_vectors)
 
     ! scale every column with the occupation
     ALLOCATE(eigocc(mo_set%homo),stat=istat)
@@ -1103,7 +1103,7 @@ END SUBROUTINE qs_vxc_create
     DEALLOCATE(eigocc)
 
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
+                            matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
                             ncol=mo_set%homo)
 
@@ -1139,30 +1139,30 @@ END SUBROUTINE qs_vxc_create
     failure=.FALSE.
     NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
 
-    CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
+    CALL cp_fm_get_info(matrix=mo_set%mo_coeff,&
                         ncol_global=ncol_global,&
                         nrow_global=nrow_global,&
                         nrow_block=nrow_block,&
                         ncol_block=ncol_block)
 
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
+    CALL cp_fm_create(weighted_vectors,mo_set%mo_coeff%matrix_struct,"weighted_vectors")
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                            para_env=mo_set%eigenvectors%matrix_struct%para_env, &
-                                            context=mo_set%eigenvectors%matrix_struct%context)
+                                            para_env=mo_set%mo_coeff%matrix_struct%para_env, &
+                                            context=mo_set%mo_coeff%matrix_struct%context)
     CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
     ! the convention seems to require the half here, the factor of two is presumably taken care of 
     ! internally in qs_core_hamiltonian
     CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,0.5_dp, &
-                    mo_set%eigenvectors,mo_deriv,0.0_dp,h_block)
+                    mo_set%mo_coeff,mo_deriv,0.0_dp,h_block)
     ! this could overwrite the mo_derivs to save the weighted_vectors
     CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                    mo_set%eigenvectors,h_block,0.0_dp,weighted_vectors)
+                    mo_set%mo_coeff,h_block,0.0_dp,weighted_vectors)
 
     CALL set_matrix(w_matrix,0.0_dp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
+                            matrix_v=mo_set%mo_coeff,&
                             matrix_g=weighted_vectors,&
                             ncol=mo_set%homo)
 

@@ -172,7 +172,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, mo_localized
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -209,7 +209,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(cell,dft_control,pw_env,auxbas_pw_pool,pw_pools,&
-            mos,atomic_kind_set,particle_set,rho,mo_eigenvectors,&
+            mos,atomic_kind_set,particle_set,rho,mo_coeff,&
             ks_rmpv,matrix_s,qs_loc_env,scf_control,unoccupied_orbs,&
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,center,rho_core)
     logger => cp_error_get_logger(error)
@@ -247,7 +247,7 @@ CONTAINS
 ! *** makes the MOs eigenstates, computes eigenvalues, write cubes 
        IF (globenv%print%homos) THEN
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Eigenvalues of the occupied subspace spin ",ispin
@@ -256,14 +256,14 @@ CONTAINS
                     " and ",nmo-homo," added MO eigenvalues" 
              ENDIF
              IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
-             CALL calculate_subspace_eigenvalues(mo_eigenvectors,&
+             CALL calculate_subspace_eigenvalues(mo_coeff,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                   para_env=qs_env%para_env,scr=globenv%scr, &
                   ionode=globenv%ionode, do_rotation=.TRUE.)
 
              IF (globenv%print%cubes) THEN
                 DO ivector=MAX(1,homo-globenv%print%nhomos+1),homo
-                   CALL calculate_wavefunction(mo_eigenvectors,ivector,wf_r, &
+                   CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
                         wf_g,&
                         qs_env,error=error)
 
@@ -292,7 +292,7 @@ CONTAINS
 ! *** possibly gets molecular states
        IF (globenv%print%localization) THEN
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
              ! just get eigenstates
              IF (.NOT.globenv%print%homos) THEN
@@ -303,14 +303,14 @@ CONTAINS
                        " and ",nmo-homo," added MO eigenvalues" 
                 ENDIF
                 IF (globenv%ionode) WRITE(globenv%scr,*) " ---------------------------------------------"
-                CALL calculate_subspace_eigenvalues(mo_eigenvectors,ks_rmpv(ispin)%matrix, &
+                CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
                      mo_eigenvalues, para_env=qs_env%para_env,scr=globenv%scr, &
                      ionode=globenv%ionode, do_rotation=.TRUE.)
              ENDIF
              NULLIFY(mo_localized)
-             CALL cp_fm_create(mo_localized,mo_eigenvectors%matrix_struct)
+             CALL cp_fm_create(mo_localized,mo_coeff%matrix_struct)
              ALLOCATE(center(mo_localized%matrix_struct%ncol_global,6)) 
-             CALL cp_fm_to_fm(mo_eigenvectors,mo_localized)
+             CALL cp_fm_to_fm(mo_coeff,mo_localized)
              ! do localization computation
              WRITE(filename,'(a13,I1.1)') "HOMO_CENTERS_",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) ""
@@ -340,7 +340,7 @@ CONTAINS
              ! compute the molecular states
              IF ( globenv % print % molecular_states ) THEN
                   CALL construct_molecular_states ( molecule_set, mo_localized, &
-                                                    mo_eigenvectors, mo_eigenvalues, &
+                                                    mo_coeff, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
                                                     matrix_s(1)%matrix, &
                                                     globenv, qs_env,    &
@@ -367,8 +367,8 @@ CONTAINS
              IF (globenv%ionode) WRITE(globenv%scr,*) " "
              IF (globenv%ionode) WRITE(globenv%scr,*) " Lowest Eigenvalues of the unoccupied subspace spin ",ispin
              IF (globenv%ionode) WRITE(globenv%scr,*) " -----------------------------------------------------"
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors,homo=homo,nao=nao,nmo=nmo)
-             CALL cp_fm_get_info(mo_eigenvectors, nrow_global=n)
+             CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,homo=homo,nao=nao,nmo=nmo)
+             CALL cp_fm_get_info(mo_coeff, nrow_global=n)
              nlumos=MAX(1,MIN(globenv%print%nlumos,nao-homo))
              ALLOCATE(unoccupied_evals(ispin)%evals(nlumos))
              CALL cp_fm_struct_create(fm_struct_tmp,para_env=qs_env%para_env,context=qs_env%blacs_env, &
@@ -379,7 +379,7 @@ CONTAINS
 
              CALL ot_eigensolver(matrix_h=ks_rmpv(ispin)%matrix,matrix_s=matrix_s(1)%matrix, &
                   matrix_c=unoccupied_orbs(ispin)%matrix, &
-                  matrix_orthogonal_space=mo_eigenvectors, &
+                  matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=scf_env%ot_preconditioner, &
                   iter_max=scf_control%max_iter_lumos,globenv=globenv,&
@@ -467,9 +467,9 @@ CONTAINS
            ENDIF
            CALL get_cell(cell,deth=volume)
            DO ispin=1,dft_control%nspins
-              CALL get_mo_set(mo_set=mos(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                                      eigenvalues=mo_eigenvalues)
-              CALL optical_conductivity(matrix_s,mo_eigenvectors,mo_eigenvalues, &
+              CALL optical_conductivity(matrix_s,mo_coeff,mo_eigenvalues, &
                                           unoccupied_orbs(ispin)%matrix,unoccupied_evals(ispin)%evals, &
                                           volume,globenv%ionode,File_unit) 
            ENDDO
@@ -706,8 +706,8 @@ CONTAINS
           s_square=0.0_dp
           s_square_ideal=0.0_dp
     CASE (2)
-          CALL get_mo_set(mo_set=mos(1)%mo_set,eigenvectors=c_alpha)
-          CALL get_mo_set(mo_set=mos(2)%mo_set,eigenvectors=c_beta)
+          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha)
+          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta)
           CALL cp_fm_get_info(c_alpha,ncol_global=na)
           CALL cp_fm_get_info(c_beta,ncol_global=nb)
           s_square_ideal=(na-nb)*(na-nb+2)/4.0_dp

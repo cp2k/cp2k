@@ -134,7 +134,6 @@ CONTAINS
     INTEGER                                  :: n_spins, spin, stat
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi0d
-    TYPE(cp_fm_type), POINTER                :: eigenvectors
     TYPE(gapw_control_type), POINTER         :: gapw_control
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     TYPE(cell_type), POINTER                 :: cell
@@ -150,7 +149,7 @@ CONTAINS
     ALLOCATE(psi0d(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "psi0d", n_spins)
     DO spin=1, n_spins
-       CALL get_mo_set(qs_env%mos(spin)%mo_set, eigenvectors=psi0d(spin)%matrix)
+       CALL get_mo_set(qs_env%mos(spin)%mo_set, mo_coeff=psi0d(spin)%matrix)
     END DO
     CALL p_env_create(p_env, qs_env, kpp1_env=kpp1_env, psi0d=psi0d, &
                       orthogonal_orbitals=.TRUE.)
