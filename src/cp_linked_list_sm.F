@@ -46,9 +46,9 @@ MODULE cp_linked_list_sm
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
-  USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
+  USE kinds, only: dp
+USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
      cp_sm_get_id_nr
 USE cp_matrix_utils, ONLY: cp_sm_write
   IMPLICIT NONE
@@ -1398,7 +1398,8 @@ SUBROUTINE cp_sll_sm_insert_ordered2(sll,el,compare_function,&
   type(real_matrix_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
+       USE kinds, only: dp
+USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
      cp_sm_get_id_nr
 USE cp_matrix_utils, ONLY: cp_sm_write
        INTEGER :: compare_function
@@ -1559,7 +1560,8 @@ FUNCTION cp_sll_sm_contains2(sll,el,compare_function,ordered,error)&
   type(real_matrix_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
+       USE kinds, only: dp
+USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
      cp_sm_get_id_nr
 USE cp_matrix_utils, ONLY: cp_sm_write
        INTEGER :: compare_function
@@ -1606,7 +1608,8 @@ END FUNCTION cp_sll_sm_contains2
 ! ARGS:
 !  = = "=>"
 !  USE = 
-!    "USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
+!    "USE kinds, only: dp
+!     USE sparse_matrix_types, ONLY: real_matrix_type, real_matrix_p_type,&
 !          cp_sm_get_id_nr
 !     USE cp_matrix_utils, ONLY: cp_sm_write"
 !  array= = "=>"

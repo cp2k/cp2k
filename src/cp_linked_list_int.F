@@ -45,9 +45,9 @@ MODULE cp_linked_list_int
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
-  USE cp_array_i_utils, ONLY: cp_i_write
+  USE kinds, only: dp
+USE cp_array_i_utils, ONLY: cp_i_write
   IMPLICIT NONE
   PRIVATE
 
@@ -1395,7 +1395,8 @@ SUBROUTINE cp_sll_int_insert_ordered2(sll,el,compare_function,&
   integer, intent(in) :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_array_i_utils, ONLY: cp_i_write
+       USE kinds, only: dp
+USE cp_array_i_utils, ONLY: cp_i_write
        INTEGER :: compare_function
        integer, intent(in) :: el1,el2
      END FUNCTION compare_function
@@ -1554,7 +1555,8 @@ FUNCTION cp_sll_int_contains2(sll,el,compare_function,ordered,error)&
   integer, intent(in) :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE cp_array_i_utils, ONLY: cp_i_write
+       USE kinds, only: dp
+USE cp_array_i_utils, ONLY: cp_i_write
        INTEGER :: compare_function
        integer, intent(in) :: el1,el2
      END FUNCTION compare_function
@@ -1598,7 +1600,9 @@ END FUNCTION cp_sll_int_contains2
 ! [template(defines,nametype1,type1,type1in,type1out,type1arrayEl,arrayEl,array=,=,USE,write_el,lessQ,equalQ,private_routines)]
 ! ARGS:
 !  = = "="
-!  USE = "USE cp_array_i_utils, ONLY: cp_i_write"
+!  USE = 
+!    "USE kinds, only: dp
+!     USE cp_array_i_utils, ONLY: cp_i_write"
 !  array= = "="
 !  arrayEl = ""
 !  defines = 

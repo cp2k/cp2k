@@ -46,9 +46,9 @@ MODULE cp_linked_list_rs
        cp_error_get_logger
   USE cp_output_handling, ONLY: cp_finished_output, cp_would_output,&
        cp_unitnr_for_output, cp_write_output
-  USE kinds, ONLY: dp
   USE timings, ONLY: timeset, timestop
-  USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
+  USE kinds, only: dp
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
   IMPLICIT NONE
   PRIVATE
@@ -1397,7 +1397,8 @@ SUBROUTINE cp_sll_rs_insert_ordered2(sll,el,compare_function,&
   type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
+       USE kinds, only: dp
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
        INTEGER :: compare_function
        type(realspace_grid_type), pointer :: el1,el2
@@ -1557,7 +1558,8 @@ FUNCTION cp_sll_rs_contains2(sll,el,compare_function,ordered,error)&
   type(realspace_grid_type), pointer :: el
   INTERFACE
      FUNCTION compare_function(el1,el2)
-       USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
+       USE kinds, only: dp
+USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
     rs_grid_write
        INTEGER :: compare_function
        type(realspace_grid_type), pointer :: el1,el2
@@ -1603,7 +1605,8 @@ END FUNCTION cp_sll_rs_contains2
 ! ARGS:
 !  = = "=>"
 !  USE = 
-!    "USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
+!    "USE kinds, only: dp
+!     USE realspace_grid_types, ONLY: realspace_grid_type, realspace_grid_p_type,&
 !         rs_grid_write"
 !  array= = "=>"
 !  arrayEl = "%rs_grid"
