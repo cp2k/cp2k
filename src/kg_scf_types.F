@@ -37,8 +37,8 @@ MODULE kg_scf_types
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              preconditioner_type
-  USE qs_diis_types,                   ONLY: qs_diis_b_release,&
-                                             qs_diis_buffer_type
+  USE kg_diis_types,                   ONLY: kg_diis_b_release,&
+                                             kg_diis_buffer_type
   USE qs_ot,                           ONLY: qs_ot_destroy,&
                                              qs_ot_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
@@ -94,7 +94,7 @@ TYPE kg_scf_env_type
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new
    TYPE(preconditioner_type), POINTER :: ot_preconditioner
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
-   TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
+   TYPE(kg_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE kg_scf_env_type
 
 !****************************************************************************
@@ -203,7 +203,7 @@ SUBROUTINE kg_scf_env_release(scf_env,error)
            DEALLOCATE(scf_env%qs_ot_env, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        CALL qs_diis_b_release(scf_env%scf_diis_buffer,error=error)
+        CALL kg_diis_b_release(scf_env%scf_diis_buffer,error=error)
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

@@ -59,7 +59,7 @@ MODULE kg_gpw_fm_mol_utils
 ! *** Public subroutines ***
 
   PUBLIC :: copy_sparse2mol_block, fm_mol_cholesky_restore, &
-            fm_mol_power, mol_mo_random
+            fm_mol_power, fm_mol_syevd, fm_mol_syevx, mol_mo_random
 
 ! *****************************************************************************
 
@@ -79,7 +79,7 @@ CONTAINS
 !
 !******************************************************************
 
-    REAL(dp), DIMENSION(:,:), POINTER              :: vectors_in
+    REAL(dp), DIMENSION(:,:)                       :: vectors_in
     INTEGER, INTENT(IN)                            :: nmo
     REAL(dp), DIMENSION(:,:), POINTER              :: upper_dec
     REAL(dp), DIMENSION(:,:), POINTER              :: vectors_out
@@ -94,9 +94,13 @@ CONTAINS
     INTEGER                                        :: nao
     LOGICAL                                        :: failure
     REAL(dp)                                       :: alpha
+!  --------------------------------------------------------------------------------
+
+    failure = .FALSE.
 
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
-         cp_failure_level,cp_assertion_failed,routineP,"wrong argument op",error,failure)
+         cp_failure_level,cp_assertion_failed,routineP,&
+         "wrong argument op", error,failure)
 
     IF (PRESENT(pos)) THEN
        SELECT CASE(pos)
@@ -107,7 +111,7 @@ CONTAINS
        CASE DEFAULT
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
-               "wrong argument pos",error,failure)
+               "wrong argument pos", error,failure)
        END SELECT
     ELSE
        my_pos='L'
@@ -130,10 +134,12 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE fm_mol_power(matrix,eigenvectors,exponent,threshold,n_dependent)
+  SUBROUTINE fm_mol_power(matrix,eigenvectors,ldv,ncv,exponent,threshold,n_dependent)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvectors
-    REAL(dp), INTENT(IN)                         :: exponent,threshold
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix
+    REAL(dp), DIMENSION(:,:)                     :: eigenvectors
+    INTEGER, INTENT(IN)                          :: ldv, ncv
+    REAL(dp), INTENT(IN)                         :: exponent, threshold
     INTEGER , INTENT(OUT)                        :: n_dependent
 
     CHARACTER(LEN=*), PARAMETER :: routineN ="fm_mol_power",&
@@ -143,6 +149,8 @@ CONTAINS
                                                     ncol,nrow
     REAL(dp)                                     :: f,p
     REAL(dp), DIMENSION(:), ALLOCATABLE          :: eigenvalues
+
+!   --------------------------------------------------------------------------
 
     CALL timeset("fm_mol_power","I","",handle)
 
@@ -155,7 +163,7 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"eigenvalues",ncol*dp_size)
     eigenvalues(:) = 0.0_dp
 
-    CALL fm_mol_syevx(matrix,eigenvectors,eigenvalues,ncol)
+    CALL fm_mol_syevx(matrix,eigenvectors,ldv,ncv,eigenvalues,ncol)
 
     p = 0.5_dp*exponent
 
@@ -171,7 +179,7 @@ CONTAINS
        END IF
     END DO
 
-    CALL dsyrk("U","N",nrow,ncol,1.0_dp,eigenvectors(1,1),nrow,&
+    CALL dsyrk("U","N",nrow,ncol,1.0_dp,eigenvectors(1,1),ldv,&
                                  0.0_dp,matrix(1,1),nrow)
 
     DEALLOCATE(eigenvalues, STAT = istat)
@@ -183,9 +191,61 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE fm_mol_syevx(matrix,eigenvetors,eigenvalues,ncol,error)
+  SUBROUTINE fm_mol_syevd(matrix,nrow,eigenvalues,matrix_out,error)
 
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix, eigenvetors
+    REAL(dp), DIMENSION(:,:), POINTER        :: matrix
+    INTEGER, INTENT(IN)                      :: nrow
+    REAL(dp), DIMENSION(:)                   :: eigenvalues
+    REAL(dp), DIMENSION(:,:)                 :: matrix_out
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_syevd", &
+      routineP = module_name//":"//routineN
+
+!   *** Local variables ***
+    INTEGER                                  :: istat, info, lda, liwork, lwork
+    INTEGER, DIMENSION(:), POINTER           :: iwork
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+
+!   --------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    IF(ASSOCIATED(matrix)) THEN
+      lda = SIZE(matrix,1)
+      CPPostcondition(nrow<=lda,cp_failure_level,routineP,error,failure)
+
+      lwork=1+6*nrow+2*nrow**2+5000
+      liwork=5*nrow+3
+      ALLOCATE(work(lwork),STAT=istat)
+      IF (istat.NE.0) CALL stop_memory("eigensolver","work",lwork*dp_size)
+      ALLOCATE(iwork(liwork),STAT=istat)
+      IF (istat.NE.0) CALL stop_memory("eigensolver","iwork",liwork*int_size)
+      CALL DSYEVD('V','U', nrow, matrix(1,1), nrow, eigenvalues(1),&
+                  work(1), lwork, iwork(1), liwork, info)
+
+      !   *** Error handling ***
+      IF (info /= 0) CALL stop_program(routineP,"Error in dsyevd")
+
+      CALL DCOPY (nrow*nrow,matrix(1,1),1,matrix_out(1,1),1)
+
+    ELSE
+      !stop error
+      CALL stop_program(routineP,"Error in dsyevd")
+    END IF
+
+  END SUBROUTINE fm_mol_syevd
+
+!***************************************************************************
+
+  SUBROUTINE fm_mol_syevx(matrix,eigenvetors,ldv,ncv,eigenvalues,ncol,error)
+
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix
+    REAL(dp), DIMENSION(:,:)                     :: eigenvetors
+    INTEGER,INTENT(IN)                           :: ldv,ncv
     REAL(dp), DIMENSION(:), INTENT(OUT)          :: eigenvalues
     INTEGER, INTENT(IN)                          :: ncol
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
@@ -199,8 +259,7 @@ CONTAINS
                                                     vu = 0.0_dp 
 
 !   *** Local variables ***
-
-    INTEGER  :: info, istat, liwork, lwork, m, nb, nrow
+    INTEGER  :: info, istat, ldb, liwork, lwork, m, nb, nrow
     INTEGER,  DIMENSION(:), ALLOCATABLE          :: ifail,iwork
     REAL(dp)                                     :: abstol
     REAL(dp), DIMENSION(:), ALLOCATABLE          :: w, work
@@ -208,10 +267,17 @@ CONTAINS
 
     REAL(KIND = dp), EXTERNAL                    :: dlamch
     INTEGER, EXTERNAL                            :: ilaenv
+    LOGICAL :: failure
 
-
+!   --------------------------------------------------------------------------
+ 
+    failure =  .FALSE.
     abstol = 2.0_dp*dlamch("S")
     nrow = SIZE(matrix,1)
+    ldb = ldv  ! SIZE(eigenvetors,1)
+!    CPPostcondition(ncol<=SIZE(eigenvetors,2),cp_failure_level,routineP,error,failure)
+    CPPostcondition(ncol<=ncv,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ncol<=SIZE(eigenvalues,1),cp_failure_level,routineP,error,failure)
 
     ALLOCATE(w(nrow), STAT =istat)
     IF (istat /= 0) CALL stop_memory(routineP,"w",nrow*dp_size)
@@ -233,17 +299,15 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*dp_size)
 
     CALL dsyevx("V","I","U",nrow,matrix(1,1),nrow,vl,vu,1,ncol,abstol,&
-                m,w,eigenvetors(1,1),nrow,work(1),lwork,&
+                m,w,eigenvetors(1,1),ldb,work(1),lwork,&
                 iwork(1),ifail(1),info)
 
 !   *** Error handling ***
-
     IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
 
     eigenvalues(1:ncol) = w(1:ncol)
 
 !   *** Release work storage ***
-
     DEALLOCATE(w,ifail,iwork,work,STAT =istat)
     IF (istat /= 0) CALL stop_memory(routineP,"w,ifail,iwork,work")
 

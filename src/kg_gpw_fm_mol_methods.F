@@ -51,16 +51,25 @@ MODULE kg_gpw_fm_mol_methods
   USE kg_gpw_fm_mol_types,             ONLY: allocate_fm_mol_blocks,&
                                              allocate_mol_mo_set,&
                                              get_fm_mol_block,&
+                                             get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
                                              fm_mol_blocks_type,&
                                              init_mol_mo_set,&
                                              kg_fm_mol_set_type, &
+                                             mol_mo_set_p_type,&
                                              mol_mo_set_type,&
-                                             set_kg_fm_mol_set
+                                             set_kg_fm_mol_set,&
+                                             set_mol_mo_set
+  USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
+                                             fm_mol_cholesky_restore,&
+                                             fm_mol_syevd,&
+                                             fm_mol_syevx
   USE kinds,                           ONLY: dp,dp_size,int_size
+  USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: get_molecule_kind,molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_mo_types,                     ONLY: set_mo_occupation
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -80,6 +89,7 @@ MODULE kg_gpw_fm_mol_methods
 ! *** Public subroutines ***
 
   PUBLIC ::  build_local_fm_mol, calculate_mol_density_matrix,&
+             fm_mol_eigensolver, fm_mol_orthonormality, &
              mol_make_basis, multiply_sparse_mol_mo
 
 ! *****************************************************************************
@@ -91,7 +101,8 @@ CONTAINS
   SUBROUTINE  build_local_fm_mol(fm_mol_set,molecule_kind, imolkind,&
                                  local_molecules, molecule_set,&
                                  particle_set, nspins, nmo_eq_nao, &
-                                 added_mos,use_cholesky,error)
+                                 added_mos,use_cholesky,&
+                                 nelectron_global,error)
 
 !   Purpose: 
 
@@ -99,17 +110,18 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(kg_fm_mol_set_type), POINTER        :: fm_mol_set
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind 
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
+    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    TYPE(molecule_kind_type), POINTER          :: molecule_kind 
+    TYPE(distribution_1d_type), POINTER        :: local_molecules
     TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
+      POINTER                                  :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    INTEGER, INTENT(IN)                      :: imolkind, nspins
-    LOGICAL, INTENT(IN)                      :: nmo_eq_nao
-    INTEGER, DIMENSION(2), INTENT(IN)        :: added_mos
-    LOGICAL, INTENT(IN)                      :: use_cholesky
+      POINTER                                  :: particle_set
+    INTEGER, INTENT(IN)                        :: imolkind, nspins
+    LOGICAL, INTENT(IN)                        :: nmo_eq_nao
+    INTEGER, DIMENSION(2), INTENT(IN)          :: added_mos
+    LOGICAL, INTENT(IN)                        :: use_cholesky
+    INTEGER , INTENT(INOUT)                    :: nelectron_global
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
 
@@ -200,7 +212,7 @@ CONTAINS
      END IF
  
      CALL set_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
-                           nmolecule_global=nmol_global,&
+                           nmol_kind_global=nmol_global,&
                            nmolecule_local=nmol_local,&
                            natom = natom, n_ao=n_ao,&
                            n_mo =n_mo , nelectron_spin=nelectron_spin,& 
@@ -208,9 +220,11 @@ CONTAINS
 
      CALL allocate_fm_mol_blocks(fm_mol_set,nmol_local,error=error)
 
+     nelectron_global = nelectron_global + nmol_local * nelectron
      DO imol = 1,nmol_local
         fm_mol_block => fm_mol_set%fm_mol_blocks(imol)
         iglobal = index_mol_local(imol)
+        fm_mol_block%imol_global = iglobal
         molecule => molecule_set(iglobal)
         ALLOCATE(fm_mol_block%mos(nspins),STAT=istat)
         DO ispin = 1,nspins
@@ -250,97 +264,6 @@ CONTAINS
      END DO
 
   END SUBROUTINE build_local_fm_mol
-
-!***************************************************************************
-
-  SUBROUTINE mol_make_basis(matrix_mo, ncol, matrix_ortho, otype,&
-                            matrix_p, work, error)
-
-    REAL(dp), DIMENSION(:,:), POINTER            :: matrix_mo
-    INTEGER, INTENT(IN)                          :: ncol
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_ortho
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: otype
-    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_p,work
-    TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                                  :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN ="mol_make_basis",&
-         routineP = module_name//':'//routineN
-
-    INTEGER :: i, info, istat, lda, ldb, ldc, nrow 
-    LOGICAL                                      :: failure, found_type, &
-                                                    use_cholesky, use_pmatrix, &
-                                                    use_simple, use_sv 
-    REAL(dp)                                     :: rone, rzero
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: matrix_cc
-
-!   ----------------------------------------------------------------------
-
-    failure = .FALSE. 
-
-    nrow = SIZE(matrix_mo,1)
-    
-    rone = 1.0_dp
-    rzero = 0.0_dp
-
-    IF (PRESENT(matrix_ortho)) THEN
-       IF (.NOT. PRESENT(otype)) THEN
-           CALL stop_program("mo_make_basis","ortho needs type !?")
-       ENDIF
-       found_type=.FALSE.
-       use_sv=.FALSE.
-       use_cholesky=.FALSE.
-       IF (otype .EQ. "CHOLESKY") THEN
-          found_type=.TRUE.
-          use_cholesky=.TRUE.
-       ENDIF
-       IF (otype .EQ. "SV") THEN
-          found_type=.TRUE.
-          use_sv=.TRUE.
-       ENDIF
-       IF (.NOT. found_type) CALL stop_program("make_basis","sorry wrong type")
-    ELSE
-       use_simple=.TRUE.
-    ENDIF
-
-    ALLOCATE(matrix_cc(ncol,ncol) , STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc",ncol*ncol*dp_size)
-
-    lda = SIZE(matrix_mo,1)
-    ldb = SIZE(matrix_ortho,1)
-    ldc = SIZE(matrix_cc,1)
-
-    IF (use_pmatrix) THEN
-
-    ELSE
-
-    END IF
-
-    IF (use_sv) THEN
-
-      CALL DGEMM('T','N',ncol,ncol,nrow,rone,matrix_mo(1,1),lda,&
-                 matrix_ortho(1,1),ldb,rzero,matrix_cc(1,1),ldc)
-
-      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
-      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-
-    ELSE
-      write(*,*) 'make_basis, nosv option not checked' 
-      stop 'how am I suppose to know matrix_cc'
-      CALL DSYRK('U','T',ncol,nrow,rone,matrix_cc(1,1),lda,rzero,matrix_cc,ldc)
-      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
-      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-
-    END IF
-
-    CALL DTRSM('R','U','N','N',nrow,ncol,rone,matrix_cc(1,1),ncol,&
-                 matrix_mo(1,1),nrow)
-
-
-    DEALLOCATE(matrix_cc, STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc")
-
-  END SUBROUTINE mol_make_basis
 
 !***************************************************************************
 
@@ -476,6 +399,384 @@ CONTAINS
   END SUBROUTINE calculate_mol_density_matrix
 
 !***************************************************************************
+
+   SUBROUTINE fm_mol_eigensolver(ks_mol_block, mo_set, ortho, aux_nxn,ldaux,&
+                                 do_level_shift, level_shift, use_cholesky, &
+                                 use_jacobi, jacobi_threshold ,&
+                                 smear, error)
+!
+!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
+!            vectors and MO eigenvalues.
+!   ks will be modified
+
+!   History: - Creation (01.12.2004, Matthias Krack)
+!
+!   ***************************************************************************
+
+    REAL(dp), DIMENSION(:,:), POINTER        :: ks_mol_block
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    REAL(dp), DIMENSION(:,:), POINTER        :: ortho
+    REAL(dp), DIMENSION(:,:)                 :: aux_nxn
+    INTEGER, INTENT(IN)                      :: ldaux
+    LOGICAL, INTENT(IN)                      :: do_level_shift
+    REAL(KIND=dp), INTENT(IN)                :: level_shift
+    LOGICAL, INTENT(INOUT)                   :: use_cholesky
+    LOGICAL, INTENT(IN)                      :: use_jacobi
+    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_eigensolver", &
+      routineP = module_name//":"//routineN
+
+    INTEGER                                  :: handle, homo, info, imo, &
+                                                itype, istat, lfomo, &
+                                                mo_ncol, nao, nelectron, nmo, p, q
+    LOGICAL                                  :: failure, i
+    REAL(KIND=dp)                            :: alpha, c, maxocc, tan_theta, tau, s
+    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues,&
+                                                mo_occupation
+    REAL(dp), DIMENSION(:), ALLOCATABLE      :: vec_tmp
+    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure = .FALSE.
+
+!   *** Diagonalise the Kohn-Sham matrix ***
+    NULLIFY (mo_coeff,mo_eigenvalues,mo_occupation)
+    CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
+                        eigenvalues = mo_eigenvalues,&
+                        occupation_numbers = mo_occupation,&
+                        nmo=mo_ncol)
+
+    nao = SIZE(ks_mol_block,1)
+!    ldaux = SIZE(aux_nxn,1)
+    CPPostcondition(ldaux>=nao,cp_failure_level,routineP,error,failure)
+    CPPostcondition(ldaux>=mo_ncol,cp_failure_level,routineP,error,failure)
+
+    IF (do_level_shift) THEN
+       IF (use_cholesky) THEN
+          CALL stop_program("eigensolver","level shift not implemented")
+       ENDIF
+    ENDIF
+
+    IF (use_cholesky) THEN
+       ! Transform the generalized eigenvalue problem into a simple one
+       itype = 1
+       CALL DSYGST(itype,'U',nao,ks_mol_block(1,1),nao,ortho(1,1),nao,info)
+       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+       IF (use_jacobi .OR. smear /= 0.0_dp) THEN
+         ! Calculate all eigenvalues and eigenvectors
+         CALL fm_mol_syevd(ks_mol_block,nao,mo_eigenvalues,aux_nxn,error=error)
+
+         ! Transform the UC coefficients into the C coefficients 
+         ! (U=ortho cholesky decomposition of the overlap matrix)
+         CALL fm_mol_cholesky_restore(aux_nxn,mo_ncol,ortho,mo_coeff,"SOLVE")
+
+         IF (use_jacobi ) THEN
+           use_cholesky = .FALSE.
+           CALL dcopy(nao*nao,mo_coeff(1,1),1,ortho(1,1),1)
+         END IF
+       ELSE
+         ! Calculate selected eigenvalues and eigenvectors
+         CALL fm_mol_syevx(ks_mol_block,aux_nxn,ldaux,ldaux,mo_eigenvalues,mo_ncol,error=error)
+         ! Transform the UC coefficients into the C coefficients 
+         ! (U=ortho cholesky decomposition of the overlap matrix)
+         CALL fm_mol_cholesky_restore(aux_nxn,mo_ncol,ortho,mo_coeff,"SOLVE")
+       END IF
+
+    ELSE IF (use_jacobi) THEN
+      CALL get_mol_mo_set(mo_set=mo_set,homo = homo) 
+
+      CALL DSYMM("L","U",nao,homo,1.0_dp,ks_mol_block(1,1),nao,&
+                 mo_coeff(1,1),nao,0.0_dp,aux_nxn(1,1),ldaux)
+      CALL DGEMM("T","N",homo,nao-homo,nao,1.0_dp,aux_nxn(1,1),ldaux,&
+                 mo_coeff(1,homo+1),nao,0.0_dp,ks_mol_block(1,homo+1),nao)
+
+!     *** Klassisches Jacobi-Block-Verfrahren ***
+!     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
+
+      ALLOCATE(vec_tmp(nao), STAT =istat)
+      IF(istat/= 0.0_dp) CALL stop_memory(routineP,"allocate vec_tmp",nao*dp_size)
+      DO q = homo+1,nao
+        DO p =1,homo
+          IF(ABS(ks_mol_block(p,q))>jacobi_threshold) THEN
+            tau = (mo_eigenvalues(q)-mo_eigenvalues(p))/(2.0_dp*ks_mol_block(p,q))
+            tan_theta = SIGN(1.0_dp,tau)/(ABS(tau)+SQRT(1.0_dp+tau*tau)) 
+            ! cos theta
+            c = 1.0_dp/SQRT(1.0_dp+tan_theta*tan_theta)
+            s = tan_theta*c
+           ! Und jetzt noch die Eigenvektoren produzieren:
+           ! Q * J
+           !  Verstaendliche Version (bevor die BLAS-Aufrufe sie ersetzt haben)
+           !  vec_tmp(p) = c*mo_coeff(:,p) - s*mo_coeff(:,q)
+           !  vec_tmp(q) = s*mo_coeff(:,p) + c*mo_coeff(:,q)
+
+           !  mo_coeff(:,p)=vec_tmp(p)
+           !  mo_coeff(:,q)=vec_tmp(q)
+
+           CALL DCOPY(nao,mo_coeff(1,p),1,vec_tmp(1),1)
+           CALL DSCAL(nao,c,mo_coeff(1,p),1)
+           CALL DAXPY(nao,-s,mo_coeff(1,q),1,mo_coeff(1,p),1)
+           CALL DSCAL(nao,c,mo_coeff(1,q),1)
+           CALL DAXPY(nao,s,vec_tmp(1),1,mo_coeff(1,q),1)
+
+          END IF
+        END DO  ! p
+      END DO  ! q
+      DEALLOCATE(vec_tmp, STAT =istat)
+      IF(istat/= 0.0_dp) CALL stop_memory(routineP,"deallocate vec_tmp")
+!
+    ELSE
+
+      CALL DSYMM("L","U",nao,nao,1.0_dp,ks_mol_block(1,1),nao,&
+                 ortho(1,1),nao,0.0_dp,aux_nxn(1,1),ldaux)
+      CALL DGEMM("T","N",nao,nao,nao,1.0_dp,ortho(1,1),nao,aux_nxn(1,1),& 
+                 ldaux,0.0_dp,ks_mol_block(1,1),nao)
+
+       IF (do_level_shift) THEN
+          DO imo=homo+1,mo_ncol
+            ks_mol_block(imo,imo)=ks_mol_block(imo,imo)+level_shift
+          END DO
+       END IF
+
+       ! Calculate selected eigenvalues and eigenvectors (U^-1C)
+       CALL fm_mol_syevx(ks_mol_block,aux_nxn,ldaux,ldaux,mo_eigenvalues,mo_ncol,error=error)
+       ! Transform the eigenvectors U(U^-1C)=C
+       CALL DGEMM("N","N",nao,mo_ncol,nao,1.0_dp,ortho(1,1),nao,aux_nxn(1,1),nao,&
+                  0.0_dp,mo_coeff(1,1),nao)
+
+       IF (do_level_shift) THEN
+
+!     *** Use last MO set as orthogonalization matrix ***
+          DO imo=homo+1,mo_ncol
+            mo_eigenvalues(imo) = mo_eigenvalues(imo) - level_shift
+          END DO
+
+          CALL DCOPY(nao*nao,mo_coeff(1,1),1,ortho(1,1),1)
+
+       END IF
+
+    END IF
+
+    IF (smear /= 0.0_dp) THEN
+     CALL get_mol_mo_set(mo_set=mo_set,lfomo=lfomo, homo=homo,&
+                         maxocc=maxocc, nelectron=nelectron)
+     CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
+                          homo,lfomo,maxocc,nelectron,smear)
+     CALL  set_mol_mo_set(mo_set=mo_set,homo=homo,lfomo=lfomo)
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE fm_mol_eigensolver
+
+!***************************************************************************
+
+  SUBROUTINE fm_mol_orthonormality(orthonormality,kg_fm_mol_set,overlap,nspins,error)
+
+    REAL(dp), DIMENSION(:)                     :: orthonormality
+    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
+      POINTER                                  :: kg_fm_mol_set
+    TYPE(real_matrix_type), POINTER, OPTIONAL  :: overlap
+    INTEGER, INTENT(IN)                        :: nspins
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = 'fm_mol_orthonormality', &
+      routineP = module_name//':'//routine_name
+
+    INTEGER :: icol, imol, imolecule_kind, irow, istat, ispin, ldaux2, ldc, &
+               ldcsc, mo_ncol, mo_ncol_old, n_ao_kind, nat_mol, nmol_local, nmolecule_kind
+    LOGICAL :: failure
+    REAL(dp)                                   :: csc_val, max_csc_offd
+    REAL(dp), DIMENSION(:,:), POINTER          :: aux1_matrix,&
+                                                  aux2_matrix,&
+                                                  csc_matrix,&
+                                                  mo_coeff
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                  :: fm_mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    TYPE(mol_mo_set_p_type), DIMENSION(:),&
+      POINTER                                  :: mos
+    TYPE(mol_mo_set_type), POINTER             :: mo_set
+
+! -----------------------------------------------------------------------------------
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
+
+    nmolecule_kind = SIZE(kg_fm_mol_set,1)
+
+    DO imolecule_kind = 1,nmolecule_kind
+      NULLIFY(fm_mol_set,fm_mol_blocks)
+      fm_mol_set => kg_fm_mol_set(imolecule_kind)
+      CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
+                             natom = nat_mol, &
+                             n_ao = n_ao_kind , &
+                             fm_mol_blocks = fm_mol_blocks,&
+                             nmolecule_local = nmol_local)
+
+      ALLOCATE(aux2_matrix(n_ao_kind,n_ao_kind), STAT = istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"aux2_matrix",&
+                                       n_ao_kind*n_ao_kind*dp_size)
+      ldaux2 = n_ao_kind
+      mo_ncol_old = 0
+      NULLIFY(aux1_matrix,csc_matrix)
+      DO imol = 1, nmol_local
+        NULLIFY(mol_block,mos,aux1_matrix,mos)
+        mol_block => fm_mol_blocks(imol)
+        CALL get_fm_mol_block(fm_mol_block = mol_block,mos=mos)
+
+        ! Copy the overlap matrix of this molecule in the aux2_matrix 
+         CALL copy_sparse2mol_block(overlap, mol_block,&
+                                    aux2_matrix, nat_mol, n_ao_kind, &
+                                    n_ao_kind, error=error)
+        max_csc_offd = 0.0_dp
+        DO ispin=1,nspins
+           NULLIFY(mo_set,mo_coeff)
+           mo_set => mos(ispin)%mo_set
+           CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
+                               nmo=mo_ncol)
+           ldc = SIZE(mo_coeff,1)
+           CPPrecondition(ldc>=n_ao_kind,cp_failure_level,routineP,error,failure) 
+
+           IF(mo_ncol > mo_ncol_old) THEN
+             CALL reallocate(aux1_matrix,1,n_ao_kind,1,mo_ncol)
+             CALL reallocate(csc_matrix,1,mo_ncol,1,mo_ncol)
+             ldcsc = mo_ncol
+             mo_ncol_old = mo_ncol
+           END IF
+
+           CALL DGEMM('N','N',n_ao_kind,mo_ncol,n_ao_kind,1.0_dp,aux2_matrix,ldaux2,&
+                      mo_coeff,ldc,0.0_dp,aux1_matrix,n_ao_kind)
+           CALL DGEMM('T','N',mo_ncol,mo_ncol,n_ao_kind,1.0_dp,mo_coeff,ldc,&
+                      aux1_matrix,n_ao_kind,0.0_dp,csc_matrix,ldcsc)
+
+           DO icol = 1,mo_ncol
+             DO irow =  1,mo_ncol
+               csc_val = csc_matrix(irow,icol)
+               IF(irow==icol) csc_val  = csc_val - 1.0_dp
+               max_csc_offd = MAX(max_csc_offd,ABS(csc_val))
+             END DO
+           END DO
+        END DO  ! ispin
+
+        orthonormality(fm_mol_blocks(imol)%imol_global) = max_csc_offd
+      END DO  ! imol
+
+      IF(ASSOCIATED(aux1_matrix)) THEN
+        DEALLOCATE(aux1_matrix, STAT = istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"deall. aux1_matrix")
+      END IF
+      IF(ASSOCIATED(csc_matrix)) THEN
+        DEALLOCATE(csc_matrix, STAT = istat)
+        IF (istat /= 0) CALL stop_memory(routineP,"deall. csc_matrix")
+      END IF
+      DEALLOCATE(aux2_matrix, STAT = istat)
+      IF (istat /= 0) CALL stop_memory(routineP,"deall. aux2_matrix")
+
+    END DO  ! imolecule_kind
+
+  END SUBROUTINE fm_mol_orthonormality
+
+!***************************************************************************
+
+  SUBROUTINE mol_make_basis(matrix_mo, ncol, matrix_ortho, otype,&
+                            matrix_p, work, error)
+
+    REAL(dp), DIMENSION(:,:), POINTER            :: matrix_mo
+    INTEGER, INTENT(IN)                          :: ncol
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_ortho
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL       :: otype
+    REAL(dp), DIMENSION(:,:), POINTER, OPTIONAL  :: matrix_p,work
+    TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                                  :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN ="mol_make_basis",&
+         routineP = module_name//':'//routineN
+
+    INTEGER :: i, info, istat, lda, ldb, ldc, nrow 
+    LOGICAL                                      :: failure, found_type, &
+                                                    use_cholesky, use_pmatrix, &
+                                                    use_simple, use_sv 
+    REAL(dp)                                     :: rone, rzero
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE        :: matrix_cc
+
+!   ----------------------------------------------------------------------
+
+    failure = .FALSE. 
+
+    nrow = SIZE(matrix_mo,1)
+    
+    rone = 1.0_dp
+    rzero = 0.0_dp
+
+    IF (PRESENT(matrix_ortho)) THEN
+       IF (.NOT. PRESENT(otype)) THEN
+           CALL stop_program("mo_make_basis","ortho needs type !?")
+       ENDIF
+       found_type=.FALSE.
+       use_sv=.FALSE.
+       use_cholesky=.FALSE.
+       IF (otype .EQ. "CHOLESKY") THEN
+          found_type=.TRUE.
+          use_cholesky=.TRUE.
+       ENDIF
+       IF (otype .EQ. "SV") THEN
+          found_type=.TRUE.
+          use_sv=.TRUE.
+       ENDIF
+       IF (.NOT. found_type) CALL stop_program("make_basis","sorry wrong type")
+    ELSE
+       use_simple=.TRUE.
+    ENDIF
+
+    ALLOCATE(matrix_cc(ncol,ncol) , STAT = istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc",ncol*ncol*dp_size)
+
+    lda = SIZE(matrix_mo,1)
+    ldb = SIZE(matrix_ortho,1)
+    ldc = SIZE(matrix_cc,1)
+
+    IF (use_pmatrix) THEN
+
+    ELSE
+
+    END IF
+
+    IF (use_sv) THEN
+
+      CALL DGEMM('T','N',ncol,ncol,nrow,rone,matrix_mo(1,1),lda,&
+                 matrix_ortho(1,1),ldb,rzero,matrix_cc(1,1),ldc)
+
+      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    ELSE
+      write(*,*) 'make_basis, nosv option not checked' 
+      stop 'how am I suppose to know matrix_cc'
+      CALL DSYRK('U','T',ncol,nrow,rone,matrix_cc(1,1),lda,rzero,matrix_cc,ldc)
+      CALL DPOTRF('U',ncol,matrix_cc(1,1),ldc,info)
+      CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
+
+    END IF
+
+    CALL DTRSM('R','U','N','N',nrow,ncol,rone,matrix_cc(1,1),ncol,&
+                 matrix_mo(1,1),nrow)
+
+
+    DEALLOCATE(matrix_cc, STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineP,"matrix_cc")
+
+  END SUBROUTINE mol_make_basis
+
+! *****************************************************************************
 
   SUBROUTINE multiply_sparse_mol_mo(matrix,mol_block,natom,vectors,&
                                     nmo,mat_x_vec,error)

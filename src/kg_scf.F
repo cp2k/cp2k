@@ -35,9 +35,6 @@ MODULE kg_scf
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-!  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi_classic,&
-!  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-!                                             fm_pool_get_el_struct
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
@@ -45,8 +42,6 @@ MODULE kg_scf
                                              cp_to_string,&
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
-!  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
-!                                             cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_flush_cache,&
@@ -55,7 +50,13 @@ MODULE kg_scf
 !                                             get_potential,&
 !                                             gth_potential_type
   USE global_types,                    ONLY: global_environment_type
+  USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
+                                             kg_diis_b_create, &
+                                             kg_diis_step_A,&
+                                             kg_diis_step_B
   USE kg_gpw_fm_mol_methods,           ONLY: calculate_mol_density_matrix,&
+                                             fm_mol_eigensolver,&
+                                             fm_mol_orthonormality,&
                                              mol_make_basis,&
                                              multiply_sparse_mol_mo
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
@@ -67,7 +68,6 @@ MODULE kg_scf
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
-                                             fm_mol_cholesky_restore,&
                                              fm_mol_power,&
                                              mol_mo_random
   USE kg_environment_types,            ONLY: kg_environment_type,&
@@ -80,22 +80,20 @@ MODULE kg_scf
                                              int_size
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-!  USE message_passing,                 ONLY: mp_bcast,&
-!                                             mp_max,&
-!                                             mp_sum
+  USE mathlib,                         ONLY: diamat_all
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_max,&
+                                             mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner
 !  USE pw_env_types,                    ONLY: pw_env_type
-!  USE qs_charges_types,                ONLY: qs_charges_type
+  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-!  USE qs_diis,                         ONLY: qs_diis_b_clear,&
-!                                             qs_diis_b_create,&
-!                                             qs_diis_b_step
-!  USE qs_energy_types,                 ONLY: qs_energy_type
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -115,10 +113,9 @@ MODULE kg_scf
                                              ot_scf_init,&
                                              ot_scf_mini,&
                                              ot_scf_read_input
-!  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-!  USE qs_scf_post,                     ONLY: scf_post_calculation
+  USE qs_scf_post,                     ONLY: scf_post_calculation
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
                                              general_diag_method_nr,&
                                              special_diag_method_nr,&
@@ -134,7 +131,7 @@ MODULE kg_scf
                                              get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-!  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+!  USE sparse_matrix_types,             ONLY: 
 !                                             first_block_node,&
 !                                             get_matrix_diagonal,&
 !                                             get_matrix_info,&
@@ -219,7 +216,7 @@ CONTAINS
 !         IF (dft_control%qs_control%se_control%orthogonal_basis) &
 !             scf_env%method=special_diag_method_nr
           CALL stop_program(routineN,moduleN,__LINE__,&
-               "KG_GPW eith semi_empirical not implemented")
+               "KG_GPW with semi_empirical not implemented")
        END IF
        IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
@@ -300,48 +297,59 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,error)
 
-    TYPE(kg_scf_env_type), POINTER           :: scf_env
-    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(kg_scf_env_type), POINTER             :: scf_env
+    TYPE(kg_environment_type), POINTER         :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN)                               :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                 :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "scf_env_do_scf", &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: t1, t2
-    INTEGER                                  :: handle, handle2
-    INTEGER                                  :: output_unit, ispin
-    LOGICAL                                  :: failure
-    LOGICAL                                  :: energy_only
-    LOGICAL                                  :: ionode
-!    LOGICAL :: diis_step, do_level_shift,&
-!      should_stop, use_cholesky, use_jacobi
+    REAL(KIND=dp)                              :: t1, t2
+    INTEGER                                    :: handle, handle2
+    INTEGER                                    :: output_unit, ispin, istat
+    INTEGER                                    :: ib, imol, imolecule_kind, &
+                                                  jb, nat_mol, n_ao_kind, &
+                                                  nb, nb1, nelectron_global,&
+                                                  nmolecule_global, nmol_local,&
+                                                  nmolecule_kind
+    LOGICAL                                    :: energy_only
+    LOGICAL                                    :: failure
+    LOGICAL                                    :: ionode, id_equal
+    LOGICAL                                    :: diis_step, do_level_shift,&
+                                                  should_stop, use_cholesky, use_jacobi
 !    TYPE(atomic_kind_type), DIMENSION(:), &
 !      POINTER                                :: atomic_kind_set
 !    TYPE(cell_type), POINTER                 :: cell
-!    TYPE(cp_fm_p_type), DIMENSION(:), &
-!      POINTER                                :: scf_work1
-!    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), POINTER         :: qs_env
+    TYPE(cp_logger_type), POINTER              :: logger
+    TYPE(dft_control_type), POINTER            :: dft_control
+    TYPE(scf_control_type), POINTER            :: scf_control
+    TYPE(qs_ks_env_type), POINTER              :: ks_env
 !    TYPE(particle_type), DIMENSION(:), &
 !      POINTER                                :: particle_set
 !    TYPE(pw_env_type), POINTER               :: pw_env
-!    TYPE(qs_charges_type), POINTER           :: qs_charges
-!    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_charges_type), POINTER             :: qs_charges
+    TYPE(qs_energy_type), POINTER              :: energy
+    TYPE(qs_rho_type), POINTER                 :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: p,ks
+      POINTER                                  :: matrix_h,&
+                                                  matrix_ks,&
+                                                  matrix_p,&
+                                                  matrix_s
+    TYPE(kg_fm_p_type), POINTER                :: kg_fm_set
+    REAL(dp)                                   :: diis_error
+    REAL(dp), DIMENSION(:), POINTER            :: diis_ev_global
+    REAL(dp), DIMENSION(:,:), POINTER          :: diis_m1_global,diis_m2_global
+    REAL(dp), DIMENSION(:), ALLOCATABLE        :: orthonormality
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY(dft_control,scf_control,ks_env,qs_env,p,ks)
-    NULLIFY(rho)
+    NULLIFY(dft_control,scf_control,ks_env,qs_env)
+    NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm_set)
+    NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -376,14 +384,47 @@ CONTAINS
     CALL init_kgscf_run(scf_env=scf_env,kg_env=kg_env,&
                         globenv=globenv,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,ks_env=ks_env,&
-                    matrix_ks=ks,rho=rho)
+    CALL get_qs_env(qs_env=qs_env,&
+                    energy=energy,&
+                    ks_env=ks_env,&
+                    matrix_h=matrix_h,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    qs_charges=qs_charges,&
+                    rho=rho)
 
-    p => rho%rho_ao
+    CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set)
+    nmolecule_kind = SIZE(kg_fm_set%kg_fm_mol_set,1)
+    nelectron_global = kg_fm_set%nelectron_global
+    nmolecule_global = kg_fm_set%nmolecule_global
+
+
+    matrix_p => rho%rho_ao
+ 
+    ! do some assertions here on these matrices having the same structure, 
+    ! as is currently required
+    DO ispin=1,SIZE(matrix_s)
+      id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_p)
+      id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_h)
+      id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DO ispin=1,SIZE(matrix_ks)
+      id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
+      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    ENDDO
+    ! end sparsity check
+
 
     scf_env%iter_count = 0
-!    diis_step = .FALSE.
-!    use_jacobi = .FALSE.
+    diis_step = .FALSE.
+    use_jacobi = .FALSE.
 
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,&
@@ -406,130 +447,197 @@ CONTAINS
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
-            error=error,&
-            calculate_forces=.FALSE.,just_energy=energy_only)
+                                error=error,&
+                                calculate_forces=.FALSE.,&
+                                just_energy=energy_only)
 
        DO ispin=1,dft_control%nspins
 
           IF (logger%print_keys%density_matrix.AND.&
                logger%print_keys%each_scf_step) THEN
-             CALL write_sparse_matrix(p(ispin)%matrix,4,6,qs_env,globenv)
+             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
-          IF (logger%print_keys%kohn_sham_matrix.AND.logger%print_keys%each_scf_step) THEN
-             CALL write_sparse_matrix(ks(ispin)%matrix,4,6,qs_env,globenv)
+          IF (logger%print_keys%kohn_sham_matrix.AND.&
+                         logger%print_keys%each_scf_step) THEN
+             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv)
           END IF
 
        ENDDO
 
-!      IF (logger%print_keys%mo_orthonormality) THEN
-!          CALL calculate_orthonormality(orthonormality,c,s(1)%matrix)
+       IF (logger%print_keys%mo_orthonormality) THEN
+         ALLOCATE(orthonormality(nmolecule_global), STAT =istat)
+         IF (istat /= 0) CALL stop_memory(routineP,"orthonormality",nmolecule_global*dp_size)
+         orthonormality = 0.0_dp
+         CALL fm_mol_orthonormality(orthonormality,kg_fm_set%kg_fm_mol_set,&
+                                    matrix_s(1)%matrix,dft_control%nspins)
+         CALL mp_sum(orthonormality,qs_env%para_env%group)
 !         IF (ionode) THEN
 !            WRITE(output_unit,'(T8,A,T60,E20.4)')  &
 !                   " Maximum deviation from MO S-orthonormality",orthonormality
 !         ENDIF
-!      ENDIF
+         DEALLOCATE(orthonormality, STAT =istat)
+         IF (istat /= 0) CALL stop_memory(routineP,"deall. orthonormality")
+       ENDIF
 
        scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_dp
+       IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
+
 
        SELECT CASE (scf_env%method)
-       CASE DEFAULT
-!
-!          DO ispin=1,dft_control%nspins 
-!             CALL copy_sm_to_fm(ks(ispin)%matrix,scf_work1(ispin)%matrix)
-!          ENDDO
-!
-!          IF (scf_env%iter_count > 1) THEN
-!             CALL qs_diis_b_step(scf_env%scf_diis_buffer,c,scf_work1,&
-!                  scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-!                  !!!!,error=error)
-!          END IF
-!
-!          do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-!               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
-!
-!          IF (diis_step) THEN
-!             scf_env%p_mix = 1.0_dp
-!             scf_env%iter_param = diis_error
-!             IF (use_jacobi) THEN
-!                scf_env%iter_method = "DIIS/Jacobi"
-!             ELSE
-!                scf_env%iter_method = "DIIS/Diag."
-!             END IF
-!          ELSE
-!             IF (use_jacobi) THEN
-!                scf_env%iter_method = "Mixing/Jacobi"
-!             ELSE
-!                scf_env%iter_method = "Mixing/Diag."
-!             END IF
-!          END IF
-!
-!          IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
-!             use_jacobi = .TRUE.
-!          ELSE
-!             use_cholesky = scf_control%use_cholesky
-!             use_jacobi = .FALSE.
-!          END IF
-!
-!          scf_env%iter_delta=0.0_dp
-!
-!          DO ispin=1,dft_control%nspins
-!
-!             CALL eigensolver(scf_work1(ispin)%matrix,c(ispin)%mo_set,ortho,scf_work2,&
-!                  do_level_shift,scf_control%level_shift,&
-!                  use_cholesky=use_cholesky,&
-!                  work_syevx=scf_control%work_syevx,&
-!                  use_jacobi=use_jacobi,&
-!                  jacobi_threshold=scf_control%jacobi_threshold,&
-!                  smear=scf_control%smear, &
-!                  error=error)
-!
-!             IF (logger%print_keys%each_scf_step) THEN
-!                CALL write_mo_set(c(ispin)%mo_set,atomic_kind_set,particle_set,4,6,globenv)
-!             END IF
-!
-!             CALL calculate_density_matrix(c(ispin)%mo_set,&
-!                  scf_env%p_mix_new(ispin)%matrix,error=error)
-!
-!          ENDDO
+         CASE DEFAULT
+            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf method method:"//&
+               cp_to_string(scf_env%method),error,failure)
+         CASE(general_diag_method_nr) ! diagonalisation (default)
+  
+           
+           IF (scf_env%iter_count > 1) THEN
+             ib = MODULO(scf_env%scf_diis_buffer%ncall,scf_env%scf_diis_buffer%nbuffer) + 1
+             scf_env%scf_diis_buffer%ncall = scf_env%scf_diis_buffer%ncall + 1
+             nb = MIN(scf_env%scf_diis_buffer%ncall, scf_env%scf_diis_buffer%nbuffer)
+             nb1 = nb + 1
+             ! Allocate the eigenvalue vector for the diis matrix of the global system
+             ALLOCATE(diis_ev_global(nb1), STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"diis_ev_global",nb1*dp_size)
 
+             ! Allocate the diis matrix for the global system
+             ALLOCATE(diis_m1_global(nb1,nb1), STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"diis_m1_global",nb1*nb1*dp_size)
+             ALLOCATE(diis_m2_global(nb1,nb1), STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"diis_m2_global",nb1*nb1*dp_size)
+             ! Initialize the diis error
+             diis_error = 0.0_dp
+
+             CALL kg_diis_step_A(scf_env%scf_diis_buffer,ib,nb,&
+                                 kg_fm_set%kg_fm_mol_set,&
+                                 diis_m1_global,&
+                                 dft_control%nspins,diis_error,&
+                                 matrix_ks,&
+                                 overlap=matrix_s(1)%matrix,&
+                                 error=error)
+
+             ! Global sum to collect all the contribution to the diis matrix
+             CALL mp_sum(diis_m1_global,qs_env%para_env%group)
+             ! Global max to get the maximum of the diis error over all the proc.
+             CALL mp_max(diis_error,qs_env%para_env%group)
+
+             !   *** Check, if a DIIS step is appropiate ***
+             diis_step = ((scf_env%scf_diis_buffer%ncall > 1).AND.&
+                         (scf_env%iter_delta < scf_control%eps_diis))
+
+             IF(diis_error < scf_control%eps_diis) THEN
+
+               diis_m1_global(1:nb,nb1) = -1.0_dp
+               diis_m1_global(nb1,1:nb) = -1.0_dp
+               diis_m1_global(nb1,nb1)  =  0.0_dp
+               !     *** Solve the linear DIIS equation system ***
+               CALL diamat_all(diis_m1_global(1:nb1,1:nb1),diis_ev_global(1:nb1))
+               diis_m2_global(1:nb1,1:nb1) = diis_m1_global(1:nb1,1:nb1)
+               DO jb=1,nb1
+                 IF (ABS(diis_ev_global(jb)) < 1.0E-12_dp) THEN
+                   diis_m2_global(1:nb1,jb) = 0.0_dp
+                 ELSE
+                   diis_m2_global(1:nb1,jb) = diis_m2_global(1:nb1,jb)/diis_ev_global(jb)
+                 END IF
+               END DO
+
+               diis_ev_global(1:nb) = MATMUL(diis_m2_global(1:nb,1:nb1),&
+                                             diis_m1_global(nb1,1:nb1))
+
+             ELSE
+               diis_step = .FALSE.
+             END IF
+
+             ! Allocate the diis matrix for the global system
+             DEALLOCATE(diis_m1_global, STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"deall. diis_m1_global")
+             DEALLOCATE(diis_m2_global, STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"deall. diis_m2_global")
+
+           END IF  ! scf_env%iter_count > 1
+
+           ! Control Variables
+           do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+               ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
+
+           IF (diis_step) THEN
+               scf_env%p_mix = 1.0_dp
+               scf_env%iter_param = diis_error
+               IF (use_jacobi) THEN
+                  scf_env%iter_method = "DIIS/Jacobi"
+               ELSE
+                  scf_env%iter_method = "DIIS/Diag."
+               END IF
+           ELSE
+               IF (use_jacobi) THEN
+                  scf_env%iter_method = "Mixing/Jacobi"
+               ELSE
+                  scf_env%iter_method = "Mixing/Diag."
+               END IF
+           END IF
+           scf_env%iter_delta=0.0_dp
+
+           CALL kg_diis_step_B(scf_env%scf_diis_buffer,ib,nb,&
+                               kg_fm_set%kg_fm_mol_set,&
+                               scf_control,diis_ev_global,&
+                               dft_control%nspins,&
+                               matrix_ks,matrix_p,&
+                               do_iter = (scf_env%iter_count > 1),&
+                               diis_step = diis_step,&
+                               do_level_shift=do_level_shift,&
+                               use_jacobi=use_jacobi,&
+                               error=error)
+
+           IF(scf_env%iter_count > 1) THEN
+             DEALLOCATE(diis_ev_global, STAT = istat)
+             IF (istat /= 0) CALL stop_memory(routineP,"deall. diis_ev_global")
+           END IF
+         CASE(special_diag_method_nr)
+            ! booooooooooooo
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                     "Special_diag_method_nr not implemented with KG_GPW yet")
+         CASE(ot_method_nr) ! orbital transforms
+            ! booooooooooooo
+            CALL stop_program(routineN,moduleN,__LINE__,&
+                     "Ot_method_nr not implemented with KG_GPW yet")
        END SELECT
 
 !       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
 !          CALL scf_env_density_mixing(scf_env,qs_env=qs_env,error=error)
 !       ENDIF
 !
-!       t2 = m_walltime()
-!
-!       IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
-!          WRITE (UNIT=output_unit,&
-!               FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
-!               scf_env%iter_count,TRIM(scf_env%iter_method),&
-!               scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
-!       END IF
-!
-!! ** convergece check
-!       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
-!            INQUIRE(file="EXIT",exist=should_stop)
-!       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
-!       IF (scf_env%iter_delta < scf_control%eps_scf) THEN
-!          IF (ionode.AND.logger%print_keys%scf) THEN
-!             WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
-!                  "*** SCF run converged in ",scf_env%iter_count," steps ***"
-!          END IF
-!          CALL timestop(0.0_dp,handle2)
-!          EXIT scf_loop
-!       ELSE IF (should_stop.OR.&
-!            scf_env%iter_count == scf_control%max_scf) THEN
-!          IF (ionode.AND.logger%print_keys%scf) THEN
-!             WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
-!                  "*** SCF run NOT converged ***"
-!          END IF
-!          CALL timestop(0.0_dp,handle2)
-!          EXIT scf_loop
-!       END IF
-!
+       t2 = m_walltime()
+
+       IF (ionode.AND.logger%print_keys%scf.and.scf_env%print_iter_line) THEN
+          WRITE (UNIT=output_unit,&
+               FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
+               scf_env%iter_count,TRIM(scf_env%iter_method),&
+               scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
+       END IF
+
+! ** convergece check
+       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
+            INQUIRE(file="EXIT",exist=should_stop)
+       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)
+       IF (scf_env%iter_delta < scf_control%eps_scf) THEN
+          IF (ionode.AND.logger%print_keys%scf) THEN
+             WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                  "*** SCF run converged in ",scf_env%iter_count," steps ***"
+          END IF
+          CALL timestop(0.0_dp,handle2)
+          EXIT scf_loop
+       ELSE IF (should_stop.OR.&
+            scf_env%iter_count == scf_control%max_scf) THEN
+          IF (ionode.AND.logger%print_keys%scf) THEN
+             WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
+                  "*** SCF run NOT converged ***"
+          END IF
+          CALL timestop(0.0_dp,handle2)
+          EXIT scf_loop
+       END IF
+
 !!   *** Write restart file ***
 !       IF (scf_control%write_restart_each>0.AND.&
 !            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
@@ -539,7 +647,7 @@ CONTAINS
 !               id_nr=1)
 !       END IF
 !
-!       IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
+       IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 !
 !!   *** mixing methods have the new density matrix in p_mix_new
 !       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
@@ -549,38 +657,38 @@ CONTAINS
 !           END DO
 !       ENDIF
 !
-!! ** update qs_env%rho
-!       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-!       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
+! ** update qs_env%rho
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+       CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
 
     END DO scf_loop
 
-!    IF (ionode.AND.logger%print_keys%scf) THEN
-!       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-!            "Total electronic density (r-space): ",&
-!            SUM(rho%tot_rho_r),&
-!            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
-!            "Total core charge density (r-space):",&
-!            qs_charges%total_rho_core_rspace,&
-!            qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
-!       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-!            "Total charge density (r-space):     ",&
-!            SUM(rho%tot_rho_r)+&
-!            qs_charges%total_rho_core_rspace,&
-!            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
-!       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
-!            "Overlap energy of the core charge distribution:",energy%core_overlap,&
-!            "Self energy of the core charge distribution:   ",energy%core_self,&
-!            "Core Hamiltonian energy:                       ",energy%core,&
-!            "Hartree energy:                                ",energy%hartree,&
-!            "Exchange-correlation energy:                   ",energy%exc,&
-!            "Total energy:                                  ",energy%total
-!       CALL m_flush(output_unit)
-!    END IF
-!
-!!   *** Write restart file ***
+    IF (ionode.AND.logger%print_keys%scf) THEN
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            "Total electronic density (r-space): ",&
+            SUM(rho%tot_rho_r),&
+            SUM(rho%tot_rho_r)+ REAL(nelectron_global,dp),&
+            "Total core charge density (r-space):",&
+            qs_charges%total_rho_core_rspace,&
+            qs_charges%total_rho_core_rspace - REAL(nelectron_global+dft_control%charge,dp)
+       WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+            "Total charge density (r-space):     ",&
+            SUM(rho%tot_rho_r)+&
+            qs_charges%total_rho_core_rspace,&
+            "Total charge density (g-space):     ",qs_charges%total_rho_gspace
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
+            "Overlap energy of the core charge distribution:",energy%core_overlap,&
+            "Self energy of the core charge distribution:   ",energy%core_self,&
+            "Core Hamiltonian energy:                       ",energy%core,&
+            "Hartree energy:                                ",energy%hartree,&
+            "Exchange-correlation energy:                   ",energy%exc,&
+            "Total energy:                                  ",energy%total
+       CALL m_flush(output_unit)
+    END IF
+
+!   *** Write restart file ***
 !    IF (scf_control%write_restart_each>=0) THEN
 !       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
 !            id_nr=1)
@@ -607,21 +715,21 @@ CONTAINS
 !       END DO
 !    ENDIF
 !
-!!   *** update rspace rho since the mo changed
-!!   *** this might not always be needed (i.e. no post calculation / no forces )
-!    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
-!
-!    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-!
-!! *** print out info
+!   *** update rspace rho since the mo changed
+!   *** this might not always be needed (i.e. no post calculation / no forces )
+    CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
+
+    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+! *** print out info
 !    IF (.NOT.should_stop) THEN
 !       CALL scf_post_calculation(scf_env=scf_env, qs_env=qs_env, &
 !            globenv=globenv, error=error)
 !    END IF
-!
-!! *** cleanup
-!    CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-!
+
+! *** cleanup
+    CALL kg_scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+
     CALL timestop(0.0_dp,handle)
 
     CALL write_checkpoint_information("leaving "//routineN,globenv)
@@ -858,21 +966,23 @@ CONTAINS
 !       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
 !    END IF
 !
-! initializes rho and the mosv
+!   Initializes rho and the mosv
     CALL kgscf_initial_rho(kg_fm%kg_fm_mol_set,qs_env=qs_env,&
                            globenv=globenv,error=error)
-!
-!! *** method dependent initializations ***
-!    SELECT CASE (scf_env%method)
-!    CASE (general_diag_method_nr)
-!       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
-!          CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
-!               nbuffer=scf_control%max_diis,&
-!               error=error)
-!       END IF
-!       CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
-!    CASE DEFAULT
-!    END SELECT
+
+! *** method dependent initializations ***
+    SELECT CASE (scf_env%method)
+    CASE (general_diag_method_nr)
+       IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
+         CALL kg_diis_b_create(scf_env%scf_diis_buffer,&
+                               kg_fm%kg_fm_mol_set,&
+                               nbuffer=scf_control%max_diis,&
+                               nspins = dft_control%nspins,&
+                               error=error)
+       END IF
+       CALL kg_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+    CASE DEFAULT
+    END SELECT
 
    ELSE
 
@@ -921,7 +1031,8 @@ CONTAINS
                                                 handle, iat, iatom, icol,&
                                                 icol_ortho, imol, imol_kind, &
                                                 info, irow, irow_ortho, jat, &
-                                                jatom, natom, nmol, nmol_kind,&
+                                                jatom, ld_ortho, ld_work, natom, &
+                                                nmol, nmol_kind, nc_ortho, nc_work,&
                                                 row_first, row_last
     REAL(KIND=dp)                            :: eps_eigval
     TYPE(fm_mol_blocks_type), DIMENSION(:),&
@@ -965,6 +1076,10 @@ CONTAINS
                               ifirst_ao = ifirst_ao,&
                               ilast_ao = ilast_ao )
 
+        ld_ortho = SIZE(ortho,1)
+        nc_ortho = SIZE(ortho,2)
+        ld_work = SIZE(work,1)
+        nc_work = SIZE(work,2)
         ! Construct ortho from the overlap matrix
         DO iat = 1,natom
            iatom = i_atom(iat)
@@ -1010,22 +1125,22 @@ CONTAINS
         END DO  ! iat
 
 !  write(*,*) 'molecule ' ,imol
-!  do i = 1,SIZE(ortho,1)
+!  do i = 1,ld_ortho
 !    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
 !  end do
 
         IF (do_orthogonalization) THEN
           IF (scf_control%use_cholesky ) THEN
 
-            CALL dpotrf('U',SIZE(ortho,1),ortho(1,1),SIZE(ortho,1),info)
+            CALL dpotrf('U',ld_ortho,ortho(1,1),ld_ortho,info)
             CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
 
           ELSE
 
-            CALL fm_mol_power(ortho,work,-0.5_dp,scf_control%eps_eigval,ndep)
+            CALL fm_mol_power(ortho,work,ld_work,nc_work,-0.5_dp,scf_control%eps_eigval,ndep)
             ! Transform the upper triangular matrix in a full matrix
-            DO irow = 1,SIZE(ortho,1) 
-              DO icol = irow+1,SIZE(ortho,2)
+            DO irow = 1,ld_ortho 
+              DO icol = irow+1,nc_ortho
                 ortho(icol,irow) = ortho(irow,icol)
               END DO
             END DO
@@ -1037,7 +1152,7 @@ CONTAINS
         ENDIF
 
 !  write(*,*) 'after ort '
-!  do i = 1,SIZE(ortho,1)
+!  do i = 1,ld_ortho
 !    write(*,'(I4,23f10.5)') i,ortho(i,1:23) 
 !  end do
       END DO  ! imol
@@ -1047,167 +1162,8 @@ CONTAINS
 
   END SUBROUTINE calculate_ortho_per_molecule
 !
-!! *****************************************************************************
+! *****************************************************************************
 !
-   SUBROUTINE fm_mol_eigensolver(ks_mol_block, mo_set, ortho, aux_nxn,&
-                                 do_level_shift, level_shift, use_cholesky, &
-                                 use_jacobi, jacobi_threshold ,&
-                                 smear, error)
-!
-!   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
-!            vectors and MO eigenvalues.
-!   ks will be modified
-
-!   History: - Creation (01.12.2004, Matthias Krack)
-!
-!!   ***************************************************************************
-
-    REAL(dp), DIMENSION(:,:), POINTER        :: ks_mol_block
-    TYPE(mol_mo_set_type), POINTER           :: mo_set
-    REAL(dp), DIMENSION(:,:), POINTER        :: ortho, aux_nxn
-    LOGICAL, INTENT(IN)                      :: do_level_shift
-    REAL(KIND=dp), INTENT(IN)                :: level_shift
-    LOGICAL, INTENT(INOUT)                   :: use_cholesky
-    LOGICAL, INTENT(IN)                      :: use_jacobi
-    REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = "fm_mol_eigensolver", &
-      routineP = moduleN//":"//routineN
-
-    INTEGER                                  :: handle, homo, info, imo, &
-                                                itype, istat, lfomo, liwork, lwork,&
-                                                mo_ncol, nao, nelectron, nmo
-    INTEGER, DIMENSION(:), POINTER           :: iwork
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: alpha, maxocc
-    REAL(dp), DIMENSION(:), POINTER          :: mo_eigenvalues,&
-                                                mo_occupation
-    REAL(dp), DIMENSION(:,:), POINTER        :: mo_coeff
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: work
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I"," ",handle)
-
-    failure = .FALSE.
-
-!   *** Diagonalise the Kohn-Sham matrix ***
-    NULLIFY (mo_coeff,mo_eigenvalues,mo_occupation)
-    CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
-                        eigenvalues = mo_eigenvalues,&
-                        occupation_numbers = mo_occupation,&
-                        nmo=mo_ncol)
-
-    nao = SIZE(ks_mol_block,1)
-
-    IF (do_level_shift) THEN
-       IF (use_cholesky) THEN
-          CALL stop_program("eigensolver","level shift not implemented")
-       ENDIF
-    ENDIF
-
-    IF (use_cholesky) THEN
-       ! Transform the generalized eigenvalue problem into a simple one
-       itype = 1
-       CALL DSYGST(itype,'U',nao,ks_mol_block(1,1),nao,ortho(1,1),nao,info)
-       CPPostcondition(info==0,cp_failure_level,routineP,error,failure)
-
-       IF (use_jacobi .OR. smear /= 0.0_dp) THEN
-         ! Find eigenvalues and eigenvectors
-         lwork=1+6*nao+2*nao**2+5000
-         liwork=5*nao+3
-         ALLOCATE(work(lwork),STAT=istat)
-         IF (istat.NE.0) CALL stop_memory("eigensolver","work",lwork*dp_size)
-         ALLOCATE(iwork(liwork),STAT=istat)
-         IF (istat.NE.0) CALL stop_memory("eigensolver","iwork",liwork*int_size)
-         CALL DSYEVD('V','U', nao, ks_mol_block(1,1), nao, mo_eigenvalues(1),&
-                     work(1), lwork, iwork(1), liwork, info)
-
-         !   *** Error handling ***
-         IF (info /= 0) CALL stop_program(routineP,"Error in dsyevd")
-
-         CALL DCOPY (nao*nao,ks_mol_block,1,aux_nxn,1)
-
-         ! Transform the UC coefficients into the C coefficients 
-         ! (U cholesky decomposition of the overlap matrix)
-         CALL fm_mol_cholesky_restore(aux_nxn,nmo,ortho,mo_coeff,"SOLVE")
-
-         IF (use_jacobi ) THEN
-           use_cholesky = .FALSE.
-           CALL dcopy(nao*nao,mo_coeff,1,ortho,1)
-         END IF
-       ELSE
-!          CALL cp_fm_syevx(ks,work,mo_eigenvalues,homo,work_syevx)
-!          CALL cp_fm_cholesky_restore(work,homo,ortho,mo_coeff,"SOLVE")
-       END IF
-!
-    ELSE IF (use_jacobi) THEN
-!
-!       CALL cp_fm_symm("L","U",nao,homo,1.0_dp,ks,mo_coeff,0.0_dp,work)
-!       CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-!            0.0_dp,ks,b_first_col=homo+1)
-!
-!!     epsi =1e-11
-!!     Anz_max=4
-!!     N=ks%matrix_struct%nrow_global
-!
-!!     *** Scale the elements with the inverse ***
-!!     *** difference of the old eigenvalues   ***
-!
-!!     CALL blacs_block_jacobi_scaled(ks,work,mo_eigenvalues,&
-!!                                    jacobi_threshold,homo+1)
-!
-!!     *** Klassisches Jacobi-Block-Verfrahren ***
-!!     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
-!
-!       CALL cp_fm_block_jacobi_classic(ks,mo_coeff,mo_eigenvalues,&
-!            jacobi_threshold,homo+1)
-!
-    ELSE
-
-!       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,ortho,0.0_dp,work)
-!       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ks)
-!
-!       IF (do_level_shift) THEN
-!          DO imo=homo+1,nmo
-!             ! now unnecessary broadcast of element
-!             CALL cp_fm_get_element(ks,imo,imo,alpha)
-!             alpha=alpha+level_shift
-!             CALL cp_fm_set_element(ks,imo,imo,alpha)
-!          END DO
-!       END IF
-!
-!       CALL cp_fm_syevx(ks,work,mo_eigenvalues,nmo,work_syevx)
-!
-!       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
-!            mo_coeff)
-!
-!       IF (do_level_shift) THEN
-!
-!          CALL correct_mo_eigenvalues(mo_set,level_shift)
-!
-!!     *** Use last MO set as orthogonalization matrix ***
-!
-!          CALL cp_fm_to_fm(mo_coeff,ortho)
-!
-!       END IF
-!
-    END IF
-
-    IF (smear /= 0.0_dp) THEN
-     CALL get_mol_mo_set(mo_set=mo_set,lfomo=lfomo,homo=homo,&
-                         maxocc=maxocc, nelectron=nelectron)
-     CALL set_mo_occupation(mo_occupation,mo_eigenvalues,&
-                          homo,lfomo,maxocc,nelectron,smear)
-!     CALL 
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE fm_mol_eigensolver
-
 !! *****************************************************************************
 !
 !!!****f* qs_scf/cp_sm_mix [1.0] *
@@ -1360,18 +1316,15 @@ CONTAINS
 !
 !   ---------------------------------------------------------------------------
 !
-!    NULLIFY(all_potential,atomic_kind, atomic_kind_set, mo_coeff, sv,&
-!            gth_potential, orb_basis_set, para_env, particle_set,&
-!            s_sparse,p_rmpv,scf_control, dft_control)
-
-    NULLIFY( atomic_kind_set, &
+    NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
             para_env, particle_set, &
-            matrix_s,matrix_p,scf_control, dft_control)
+            matrix_h, matrix_s,matrix_p, scf_control)
 
     CALL timeset(routineN,"I"," ",handle)
 
     CALL get_qs_env(qs_env,atomic_kind_set=atomic_kind_set,&
                     para_env=para_env, particle_set=particle_set, &
+                    matrix_h=matrix_h,&
                     matrix_s=matrix_s,&
                     scf_control=scf_control, id_nr=qs_env_id,&
                     dft_control=dft_control)
@@ -1475,32 +1428,40 @@ CONTAINS
                                          n_ao_kind*n_ao_kind*dp_size)
 
         DO imol = 1, nmol_local
-          NULLIFY(mol_block,mos)
+          NULLIFY(mol_block,mos,ortho,work)
           mol_block => fm_mol_blocks(imol)
           CALL get_fm_mol_block(fm_mol_block = mol_block,&
                                 ortho = ortho,&
                                 work = work,&
                                 mos = mos)
 
-          ! Copy the core hamiltonia of this molecule in the aux_matrix
+          ! Copy the core hamiltonian of this molecule in the aux_matrix
           CALL copy_sparse2mol_block(matrix_h(1)%matrix, mol_block,&
-                               aux_matrix, nat_mol, n_ao_kind,n_ao_kind, error)
-
+                               aux_matrix, nat_mol, n_ao_kind, n_ao_kind, error)
+  
+! dbg
+!     write(*,*) 'matrix_h',n_ao_kind,nat_mol
+!     do i =1,n_ao_kind
+!       write(*,'(I4,23f10.5)') i,aux_matrix(i,1:n_ao_kind) 
+!     end do
+! dbg
           DO ispin=1,nspin
             NULLIFY(mo_set,mo_coeff)
             mo_set => mos(ispin)%mo_set
 
             ! Diagonalize the core hamiltonian and copy the eigenvectors in mo_set 
-            CALL fm_mol_eigensolver(aux_matrix,mo_set,ortho,work,.FALSE.,0.0_dp,&
+            CALL fm_mol_eigensolver(aux_matrix,mo_set,ortho,work,n_ao_kind,&
+                                   .FALSE.,0.0_dp,&
                                     use_cholesky=scf_control%use_cholesky, &
                                     use_jacobi=.FALSE.,&
                                     jacobi_threshold=scf_control%jacobi_threshold,&
                                     smear=0.0_dp, error=error)
-!          IF (scf_control%level_shift /= 0.0_dp) THEN
-!             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-!                  mo_coeff=mo_coeff)
-!             CALL cp_fm_to_fm(mo_coeff,ortho)
-!          END IF
+
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+              CALL get_mol_mo_set(mo_set=mo_set,&
+                                  mo=mo_coeff)
+              CALL DCOPY(n_ao_kind*n_ao_kind,mo_coeff(1,1),1,ortho(1,1),1)
+            END IF
 
             CALL calculate_mol_density_matrix(mo_set,mol_block,&
                              nat_mol,matrix_p(ispin)%matrix,error=error)
@@ -1731,10 +1692,10 @@ CONTAINS
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
           CALL kgscf_first_density_matrix(kg_fm_mol_set,qs_env=qs_env,&
                globenv=globenv, error=error)
-stop ' after init P matrix'
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                error=error)
+stop ' after calc rho'
        END IF
     END IF
 

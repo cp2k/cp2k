@@ -152,6 +152,8 @@ OBJECTS_GENERIC =\
  k290.o\
  kg_core.o\
  kg_density.o\
+ kg_diis_methods.o\
+ kg_diis_types.o\
  kg_energy.o\
  kg_energy_types.o\
  kg_energy_utils.o\

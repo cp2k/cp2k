@@ -61,6 +61,7 @@ MODULE kg_environment
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -422,6 +423,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule_kind, istat, &
+                                                nelectron_global,&
                                                 nkind, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     LOGICAL                                  :: failure, nmo_eq_nao, use_ref_cell
@@ -566,6 +568,7 @@ CONTAINS
     added_mos(1:2) = scf_control%added_mos(1:2)
 
     CALL kg_fm_mol_set_create(kg_fm,nmolecule_kind,error=error)
+    nelectron_global = 0
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
@@ -573,9 +576,13 @@ CONTAINS
                               imolecule_kind,distribution_1d,&
                               molecule_set,particle_set,&
                               nspins,nmo_eq_nao,added_mos,&
-                              scf_control%use_cholesky)
+                              scf_control%use_cholesky,&
+                              nelectron_global)
     END DO
 
+    CALL mp_sum(nelectron_global, para_env%group)
+    kg_fm%nelectron_global = nelectron_global
+    kg_fm%nmolecule_global = SIZE(molecule_set,1)
     CALL set_kg_env(kg_env=kg_env,&
                     kg_fm_set=kg_fm,&
                     sub_qs_env=qs_env)

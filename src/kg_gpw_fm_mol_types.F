@@ -83,6 +83,7 @@ MODULE kg_gpw_fm_mol_types
        POINTER                                :: mos
     REAL(dp), DIMENSION(:,:),  POINTER        :: ortho
     REAL(dp), DIMENSION(:,:),  POINTER        :: work
+    INTEGER                                   :: imol_global
     INTEGER, DIMENSION(:), POINTER            :: index_atom
     INTEGER, DIMENSION(:), POINTER            :: index_kind
     INTEGER, DIMENSION(:), POINTER            :: ifirst_ao
@@ -93,7 +94,7 @@ MODULE kg_gpw_fm_mol_types
     INTEGER  :: multiplicity, &
                 n_ao, n_mo(2), natom, &
                 nelectron_spin(2),&
-                nmolecule_global,&
+                nmol_kind_global,&
                 nmolecule_local
     REAL(dp) :: maxocc
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
@@ -103,7 +104,7 @@ MODULE kg_gpw_fm_mol_types
   TYPE kg_fm_p_type
     TYPE(kg_fm_mol_set_type), DIMENSION(:),& 
        POINTER                                :: kg_fm_mol_set
-    INTEGER  :: ref_count
+    INTEGER  :: nelectron_global, nmolecule_global, ref_count
   END TYPE kg_fm_p_type
 
 ! *** Public subroutines ***
@@ -340,7 +341,7 @@ CONTAINS
         kg_fm%kg_fm_mol_set(i)%n_ao = 0
         kg_fm%kg_fm_mol_set(i)%n_mo = 0
         kg_fm%kg_fm_mol_set(i)%nelectron_spin = 0
-        kg_fm%kg_fm_mol_set(i)%nmolecule_global = 0
+        kg_fm%kg_fm_mol_set(i)%nmol_kind_global = 0
         kg_fm%kg_fm_mol_set(i)%nmolecule_local = 0
         NULLIFY(kg_fm%kg_fm_mol_set(i)%fm_mol_blocks)
       END DO
@@ -453,14 +454,14 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE get_kg_fm_mol_set(kg_fm_mol_set, nmolecule_global,&
+  SUBROUTINE get_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
                                nelectron_spin , maxocc, multiplicity,&
                                fm_mol_blocks)
 
     TYPE(kg_fm_mol_set_type), POINTER         :: kg_fm_mol_set
     INTEGER, INTENT(OUT), OPTIONAL            :: multiplicity,&
-                                                nmolecule_global,&
+                                                nmol_kind_global,&
                                                 nmolecule_local,&
                                                 natom, n_ao, n_mo(2),&
                                                 nelectron_spin(2)
@@ -470,7 +471,7 @@ CONTAINS
 
     IF(PRESENT(maxocc)) maxocc = kg_fm_mol_set%maxocc
     IF(PRESENT(multiplicity)) multiplicity =kg_fm_mol_set%multiplicity
-    IF(PRESENT(nmolecule_global)) nmolecule_global=kg_fm_mol_set%nmolecule_global
+    IF(PRESENT(nmol_kind_global)) nmol_kind_global=kg_fm_mol_set%nmol_kind_global
     IF(PRESENT(nmolecule_local)) nmolecule_local=kg_fm_mol_set%nmolecule_local
     IF(PRESENT(natom)) natom = kg_fm_mol_set%natom
     IF(PRESENT(n_ao)) n_ao = kg_fm_mol_set%n_ao
@@ -511,7 +512,7 @@ CONTAINS
 
 !***************************************************************************
 
-  SUBROUTINE set_kg_fm_mol_set(kg_fm_mol_set, nmolecule_global,&
+  SUBROUTINE set_kg_fm_mol_set(kg_fm_mol_set, nmol_kind_global,&
                                nmolecule_local, natom, n_ao, n_mo,&
                                nelectron_spin , maxocc, multiplicity,& 
                                fm_mol_blocks)
@@ -519,7 +520,7 @@ CONTAINS
     TYPE(kg_fm_mol_set_type), POINTER        :: kg_fm_mol_set
 
     INTEGER, INTENT(IN), OPTIONAL            :: multiplicity,&
-                                                nmolecule_global,&
+                                                nmol_kind_global,&
                                                 nmolecule_local,&
                                                 natom, n_ao, n_mo(2),&
                                                 nelectron_spin(2)
@@ -532,7 +533,7 @@ CONTAINS
 
     IF(PRESENT(maxocc)) kg_fm_mol_set%maxocc = maxocc
     IF(PRESENT(multiplicity)) kg_fm_mol_set%multiplicity = multiplicity
-    IF(PRESENT(nmolecule_global)) kg_fm_mol_set%nmolecule_global = nmolecule_global
+    IF(PRESENT(nmol_kind_global)) kg_fm_mol_set%nmol_kind_global = nmol_kind_global
     IF(PRESENT(nmolecule_local)) kg_fm_mol_set%nmolecule_local = nmolecule_local
     IF(PRESENT(natom)) kg_fm_mol_set%natom = natom
     IF(PRESENT(n_ao)) kg_fm_mol_set%n_ao = n_ao
