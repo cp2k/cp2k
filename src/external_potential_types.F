@@ -1495,11 +1495,11 @@ CONTAINS
       IF (potential%nalpha_ppl>0) THEN
         DO I=1,potential%nalpha_ppl
            r=sqrt(1.0_dp/(2.0_dp*potential%alpha_ppl(i)))
-           WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,6F12.6)")&
+           WRITE (UNIT=output_unit,FMT="(/,T12,A,/,/,T8,A,/,T8,6F12.6)")&
            "Parameters of the local pseudopotential:",&
-           "alpha     rloc        C1          C2          C3          C4",&
+           "alpha       rloc        C1          C2          C3          C4",&
            potential%alpha_ppl(i), r, &
-           (potential%cexp_ppl(i,j)*r**(2*(i-1)),j=1,potential%nexp_ppl(i))
+           (potential%cexp_ppl(i,j)*r**(2*(j-1)),j=1,potential%nexp_ppl(i))
         END DO
       END IF
 
