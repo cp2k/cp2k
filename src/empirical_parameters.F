@@ -70,19 +70,20 @@ CONTAINS
   TYPE (empirical_parameter_type), POINTER, DIMENSION (:) :: read_ep
 
 
+  natom_types = SIZE ( atom_names )
   iw = globenv % scr
   icount = 0
   nkind = 0
 
-  ALLOCATE (read_ep(size(ki)), stat = ios)
+  ALLOCATE (read_ep(natom_types), stat = ios)
   IF (ios /= 0 ) CALL stop_memory &
-       ( 'read_empirical_parameters', 'read_ep', nkind )
+       ( 'read_empirical_parameters', 'read_ep', natom_types )
+  ALLOCATE (element_symbol(natom_types), stat = ios)
+  IF (ios /= 0 ) CALL stop_memory &
+       ( 'read_emporical_parameters', 'elementsymbol', natom_types )
   ALLOCATE (empparm(size(ki)), stat = ios)
   IF (ios /= 0 ) CALL stop_memory &
        ( 'read_empirical_parameters', 'empparm', nkind )
-  ALLOCATE (element_symbol(size(ki)), stat = ios)
-  IF (ios /= 0 ) CALL stop_memory &
-       ( 'read_emporical_parameters', 'elementsymbol', nkind )
   
 
 !..parse the input section
@@ -99,7 +100,6 @@ CONTAINS
      DO WHILE (test_next()/='X')
         ilen = 8
         CALL cfield(string,ilen)
-        natom_types = SIZE ( atom_names )
         iat = str_search(atom_names,natom_types,string)
         nkind = nkind + 1
 
@@ -158,7 +158,7 @@ CONTAINS
   DO i = 1, nkind
   
      aname = ki(i)% element_symbol
-     iat = str_search(element_symbol,nkind,aname)
+     iat = str_search(element_symbol,natom_types,aname)
 
      empparm (i) % aname = aname
      nset = read_ep(iat)% nset
