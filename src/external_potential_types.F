@@ -642,31 +642,14 @@ CONTAINS
       IF (PRESENT(zeff)) zeff = potential%zeff
       IF (PRESENT(ppl_present)) ppl_present = (potential%nexp_ppl > 0)
       IF (PRESENT(ppnl_present)) ppnl_present = (potential%nppnl > 0)
-
-!     IF (PRESENT(alpha_ppnl)) alpha_ppnl => potential%alpha_ppnl
-      IF (PRESENT(alpha_ppnl) .AND. ASSOCIATED(potential%alpha_ppnl)) &
-                  alpha_ppnl => potential%alpha_ppnl
-
+      IF (PRESENT(alpha_ppnl)) alpha_ppnl => potential%alpha_ppnl
       IF (PRESENT(cexp_ppl)) cexp_ppl => potential%cexp_ppl
       IF (PRESENT(all_elec_conf)) all_elec_conf => potential%all_elec_conf
       IF (PRESENT(elec_conf)) elec_conf => potential%elec_conf
-
-!     IF (PRESENT(nprj_ppnl)) nprj_ppnl => potential%nprj_ppnl
-      IF (PRESENT(nprj_ppnl) .AND. ASSOCIATED(potential%nprj_ppnl)) &
-                  nprj_ppnl => potential%nprj_ppnl
-
-!     IF (PRESENT(cprj)) cprj => potential%cprj
-      IF (PRESENT(cprj) .AND. ASSOCIATED(potential%cprj)) &
-                  cprj => potential%cprj
-
-!     IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
-      IF (PRESENT(cprj_ppnl) .AND. ASSOCIATED(potential%cprj_ppnl)) &
-                  cprj_ppnl => potential%cprj_ppnl
-
-!     IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
-      IF (PRESENT(vprj_ppnl) .AND. ASSOCIATED(potential%vprj_ppnl)) &
-                  vprj_ppnl => potential%vprj_ppnl
-
+      IF (PRESENT(nprj_ppnl)) nprj_ppnl => potential%nprj_ppnl
+      IF (PRESENT(cprj)) cprj => potential%cprj
+      IF (PRESENT(cprj_ppnl)) cprj_ppnl => potential%cprj_ppnl
+      IF (PRESENT(vprj_ppnl)) vprj_ppnl => potential%vprj_ppnl
       IF (PRESENT(hprj_ppnl)) hprj_ppnl => potential%hprj_ppnl
 
     ELSE
