@@ -22,11 +22,12 @@ MODULE qs_tddfpt_module
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
-  USE qs_tddfpt_eigensolver,           ONLY: tddfpt_es
+  USE qs_tddfpt_eigensolver,           ONLY: eigensolver
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
   USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
                                              tddfpt_init,&
                                              tddfpt_write_banner
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -85,7 +86,9 @@ CONTAINS
     qs_env%dft_control%tddfpt_control%n_ev = 1
     qs_env%dft_control%tddfpt_control%n_reortho = 2
     qs_env%dft_control%tddfpt_control%do_kernel = .TRUE.
+    qs_env%dft_control%tddfpt_control%invert_S = .FALSE.
     qs_env%dft_control%tddfpt_control%restricted_excitations_type = "SINGLET"
+    qs_env%dft_control%tddfpt_control%diag_method = "DAVIDSON"
     qs_env%dft_control%tddfpt_control%xc_control = qs_env%dft_control%xc_control
 
     CALL read_tddfpt_control(qs_env%dft_control%tddfpt_control, glob_env)
@@ -96,7 +99,7 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env, glob_env)
 
-    CALL tddfpt_es(t_env, p_env, qs_env, glob_env)
+    CALL eigensolver(t_env, p_env, qs_env, glob_env)
 
     CALL tddfpt_cleanup(t_env, p_env, glob_env)
 

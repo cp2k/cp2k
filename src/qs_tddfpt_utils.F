@@ -21,7 +21,8 @@
 
 MODULE qs_tddfpt_utils
 
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale, &
+                                             cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
@@ -31,7 +32,8 @@ MODULE qs_tddfpt_utils
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_to_fm
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
@@ -74,7 +76,10 @@ MODULE qs_tddfpt_utils
             tddfpt_env_init, &
             calc_initial_guess, &
             calc_norm, &
-            reorthogonalize
+            davidson_initial_guess, &
+            normalize, &
+            reorthogonalize, &
+            dot_prod
 
 CONTAINS
 
@@ -186,15 +191,17 @@ CONTAINS
 ! -------------------------------------------------------------------
 
     n_spins = qs_env%dft_control%nspins
-
-    !-------------------------------------------------------!
-    ! Compute the inverse of S using cholesky factorization !
-    !-------------------------------------------------------!
-    DO spin=1, n_spins
-       CALL copy_sm_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
-       CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
-       CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
-    END DO
+    
+    IF (qs_env%dft_control%tddfpt_control%invert_S) THEN
+       !-------------------------------------------------------!
+       ! Compute the inverse of S using cholesky factorization !
+       !-------------------------------------------------------!
+       DO spin=1, n_spins
+          CALL copy_sm_to_fm(qs_env%s(spin)%matrix, t_env%invS(spin)%matrix)
+          CALL cp_fm_cholesky_decompose(t_env%invS(spin)%matrix)
+          CALL cp_fm_cholesky_invert(t_env%invS(spin)%matrix)
+       END DO
+    END IF
 
   END SUBROUTINE tddfpt_env_init
 
@@ -399,65 +406,201 @@ CONTAINS
 
 ! *****************************************************************************
 
+  SUBROUTINE davidson_initial_guess(matrices, n_v, qs_env, p_env, energies)
+
+
+    TYPE(cp_fm_p_type), DIMENSION(:,:),pointer :: matrices
+    INTEGER, INTENT(IN)                      :: n_v ! number of vectors to initialize
+    TYPE(qs_environment_type), INTENT(IN), &
+      TARGET                                 :: qs_env
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    REAL(kind=DBL), DIMENSION(:, 0:), &
+      INTENT(OUT)                            :: energies
+
+    CHARACTER(len=*), PARAMETER :: routineN = "davidson_initial_guess", &
+      routineP = moduleN//"/"//routineN
+
+    INTEGER                                  :: i, j, n_cols, n_lumos, &
+                                                n_orbits, n_rows, n_spins, &
+                                                spin, stat, oo, vo
+    REAL(KIND=DBL)                           :: scale_factor, evd
+    REAL(KIND=DBL), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: lumos, guess
+    REAL(KIND=DBL), DIMENSION(:), POINTER    :: orbital_eigenvalues
+    TYPE(simple_solution_sorter), POINTER    :: sorter_iterator, &
+                                                sorter_pointer, sorter_start
+    TYPE(tddfpt_control_type), POINTER       :: tddfpt_control
+
+    tddfpt_control => qs_env%dft_control%tddfpt_control
+    n_spins = qs_env%dft_control%nspins
+    energies = 0.0_dbl
+
+    DO spin=1, n_spins
+
+       n_cols = matrices(1,spin)%matrix%matrix_struct%ncol_global
+       n_rows = matrices(1,spin)%matrix%matrix_struct%nrow_global
+       
+       DO i=1, n_v
+          CALL cp_fm_set_all(matrices(i,spin)%matrix, 0.0_dbl)
+       END DO
+
+       IF (ASSOCIATED(tddfpt_control%lumos)) THEN       
+
+          CALL get_mo_set(qs_env%C(spin)%mo_set, eigenvalues=orbital_eigenvalues)
+
+          n_lumos = tddfpt_control%lumos(spin)%matrix%matrix_struct%ncol_global
+
+          n_orbits = SIZE(orbital_eigenvalues)
+
+          !-----------------------------------------!
+          ! create a SORTED list of initial guesses !
+          !-----------------------------------------!
+          ! first element
+          evd = tddfpt_control%lumos_eigenvalues(1,spin)-orbital_eigenvalues(n_orbits)
+          ALLOCATE(sorter_start)
+          sorter_start%orbit=n_orbits
+          sorter_start%lumo=1
+          sorter_start%value=evd
+          NULLIFY(sorter_start%next)
+          ! rest of the elements
+          DO oo=n_orbits, 1, -1
+             DO vo=1, n_lumos
+
+                IF (oo==n_orbits .AND. vo==1) CYCLE ! already in list
+
+                evd = tddfpt_control%lumos_eigenvalues(vo,spin)-orbital_eigenvalues(oo)
+
+                sorter_iterator => sorter_start
+                NULLIFY(sorter_pointer)
+                DO WHILE (ASSOCIATED(sorter_iterator%next))
+                   IF (sorter_iterator%next%value > evd) THEN
+                      sorter_pointer => sorter_iterator%next
+                      EXIT
+                   END IF
+                   sorter_iterator => sorter_iterator%next
+                END DO
+
+                ALLOCATE(sorter_iterator%next)
+                sorter_iterator%next%orbit = oo
+                sorter_iterator%next%lumo  = vo
+                sorter_iterator%next%value = evd
+                sorter_iterator%next%next  => sorter_pointer
+
+             END DO
+          END DO
+
+          ALLOCATE(lumos(n_rows, n_lumos), guess(n_rows, n_orbits), stat=stat)
+          CALL cp_fm_get_submatrix(tddfpt_control%lumos(spin)%matrix, lumos, &
+                                   start_col=1, n_cols=n_lumos)
+
+          !-------------------!
+          ! fill the matrices !
+          !-------------------!
+          sorter_iterator=>sorter_start
+          DO i=1, MIN(n_v,n_orbits*n_lumos)
+             CALL dcopy(n_rows*n_orbits, 0.0_dbl, 0, guess, 1)
+             CALL dcopy(n_rows, lumos(:,sorter_iterator%lumo), 1, &
+                                guess(:,sorter_iterator%orbit),1)
+             CALL cp_fm_set_submatrix(matrices(i,spin)%matrix, &
+                                      guess(:,1:n_orbits))
+             energies(i,0) = sorter_iterator%value
+             sorter_iterator=>sorter_iterator%next
+          END DO
+          IF (n_v > n_orbits*n_lumos) THEN
+             DO i=n_orbits*n_lumos+1, n_v
+                CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
+                energies(i,0)=9.999E99_dbl
+             END DO
+          END IF
+
+
+          !--------------!
+          ! some cleanup !
+          !--------------!
+          DEALLOCATE(lumos, guess)
+          sorter_iterator=>sorter_start
+          DO WHILE(ASSOCIATED(sorter_iterator))
+             sorter_pointer=>sorter_iterator
+             sorter_iterator=>sorter_iterator%next
+             DEALLOCATE(sorter_pointer)
+          END DO
+          
+       ELSE
+
+          DO i=1, n_v
+             CALL cp_fm_init_random(matrices(i,spin)%matrix, n_orbits)
+             energies(i,0)=9.999E99_dbl
+          END DO
+
+       END IF
+
+    END DO
+
+  END SUBROUTINE davidson_initial_guess
+
+! *****************************************************************************
+  
+  SUBROUTINE normalize(X, tmp_vec, metric, glob_env)
+
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: metric
+    TYPE(global_environment_type)            :: glob_env
+
+    INTEGER                                  :: n_spins, spin
+    REAL(KIND=dbl)                           :: norm, tmp
+
+    n_spins = SIZE(x)
+    norm = 0.0_dbl
+    DO spin=1, n_spins
+       tmp = 0.0_dbl
+       CALL cp_sm_fm_multiply(metric(spin)%matrix, X(spin)%matrix, &
+                              tmp_vec(spin)%matrix, &
+                              X(spin)%matrix%matrix_struct%ncol_global, &
+                              glob_env%para_env, 1.0_dbl, 0.0_dbl)
+       CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
+       norm = norm + tmp
+    END DO
+    norm = SQRT(norm)
+    DO spin=1, n_spins
+       CALL cp_fm_scale((1.0_dbl/norm), x(spin)%matrix)
+    END DO
+
+  END SUBROUTINE normalize
+
+! *****************************************************************************
+  
   !---------------------------------------!
   ! x must not be changed in this routine !
   ! tmp_vec may be changed                !
   !---------------------------------------!
-  SUBROUTINE calc_norm(norm, x, tmp_vec, qs_env, glob_env)
+  SUBROUTINE calc_norm(norm, X, metric, tmp_vec, glob_env)
 
 
-    REAL(KIND=dbl), INTENT(OUT)              :: norm
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: x, tmp_vec
-    TYPE(qs_environment_type)                :: qs_env
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: x, tmp_vec
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: metric
     TYPE(global_environment_type)            :: glob_env
+    REAL(KIND=dbl), INTENT(OUT)              :: norm
 
-    INTEGER                                  :: n_spins, spin
-    REAL(KIND=dbl)                           :: spin_norm
+    INTEGER :: spin
 
-    n_spins = SIZE(x)
-
-    !-------------------------!
-    ! calc beta=transp(X)*S*X !
-    !-------------------------!
-    norm = 0.0_dbl
-    DO spin=1, n_spins
-       CALL cp_sm_fm_multiply(qs_env%S(spin)%matrix, x(spin)%matrix, &
-            tmp_vec(spin)%matrix, &
-            x(spin)%matrix%matrix_struct%ncol_global, &
-            glob_env%para_env, 1.0_dbl, 0.0_dbl)
-       CALL cp_fm_trace(tmp_vec(spin)%matrix, x(spin)%matrix, spin_norm)
-       norm = norm + spin_norm
-    END DO
+    CALL dot_prod(norm, X, X, metric, tmp_vec, glob_env)
+    norm = SQRT(norm)
 
   END SUBROUTINE calc_norm
 
 ! *****************************************************************************
 
-  ! X        : the vector to reorthogonalize
-  ! kv       : set of vectors to which to reorthogonalize
-  ! S        : metric of the vectorspaceA
-  ! tmp_mat    : temporary matrix
-  ! j        : up to which vector of kv to reorthogonalize
-  ! glob_env : for communication
+  SUBROUTINE reorthogonalize(X, V_set, SV_set, n)
 
-  SUBROUTINE reorthogonalize(X, kv, S, tmp_mat, j, glob_env)
-
-
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: X
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: kv
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: S
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: tmp_mat
-    INTEGER, INTENT(IN)                      :: j
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: glob_env
+    TYPE(cp_fm_p_type), DIMENSION(:)         :: X
+    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: V_set
+    TYPE(cp_fm_p_type), DIMENSION(:, :)      :: SV_set
+    INTEGER, INTENT(IN)                      :: n
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "reorthogonalize", &
-      routineP = moduleN//"/"//routineN
+                                   routineP = moduleN//"/"//routineN
 
     INTEGER                                  :: i, n_spins, spin, time_handle
     REAL(DBL)                                :: dot_product, tmp
@@ -466,27 +609,51 @@ CONTAINS
 
     n_spins = SIZE(X)
 
-    IF (j > 1) THEN
-       DO i=1, j
-          dot_product = 0.0_dbl
-          DO spin=1, n_spins
-             CALL cp_sm_fm_multiply(S(spin)%matrix, X(spin)%matrix, &
-                                    tmp_mat(spin)%matrix, &
-                                    X(spin)%matrix%matrix_struct%ncol_global, &
-                                    glob_env%para_env, 1.0_dbl, 0.0_dbl)
-             CALL cp_fm_trace(tmp_mat(spin)%matrix, kv(i,spin)%matrix, tmp)
-             dot_product = dot_product + tmp
-          END DO
-          DO spin=1, n_spins
-             CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
-                                      -1.0_dbl*dot_product, kv(i,spin)%matrix)
-          END DO
+    DO i=1, n
+       dot_product = 0.0_dbl
+       DO spin=1, n_spins
+          CALL cp_fm_trace(X(spin)%matrix, SV_set(i,spin)%matrix, tmp)
+          dot_product = dot_product + tmp
        END DO
-    END IF
+       DO spin=1, n_spins
+          CALL cp_fm_scale_and_add(1.0_dbl, X(spin)%matrix, &
+                                   -1.0_dbl*dot_product, V_set(i,spin)%matrix)
+       END DO
+    END DO
 
     CALL timestop(0.0_dbl, time_handle)
 
   END SUBROUTINE reorthogonalize
+
+! *****************************************************************************
+
+  SUBROUTINE dot_prod(res, X, Y, metric, tmp_vec, glob_env) 
+
+    REAL(KIND=dbl), INTENT(OUT)      :: res
+    TYPE(cp_fm_p_type), DIMENSION(:) :: X, Y, tmp_vec
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+         POINTER                     :: metric
+    TYPE(global_environment_type)    :: glob_env
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "dot_prod", &
+                                   routineP = moduleN//"/"//routineN
+
+    INTEGER                          :: spin, n_spins
+    REAL(KIND=dbl)                   :: tmp
+
+    n_spins = SIZE(X)
+    res = 0.0_dbl
+    DO spin=1, n_spins
+       tmp = 0.0_dbl
+       CALL cp_sm_fm_multiply(metric(spin)%matrix, Y(spin)%matrix, &
+                              tmp_vec(spin)%matrix, &
+                              Y(spin)%matrix%matrix_struct%ncol_global, &
+                              glob_env%para_env, 1.0_dbl, 0.0_dbl)
+       CALL cp_fm_trace(X(spin)%matrix, tmp_vec(spin)%matrix, tmp)
+       res = res + tmp
+    END DO
+
+  END SUBROUTINE dot_prod
 
 ! *****************************************************************************
 
