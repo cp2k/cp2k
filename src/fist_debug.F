@@ -171,7 +171,19 @@ SUBROUTINE  debug_control ( force_env, globenv )
   ALLOCATE ( dbg % f_torsion ( 3, natoms ), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
   ALLOCATE ( dbg % f_imptors ( 3, natoms ), STAT = isos )
-  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_torsion", 3 * natoms )
+  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_imptors", 3 * natoms )
+  ALLOCATE ( dbg % f_ub ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_ub", 3 * natoms )
+  ALLOCATE ( dbg % f_onef ( 3, natoms ), STAT = isos )
+  IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
+  
+   dbg % f_onef = 0._dbl
+   dbg % f_ub = 0._dbl
+   dbg % f_imptors = 0._dbl
+   dbg % f_torsion = 0._dbl
+   dbg % f_bond= 0._dbl
+   dbg % f_bend= 0._dbl
+   dbg % f_g= 0._dbl
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &

@@ -54,23 +54,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, length,  &
-                                   tau_nhc, mass, eps0, l_power, part, box, &
-                                   ff_nonbonded, bond_k, bond_r0, bend_k, torsion_a0, &
-                                   torsion_a1, torsion_a2, torsion_a3 )
+                                   tau_nhc, mass, angle, eps0, l_power, part, box, &
+                                   energy, ff_nonbonded )
 
 
     CHARACTER(len=*), INTENT(IN), OPTIONAL   :: unit_char
     REAL(dbl), INTENT(INOUT), OPTIONAL       :: time, temperature, pressure, &
-                                                length, tau_nhc, mass, eps0
+                                                length, tau_nhc, mass, eps0, energy,angle
     INTEGER, INTENT(IN), OPTIONAL            :: l_power
     TYPE(particle_type), INTENT(INOUT), &
       OPTIONAL                               :: part( : )
     TYPE(cell_type), INTENT(INOUT), OPTIONAL :: box
     TYPE(pair_potential_type), &
       POINTER,   OPTIONAL                    :: ff_nonbonded ( : )
-    REAL ( dbl ), DIMENSION ( : ), OPTIONAL  :: bond_k, bend_k, bond_r0, &
-                                                torsion_a0, torsion_a1, &
-                                                torsion_a2, torsion_a3
     INTEGER                                  :: i, ll
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -85,6 +81,12 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   IF ( PRESENT ( box ) ) THEN
    IF ( box % unit_of_length_name == 'ANGSTROMS' ) &
    box % hmat = box % hmat * units % angstrom
+  ENDIF
+
+  IF ( PRESENT ( angle ) ) THEN
+! convert time
+     IF ( unit_char == 'DEGREE' ) &
+     angle = angle * units % degree
   ENDIF
 
   IF ( PRESENT ( time ) ) THEN
@@ -173,45 +175,14 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   END IF
 
 ! converting bond, bends and torsion and constraint parameters
-  IF ( PRESENT ( bond_k ) .AND. PRESENT ( bond_r0 ) ) THEN
+  IF ( PRESENT ( energy ) ) THEN
      IF ( unit_char == 'KCAL' ) THEN
-       bond_r0 = bond_r0 * units % angstrom
-       bond_k =  bond_k * units%kcal/units%angstrom/units%angstrom
+       energy  = energy * units%kcal
      ELSEIF ( unit_char == 'KELVIN' ) THEN
-       bond_r0 = bond_r0 * units%angstrom
-       bond_k =  bond_k * units%kelvin/units%angstrom/units%angstrom
+       energy  = energy * units%kelvin
      ENDIF
   END IF
 
-  IF ( PRESENT ( bend_k ) ) THEN
-     IF ( unit_char == 'KCAL' ) THEN
-       bend_k = bend_k * units % kcal
-     ELSEIF ( unit_char == 'KELVIN' ) THEN
-       bend_k = bend_k * units%kelvin
-     ENDIF
-  END IF
-
-  IF ( PRESENT ( torsion_a0 ) .AND. PRESENT ( torsion_a1 ) &
-       .AND. PRESENT ( torsion_a2 ) .AND. PRESENT ( torsion_a3 ) ) THEN
-     IF ( unit_char == 'KCAL' ) THEN
-        torsion_a0 = torsion_a0 * units%kcal
-        torsion_a1 = torsion_a1 * units%kcal
-        torsion_a2 = torsion_a2 * units%kcal
-        torsion_a3 = torsion_a3 * units%kcal
-     ELSEIF ( unit_char == 'KELVIN' ) THEN
-        torsion_a0 = torsion_a0 * units%kelvin
-        torsion_a1 = torsion_a1 * units%kelvin
-        torsion_a2 = torsion_a2 * units%kelvin
-        torsion_a3 = torsion_a3 * units%kelvin
-     ENDIF
-  END IF
-
-!    IF ( ASSOCIATED ( intra_param % constraint_distance ) ) THEN
-!       IF ( ( unit_char == 'KELVIN' ) .OR. ( unit_char == 'KCAL' ) ) &
-!       intra_param % constraint_distance ( : ) =  &
-!       intra_param % constraint_distance ( : ) * units%angstrom
-!    END IF
-!  ENDIF
 
 END SUBROUTINE convert_to_cp2k_units
 

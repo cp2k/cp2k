@@ -60,7 +60,7 @@ MODULE force_field_types
   TYPE torsion_kind_type
     CHARACTER(LEN=default_string_length) :: name
     INTEGER                        :: m
-    REAL(KIND = dp)                :: k,phi0
+    REAL(KIND = dp)                :: k,cosphi0
     REAL(KIND = dp), DIMENSION ( 0:3 ) :: a
     INTEGER                        :: kind_number
   END TYPE torsion_kind_type
@@ -99,7 +99,8 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL (dbl), POINTER                            :: torsion_k(:)
-    REAL (dbl), POINTER                            :: torsion_phi0(:)
+    REAL (dbl), POINTER                            :: torsion_m(:)
+    REAL (dbl), POINTER                            :: torsion_cosphi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
@@ -132,7 +133,8 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL (dbl), POINTER                            :: torsion_k(:)
-    REAL (dbl), POINTER                            :: torsion_phi0(:)
+    INTEGER, POINTER                               :: torsion_m(:)
+    REAL (dbl), POINTER                            :: torsion_cosphi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
@@ -279,7 +281,8 @@ CONTAINS
     DO ikind=1,nkind
       torsion_kind_set(ikind)%name = ""
       torsion_kind_set(ikind)%k = 0.0_dp
-      torsion_kind_set(ikind)%phi0 = 0.0_dp
+      torsion_kind_set(ikind)%m = 0
+      torsion_kind_set(ikind)%cosphi0 = 0.0_dp
       torsion_kind_set(ikind)%kind_number = ikind
     END DO
 
@@ -462,7 +465,8 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%inp_info%torsion_c)
   NULLIFY(ff_type%inp_info%torsion_d)
   NULLIFY(ff_type%inp_info%torsion_k)
-  NULLIFY(ff_type%inp_info%torsion_phi0)
+  NULLIFY(ff_type%inp_info%torsion_m)
+  NULLIFY(ff_type%inp_info%torsion_cosphi0)
   NULLIFY(ff_type%inp_info%impr_a)
   NULLIFY(ff_type%inp_info%impr_b)
   NULLIFY(ff_type%inp_info%impr_c)
@@ -498,7 +502,8 @@ SUBROUTINE init_ff_type (ff_type)
   NULLIFY(ff_type%chm_info%torsion_c)
   NULLIFY(ff_type%chm_info%torsion_d)
   NULLIFY(ff_type%chm_info%torsion_k)
-  NULLIFY(ff_type%chm_info%torsion_phi0)
+  NULLIFY(ff_type%chm_info%torsion_m)
+  NULLIFY(ff_type%chm_info%torsion_cosphi0)
   NULLIFY(ff_type%chm_info%impr_a)
   NULLIFY(ff_type%chm_info%impr_b)
   NULLIFY(ff_type%chm_info%impr_c)
@@ -641,9 +646,13 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%inp_info%torsion_k,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_k')
   END IF
-  IF(ASSOCIATED(ff_type%inp_info%torsion_phi0)) THEN
-    DEALLOCATE(ff_type%inp_info%torsion_phi0,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_phi0')
+  IF(ASSOCIATED(ff_type%inp_info%torsion_m)) THEN
+    DEALLOCATE(ff_type%inp_info%torsion_m,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_m')
+  END IF
+  IF(ASSOCIATED(ff_type%inp_info%torsion_cosphi0)) THEN
+    DEALLOCATE(ff_type%inp_info%torsion_cosphi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_cosphi0')
   END IF
   IF(ASSOCIATED(ff_type%inp_info%impr_a)) THEN
     DEALLOCATE(ff_type%inp_info%impr_a,STAT=istat)
@@ -767,9 +776,13 @@ SUBROUTINE deallocate_ff_type (ff_type)
     DEALLOCATE(ff_type%chm_info%torsion_k,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_k')
   END IF
-  IF(ASSOCIATED(ff_type%chm_info%torsion_phi0)) THEN
-    DEALLOCATE(ff_type%chm_info%torsion_phi0,STAT=istat)
-    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_phi0')
+  IF(ASSOCIATED(ff_type%chm_info%torsion_m)) THEN
+    DEALLOCATE(ff_type%chm_info%torsion_m,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_m')
+  END IF
+  IF(ASSOCIATED(ff_type%chm_info%torsion_cosphi0)) THEN
+    DEALLOCATE(ff_type%chm_info%torsion_cosphi0,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_ff_type','torsion_cosphi0')
   END IF
   IF(ASSOCIATED(ff_type%chm_info%impr_a)) THEN
     DEALLOCATE(ff_type%chm_info%impr_a,STAT=istat)

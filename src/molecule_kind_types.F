@@ -86,7 +86,7 @@ MODULE molecule_kind_types
 
   TYPE onfo_type
     TYPE(onfo_kind_type), POINTER :: onfo_kind
-    INTEGER :: a,b,c,d
+    INTEGER :: a,b
   END TYPE onfo_type
 
   TYPE dist_constraint_type

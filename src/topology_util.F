@@ -1243,7 +1243,7 @@ END SUBROUTINE topology_generate_dihe
 !!   SYNOPSIS
 !!
 !!   FUNCTION
-!!     Using a list of torsion, generate a list of impro
+!!     Using a list of bends, generate a list of impr
 !!
 !!   AUTHOR
 !!
@@ -1261,11 +1261,17 @@ SUBROUTINE topology_generate_impr(topology,globenv)
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
 
+    TYPE(atom_info_type),POINTER             :: atom_info
     TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    INTEGER                                  :: iphi, nphi
+    INTEGER                                  :: iatom, natom
+    INTEGER                                  :: ibond, nbond
+    INTEGER                                  :: nimpr
     LOGICAL                                  :: PM1, PM2, PM3, PM4
-    INTEGER                                  :: iw
+    INTEGER                                  :: iw,istat
+
+    INTEGER                                  :: counter,atm_num(3)
+    INTEGER, DIMENSION(:), POINTER           :: checkme
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1285,20 +1291,52 @@ SUBROUTINE topology_generate_impr(topology,globenv)
 
   IF(PM1) WRITE(iw,*) "    Entering topology_generate_impr"
 
+  atom_info => topology%atom_info
   conn_info => topology%conn_info
 
-  nphi = SIZE(conn_info%phi_a)
-  CALL reallocate(conn_info%impr_a,1,nphi)
-  CALL reallocate(conn_info%impr_b,1,nphi)
-  CALL reallocate(conn_info%impr_c,1,nphi)
-  CALL reallocate(conn_info%impr_d,1,nphi)
+  natom  = SIZE(atom_info%label_atmname)
+  nbond = SIZE(conn_info%bond_a)
+  nimpr  = 0
+
+  CALL reallocate(conn_info%impr_a,1,nimpr)
+  CALL reallocate(conn_info%impr_b,1,nimpr)
+  CALL reallocate(conn_info%impr_c,1,nimpr)
+  CALL reallocate(conn_info%impr_d,1,nimpr)
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  DO iphi=1,nphi
-    conn_info%impr_a(iphi) = conn_info%phi_a(iphi)
-    conn_info%impr_b(iphi) = conn_info%phi_b(iphi)
-    conn_info%impr_c(iphi) = conn_info%phi_c(iphi)
-    conn_info%impr_d(iphi) = conn_info%phi_d(iphi)
+  DO iatom=1,natom
+    NULLIFY(checkme)
+    counter=0
+    DO ibond=1,nbond
+      IF(iatom==conn_info%bond_a(ibond)) THEN
+        counter=counter+1
+        CALL reallocate(checkme,1,counter)
+        checkme(counter)=conn_info%bond_b(ibond)
+      END IF
+      IF(iatom==conn_info%bond_b(ibond)) THEN
+        counter=counter+1
+        CALL reallocate(checkme,1,counter)
+        checkme(counter)=conn_info%bond_a(ibond)
+      END IF
+    END DO
+
+    IF(counter==3) THEN
+      nimpr=nimpr+1
+      CALL reallocate(conn_info%impr_a,1,nimpr)
+      CALL reallocate(conn_info%impr_b,1,nimpr)
+      CALL reallocate(conn_info%impr_c,1,nimpr)
+      CALL reallocate(conn_info%impr_d,1,nimpr)
+      conn_info%impr_a(nimpr) = iatom
+      conn_info%impr_b(nimpr) = checkme(1)
+      conn_info%impr_c(nimpr) = checkme(2)
+      conn_info%impr_d(nimpr) = checkme(3)
+    END IF
+
+    IF(counter/=0) THEN 
+      DEALLOCATE(checkme,STAT=istat)
+      IF(istat/=0) CALL stop_memory('topology_generate_impr','checkme')
+    END IF
   END DO
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1783,7 +1821,7 @@ SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
         checkme(j) = 1
       END IF
     END DO
-    IF(PM2) WRITE(iw,*) "    Total number Urey-Bradley for molecule type ",SUM(checkme)
+    IF(PM2) WRITE(iw,*) "    Total number UB for molecule type ",SUM(checkme)
     ALLOCATE(ub_list(SUM(checkme)),STAT=istat)
     IF(istat/=0) CALL stop_memory('connectivity_pack','ub_list',SUM(checkme))
     counter=0

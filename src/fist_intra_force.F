@@ -99,7 +99,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                               pv_urey_bradley, pv_imp_torsion, &
                                               pv_onef
   REAL(dbl), DIMENSION(:, :), &
-    INTENT(OUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
+    INTENT(INOUT), OPTIONAL                  :: f_bond, f_bend, f_torsion, f_ub, f_imptor, f_onef
  
   INTEGER                                  :: handle, ibend, ibond, ionef, imol, &
                                              itorsion, nkind, index_a,&
@@ -111,7 +111,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                              energy, fscalar, id12, id32, &
                                              is32, iw1, iw2, s32, theta, &
                                              w1, w2, sn, sm, ism, isn, rab2
-  REAL(dbl), DIMENSION(3)                  :: b13, b12, b32, g1, g2, g3, gt1, &
+  REAL(dbl), DIMENSION(3)                  :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
                                                 t43, u1, u2, t34, tn, tm
                                           
@@ -200,7 +200,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                       + rij * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -rij * fscalar, b13 * fscalar, &
+        CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_urey_bradley )
@@ -281,7 +281,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list ( itorsion ) % torsion_kind % a, &
                             torsion_list ( itorsion ) % torsion_kind % k, &
-                            torsion_list ( itorsion ) % torsion_kind % phi0, &
+                            torsion_list ( itorsion ) % torsion_kind % cosphi0, &
                             torsion_list ( itorsion ) % torsion_kind % m, &
                             torsion_list ( itorsion ) % torsion_kind % name, &
                             gt1,gt2,gt3,gt4,energy,fscalar)

@@ -135,14 +135,14 @@ END SUBROUTINE force_bends
 !******************************************************************************
 
 SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
-           a, k, phi0, m, type, gt1, gt2, gt3, gt4, energy, fscalar )
+           a, k, cosphi0, m, type, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
     REAL(dbl), INTENT(IN)                                    :: is32, dist1, dist2
     REAL(dbl), DIMENSION(:), INTENT(IN)                      :: u1, u2
     REAL(dbl), INTENT(IN)                                    :: iw1, iw2
     REAL(dbl), DIMENSION(0:3), INTENT(IN)                    :: a
-    REAL(dbl), INTENT(IN)                                    :: k, phi0
+    REAL(dbl), INTENT(IN)                                    :: k, cosphi0
     INTEGER, INTENT(IN)                                      :: m
     CHARACTER ( len = default_string_length ), INTENT ( IN ) :: type
     REAL(dbl), DIMENSION(:), INTENT(OUT)                     :: gt1, gt2, gt3, gt4
@@ -157,7 +157,7 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
 
 ! compute energy
   SELECT CASE ( type )
-  CASE ( "TRIG" )
+  CASE ( "CHARMM" )
      SELECT CASE ( m )
        CASE ( 0 )
          trig = 1._dbl
@@ -189,10 +189,10 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
          fscalar = 192._dbl * cosphi * cosphi * cosphi * cosphi  * cosphi -  &
                    192._dbl * cosphi * cosphi * cosphi + 36._dbl * cosphi
      END SELECT 
-     energy = k * ( 1._dbl + cos ( phi0 ) * trig )
+     energy = k * ( 1._dbl + cosphi0 * trig )
 
 ! compute fscalar
-     fscalar = -fscalar * cos ( phi0 ) * k
+     fscalar = -fscalar * cosphi0 * k
   CASE ( "POWER" )
      energy = a(0) + a(1) + 2._dbl * a(2) + a(3) &
            + ( a(1) - 3._dbl * a(3) ) * cosphi &
@@ -245,6 +245,8 @@ SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t32,
 ! define cosphi
 
   cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
+  IF(cosphi > 1.0_dbl) cosphi = 1.0_dbl
+  IF(cosphi < -1.0_dbl) cosphi = -1.0_dbl
   phi = acos ( cosphi )
 ! compute energy
   energy = 0.5_dbl * k * ( phi - phi0 ) * ( phi - phi0 ) 

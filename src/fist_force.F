@@ -100,7 +100,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE ( virial_type ), POINTER :: virial
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   LOGICAL, INTENT ( IN ) :: box_change
-  TYPE ( debug_variables_type ), INTENT ( OUT ), OPTIONAL :: debug
+  TYPE ( debug_variables_type ), INTENT ( INOUT ), OPTIONAL :: debug
 
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
@@ -269,7 +269,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
                       pot_torsion, pot_imptors, pot_onef, pv_bond, pv_bend, &
                       pv_urey_bradley, pv_torsion, pv_imptors, pv_onef,    &
                       debug % f_bond, debug % f_bend, debug % f_torsion,  &
-                      debug % f_imptors, debug % f_ub, debug % f_onef )
+                      debug % f_ub, debug % f_imptors, debug % f_onef )
   ELSE
      CALL force_intra_control ( molecule_set, molecule_kind_set, local_molecules, &
                                particle_set, pot_bond, pot_bend, pot_urey_bradley, &

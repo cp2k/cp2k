@@ -32,11 +32,13 @@ MODULE cp2k_units
                                              massunit,&
                                              permittivity,&
                                              wavenum
+  USE mathconstants,                   ONLY: twopi
+
   PRIVATE
 
   TYPE unit_convert_type
  !    PRIVATE  later
-     REAL ( dbl ) :: mass, fs, kcal, kelvin, bar, wavenum, angstrom, eps0
+     REAL ( dbl ) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, eps0
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -71,6 +73,8 @@ CONTAINS
 
 SUBROUTINE init_cp2k_units ()
 
+  IMPLICIT NONE
+
   units % temp_label = '[K]'
   units % pres_label = '[bar]'
   units % angl_label = '[deg]'
@@ -90,6 +94,8 @@ SUBROUTINE init_cp2k_units ()
   units % kelvin = boltzmann / joule
 ! angstrom to length AU
   units % angstrom = bohr
+! degrees to radians
+  units % degree = twopi / 360.0_dbl
 ! bar to pressure AU
   units % bar = joule / ( a_bohr ** 3 * 1.0E+05_dbl )
 ! permittivity to AU

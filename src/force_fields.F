@@ -65,7 +65,7 @@ MODULE force_fields
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
-  USE mathconstants,                   ONLY: pi
+  USE mathconstants,                   ONLY: pi, twopi
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
                                              atom_type,&
@@ -1104,7 +1104,7 @@ SUBROUTINE input_torsions(ff_type,globenv)
                  CALL reallocate(inp_info%torsion_c,1,i)
                  CALL reallocate(inp_info%torsion_d,1,i)
                  CALL reallocate(inp_info%torsion_k,1,i)
-                 CALL reallocate(inp_info%torsion_phi0,1,i)
+                 CALL reallocate(inp_info%torsion_cosphi0,1,i)
 
                  ilen = default_string_length
                  CALL get_next ( inp_info%torsion_a(i), ilen )
@@ -1112,7 +1112,7 @@ SUBROUTINE input_torsions(ff_type,globenv)
                  CALL get_next ( inp_info%torsion_c(i), ilen )
                  CALL get_next ( inp_info%torsion_d(i), ilen )
                  CALL get_next ( inp_info%torsion_k(i) )
-                 CALL get_next ( inp_info%torsion_phi0(i) )
+                 CALL get_next ( inp_info%torsion_cosphi0(i) )
               !   CALL convert_to_cp2k_units ( "KELVIN",  &
               !                     torsion_a0 = inp_info%torsion_a ( i ), &
               !                     torsion_a1 = inp_info%torsion_b ( i ), &
@@ -1219,13 +1219,15 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%bond_b(nbond))," ",&
                            chm_info%bond_k(nbond),&
                            chm_info%bond_r0(nbond)
+       CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
+       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
        CALL read_line
      END DO
   END IF
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. Read in all the Bends info from the param file here
+  ! 2. Read in all the Bends and UB info from the param file here
   !-----------------------------------------------------------------------------
   nbend = 0
   label = 'ANGLES'
@@ -1245,9 +1247,17 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL reallocate(chm_info%bend_c,1,nbend)
        CALL reallocate(chm_info%bend_k,1,nbend)
        CALL reallocate(chm_info%bend_theta0,1,nbend)
+       CALL reallocate(chm_info%ub_a,1,nbend)
+       CALL reallocate(chm_info%ub_b,1,nbend)
+       CALL reallocate(chm_info%ub_c,1,nbend)
+       CALL reallocate(chm_info%ub_k,1,nbend)
+       CALL reallocate(chm_info%ub_r0,1,nbend)
        chm_info%bend_a(nbend) = string
        chm_info%bend_b(nbend) = string2
        chm_info%bend_c(nbend) = string3
+       chm_info%ub_a(nbend) = string
+       chm_info%ub_b(nbend) = string2
+       chm_info%ub_c(nbend) = string3
        CALL get_next(chm_info%bend_k(nbend))
        CALL get_next(chm_info%bend_theta0(nbend))
        IF(PM2) WRITE(iw,*) "    CHM BEND ",nbend,&
@@ -1256,6 +1266,23 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%bend_c(nbend))," ",&
                            chm_info%bend_k(nbend),&
                            chm_info%bend_theta0(nbend)
+       CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
+       CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
+       IF (test_next()=='C') THEN
+         CALL get_next(chm_info%ub_k(nbend))
+         CALL get_next(chm_info%ub_r0(nbend))
+         IF(PM2) WRITE(iw,*) "    CHM UB ",nbend,&
+                             TRIM(chm_info%ub_a(nbend))," ",&
+                             TRIM(chm_info%ub_b(nbend))," ",&
+                             TRIM(chm_info%ub_c(nbend))," ",&
+                             chm_info%ub_k(nbend),&
+                             chm_info%ub_r0(nbend)
+         CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nbend))
+         CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nbend))
+       ELSE
+         chm_info%ub_k  = 0.0_dbl
+         chm_info%ub_r0 = 0.0_dbl
+       END IF
        CALL read_line
      END DO
   END IF
@@ -1284,20 +1311,28 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
        CALL reallocate(chm_info%torsion_c,1,ntorsion)
        CALL reallocate(chm_info%torsion_d,1,ntorsion)
        CALL reallocate(chm_info%torsion_k,1,ntorsion)
-       CALL reallocate(chm_info%torsion_phi0,1,ntorsion)
+       CALL reallocate(chm_info%torsion_m,1,ntorsion)
+       CALL reallocate(chm_info%torsion_cosphi0,1,ntorsion)
        chm_info%torsion_a(ntorsion) = string
        chm_info%torsion_b(ntorsion) = string2
        chm_info%torsion_c(ntorsion) = string3
        chm_info%torsion_d(ntorsion) = string4
        CALL get_next(chm_info%torsion_k(ntorsion))
-       CALL get_next(chm_info%torsion_phi0(ntorsion))
+       CALL get_next(chm_info%torsion_m(ntorsion))
+       CALL get_next(chm_info%torsion_cosphi0(ntorsion))
        IF(PM2) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
                            TRIM(chm_info%torsion_a(ntorsion))," ",&
                            TRIM(chm_info%torsion_b(ntorsion))," ",&
                            TRIM(chm_info%torsion_c(ntorsion))," ",&
                            TRIM(chm_info%torsion_d(ntorsion))," ",&
                            chm_info%torsion_k(ntorsion),&
-                           chm_info%torsion_phi0(ntorsion)
+                           chm_info%torsion_m(ntorsion),&
+                           chm_info%torsion_cosphi0(ntorsion)
+       CALL convert_to_cp2k_units("DEGREE",&
+                                  angle=chm_info%torsion_cosphi0(ntorsion))
+       CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
+       chm_info%torsion_cosphi0(ntorsion)=&
+                                  COS(chm_info%torsion_cosphi0(ntorsion))
        CALL read_line
      END DO
   END IF
@@ -1340,6 +1375,8 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            TRIM(chm_info%impr_d(nimpr))," ",&
                            chm_info%impr_k(nimpr),&
                            chm_info%impr_phi0(nimpr)
+       CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
+       CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
        CALL read_line
      END DO
   END IF
@@ -1382,6 +1419,14 @@ SUBROUTINE read_force_field_charmm ( ff_type , globenv )
                            chm_info%nonbond_rmin2(nnonbond),&
                            chm_info%nonbond_eps_14(nnonbond),&
                            chm_info%nonbond_rmin2_14(nnonbond)
+       CALL convert_to_cp2k_units("ANGSTROM",&
+                                  length=chm_info%nonbond_rmin2(nnonbond))
+       CALL convert_to_cp2k_units("ANGSTROM",&
+                                  length=chm_info%nonbond_rmin2_14(nnonbond))
+       CALL convert_to_cp2k_units("KCAL",&
+                                  energy=chm_info%nonbond_eps(nnonbond))
+       CALL convert_to_cp2k_units("KCAL",&
+                                  energy=chm_info%nonbond_eps_14(nnonbond))
        CALL read_line
      END DO
   END IF
@@ -1518,8 +1563,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(atomic_kind_type), POINTER        :: atomic_kind
   TYPE(molecule_kind_type), POINTER      :: molecule_kind
 
-  INTEGER                                  :: natom,nbond,nbend,nub,ntorsion,nonfo,nimpr
-  INTEGER                                  :: atm_a,atm_b,atm_c,atm_d
+  INTEGER                                :: natom,nbond,nbend,nub,ntorsion,&
+                                            nonfo,nimpr
+  INTEGER                                :: atm_a,atm_b,atm_c,atm_d
   CHARACTER(LEN=default_string_length)   :: name_atm_a,name_atm_b
   CHARACTER(LEN=default_string_length)   :: name_atm_c,name_atm_d
   CHARACTER(LEN=default_string_length)   :: name_atm_a2,name_atm_b2
@@ -1549,13 +1595,14 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   REAL(dbl)                                :: rmin,epsilon
   INTEGER                                  :: ii, jj
 
-    CHARACTER(LEN=default_string_length)     :: atmname
-    REAL(dbl), DIMENSION(:), POINTER         :: charge
-    TYPE(elp_potential_type), POINTER        :: elp_potential
+  CHARACTER(LEN=default_string_length)     :: atmname
+  REAL(dbl), DIMENSION(:), POINTER         :: charge
+  TYPE(elp_potential_type), POINTER        :: elp_potential
 
   NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
-       torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,map_torsion_kind,&
-       bond_kind_set, bend_kind_set, ub_kind_set, onfo_kind_set, impr_kind_set,torsion_kind_set)
+       torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
+       map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
+       onfo_kind_set,impr_kind_set,torsion_kind_set)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -1961,12 +2008,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       DO j=1,nonfo
         name_atm_a = ''
         name_atm_b = ''
-        name_atm_c = ''
-        name_atm_d = ''
         name_atm_a2 = ''
         name_atm_b2 = ''
-        name_atm_c2 = ''
-        name_atm_d2 = ''
         atm_a = onfo_list(j)%a
         atomic_kind => atom_list(atm_a)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -1975,14 +2018,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         atomic_kind => atom_list(atm_b)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
                              name=name_atm_b)
-        atm_c = onfo_list(j)%c
-        atomic_kind => atom_list(atm_c)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_c)
-        atm_d = onfo_list(j)%d
-        atomic_kind => atom_list(atm_d)%atomic_kind
-        CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                             name=name_atm_d)
         found = .FALSE.
         DO k=1,j-1
           atm_a = onfo_list(k)%a
@@ -1993,22 +2028,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
           atomic_kind => atom_list(atm_b)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                name=name_atm_b2)
-          atm_c = onfo_list(k)%c
-          atomic_kind => atom_list(atm_c)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               name=name_atm_c2)
-          atm_d = onfo_list(k)%d
-          atomic_kind => atom_list(atm_d)%atomic_kind
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               name=name_atm_d2)
           IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-               (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-               (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-               (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-              ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-               (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-               (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-               (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+               (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
+              ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
+               (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
             found = .TRUE.
             map_onfo_kind(j) = map_onfo_kind(k)
             EXIT
@@ -2342,7 +2365,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 !              (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
 !              (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
 !           torsion_list(j)%torsion_kind%k      = chm_info%torsion_k(k)
-!           torsion_list(j)%torsion_kind%phi0 = chm_info%torsion_phi0(k)
+!           torsion_list(j)%torsion_kind%phi0 = chm_info%torsion_cosphi0(k)
 !           IF(found .AND. PM1) &
 !              WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
 !           found = .TRUE.
@@ -2362,8 +2385,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
+            torsion_list(j)%torsion_kind%name   = "CHARMM"
             torsion_list(j)%torsion_kind%k      = chm_info%torsion_k(k)
-            torsion_list(j)%torsion_kind%phi0 = chm_info%torsion_phi0(k)
+            torsion_list(j)%torsion_kind%m      = chm_info%torsion_m(k)
+            torsion_list(j)%torsion_kind%cosphi0 = chm_info%torsion_cosphi0(k)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
             found = .TRUE.
@@ -2384,7 +2409,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
             torsion_list(j)%torsion_kind%k      = inp_info%torsion_k(k)
-            torsion_list(j)%torsion_kind%phi0 = inp_info%torsion_phi0(k)
+            torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
             IF(found .AND. PM1) &
                WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
             found = .TRUE.
@@ -2471,7 +2496,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             impr_list(j)%impr_kind%k      = chm_info%impr_k(k)
             impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
             IF(found .AND. PM1) &
-               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+               WRITE(iw,*) "    Multiple Improper declarations: overwriting"
             found = .TRUE.
             EXIT
           END IF
@@ -2492,7 +2517,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             impr_list(j)%impr_kind%k      = inp_info%impr_k(k)
             impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
             IF(found .AND. PM1) &
-               WRITE(iw,*) "    Multiple Torsion declarations: overwriting"
+               WRITE(iw,*) "    Multiple Improper declarations: overwriting"
             found = .TRUE.
             EXIT
           END IF
@@ -2500,12 +2525,15 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        IF(PM1) WRITE(iw,*) "    Torsion ",j," : ",&
+        IF(PM2) WRITE(iw,*) "    IMPR ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)," ",&
                             TRIM(name_atm_c)," ",&
                             TRIM(name_atm_d)
-        CALL stop_program("FF_pack","missing impr parm")
+        !FIXME FIXME FIXME FIXME
+        impr_list(j)%impr_kind%k      = 0.0_dbl
+        impr_list(j)%impr_kind%phi0   = 0.0_dbl
+        !CALL stop_program("FF_pack","missing impr parm")
 
       END IF
     END DO
@@ -2551,17 +2579,19 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
         IF(ii/=0 .AND. jj/=0) THEN
 
+          ! FIXME FIXME FIXME FIXME FIXME
           rmin = chm_info%nonbond_rmin2_14(ii)+chm_info%nonbond_rmin2_14(jj)
-          !epsilon = sqrt(chm_info%nonbond_eps_14(ii)+&
-          !               chm_info%nonbond_eps_14(jj))
-          epsilon = 1.0_dbl
-          potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
-          potparm_nonbond(i,j)%at1        = name_atm_a
-          potparm_nonbond(i,j)%at2        = name_atm_b
-          potparm_nonbond(i,j)%lj%epsilon = epsilon
-          potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
-          potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          potparm_nonbond(i,j)%rcutsq     = 1.0_dbl
+          epsilon = sqrt(chm_info%nonbond_eps_14(ii)*&
+                         chm_info%nonbond_eps_14(jj))
+          potparm_bond(i,j)%type       = 'LENNARD-JONES'
+          potparm_bond(i,j)%at1        = name_atm_a
+          potparm_bond(i,j)%at2        = name_atm_b
+          potparm_bond(i,j)%lj%epsilon = epsilon
+          potparm_bond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
+          potparm_bond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
+          ! FIXME FIXME FIXME FIXME FIXME
+          potparm_bond(i,j)%rcutsq     = 100.0_dbl
+          ! FIXME FIXME FIXME FIXME FIXME
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
@@ -2600,7 +2630,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         potparm_bond(i,j)%lj%epsilon = 0.0_dbl
         potparm_bond(i,j)%lj%sigma6  = 0.0_dbl
         potparm_bond(i,j)%lj%sigma12 = 0.0_dbl
-        potparm_bond(i,j)%rcutsq     = 1.0_dbl
+        potparm_bond(i,j)%rcutsq     = 100.0_dbl
       END IF
 
     END DO
@@ -2679,10 +2709,12 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       END IF
 
       IF(.NOT.found) THEN
-        IF(PM1) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
+        IF(PM2) WRITE(iw,*) "    ONE-FOUR ",j," : ",&
                             TRIM(name_atm_a)," ",&
                             TRIM(name_atm_b)
-        CALL stop_program("FF_pack","missing onfo parm")
+        !!!! FIXME FIXME FIXME FIXME FIXME
+        !CALL stop_program("FF_pack","missing onfo parm")
+        !!!! FIXME FIXME FIXME FIXME FIXME
 
       END IF
     END DO
@@ -2765,7 +2797,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 12. Set spline_nonbond_env
+  ! 15. Set spline_nonbond_env
   !-----------------------------------------------------------------------------
   ALLOCATE(potparm_nonbond(SIZE(atomic_kind_set),&
                            SIZE(atomic_kind_set)),STAT=istat)
@@ -2801,16 +2833,15 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
         IF(ii/=0 .AND. jj/=0) THEN
 
           rmin = chm_info%nonbond_rmin2(ii)+chm_info%nonbond_rmin2(jj)
-          !epsilon = sqrt(chm_info%nonbond_eps(ii)+&
-          !               chm_info%nonbond_eps(jj))
-          epsilon = 1.0_dbl
+          epsilon = sqrt(chm_info%nonbond_eps(ii)*&
+                         chm_info%nonbond_eps(jj))
           potparm_nonbond(i,j)%type       = 'LENNARD-JONES'
           potparm_nonbond(i,j)%at1        = name_atm_a
           potparm_nonbond(i,j)%at2        = name_atm_b
           potparm_nonbond(i,j)%lj%epsilon = epsilon
           potparm_nonbond(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
           potparm_nonbond(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-          potparm_nonbond(i,j)%rcutsq     = 1.0_dbl
+          potparm_nonbond(i,j)%rcutsq     = 625.0_dbl
 
           IF(found .AND. PM1) &
              WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
