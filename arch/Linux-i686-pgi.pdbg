@@ -5,11 +5,12 @@ FC       = mpif90 -Mfree
 FC_fixed = mpif90 -Mfixed
 LD       = mpif90
 AR       = ar -r
-DFLAGS   = -D__PGI -D__FFTSG -D__parallel
-CPPFLAGS = -C $(DFLAGS) -P -traditional 
+DFLAGS   = -D__PGI -D__FFTSG -D__parallel -D__SCALAPACK -D__BLACS \
+           -DFD_DEBUG -DFD_LONG_EXPANSIONS
+CPPFLAGS = -C $(DFLAGS) -traditional 
 FCFLAGS  = $(DFLAGS) -Mbounds -g
 LDFLAGS  = $(FCFLAGS)
-LIBS     = -lscalapack -lpblas -ltools -lblacsF77init -lblacs -lblacsF77init\
-           -llapack -lf77blas -latlas
+LIBS     = -lscalapack_linux -lmpiblacs_f77init_linux -lmpiblacs_linux \
+           -lmpiblacs_f77init_linux -llapack -lblas -L/home/fawzi/lib
 
 OBJECTS_ARCHITECTURE = machine_pgi.o
