@@ -863,15 +863,16 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   END DO
 
 !------------------------------------------------------------------------------
-  DEALLOCATE(tbond_a)
+  DEALLOCATE(tbond_a,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
-  DEALLOCATE(tbond_b)
+  DEALLOCATE(tbond_b,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_b')
-  DEALLOCATE(atm_symbol)
+  DEALLOCATE(atm_symbol,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol')
-  DEALLOCATE(covalent_radius)
+  DEALLOCATE(covalent_radius,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius')
-
+  DEALLOCATE(vdw_radius,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','vdw_radius')
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bond"
 
