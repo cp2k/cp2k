@@ -517,15 +517,15 @@ CONTAINS
       id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
-    DO ispin=1,SIZE(matrix_s)
+    DO ispin=1,SIZE(matrix_p)
       id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
-    DO ispin=1,SIZE(matrix_s)
+    DO ispin=1,SIZE(matrix_h)
       id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
-    DO ispin=1,SIZE(matrix_s)
+    DO ispin=1,SIZE(matrix_ks)
       id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
       CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     ENDDO
