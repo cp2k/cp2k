@@ -127,6 +127,7 @@ CONTAINS
       struc % molecule => rep_env % molecule
       struc % pimd_env => rep_env % pimd_env
     ENDIF
+
     IF ( PRESENT ( kg_env ) ) THEN 
       struc % pnode => kg_env % pnode
       struc % part => kg_env % part
@@ -134,8 +135,6 @@ CONTAINS
       struc % coef_pos => kg_env % coef_pos
       struc % coef_vel => kg_env % coef_vel
       struc % coef_force => kg_env % coef_force
-    ENDIF
-    IF ( PRESENT ( qs_env ) ) THEN 
     ENDIF
 
 !   ---------------------------------------------------------------------------

@@ -677,8 +677,9 @@ SUBROUTINE nve ( md_env )
 !
 ! get new forces
 !
+
   CALL force ( glob_env, box_change )
-  
+
 !
 ! second half of velocity verlet
 !

@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE qs_md
+
   USE atoms_input,                     ONLY: set_particle_properties
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cntl_input,                      ONLY: read_cntl_section
@@ -125,6 +126,7 @@ CONTAINS
     TYPE(particle_prop_type), DIMENSION(:), POINTER      :: pstat
     TYPE(particle_type), DIMENSION(:), POINTER           :: particle_set
     TYPE(structure_type), DIMENSION(:), POINTER          :: struc
+    TYPE(virial_type), POINTER                           :: virial
     REAL(wp), POINTER                                    :: constant
     INTEGER, POINTER                                     :: itimes
 
@@ -145,6 +147,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"simpar",0)
     ALLOCATE (struc(1),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"struc",0)
+    ALLOCATE (virial,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"virial",0)
+    CALL zero_virial(virial)
 
     CALL read_cntl_section(setup,globenv)
 
@@ -199,11 +204,18 @@ CONTAINS
 
     CALL set_force_env(qs_env_type=qs_env)
 
+    ALLOCATE (struc(1),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"struc",0)
+    CALL init_structure_type(struc(1))
+    struc(1)%pnode => pnode
+    struc(1)%part => particle_set
+
     CALL init_md_env(md_env)
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&
                     struc=struc,&
+                    virial=virial,&
                     nhc_part=extended_type%nhc_part,&
                     nhc_baro=extended_type%nhc_baro,&
                     npt=extended_type%npt_info,&
@@ -222,9 +234,8 @@ CONTAINS
     CALL qs_forces(qs_env,globenv)
 
     DO itimes=1,md_env%simpar%nsteps
-PRINT*,"Step: :",itimes," of ",md_env%simpar%nsteps
+      print*,"Step: :",itimes," of ",md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
-
     END DO
 
     CALL timestop(0.0_wp,handle)
