@@ -48,6 +48,7 @@ OBJECTS_GENERIC =\
  cp_output_handling.o\
  cp_sll_int_ptr_tests.o\
  cp_sll_int_tests.o\
+ cp_sparse_matrix.o\
  cs1_functional.o\
  cube_utils.o\
  densities.o\
@@ -146,12 +147,12 @@ OBJECTS_GENERIC =\
  pao_env_methods.o\
  pao_glob_angles_methods.o\
  pao_l_angles_methods.o\
- pao_matrix_methods.o\
  pao_obj_function.o\
  pao_plain_rot.o\
  pao_plain_rot_tests.o\
  pao_proj_methods.o\
  pao_projection.o\
+ pao_qs_env_methods.o\
  pao_read_section.o\
  pao_types.o\
  pao_types_tests.o\
@@ -250,4 +251,3 @@ OBJECTS_GENERIC =\
  xalpha_functional.o\
  xc.o
 
-#  cp_sparse_matrix.o\
