@@ -1,0 +1,87 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      pyridine
+ IOLEVEL      10
+ FFTLIB       FFTSG
+ RUN_TYPE     MD
+&END
+
+&SETUP
+  cell
+    parameter 10.000  0.000   0.000 &
+              0.000  10.000   0.000 &
+              0.000  0.000   10.000
+  end cell
+&END
+
+&MD
+ ensemble:     nve                     (nve,nvt,npt_i,npt_f)
+ steps:        5
+ timestep:     0.1 fs                  time step [fs]
+ temperature:  300.0                   temperature [K]
+ restart:      init                    start type (pos,posvel)
+ constraints:  off
+ shake:        1.0E-10
+ verlet_skin:  1 angstroms
+ nose_parameter & 
+  length:    3        &
+  Yoshida:   3        &
+  timecon:   100.0 fs &
+  mts:       2
+&END  
+
+&DFT
+ FUNCTIONAL   Pade
+&END
+
+&QS
+ CUTOFF       200
+&END
+
+&SCF
+ GUESS        ATOMIC
+&END
+
+&PRINT low
+ LOCALIZATION
+ MOLECULAR_STATES
+&END
+
+&KIND H
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&KIND O
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&KIND N
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&KIND C
+ BASIS_SET    DZVP-GTH-PADE
+ POTENTIAL    GTH
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          10.0  10.0  10.0
+&END
+
+&COORD "M,A,X,Y,Z"
+  PYRI N  0.000000  0.000000  1.412741
+  PYRI C  0.000000  0.000000 -1.379003
+  PYRI C  0.000000  1.138967  0.719513
+  PYRI C  0.000000 -1.138967  0.719513
+  PYRI C  0.000000  1.193378 -0.669793
+  PYRI C  0.000000 -1.193378 -0.669793
+  PYRI H  0.000000  0.000000 -2.461129
+  PYRI H  0.000000  2.053434  1.302620
+  PYRI H  0.000000 -2.053434  1.302620
+  PYRI H  0.000000  2.148072 -1.177959
+  PYRI H  0.000000 -2.148072 -1.177959
+&END
