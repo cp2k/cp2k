@@ -964,7 +964,7 @@ END SUBROUTINE set_integrator
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          work(:,iparticle) = particle_set(iparticle)%v(:) +&
+          particle_set (iparticle)%v(:) = particle_set(iparticle)%v(:) +&
                               dm*particle_set(iparticle)%f(:)
         END DO
       END DO
@@ -972,6 +972,16 @@ END SUBROUTINE set_integrator
       IF (simpar%constraint) CALL rattle_control(local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
                                                  simpar)
+! copy to work
+      DO iparticle_kind=1,nparticle_kind
+        atomic_kind => atomic_kind_set(iparticle_kind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+        nparticle_local = local_particles%n_el(iparticle_kind)
+        DO iparticle_local=1,nparticle_local
+          iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+          work(:,iparticle) = particle_set(iparticle)%v(:)
+        END DO
+      END DO
 
 !     *** Broadcast the new particle velocities ***
 

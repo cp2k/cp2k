@@ -146,7 +146,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
   CALL pw_pool_init_coeff ( pw_small_pool, rhos2, &
                             use_data = REALDATA3D )
 
-  CALL rs_grid_setup ( rden, grid_b, MAXVAL ( grid_s % npts ) )
+  CALL rs_grid_setup ( rden, grid_b, -MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( rden )
   rden % r = 0._dbl
 
@@ -222,7 +222,7 @@ SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set,&
 
 !--------END OF STRESS TENSOR CALCULATION -----------
 
-  CALL rs_grid_setup ( drpot, grid_b , MAXVAL ( grid_s % npts ) )
+  CALL rs_grid_setup ( drpot, grid_b , -MAXVAL ( grid_s % npts ) )
   CALL rs_grid_allocate ( drpot ( 1 : 3 ) )
 
   DO i = 1, 3

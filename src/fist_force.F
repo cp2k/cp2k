@@ -223,16 +223,19 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
+        fg_coulomb = 0._dbl
         CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
                             fg_coulomb, vg_coulomb, pv_g )
-        
+        CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( "SPME" )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=isos )
         IF ( isos /= 0 ) &
         CALL stop_memory ( 'fist_force', 'fg_coulomb', 3 * natoms )
+        fg_coulomb = 0._dbl
         CALL spme_evaluate ( ewald_env, ewald_pw, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g)
+        CALL mp_sum ( fg_coulomb, globenv % group ) 
         
      CASE DEFAULT
         CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
@@ -267,15 +270,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 !
   IF ( ewald_type == 'NONE' ) THEN
      thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion
-#if defined ( __parallel )
      CALL mp_sum ( thermo % pot, globenv % group )
-#endif
   ELSE
      thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion 
      thermo % e_gspace = vg_coulomb
-#if defined ( __parallel )
      CALL mp_sum ( thermo % pot,globenv % group )
-#endif
 ! e_self, e_neut, and ebonded are already summed over all processors
 ! vg_coulomb is not calculated in parallel
      thermo % pot = thermo % pot + thermo % e_self + thermo % e_neut/cell % deth
@@ -289,6 +288,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! global sum in the parallel code and in the end copy them back to part
   ALLOCATE ( f_total ( 3,natoms ), STAT=isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'fist_force', 'f_total', 3 * natoms )
+  f_total = 0._dbl
   DO i = 1, natoms
      f_total ( 1, i ) = particle_set ( i ) % f ( 1 ) + f_nonbond ( 1, i )
      f_total ( 2, i ) = particle_set ( i ) % f ( 2 ) + f_nonbond ( 2, i )
@@ -309,9 +309,9 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
            END DO
         END DO
      CASE ( "PME" )
-        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
+!        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
      CASE ( "SPME" )
-        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
+!        f_total ( :, : ) = f_total ( :, : ) + fg_coulomb ( :, : )
      CASE DEFAULT
         CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
                              ewald_type )
@@ -321,9 +321,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! add up all the pressure tensors
   IF ( ewald_type == 'NONE' ) THEN
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion
-#if defined ( __parallel )
      CALL mp_sum ( virial % pv_virial, globenv % group )
-#endif
   ELSE
      ident = 0.0_dbl
      DO i = 1, 3
@@ -331,9 +329,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      END DO
 
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + pv_torsion + pv_bc
-#if defined ( __parallel )
      CALL mp_sum ( virial % pv_virial, globenv % group )
-#endif
 
      virial % pv_virial = virial % pv_virial + &
                                    ident * thermo % e_neut / cell % deth
@@ -363,15 +359,26 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      END IF
   END IF
 
-#if defined ( __parallel )
   CALL mp_sum ( f_total, globenv % group )
-#endif
 
-  DO i = 1, natoms
-    particle_set ( i ) % f ( 1 ) = f_total ( 1, i )
-    particle_set ( i ) % f ( 2 ) = f_total ( 2, i )
-    particle_set ( i ) % f ( 3 ) = f_total ( 3, i )
-  END DO
+  SELECT CASE ( ewald_type )
+  CASE ( "SPME", "PME" )
+    DO i = 1, natoms
+      particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) + fg_coulomb ( 1, i )
+      particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) + fg_coulomb ( 2, i )
+      particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) + fg_coulomb ( 3, i )
+     ! WRITE ( *, * ) "FORCE", i, SNGL ( particle_set ( i ) % f )
+    END DO
+  CASE ( "EWALD", "NONE" )
+    DO i = 1, natoms
+      particle_set ( i ) % f ( 1 ) = f_total ( 1, i ) 
+      particle_set ( i ) % f ( 2 ) = f_total ( 2, i ) 
+      particle_set ( i ) % f ( 3 ) = f_total ( 3, i ) 
+    END DO
+  CASE DEFAULT
+    CALL stop_program ( "fist_force", "illegal value of ewald_type: "//&
+                         ewald_type )
+  END SELECT
 
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN

@@ -848,8 +848,8 @@ SUBROUTINE initialize_velocities ( simpar, part, mdpar )
      END DO
 
 ! Moving the velocities so that the COM velocity is zero
-     vcom = vcom / denom
      akin = 0.0_dbl
+     vcom_new = 0.0_dbl
      DO i = 1, natoms
         atomic_kind => part ( i ) % atomic_kind
         CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )

@@ -1252,9 +1252,9 @@ SUBROUTINE rattle_3x3( molecule, particle_set, simpar)
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
      fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
          lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
-     particle_set ( index_a ) % v = particle_set ( index_a ) % v * dtby2 * fc1
-     particle_set ( index_b ) % v = particle_set ( index_b ) % v * dtby2 * fc2
-     particle_set ( index_c ) % v = particle_set ( index_c ) % v * dtby2 * fc3
+     particle_set ( index_a ) % v = particle_set ( index_a ) % v + imass1 * dtby2 * fc1
+     particle_set ( index_b ) % v = particle_set ( index_b ) % v + imass2 * dtby2 * fc2
+     particle_set ( index_c ) % v = particle_set ( index_c ) % v + imass3 * dtby2 * fc3
   END DO
 
 END SUBROUTINE rattle_3x3
