@@ -6,24 +6,22 @@
  RUN_TYPE     MC
 &END
 
-
-&MOLECULE
-&END
-
-&PRINT 0
+&PRINT silent
 &END
 
 &MC
-  program:      NVT                        (NVT)
-  nstep:        2
-  lstop:        no                         (yes or no)
-  rmion:        0.1                        (a.u.)
-  rmtrans:      0.1                        (a.u.)
-  rmrot:        0.3                        (radians)
+  program:      traditional                        (traditional)
+  nstep:        4
+  lstop:        yes                         (yes or no)
+  rmion:        0.2                        (a.u.)
+  rmtrans:      0.2                        (a.u.)
+  rmrot:        0.4                        (radians)
+  rmvolume:     1.0                        (cubic a.u.)
   nchain:       2
   nunits:       3
-  iuptraion:    1
-  iuptrans:     1
+  iupvolume:    10
+  iuptrans:     10
+  pmvolume:     0.00
   pmtraion:     0.33
   pmtrans:      0.67
   temp:         300.0
