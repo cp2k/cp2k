@@ -599,9 +599,9 @@ CONTAINS
           DO iatom=1,natom(ikind)
             atom_a = atoms(ikind)%list(iatom)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = INT((sa_pbc(1) + 0.5_wp)*ngrid(1)) + 1
-            jgrid = INT((sa_pbc(2) + 0.5_wp)*ngrid(2)) + 1
-            kgrid = INT((sa_pbc(3) + 0.5_wp)*ngrid(3)) + 1
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
@@ -860,7 +860,7 @@ CONTAINS
             a_max = REAL(igrid,wp)/REAL(ngrid(1),wp) - 0.5_wp
             DO jgrid=1,ngrid(2)
               b_min = REAL(jgrid-1,wp)/REAL(ngrid(2),wp) - 0.5_wp
-               b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
+              b_max = REAL(jgrid,wp)/REAL(ngrid(2),wp) - 0.5_wp
               DO kgrid=1,ngrid(3)
                 c_min = REAL(kgrid-1,wp)/REAL(ngrid(3),wp) - 0.5_wp
                 c_max = REAL(kgrid,wp)/REAL(ngrid(3),wp) - 0.5_wp
@@ -873,9 +873,9 @@ CONTAINS
           DO iatom=1,natom(ikind)
             atom_a = atoms(ikind)%list(iatom)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = INT((sa_pbc(1) + 0.5_wp)*ngrid(1)) + 1
-            jgrid = INT((sa_pbc(2) + 0.5_wp)*ngrid(2)) + 1
-            kgrid = INT((sa_pbc(3) + 0.5_wp)*ngrid(3)) + 1
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
@@ -1188,9 +1188,9 @@ CONTAINS
 
           DO iatom=1,natom(ikind)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = INT((sa_pbc(1) + 0.5_wp)*ngrid(1)) + 1
-            jgrid = INT((sa_pbc(2) + 0.5_wp)*ngrid(2)) + 1
-            kgrid = INT((sa_pbc(3) + 0.5_wp)*ngrid(3)) + 1
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
           END DO
@@ -1433,9 +1433,9 @@ CONTAINS
 
             DO jatom=1,natom(jkind)
               sb_pbc(:) = pbc_coord(jkind)%s(:,jatom)
-              igrid = INT((sb_pbc(1) + 0.5_wp)*ngrid(1)) + 1
-              jgrid = INT((sb_pbc(2) + 0.5_wp)*ngrid(2)) + 1
-              kgrid = INT((sb_pbc(3) + 0.5_wp)*ngrid(3)) + 1
+              igrid = MAX(1,CEILING((sb_pbc(1) + 0.5_wp)*ngrid(1)))
+              jgrid = MAX(1,CEILING((sb_pbc(2) + 0.5_wp)*ngrid(2)))
+              kgrid = MAX(1,CEILING((sb_pbc(3) + 0.5_wp)*ngrid(3)))
               nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
               ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = jatom
             END DO

@@ -436,9 +436,9 @@ CONTAINS
 
           DO iatom=1,natom(ikind)
             sa_pbc(:) = pbc_coord(ikind)%s(:,iatom)
-            igrid = INT((sa_pbc(1) + 0.5_wp)*ngrid(1)) + 1
-            jgrid = INT((sa_pbc(2) + 0.5_wp)*ngrid(2)) + 1
-            kgrid = INT((sa_pbc(3) + 0.5_wp)*ngrid(3)) + 1
+            igrid = MAX(1,CEILING((sa_pbc(1) + 0.5_wp)*ngrid(1)))
+            jgrid = MAX(1,CEILING((sa_pbc(2) + 0.5_wp)*ngrid(2)))
+            kgrid = MAX(1,CEILING((sa_pbc(3) + 0.5_wp)*ngrid(3)))
             nijk(igrid,jgrid,kgrid) = nijk(igrid,jgrid,kgrid) + 1
             ijk(nijk(igrid,jgrid,kgrid),igrid,jgrid,kgrid) = iatom
           END DO
