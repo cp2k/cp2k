@@ -27,7 +27,7 @@ MODULE qs_interactions
   USE basis_set_types,                 ONLY: gto_basis_set_type,&
                                              get_gto_basis_set,&
                                              set_gto_basis_set
-  USE dft_types,                       ONLY: kg_control_type,&
+  USE cp_control_types,                       ONLY: kg_control_type,&
                                              qs_control_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              elp_potential_type,&

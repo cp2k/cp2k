@@ -92,7 +92,7 @@ MODULE qs_environment_methods
                                              sm_struct_release,&
                                              sm_struct_retain,&
                                              sm_struct_write
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE distribution_2d_types,           ONLY: distribution_2d_create,&
                                              distribution_2d_release,&
                                              distribution_2d_retain,&

@@ -14,7 +14,7 @@
 !!     parameters that control an scf iteration
 !!
 !!   NOTES
-!!      not in dft_types, to separate operator related parameters from
+!!      not in cp_control_types, to separate operator related parameters from
 !!      method related parameters (as suggested by Matthias)
 !!
 !!   AUTHOR

@@ -25,7 +25,7 @@ MODULE tbmd_module
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters
   USE energy_input, ONLY : read_energy_section, energy_min_type, min_info_type

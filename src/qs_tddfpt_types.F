@@ -33,7 +33,7 @@ MODULE qs_tddfpt_types
                                              cp_fm_release,&
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE dft_types,                       ONLY: dft_control_type, &
+  USE cp_control_types,                       ONLY: dft_control_type, &
                                              tddfpt_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl

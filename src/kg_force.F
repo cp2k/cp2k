@@ -31,7 +31,7 @@ MODULE kg_force
                                              coeff_transform_space,&
                                              coeff_type,&
                                              coeff_zero
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              gth_potential_type,&
                                              get_potential

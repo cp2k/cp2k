@@ -24,7 +24,7 @@ MODULE densities
   USE coefficient_types, ONLY : coeff_type,  &
        coeff_zero, PLANEWAVES
   USE coefficients, ONLY : integral
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE density_types, ONLY : density_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl

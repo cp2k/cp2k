@@ -27,7 +27,7 @@ MODULE control_module
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
   USE convert_units, ONLY : convert
-  USE dft_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
+  USE cp_control_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
                         write_dft_control, write_wave_control
   USE dump, ONLY : dump_variables
   USE empirical_parameters, ONLY : read_empirical_parameters

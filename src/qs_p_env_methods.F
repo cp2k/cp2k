@@ -91,7 +91,7 @@ MODULE qs_p_env_methods
                                              sm_pool_get_mstruct,&
                                              sm_pools_create_matrix_vect,&
                                              sm_pools_give_back_matrix_vect
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              dp

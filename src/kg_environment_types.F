@@ -60,7 +60,7 @@ MODULE kg_environment_types
                                              distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
-  USE dft_types,                       ONLY: dft_control_release,&
+  USE cp_control_types,                       ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type 
   USE kinds, ONLY : dbl

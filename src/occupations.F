@@ -26,7 +26,7 @@ MODULE occupations
   USE mathconstants, ONLY : pi
   USE termination, ONLY : stop_program
   USE wf_types, ONLY : wf_type, wf_spinset_type, wf_kset_type
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   
   IMPLICIT NONE
   

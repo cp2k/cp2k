@@ -26,7 +26,7 @@ MODULE qs_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type

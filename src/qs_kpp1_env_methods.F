@@ -51,7 +51,7 @@ MODULE qs_kpp1_env_methods
                                              cp_unitnr_for_output,&
                                              cp_would_output
   USE cube_utils,                      ONLY: cube_info_type
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type

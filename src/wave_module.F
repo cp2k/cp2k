@@ -23,7 +23,7 @@ MODULE wave_module
   USE band, ONLY : band_structure_type
   USE brillouin, ONLY : kpoint_type, brillouin_info, kpoint_input
   USE cntl_input, ONLY : read_cntl_section
-  USE dft_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
+  USE cp_control_types, ONLY : dft_control_type, read_dft_control, read_wave_control, &
                         write_dft_control, write_wave_control
   USE extended_system_types, ONLY : extended_system_type
   USE fermi, ONLY : fermi_distribution_type

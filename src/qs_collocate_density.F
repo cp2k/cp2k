@@ -75,7 +75,7 @@ MODULE qs_collocate_density
                                              rs_pools_give_back_rs_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
   USE global_types,                    ONLY: global_environment_type

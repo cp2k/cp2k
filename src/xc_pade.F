@@ -2,6 +2,9 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2002  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
 !!****** cp2k/xc_pade [1.0] *
 !!
 !!   NAME
@@ -26,6 +29,17 @@
 
 MODULE xc_pade
 ! *****************************************************************************
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_message,&
+                                             cp_error_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
   USE kinds,                           ONLY: dbl
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -34,6 +48,9 @@ MODULE xc_pade
                                              calc_rs,&
                                              set_util,&
                                              setup_calculation
+  USE xc_rho_set_types,                ONLY: xc_rho_cflags_type,&
+                                             xc_rho_set_type
+
   IMPLICIT NONE
 
   PRIVATE
@@ -112,6 +129,19 @@ CONTAINS
     END IF
 
   END SUBROUTINE pade_info
+
+! *****************************************************************************
+
+  SUBROUTINE pade_pw_eval(rho_set, deriv_set, deriv_order, error)
+
+    IMPLICIT NONE
+
+    TYPE(xc_rho_set_type), POINTER               :: rho_set
+    TYPE(xc_derivative_set_type), POINTER        :: deriv_set
+    INTEGER, INTENT(IN)                          :: deriv_order
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  END SUBROUTINE pade_pw_eval
 
 ! *****************************************************************************
 

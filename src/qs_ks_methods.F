@@ -61,7 +61,7 @@ MODULE qs_ks_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: gridlevel_info_type
   USE hartree,                         ONLY: calculate_hartree
   USE kinds,                           ONLY: dp

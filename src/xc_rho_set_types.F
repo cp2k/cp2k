@@ -38,7 +38,7 @@ MODULE xc_rho_set_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE dft_types,                       ONLY: dft_control_type,&
+  USE cp_control_types,                       ONLY: dft_control_type,&
                                              xc_deriv_pw,&
                                              xc_deriv_spline2,&
                                              xc_deriv_spline2_smooth,&

@@ -29,7 +29,7 @@ MODULE xc_derivatives
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE dft_types,                       ONLY: xc_control_type
+  USE cp_control_types,                       ONLY: xc_control_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop

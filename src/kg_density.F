@@ -42,7 +42,7 @@ MODULE kg_density
                                     rs_grid_setup, rs_pw_transfer, rs_grid_zero
   USE cube_utils,             ONLY: cube_info_type,&
                                     return_cube
-  USE dft_types,              ONLY: dft_control_type
+  USE cp_control_types,              ONLY: dft_control_type
   USE distribution_1d_types,  ONLY: distribution_1d_type
   USE gaussian_gridlevels,    ONLY: gaussian_gridlevel,&
                                     gridlevel_info_type

@@ -20,7 +20,7 @@
 !------------------------------------------------------------------------------!
 !
   USE brillouin, ONLY : kpoint_type
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE energy_input, ONLY : energy_min_type, min_info_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE fit_parameters_types, ONLY : fit_parameter_type

@@ -78,7 +78,7 @@ MODULE qs_ep_methods
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type,&
                                              print_key_type
   USE greens_fn,                       ONLY: pw_green_fn_init

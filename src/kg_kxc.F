@@ -20,7 +20,7 @@
 
 MODULE kg_kxc
   USE coefficient_types,               ONLY: coeff_type
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE functionals
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: pi

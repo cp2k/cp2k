@@ -67,7 +67,7 @@ MODULE qs_scf_post
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
 
   USE global_types,                    ONLY: DEBUG,&
                                              WANNIER_NONE, &

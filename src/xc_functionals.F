@@ -331,7 +331,7 @@ CONTAINS
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: i,ierr
-     CHARACTER(len=3),PARAMETER :: routineN = 'xc_calculate_lda',&
+     CHARACTER(len=*),PARAMETER :: routineN = 'xc_calculate_lda',&
                                    routineP = moduleN//':'//routineN
 
      ierr = 0
@@ -471,7 +471,7 @@ CONTAINS
      TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
      INTEGER :: ierr
-     CHARACTER(len=3),PARAMETER :: routineN = 'xc_calculate_lsd',&
+     CHARACTER(len=*),PARAMETER :: routineN = 'xc_calculate_lsd',&
                                    routineP = moduleN//':'//routineN
 
      ierr = 0

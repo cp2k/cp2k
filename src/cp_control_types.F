@@ -1,0 +1,880 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!-----------------------------------------------------------------------------!
+
+#include "cp_prep_globals.h"
+
+!!****s* cp2k/cp_control_types [1.0] *
+!!
+!!   NAME
+!!     cp_control_types
+!!
+!!   FUNCTION
+!!     Defines control structures, which contain the parameters and the
+!!     settings for the calculations.
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE cp_control_types
+
+  USE band,                            ONLY: band_structure_dealloc_ref,&
+                                             band_structure_preinit,&
+                                             band_structure_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error,&
+                                             cp_unimplemented_error_nr
+  USE cp_fm_types,                     ONLY: cp_fm_p_type
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_logger_type,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: dp,&
+                                             dp_size
+  USE pw_grid_types,                   ONLY: pw_grid_type
+  USE qs_parser,                       ONLY: finish_parser,&
+                                             read_object,&
+                                             start_parser,&
+                                             stop_parser,&
+                                             test_object
+  USE qs_wf_history_types,             ONLY: wfi_linear_p_method_nr,&
+                                             wfi_linear_ps_method_nr,&
+                                             wfi_linear_wf_method_nr,&
+                                             wfi_ps_method_nr,&
+                                             wfi_use_guess_method_nr,&
+                                             wfi_use_prev_p_method_nr,&
+                                             wfi_use_prev_rho_r_method_nr,&
+                                             wfi_use_prev_wf_method_nr
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE xc_functionals,                  ONLY: xc_print_info
+
+  IMPLICIT NONE
+
+  PRIVATE
+
+  TYPE xc_grid_type
+     LOGICAL                   :: pw_default
+!FM     TYPE ( pw_grid_type )     :: pw_grid
+     INTEGER                   :: pw_mesh ( 3 )
+     REAL (KIND = dp)               :: pw_cutoff
+  END TYPE xc_grid_type
+
+! *** Control parameters for pw grids ***
+
+  TYPE pw_grid_option
+     LOGICAL :: spherical
+     LOGICAL :: fullspace
+  END TYPE pw_grid_option
+
+! *** Control parameters for a KIM-GORDON calculation ***
+
+  TYPE kg_control_type
+    CHARACTER(LEN=10)               :: method
+    REAL(KIND = dp)                 :: eps_core_charge,&
+                                       eps_pgf_aux,&
+                                       eps_pgf_orb,&
+                                       eps_ppl,&
+                                       eps_rho_gspace,&
+                                       eps_rho_rspace,&
+                                       eps_gvg_rspace,&
+                                       progression_factor,&
+                                       relative_cutoff
+    LOGICAL                         :: polarization
+    REAL(KIND = dp)                        :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
+    TYPE ( pw_grid_option )         :: pw_grid_opt
+    LOGICAL                         :: rs_distributed
+  END TYPE kg_control_type
+
+! *** Control parameters for a QUICKSTEP calculation ***
+
+! eps_pgf_orb: Cutoff value for the interaction of the primitive Gaussian-type
+!              functions (primitive basis functions).
+
+  TYPE qs_control_type
+!MK PRIVATE would be nice
+    CHARACTER(LEN=10)               :: method
+    REAL(KIND = dp)                 :: eps_core_charge,&
+                                       eps_pgf_aux,&
+                                       eps_pgf_orb,&
+                                       eps_ppl,&
+                                       eps_ppnl,&
+                                       eps_rho_gspace,&
+                                       eps_rho_rspace,&
+                                       eps_gvg_rspace,&
+                                       progression_factor,&
+                                       relative_cutoff
+    LOGICAL                         :: gapw,gpw,pao
+    REAL(KIND = dp)                        :: cutoff
+    REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff
+    TYPE ( pw_grid_option )         :: pw_grid_opt
+    LOGICAL                         :: rs_distributed
+    INTEGER                         :: wf_interpolation_method_nr
+    INTEGER                         :: wf_extrapolation_order
+  END TYPE qs_control_type
+
+! *** Control parameters for a WAVE calculation ***
+
+  TYPE wave_control_type
+     REAL(KIND = dp) :: e_cutoff_wf
+     REAL(KIND = dp) :: e_cutoff_dual
+  END TYPE wave_control_type
+
+! *** Control parameters for a dft xc functionals ***
+
+  TYPE xc_control_type
+     CHARACTER(LEN=40), DIMENSION(3) :: functionals
+     LOGICAL, DIMENSION(3)           :: gradient_functionals, crossterms
+     REAL(KIND = dp)                        :: density_cut,&
+                                        gradient_cut
+  END TYPE xc_control_type
+
+  ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
+
+!!****s* cp_control_types/tddfpt_control_type
+!!
+!! NAME
+!!   tddfpt_control_type
+!!
+!! FUNCTION
+!!   A type that holds controling information for a time-dependent
+!!   perturbation calculation.
+!!
+!! ATTRIBUTES
+!!   - n_ev       : number of eigenvalues to calculate
+!!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
+!!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
+!!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
+!!                  to calculate
+!!   - functional : the functional to use in the perturbation kernel
+!!   - gradient_functionals:
+!!   - crossterms :
+!!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
+!!   - lumos      : holds the first few lumos (if calculated in QS)
+!!
+!! NOTES  
+!!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
+!!   calculation, since they can be used to construct the solutions of the
+!!   TDDFPT operator without the perturbation kernel.
+!!  
+!!***
+  TYPE tddfpt_control_type
+     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: lumos
+     TYPE(xc_control_type)                     :: xc_control
+     INTEGER                                   :: n_ev
+     INTEGER                                   :: n_reortho
+     LOGICAL                                   :: do_kernel
+     CHARACTER(LEN=7)                          :: restricted_excitations_type
+     REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
+  END TYPE tddfpt_control_type
+
+  ! *** Control parameters for a DFT calculation ***
+
+  TYPE dft_control_type
+     TYPE(band_structure_type)       :: band
+     TYPE(kg_control_type)           :: kg_control
+     TYPE(qs_control_type)           :: qs_control
+     TYPE(tddfpt_control_type)       :: tddfpt_control
+     TYPE(wave_control_type)         :: wave_control
+     TYPE(xc_grid_type)              :: integration_grid
+     TYPE(xc_control_type)           :: xc_control
+     INTEGER                         :: nspins,&
+                                        charge,&
+                                        multiplicity,&
+                                        xc_rho_smooth_id,&
+                                        xc_deriv_method_id,&
+                                        ref_count,&
+                                        id_nr
+     LOGICAL                         :: forces,&
+                                        do_tddfpt_calculation, &
+                                        derive_function_rho, &
+                                        use_kinetic_energy_density
+  END TYPE dft_control_type
+
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_types"
+
+  INTEGER, PARAMETER :: xc_rho_no_smooth=0, xc_rho_spline2_smooth=1,&
+       xc_rho_spline3_smooth=2, xc_rho_nn10=3
+  INTEGER, PARAMETER :: xc_deriv_pw=0, xc_deriv_spline2=1,&
+       xc_deriv_spline3=2, xc_deriv_spline2_smooth=3,&
+       xc_deriv_spline3_smooth=4
+  INTEGER, SAVE :: last_dft_control_id=0
+
+! *** Public data types ***
+
+  PUBLIC :: dft_control_type, xc_grid_type,&
+            kg_control_type, qs_control_type,&
+            wave_control_type, tddfpt_control_type, &
+            pw_grid_option, xc_control_type
+
+! *** Public parameters ***
+
+  PUBLIC :: xc_rho_no_smooth, xc_rho_spline2_smooth,&
+            xc_rho_spline3_smooth, xc_rho_nn10, &
+            xc_deriv_pw, xc_deriv_spline2,&
+            xc_deriv_spline3, xc_deriv_spline2_smooth,&
+            xc_deriv_spline3_smooth
+
+! *** Public subroutines ***
+
+  PUBLIC :: write_dft_control,&
+            write_kg_control,&
+            write_qs_control,&
+            write_wave_control,&
+            dft_control_retain,&
+            dft_control_release,&
+            dft_control_create
+
+!!***
+! *****************************************************************************
+
+CONTAINS
+
+! *****************************************************************************
+
+
+! *****************************************************************************
+
+  SUBROUTINE write_dft_control(dft_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(dft_control_type), POINTER           :: dft_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+    CHARACTER(len=20) :: tmpStr
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+
+      output_unit = globenv%scr
+
+      IF (dft_control%forces) THEN
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation","YES"
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+          "DFT| Force calculation"," NO"
+      END IF
+
+      IF ( dft_control % nspins == 1 ) THEN
+         !do nothing
+      ELSE IF ( dft_control % nspins == 2 ) THEN
+         WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
+      ELSE
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
+            dft_control % nspins
+      END IF
+
+      IF ( dft_control % charge /= 0 ) THEN
+         WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
+              dft_control % charge
+      END IF
+
+      WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
+        "DFT| Cutoffs: density ",dft_control%xc_control%density_cut,&
+        "DFT|          gradient",dft_control%xc_control%gradient_cut
+
+      tmpStr=xc_get_rho_smooth_label(dft_control%xc_rho_smooth_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC density smoothing ",ADJUSTR(tmpStr)
+      tmpStr=xc_get_deriv_method_label(dft_control%xc_deriv_method_id)
+      WRITE ( output_unit, '( A, T61, A )' ) &
+           " DFT| XC derivatives ",ADJUSTR(tmpStr)
+      IF ( dft_control % derive_function_rho )  &
+           WRITE ( output_unit, '( A, T79, A )' ) &
+           " DFT| Density function derivative ","ON"
+
+      IF ( dft_control % integration_grid % pw_default ) THEN
+         WRITE ( output_unit, '( A, T74, A )' ) " DFT| XC mesh (PW density)", "default"
+      ELSE
+        IF ( dft_control % integration_grid % pw_mesh ( 1 ) > 0 ) &
+              WRITE ( output_unit, '( A, T51, 3I10 )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_mesh
+        IF ( dft_control % integration_grid % pw_cutoff > 0 ) &
+              WRITE ( output_unit, '( A, T67, F10.1, "a.u." )' ) &
+              " DFT| XC mesh (PW density)", dft_control % integration_grid % pw_cutoff
+      END IF
+
+!TC      CALL xc_set(dft_control%xc_control%density_cut, dft_control%xc_control%gradient_cut)
+      CALL xc_print_info ( output_unit, dft_control % xc_control % functionals, &
+                           dft_control % nspins /= 1 )
+
+    END IF
+
+  END SUBROUTINE write_dft_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_kg_control(kg_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(kg_control_type), INTENT(IN)         :: kg_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: igrid_level,ngrid_level,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      ngrid_level = SIZE(kg_control%e_cutoff)
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
+        "KG| Method:",ADJUSTR(kg_control%method)
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+        "KG| Number of grid levels:",SIZE(kg_control%e_cutoff)
+      IF ( kg_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( kg_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
+      IF (ngrid_level == 1) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Density cutoff [a.u.]:",kg_control%e_cutoff(1)
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Density cutoff [a.u.]:",kg_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "KG| Multi grid cutoff [a.u.]: 1) grid level",kg_control%e_cutoff(1)
+        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
+          ("KG|                         ",igrid_level,") grid level",&
+           kg_control%e_cutoff(igrid_level),&
+           igrid_level=2,SIZE(kg_control%e_cutoff))
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "KG| Grid level progression factor:",kg_control%progression_factor
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "KG| Relative density cutoff [a.u.]:",kg_control%relative_cutoff
+      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+        "KG| Interaction thresholds: eps_pgf_orb:",&
+        kg_control%eps_pgf_orb,&
+        "KG|                         eps_core_charge:",&
+        kg_control%eps_core_charge,&
+        "KG|                         eps_rho_gspace:",&
+        kg_control%eps_rho_gspace,&
+        "KG|                         eps_rho_rspace:",&
+        kg_control%eps_rho_rspace,&
+        "KG|                         eps_gvg_rspace:",&
+        kg_control%eps_gvg_rspace  
+    END IF
+
+  END SUBROUTINE write_kg_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_qs_control(qs_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(qs_control_type), INTENT(IN)         :: qs_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: igrid_level,ngrid_level,output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      ngrid_level = SIZE(qs_control%e_cutoff)
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,A)")&
+        "QS| Method:",ADJUSTR(qs_control%method)
+      IF ( qs_control% pw_grid_opt % spherical ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T61,A)")&
+            "QS| Density plane wave grid type"," SPHERICAL HALFSPACE"
+      ELSE IF ( qs_control% pw_grid_opt % fullspace ) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL FULLSPACE"
+      ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T57,A)")&
+            "QS| Density plane wave grid type"," NON-SPHERICAL HALFSPACE"
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,I10)")&
+        "QS| Number of grid levels:",SIZE(qs_control%e_cutoff)
+      IF (ngrid_level == 1) THEN
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Density cutoff [a.u.]:",qs_control%e_cutoff(1)
+      ELSE
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Density cutoff [a.u.]:",qs_control%cutoff
+        WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+          "QS| Multi grid cutoff [a.u.]: 1) grid level",qs_control%e_cutoff(1)
+        WRITE (UNIT=output_unit,FMT="(T2,A,I3,A,T71,F10.1)")&
+          ("QS|                         ",igrid_level,") grid level",&
+           qs_control%e_cutoff(igrid_level),&
+           igrid_level=2,SIZE(qs_control%e_cutoff))
+      END IF
+      IF (qs_control%pao) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A)") "QS| PAO active"
+      END IF
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "QS| Grid level progression factor:",qs_control%progression_factor
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.1)")&
+        "QS| Relative density cutoff [a.u.]:",qs_control%relative_cutoff
+      WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+        "QS| Interaction thresholds: eps_pgf_orb:",&
+        qs_control%eps_pgf_orb,&
+        "QS|                         eps_core_charge:",&
+        qs_control%eps_core_charge,&
+        "QS|                         eps_rho_gspace:",&
+        qs_control%eps_rho_gspace,&
+        "QS|                         eps_rho_rspace:",&
+        qs_control%eps_rho_rspace,&
+        "QS|                         eps_gvg_rspace:",&
+        qs_control%eps_gvg_rspace,&
+        "QS|                         eps_ppl:",&
+        qs_control%eps_ppl,&
+        "QS|                         eps_ppnl:",&
+        qs_control%eps_ppnl
+    END IF
+
+  END SUBROUTINE write_qs_control
+
+! *****************************************************************************
+
+  SUBROUTINE write_wave_control(wave_control,globenv)
+
+!   Purpose: Write the DFT control parameters to the output unit.
+
+!   ***************************************************************************
+
+    TYPE(wave_control_type), INTENT(IN)       :: wave_control
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+
+!   *** Local variables ***
+
+    INTEGER :: output_unit
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%ionode) RETURN
+
+    IF (globenv%print%dft_control_parameters) THEN
+      output_unit = globenv%scr
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T71,F10.3)")&
+        "WAVE| Plane wave cutoff [a.u.]:",wave_control%e_cutoff_wf
+      WRITE (UNIT=output_unit,FMT="(T2,A,T71,F10.2)")&
+        "WAVE| Density cutoff (DUAL):",wave_control%e_cutoff_dual
+     END IF
+
+  END SUBROUTINE write_wave_control
+
+! *****************************************************************************
+
+!!****f* cp_control_types/xc_get_rho_smooth_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_rho_smooth_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the smoothing of rho
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_rho_smooth_id: the id that represent the smoothing
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     05.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_rho_smooth_label(xc_rho_smooth_id,error) RESULT(res)
+  INTEGER, INTENT(in) :: xc_rho_smooth_id
+  CHARACTER(len=10) :: res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_rho_smooth_label',&
+        routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+
+  failure=.FALSE.
+  
+  SELECT CASE(xc_rho_smooth_id)
+  CASE (xc_rho_no_smooth)
+     res="NONE"
+  CASE (xc_rho_spline2_smooth)
+     res="SPLINE2"
+  CASE (xc_rho_spline3_smooth)
+     res="SPLINE3"
+  CASE (xc_rho_nn10)
+     res="NN10"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_rho_smooth_id
+  END SELECT
+END FUNCTION xc_get_rho_smooth_label
+!***************************************************************************
+
+!!****f* cp_control_types/xc_get_deriv_method_label [1.0] *
+!!
+!!   NAME
+!!     xc_get_deriv_method_label
+!!
+!!   FUNCTION
+!!     returns a string that describes the derivative used in the xc 
+!!     calculation
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - xc_deriv_method_id: the id that represent the derivative method
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+FUNCTION xc_get_deriv_method_label(xc_deriv_method_id,error) RESULT(res)
+  INTEGER, INTENT(in) :: xc_deriv_method_id
+  CHARACTER(len=20) :: res
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  CHARACTER(len=*), PARAMETER :: routineN='xc_get_deriv_method_label',&
+        routineP=moduleN//':'//routineN
+  LOGICAL :: failure
+  
+  failure=.FALSE.
+  
+  SELECT CASE(xc_deriv_method_id)
+  CASE (xc_deriv_pw)
+     res="PW"
+  CASE (xc_deriv_spline2)
+     res="SPLINE2"
+  CASE (xc_deriv_spline3)
+     res="SPLINE3"
+  CASE (xc_deriv_spline2_smooth)
+     res="SPLINE2_SMOOTH"
+  CASE (xc_deriv_spline3_smooth)
+     res="SPLINE3_SMOOTH"
+  CASE default
+     WRITE (res,"('UKN',i6)") xc_deriv_method_id
+  END SELECT
+END FUNCTION xc_get_deriv_method_label
+!***************************************************************************
+
+!!****f* cp_control_types/dft_control_create [1.0] *
+!!
+!!   NAME
+!!     dft_control_create
+!!
+!!   SYNOPSIS
+!!     Subroutine dft_control_create(dft_control, error)
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine dft_control_create
+!!
+!!   FUNCTION
+!!     allocates and perform a very basic initialization
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - dft_control: the object to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     02.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE dft_control_create(dft_control, error)
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='dft_control_create',&
+       routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+
+  CPPrecondition(.NOT.ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)  
+  IF (.NOT. failure) THEN
+     ALLOCATE (dft_control,STAT=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.not.failure) THEN
+     dft_control%ref_count=1
+     last_dft_control_id=last_dft_control_id+1
+     dft_control%id_nr=last_dft_control_id
+     CALL band_structure_preinit(dft_control%band,error=error)
+     CALL kg_control_init(dft_control%kg_control, error=error)
+     CALL qs_control_init(dft_control%qs_control, error=error)
+     CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
+     CALL wave_control_init(dft_control%wave_control, error=error)
+     CALL xc_grid_init(dft_control%integration_grid, error=error)
+     CALL xc_control_init(dft_control%xc_control, error=error)
+  END IF
+END SUBROUTINE dft_control_create
+!***************************************************************************
+
+!!****f* cp_control_types/dft_control_retain [1.0] *
+!!
+!!   NAME
+!!     dft_control_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine dft_control_retain(dft_control, error)
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine dft_control_retain
+!!
+!!   FUNCTION
+!!     retains the given dft_control
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - dft_control: the dft_control to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE dft_control_retain(dft_control,error)
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='dft_control_retain',&
+        routineP=moduleN//':'//routineN
+
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(dft_control),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
+     dft_control%ref_count=dft_control%ref_count+1
+  END IF
+END SUBROUTINE dft_control_retain
+!***************************************************************************
+
+!!****f* cp_control_types/dft_control_release [1.0] *
+!!
+!!   NAME
+!!     dft_control_release
+!!
+!!   SYNOPSIS
+!!     Subroutine dft_control_release(dft_control, error)
+!!       Type(dft_control_type), Pointer:: dft_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine dft_control_release
+!!
+!!   FUNCTION
+!!     releases the given dft_control
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - dft_control: the dft_control to release
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     11.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE dft_control_release(dft_control,error)
+  TYPE(dft_control_type), POINTER :: dft_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='dft_control_release',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: stat
+
+  failure=.FALSE.
+  IF (ASSOCIATED(dft_control)) THEN
+     CPPreconditionNoFail(dft_control%ref_count>0,cp_failure_level,routineP,error)
+     dft_control%ref_count=dft_control%ref_count-1
+     IF (dft_control%ref_count==0) THEN
+        CALL band_structure_dealloc_ref(dft_control%band,error=error)
+        CALL kg_control_dealloc_ref(dft_control%kg_control, error=error)
+        CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
+        CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
+        CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
+        CALL xc_grid_dealloc_ref(dft_control%integration_grid, error=error)
+        CALL xc_control_dealloc_ref(dft_control%xc_control, error=error)
+        DEALLOCATE(dft_control, stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+  END IF
+  NULLIFY(dft_control)
+END SUBROUTINE dft_control_release
+!***************************************************************************
+
+SUBROUTINE kg_control_init(kg_control, error)
+  TYPE(kg_control_type), INTENT(out) :: kg_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  NULLIFY(kg_control%e_cutoff)
+END SUBROUTINE kg_control_init
+
+SUBROUTINE kg_control_dealloc_ref(kg_control, error)
+  TYPE(kg_control_type), INTENT(inout) :: kg_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = "kg_control_dealloc_ref", &
+       routineP = moduleN//"/"//routineN
+  INTEGER :: stat
+
+  IF (ASSOCIATED(kg_control%e_cutoff)) THEN
+     DEALLOCATE(kg_control%e_cutoff,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE kg_control_dealloc_ref
+
+SUBROUTINE qs_control_init(qs_control, error)
+  TYPE(qs_control_type), INTENT(out) :: qs_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  NULLIFY(qs_control%e_cutoff)
+END SUBROUTINE qs_control_init
+
+SUBROUTINE qs_control_dealloc_ref(qs_control, error)
+  TYPE(qs_control_type), INTENT(inout) :: qs_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  INTEGER :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = "qs_control_dealloc_ref", &
+         routineP = moduleN//"/"//routineN
+
+  IF (ASSOCIATED(qs_control%e_cutoff)) THEN
+     DEALLOCATE(qs_control%e_cutoff,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE qs_control_dealloc_ref
+
+SUBROUTINE tddfpt_control_init(tddfpt_control, error)
+  TYPE(tddfpt_control_type), INTENT(out) :: tddfpt_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  NULLIFY(tddfpt_control%lumos,tddfpt_control%lumos_eigenvalues)
+END SUBROUTINE tddfpt_control_init
+
+SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
+  TYPE(tddfpt_control_type), INTENT(inout) :: tddfpt_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  INTEGER :: stat
+  CHARACTER(len=*), PARAMETER :: routineN = "tddfpt_control_dealloc_ref", &
+       routineP = moduleN//"/"//routineN
+  
+  IF (ASSOCIATED(tddfpt_control%lumos)) THEN
+     DEALLOCATE(tddfpt_control%lumos,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+  IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
+     DEALLOCATE(tddfpt_control%lumos_eigenvalues,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+END SUBROUTINE tddfpt_control_dealloc_ref
+
+SUBROUTINE wave_control_init(wave_control, error)
+  TYPE(wave_control_type), INTENT(out) :: wave_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+
+END SUBROUTINE wave_control_init
+
+SUBROUTINE wave_control_dealloc_ref(wave_control, error)
+  TYPE(wave_control_type), INTENT(inout) :: wave_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  INTEGER :: stat
+
+END SUBROUTINE wave_control_dealloc_ref
+
+SUBROUTINE xc_grid_init(xc_grid, error)
+
+  TYPE(xc_grid_type), INTENT(out) :: xc_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+END SUBROUTINE xc_grid_init
+
+SUBROUTINE xc_grid_dealloc_ref(xc_grid, error)
+  TYPE(xc_grid_type), INTENT(inout) :: xc_grid
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  INTEGER :: stat
+
+END SUBROUTINE xc_grid_dealloc_ref
+
+SUBROUTINE xc_control_init(xc_control, error)
+  TYPE(xc_control_type), INTENT(out) :: xc_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+
+END SUBROUTINE xc_control_init
+
+SUBROUTINE xc_control_dealloc_ref(xc_control, error)
+  TYPE(xc_control_type), INTENT(inout) :: xc_control
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  INTEGER :: stat
+
+END SUBROUTINE xc_control_dealloc_ref
+
+END MODULE cp_control_types

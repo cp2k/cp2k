@@ -71,7 +71,7 @@ MODULE qs_wf_history_methods
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type

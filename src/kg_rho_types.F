@@ -44,7 +44,7 @@ MODULE kg_rho_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info
-  USE dft_types,                       ONLY: dft_control_type
+  USE cp_control_types,                       ONLY: dft_control_type
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type  
   USE kinds,                           ONLY: dbl,dp_size

@@ -42,6 +42,8 @@ OBJECTS_GENERIC =\
  cp_cfm_basic_linalg.o\
  cp_cfm_diag.o\
  cp_cfm_types.o\
+ cp_control_types.o\
+ cp_control_utils.o\
  cp_e_rosenbrok_function.o\
  cp_error_handling.o\
  cp_fm_basic_linalg.o\
@@ -77,7 +79,6 @@ OBJECTS_GENERIC =\
  cube_utils.o\
  densities.o\
  density_types.o\
- dft_types.o\
  dg_rho0s.o\
  dg_types.o\
  dgs.o\

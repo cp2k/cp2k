@@ -24,7 +24,7 @@ MODULE potentials
   USE coefficient_types, ONLY : coeff_type, coeff_zero, coeff_copy, &
        coeff_allocate, coeff_deallocate, coeff_add
   USE density_types, ONLY : density_type
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE hartree, ONLY : calculate_hartree
   USE kinds, ONLY : dbl
   USE potential_types, ONLY : potential_type

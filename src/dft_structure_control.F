@@ -25,7 +25,7 @@ MODULE dft_structure_control
   USE brillouin, ONLY : kpoint_type
   USE density_types, ONLY : density_type, density_allocate, density_init
   USE densities, ONLY : density_update
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE ewald_parameters_types, ONLY : ewald_parameters_type
   USE global_types, ONLY : global_environment_type
   USE greens_fn, ONLY : pw_green_fn_init

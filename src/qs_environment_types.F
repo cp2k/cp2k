@@ -94,7 +94,7 @@ MODULE qs_environment_types
                                              cp_subsys_retain,&
                                              cp_subsys_set,&
                                              cp_subsystem_type
-  USE dft_types,                       ONLY: dft_control_release,&
+  USE cp_control_types,                       ONLY: dft_control_release,&
                                              dft_control_retain,&
                                              dft_control_type
   USE distribution_1d_types,           ONLY: distribution_1d_create,&

@@ -24,7 +24,7 @@ MODULE wfs
   USE coefficient_types, ONLY : coeff_type, &
        coeff_allocate, coeff_deallocate, PLANEWAVES, SQUARE, PW_COMPLEXDATA1D
   USE coefficients, ONLY : integral
-  USE dft_types, ONLY : dft_control_type
+  USE cp_control_types, ONLY : dft_control_type
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE kinetic, ONLY : kinetic_evaluate

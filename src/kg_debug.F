@@ -21,7 +21,7 @@ MODULE kg_debug
 
   USE coefficient_types, ONLY : coeff_type
   USE cube_utils, ONLY : cube_info_type
-  Use dft_types, ONLY : dft_control_type
+  Use cp_control_types, ONLY : dft_control_type
   USE gaussian_gridlevels, ONLY: gridlevel_info_type
   USE kg_environment_types, ONLY : get_kg_env,kg_environment_type
   USE kg_force_numer, ONLY : fpart_gspace_numer, fpart_bc_numer,&

@@ -16,7 +16,8 @@
 !!****
 
 MODULE qs_tddfpt_module
-  USE dft_types,                       ONLY: read_tddfpt_control
+
+  USE cp_control_utils,                ONLY: read_tddfpt_control
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl
   USE qs_environment_types,            ONLY: qs_environment_type
