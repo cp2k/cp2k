@@ -205,7 +205,7 @@ CONTAINS
     INTEGER :: i
     INTEGER :: g(3)
     REAL(KIND=dp) :: resp,resm,rest
-    rest=(0.0_8,0.0_8)
+    rest=(0.0_dp,0.0_dp)
     DO i=1,3
        g=0
        g(i)=1
