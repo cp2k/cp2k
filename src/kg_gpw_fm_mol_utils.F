@@ -31,21 +31,26 @@ MODULE kg_gpw_fm_mol_utils
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE global_types,                    ONLY: global_environment_type
   USE kg_gpw_fm_mol_types,             ONLY: get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
                                              get_mol_mo_set,&
                                              fm_mol_blocks_type,&
                                              kg_fm_mol_set_type,&
+                                             kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
   USE kinds,                           ONLY: dp,dp_size,int_size
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast, mp_sendrecv, mp_sum
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -65,7 +70,8 @@ MODULE kg_gpw_fm_mol_utils
 
   PUBLIC :: calculate_w_matrix_per_molecule, &
             copy_sparse2mol_block, fm_mol_cholesky_restore, &
-            fm_mol_power, fm_mol_syevd, fm_mol_syevx, mol_mo_random
+            fm_mol_power, fm_mol_syevd, fm_mol_syevx, mol_mo_random,&
+            read_mo_mol_restart, write_mo_mol_restart
 
 ! *****************************************************************************
 
@@ -752,6 +758,503 @@ CONTAINS
 
   END SUBROUTINE copy_sparse2mol_block
 
+
+!***************************************************************************
+!!****f* kg_gpw_fm_mol_utils/write_mo_mol_restart
+!!
+!!   NAME
+!!     write_mo_mol_restart
+!!
+!!   FUNCTION
+!!     Write a RESTART file for the KG_GPW calculation
+!!     The MO are written in a list of blocks, each one corresponding
+!!     to one molecule
+!!     Since the molecule are distributed over the projectors, some commuication
+!!     is required to write the list in the correct order (order of the molecule)
+!!     
+!!   NOTE
+!!     The KG_GPW RESTART file has a special form. It should be read and written only
+!!     in a KG_GPW calculation. However the defoult name is still RESTART.
+!!     An initial flag identifies this as a KG_GPW RESTART.
+!!
+!!   INPUTS
+!!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
+!!     - globenv: parallel distribution and i/o information
+!!     - id_nr: give an index to the restart if =/ 1
+!!
+!!   AURHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE write_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
+
+    TYPE(kg_fm_p_type)                         :: kg_fm
+    TYPE(global_environment_type), &
+      INTENT(IN)                               :: globenv
+    INTEGER, INTENT(IN)                        :: id_nr, nspins
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name ="write_mo_mol_restart",&
+       routineP = module_name//':'//routine_name
+
+    CHARACTER(LEN=200)                         :: file_name
+    CHARACTER(LEN=6)                           :: method 
+    INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, imol_proc,&
+               imolecule_kind, ispin, istat, n_ao,  n_mo(2), nao_max,&
+               nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global,&
+               nmolecule_kind, nmolecule_local, source, restart_unit
+    INTEGER, DIMENSION(:), ALLOCATABLE         :: nmol_molkind, nao_molkind, natom_molkind
+    INTEGER, DIMENSION(:,:), ALLOCATABLE       :: nel_molkind
+    LOGICAL :: failure
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: eig_buffer, occ_buffer
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: mo_buffer
+    REAL(dp), DIMENSION(:,:), POINTER          :: mo
+    REAL(dp), DIMENSION(:), POINTER            :: eigenvalues, occupation_numbers
+    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                  :: mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                  :: mos
+    TYPE(mol_mo_set_type), POINTER             :: mo_set
+
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+
+    failure = .FALSE.
+
+    group = globenv%group
+    source = globenv%source
+
+    method ="KG_GPW"
+    nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
+    nmolecule_global = kg_fm%nmolecule_global
+    nelectron_global = kg_fm%nelectron_global
+    nao_max = kg_fm%nao_max
+    nmo_max = kg_fm%nmo_max
+
+    IF (globenv%ionode) THEN
+
+      IF (id_nr==1) THEN
+        file_name = globenv%restart_file_name
+      ELSE
+        file_name = TRIM(globenv%restart_file_name)//"-"//&
+                    ADJUSTL(cp_to_string(id_nr))
+      END IF
+
+      CALL open_file(file_name=file_name,&
+                     file_action="WRITE",&
+                     file_form="UNFORMATTED",&
+                     file_status="REPLACE",&
+                     unit_number=restart_unit)
+
+!     *** create some info about the molecules ***
+
+
+      ALLOCATE(nmol_molkind(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nao_molkind(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(natom_molkind(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nel_molkind(2,nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      DO imolecule_kind = 1,nmolecule_kind
+        NULLIFY(fm_mol_set)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+        CALL  get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+                                nmol_kind_global=nmol_molkind(imolecule_kind),&
+                                n_ao = nao_molkind(imolecule_kind),&
+                                natom = natom_molkind(imolecule_kind), &
+                                nelectron_spin=nel_molkind(1:2,imolecule_kind) )
+      END DO 
+
+      WRITE (restart_unit) method, nmolecule_kind, nmolecule_global, nelectron_global, nspins
+      WRITE (restart_unit) nmol_molkind
+      WRITE (restart_unit) nao_molkind
+      WRITE (restart_unit) natom_molkind
+      WRITE (restart_unit) nel_molkind(1,1:nmolecule_kind)
+      WRITE (restart_unit) nel_molkind(2,1:nmolecule_kind)
+
+      DEALLOCATE(nmol_molkind,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(nao_molkind,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(natom_molkind,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(nel_molkind,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    END IF  ! ionode
+
+    ! The following is done by all the processor
+    ! The MOs etc are communicated to all the processor, one molecule at a time 
+
+    ALLOCATE(mo_buffer(nao_max,nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(eig_buffer(nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(occ_buffer(nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO imol_global = 1,nmolecule_global
+      imol_found = 0
+      imol_proc = -1
+      CALL dcopy(nao_max*nmo_max*nspins,0.0_dp,0,mo_buffer(1,1,1),1)
+      CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
+      CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
+      DO imolecule_kind = 1,nmolecule_kind
+        NULLIFY(fm_mol_set,mol_blocks,mos, mo_set)
+        NULLIFY(mo,eigenvalues,occupation_numbers)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
+                               nmolecule_local = nmolecule_local,&
+                               n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
+                               fm_mol_blocks=mol_blocks) 
+        DO imol_local = 1,nmolecule_local
+           mol_block => mol_blocks(imol_local)
+           IF(imol_global == mol_block%imol_global) THEN
+             ! Molecule found, now retrieve the MO etc
+             ! fill mo_buffer, eig_buffer, occ_buffer one spin at a time
+             ! write them down in the restart
+             ! and ciaociao
+             imol_found = 1
+             imol_proc = globenv%mepos
+             CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
+             DO ispin = 1,nspins
+                mo_set => mos(ispin)%mo_set
+                CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
+                                    occupation_numbers=occupation_numbers)
+                DO imo = 1 , n_mo(ispin)
+                  CALL DCOPY(n_ao,mo(1,imo),1,mo_buffer(1,imo,ispin),1)
+                  eig_buffer(imo,ispin) = eigenvalues(imo)
+                  occ_buffer(imo,ispin) = occupation_numbers(imo)
+                END DO
+             END DO
+             call mp_bcast (imol_proc , globenv%mepos, globenv%group )
+           END IF
+                      
+        END DO  ! imol_local
+
+      END DO  ! imolecule_kind
+
+      CALL mp_sum(imol_found,group)
+
+      IF(imol_found==0 ) THEN
+        IF(globenv%ionode) &
+           WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
+        CALL stop_program (routineP,"Error ")
+      ELSEIF(imol_found >=2 ) THEN
+        IF(globenv%ionode) &
+             WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
+        CALL stop_program (routineP,"Error ")
+      ELSE 
+
+        CALL mp_sum(mo_buffer,group)
+        CALL mp_sum(eig_buffer,group)
+        CALL mp_sum(occ_buffer,group)
+
+!        CALL mp_sendrecv(mo_buffer,source,mo_buffer,imol_proc,group)
+!        CALL mp_sendrecv(eig_buffer,source,eig_buffer,imol_proc,group)
+!        CALL mp_sendrecv(occ_buffer,source,occ_buffer,imol_proc,group)
+
+        DO ispin = 1,nspins
+         IF(globenv%ionode.AND.(n_mo(ispin)>0)) THEN
+           WRITE (restart_unit) imol_global , ispin
+           WRITE (restart_unit) n_mo(ispin),n_ao,&
+                                nelectron_spin(ispin)
+           WRITE (restart_unit) eig_buffer(1:n_mo(ispin),ispin)
+           WRITE (restart_unit) occ_buffer(1:n_mo(ispin),ispin)
+          DO imo = 1,n_mo(ispin)
+           WRITE (restart_unit) mo_buffer(1:n_ao,imo,ispin)
+          END DO
+                                
+         END IF
+        END DO
+
+      END IF
+
+    END DO ! imol_global
+ 
+    DEALLOCATE(mo_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(eig_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(occ_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE write_mo_mol_restart
+
+!***************************************************************************
+!!****f* kg_gpw_fm_mol_utils/read_mo_mol_restart
+!!
+!!   NAME
+!!     read_mo_mol_restart
+!!
+!!   FUNCTION
+!!     Read  the RESTART file for the KG_GPW calculation
+!!     The MO are written in a list of blocks, each one corresponding
+!!     to one molecule
+!!     Since the molecule are distributed over the projectors, some commuication
+!!     is required to write the list in the correct order (order of the molecule)
+!!     
+!!   NOTE
+!!     The KG_GPW RESTART file has a special form. It should be read and written only
+!!     in a KG_GPW calculation. However the defoult name is still RESTART.
+!!     An initial flag identifies this as a KG_GPW RESTART.
+!!
+!!   INPUTS
+!!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
+!!     - globenv: parallel distribution and i/o information
+!!     - nspins
+!!     - id_nr: give an index to the restart if =/ 1
+!!     - error
+!!
+!!   AURHOR
+!!     MI
+!!
+!!   MODIFICATION HISTORY
+!!
+!!*** **********************************************************************
+
+  SUBROUTINE read_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
+
+    TYPE(kg_fm_p_type)                         :: kg_fm
+    TYPE(global_environment_type), &
+      INTENT(IN)                               :: globenv
+    INTEGER, INTENT(IN)                        :: id_nr, nspins
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                                 :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name ="read_mo_mol_restart",&
+       routineP = module_name//':'//routine_name
+
+    CHARACTER(LEN=200)                         :: file_name
+    CHARACTER(LEN=6)                           :: method 
+    INTEGER :: group, handle, imo, imol_found, imol_global, &
+               imol_global_read , imol_local, imol_proc,&
+               imolecule_kind, ispin,  ispin_read, istat, n_ao, n_ao_read,&
+               n_mo(2), n_mo_read(2), nao_max, nao_max_read, natom, &
+               nelectron_global, nelectron_global_read, nelectron_spin(2), &
+               nmo_max, nmo_max_read, nmo_min, nmol_kind_global, &
+               nmolecule_global, nmolecule_global_read, &
+               nmolecule_kind, nmolecule_kind_read, nmolecule_local,&
+               nspins_read, source, restart_unit
+
+    INTEGER, DIMENSION(:), ALLOCATABLE         :: nmol_molkind_read, nao_molkind_read, natom_molkind_read
+    INTEGER, DIMENSION(:,:), ALLOCATABLE       :: nel_molkind_read
+    LOGICAL :: failure
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE      :: eig_buffer, occ_buffer
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE    :: mo_buffer
+    REAL(dp), DIMENSION(:,:), POINTER          :: mo
+    REAL(dp), DIMENSION(:), POINTER            :: eigenvalues, occupation_numbers
+    TYPE(kg_fm_mol_set_type), POINTER          :: fm_mol_set
+    TYPE(fm_mol_blocks_type), DIMENSION(:), &
+      POINTER                                  :: mol_blocks
+    TYPE(fm_mol_blocks_type), POINTER          :: mol_block
+    TYPE(mol_mo_set_p_type), DIMENSION(:), &
+      POINTER                                  :: mos
+    TYPE(mol_mo_set_type), POINTER             :: mo_set
+
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+
+    failure = .FALSE.
+
+    group = globenv%group
+    source = globenv%source
+
+    method ="KG_GPW"
+    nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
+    nmolecule_global = kg_fm%nmolecule_global
+    nelectron_global = kg_fm%nelectron_global
+    nao_max = kg_fm%nao_max
+    nmo_max = kg_fm%nmo_max
+
+    IF (globenv%ionode) THEN
+
+      IF (id_nr==1) THEN
+        file_name = globenv%restart_file_name
+      ELSE
+        file_name = TRIM(globenv%restart_file_name)//"-"//&
+                    ADJUSTL(cp_to_string(id_nr))
+      END IF
+
+      CALL open_file(file_name=file_name,&
+                     file_action="READ",&
+                     file_form="UNFORMATTED",&
+                     file_status="OLD",&
+                     unit_number=restart_unit)
+
+!     *** read some info about the molecules ***
+
+      ALLOCATE(nmol_molkind_read(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nao_molkind_read(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(natom_molkind_read(nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ALLOCATE(nel_molkind_read(2,nmolecule_kind),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+      READ (restart_unit) method, nmolecule_kind_read, nmolecule_global_read, nelectron_global_read, nspins_read
+ 
+      IF (.NOT. (method=="KG_GPW")) THEN
+        CALL stop_program(routineP,"READ RESTART: this is not a KG_GPW restart file")
+      END IF
+      IF (nmolecule_kind_read  /= nmolecule_kind) THEN
+        CALL stop_program(routineP,"READ RESTART: different number of molecule kinds")
+      END IF
+      IF (nmolecule_global_read /= nmolecule_global_read) THEN
+        CALL stop_program(routineP,"READ RESTART: different number of molecules ")
+      END IF
+      IF (nelectron_global_read /= nelectron_global_read) THEN
+        CALL stop_program(routineP,"READ RESTART: different number of electrons ")
+      END IF
+      IF (nspins_read /= nspins) THEN
+        CALL stop_program(routineP,"READ RESTART: nspin is not equal (program this !!)")
+      END IF
+      
+      READ (restart_unit) nmol_molkind_read
+      READ (restart_unit) nao_molkind_read
+      READ (restart_unit) natom_molkind_read
+      READ (restart_unit) nel_molkind_read(1,1:nmolecule_kind)
+      READ (restart_unit) nel_molkind_read(2,1:nmolecule_kind)
+
+      DO imolecule_kind = 1,nmolecule_kind
+        NULLIFY(fm_mol_set)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+        CALL  get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
+                                nmol_kind_global=nmol_kind_global,&
+                                n_ao = n_ao,&
+                                natom = natom, &
+                                nelectron_spin=nelectron_spin) 
+        CPPostcondition(nmol_kind_global==nmol_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
+        CPPostcondition(n_ao==nao_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
+        CPPostcondition(natom==natom_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
+        IF(failure) THEN
+         WRITE(globenv%scr,*) " READ RESTART : molecule kind ",imolecule_kind , " is not consistent "
+         CALL stop_program(routineP,"error")
+        END IF
+      END DO 
+
+      DEALLOCATE(nmol_molkind_read,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(nao_molkind_read,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(natom_molkind_read,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      DEALLOCATE(nel_molkind_read,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    END IF  ! ionode
+
+    ALLOCATE(mo_buffer(nao_max,nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(eig_buffer(nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(occ_buffer(nmo_max,nspins),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    DO imol_global = 1,nmolecule_global
+      imol_found = 0
+      imol_proc = 0
+      CALL dcopy(nao_max*nmo_max*nspins,0.0_dp,0,mo_buffer(1,1,1),1)
+      CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
+      CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
+ 
+      IF(globenv%ionode) THEN
+        DO ispin = 1,nspins
+          READ (restart_unit) imol_global_read , ispin_read
+          READ (restart_unit) n_mo_read(ispin),n_ao_read,&
+                                nelectron_spin(ispin)
+          READ (restart_unit) eig_buffer(1:n_mo_read(ispin),ispin)
+          READ (restart_unit) occ_buffer(1:n_mo_read(ispin),ispin)
+          DO imo = 1,n_mo_read(ispin)
+           READ (restart_unit) mo_buffer(1:n_ao_read,imo,ispin)
+          END DO
+        END DO
+      END IF
+      CALL mp_bcast(n_mo_read,source,group)
+      CALL mp_bcast(n_ao_read,source,group)
+
+      CALL mp_bcast(mo_buffer,source,group)
+      CALL mp_bcast(occ_buffer,source,group)
+      CALL mp_bcast(eig_buffer,source,group)
+
+      DO imolecule_kind = 1,nmolecule_kind
+        NULLIFY(fm_mol_set,mol_blocks,mos, mo_set)
+        NULLIFY(mo,eigenvalues,occupation_numbers)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,  &
+                               nmolecule_local = nmolecule_local,&
+                               n_ao=n_ao, n_mo=n_mo,nelectron_spin=nelectron_spin,&
+                               fm_mol_blocks=mol_blocks) 
+        DO imol_local = 1,nmolecule_local
+           mol_block => mol_blocks(imol_local)
+           IF(imol_global == mol_block%imol_global) THEN
+             ! Molecule found, now take the read  MO etc
+             ! check consistency
+             ! fill the correct mo_set one spin at a time
+             ! and ciaociao
+             imol_found = 1
+             imol_proc = globenv%mepos
+
+             IF(n_ao /= n_ao_read) CALL stop_program(routineP,"RESTART READ: different number of AO")
+
+             CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
+
+             DO ispin = 1,nspins
+                mo_set => mos(ispin)%mo_set
+                CALL get_mol_mo_set(mo_set=mo_set,mo=mo,eigenvalues=eigenvalues,&
+                                    occupation_numbers=occupation_numbers)
+                nmo_min = MIN( n_mo(ispin),n_mo_read(ispin)) 
+
+                DO imo = 1 , nmo_min
+                  CALL DCOPY(n_ao,mo_buffer(1,imo,ispin),1,mo(1,imo),1)
+                  eigenvalues(imo) = eig_buffer(imo,ispin)
+                  occupation_numbers(imo) = occ_buffer(imo,ispin)
+                END DO
+                DO imo =  nmo_min+1 , n_mo(ispin)
+                  CALL DCOPY(n_ao,0.0_dp,0,mo(1,imo),1)
+                  eigenvalues(imo) = 0.0_dp
+                  occupation_numbers(imo) = 0.0_dp
+                END DO
+             END DO
+           END IF
+                      
+        END DO  ! imol_local
+
+      END DO  ! imolecule_kind
+
+    END DO  ! imol_global
+
+    DEALLOCATE(mo_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(eig_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(occ_buffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
+
+    CALL timestop(0.0_dp,handle)
+
+
+  END SUBROUTINE read_mo_mol_restart
 
 !***************************************************************************
 END MODULE  kg_gpw_fm_mol_utils

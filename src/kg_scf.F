@@ -69,7 +69,9 @@ MODULE kg_scf
                                              mol_mo_set_type
   USE kg_gpw_fm_mol_utils,             ONLY: copy_sparse2mol_block,&
                                              fm_mol_power,&
-                                             mol_mo_random
+                                             mol_mo_random,&
+                                             read_mo_mol_restart,&
+                                             write_mo_mol_restart
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kg_environment_types,            ONLY: kg_environment_type,&
@@ -209,8 +211,6 @@ CONTAINS
 ! sets the method
        scf_env%method=general_diag_method_nr ! default with diagonalisation
        IF (dft_control%qs_control%semi_empirical) THEN
-!         IF (dft_control%qs_control%se_control%orthogonal_basis) &
-!             scf_env%method=special_diag_method_nr
           CALL stop_program(routineN,moduleN,__LINE__,&
                "KG_GPW with semi_empirical not implemented")
        END IF
@@ -333,8 +333,6 @@ CONTAINS
     LOGICAL                                    :: ionode, id_equal
     LOGICAL                                    :: diis_step, do_level_shift,&
                                                   should_stop, use_cholesky, use_jacobi
-!    TYPE(atomic_kind_type), DIMENSION(:), &
-!      POINTER                                :: atomic_kind_set
     TYPE(qs_environment_type), POINTER         :: qs_env
     TYPE(cp_logger_type), POINTER              :: logger
     TYPE(dft_control_type), POINTER            :: dft_control
@@ -350,9 +348,6 @@ CONTAINS
                                                   matrix_p,&
                                                   matrix_s
     TYPE(scf_control_type), POINTER            :: scf_control
-!    TYPE(particle_type), DIMENSION(:), &
-!      POINTER                                :: particle_set
-!    TYPE(pw_env_type), POINTER               :: pw_env
     REAL(dp)                                   :: t1, t2
     REAL(dp)                                   :: diis_error
     REAL(dp), DIMENSION(:), POINTER            :: diis_ev_global
@@ -670,15 +665,12 @@ CONTAINS
           EXIT scf_loop
        END IF
 
-!!   *** Write restart file ***
-!       IF (scf_control%write_restart_each>0.AND.&
-!            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-!         ! CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-!         !      id_nr=qs_env%id_nr)
-!          CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-!               id_nr=1)
-!       END IF
-!
+!   *** Write restart file ***
+       IF (scf_control%write_restart_each>0.AND.&
+            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+          CALL write_mo_mol_restart(kg_fm,globenv,nspins=dft_control%nspins,id_nr=1,error=error)
+       END IF
+
        IF (.NOT. logger%print_keys%timecumul) t1 = m_walltime()
 !
 !   *** mixing methods have the new density matrix in p_mix_new
@@ -725,11 +717,10 @@ CONTAINS
     END IF
 
 !   *** Write restart file ***
-!    IF (scf_control%write_restart_each>=0) THEN
-!       CALL write_mo_set(c,atomic_kind_set,particle_set,globenv,&
-!            id_nr=1)
-!    END IF
-!
+    IF (scf_control%write_restart_each>=0) THEN
+       CALL write_mo_mol_restart(kg_fm,globenv,nspins=dft_control%nspins,id_nr=1,error=error)
+    END IF
+
     ! Retrieve the last kg_fm_set
     CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm)
 
@@ -773,7 +764,6 @@ CONTAINS
 
 ! *** cleanup
     CALL kg_scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
-!  stop 'out loop'
 
     CALL timestop(0.0_dp,handle)
 
@@ -843,8 +833,6 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
 
-!    TYPE(atomic_kind_type), DIMENSION(:), &
-!      POINTER                                :: atomic_kind_set
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_kgscf_run","I"," ",handle)
@@ -905,10 +893,6 @@ CONTAINS
          CALL qs_ks_release(ks_env)
       END IF
 
-!         atomic_kind_set=atomic_kind_set,&
-!    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-!         gth_potential_present=gth_potential_present)
-!
       ionode = logger%para_env%source == logger%para_env%mepos
       IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 !
@@ -932,12 +916,9 @@ CONTAINS
 !             WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
 !                  "Number of independent orbital functions:",nao - ndep
 !          END IF
-!    IF (logger%print_keys%ortho_matrix) THEN
-!       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv)
-!    END IF
-!
+
 !   Initializes rho and the mosv
-    CALL kgscf_initial_rho(kg_env,kg_fm%kg_fm_mol_set,qs_env=qs_env,&
+    CALL kgscf_initial_rho(kg_env,kg_fm,qs_env=qs_env,&
                            globenv=globenv,error=error)
 
 ! *** method dependent initializations ***
@@ -1162,7 +1143,7 @@ CONTAINS
 !!     Calculate the very first density matrix 
 !!
 !!   NOTES
-!!     - RESTART GUESS not implemented yet
+!!  
 !!
 !!   INPUTS
 !!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule 
@@ -1179,16 +1160,15 @@ CONTAINS
 !!
 !!*************************************************************************
 
-  SUBROUTINE kgscf_first_density_matrix(kg_fm_mol_set,qs_env,kg_env,globenv,error)
+  SUBROUTINE kgscf_first_density_matrix(kg_fm,qs_env,kg_env,globenv,error)
 
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                :: kg_fm_mol_set
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(kg_fm_p_type)                        :: kg_fm
+    TYPE(qs_environment_type), POINTER        :: qs_env
+    TYPE(kg_environment_type), POINTER        :: kg_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN)                              :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "kgscf_first_density_matrix", &
       routineP = moduleN//":"//routineN
@@ -1223,6 +1203,8 @@ CONTAINS
     TYPE(fm_mol_blocks_type), POINTER         :: mol_block
     TYPE(gth_potential_type), POINTER         :: gth_potential
     TYPE(gto_basis_set_type), POINTER         :: orb_basis_set
+    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
+      POINTER                                 :: kg_fm_mol_set
     TYPE(kg_fm_mol_set_type), POINTER         :: fm_mol_set
     TYPE(mol_mo_set_p_type), DIMENSION(:),&
       POINTER                                 :: mos
@@ -1234,11 +1216,12 @@ CONTAINS
                                                  matrix_p,&
                                                  matrix_s
     TYPE(scf_control_type), POINTER           :: scf_control
+  INTEGER :: imo
 !
 !   ---------------------------------------------------------------------------
 !
     NULLIFY( aux_matrix, atomic_kind_set, dft_control, &
-            para_env, particle_set, &
+            para_env, particle_set, kg_fm_mol_set, &
             matrix_h, matrix_s,matrix_p, scf_control)
 
     CALL timeset(routineN,"I"," ",handle)
@@ -1251,19 +1234,18 @@ CONTAINS
                     dft_control=dft_control)
 
     nspin=dft_control%nspins
+    kg_fm_mol_set => kg_fm%kg_fm_mol_set
     nmolecule_kind = SIZE(kg_fm_mol_set)
 
     matrix_p => qs_env%rho%rho_ao
 
-    IF (scf_control%use_ot .AND. .NOT.  &
-         (scf_control%density_guess == "RANDOM" .OR.  &
-         (scf_control%density_guess == "RESTART" .AND. &
-         scf_control%level_shift == 0.0_dp))) THEN
-       CALL stop_program("calculate_first_density_matrix",&
-                         "OT needs GUESS RESTART : other options NYI")
-    ENDIF
 
     IF (scf_control%density_guess == "RESTART") THEN
+
+      CALL read_mo_mol_restart(kg_fm,globenv,nspins=nspin,id_nr=1,error=error)
+
+      kg_fm_mol_set => kg_fm%kg_fm_mol_set
+
       DO imolecule_kind = 1,nmolecule_kind
         NULLIFY(fm_mol_set,fm_mol_blocks)
         fm_mol_set => kg_fm_mol_set(imolecule_kind)
@@ -1287,10 +1269,8 @@ CONTAINS
             mo_set => mos(ispin)%mo_set
             CALL get_mol_mo_set(mo_set=mo_set, mo = mo_coeff,&
                                 nmo=nmo)
-!       ! CALL read_mol_mo_set(mo_coeff,nao,nmo,ispin,error)
-!
             ! Multiply Overlap matric and Coefficient matrix
-            CALL  multiply_sparse_mol_mo(matrix_s(ispin)%matrix,mol_block,&
+            CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
                                          nat_mol,mo_coeff,nmo,s_mo)
             ! orthogonalize the molecular orbitals 
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
@@ -1333,7 +1313,7 @@ CONTAINS
             ! Initialize random coefficients
             CALL  mol_mo_random(mo_coeff,para_env%mepos,para_env%num_pe) 
             ! Multiply Overlap matric and Coefficient matrix
-            CALL  multiply_sparse_mol_mo(matrix_s(ispin)%matrix,mol_block,&
+            CALL  multiply_sparse_mol_mo(matrix_s(1)%matrix,mol_block,&
                                          nat_mol,mo_coeff,nmo,s_mo)
             ! orthogonalize the molecular orbitals 
             CALL mol_make_basis(mo_coeff, nmo, matrix_ortho=s_mo, otype="SV")
@@ -1556,7 +1536,7 @@ CONTAINS
 !!     - extrapolation from previous steps of MD or GEOPT not implemented yet
 !!
 !!   INPUTS
-!!     - kg_fm_mol_set: the set of mos and ortho matrixes, one per each molecule 
+!!     - kg_fm: the set of mos and ortho matrixes, one per each molecule 
 !!     - qs_env: the qs env that lives in kg_env
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -1569,11 +1549,10 @@ CONTAINS
 !!
 !!*************************************************************************
 
-  SUBROUTINE kgscf_initial_rho(kg_env, kg_fm_mol_set, qs_env, globenv, error)
+  SUBROUTINE kgscf_initial_rho(kg_env, kg_fm, qs_env, globenv, error)
 
     TYPE(kg_environment_type), POINTER           :: kg_env
-    TYPE(kg_fm_mol_set_type), DIMENSION(:), &
-      POINTER                                    :: kg_fm_mol_set
+    TYPE(kg_fm_p_type), POINTER                  :: kg_fm
     TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(global_environment_type), &
       INTENT(in), TARGET                         :: globenv
@@ -1588,6 +1567,8 @@ CONTAINS
     LOGICAL                                      :: failure, ionode, orthogonal_wf
     TYPE(cp_logger_type), POINTER                :: logger
     TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
+    TYPE(kg_fm_mol_set_type), DIMENSION(:),&
+                                POINTER          ::    kg_fm_mol_set
 
 !    -------------------------------------------------------------------------
 
@@ -1597,6 +1578,7 @@ CONTAINS
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%source==logger%para_env%mepos
+    kg_fm_mol_set => kg_fm%kg_fm_mol_set
     CPPrecondition(ASSOCIATED(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
 
@@ -1615,7 +1597,7 @@ CONTAINS
          "Extrapolation method: "//&
          TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
-          CALL kgscf_first_density_matrix(kg_fm_mol_set,qs_env=qs_env,&
+          CALL kgscf_first_density_matrix(kg_fm,qs_env=qs_env,&
                kg_env=kg_env, globenv=globenv, error=error)
           CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&

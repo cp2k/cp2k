@@ -101,6 +101,7 @@ CONTAINS
                                  particle_set, nspins, nmo_eq_nao, &
                                  added_mos,use_cholesky,&
                                  nelectron_global,nao_global,&
+                                 nao_max, nmo_max, &
                                  maxocc_global,error)
 
 !   Purpose: 
@@ -122,6 +123,7 @@ CONTAINS
     LOGICAL, INTENT(IN)                        :: use_cholesky
     INTEGER , INTENT(INOUT)                    :: nelectron_global
     INTEGER , INTENT(INOUT)                    :: nao_global
+    INTEGER , INTENT(INOUT)                    :: nao_max, nmo_max
     REAL(dp), DIMENSION(2), INTENT(INOUT)      :: maxocc_global
     TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                                :: error
@@ -226,6 +228,8 @@ CONTAINS
 
      nelectron_global = nelectron_global + nmol_local * nelectron
      nao_global = nao_global + nmol_local * n_ao
+     nao_max = MAX(nao_max,n_ao)
+     nmo_max = MAX(nmo_max,n_mo(1),n_mo(2))
      DO imol = 1,nmol_local
         iglobal = index_mol_local(imol)
         fm_mol_set%fm_mol_blocks(imol)%imol_global = iglobal

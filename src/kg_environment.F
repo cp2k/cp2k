@@ -66,7 +66,7 @@ MODULE kg_environment
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE machine,                         ONLY: m_flush
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_max,mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
@@ -431,8 +431,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imolecule_kind, istat, &
-                                                nao_global, nelectron_global,&
-                                                nkind, nmolecule_kind, nspins
+                                                nao_global, nao_max, nelectron_global,&
+                                                nkind, nmolecule_kind, nmo_max, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     REAL(dp)                                 :: maxocc_global(2)
     LOGICAL                                  :: failure, nmo_eq_nao, use_ref_cell
@@ -584,6 +584,8 @@ CONTAINS
     CALL kg_sub_pw_env_create(kg_sub_pw_env,nmolecule_kind,error=error)
     nelectron_global = 0
     nao_global = 0
+    nao_max = 0
+    nmo_max = 0
     maxocc_global(1:2) = 0.0_dp
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
@@ -594,6 +596,7 @@ CONTAINS
                               nspins,nmo_eq_nao,added_mos,&
                               scf_control%use_cholesky,&
                               nelectron_global,nao_global,&
+                              nao_max, nmo_max, &
                               maxocc_global=maxocc_global,&
                               error=error)
       ! Initialize the local cell and the pw_env for each molecule kind
@@ -608,8 +611,12 @@ CONTAINS
 
     CALL mp_sum(nelectron_global, para_env%group)
     CALL mp_sum(nao_global, para_env%group)
+    CALL mp_max(nao_max, para_env%group)
+    CALL mp_max(nmo_max, para_env%group)
     kg_fm%nelectron_global = nelectron_global
     kg_fm%nao_global = nao_global
+    kg_fm%nao_max = nao_max
+    kg_fm%nmo_max = nmo_max
     kg_fm%maxocc_global = maxocc_global
     kg_fm%nmolecule_global = SIZE(molecule_set,1)
     CALL set_kg_env(kg_env=kg_env,&
