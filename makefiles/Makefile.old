@@ -14,7 +14,6 @@ MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
 SRCDIR       = $(CP2KHOME)/src
-MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 FORPAR       = $(CP2KHOME)/tools/forpar.x -chkint
 SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
 MACHINEDEFS  = $(ARCHDIR)/$(ARCH).$(VERSION)
@@ -22,7 +21,8 @@ PROG         = $(EXEDIR)/cp2k.$(VERSION)
 EXEDIR       = $(MAINEXEDIR)/$(ARCH)
 LIBDIR       = $(MAINLIBDIR)/$(ARCH)
 OBJDIR       = $(MAINOBJDIR)/$(ARCH)
-VPATH        = $(SRCDIR):$(SRCDIR)/lib
+VPATH        = $(SRCDIR)
+MAKEFILE     = $(SRCDIR)/Makefile
 OBJECTDEFS   = $(SRCDIR)/OBJECTDEFS
 LIB1_ARCHIVE = $(LIBDIR)/$(VERSION)/lib$(LIB1).a
 
@@ -35,11 +35,15 @@ CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
 ### Master rules ###
 
 $(VERSION_TARGETS):
-	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
-	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
-	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	cd $(EXEDIR) || mkdir -p $(EXEDIR)
+	cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
 	$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
 	$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
+
+$(LIB1_ARCHIVE):
+	cd $(LIBDIR)/$(VERSION) || mkdir -p $(LIBDIR)/$(VERSION)
+	$(PMAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) VERSION=$(VERSION) $(LIB1)
+	$(SMAKE) -C $(SRCDIR)/lib -f $(MAKEFILE) clean
 
 $(CLEAN_TARGETS):
 	$(SMAKE) -C $(OBJDIR)/$(@D) -f $(MAKEFILE) VERSION=$(@D) $(@F)
@@ -60,9 +64,11 @@ LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 dependencies: $(DEPENDENCIES)
 
-all: $(LIB1_ARCHIVE) $(PROG)
+all: lib$(LIB1) $(PROG)
 
-$(LIB1_ARCHIVE): $(LIB1_OBJECTS)
+lib$(LIB1): $(LIB1_ARCHIVE)
+
+$(LIB1): $(LIB1_OBJECTS)
 	$(AR) $(LIB1_ARCHIVE) $(LIB1_OBJECTS)
 
 $(PROG): $(OBJECTS)
@@ -73,15 +79,16 @@ $(PROG): $(OBJECTS)
 
 %.d: %.F
 	$(CPP) $(CPPFLAGS) $< $*.f
-	$(FORPAR) $*.f
+	-$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
-	@rm -f $*.d.old
+	rm -f $*.f $*.d.old
 
 parallel_include.o: parallel_include.F
-	$(CPP) $(CPPFLAGS) $< $@
+	$(FC_fixed) -c $(FCFLAGS) $<
 
 parallel_include.d: parallel_include.F
 	$(CPP) $(CPPFLAGS) $< $*.f
+	-$(FORPAR) -fix $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
 
