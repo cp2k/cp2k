@@ -33,6 +33,7 @@ MODULE force_fields
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              allocate_potential,&
+                                             get_potential,&
                                              set_potential
   USE force_field_types,               ONLY: allocate_bond_kind_set,&
                                              allocate_bend_kind_set,&
@@ -170,21 +171,21 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Parse the input for force field section and append any info
+  ! 1. Initialize the ff_type structure type
   !-----------------------------------------------------------------------------
   CALL init_ff_type(ff_type)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Parse the input for force field section and append any info
+  ! 2. Read in the force field section in the input file if any
   !-----------------------------------------------------------------------------
   CALL read_force_field_section(ff_type,globenv)
 
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 1. If reading in from external file, make sure its there first
+  ! 3. If reading in from external file, make sure its there first
   !-----------------------------------------------------------------------------
   IF(ff_type%ff_type/="OFF") THEN
     !------------------------------------------------------
@@ -201,7 +202,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 2. Read in the force field from the corresponding locations
+  ! 4. Read in the force field from the corresponding locations
   !-----------------------------------------------------------------------------
   IF(ff_type%ff_type/="OFF") THEN
     SELECT CASE (ff_type%ff_type)
@@ -220,7 +221,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Parse the input for force field section and append any info
+  ! 5. Pack all force field info into different structures
   !-----------------------------------------------------------------------------
   CALL force_field_pack (particle_set,atomic_kind_set,&
                          molecule_kind_set,molecule_set,&
@@ -229,7 +230,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. Parse the input for force field section and append any info
+  ! 6. Cleanup the ff_type structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_ff_type(ff_type)
 
@@ -274,7 +275,11 @@ SUBROUTINE read_force_field_section ( ff_type , globenv )
     TYPE(global_environment_type), &
       INTENT(IN),OPTIONAL                    :: globenv
 
-    INTEGER                                  :: iw
+
+    CHARACTER(LEN=default_string_length)     :: label
+    CHARACTER(LEN=default_string_length)     :: string
+
+    INTEGER                                  :: iw,ilen,ierror
 
   LOGICAL                                  :: PM1, PM2, PM3, PM4
 
@@ -295,36 +300,34 @@ SUBROUTINE read_force_field_section ( ff_type , globenv )
   IF(PM1) WRITE(iw,*) "  Entering read_force_field_section"
 
 
-    CALL parser_init(globenv%input_file_name,globenv)
+  CALL parser_init(globenv%input_file_name,globenv)
 
 
-!        CASE ('FORCEFIE')
-!           topology % ff = .TRUE.
-!           ilen = 40
-!           CALL get_next(str2,ilen)
-!           CALL uppercase(str2)
-!           IF (str2 == "CHM") THEN
-!              topology%ff = .TRUE.
-!              topology%ff_type = "CHM"
-!           ELSE IF (str2 == "AMB") THEN
-!              topology%ff = .TRUE.
-!              topology%ff_type = "AMB"
-!           ELSE IF (str2 == "ON") THEN
-!              topology%ff = .TRUE.
-!              topology%ff_type = "ON"
-!           ELSE IF (str2 == "OFF") THEN
-!              topology%ff = .FALSE.
-!              topology%ff_type = "OFF"
-!           ELSE
-!              CALL p_error()
-!              CALL stop_parser( 'read_topology_section', &
-!                                'unknown option force field type' )
-!           END IF
-!        CASE ('FOFI_FIL')
-!           ilen = 40
-!           CALL get_next(topology % ff_file_name,ilen)
+!..parse the input section
+  label = '&FORCE_FIELD'
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror /= 0 ) THEN
+     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
+        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
+     END IF
+  ELSE
+     CALL read_line
+     DO WHILE (test_next()/='X')
+        ilen = 9
+        CALL get_next(string,ilen)
+        CALL uppercase(string)
+        IF (string == 'PARMFILE') THEN
+          ilen = 40
+          CALL get_next(ff_type%ff_type,ilen)
+          CALL uppercase(ff_type%ff_type)
+          CALL get_next(ff_type%ff_file_name,ilen)
+        END IF
+        CALL read_line
+     END DO
+   END IF
+    CALL parser_end()
 
-
+  CALL parser_init(globenv%input_file_name,globenv)
 !..read in non-bonded interaction information
     CALL input_nonbonded(ff_type,globenv)
 
@@ -2498,16 +2501,20 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 14. Set up atomic_kind_set()%elp_potentail%qeff
+  ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
   !-----------------------------------------------------------------------------
   ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=istat)
   IF (istat /= 0) CALL stop_memory('force_field_pack','charge')
   DO i=1,SIZE(atomic_kind_set)
     atomic_kind => atomic_kind_set(i)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                      name=atmname) 
+                         elp_potential=elp_potential,&
+                         name=atmname) 
+    CALL get_potential(potential=elp_potential,&
+                       qeff=charge(i))
 
-    found = .FALSE.
+    found = .TRUE.
+    IF(charge(i)<=-100.0) found = .FALSE.
 
 !   ! loop over params from amber
 !   IF(ASSOCIATED(ff_type%amb_info%charge_atm)) THEN
@@ -2531,7 +2538,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
           found = .TRUE.
         END IF
-        IF(found) EXIT
+        !IF(found) EXIT
       END DO
     END IF
   
@@ -2544,7 +2551,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
           found = .TRUE.
         END IF
-        IF(found) EXIT
+        !IF(found) EXIT
       END DO
     END IF
 
@@ -2552,8 +2559,6 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
       CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
     END IF
 
-    NULLIFY(elp_potential)
-    CALL allocate_potential(elp_potential)
     CALL set_potential(potential=elp_potential,&
                        qeff=charge(i))
     CALL set_atomic_kind(atomic_kind=atomic_kind,&

@@ -28,6 +28,9 @@ MODULE topology_util
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE external_potential_types,        ONLY: elp_potential_type,&
+                                             allocate_potential,&
+                                             set_potential
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dbl,&
                                              default_string_length
@@ -2110,6 +2113,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
     CHARACTER(LEN=default_string_length)     :: atmname
     LOGICAL                                  :: found
+    REAL(dbl)                                :: qeff
+    TYPE(elp_potential_type), POINTER        :: elp_potential
 
 
 !------------------------------------------------------------------------------
@@ -2351,7 +2356,30 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
+  ! 9. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
+  !-----------------------------------------------------------------------------
+  IF(globenv%program_name == "FIST") THEN
+    DO i=1,SIZE(atomic_kind_set)
+      atomic_kind => atomic_kind_set(i)
+      CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
+      qeff = -10000.0_dbl
+      DO j=1,SIZE(atom_info%label_atmname)
+        IF(atmname == atom_info%label_atmname(j)) THEN
+          qeff = atom_info%atm_charge(j)
+          EXIT
+        END IF
+      END DO
+      NULLIFY(elp_potential)
+      CALL allocate_potential(elp_potential)
+      CALL set_potential(potential=elp_potential,qeff=qeff)
+      CALL set_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
+    END DO
+  END IF
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 10. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
   !-----------------------------------------------------------------------------
     DO i=1,topology%nmol_type
     molecule_kind => molecule_kind_set(i)
