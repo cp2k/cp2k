@@ -312,8 +312,6 @@ CONTAINS
 !      *** Add contributions to the exc energy 
        energy%exc1 = energy%exc1 + rho_atom%exc_h - rho_atom%exc_s
 
-!     WRITE(*,*) rho_atom%exc_h, rho_atom%exc_s, energy%exc1
-
 !      *** Integration to get the matrix elements relative to the vxc_atom ***
 !      *** here the products with the primitives is done: gaVxcgb ***
 !      *** internal transformation to get the integral in cartesian Gaussians ***
@@ -1173,53 +1171,6 @@ CONTAINS
                   ENDDO ! ir
                 ENDDO ! ia
               ENDDO  ! l
-
-!              ELSE
-
-!             Without Cross Term
-!              DO l = lmin12,lmax12
-!                DO ia = 1,na
-!                  DO ir = 1,nr
-!                     gVXCg_h(ia,l) = gVXCg_h(ia,l) + &
-!                                    gg(ir,l) * vxc_h(ia,ir,ispin)+&
-!                                    dgg(ir,l)*&
-!                                   (vxg_h(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-!                                    vxg_h(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-!                                    vxg_h(3,ia,ir,ispin)*harmonics%a(3,ia))
-!
-!                     gVXCg_s(ia,l) = gVXCg_s(ia,l) + &
-!                                    gg(ir,l) * vxc_s(ia,ir,ispin)+&
-!                                    dgg(ir,l)*&
-!                                   (vxg_s(1,ia,ir,ispin)*harmonics%a(1,ia)+&
-!                                    vxg_s(2,ia,ir,ispin)*harmonics%a(2,ia)+&
-!                                    vxg_s(3,ia,ir,ispin)*harmonics%a(3,ia))
-!
-!                     urad = grid_atom%oorad2l(ir,1)
-!
-!
-!                     gVXGg_h(1,ia,l) = gVXGg_h(1,ia,l) + &
-!                                    vxg_h(1,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad
-!                     gVXGg_h(2,ia,l) = gVXGg_h(2,ia,l) + &
-!                                    vxg_h(2,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad
-!                     gVXGg_h(3,ia,l) = gVXGg_h(3,ia,l) + &
-!                                    vxg_h(3,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad
-!
-!                     gVXGg_s(1,ia,l) = gVXGg_s(1,ia,l) + &
-!                                    vxg_s(1,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad                                
-!                     gVXGg_s(2,ia,l) = gVXGg_s(2,ia,l) + &              
-!                                    vxg_s(2,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad                                
-!                     gVXGg_s(3,ia,l) = gVXGg_s(3,ia,l) + &              
-!                                    vxg_s(3,ia,ir,ispin)*&
-!                                    gg(ir,l)*urad
-!                  ENDDO ! ir
-!                ENDDO ! ia
-!              ENDDO  ! l
-!              END IF
 
               matso_h = 0.0_dp
               matso_s = 0.0_dp

@@ -71,6 +71,7 @@ MODULE qs_rho0_types
     REAL(dp)                                    :: zet0_h,zet0_s,&
                                                    total_rho0_h,&
                                                    total_rho0_s
+    REAL(dp)                                    :: max_rpgf0_s
     REAL(dp), DIMENSION(:), POINTER             :: norm_g0l_h, &
                                                    norm_g0l_s
     INTEGER, DIMENSION(:),  POINTER             :: lmax0_kind
@@ -510,7 +511,8 @@ CONTAINS
   SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, g0_s, vg0_h, iat, ikind, lmax_0, l0_ikind,&
                             lmax0_kind, mp_gau_ikind, mp_rho, norm_g0l_h, norm_g0l_s,&
                             Qlm_gg, Qlm_car_h,Qlm_car_s,Qlm_tot, zet0_h, zet0_s, &
-                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s,rho0_s_rs,rho0_s_gs)
+                            igrid_zet0_s, rpgf0_h,rpgf0_s,r_V0hmV0s,max_rpgf0_s, &
+                            rho0_s_rs, rho0_s_gs)
 
     TYPE(rho0_mpole_type),  POINTER              :: rho0_mpole
 
@@ -520,6 +522,7 @@ CONTAINS
     REAL(dp), INTENT(OUT), OPTIONAL              :: zet0_h,zet0_s
     REAL(dp), INTENT(OUT), OPTIONAL              :: rpgf0_h, rpgf0_s
     REAL(dp), INTENT(OUT), OPTIONAL              :: r_V0hmV0s
+    REAL(dp), INTENT(OUT), OPTIONAL              :: max_rpgf0_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: norm_g0l_h, &
                                                     norm_g0l_s
     REAL(dp), DIMENSION(:), OPTIONAL,POINTER     :: Qlm_car_h, Qlm_car_s
@@ -546,6 +549,7 @@ CONTAINS
       IF(PRESENT(zet0_h)) zet0_h = rho0_mpole%zet0_h
       IF(PRESENT(zet0_s)) zet0_s = rho0_mpole%zet0_s
       IF(PRESENT(igrid_zet0_s)) igrid_zet0_s = rho0_mpole%igrid_zet0_s
+      IF(PRESENT(max_rpgf0_s)) max_rpgf0_s = rho0_mpole%max_rpgf0_s
       IF(PRESENT(rho0_s_rs))    rho0_s_rs => rho0_mpole%rho0_s_rs
       IF(PRESENT(rho0_s_gs))    rho0_s_gs => rho0_mpole%rho0_s_gs
 
@@ -654,7 +658,7 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T2,A)")&
             "- Normalization constants for soft and hard g0"
       DO l = 0,rho0_mpole%lmax_0
-        WRITE (UNIT=output_unit,FMT="(T20,A,T35,I2,T38,A,f10.5,A,f10.5)")&
+        WRITE (UNIT=output_unit,FMT="(T20,A,T31,I2,T38,A,f15.5,A,f15.5)")&
             "ang. mom.= ", l, " hard= ", rho0_mpole%norm_g0l_h(l),&
                               " soft= ", rho0_mpole%norm_g0l_s(l)
       END DO

@@ -76,6 +76,8 @@ MODULE pw_env_methods
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                             rho0_mpole_type
   USE qs_util,                         ONLY: exp_radius
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory,&
@@ -180,14 +182,15 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     REAL(KIND=dp), PARAMETER                 :: safety_factor = 1.2 
 
     INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
-      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, lmax_rho0, maxlgto, &
-      ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat
+      ishell, istat, jkind, jpgf, jset, jshell, la, lb, lgrid_level, igrid_zet0_s,&
+      lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
     LOGICAL                                  :: failure, pw_grid_information, &
                                                 use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
-                                                maxradius, rel_cutoff, zetp
+                                                maxradius, rel_cutoff, &
+                                                max_rpgf0_s, zet0_s, zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -204,13 +207,14 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
+    TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
 
 ! should be be avoided (see later)
 
   CALL timeset(routineN,"I","",handle)
   failure=.FALSE.
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
-          pw_pools,rs_pools, para_env,cell_ref)
+          pw_pools,rho0_mpole,rs_pools, para_env,cell_ref)
   logger => cp_error_get_logger(error)
   pw_grid_information=logger%print_keys%pw_grid_information
  
@@ -239,6 +243,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
            ALLOCATE(pw_env%l_info_rho0,stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
+        CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+        CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
+        CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
+                         zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
      ELSE
         NULLIFY(pw_env%l_info_rho0)
      END IF
@@ -344,6 +352,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CALL pw_grid_release(pw_grid,error=error)
      END DO
 
+     ! Find the grid level suitable for rho0_soft
+     IF(qs_env%dft_control%qs_control%gapw) THEN
+        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
+        rho0_mpole%igrid_zet0_s = igrid_zet0_s
+     END IF
+
      DEALLOCATE(radius,stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
@@ -364,6 +378,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      maxradius=0.0_dp
      DO igrid_level=1,ngrid_level
         IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
+
+        ! Take into account the radius of the soft compnsation charge rho0_soft1
+        IF(qs_env%dft_control%qs_control%gapw) THEN
+           IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
+        END IF
 
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -432,6 +451,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
              maxradius,cmaxl)
         cmax = MAX(cmax,cmaxl)
      END DO
+
      ! init l_info
      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
           maxlgto=maxlgto)

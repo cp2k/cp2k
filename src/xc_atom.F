@@ -328,7 +328,8 @@ CONTAINS
        IF (ASSOCIATED(deriv_att)) THEN
           CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
           DO ia = 1,na
-            vxg(1:3,ia,ir_pnt,ispin) = drho(1:3,ia,ir_pnt,ispin)*deriv_data(ia,1,1)*w(ia)*oodrho(ia,ispin)
+            vxg(1:3,ia,ir_pnt,ispin) = drho(1:3,ia,ir_pnt,ispin)*&
+                       deriv_data(ia,1,1)*w(ia)*oodrho(ia,ispin)
           END DO
           NULLIFY (deriv_data)
        END IF
@@ -338,7 +339,8 @@ CONTAINS
      IF (ASSOCIATED(deriv_att)) THEN
        CALL xc_derivative_get(deriv_att,deriv_data=deriv_data,error=error)
        DO ia = 1,na
-         vxg(1:3,ia,ir_pnt,1) = drho(1:3,ia,ir_pnt,ispin)*deriv_data(ia,1,1)*w(ia)*oodrho(ia,1)
+         vxg(1:3,ia,ir_pnt,1) = drho(1:3,ia,ir_pnt,1)*&
+                    deriv_data(ia,1,1)*w(ia)*oodrho(ia,1)
        END DO
        NULLIFY (deriv_data)
      END IF

@@ -347,6 +347,7 @@ MODULE qs_rho0_methods
                                                 ecut, eps_fit, eps_Vrho0,&
                                                 gcut, radius,&
                                                 rc_orb, rc_min, &
+                                                max_rpgf0_s, &
                                                 total_rho_core_rspace, &
                                                 zetsoft_max
     INTEGER  ::  iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, max_nr, maxl, maxso, nat, &
@@ -521,6 +522,8 @@ MODULE qs_rho0_methods
 
 
 !   Allocate and Initialize the g0 gaussians used to build the compensation density
+!   an calculate the interaction radii 
+    max_rpgf0_s = 0.0_dp
     DO ikind = 1,nkind
       atom_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atom_kind,&
@@ -528,9 +531,10 @@ MODULE qs_rho0_methods
 
       CALL calculate_g0(rho0_mpole,grid_atom,ikind)
 
-      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,.TRUE.)
+      CALL interaction_radii_g0(rho0_mpole,grid_atom,ikind,eps_Vrho0,max_rpgf0_s,.TRUE.)
 
     END DO
+    rho0_mpole%max_rpgf0_s = max_rpgf0_s
 
     IF (.NOT.my_tddft) THEN
        CALL set_qs_env(qs_env=qs_env, rho0_mpole = rho0_mpole, &
@@ -542,7 +546,7 @@ MODULE qs_rho0_methods
        tddft_local_rho_set%rho0_atom_set => rho0_atom_set
        tddft_local_rho_set%rhoz_set => rhoz_set
        tddft_local_rho_set%rhoz_tot = total_rho_core_rspace
-       CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, error)
+       CALL rho0_s_grid_create(qs_env, tddft_local_rho_set, .TRUE., error)
     END IF
 
     CALL write_rho0_info(rho0_mpole,cell,error)
@@ -552,12 +556,13 @@ MODULE qs_rho0_methods
 ! *****************************************************************************
 
   SUBROUTINE interaction_radii_g0(rho0_mpole,grid_atom,ik,&
-                                  eps_Vrho0,calculate_V0hmV0s)
+                                  eps_Vrho0,max_rpgf0_s,calculate_V0hmV0s)
 
     TYPE(rho0_mpole_type), POINTER      :: rho0_mpole
     TYPE(grid_atom_type), POINTER       :: grid_atom
     INTEGER , INTENT(IN)                :: ik
     REAL(dp), INTENT(IN)                :: eps_Vrho0
+    REAL(dp), INTENT(INOUT)             :: max_rpgf0_s
     LOGICAL , INTENT(IN)                :: calculate_V0hmV0s
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "interaction_radii_g0"
@@ -588,6 +593,7 @@ MODULE qs_rho0_methods
 
     rho0_mpole%mp_gau(ik)%rpgf0_h = r_h
     rho0_mpole%mp_gau(ik)%rpgf0_s = r_s
+    max_rpgf0_s = MAX(max_rpgf0_s,r_s)
 
     IF(calculate_V0hmV0s) THEN
 

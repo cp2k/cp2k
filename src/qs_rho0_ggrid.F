@@ -118,7 +118,9 @@ MODULE qs_rho0_ggrid
                                  POINTER     :: atom_set
     REAL(dp), INTENT(OUT)                    :: tot_rs_int
 
-    CHARACTER(LEN=*), PARAMETER         :: routine_name = "put_rho0_s_on_grid"
+    CHARACTER(LEN=*), PARAMETER         :: routine_name = "put_rho0_s_on_grid", &
+                         routineP = module_name//':'//routine_name
+
 
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cell_type), POINTER                 :: cell
@@ -129,7 +131,8 @@ MODULE qs_rho0_ggrid
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(cp_rs_pool_type), POINTER           :: pool
-    TYPE(cube_info_type)                     :: cube_info
+    TYPE(cube_info_type) , DIMENSION(:), &
+      POINTER                                :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(l_info_type)                        :: l_info
     TYPE(particle_type), DIMENSION(:), &
@@ -152,11 +155,13 @@ MODULE qs_rho0_ggrid
                                                 omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("put_rho0_s_on_grid","I","",handle)
 
+    failure = .FALSE.
     NULLIFY(atom_kind,atom_list,tasks,pab,Qlm_c)
 
     NULLIFY(dft_control,pw_env,particle_set,para_env,cell,rho0_s_gs,rho0_s_rs)
@@ -168,7 +173,7 @@ MODULE qs_rho0_ggrid
 
     NULLIFY(pools,pw_pools)
     CALL pw_env_get(pw_env=pw_env,rs_pools=pools,pw_pools=pw_pools,error=error)
-    cube_info=pw_env%cube_info(1)
+    cube_info => pw_env%cube_info
     l_info=pw_env%l_info_rho0
     auxbas_grid=pw_env%auxbas_grid
 
@@ -184,7 +189,13 @@ MODULE qs_rho0_ggrid
     pool => pools(igrid)%pool
     pw_pool => pw_pools(igrid)%pool
 
+    CPPrecondition(ASSOCIATED(pool),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(pw_pool),cp_failure_level,routineP,error,failure)
+
     IF(igrid /= auxbas_grid)  THEN
+      ALLOCATE(coeff_rspace,coeff_gspace ,stat=istat)
+      IF(istat /= 0) CALL stop_memory("put_rho0_s_on_grid","coeff_rspace,coeff_gspace")
+
       CALL pw_pool_init_coeff(pw_pool,coeff_rspace,use_data=REALDATA3D,&
                               in_space=REALSPACE,error=error)
       CALL pw_pool_init_coeff(pw_pool,coeff_gspace,&
@@ -266,7 +277,7 @@ MODULE qs_rho0_ggrid
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
-           rs_grid, cube_info,l_info,eps_rho_rspace,&
+           rs_grid, cube_info(igrid),l_info,eps_rho_rspace,&
            ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=r_V0)!rpgf0_s)
 
       END DO  !  j
@@ -295,6 +306,9 @@ MODULE qs_rho0_ggrid
       CALL pw_pool_give_back_coeff(pw_pool,coeff_rspace,error=error)
       CALL pw_pool_give_back_coeff(pw_pool,coeff_gspace,error=error)
 
+      DEALLOCATE(coeff_rspace,coeff_gspace,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     ELSE
       CALL rs_pw_transfer(rs_grid,rho0_s_rs%pw,"FORWARD")
       CALL rs_pool_give_back_rs(pool,rs_grid,error=error)
@@ -310,10 +324,11 @@ MODULE qs_rho0_ggrid
 
 ! *****************************************************************************
 
-  SUBROUTINE rho0_s_grid_create(qs_env, local_rho, error)
+  SUBROUTINE rho0_s_grid_create(qs_env, local_rho, tddft, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(local_rho_type), POINTER            :: local_rho
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -321,7 +336,7 @@ MODULE qs_rho0_ggrid
       routineP = module_name//':'//routineN
 
     INTEGER                                  :: stat, igrid
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_tddft
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(coeff_type), POINTER                :: rho_rs,rho_gs
     TYPE(pw_env_type), POINTER               :: new_pw_env
@@ -331,6 +346,9 @@ MODULE qs_rho0_ggrid
 !   ---------------------------------------------------------------------------
 
   failure=.FALSE.
+  my_tddft = .FALSE.
+  IF(PRESENT(tddft)) my_tddft = tddft
+
   NULLIFY(new_pw_env,auxbas_pw_pool,rho0_mpole,rho_rs,rho_gs)
 
 ! reallocate rho0 on the global grid in real and reciprocal space
@@ -375,9 +393,11 @@ MODULE qs_rho0_ggrid
      rho0_mpole%rho0_s_gs => rho_gs
   END IF
 
-  zet = rho0_mpole%zet0_s*2.0_dp
-  igrid =  gaussian_gridlevel(new_pw_env%gridlevel_info,zet)
-  rho0_mpole%igrid_zet0_s = igrid
+  IF(my_tddft) THEN
+!    zet = rho0_mpole%zet0_s*2.0_dp
+!    igrid =  gaussian_gridlevel(new_pw_env%gridlevel_info,zet)
+    rho0_mpole%igrid_zet0_s = qs_env%local_rho_set%rho0_mpole%igrid_zet0_s
+  END IF
 
   END SUBROUTINE rho0_s_grid_create
 
@@ -409,7 +429,7 @@ MODULE qs_rho0_ggrid
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cp_rs_pool_type), POINTER           :: rs_pool
-    TYPE(cube_info_type),  &
+    TYPE(cube_info_type),  DIMENSION(:), &
                          POINTER             :: cube_info
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ecoul_1center_type), DIMENSION(:), &
@@ -489,7 +509,7 @@ MODULE qs_rho0_ggrid
 
     ! *** assign from pw_env
     auxbas_grid=pw_env%auxbas_grid
-    cube_info=>pw_env%cube_info(igrid)
+    cube_info => pw_env%cube_info
     l_info=pw_env%l_info_rho0
 
     ! *** Get the potential on the right grid
@@ -675,7 +695,7 @@ MODULE qs_rho0_ggrid
         CALL integrate_pgf_product_rspace(&
              l0_ikind,zet0_s,0,0,0.0_dp,0,&
              ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,&
-             cube_info,l_info,hab,pab,o1=0,o2=0,&
+             cube_info(igrid),l_info,hab,pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=calculate_forces,&
              hdab=hdab,hadb=hadb,ithread=ithread,&
