@@ -29,9 +29,9 @@ def diffEpsilon(str1, str2,incomparable_val=1):
 def getCoreLine(file,lineNr):
   import re
   bannerRe=re.compile(r"([ *]+PROGRAM | CP2K\| | IO\| | +[a-zA-Z_\.0-9@]* +has created process number| *$)")
-  timingRe=re.compile(" *- +T I M I N G +- *$")
+  timingRe=re.compile(" *- +(T I M I N G|MESSAGE PASSING PERFORMANCE) +- *$")
   timedLineRe=re.compile(" *[0-9][0-9]:[0-9][0-9]:[0-9][0-9] (.*)$")
-  scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z/]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
+  scfLineRe=re.compile(" *([0-9]+) +([a-zA-Z/ ]+) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[-+]?[0-9]*) +([-+]?[0-9]*\\.?[0-9]+[EedD]?[+-]?[0-9]*) *$")
   line=file.readline()
   while bannerRe.match(line):
     if not line: return (line,lineNr)
@@ -52,7 +52,7 @@ def getCoreLine(file,lineNr):
     lineNr=lineNr+1
   return (line,lineNr)
 
-def compareCp2kOutput(file1,file2, epsilon=0.01,logFile=sys.stdout):
+def compareCp2kOutput(file1,file2, epsilon=0.0,logFile=sys.stdout):
     lineNr1=lineNr2=0
     distance=0.0
     try:
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     else:
         file1=open(sys.argv[1],"r")
         file2=open(sys.argv[2],"r")
-        epsilon=0.01
+        epsilon=0.0
         if len(sys.argv)==4: epsilon=float(sys.argv[3])
         print "distance=",compareCp2kOutput(file1,file2,epsilon,sys.stdout)
         
