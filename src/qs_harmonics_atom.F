@@ -257,7 +257,8 @@ MODULE qs_harmonics_atom
                  iso_mm1, iso_mp1, iso1, iso2, ja, l, l1, l2, &
                  m, mm, maxcg, maxcg_d, maxl, maxs, nset,max_iso_not0,&
                  lx, ly, lz, n, ic, is
-    REAL(dp)  :: abs_m, azi_bar, int, int1, int2, int3, l_r, m_r, rx, ry, rz, drx, dry, drz
+    REAL(dp)  :: abs_m, azi_bar, cosmp1, drx, dry, drz, int, int1, &
+                 int2, int3, l_r, m_r, rx, ry, rz, sinmp1 
     REAL(dp), DIMENSION(:,:,:),ALLOCATABLE :: ss
 
 ! *****************************************************************************
@@ -450,12 +451,13 @@ MODULE qs_harmonics_atom
             IF(m /= l ) THEN
               iso_mp1 = soset(l,m+1)
 
-              IF (ABS(cos_pol(ia)) > EPSILON(1.0_dp ) ) THEN
+              cosmp1 = COS( (m_r+1) *pol(ia) )
+              IF (ABS(cosmp1) > EPSILON(1.0_dp ) ) THEN
                 harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
-                    (COS( m_r * pol(ia) )*harmonics%slm(ia,iso_mp1)/ &
-                     COS( (m_r+1) *pol(ia) ))*&
-                    SQRT( (l_r-m_r) * (l_r+m_r+1._dp) )
+                    COS( m_r * pol(ia) )*harmonics%slm(ia,iso_mp1)/ &
+                     cosmp1 * SQRT( (l_r-m_r) * (l_r+m_r+1._dp) )
               END IF
+
             END IF
           END DO
 
@@ -482,11 +484,12 @@ MODULE qs_harmonics_atom
             IF(m /= -l) THEN
               iso_mm1 = soset(l,m-1)
 
-              harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
-                   SIN( abs_m*pol(ia) ) * harmonics%slm(ia,iso_mm1)/& 
-                    SIN( (abs_m+1._dp)*pol(ia) ) *&
-                   SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )
-
+              sinmp1 =  SIN( (abs_m+1._dp)*pol(ia) )
+              IF(ABS(sinmp1) > EPSILON(1.0_dp) ) THEN
+                harmonics%dslm(1,ia,iso) = harmonics%dslm(1,ia,iso) +&
+                     SIN( abs_m*pol(ia) ) * harmonics%slm(ia,iso_mm1)/& 
+                     sinmp1 * SQRT( (l_r-abs_m) * (l_r+abs_m+1._dp) )
+              END IF
             END IF
           END DO
 
