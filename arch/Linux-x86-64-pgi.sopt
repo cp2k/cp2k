@@ -1,0 +1,17 @@
+PERL     = perl
+CC       = cc
+CPP      = cpp
+FC       = pgf90 -Mfree
+FC_fixed = pgf90 -Mfixed
+LD       = pgf90
+AR       = ar -r
+DFLAGS   = -D__PGI -D__FFTSG -DFD_LONG_EXPANSIONS
+CPPFLAGS = -C $(DFLAGS) -traditional
+FCFLAGS  = -fast
+LDFLAGS  = $(FCFLAGS) \
+           -L/ext/software/generic/pgi/linux86-64/5.0/lib \
+           -L/ext/software/64/acml/pgi64
+LIBS     = -lacml
+
+
+OBJECTS_ARCHITECTURE = machine_pgi.o
