@@ -27,13 +27,15 @@
 MODULE linear_systems
 
   USE kinds, ONLY : dbl
-  USE lapack, ONLY : lapack_spotrf, lapack_cpotrf, lapack_strtri, lapack_ctrtri
+  USE lapack, ONLY : lapack_spotrf, lapack_cpotrf, lapack_strtri, lapack_ctrtri, &
+                     lapack_sgesv
   USE termination, ONLY : stop_program
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: cholesky_inverse
+  PUBLIC :: cholesky_inverse 
+  PUBLIC :: solve_system 
 
   INTERFACE cholesky_inverse
      MODULE PROCEDURE ch_inv_pdsym
@@ -128,6 +130,32 @@ SUBROUTINE ch_inv_pdher ( matrix, mysize, storageform )
   END IF
 
 END SUBROUTINE ch_inv_pdher
+
+!******************************************************************************
+SUBROUTINE solve_system ( matrix, mysize, eigenvectors )
+
+  IMPLICIT NONE
+
+! Arguments
+  REAL ( KIND = dbl ), INTENT ( INOUT ) :: matrix ( :, : )
+  INTEGER, INTENT ( IN ) :: mysize
+  REAL ( KIND = dbl ), INTENT ( INOUT ) :: eigenvectors ( :, : )
+
+! Local
+  INTEGER :: info, lda, ldb, n, nrhs
+  integer :: ipiv ( mysize )
+
+  lda = SIZE ( matrix, 1 )
+  ldb = SIZE ( eigenvectors, 1 )
+  nrhs = SIZE ( eigenvectors, 2 )
+
+  CALL lapack_sgesv ( mysize, nrhs, matrix, lda, ipiv, &
+                      eigenvectors, ldb, info )
+  IF ( info /= 0 ) THEN
+     CALL stop_program ( "solve_system", "error in inversion" )
+  END IF
+
+END SUBROUTINE solve_system
 
 !******************************************************************************
 
