@@ -28,12 +28,26 @@ MODULE machine_irix
   PRIVATE
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_iargc, m_abort
 
 !!*****
 !******************************************************************************
 
 CONTAINS
+
+
+! can be used to get a nice core
+SUBROUTINE m_abort()
+   CALL abort()
+END SUBROUTINE m_abort
+
+
+FUNCTION m_iargc() RESULT (ic)
+  INTEGER :: ic
+  INTEGER, EXTERNAL :: iargc
+
+  ic = iargc()
+END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds

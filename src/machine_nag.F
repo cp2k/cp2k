@@ -2,28 +2,26 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/machine_absoft [1.0] *
+!!****** cp2k/machine_nag [1.0] *
 !!
 !!   NAME
-!!     machine_absoft
+!!     machine_nag
 !!
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     APSI & JGH
+!!     Joost VandeVondele
 !!
 !!   MODIFICATION HISTORY
-!!     - m_flush added (12.06.2002,MK)
-!!     - print_memory changed (24.09.2002,MK)
 !!
 !!   SOURCE
 !!*****
 !******************************************************************************
 
-MODULE machine_absoft
+MODULE machine_nag
 
   USE kinds, ONLY : dbl, sgl
-
+  USE f90_unix
   IMPLICIT NONE
 
   PRIVATE
@@ -36,25 +34,25 @@ MODULE machine_absoft
 
 CONTAINS
 
+
 ! can be used to get a nice core
 SUBROUTINE m_abort()
    CALL abort()
 END SUBROUTINE m_abort
 
+
 FUNCTION m_iargc() RESULT (ic)
   INTEGER :: ic
-  INTEGER, EXTERNAL :: iargc
-  ic = iargc()
+  ! INTEGER, EXTERNAL :: iargc
+  ic = 1 ! iargc()
 END FUNCTION m_iargc
 
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
   REAL (dbl) :: ct
-  REAL (sgl) etime,tarray(2),d
-  EXTERNAL etime
-  d=ETIME(tarray)
-  ct = DBLE(tarray(1))
+  INTEGER :: mclock
+  ct = 0.0_dbl ! mclock()*0.01_dbl
 END FUNCTION m_cputime
 !******************************************************************************
 !!  wall clock time in seconds
@@ -63,19 +61,23 @@ FUNCTION m_walltime() RESULT (wt)
   REAL (sgl) :: etime
   TYPE tb_type
      SEQUENCE
-     REAL (sgl) usrtime
-     REAL (sgl) systime
+     REAL (sgl) :: usrtime
+     REAL (sgl) :: systime
   END TYPE tb_type
   TYPE (tb_type) etime_struct
-  wt = etime(etime_struct)
+  ! wt = etime(etime_struct)
+  wt = 0.0_dbl
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
   CHARACTER (len=*), INTENT (OUT) :: cal_date
-  CHARACTER (len=24) :: datum
-  CALL fdate(datum)
-  cal_date = datum
+  INTEGER :: l, le
+  ! CALL fdate(cal_date)
+  ! l = len(cal_date)
+  ! le = len_trim(cal_date)
+  ! cal_date(le:l) = ' '
+  cal_date=""
 END SUBROUTINE m_datum
 
 ! *****************************************************************************
@@ -92,7 +94,7 @@ END SUBROUTINE m_datum
 
 !   ---------------------------------------------------------------------------
 
-    CALL flush(lunit)
+    ! CALL flush(lunit)
 
   END SUBROUTINE m_flush
 
@@ -119,7 +121,7 @@ END SUBROUTINE m_datum
       "echo -e ""\\n Memory size of process""",pid,""" <"//TRIM(checkpoint)//&
       ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
-    CALL system(cmdstr)
+    !CALL system(cmdstr)
 
   END SUBROUTINE print_memory
 
@@ -128,38 +130,40 @@ END SUBROUTINE m_datum
 SUBROUTINE m_hostnm(hname)
   CHARACTER (len=*), INTENT (OUT) :: hname
   INTEGER :: hostnm, ierror
-  ierror = hostnm(hname)
+  ! ierror = hostnm(hname)
+  hname=""
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
   CHARACTER (len=*), INTENT (OUT) :: curdir
   INTEGER :: getcwd, ierror
-  CHARACTER (len=255) :: dir
-  ierror = getcwd(dir)
-  curdir = dir
+  ! ierror = getcwd(curdir)
+  curdir=""
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
   CHARACTER (len=*), INTENT (OUT) :: user
-  CALL getlog(user)
+  ! CALL getlog(user)
+  user="vondele"
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
   INTEGER, INTENT (OUT) :: uid
   INTEGER :: getuid
-  uid = getuid()
+  uid = 0 ! getuid()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
   INTEGER, INTENT (OUT) :: pid
   INTEGER :: getpid
-  pid = getpid()
+  pid = 0 ! getpid()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
   INTEGER, INTENT (IN) :: i
   CHARACTER (len=*), INTENT (OUT) :: arg
-  CALL getarg(i,arg)
+  ! CALL getarg(i,arg)
+  arg="H2O.inp"
 END SUBROUTINE m_getarg
 !******************************************************************************
-END MODULE machine_absoft
+END MODULE machine_nag

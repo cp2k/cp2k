@@ -24,31 +24,34 @@ MODULE machine
 
 #if defined ( __AIX )
   USE machine_aix, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __IRIX )
   USE machine_irix, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __G95 )
   USE machine_g95, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __INTEL )
   USE machine_intel, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __PGI )
   USE machine_pgi, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __T3E )
   USE machine_t3e, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __DEC )
   USE machine_dec, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #elif defined ( __SUN )
   USE machine_sun, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
-       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
+#elif defined ( __NAG )
+  USE machine_nag, ONLY : m_walltime, m_cputime, m_datum, m_flush, &
+       m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, print_memory, m_iargc, m_abort
 #endif
 
   IMPLICIT NONE
@@ -68,7 +71,7 @@ MODULE machine
 ! SUBROUTINE print_memory(checkpoint)
 
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
-            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, m_iargc, m_abort
 
 END MODULE machine
 !!*****

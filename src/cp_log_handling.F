@@ -54,7 +54,8 @@ MODULE cp_log_handling
   USE machine,                         ONLY: m_datum,&
                                              m_flush,&
                                              m_getpid,&
-                                             m_hostnm
+                                             m_hostnm,&
+                                             m_abort
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_comm_free
   USE output_utilities,                ONLY: print_message
@@ -592,7 +593,7 @@ CONTAINS
              END IF
              logger%print_keys%ref_count=logger%print_keys%ref_count-1
              IF (logger%print_keys%ref_count==0) THEN
-                CALL abort()
+                CALL m_abort()
                 DEALLOCATE(logger%print_keys,stat=stat)
                 IF (stat/=0) PRINT *, routineP,&
                      " WARNING print_keys dealloc stat=",stat

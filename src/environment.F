@@ -49,7 +49,8 @@ MODULE environment
                                              m_getlog,&
                                              m_getpid,&
                                              m_getuid,&
-                                             m_hostnm
+                                             m_hostnm,&
+                                             m_iargc 
   USE mathconstants,                   ONLY: init_mathcon
   USE message_passing,                 ONLY: mp_bcast
   USE parallel,                        ONLY: end_parallel,&
@@ -141,8 +142,6 @@ CONTAINS
     INTEGER           :: initial_random,l,narg,output_unit,pid,strstart,strend
     LOGICAL           :: ionode
 
-    INTEGER, EXTERNAL :: iargc
-
 !   ---------------------------------------------------------------------------
 
 
@@ -175,7 +174,7 @@ CONTAINS
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
 
-      narg = iargc()
+      narg = m_iargc()
 
       SELECT CASE (narg)
       CASE (0)
