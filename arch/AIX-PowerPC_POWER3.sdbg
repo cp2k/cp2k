@@ -4,8 +4,8 @@ CPP      = /usr/ccs/lib/cpp
 FC       = xlf95 -qsuffix=f=f90
 LD       = xlf95
 AR       = ar -r
-DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL
-CPPFLAGS = -C $(DFLAGS) -P
+DFLAGS   = -D__AIX -D__ESSL -D__FFTSG -D__FFTESSL -DFD_DEBUG -DFD_LONG_EXPANSIONS
+CPPFLAGS = -C $(DFLAGS)
 FCFLAGS  = -C -g -qarch=pwr3 -qfullpath\
            -qflttrap=overflow:zerodivide:enable -qinitauto=FF\
            -qnointlog -qnosave -qsigtrap -qtune=pwr3
