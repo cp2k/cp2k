@@ -249,7 +249,16 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 6. Cleanup the ff_type structure type
+  ! 6. Output total system charge assigned to qeff
+  !-----------------------------------------------------------------------------
+  CALL force_field_qeff_output (particle_set,atomic_kind_set,&
+                                molecule_kind_set,molecule_set,&
+                                globenv)
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 7. Cleanup the ff_type structure type
   !-----------------------------------------------------------------------------
   CALL deallocate_ff_type(ff_type)
 
@@ -2919,6 +2928,117 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   CALL write_checkpoint_information("leaving "//routineN,globenv)
 
 END SUBROUTINE force_field_pack
+
+
+
+!******************************************************************************
+!!****** force_field_util/force_field_qeff_output [1.0] *
+!!
+!!   NAME
+!!     force_field_qeff_output
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     Compute the total qeff charges for each molecule kind and total system 
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*** *************************************************************************
+
+SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
+                             molecule_kind_set,molecule_set,globenv)
+
+  TYPE(particle_type), DIMENSION(:), POINTER             :: particle_set
+  TYPE(atomic_kind_type), DIMENSION(:), POINTER          :: atomic_kind_set
+  TYPE(molecule_kind_type), DIMENSION(:), POINTER        :: molecule_kind_set
+  TYPE(molecule_type), DIMENSION(:), POINTER             :: molecule_set
+  TYPE(global_environment_type), INTENT(IN), OPTIONAL    :: globenv
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'force_field_qeff_output', &
+    routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: istat, iw, i, j, k
+  LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+  CHARACTER(LEN=default_string_length)     :: atmname,molname
+  TYPE(atomic_kind_type), POINTER          :: atomic_kind
+  TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+  INTEGER                                  :: iatom,imol
+  REAL(dbl)                                :: qeff,qeff_mol,qeff_sum
+
+  TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering force_field_pack"
+
+  qeff     = 0.0_dbl
+  qeff_mol = 0.0_dbl
+  qeff_sum = 0.0_dbl
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. Sum of qeff for each molecule_kind
+  !-----------------------------------------------------------------------------
+  DO imol=1,SIZE(molecule_kind_set)
+    qeff_mol=0.0_dbl
+    molecule_kind => molecule_kind_set(imol)
+    CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                           name=molname,atom_list=atom_list)
+    DO iatom=1,SIZE(atom_list)
+      atomic_kind => atom_list(iatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           name=atmname,qeff=qeff)
+      IF(PM2) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
+      qeff_mol = qeff_mol + qeff
+    END DO
+    IF(PM1) WRITE(iw,*) "    Mol Kind ",TRIM(molname)," charge = ",qeff_mol
+  END DO
+
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. Sum of qeff for particle_set
+  !-----------------------------------------------------------------------------
+  DO iatom=1,SIZE(particle_set)
+    atomic_kind => particle_set(iatom)%atomic_kind
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                         name=atmname,qeff=qeff)
+    IF(PM2) WRITE(iw,*) "      atom ",iatom," ",TRIM(atmname)," charge = ",qeff
+    qeff_sum = qeff_sum + qeff
+  END DO
+  IF(PM1) WRITE(iw,*) "    Total system charge = ",qeff_sum
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting  force_field_qeff_output"
+  CALL write_checkpoint_information("leaving "//routineN,globenv)
+
+END SUBROUTINE force_field_qeff_output
+
 
 
 
