@@ -18,10 +18,11 @@
 !!     Joost VandeVondele (02.2002)
 !!           1) rewrote collocate_pgf for increased accuracy and speed
 !!           2) collocate_core hack for PGI compiler
+!!           3) added multiple grid feature
 !!
 !!   SOURCE
 !******************************************************************************
-
+!#include "f_hpm.h"
 MODULE integrate_potential
 
 ! *****************************************************************************
@@ -31,7 +32,8 @@ MODULE integrate_potential
   USE atomic_kinds,        ONLY: kind_info,nkind
   USE atoms,               ONLY: atom_info
   USE basis_set_types,     ONLY: gto_basis_set_type,maxco,maxsgf,maxsgf_set
-  USE coefficient_types,   ONLY: coeff_type
+  USE coefficient_types,   ONLY: coeff_type,coeff_transform_space,coeff_copy
+  USE gaussian_gridlevels, ONLY: gaussian_gridlevel,gridlevel_info_type
   USE global_types,        ONLY: global_environment_type
   USE mathlib,             ONLY: symmetrize_matrix
   USE matrix_types,        ONLY: get_block_node,&
@@ -69,17 +71,20 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE integrate_v_rspace(p,v_rspace,v_rspace_old,cube_info,l_info, &
-                                   rebuild_gvg,gvg,h,nproduct,globenv)
+  SUBROUTINE integrate_v_rspace(p,v_rspace,v_gspace,gridlevel_info,v_rspace_old,  &
+                                   cube_info,l_info,rebuild_gvg,gvg,h,nproduct, & 
+                                   globenv)
 
-    TYPE(coeff_type), INTENT(IN)              :: v_rspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace,v_gspace
     TYPE(coeff_type), INTENT(INOUT)           :: v_rspace_old ! old will contain new
+    TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
+    TYPE(gridlevel_info_type), INTENT(IN) :: gridlevel_info
+
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_set_type), INTENT(INOUT) :: gvg,h
     INTEGER, INTENT(OUT)                      :: nproduct
     TYPE(real_matrix_set_type), INTENT(IN)    :: p
     LOGICAL                                   :: rebuild_gvg             
-    TYPE(cube_info_type), INTENT(IN)          :: cube_info
     TYPE(l_info_type), INTENT(IN)             :: l_info
 
 !   *** Local variables ***
@@ -87,13 +92,13 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER :: basis_set_a,basis_set_b
     TYPE(neighbor_list_type), POINTER :: orb_neighbor_list
 
-    REAL(wp) :: dab,rab2,radius_kind_a,radius_kind_b,radius_set_a,radius_set_b
+    REAL(wp) :: dab,rab2,radius_kind_a,radius_kind_b,radius_set_a,radius_set_b,scaling_factor
     INTEGER  :: first_isgf,first_jset,first_jsgf,first_sgfa,&
                 first_sgfb,handle,iatom,ico,ikind,ineighbor,ipgf,iset,isgf,&
                 isgfa,isgfb,ishell,istat,jatom,jco,jkind,jneighbor,jpgf,jset,&
                 jsgf,jshell,la_max,la_min,last_sgfa,last_sgfb,lb_max,lb_min,&
                 na1,na2,nb1,nb2,nsgfa,nsgfb,ncoa,ncob,npgfa,npgfb,nseta,nsetb,&
-                nshella,nshellb,iatom_old,jatom_old
+                nshella,nshellb,iatom_old,jatom_old,igrid_level
 
     REAL(wp), DIMENSION(3) :: ra,rab
 
@@ -102,7 +107,6 @@ CONTAINS
     REAL(wp), DIMENSION(:,:), POINTER :: gvg_block,gvgab,orb_r,s_block,&
                                          work,p_block,pab,h_block
     REAL(wp) :: maxvnew,maxvdiff,vratio,old_gvg_factor
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("integrate_v_rspace","I","",handle)
@@ -110,14 +114,24 @@ CONTAINS
     npgf_product = 0
 
 !   *** get difference potential ***
-    if (rebuild_gvg) then
-      v_rspace_old%pw%cr3d=v_rspace%pw%cr3d
-    else
-      v_rspace_old%pw%cr3d=v_rspace%pw%cr3d-v_rspace_old%pw%cr3d
+    maxvnew=MAXVAL(ABS(v_rspace(1)%pw%cr3d))
+    if (.not.rebuild_gvg) then
+      v_rspace(1)%pw%cr3d=v_rspace(1)%pw%cr3d-v_rspace_old%pw%cr3d
     endif
-    maxvnew=MAXVAL(ABS(v_rspace%pw%cr3d))
-    maxvdiff=MAXVAL(ABS(v_rspace_old%pw%cr3d))
+    maxvdiff=MAXVAL(ABS(v_rspace(1)%pw%cr3d))
     vratio=maxvdiff/maxvnew 
+
+!   *** get the potential on the subgrids in real space, via fft
+    IF (gridlevel_info%ngrid_levels .gt. 1) then
+       CALL coeff_transform_space(v_rspace(1),v_gspace(1)) ! we have the gspace potential
+       DO igrid_level=2,gridlevel_info%ngrid_levels
+          CALL coeff_copy(v_gspace(1),v_gspace(igrid_level)) 
+          CALL coeff_transform_space(v_gspace(igrid_level),v_rspace(igrid_level))
+          !*** multiply by the grid volume element ratio ...
+          scaling_factor=v_rspace(igrid_level)%pw%pw_grid%dvol/v_rspace(1)%pw%pw_grid%dvol
+          v_rspace(igrid_level)%pw%cr3d=v_rspace(igrid_level)%pw%cr3d*scaling_factor
+       ENDDO
+    ENDIF
 
 !   *** Allocate work storage ***
 
@@ -295,10 +309,11 @@ CONTAINS
                 nb1 = (jpgf - 1)*ncoset(lb_max) + 1
                 nb2 = jpgf*ncoset(lb_max)
 
+                igrid_level=gaussian_gridlevel(gridlevel_info,zeta(ipgf)+zetb(jpgf))
                 CALL integrate_pgf_product_rspace(la_max,zeta(ipgf),la_min,&
                                                   lb_max,zetb(jpgf),lb_min,&
-                                                  ra,rab,rab2,v_rspace_old%pw,&
-                                                  cube_info,l_info,&
+                                                  ra,rab,rab2,v_rspace(igrid_level)%pw,&
+                                                  cube_info(igrid_level),l_info,&
                                                   gvgab(na1:na2,nb1:nb2),&
                                                   pab(na1:na2,nb1:nb2),vratio,rebuild_gvg)
 
@@ -343,7 +358,11 @@ CONTAINS
 
     nproduct = npgf_product
 
-    v_rspace_old%pw%cr3d=v_rspace%pw%cr3d
+! reconstruct the potential
+    if (.not.rebuild_gvg) then
+      v_rspace(1)%pw%cr3d=v_rspace(1)%pw%cr3d+v_rspace_old%pw%cr3d
+    endif
+    v_rspace_old%pw%cr3d=v_rspace(1)%pw%cr3d
 
     CALL timestop(0.0_wp,handle)
 
@@ -385,7 +404,9 @@ CONTAINS
     REAL(wp) a,b,binomial_k_lxa,binomial_l_lxb,zbp,zap,za,zb,ya,yb,yap,ybp,rpg,s,pg
     REAL(wp)  :: xa,xb,xap,xbp,radius2,maxpab
     REAL(wp) :: dx2,dy2,dz2,dxi,dyi,dzi,cutoff
-    INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3),handle2
+    INTEGER  :: kgmax,kgmin,jgmax,jgmin,igmax,igmin,j2,jg2,lar(3),lbr(3), &
+                start,length,offset
+
 
     INTEGER, pointer, dimension(:) :: ly_max,lz_max
     REAL(wp), allocatable :: pzyx(:), alpha(:,:)
@@ -471,8 +492,15 @@ CONTAINS
 
 !   *** a mapping so that the ig corresponds to the right grid point, also with pbc
     DO i=1,3
-        DO ig=lb_cube(i),ub_cube(i)
-          map(ig,i) = MODULO(cubecenter(i) + ig,ng(i)) + 1
+        start=lb_cube(i)
+        DO
+         offset=MODULO(cubecenter(i)+start,ng(i))+1-start
+         length=MIN(ub_cube(i),ng(i)-offset)-start
+         DO ig=start,start+length
+          map(ig,i) = ig+offset
+         END DO
+         if (start+length.ge.ub_cube(i)) EXIT
+         start=start+length+1
         END DO
     ENDDO
 
@@ -611,7 +639,9 @@ CONTAINS
     integer lx,ly,lz,lxy,lxyz,icoef,lxa,lxb,lya,lyb,lza,lzb,ico,jco,i2,sci
     real(wp) s1,s2,s3,s4,s5,s6,s7,s8,s9,sa,g1,g2
     real(wp) s1k,s2k,s3k,s4k,s5k,s6k,s7k,s8k,s9k,sak,g1k,g2k
+    real(wp) r1,r2,r3,r4,r5,r6
 
+!    call f_hpmstart(21,"gvg")
   
     pzyx(:)=0.0_wp
     sci=1
@@ -641,17 +671,31 @@ CONTAINS
              s2=0.0_wp
              s1k=0.0_wp
              s2k=0.0_wp
-             DO ig=igmin,igmax
+             s3=0.0_wp
+             s4=0.0_wp
+             s3k=0.0_wp
+             s4k=0.0_wp
+             DO ig=igmin,igmax,2
                 i =map(ig,1)
-                s1=s1+grid(i,j,k)  *polx(1,ig)
-                s2=s2+grid(i,j2,k) *polx(1,ig)
-                s1k=s1k+grid(i,j,k2)  *polx(1,ig)
-                s2k=s2k+grid(i,j2,k2) *polx(1,ig)
+                i2 =map(ig+1,1)
+                r1=polx(1,ig)
+                r2=polx(1,ig+1)
+                s1=s1+grid(i,j,k)     *r1
+                s2=s2+grid(i,j2,k)    *r1
+                s1k=s1k+grid(i,j,k2)  *r1
+                s2k=s2k+grid(i,j2,k2) *r1
+                s3=s3+grid(i2,j,k)     *r2
+                s4=s4+grid(i2,j2,k)    *r2
+                s3k=s3k+grid(i2,j,k2)  *r2
+                s4k=s4k+grid(i2,j2,k2) *r2
              END DO
-             pyx(1,1)=pyx(1,1)+alpha(1,1)*(s1)*poly(1,jg)
-             pyx(2,1)=pyx(2,1)+alpha(1,1)*(s2)*poly(1,jg+1)
-             pyx(3,1)=pyx(3,1)+alpha(1,1)*(s1k)*poly(1,jg)
-             pyx(4,1)=pyx(4,1)+alpha(1,1)*(s2k)*poly(1,jg+1)
+             r3=alpha(1,1)
+             r1=poly(1,jg)*r3
+             r2=poly(1,jg+1)*r3
+             pyx(1,1)=pyx(1,1)+(s1+s3)*r1
+             pyx(2,1)=pyx(2,1)+(s2+s4)*r2
+             pyx(3,1)=pyx(3,1)+(s1k+s3k)*r1
+             pyx(4,1)=pyx(4,1)+(s2k+s4k)*r2
           CASE (2)
              s1=0.0_wp
              s2=0.0_wp
@@ -663,27 +707,37 @@ CONTAINS
              s4k=0.0_wp
              DO ig=igmin,igmax
                 i=map(ig,1)
-                s1=s1+grid(i,j,k)*polx(1,ig)
-                s3=s3+grid(i,j,k)*polx(2,ig)
-                s2=s2+grid(i,j2,k)*polx(1,ig)
-                s4=s4+grid(i,j2,k)*polx(2,ig)
-                s1k=s1k+grid(i,j,k2)*polx(1,ig)
-                s3k=s3k+grid(i,j,k2)*polx(2,ig)
-                s2k=s2k+grid(i,j2,k2)*polx(1,ig)
-                s4k=s4k+grid(i,j2,k2)*polx(2,ig)
+                r1=grid(i,j,k)
+                r2=grid(i,j2,k)
+                r3=grid(i,j,k2)
+                r4=grid(i,j2,k2)
+                r5=polx(1,ig)
+                r6=polx(2,ig)
+                s1=s1+r1*r5
+                s3=s3+r1*r6
+                s2=s2+r2*r5
+                s4=s4+r2*r6
+                s1k=s1k+r3*r5
+                s3k=s3k+r3*r6
+                s2k=s2k+r4*r5
+                s4k=s4k+r4*r6
              END DO
              lxy=0
              DO lx=1,lx_max
-              g1=alpha(1,lx)*s1+alpha(2,lx)*s3
-              g2=alpha(1,lx)*s2+alpha(2,lx)*s4
-              g1k=alpha(1,lx)*s1k+alpha(2,lx)*s3k
-              g2k=alpha(1,lx)*s2k+alpha(2,lx)*s4k
+              r1=alpha(1,lx)
+              r2=alpha(2,lx)
+              g1=r1*s1+r2*s3
+              g2=r1*s2+r2*s4
+              g1k=r1*s1k+r2*s3k
+              g2k=r1*s2k+r2*s4k
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
-                 pyx(1,lxy)=pyx(1,lxy)+g1*poly(lxy,jg)
-                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg+1)
-                 pyx(3,lxy)=pyx(3,lxy)+g1k*poly(lxy,jg)
-                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg+1)
+                 r1=poly(lxy,jg)
+                 r2=poly(lxy,jg+1)
+                 pyx(1,lxy)=pyx(1,lxy)+g1*r1
+                 pyx(2,lxy)=pyx(2,lxy)+g2*r2
+                 pyx(3,lxy)=pyx(3,lxy)+g1k*r1
+                 pyx(4,lxy)=pyx(4,lxy)+g2k*r2
               ENDDO
              ENDDO
           CASE (3)
@@ -701,31 +755,43 @@ CONTAINS
              s6k=0.0_wp
              DO ig=igmin,igmax
                 i=map(ig,1)
-                s1=s1+grid(i,j,k)*polx(1,ig)
-                s2=s2+grid(i,j2,k)*polx(1,ig)
-                s3=s3+grid(i,j,k)*polx(2,ig)
-                s4=s4+grid(i,j2,k)*polx(2,ig)
-                s5=s5+grid(i,j,k)*polx(3,ig)
-                s6=s6+grid(i,j2,k)*polx(3,ig)
-                s1k=s1k+grid(i,j,k2)*polx(1,ig)
-                s2k=s2k+grid(i,j2,k2)*polx(1,ig)
-                s3k=s3k+grid(i,j,k2)*polx(2,ig)
-                s4k=s4k+grid(i,j2,k2)*polx(2,ig)
-                s5k=s5k+grid(i,j,k2)*polx(3,ig)
-                s6k=s6k+grid(i,j2,k2)*polx(3,ig)
+                r1=grid(i,j,k)
+                r2=grid(i,j2,k)
+                r5=polx(1,ig)
+                s1=s1+r1*r5
+                s2=s2+r2*r5
+                r3=grid(i,j,k2)
+                r4=grid(i,j2,k2)
+                s1k=s1k+r3*r5
+                s2k=s2k+r4*r5
+                r5=polx(2,ig)
+                s3=s3+r1*r5
+                s4=s4+r2*r5
+                s3k=s3k+r3*r5
+                s4k=s4k+r4*r5
+                r5=polx(3,ig)
+                s5=s5+r1*r5
+                s6=s6+r2*r5
+                s5k=s5k+r3*r5
+                s6k=s6k+r4*r5
              END DO
              lxy=0
              DO lx=1,lx_max
-              g1=alpha(1,lx)*s1+alpha(2,lx)*s3+alpha(3,lx)*s5
-              g2=alpha(1,lx)*s2+alpha(2,lx)*s4+alpha(3,lx)*s6
-              g1k=alpha(1,lx)*s1k+alpha(2,lx)*s3k+alpha(3,lx)*s5k
-              g2k=alpha(1,lx)*s2k+alpha(2,lx)*s4k+alpha(3,lx)*s6k
+              r1=alpha(1,lx)
+              r2=alpha(2,lx)
+              r3=alpha(3,lx)
+              g1=r1*s1+r2*s3+r3*s5
+              g2=r1*s2+r2*s4+r3*s6
+              g1k=r1*s1k+r2*s3k+r3*s5k
+              g2k=r1*s2k+r2*s4k+r3*s6k
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
-                 pyx(1,lxy)=pyx(1,lxy)+g1*poly(lxy,jg)
-                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg+1)
-                 pyx(3,lxy)=pyx(3,lxy)+g1k*poly(lxy,jg)
-                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg+1)
+                 r1=poly(lxy,jg)
+                 r2=poly(lxy,jg+1)
+                 pyx(1,lxy)=pyx(1,lxy)+g1*r1
+                 pyx(2,lxy)=pyx(2,lxy)+g2*r2
+                 pyx(3,lxy)=pyx(3,lxy)+g1k*r1
+                 pyx(4,lxy)=pyx(4,lxy)+g2k*r2
               ENDDO
              ENDDO
           CASE (4)
@@ -801,43 +867,71 @@ CONTAINS
              sak=0.0_wp
              DO ig=igmin,igmax
                 i=map(ig,1)
-                s1=s1+grid(i,j,k)*polx(1,ig)
-                s2=s2+grid(i,j2,k)*polx(1,ig)
-                s3=s3+grid(i,j,k)*polx(2,ig)
-                s4=s4+grid(i,j2,k)*polx(2,ig)
-                s5=s5+grid(i,j,k)*polx(3,ig)
-                s6=s6+grid(i,j2,k)*polx(3,ig)
-                s7=s7+grid(i,j,k)*polx(4,ig)
-                s8=s8+grid(i,j2,k)*polx(4,ig)
-                s9=s9+grid(i,j,k)*polx(5,ig)
-                sa=sa+grid(i,j2,k)*polx(5,ig)
-                s1k=s1k+grid(i,j,k2)*polx(1,ig)
-                s2k=s2k+grid(i,j2,k2)*polx(1,ig)
-                s3k=s3k+grid(i,j,k2)*polx(2,ig)
-                s4k=s4k+grid(i,j2,k2)*polx(2,ig)
-                s5k=s5k+grid(i,j,k2)*polx(3,ig)
-                s6k=s6k+grid(i,j2,k2)*polx(3,ig)
-                s7k=s7k+grid(i,j,k2)*polx(4,ig)
-                s8k=s8k+grid(i,j2,k2)*polx(4,ig)
-                s9k=s9k+grid(i,j,k2)*polx(5,ig)
-                sak=sak+grid(i,j2,k2)*polx(5,ig)
+                g1=grid(i,j,k)
+                g2=grid(i,j2,k)
+                g1k=grid(i,j,k2)
+                g2k=grid(i,j2,k2)
+                r1=polx(1,ig)
+                r2=polx(2,ig)
+                r3=polx(3,ig)
+                r4=polx(4,ig)
+                r5=polx(5,ig)
+                s1=s1+g1*r1
+                s2=s2+g2*r1
+                s3=s3+g1*r2
+                s4=s4+g2*r2
+                s5=s5+g1*r3
+                s6=s6+g2*r3
+                s7=s7+g1*r4
+                s8=s8+g2*r4
+                s9=s9+g1*r5
+                sa=sa+g2*r5
+                s1k=s1k+g1k*r1
+                s2k=s2k+g2k*r1
+                s3k=s3k+g1k*r2
+                s4k=s4k+g2k*r2
+                s5k=s5k+g1k*r3
+                s6k=s6k+g2k*r3
+                s7k=s7k+g1k*r4
+                s8k=s8k+g2k*r4
+                s9k=s9k+g1k*r5
+                sak=sak+g2k*r5
              END DO
              lxy=0
              DO lx=1,lx_max
-              g1=alpha(1,lx)*s1+alpha(2,lx)*s3+alpha(3,lx)*s5+ & 
-                 alpha(4,lx)*s7+alpha(5,lx)*s9
-              g2=alpha(1,lx)*s2+alpha(2,lx)*s4+alpha(3,lx)*s6+ &
-                 alpha(4,lx)*s8+alpha(5,lx)*sa
-              g1k=alpha(1,lx)*s1k+alpha(2,lx)*s3k+alpha(3,lx)*s5k+ & 
-                 alpha(4,lx)*s7k+alpha(5,lx)*s9k
-              g2k=alpha(1,lx)*s2k+alpha(2,lx)*s4k+alpha(3,lx)*s6k+ &
-                 alpha(4,lx)*s8k+alpha(5,lx)*sak
+              r1=alpha(1,lx)
+              r2=alpha(2,lx)
+              r3=alpha(3,lx)
+              r4=alpha(4,lx)
+              r5=alpha(5,lx)
+              g1=r1*s1
+              g2=r1*s2
+              g1k=r1*s1k
+              g2k=r1*s2k
+              g1=g1+r2*s3
+              g2=g2+r2*s4
+              g1k=g1k+r2*s3k
+              g2k=g2k+r2*s4k
+              g1=g1+r3*s5
+              g2=g2+r3*s6
+              g1k=g1k+r3*s5k
+              g2k=g2k+r3*s6k
+              g1=g1+r4*s7
+              g2=g2+r4*s8
+              g1k=g1k+r4*s7k
+              g2k=g2k+r4*s8k
+              g1=g1+r5*s9
+              g2=g2+r5*sa
+              g1k=g1k+r5*s9k
+              g2k=g2k+r5*sak
               DO ly=1,ly_max(lx)
                  lxy=lxy+1
-                 pyx(1,lxy)=pyx(1,lxy)+g1*poly(lxy,jg)
-                 pyx(2,lxy)=pyx(2,lxy)+g2*poly(lxy,jg+1)
-                 pyx(3,lxy)=pyx(3,lxy)+g1k*poly(lxy,jg)
-                 pyx(4,lxy)=pyx(4,lxy)+g2k*poly(lxy,jg+1)
+                 r1=poly(lxy,jg)
+                 r2=poly(lxy,jg+1)
+                 pyx(1,lxy)=pyx(1,lxy)+g1*r1
+                 pyx(2,lxy)=pyx(2,lxy)+g2*r2
+                 pyx(3,lxy)=pyx(3,lxy)+g1k*r1
+                 pyx(4,lxy)=pyx(4,lxy)+g2k*r2
               ENDDO
              ENDDO
           CASE DEFAULT
@@ -902,7 +996,7 @@ CONTAINS
     ENDDO
     ENDDO
 
-
+!    call f_hpmstop(21)
 
   END SUBROUTINE
 

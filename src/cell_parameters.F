@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     1) Modified to call init_cell (Joost VandeVondele, 22.02.02)
+!!     2) Inserted the multiple grid code (Joost VandeVondele 28.02.02)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -42,9 +43,14 @@ MODULE cell_parameters
 
   TYPE(cell_type)  :: cell
   CHARACTER(LEN=8) :: unit_of_length_name = "BOHR"
-  REAL(wp)         :: cutoff,omega = 0.0_wp,&
+  REAL(wp)         :: omega = 0.0_wp,&
                       unit_of_length = 1.0_wp
   LOGICAL          :: scaled_coordinates = .FALSE.
+
+
+  REAL(wp), DIMENSION(:), pointer :: cutoff => NULL()
+  REAL(wp)                        :: rel_cutoff,progression_factor
+  INTEGER          :: ngrid_levels
 
   REAL(wp), DIMENSION(3) :: abc = (/0.0_wp,0.0_wp,0.0_wp/)
 
@@ -56,7 +62,9 @@ MODULE cell_parameters
             omega,&
             scaled_coordinates,&
             unit_of_length,&
-            unit_of_length_name
+            unit_of_length_name,&
+            ngrid_levels, &
+            rel_cutoff
 
 ! *** Public subroutines ***
 
@@ -100,9 +108,10 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=40) :: keyword,string
-    LOGICAL           :: found
+    LOGICAL           :: found,user_ngrid
     real(wp)          :: hmat(3,3)
-    integer           :: periodic(3)
+    real(wp)          :: tmp
+    integer           :: periodic(3),i
     CHARACTER ( LEN = 80 ) :: poisson_solver
 
 !   ---------------------------------------------------------------------------
@@ -115,6 +124,21 @@ CONTAINS
     abc = (/0.0_wp,0.0_wp,0.0_wp/)
     periodic = (/1,1,1/)
     poisson_solver = "ANALYTIC"
+    ngrid_levels = 1
+    user_ngrid=.false.
+    progression_factor=2.0_wp
+
+    allocate(cutoff(1))
+    cutoff(1)=160 ! 320 Ry should be a nice, expensive default
+! rel_cutoff : the cutoff that would be used for a gaussian with exponent 1
+! gaussians with exponent alfa will use alfa*rel_cutoff
+! unless this is larger than the maximum cutoff allowed in the system
+! a fully consistent calcultion would use rel_cutoff=cutoff/max_exponent
+! where max_exponent is twice the largest exponent in the basis set
+! rel_cutoff of about 40 Ry seems to give very good results : see thesis G.R. Lippert
+! pages 93 and 134
+! however, this remains a very important parameter of the calculation
+    rel_cutoff=20 ! that is 40 Ry
 
     CALL start_input_session(globenv%input_file_name,globenv)
 
@@ -137,9 +161,21 @@ CONTAINS
           CALL read_object(abc(1))
           CALL read_object(abc(2))
           CALL read_object(abc(3))
+        CASE ("NGRID")
+          CALL read_object(ngrid_levels)
+          user_ngrid=.true.
+        CASE ("PROGRESSION_FACTOR")
+          CALL read_object(progression_factor)
+        CASE ("REL_CUTOFF", "RELATIVE_CUTOFF")
+          CALL read_object(rel_cutoff)
+          rel_cutoff=rel_cutoff*0.5
         CASE ("CUTOFF")
-          CALL read_object(cutoff)
-          cutoff = 0.5_wp*cutoff
+             deallocate(cutoff)
+             allocate(cutoff(ngrid_levels))
+             DO I=1,ngrid_levels
+                CALL read_object(cutoff(i))
+                cutoff(i) = 0.5_wp*cutoff(i)
+             ENDDO
         CASE ("UNIT")
           CALL read_object(string)
           SELECT CASE (TRIM(string))
@@ -181,6 +217,20 @@ CONTAINS
 
       abc(:) = abc(:)*unit_of_length
       omega = PRODUCT(abc(:))
+
+! atomatically generate the gridlevels using a geometric progression for the cutoff
+      if (.not. user_ngrid) then
+         ngrid_levels=MAX(1,1+CEILING(log(cutoff(1)/(0.05*rel_cutoff))/log(progression_factor)))
+         if (ngrid_levels.gt.1) then
+            tmp=cutoff(1)
+            deallocate(cutoff)
+            allocate(cutoff(ngrid_levels)) 
+            cutoff(1)=tmp
+            do i=2,ngrid_levels
+               cutoff(i)=cutoff(i-1)/progression_factor 
+            enddo
+         endif
+      endif
 
     ELSE
 
@@ -228,6 +278,7 @@ CONTAINS
 !   ***************************************************************************
 
     INTEGER, INTENT(IN) :: lunit
+    INTEGER :: i
 
 !   ---------------------------------------------------------------------------
 
@@ -238,6 +289,14 @@ CONTAINS
       abc(:)/unit_of_length,&
       "Cell volume in "//TRIM(unit_of_length_name)//"**3:",&
       omega/unit_of_length**3
+    WRITE (UNIT=lunit,FMT='(T3,A)') " "
+    WRITE (UNIT=lunit,FMT='(T3,A,I6)')         "Number of grids     : ",ngrid_levels
+    WRITE (UNIT=lunit,FMT='(T3,A,F15.3)')      "Relative Cutoff a.u.: ",rel_cutoff
+    WRITE (UNIT=lunit,FMT='(T3,A,F15.3)')      "Maximum  Cutoff a.u.: ",cutoff(1)
+    WRITE (UNIT=lunit,FMT='(T3,A,F15.3)')      "Progression Factor  : ",progression_factor
+    do i=1,ngrid_levels
+    WRITE (UNIT=lunit,FMT='(T3,A,I3,A,F15.3)') "Cutoff for grid ",i," : ",cutoff(i)
+    enddo
 
   END SUBROUTINE write_cell_parameters
 

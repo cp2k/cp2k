@@ -21,6 +21,10 @@
 !!           called the poisson code of the classical part
 !!           this takes into account the spherical cutoff and allows for
 !!           isolated systems
+!!     3) Joost VandeVondele (02.2002)
+!!           added multiple grid feature
+!!           changed to spherical cutoff consistently (?)
+!!           therefore removed the gradient correct functionals
 !!
 !!   SOURCE
 !******************************************************************************
@@ -31,7 +35,7 @@ MODULE qs_scf
 
   USE kinds, ONLY: wp => dp
 
-  USE cell_parameters,       ONLY: abc,cell,cutoff
+  USE cell_parameters,       ONLY: abc,cell,cutoff,ngrid_levels,rel_cutoff
   USE atomic_kinds,          ONLY: gth_potential_present,kind_info,nkind
   USE atoms,                 ONLY: atom_info
   USE basis_set_types,       ONLY: gto_basis_set_type,maxlcgf
@@ -63,6 +67,9 @@ MODULE qs_scf
   USE diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE functionals
   USE global_types,          ONLY: global_environment_type
+  USE gaussian_gridlevels,   ONLY: gridlevel_info_type,&
+                                   init_gaussian_gridlevel,&
+                                   destroy_gaussian_gridlevel
   USE input_utilities,       ONLY: finish_input_session,&
                                    read_object,&
                                    search,&
@@ -94,7 +101,7 @@ MODULE qs_scf
   USE pws,                   ONLY: init_pw_poisson_solver,pw_poisson_solver
   USE greens_fn,             ONLY: pw_green_fn_init 
   USE hartree,               ONLY: calculate_hartree
-  USE pw_types,              ONLY: COMPLEXDATA3D,REALDATA3D,REALSPACE,&
+  USE pw_types,              ONLY: COMPLEXDATA1D,REALDATA3D,REALSPACE,&
                                    RECIPROCALSPACE,pw_fft_wrap,pw_type
   USE string_utilities,      ONLY: uppercase
   USE termination,           ONLY: stop_program
@@ -110,14 +117,21 @@ MODULE qs_scf
   PRIVATE
 
   TYPE(blacs_matrix_type)    :: ortho,scf_work1,scf_work2
-  TYPE(coeff_type)           :: drho_rspace,rho_gspace,rho_rspace,v_rspace,&
-                                vxcg_rspace,work_gspace,work_rspace,&
-                                rho_rspace_old,v_rspace_old
+  TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
+  TYPE(coeff_type)           :: drho_rspace,&
+                                v_rspace_old,&
+                                vxcg_rspace,work_gspace,work_rspace
+
+! allow for multiple grids
+  TYPE(coeff_type), DIMENSION(:), pointer   :: rho_gspace,rho_rspace, &
+                                      v_rspace,v_gspace,rho_rspace_old
+  TYPE(pw_grid_type), DIMENSION(:), pointer :: pw_grid
+  TYPE(cube_info_type), DIMENSION(:), pointer  :: cube_info
+
   TYPE(mo_set_type)          :: alpha_mo
   TYPE(real_matrix_set_type) :: ks,p,p_old,gvg
-  TYPE(pw_grid_type)         :: pw_grid
-  TYPE(cube_info_type)       :: cube_info
   TYPE(l_info_type)          :: l_info
+  TYPE(gridlevel_info_type)  :: gridlevel_info
 
   CHARACTER(LEN=10) :: density_guess = "CORE"
   REAL(wp)          :: ec = 0.0_wp,&
@@ -148,7 +162,6 @@ MODULE qs_scf
   logical           :: rebuild_rho = .true.
   logical           :: rebuild_gvg = .true.
 
-  TYPE(coeff_type), DIMENSION(3) :: nabla_rho_rspace
 
   REAL(wp), DIMENSION(:,:), POINTER :: g_vector
 
@@ -181,10 +194,11 @@ CONTAINS
 
     REAL(wp) :: delta,diis_error,t1,t2
     REAL(wp) :: maxradius
-    PARAMETER (maxradius=40.0D0)
+    integer  :: maxgridpoints
+    PARAMETER (maxgridpoints=40)
     integer  :: maxl
     PARAMETER (maxl=4)
-    INTEGER  :: context,handle,iscf,output_unit
+    INTEGER  :: context,handle,iscf,output_unit,igrid_level
     LOGICAL  :: diis_step,ionode
 
 !   ---------------------------------------------------------------------------
@@ -200,11 +214,19 @@ CONTAINS
 
     CALL init_functionals()
 
-    CALL init_grid(globenv)
-  
-    CALL init_cube_info(cube_info,rho_rspace%pw%pw_grid%dr(:),maxradius)
-
     CALL init_l_info(l_info,maxl)
+
+    CALL init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
+
+    CALL init_grid(globenv)
+    
+    allocate(cube_info(ngrid_levels)) 
+    do igrid_level=1,ngrid_levels
+      maxradius=maxgridpoints*MAXVAL(rho_rspace(igrid_level)%pw%pw_grid%dr)
+      CALL init_cube_info(cube_info(igrid_level), &
+           rho_rspace(igrid_level)%pw%pw_grid%dr(:),maxradius)
+    enddo
+
 
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
@@ -345,9 +367,13 @@ CONTAINS
 !   *** Write restart file ***
 
     CALL write_mo_set(alpha_mo,context,globenv)
+    DO igrid_level=1,ngrid_levels
+       CALL destroy_cube_info(cube_info(igrid_level))
+    ENDDO
+    deallocate(cube_info)
 
-    CALL destroy_cube_info(cube_info)
     CALL destroy_l_info(l_info)
+    CALL destroy_gaussian_gridlevel(gridlevel_info) 
 
     CALL finish_blacs(context,globenv)
 
@@ -369,7 +395,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,nproduct,output_unit
+    INTEGER :: handle,handle2,nproduct,output_unit,igrid_level
     LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
@@ -381,39 +407,40 @@ CONTAINS
 
     CALL calculate_ecore(h,p,ecore,globenv)
 
-    if (rebuild_rho) then
-      CALL coeff_zero(rho_rspace)
-    else
-      CALL coeff_copy(rho_rspace_old,rho_rspace)
-    endif
-
-    CALL calculate_rho_elec(p,p_old,rebuild_rho,rho_rspace,cube_info,l_info, &
+    CALL calculate_rho_elec(p,p_old,rebuild_rho,rho_rspace,&
+                  rho_rspace_old,rho_gspace,&
+                  gridlevel_info,&
+                  cube_info,l_info, &
                   total_rho_elec_rspace,nproduct,globenv)
-
-    CALL coeff_copy(rho_rspace,rho_rspace_old) ! keep a copy of the old density
 
     IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
         "Number of collocated products (r-space):",nproduct
     END IF
+    CALL coeff_zero(v_rspace(1))
+  
+    CALL timeset("total_xc","I","",handle2)
 
     IF (xc_info%gradient_functional) THEN
+! we have to wait for the general xc functions since we changed to a complex1D data structure
+! for the density
+      CALL stop_program("build_kohn","feature has been removed")
       CALL calculate_nabla_rho_elec(globenv)
       CALL coeff_zero(vxcg_rspace)
     END IF
-
-    CALL coeff_zero(v_rspace)
-
     CALL calculate_xc_potential(globenv)
 
-    CALL calculate_rho_core(rho_rspace,cube_info,l_info,total_rho_rspace,globenv)
+
+    CALL timestop(0.0_wp,handle2)
+
+    CALL calculate_rho_core(rho_rspace(1),cube_info(1),l_info,total_rho_rspace,globenv)
 
     total_rho_core_rspace = total_rho_rspace - total_rho_elec_rspace
 
-    CALL pw_fft_wrap(rho_rspace%pw,rho_gspace%pw,&
+    CALL pw_fft_wrap(rho_rspace(1)%pw,rho_gspace(1)%pw,&
                      debug=(globenv%print%level == DEBUG))
 
-    total_rho_gspace = calculate_total_rho(rho_gspace)
+    total_rho_gspace = calculate_total_rho(rho_gspace(1))
 
     IF (ionode.AND.globenv%print%total_densities) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
@@ -426,9 +453,7 @@ CONTAINS
         "Total charge density (g-space):     ",total_rho_gspace
     END IF
 
-    CALL calculate_hartree(rho_gspace,ehartree,work_gspace)
-    ! ehartree is returned using a slightly different def. of the volume or so
-    ehartree=ehartree*rho_gspace%pw%pw_grid%vol/rho_gspace%pw%pw_grid%dvol
+    CALL calculate_hartree(rho_gspace(1),ehartree,work_gspace)
 
     etotal = ecore_overlap + ecore_self + ecore + ehartree + ex + ec
 
@@ -441,18 +466,18 @@ CONTAINS
         "Exchange-correlation energy:                   ",ex + ec
     END IF
 
-    !CALL pw_fft_wrap(rho_gspace%pw,work_rspace%pw,&
-    !                 debug=(globenv%print%level == DEBUG))
     CALL pw_fft_wrap(work_gspace%pw,work_rspace%pw,&
                      debug=(globenv%print%level == DEBUG))
 
-    v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%pw_grid%dvol*&
-                              (v_rspace%pw%cr3d(:,:,:) +&
+    v_rspace(1)%pw%cr3d(:,:,:) = v_rspace(1)%pw%pw_grid%dvol*&
+                              (v_rspace(1)%pw%cr3d(:,:,:) +&
                                work_rspace%pw%cr3d(:,:,:))
 
     CALL copy_matrix(h%matrix,ks%matrix)
 
-    CALL integrate_v_rspace(p,v_rspace,v_rspace_old,cube_info,l_info,rebuild_gvg,&
+    CALL integrate_v_rspace(p,v_rspace,v_gspace,gridlevel_info,&
+                             v_rspace_old,cube_info,&
+                             l_info,rebuild_gvg,&
                              gvg,ks,nproduct,globenv)
 
     IF (ionode.AND.globenv%print%total_densities) THEN
@@ -476,7 +501,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,i,ig,jg,output_unit
+    INTEGER :: handle,i,ig,jg,output_unit,igrid_level
     LOGICAL :: ionode
 
     REAL(wp), DIMENSION(3) :: dg,dr
@@ -489,63 +514,84 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-    CALL pw_grid_construct(pw_grid)
+! *** allocate the multigrid arrays ***
 
-    pw_grid%grid_span = HALFSPACE
+    allocate(pw_grid(ngrid_levels))
+    allocate(rho_rspace(ngrid_levels))
+    allocate(rho_rspace_old(ngrid_levels))
+    allocate(rho_gspace(ngrid_levels))
+    allocate(v_rspace(ngrid_levels))
+    allocate(v_gspace(ngrid_levels))
 
-    IF (ionode.AND.globenv%print%pw_grid_information) THEN
-      CALL pw_grid_setup(cell,pw_grid,cutoff,&
-                         info=output_unit,&
-                         orthorhombic=.TRUE.)
-    ELSE
-      CALL pw_grid_setup(cell,pw_grid,cutoff,&
-                         orthorhombic=.TRUE.)
-    END IF
+! *** construct the various coeff_type grids
 
-    CALL pw_green_fn_init ( cell % green, pw_grid  )
+    do igrid_level=1,ngrid_levels
+
+       CALL pw_grid_construct(pw_grid(igrid_level))
+       pw_grid(igrid_level)%grid_span = HALFSPACE
+       if (igrid_level.eq.1) then
+           IF (ionode.AND.globenv%print%pw_grid_information) THEN
+             CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
+                                info=output_unit,&
+                                orthorhombic=.TRUE.)
+           ELSE
+             CALL pw_grid_setup(cell,pw_grid(1),cutoff(1),&
+                             orthorhombic=.TRUE.)
+           END IF
+       else
+           IF (ionode.AND.globenv%print%pw_grid_information) THEN
+             CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+                                info=output_unit,&
+                                orthorhombic=.TRUE.,ref_grid=pw_grid(1))
+           ELSE
+             CALL pw_grid_setup(cell,pw_grid(igrid_level),cutoff(igrid_level),&
+                             orthorhombic=.TRUE.,ref_grid=pw_grid(1))
+           END IF
+       endif
+
+       CALL coeff_allocate(rho_rspace(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       rho_rspace(igrid_level)%pw%in_space = REALSPACE
+       CALL coeff_allocate(rho_gspace(igrid_level),pw_grid(igrid_level),COMPLEXDATA1D)
+       rho_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+       CALL coeff_allocate(rho_rspace_old(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       rho_rspace_old%pw%in_space = REALSPACE
+       CALL coeff_allocate(v_rspace(igrid_level),pw_grid(igrid_level),REALDATA3D)
+       v_rspace(igrid_level)%pw%in_space = REALSPACE
+       CALL coeff_allocate(v_gspace(igrid_level),pw_grid(igrid_level),COMPLEXDATA1D)
+       v_gspace(igrid_level)%pw%in_space = RECIPROCALSPACE
+
+    end do
+
+! *** following quantities are only needed for the highest cutoff grid
+    CALL pw_green_fn_init ( cell % green, pw_grid(1)  )
     CALL init_pw_poisson_solver ( cell % green )
-
-    CALL coeff_allocate(work_rspace,pw_grid,REALDATA3D)
+    CALL coeff_allocate(work_rspace,pw_grid(1),REALDATA3D)
     work_rspace%pw%in_space = REALSPACE
-
-    CALL coeff_allocate(work_gspace,pw_grid,COMPLEXDATA3D)
+    CALL coeff_allocate(work_gspace,pw_grid(1),COMPLEXDATA1D)
     work_gspace%pw%in_space = RECIPROCALSPACE
+    CALL coeff_allocate(v_rspace_old,pw_grid(1),REALDATA3D)
+    v_rspace_old%pw%in_space = REALSPACE
 
-
-    CALL coeff_allocate(rho_rspace,pw_grid,REALDATA3D)
-    rho_rspace%pw%in_space = REALSPACE
-    CALL coeff_allocate(rho_rspace_old,pw_grid,REALDATA3D)
-    rho_rspace_old%pw%in_space = REALSPACE
-
+! *** xc
     IF (xc_info%gradient_functional) THEN
       DO i=1,3
-        CALL coeff_allocate(nabla_rho_rspace(i),pw_grid,REALDATA3D)
+        CALL coeff_allocate(nabla_rho_rspace(i),pw_grid(1),REALDATA3D)
         nabla_rho_rspace(i)%pw%in_space = REALSPACE
       END DO
-      CALL coeff_allocate(drho_rspace,pw_grid,REALDATA3D)
+      CALL coeff_allocate(drho_rspace,pw_grid(1),REALDATA3D)
       drho_rspace%pw%in_space = REALSPACE
-      CALL coeff_allocate(vxcg_rspace,pw_grid,REALDATA3D)
+      CALL coeff_allocate(vxcg_rspace,pw_grid(1),REALDATA3D)
       vxcg_rspace%pw%in_space = REALSPACE
     END IF
 
-    CALL coeff_allocate(rho_gspace,pw_grid,COMPLEXDATA3D)
-    rho_gspace%pw%in_space = RECIPROCALSPACE
+!   *** Build g vectors for the highest cutoff grid
 
-    CALL coeff_allocate(v_rspace,pw_grid,REALDATA3D)
-    v_rspace%pw%in_space = REALSPACE
-    CALL coeff_allocate(v_rspace_old,pw_grid,REALDATA3D)
-    v_rspace_old%pw%in_space = REALSPACE
-
-!   *** Build g vectors ***
-
-    dr(:) = rho_rspace%pw%pw_grid%dr(:)
-    ng(:) = rho_rspace%pw%pw_grid%npts(:)
+    dr(:) = rho_rspace(1)%pw%pw_grid%dr(:)
+    ng(:) = rho_rspace(1)%pw%pw_grid%npts(:)
     dg(:) = twopi/(ng(:)*dr(:))
-    lb_grid(:) = rho_rspace%pw%pw_grid%bounds(1,:)
-    ub_grid(:) = rho_rspace%pw%pw_grid%bounds(2,:)
-
+    lb_grid(:) = rho_rspace(1)%pw%pw_grid%bounds(1,:)
+    ub_grid(:) = rho_rspace(1)%pw%pw_grid%bounds(2,:)
     g_vector => reallocate(g_vector,1,MAXVAL(ng(:)),1,3)
-
     DO i=1,3
       DO ig=lb_grid(i),ub_grid(i)
         IF (ig < 0) THEN
@@ -943,58 +989,7 @@ CONTAINS
 
     CALL timeset("calculate_drho_elec","I","",handle)
 
-    CALL pw_fft_wrap(rho_rspace%pw,rho_gspace%pw,&
-                     debug=(globenv%print%level == DEBUG))
-
-    ng(:) = rho_rspace%pw%pw_grid%npts(:)
-
-    drho_rspace%pw%cr3d(:,:,:) = 0.0_wp
-
-    rho => rho_gspace%pw%cc3d(:,:,:)
-    work => work_gspace%pw%cc3d(:,:,:)
-
-    DO i=1,3
-
-      SELECT CASE (i)
-      CASE (1)
-        DO kg=1,ng(3)
-          DO jg=1,ng(2)
-            DO ig=1,ng(1)
-              c = CMPLX(0.0_wp,g_vector(ig,1),wp)
-              work(ig,jg,kg) = c*rho(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      CASE (2)
-        DO kg=1,ng(3)
-          DO jg=1,ng(2)
-            c = CMPLX(0.0_wp,g_vector(jg,2),wp)
-            DO ig=1,ng(1)
-              work(ig,jg,kg) = c*rho(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      CASE (3)
-        DO kg=1,ng(3)
-          c = CMPLX(0.0_wp,g_vector(kg,3),wp)
-          DO jg=1,ng(2)
-            DO ig=1,ng(1)
-              work(ig,jg,kg) = c*rho(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      END SELECT
-
-      CALL pw_fft_wrap(work_gspace%pw,nabla_rho_rspace(i)%pw,&
-                       debug=(globenv%print%level == DEBUG))
-
-      drho_rspace%pw%cr3d(:,:,:) = drho_rspace%pw%cr3d(:,:,:) +&
-                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)*&
-                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)
-
-    END DO
-
-    drho_rspace%pw%cr3d(:,:,:) = SQRT(drho_rspace%pw%cr3d(:,:,:))
+    CALL stop_program(" calculate_nabla_rho_elec", "coded away")
 
     CALL timestop(0.0_wp,handle)
 
@@ -1018,10 +1013,10 @@ CONTAINS
 
     CALL timeset("calculate_xc_potential","I","",handle)
 
-    ng(:) = rho_rspace%pw%pw_grid%npts(3)
+    ng(:) = rho_rspace(1)%pw%pw_grid%npts(3)
 
-    rho => rho_rspace%pw%cr3d(:,:,:)
-    vxc => v_rspace%pw%cr3d(:,:,:)
+    rho => rho_rspace(1)%pw%cr3d(:,:,:)
+    vxc => v_rspace(1)%pw%cr3d(:,:,:)
 
     IF (xc_info%gradient_functional) THEN
       drho => drho_rspace%pw%cr3d(:,:,:)
@@ -1086,8 +1081,8 @@ CONTAINS
     CALL mp_sum(ex,globenv%group)
     CALL mp_sum(ec,globenv%group)
 
-    ex = rho_rspace%pw%pw_grid%dvol*ex
-    ec = rho_rspace%pw%pw_grid%dvol*ec
+    ex = rho_rspace(1)%pw%pw_grid%dvol*ex
+    ec = rho_rspace(1)%pw%pw_grid%dvol*ec
 
     IF (xc_info%gradient_functional) THEN
       CALL calculate_nabla_vxcg(globenv)
@@ -1118,55 +1113,7 @@ CONTAINS
 
     CALL timeset("calculate_nabla_vxcg","I","",handle)
 
-    ng(:) = rho_rspace%pw%pw_grid%npts(:)
-
-    work => work_gspace%pw%cc3d(:,:,:)
-
-    DO i=1,3
-
-      work_rspace%pw%cr3d(:,:,:) = vxcg_rspace%pw%cr3d(:,:,:)*&
-                                   nabla_rho_rspace(i)%pw%cr3d(:,:,:)
-
-      CALL pw_fft_wrap(work_rspace%pw,work_gspace%pw,&
-                       debug=(globenv%print%level == DEBUG))
-
-      SELECT CASE (i)
-      CASE (1)
-        DO kg=1,ng(3)
-          DO jg=1,ng(2)
-            DO ig=1,ng(1)
-              c = CMPLX(0.0_wp,g_vector(ig,1),wp)
-              work(ig,jg,kg) = c*work(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      CASE (2)
-        DO kg=1,ng(3)
-          DO jg=1,ng(2)
-            c = CMPLX(0.0_wp,g_vector(jg,2),wp)
-            DO ig=1,ng(1)
-              work(ig,jg,kg) = c*work(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      CASE (3)
-        DO kg=1,ng(3)
-          c = CMPLX(0.0_wp,g_vector(kg,3),wp)
-          DO jg=1,ng(2)
-            DO ig=1,ng(1)
-              work(ig,jg,kg) = c*work(ig,jg,kg)
-            END DO
-          END DO
-        END DO
-      END SELECT
-
-      CALL pw_fft_wrap(work_gspace%pw,work_rspace%pw,&
-                       debug=(globenv%print%level == DEBUG))
-
-      v_rspace%pw%cr3d(:,:,:) = v_rspace%pw%cr3d(:,:,:) -&
-                                work_rspace%pw%cr3d(:,:,:)
-
-    END DO
+    CALL stop_program(" calculate_nabla_vxcg"," coded away")
 
     CALL timestop(0.0_wp,handle)
 

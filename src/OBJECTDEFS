@@ -53,6 +53,7 @@ OBJECTS_GENERIC =\
  erf_fn.o\
  ewald_parameters_types.o\
  ewalds.o\
+ exchange_gga_functional.o\
  external_potential_types.o\
  extended_system_types.o\
  fermi.o\
@@ -78,6 +79,7 @@ OBJECTS_GENERIC =\
  functionals_tests.o\
  functionals_utilities.o\
  function_amoeba.o\
+ gaussian_gridlevels.o\
  gamma.o\
  global_types.o\
  greens_fn.o\
@@ -93,6 +95,7 @@ OBJECTS_GENERIC =\
  integrator.o\
  interactions.o\
  k290.o\
+ ke_gga_functional.o\
  kinds.o\
  kinetic.o\
  kpoint_initialization.o\
@@ -107,6 +110,7 @@ OBJECTS_GENERIC =\
  linklist_utilities.o\
  linklist_verlet_list.o\
  linklists.o\
+ lyp_functional.o\
  l_utils.o\
  machine.o\
  mathconstants.o\
@@ -199,6 +203,7 @@ OBJECTS_GENERIC =\
  transformations.o\
  unit.o\
  util.o\
+ vwn_functional.o\
  wave.o\
  wf_types.o\
  xalpha_functional.o\
