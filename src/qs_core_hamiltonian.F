@@ -135,7 +135,7 @@ MODULE qs_core_hamiltonian
                                              vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type

@@ -24,6 +24,7 @@
 
 MODULE environment
   USE cp2k_units,                      ONLY: init_cp2k_units
+  USE cp_files,                        ONLY: open_file,close_file
   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
                                              cp_get_default_logger,&
                                              cp_logger_create,&
@@ -67,7 +68,6 @@ MODULE environment
                                              write_physcon
   USE print_key_types,                 ONLY: print_keys_reset
   USE qs_parser,                       ONLY: finish_parser,&
-                                             open_file,&
                                              read_object,&
                                              start_parser,&
                                              stop_parser,&
@@ -742,6 +742,7 @@ SUBROUTINE cp2k_read(globenv)
             CALL read_object(globenv%coord_file_name)
           CASE ("ERROR_FILE_NAME","ERROR_FILE")
             CALL read_object(globenv%error_file_name)
+            ! XXXX do we close these ???
             CALL open_file(file_name=globenv%error_file_name,&
                            file_action="WRITE",&
                            file_form="FORMATTED",&
@@ -750,6 +751,7 @@ SUBROUTINE cp2k_read(globenv)
             CALL set_error_unit(unit_number)
           CASE ("OUTPUT_FILE_NAME","OUTPUT_FILE")
             CALL read_object(globenv%output_file_name)
+            ! XXXX do we close these ???
             CALL open_file(file_name=globenv%output_file_name,&
                            file_action="WRITE",&
                            file_form="FORMATTED",&

@@ -53,7 +53,7 @@ MODULE dynamical_coeff_types
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE termination,                     ONLY: stop_memory
   USE util,                            ONLY: gasdev,&

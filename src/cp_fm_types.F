@@ -55,7 +55,7 @@ MODULE cp_fm_types
                                              mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&

@@ -42,7 +42,7 @@ MODULE dump
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast, mp_allgather
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&

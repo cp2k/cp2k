@@ -39,7 +39,6 @@ MODULE qmmm_gaussian_input
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE qs_parser,                       ONLY: finish_parser,&
-                                             open_file,&
                                              read_object,&
                                              search_object,&
                                              start_parser,&

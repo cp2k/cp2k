@@ -32,7 +32,7 @@ MODULE topology_psf
                                              parser_init,&
                                              read_line,&
                                              search_label
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

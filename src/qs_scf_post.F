@@ -94,7 +94,7 @@ MODULE qs_scf_post
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
   USE qs_overlap,                      ONLY: write_sparse_matrix
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_types,                    ONLY: qs_scf_env_type

@@ -91,13 +91,6 @@ MODULE qmmm_init
                                              qs_env_release,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_parser,                       ONLY: finish_parser,&
-                                             open_file,&
-                                             read_object,&
-                                             search_object,&
-                                             start_parser,&
-                                             stop_parser,&
-                                             test_object
   USE simulation_cell,                 ONLY: cell_retain,&
                                              cell_type,&
                                              init_qmmm_cell,&

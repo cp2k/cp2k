@@ -81,7 +81,7 @@ MODULE md_run
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: read_fixed_particles
   USE physcon,                         ONLY: kelvin
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
   USE termination,                     ONLY: stop_memory

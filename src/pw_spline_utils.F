@@ -42,8 +42,8 @@ MODULE pw_spline_utils
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level,&
-                                             cp_logger_get_default_unit_nr,&
-                                             open_file,close_file
+                                             cp_logger_get_default_unit_nr
+  USE cp_files,                        ONLY: open_file,close_file
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sendrecv, mp_isend,mp_irecv,&

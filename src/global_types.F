@@ -33,8 +33,8 @@ MODULE global_types
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: close_file,&
-                                             cp_failure_level,&
+  USE cp_files,                        ONLY: close_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&

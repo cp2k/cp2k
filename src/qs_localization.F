@@ -78,7 +78,7 @@ MODULE qs_localization
                                              direct_mini,&
                                              initialize_weights,&
                                              jacobi_rotations
-  USE qs_parser,                       ONLY: open_file, close_file
+  USE cp_files,                        ONLY: open_file, close_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&

@@ -47,8 +47,8 @@ MODULE f77_interface
                                              cp_rm_default_logger,&
                                              cp_to_string,&
                                              cp_warning_level,&
-                                             open_file,&
                                              cp_logger_get_default_unit_nr
+  USE cp_files,                        ONLY: open_file, close_file 
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain

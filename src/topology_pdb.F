@@ -48,7 +48,7 @@ MODULE topology_pdb
                                              default_string_length
   USE memory_utilities,                ONLY: reallocate
   USE physcon,                         ONLY: bohr
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_memory,&

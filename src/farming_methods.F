@@ -17,13 +17,13 @@ MODULE farming_methods
                                              cp_error_init, &
                                              cp_error_dealloc_ref, &
                                              cp_assertion_failed 
+  USE cp_files,                        ONLY: get_unit_number
   USE message_passing,                 ONLY: mp_bcast
   USE qs_parser,                       ONLY: finish_parser,&
                                              read_object,&
                                              start_parser,&
                                              stop_parser,&
-                                             test_object,&
-                                             get_unit_number
+                                             test_object
   IMPLICIT NONE
   PRIVATE
   PUBLIC  :: farming_parse_input

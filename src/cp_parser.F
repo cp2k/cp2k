@@ -32,14 +32,13 @@ MODULE cp_parser
                                              cp_error_propagate_error,&
                                              cp_error_synchronize_error,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: close_file,&
-                                             cp_failure_level,&
+  USE cp_files,                        ONLY: open_file, close_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level,&
-                                             open_file
+                                             cp_warning_level
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain

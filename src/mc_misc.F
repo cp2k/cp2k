@@ -36,7 +36,7 @@ MODULE mc_misc
                                              n_avogadro
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell

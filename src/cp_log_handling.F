@@ -50,6 +50,7 @@
 
 MODULE cp_log_handling
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_files,                        ONLY: open_file,close_file
   USE print_key_types,                    ONLY: print_keys_create,&
                                              print_keys_type, print_keys_release
   USE kinds,                           ONLY: dp, default_string_length
@@ -81,8 +82,6 @@ MODULE cp_log_handling
        cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
        cp_logger_set_log_level, cp_logger_generate_filename
   PUBLIC :: cp_to_string, cp_log
-! file_open/close
-  PUBLIC :: open_file, close_file
 ! iteration_info
   PUBLIC :: cp_iteration_info_create, cp_iteration_info_retain, &
        cp_iteration_info_release
@@ -91,9 +90,6 @@ MODULE cp_log_handling
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_log_handling'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-
-  INTEGER, DIMENSION(2), PARAMETER :: reserved_unit_numbers = (/5,6/)
-  INTEGER, PARAMETER :: max_unit_number = 999
 
 !! level of an error
   INTEGER, PARAMETER  :: cp_fatal_level=3
@@ -230,257 +226,6 @@ MODULE cp_log_handling
   INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0, last_it_info_id=0
 
 CONTAINS
-
-  !!****f* cp_log_handling/open_file *
-  !!
-  !!   NAME
-  !!     open_file
-  !!
-  !!   FUNCTION
-  !!     opens the requested file using a free unit number
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE open_file(file_name,file_status,file_form,file_action,&
-                       file_position,unit_number)
-
-!   History: - Creation (13.02.2001,MK)
-
-    CHARACTER(LEN=*), INTENT(IN)             :: file_name
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status, file_form, &
-                                                file_action, file_position
-    INTEGER, INTENT(OUT)                     :: unit_number
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "open_file",&
-         routineP=moduleN//':'//routineN
-
-    CHARACTER(LEN=11)                        :: action_string, form_string, &
-                                                position_string, status_string
-    CHARACTER(LEN=200)        :: message
-    INTEGER                                  :: istat
-    LOGICAL                                  :: exists, opened
-
-!   ---------------------------------------------------------------------------
-
-    IF (PRESENT(file_form)) THEN
-      form_string = file_form
-      CALL uppercase(form_string)
-    ELSE
-      form_string = "FORMATTED"
-    END IF
-
-    IF (PRESENT(file_action)) THEN
-      action_string = file_action
-      CALL uppercase(action_string)
-    ELSE
-      action_string = "READ"
-    END IF
-
-    IF (PRESENT(file_status)) THEN
-      status_string = file_status
-      CALL uppercase(status_string)
-    ELSE
-       IF (action_string=="READ") THEN
-          status_string = "OLD"
-       ELSE
-          status_string = "UNKNOWN"
-       END IF
-    END IF
-
-    IF (PRESENT(file_position)) THEN
-      position_string = file_position
-      CALL uppercase(position_string)
-    ELSE
-      position_string = "REWIND"
-    END IF
-
-!   *** Check the specified input file name ***
-
-    INQUIRE (FILE=TRIM(file_name),EXIST=exists,OPENED=opened,IOSTAT=istat)
-
-    IF (istat /= 0) THEN
-      WRITE (UNIT=message,FMT="(a,a,i6,a)") routineP,&
-        " An error occurred inquiring the file <"//TRIM(file_name)//&
-        "> (IOSTAT = ",istat,")"
-      CALL mp_stop(-1,trim(message))
-    ELSE IF (status_string == "OLD") THEN
-      IF (.NOT.exists) THEN
-         WRITE (UNIT=message,FMT="(a,a)") routineP,&
-           " The specified file <"//TRIM(file_name)// "> does not exist"
-         CALL mp_stop(1,TRIM(message))
-      END IF
-    END IF
-
-!   *** Open the specified input file ***
-
-    IF (opened) THEN
-
-      INQUIRE (FILE=TRIM(file_name),NUMBER=unit_number)
-      if (position_string=="REWIND") REWIND (UNIT=unit_number)
-
-    ELSE
-
-!     *** Find an unused unit number ***
-
-      unit_number = get_unit_number()
-
-      IF (unit_number < 0) THEN
-         WRITE (UNIT=message,FMT="(a,a)") routineP,&
-              "Could not find a logical unit number which "//&
-              "exists and is not connected"
-         CALL mp_stop(2,TRIM(message))
-      END IF
-
-      OPEN (UNIT=unit_number,&
-            FILE=TRIM(file_name),&
-            STATUS=TRIM(status_string),&
-            ACCESS="SEQUENTIAL",&
-            FORM=TRIM(form_string),&
-            POSITION=TRIM(position_string),&
-            ACTION=TRIM(action_string),&
-            IOSTAT=istat)
-
-      IF (istat /= 0) THEN
-        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
-          " An error occurred opening the file <"//TRIM(file_name)//&
-          "> with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        CALL compress(message)
-         CALL mp_stop(3,TRIM(message))
-      END IF
-
-    END IF
-
-  END SUBROUTINE open_file
-! *****************************************************************************
-
-  !!****f* cp_log_handling/close_file *
-  !!
-  !!   NAME
-  !!     close_file
-  !!
-  !!   FUNCTION
-  !!     closes the given unit
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!*** *********************************************************************
-  SUBROUTINE close_file(unit_number,file_status)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN)                      :: unit_number
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: file_status
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "close_file",&
-         routineP=moduleN//':'//routineN
-
-    CHARACTER(LEN=6)                         :: status_string
-    CHARACTER(LEN=200)        :: message
-    INTEGER                                  :: istat
-    LOGICAL                                  :: exists, opened
-
-!   ---------------------------------------------------------------------------
-!   *** Check the specified input file name ***
-
-    INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
-
-    IF (istat /= 0) THEN
-      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
-        " An error occurred inquiring the unit with the number ",unit_number,&
-        " (IOSTAT = ",istat,")"
-      CALL compress(message)
-      CALL mp_stop(10,trim(message))
-    ELSE IF (.NOT.exists) THEN
-      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
-        " The specified unit number ",unit_number," does not exist"
-      CALL compress(message)
-      CALL mp_stop(10,trim(message))
-    END IF
-
-!   *** Close the specified file ***
-
-    IF (opened) THEN
-
-      IF (PRESENT(file_status)) THEN
-        status_string = file_status
-        CALL uppercase(status_string)
-      ELSE
-        status_string = "KEEP"
-      END IF
-
-      CLOSE (UNIT=unit_number,IOSTAT=istat,STATUS=TRIM(status_string))
-
-      IF (istat /= 0) THEN
-        WRITE (UNIT=message,FMT="(A,I6,A,I6,A)") routineP//&
-          " An error occurred closing the file "//&
-          "with the unit number ",unit_number," (IOSTAT = ",istat,")"
-        CALL compress(message)
-        CALL mp_stop(11,TRIM(message))
-      END IF
-
-    END IF
-
-  END SUBROUTINE close_file
-! *****************************************************************************
-
-  !!****f* cp_log_handling/get_unit_number *
-  !!
-  !!   NAME
-  !!     get_unit_number
-  !!
-  !!   FUNCTION
-  !!     returns a free unit number
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ARGUMENTS
-  !!     -
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!*** *********************************************************************
-  FUNCTION get_unit_number() RESULT(unit_number)
-
-!   Purpose: Returns a unit number of a unit that exists and is not connected.
-
-!   History: - Creation (13.02.2001,MK)
-
-!   ***************************************************************************
-
-    INTEGER                                  :: unit_number
-
-    INTEGER                                  :: istat
-    LOGICAL                                  :: exists, opened
-
-!   ---------------------------------------------------------------------------
-
-    DO unit_number=1,max_unit_number
-      IF (ANY(unit_number == reserved_unit_numbers)) CYCLE
-      INQUIRE (UNIT=unit_number,EXIST=exists,OPENED=opened,IOSTAT=istat)
-      IF (exists.AND.(.NOT.opened).AND.(istat == 0)) RETURN
-    END DO
-
-    unit_number = -1
-
-   END FUNCTION get_unit_number
-! *****************************************************************************
 
 !!****f* cp_log_handling/cp_add_default_logger [1.0] *
 !!

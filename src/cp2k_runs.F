@@ -54,7 +54,7 @@ MODULE cp2k_runs
                                              mp_comm_split, &
                                              mp_comm_free
   USE qs_mc,                           ONLY: qs_mon_car
-  USE qs_parser,                       ONLY: open_file, &
+  USE cp_files,                        ONLY: open_file, &
                                              close_file, &
                                              get_unit_number
   USE parser,                          ONLY: parser_init, &

@@ -41,8 +41,9 @@ MODULE cp_output_handling
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
-  USE cp_log_handling,                 ONLY: close_file,&
-                                             cp_failure_level,&
+  USE cp_files,                        ONLY: open_file,&
+                                             close_file
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_iteration_info_type,&
                                              cp_log,&
@@ -52,8 +53,7 @@ MODULE cp_output_handling
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level,&
-                                             max_iter_r_level,&
-                                             open_file
+                                             max_iter_r_level
   USE input_enumeration_types,         ONLY: enum_create,&
                                              enum_release,&
                                              enumeration_type

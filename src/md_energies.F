@@ -57,7 +57,7 @@ MODULE md_energies
                                              write_qs_particle_coordinates
   USE physcon,                         ONLY: femtoseconds,&
                                              kelvin
-  USE qs_parser,                       ONLY: open_file
+  USE cp_files,                        ONLY: open_file
   USE simulation_cell,                 ONLY: cell_type, get_cell
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -538,6 +538,7 @@ END SUBROUTINE set_energies
       keep_file = file_exists
     END IF
 
+    ! XXX are these files ever closed ???
     IF (keep_file) THEN
       CALL open_file(file_name=TRIM(file_name),&
                      file_action="READWRITE",&

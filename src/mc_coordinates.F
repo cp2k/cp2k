@@ -30,7 +30,7 @@ MODULE mc_coordinates
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: angstrom,&
                                              n_avogadro
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell

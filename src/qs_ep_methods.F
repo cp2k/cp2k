@@ -122,7 +122,7 @@ MODULE qs_ep_methods
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE scf_control_types,               ONLY: scf_c_retain,&

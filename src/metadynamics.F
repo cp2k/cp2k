@@ -10,6 +10,7 @@ MODULE metadynamics
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_files,                        ONLY: open_file
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_get_default_unit_nr,&
@@ -33,7 +34,6 @@ MODULE metadynamics
                                              meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
   USE qs_parser,                       ONLY: finish_parser,&
-                                             open_file,&
                                              read_object,&
                                              search_object,&
                                              start_parser,&

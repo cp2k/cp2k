@@ -27,7 +27,7 @@ MODULE bfgs_optimizer
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                       ONLY: close_file,&
                                              open_file
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&

@@ -65,7 +65,7 @@ MODULE qs_mo_types
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
-  USE qs_parser,                       ONLY: close_file,&
+  USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

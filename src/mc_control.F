@@ -36,7 +36,7 @@ MODULE mc_control
   USE physcon,                         ONLY: angstrom,&
                                              boltzmann,&
                                              joule
-  USE qs_parser,                       ONLY: open_file,&
+  USE cp_files,                        ONLY: open_file,&
                                              close_file
   USE simulation_cell,                 ONLY: cell_type,&
                                              get_cell
