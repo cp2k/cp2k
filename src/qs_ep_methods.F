@@ -57,7 +57,8 @@ MODULE qs_ep_methods
                                              fm_pools_give_back_matrix_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_set_all,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_write,&
                                              cp_full_matrix_p_type,&
@@ -157,6 +158,7 @@ MODULE qs_ep_methods
                                              qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
                                              p_proj_release,&
+                                             p_proj_restrain_f,&
                                              p_proj_retain,&
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
@@ -918,6 +920,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
 
            start_col=start_col+sub_nmo
         END DO
+        CPPostcondition(start_col==nmo+1,cp_failure_level,routineP,error,failure)
 
         IF (logger%print_keys%ep_matrixes) THEN
            WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&
@@ -1005,6 +1008,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
         CALL p_preortho(p_env=ep_env%main_p_env, &
              qs_env=ep_env%main_qs_env, v=ep_env%psi1,&
              n_cols=ep_env%main_p_env%n_mo, error=error)
+        ! localize x
+        CALL ep_env_localize_matrix(ep_env, ep_env%psi1, error=error)
         ! r=b-A x
         CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
              v=ep_env%psi1, res=r,error=error)
@@ -1013,6 +1018,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
                 beta=1.0_wp,matrix_b=ep_env%m_pi_Hrho_psi0d(ispin)%matrix,&
                 error=error)
         END DO
+        ! localize r
+        CALL ep_env_localize_matrix(ep_env, r, error=error)
 !FM        CALL cp_fm_vect_write(matrixes=r, &
 !FM             unit_nr=cp_logger_get_default_unit_nr(logger),&
 !FM             long_description=.TRUE., error=error) !pippo
@@ -1032,6 +1039,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
                 matrix_in=r(ispin)%matrix,&
                 matrix_out=z(ispin)%matrix)
         END DO
+        ! localize z
+        CALL ep_env_localize_matrix(ep_env, z, error=error)
 
         ! p=z
         DO ispin=1,nspins
@@ -1058,6 +1067,9 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            CALL p_preortho(p_env=ep_env%main_p_env,&
              qs_env=ep_env%main_qs_env, v=p_ortho,&
              n_cols=ep_env%main_p_env%n_mo, error=error)
+           ! localize p_ortho
+           CALL ep_env_localize_matrix(ep_env, p_ortho, error=error)
+
            ! calc norm of p_ortho
            p_ortho_norm=0.0_wp
            DO ispin=1,nspins
@@ -1086,6 +1098,9 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
            ! Ap=A p_ortho=p_ortho_norm A p
            CALL p_op_ep(p_env=ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
                 v=p_ortho, res=Ap,error=error)
+           ! localize Ap
+           CALL ep_env_localize_matrix(ep_env, Ap, error=error)
+
 !FM           CALL cp_fm_vect_write(matrixes=Ap, &
 !FM                unit_nr=cp_logger_get_default_unit_nr(logger),&
 !FM                long_description=.TRUE., error=error) !pippo
@@ -1139,6 +1154,8 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
                    matrix_in=r(ispin)%matrix,&
                    matrix_out=z(ispin)%matrix)
            END DO
+           ! localize z
+           CALL ep_env_localize_matrix(ep_env, z, error=error)
 
            r_z_new=0.0_wp
            DO ispin=1,nspins
@@ -1351,6 +1368,80 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
      CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools, res, error=error)
   END IF
 END SUBROUTINE p_env_write_ep_matrix
+!***************************************************************************
+
+!!****f* qs_ep_methods/ep_env_localize_matrix [1.0] *
+!!
+!!   NAME
+!!     ep_env_localize_matrix
+!!
+!!   FUNCTION
+!!     localizes the wavefunction matrix, restraining it the the subsystem
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE ep_env_localize_matrix(ep_env, wf_coeff, error)
+  TYPE(qs_ep_env_type), POINTER :: ep_env
+  TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: wf_coeff
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure
+  CHARACTER(len=*), PARAMETER :: routineN='ep_env_localize_matrix',&
+        routineP=moduleN//':'//routineN
+  TYPE(qs_environment_type), POINTER :: main_qs_env
+  TYPE(qs_environment_p_type), DIMENSION(:), POINTER :: sub_qs_env
+  TYPE(qs_p_projection_p_type), DIMENSION(:), POINTER :: sub_proj
+  TYPE(mo_set_p_type), DIMENSION(:), POINTER :: sub_c
+  TYPE(cp_logger_type), POINTER :: logger
+  INTEGER :: isub, ispin, nspins, start_col, handle,unit_nr, nmo,sub_nmo
+
+  CALL timeset(routineN,"I","",handle)
+
+  failure=.FALSE.
+  NULLIFY(main_qs_env,sub_qs_env, sub_proj, sub_c)
+  logger => cp_error_get_logger(error)
+  unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
+  
+  CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
+  CALL ep_env_get(ep_env,sub_qs_env=sub_qs_env,&
+       sub_proj=sub_proj,main_qs_env=main_qs_env,error=error)
+  CALL cp_error_check(error,failure)
+  CPPrecondition(ASSOCIATED(sub_qs_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(sub_proj),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(main_qs_env),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     nspins=main_qs_env%dft_control%nspins
+     DO ispin=1,nspins
+        start_col=1
+        CALL cp_fm_get_info(wf_coeff(ispin)%matrix,ncol_global=nmo)
+
+        DO isub=1,SIZE(sub_qs_env)
+           CALL get_qs_env(sub_qs_env(isub)%qs_env,c=sub_c,error=error)
+           CALL get_mo_set(sub_c(ispin)%mo_set, nmo=sub_nmo)
+           CPInvariant(start_col+sub_nmo<nmo+2,cp_failure_level,routineP,error,failure)
+
+!FM           CALL p_proj_restrain_f(p_proj=sub_proj(isub)%projection,&
+!FM                full_m=wf_coeff(ispin)%matrix,&
+!FM                start_col=start_col, ncol=sub_nmo, error=error)
+           
+           start_col=start_col+sub_nmo
+        END DO
+        CPPostcondition(start_col==nmo+1,cp_failure_level,routineP,error,failure)
+     END DO
+  END IF
+END SUBROUTINE ep_env_localize_matrix
 !***************************************************************************
 
 END MODULE qs_ep_methods
