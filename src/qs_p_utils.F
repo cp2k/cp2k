@@ -189,18 +189,18 @@ CONTAINS
   SUBROUTINE p_op_l2(p_env, v, res, glob_env, alpha, beta, error)
     
     ! arguments
-    TYPE(qs_p_env_type), INTENT(inout)                     :: p_env
+    TYPE(qs_p_env_type), INTENT(inout)                       :: p_env
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(in)    :: v
     TYPE(cp_full_matrix_p_type), DIMENSION(:), INTENT(inout) :: res
-    TYPE(global_environment_type), INTENT(in), TARGET      :: glob_env
-    REAL(kind=dbl), INTENT(in), OPTIONAL                   :: alpha, beta
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout)           :: error
+    TYPE(global_environment_type), INTENT(in), TARGET        :: glob_env
+    REAL(kind=dbl), INTENT(in), OPTIONAL                     :: alpha, beta
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout)             :: error
 
     ! locals
     LOGICAL                     :: failure
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l2',&
                                    routineP = moduleN//':'//routineN
-    INTEGER                     :: spin
+    INTEGER                     :: spin, n_spins
 
     failure=.FALSE.
 
@@ -223,6 +223,10 @@ CONTAINS
 !!!       call cp_sp_multiplies_blacs(p_env%K_P_P1(1)%matrix,C(1)%matrix,&
 !!!            target_m(1)%matrix, alpha=alpha,&
 !!!            beta=beta)
+       n_spins = p_env%qs_env%dft_control%nspins
+       do spin=1, n_spins
+          
+       end do
     END IF
 
   END SUBROUTINE p_op_l2

@@ -323,13 +323,11 @@ CONTAINS
 !!     p_env_psi0_changed
 !!
 !!   FUNCTION
-!!     to be called after the value of psi0 has changed.
-!!     p_env%r should contain psi0, then psi0d, S_psi0, the filtred P,
-!!     Hrho, m_epsilon are calculated.
+!!     To be called after the value of psi0 has changed.
+!!     Recalculates the quantities S_psi0 and m_epsilon.
 !!
 !!   NOTES
-!!     Hrho and P are just wrapper of the k and P matrixes in qs_env
-!!     (I want to use the higher level block_matrix)
+!!     -
 !!
 !!   INPUTS
 !!     - p_env: the perturbation environment to set
@@ -366,15 +364,10 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S
     INTEGER                                :: n_spins, spin
 
-!    TYPE(cp_b_matrix_struct_type), POINTER :: s_mstruct
-!    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: S, P, K
-
     ! code
     failure=.FALSE.
 
     CPPrecondition(p_env%initialized, cp_failure_level, routineP, error, failure)
-
-!    NULLIFY(S,P,K,s_mstruct)
 
     NULLIFY(tmp)
 
@@ -383,98 +376,37 @@ CONTAINS
        n_spins = p_env%qs_env%dft_control%nspins
        DO spin=1, n_spins
 
+          ! get from pool instead
           CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, tmp, &
                                       routineP//": temporary matrix")
 
-       ! still needed?
-!!TC       if (p_env%s_mstruct_changed) then
-!!TC          call cp_sp_array_dealloc(p_env%Hrho, error=error)
-!!TC          call cp_sp_array_dealloc(p_env%P, error=error)
-!!TC          call cp_sp_array_dealloc(p_env%P1, error=error)
-!!TC          call cp_sp_array_dealloc(p_env%K_P_P1,error=error)
-!!TC
-!!TC          call get_qs_env(p_env%qs_env,s_mstruct=s_mstruct,K=K,P=P)
-!!TC          allocate(p_env%Hrho(1),stat=stat)
-!!TC          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-!!TC          nullify(p_env%Hrho(1)%matrix)
-!!TC          call cp_sp_create(p_env%Hrho(1)%matrix, matrix_struct=s_mstruct,&
-!!TC               u_matrix=k(1)%matrix, should_dealloc_matrix=.false.,&
-!!TC               error=error)
-!!TC          allocate(p_env%P(1),stat=stat)
-!!TC          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-!!TC          nullify(p_env%P(1)%matrix)
-!!TC          call cp_sp_create(p_env%P(1)%matrix, matrix_struct=s_mstruct,&
-!!TC               u_matrix=P(1)%matrix, should_dealloc_matrix=.false.,&
-!!TC               error=error)
-!!TC          call cp_sp_array_create(p_env%P1,1,s_mstruct,&
-!!TC               allocate_nonsparse_blocks=.true., error=error)
-!!TC          call cp_sp_array_create(p_env%K_P_P1,1,s_mstruct,&
-!!TC               allocate_nonsparse_blocks=.true., error=error)
-!!TC          p_env%s_mstruct_changed=.false.
-!!TC       end if
-
-
-          ! caluclates 
-          ! m_eplsilon = - psi0d^T times K times psi0d
-          !            = - [K times psi0d]^T times psi0d (because K is symmetric)
+          !-----------------------------------------------------------------------|
+          ! caluclates                                                            |
+          ! m_eplsilon = - psi0d^T times K times psi0d                            |
+          !            = - [K times psi0d]^T times psi0d (because K is symmetric) |
+          !-----------------------------------------------------------------------|
           IF (p_env%orthogonal_orbitals) THEN
-             
              ! tmp = k times psi0d
              CALL cp_sm_fm_multiply(p_env%qs_env%k(spin)%matrix, &
                   p_env%psi0d(spin)%matrix, &
                   tmp, p_env%n_ao(spin), &
-                  glob_env%para_env)
-             
+                  glob_env%para_env)             
              ! m_epsilon = -1 times tmp^T times psi0d
              CALL cp_fm_gemm('T', 'N', &
                   p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                   -1.0_dbl, tmp, p_env%psi0d(spin)%matrix, &
                   0.0_dbl, p_env%m_epsilon(spin)%matrix)
-
-             ! @fawzi: I don't know what the following does. Please
-             !         check it and change according to your needs.
-
-!!TC          call copy_blacs_to_blacs_matrix(p_env%r(1)%matrix,p_env%psi0d(1)%matrix)
-!!TC       else
-!!TC          call cp_fm_syrk('U','N',p_env%n_mo,1.0_wp,p_env%r(1)%matrix,1,1,&
-!!TC               0.0_wp,p_env%m_epsilon(1)%matrix)
-!!TC          call blacs_cholesky_decompose(p_env%m_epsilon(1)%matrix)
-!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%matrix,&
-!!TC               p_env%r(1)%matrix,&
-!!TC               transpose_tr=.true.,invert_tr=.true.)
-!!TC          call blacs_triangular_multiply(p_env%m_epsilon(1)%matrix,&
-!!TC               p_env%r(1)%matrix,&
-!!TC               transpose_tr=.false.,invert_tr=.true.)
           END IF
 
-!!TC       call cp_sm_plus_fm_fm_t(p_env%P1(1)%matrix%sm,p_env%r(1)%matrix,&
-!!TC            p_env%psi0d(1)%matrix,p_env%n_mo)
-!!TC
-!!TC       call qs_ks_did_change(p_env%ks_env,qs_env=p_env%qs_env,&
-!!TC            global_env=glob_env,p_changed=.true.,error=error)
-!!TC
+          !-------------------------------|
+          ! calculates S_psi0 = S * psi0d |
+          !-------------------------------|
           CALL get_qs_env(p_env%qs_env, s=S)
           CALL cp_sm_fm_multiply(S(spin)%matrix, &
                p_env%psi0d(spin)%matrix, &
                p_env%S_psi0(spin)%matrix, &
                p_env%n_mo(spin), para_env=glob_env%para_env)
        
-!!TC          CALL cp_sm_fm_multiply(S(spin)%matrix, p_env%r(1)%matrix,&
-!!TC               p_env%S_psi0(1)%matrix,&
-!!TC               p_env%n_mo,para_env=glob_env%para_env)
-!!TC
-!!TC       call qs_ks_update_qs_env(p_env%ks_env,qs_env=p_env%qs_env,&
-!!TC            global_env=glob_env)
-!!TC
-!!TC       call cp_sp_multiplies_blacs(p_env%Hrho(1)%matrix,&
-!!TC            p_env%psi0d(1)%matrix,&
-!!TC            p_env%tmp_aomo_1, error=error)
-!!TC       call cp_fm_gemm('T','N',p_env%n_mo,p_env%n_mo,p_env%n_ao,&
-!!TC            1.0_wp,p_env%psi0d(1)%matrix,p_env%tmp_aomo_1,&
-!!TC            0.0_wp,p_env%m_epsilon(1)%matrix)
-!!TC       call blacs_scale_and_d(p_env%m_epsilon(1)%matrix,&
-!!TC            scale=-1.0_wp)
-
           CALL cp_fm_release(tmp); NULLIFY(tmp)
 
        END DO

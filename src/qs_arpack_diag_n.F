@@ -58,10 +58,12 @@ contains
 !!     computes the eigenvalues and eigenvectors of A.
 !!
 !!   ARGUMENTS
-!!     - n_ev     : number of eigenvalues and eigenvectors to calculate
-!!     - eval     : array of eigenvalues
-!!     - evec     : on input initial guess - on output eigenvectors (matrix)
-!!     - glob_env : global_environment (needed for communication)
+!!     - n_ev      : number of eigenvalues and eigenvectors to calculate
+!!     - eval      : array of eigenvalues
+!!     - evec      : on input initial guess - on output eigenvectors (matrix)
+!!     - glob_env  : global_environment (needed for communication)
+!!     ONE of the following optional arguments must also be specified
+!!     - op_tddfpt : operator for the tddfpt calculations
 !!
 !!   NOTES
 !!     - Since the problem at hand is not symmetric (hermitian), there
@@ -92,7 +94,7 @@ contains
   
   	! locals
     integer   :: stat              ! return value of allocation operation
-    integer   :: op_present
+    integer   :: op_present        ! how many optional operators are present
     character(len=*), parameter :: routineN = "arpack_diag_n", &
                                    routineP = moduleN//"/"//routineN
     
