@@ -2729,9 +2729,10 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
       ! loop over params from charmm
       IF(ASSOCIATED(chm_info%nonbond_a)) THEN
-        onfo_list(j)%onfo_kind%name   = ""
-        onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
-        call spline_env_retain(spline_bond_env,error=error)
+         CALL spline_env_release(onfo_list(j)%onfo_kind%spline_env, error=error)
+         CALL spline_env_retain (spline_bond_env,error=error)
+         onfo_list(j)%onfo_kind%name   = ""
+         onfo_list(j)%onfo_kind%spline_env   => spline_bond_env
       END IF
 
       ! always have the input param last to overwrite all the other ones

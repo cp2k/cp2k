@@ -187,8 +187,8 @@ MODULE force_field_types
             deallocate_ff_type,&
             deallocate_bend_kind_set,&
             deallocate_bond_kind_set,&
-            deallocate_torsion_kind_set,&
-            deallocate_impr_kind_set
+            torsion_kind_dealloc_ref,&
+            impr_kind_dealloc_ref
 
 ! *** Public data types ***
 
@@ -407,6 +407,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (ASSOCIATED(impr_kind_set(nkind))) THEN
+       DEALLOCATE (impr_kind_set,STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
+            "impr_kind_set",nkind*int_size)
+    END IF
     ALLOCATE (impr_kind_set(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine_name,moduleN,__LINE__,&
                                      "impr_kind_set",nkind*int_size)
@@ -999,13 +1004,13 @@ END SUBROUTINE deallocate_ff_type
 ! *****************************************************************************
 
 !******************************************************************************
-!!****** force_field_types/deallocate_torsion_kind_set [1.0] *
+!!****** force_field_types/torsion_kind_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     deallocate_torsion_kind_set
+!!     torsion_kind_dealloc_ref
 !!
 !!   FUNCTION
-!!     Deallocate a torsion kind set.
+!!     Deallocate a torsion kind element
 !!
 !!   AUTHOR
 !!
@@ -1013,31 +1018,26 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE deallocate_torsion_kind_set(torsion_kind_set)
+  SUBROUTINE torsion_kind_dealloc_ref(torsion_kind,error)
 
-    TYPE(torsion_kind_type), DIMENSION(:), &
-      POINTER                                :: torsion_kind_set
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_torsion_kind_set"
-
-    INTEGER                                  :: ikind, istat
-
+    TYPE(torsion_kind_type), INTENT(INOUT)       :: torsion_kind
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    integer :: istat
+    CHARACTER(len=*), PARAMETER :: routineN='torsion_kind_dealloc_ref',&
+         routineP=moduleN//':'//routineN
+    logical :: failure
+    
+    failure = .false.
 !   ---------------------------------------------------------------------------
 
+    DEALLOCATE(torsion_kind%k,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routineN,"k")
+    DEALLOCATE(torsion_kind%m,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routineN,"m")
+    DEALLOCATE(torsion_kind%cosphi0,STAT=istat)
+    IF(istat/=0) CALL stop_memory(routineN,"cosphi0")
 
-    DO ikind=1,SIZE(torsion_kind_set)
-      DEALLOCATE(torsion_kind_set(ikind)%k,STAT=istat)
-      IF(istat/=0) CALL stop_memory(routine_name,"k")
-      DEALLOCATE(torsion_kind_set(ikind)%m,STAT=istat)
-      IF(istat/=0) CALL stop_memory(routine_name,"m")
-      DEALLOCATE(torsion_kind_set(ikind)%cosphi0,STAT=istat)
-      IF(istat/=0) CALL stop_memory(routine_name,"cosphi0")
-    END DO
-
-    DEALLOCATE (torsion_kind_set,STAT=istat)
-    IF(istat/=0) CALL stop_memory(routine_name,"torsion_kind_set")
-
-  END SUBROUTINE deallocate_torsion_kind_set
+  END SUBROUTINE torsion_kind_dealloc_ref
 
 ! *****************************************************************************
 
@@ -1074,13 +1074,13 @@ END SUBROUTINE deallocate_ff_type
 ! *****************************************************************************
 
 !******************************************************************************
-!!****** force_field_types/deallocate_impr_kind_set [1.0] *
+!!****** force_field_types/impr_kind_dealloc_ref [1.0] *
 !!
 !!   NAME
-!!     deallocate_impr_kind_set
+!!     impr_kind_dealloc_ref
 !!
 !!   FUNCTION
-!!     Deallocate a impr kind set.
+!!     Deallocate a impr kind element
 !!
 !!   AUTHOR
 !!
@@ -1088,25 +1088,26 @@ END SUBROUTINE deallocate_ff_type
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE deallocate_impr_kind_set(impr_kind_set)
+  SUBROUTINE impr_kind_dealloc_ref(impr_kind, error)
 
-    TYPE(impr_kind_type), DIMENSION(:), &
-      POINTER                                :: impr_kind_set
+    TYPE(impr_kind_type), INTENT(INOUT) :: impr_kind
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    integer :: istat
+    CHARACTER(len=*), PARAMETER :: routineN='impr_kind_dealloc_ref',&
+         routineP=moduleN//':'//routineN
+    logical :: failure
+    
+    failure = .false.
 
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "deallocate_impr_kind_set"
+    !
+    ! Questa e' la migliore routine che mente umana abbia concepito! ;-)
+    ! 
 
-    INTEGER                                  :: istat
-
-!   ---------------------------------------------------------------------------
-
-    DEALLOCATE (impr_kind_set,STAT=istat)
-    IF(istat/=0) CALL stop_memory(routine_name,"impr_kind_set")
-
-  END SUBROUTINE deallocate_impr_kind_set
+  END SUBROUTINE impr_kind_dealloc_ref
 
 ! *****************************************************************************
 
-!!****** force_field_types/deallocate_onfo_kind_set [1.0] *
+!!****** force_field_types/onfo_kind_dealloc_ref [1.0] *
 !!
 !!   NAME
 !!     deallocate_onfo_kind_set
@@ -1125,7 +1126,7 @@ END SUBROUTINE deallocate_ff_type
     TYPE(onfo_kind_type), INTENT(INOUT):: onfo_kind
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
     integer :: stat
-    CHARACTER(len=*), PARAMETER :: routineN='deallocate_onfo_kind_type',&
+    CHARACTER(len=*), PARAMETER :: routineN='onfo_kind_dealloc_ref',&
          routineP=moduleN//':'//routineN
     logical :: failure
     
