@@ -3178,7 +3178,7 @@ SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
 !FM     call rs_pw_to_cube(pw=coeffs, iunit=unit_nr, ionode=.true., title="values")
 !FM     call close_file(unit_nr)
 !FM     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
-!FM     CALL pw_spline_precond_release(precond,error=error)
+     CALL pw_spline_precond_release(precond,error=error)
      
      call pw_zero(pw_coarse_out)
      CALL pw_sumup(coeffs,pw_coarse_out)

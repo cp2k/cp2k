@@ -2283,6 +2283,8 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%nglengths       =  pw_grid_in%nglengths
        grid_tag = grid_tag + 1
        pw_grid_out % identifier = grid_tag
+       pw_grid_out % ref_count  = 1
+       pw_grid_out % reference  = 0
 !!!    INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
        pw_grid_out%spherical       =  pw_grid_in%spherical 
 
