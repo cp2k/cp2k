@@ -5,10 +5,10 @@ FC       = ifc -FR
 FC_fixed = ifc -FI
 LD       = ifc
 AR       = ar -r
-DFLAGS   = -D__INTEL -D__FFTSG
+DFLAGS   = -D__INTEL -D__FFTSG -D__FFTW
 CPPFLAGS = -traditional -C $(DFLAGS) -P
-FCFLAGS  = $(DFLAGS) -O0 -g
-LDFLAGS  = $(FCFLAGS) -L/home/krack/lib
-LIBS     = -lmkl_lapack -lmkl_def -lpthread -lPEPCF90 -llapack
+FCFLAGS  = $(DFLAGS) -CA -CB -CS -CU -g -O0 -Vaxlib
+LDFLAGS  = $(FCFLAGS) -L/usr/local/intel/mkl60/lib/32/ -L/home/jv244/lib
+LIBS     = /usr/local/intel/mkl60/lib/32/libmkl_lapack.a /usr/local/intel/mkl60/lib/32/libmkl_ia32.a -lguide -lfftw
 
 OBJECTS_ARCHITECTURE = machine_intel.o
