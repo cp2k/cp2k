@@ -299,11 +299,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 ! add up all the potential energies
 !
   IF ( ewald_type == 'NONE' ) THEN
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + &
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
                     pot_imptors + pot_urey_bradley
      CALL mp_sum ( thermo % pot, globenv % group )
   ELSE
-     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + &
+     thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
                     pot_imptors + pot_urey_bradley
      thermo % e_gspace = vg_coulomb
      CALL mp_sum ( thermo % pot,globenv % group )
