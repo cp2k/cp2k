@@ -14,6 +14,7 @@ MAINEXEDIR   = $(CP2KHOME)/exe
 MAINLIBDIR   = $(CP2KHOME)/lib
 MAINOBJDIR   = $(CP2KHOME)/obj
 SRCDIR       = $(CP2KHOME)/src
+TOOLDIR      = $(CP2KHOME)/tools
 MAKEFILE     = $(CP2KHOME)/makefiles/Makefile
 FORPAR       = $(CP2KHOME)/tools/forpar.x -chkint
 SFMAKEDEPEND = $(CP2KHOME)/tools/sfmakedepend -m int -s -f
@@ -38,6 +39,7 @@ $(VERSION_TARGETS):
 	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
 	@cd $(OBJDIR)/$@ || mkdir -p $(OBJDIR)/$@
 	@cd $(LIBDIR)/$@ || mkdir -p $(LIBDIR)/$@
+	@$(SMAKE) -C $(TOOLDIR)
 	@$(SMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ dependencies
 	@$(PMAKE) -C $(OBJDIR)/$@ -f $(MAKEFILE) VERSION=$@ all
 
@@ -73,7 +75,7 @@ $(LIB1_ARCHIVE): $(LIB1_OBJECTS)
 
 %.d: %.F
 	$(CPP) $(CPPFLAGS) $< $*.f
-	-$(FORPAR) $*.f
+	$(FORPAR) $*.f
 	$(PERL) $(SFMAKEDEPEND) $*.d $*.f
 	@rm -f $*.d.old
 
@@ -87,13 +89,14 @@ parallel_include.d: parallel_include.F
 	@rm -f $*.d.old
 
 clean:
-	rm -f *.o *.mod F*.f
+	rm -f *.o *.mod
 
 realclean: clean
-	rm -f $(PROG) *.d *.int *~ *.lst
+	rm -f $(PROG) *.f *.d *.int *~ *.lst
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
+	$(SMAKE) -C $(TOOLDIR) realclean
 
 ### Load the automatically generated rules of sfmakedepend ###
 
