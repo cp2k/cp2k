@@ -91,6 +91,8 @@ MODULE topology_types
   END TYPE force_field_input_info_type
 
   TYPE force_field_charmm_info_type
+    CHARACTER (LEN=default_string_length), POINTER :: ff_charge_atm(:)
+    REAL (dbl), POINTER                            :: ff_charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ff_bond_b(:)
     REAL (dbl), POINTER                            :: ff_bond_k(:)
@@ -328,6 +330,8 @@ SUBROUTINE init_topology (topology)
   !-----------------------------------------------------------------------------
   ! 7. Initialize and Nullify things in topology%ffch_info
   !-----------------------------------------------------------------------------
+  NULLIFY(topology%ffch_info%ff_charge_atm)
+  NULLIFY(topology%ffch_info%ff_charge)
   NULLIFY(topology%ffch_info%ff_bond_a)
   NULLIFY(topology%ffch_info%ff_bond_b)
   NULLIFY(topology%ffch_info%ff_bond_k)
@@ -616,6 +620,14 @@ SUBROUTINE deallocate_topology (topology)
   !-----------------------------------------------------------------------------
   ! 5. DEALLOCATE things in topology%ffch_info
   !-----------------------------------------------------------------------------
+  IF(ASSOCIATED(topology%ffch_info%ff_charge_atm)) THEN
+    DEALLOCATE(topology%ffch_info%ff_charge_atm,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_charge_atm')
+  END IF
+  IF(ASSOCIATED(topology%ffch_info%ff_charge)) THEN
+    DEALLOCATE(topology%ffch_info%ff_charge,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_charge')
+  END IF
   IF(ASSOCIATED(topology%ffch_info%ff_bond_a)) THEN
     DEALLOCATE(topology%ffch_info%ff_bond_a,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','ff_bond_a')

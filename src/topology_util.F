@@ -88,9 +88,6 @@ MODULE topology_util
   PUBLIC :: find_boundary,&
             find_boundary2,&
             find_boundary3,&
-            sort_bond,&
-            sort_bend,&
-            sort_dihe,&
             topology_reorder_atoms,&
             topology_connectivity_pack,&
             topology_constraint_pack,&
@@ -618,272 +615,6 @@ SUBROUTINE find_boundary3(num_array1,num_array2,num_array3,ntot,first,last,&
 
 END SUBROUTINE find_boundary3
 
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     sort_bond
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     sort_the bonds lists
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE sort_bond(nbond,bond_a,bond_b)
-
-
-    INTEGER                                  :: nbond
-    INTEGER, POINTER                         :: bond_a(:), bond_b(:)
-
-    INTEGER                                  :: first, i, j, k, last, search
-
-!------------------------------------------------------------------------------
-
-  DO i=1,nbond
-    IF(bond_a(i)>bond_b(i)) THEN
-      CALL swap(bond_a(i),bond_b(i))
-    END IF
-  END DO
-  DO i=1,nbond
-    DO j=1,nbond
-      IF(bond_a(i)<bond_a(j)) THEN
-        CALL swap(bond_a(i),bond_a(j))
-        CALL swap(bond_b(i),bond_b(j))
-      END IF
-    END DO
-  END DO
-  i=1
-  DO WHILE (i<nbond)
-    search = bond_a(i)
-    CALL find_boundary(bond_a,nbond,first,last,search)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(bond_b(j)<bond_b(k)) THEN
-            CALL swap(bond_a(j),bond_a(k))
-            CALL swap(bond_b(j),bond_b(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-
-END SUBROUTINE sort_bond
-
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     sort_bend
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     sort_the bends lists
-!!
-!!   AUTHOR
-!!
-!!
-!!   MODIFICATION HISTORY
-!!
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE sort_bend(ntheta,theta_a,theta_b,theta_c)
-
-
-    INTEGER                                  :: ntheta
-    INTEGER, POINTER                         :: theta_a(:), theta_b(:), &
-                                                theta_c(:)
-
-    INTEGER                                  :: first, i, j, k, last, &
-                                                search1, search2
-
-!------------------------------------------------------------------------------
-
-  DO i=1,ntheta
-    IF(theta_a(i)>theta_c(i)) THEN
-      CALL swap(theta_a(i),theta_c(i))
-    END IF
-  END DO
-  DO i=1,ntheta
-    DO j=1,ntheta
-      IF(theta_a(i)<theta_a(j)) THEN
-        CALL swap(theta_a(i),theta_a(j))
-        CALL swap(theta_b(i),theta_b(j))
-        CALL swap(theta_c(i),theta_c(j))
-      END IF
-    END DO
-  END DO
-  i=1
-  DO WHILE (i<ntheta)
-    search1 = theta_a(i)
-    CALL find_boundary(theta_a,ntheta,first,last,search1)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(theta_b(j)<theta_b(k)) THEN
-            CALL swap(theta_a(j),theta_a(k))
-            CALL swap(theta_b(j),theta_b(k))
-            CALL swap(theta_c(j),theta_c(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-  i=1
-  DO WHILE (i<ntheta)
-    search1 = theta_a(i)
-    search2 = theta_b(i)
-    CALL find_boundary2(theta_a,theta_b,ntheta,first,last,search1,search2)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(theta_c(j)<theta_c(k)) THEN
-            CALL swap(theta_a(j),theta_a(k))
-            CALL swap(theta_b(j),theta_b(k))
-            CALL swap(theta_c(j),theta_c(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-
-END SUBROUTINE sort_bend
-
-!******************************************************************************
-!!****** topology_util [1.0] *
-!!
-!!   NAME
-!!     sort_dihe
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     sort_the dihe lists
-!!
-!!   AUTHOR
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
-
-
-    INTEGER                                  :: nphi
-    INTEGER, POINTER                         :: phi_a(:), phi_b(:), phi_c(:), &
-                                                phi_d(:)
-
-    INTEGER                                  :: first, i, j, k, last, &
-                                                search1, search2, search3
-
-!------------------------------------------------------------------------------
-!Internal ordering in each dihedral
-
-  DO i=1,nphi
-    IF(phi_a(i)>phi_d(i)) THEN
-      CALL swap(phi_a(i),phi_d(i))
-      CALL swap(phi_b(i),phi_c(i))
-    END IF
-  END DO
-  !Sort the first column
-  DO i=1,nphi
-    DO j=1,nphi
-      IF(phi_a(i)<phi_a(j)) THEN
-        CALL swap(phi_a(i),phi_a(j))
-        CALL swap(phi_b(i),phi_b(j))
-        CALL swap(phi_c(i),phi_c(j))
-        CALL swap(phi_d(i),phi_d(j))
-      END IF
-    END DO
-  END DO
-  !Sort the second column
-  i=1
-  DO WHILE (i<nphi)
-    search1 = phi_a(i)
-    CALL find_boundary(phi_a,nphi,first,last,search1)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(phi_b(j)<phi_b(k)) THEN
-            CALL swap(phi_a(j),phi_a(k))
-            CALL swap(phi_b(j),phi_b(k))
-            CALL swap(phi_c(j),phi_c(k))
-            CALL swap(phi_d(j),phi_d(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-  !Sort the third column
-  i=1
-  DO WHILE (i<nphi)
-    search1 = phi_a(i)
-    search2 = phi_b(i)
-    CALL find_boundary2(phi_a,phi_b,nphi,first,last,search1,search2)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(phi_c(j)<phi_c(k)) THEN
-            CALL swap(phi_a(j),phi_a(k))
-            CALL swap(phi_b(j),phi_b(k))
-            CALL swap(phi_c(j),phi_c(k))
-            CALL swap(phi_d(j),phi_d(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-  !Sort the fourth column
-  i=1
-  DO WHILE (i<nphi)
-    search1 = phi_a(i)
-    search2 = phi_b(i)
-    search3 = phi_c(i)
-    CALL find_boundary3(phi_a,phi_b,phi_c,nphi,first,last,&
-                        search1,search2,search3)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(phi_d(j)<phi_d(k)) THEN
-            CALL swap(phi_a(j),phi_a(k))
-            CALL swap(phi_b(j),phi_b(k))
-            CALL swap(phi_c(j),phi_c(k))
-            CALL swap(phi_d(j),phi_d(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-
-END SUBROUTINE sort_dihe
 
 !
 !******************************************************************************
@@ -1059,49 +790,6 @@ SUBROUTINE topology_generate_bond(topology,globenv)
     conn_info%bond_b(ibond) = tbond_b(ibond)
   END DO
 !------------------------------------------------------------------------------
-  !Sort out the bond list
-  DO ibond=1,nbond
-    IF(conn_info%bond_a(ibond)>conn_info%bond_b(ibond)) THEN 
-      CALL swap(conn_info%bond_a(ibond),conn_info%bond_b(ibond))
-    END IF
-  END DO
-  !Need to update this to quicksort for systems greater then 20000 atoms
-  DO i=1,nbond
-    DO j=1,nbond
-      IF(conn_info%bond_a(i)<conn_info%bond_a(j)) THEN
-        CALL swap(conn_info%bond_a(i),conn_info%bond_a(j))
-        CALL swap(conn_info%bond_b(i),conn_info%bond_b(j))
-      END IF
-    END DO
-  END DO
-  i=1
-  DO WHILE (i<nbond)
-    search = conn_info%bond_a(i)
-    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
-    IF(.NOT.(first==last)) THEN
-      DO j=first,last
-        DO k=first,last
-          IF(conn_info%bond_b(j)<conn_info%bond_b(k)) THEN
-            CALL swap(conn_info%bond_a(j),conn_info%bond_a(k))
-            CALL swap(conn_info%bond_b(j),conn_info%bond_b(k))
-          END IF
-        END DO
-      END DO
-      i=last+1
-    ELSE
-      i=i+1
-    END IF
-  END DO
-!------------------------------------------------------------------------------
-  !Sort out the duplicates... (Shouldn't have any but just to check)
-  DO ibond=2,nbond
-    IF((conn_info%bond_a(ibond-1)==conn_info%bond_a(ibond)).AND.&
-       (conn_info%bond_b(ibond-1)==conn_info%bond_b(ibond))) THEN
-      CALL stop_program ("topology_generate_bond",&
-                         "duplicate bonds")
-    END IF
-  END DO
-
 !------------------------------------------------------------------------------
   DEALLOCATE(tbond_a,STAT=istat)
   IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
@@ -1154,10 +842,9 @@ SUBROUTINE topology_generate_bend(topology,globenv)
     INTEGER, PARAMETER                       :: nblock = 1000
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
-    INTEGER                                  :: countme, first, ibond, &
-                                                iibond, istat, itheta, iw, &
-                                                last, nbond, ntheta, search
-    INTEGER, POINTER                         :: tmp_a(:), tmp_b(:), tmp_c(:)
+    INTEGER                                  :: nbond,ibond,jbond,&
+                                                ntheta,itheta,jtheta,&
+                                                iw,istat
     LOGICAL                                  :: PM1, PM2, PM3, PM4
 
 !------------------------------------------------------------------------------
@@ -1181,111 +868,97 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   conn_info => topology%conn_info
 
   nbond = SIZE(conn_info%bond_a)
-  !WRITE(*,*) "nbond = ",nbond
   ntheta = 0
-  !Stupid and inefficient but faster than alternative
-  ALLOCATE(tmp_a(nblock),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','tmp_a',nblock)
-  ALLOCATE(tmp_b(nblock),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','tmp_b',nblock)
-  ALLOCATE(tmp_c(nblock),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','tmp_c',nblock)
+  CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
+  CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+  CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
 !------------------------------------------------------------------------------
   ntheta=0
   DO ibond=1,nbond
-    !Case A
-    search = conn_info%bond_a(ibond)
-    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
-    IF (first /= 0) THEN
-      DO iibond=first,last
-        IF (conn_info%bond_b(ibond)/=conn_info%bond_b(iibond)) THEN
-          ntheta = ntheta + 1
-          IF(ntheta > SIZE(tmp_a)) THEN
-            CALL reallocate(tmp_a,1,ntheta+nblock)
-            CALL reallocate(tmp_b,1,ntheta+nblock)
-            CALL reallocate(tmp_c,1,ntheta+nblock)
-          END IF
-          tmp_a(ntheta) = conn_info%bond_b(ibond)
-          tmp_b(ntheta) = search
-          tmp_c(ntheta) = conn_info%bond_b(iibond)
+    DO jbond=ibond+1,nbond
+      !Test case A
+      IF( (conn_info%bond_b(ibond)==conn_info%bond_a(jbond)) ) THEN
+        ntheta = ntheta + 1
+        IF(ntheta > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
         END IF
-      END DO
-    END IF
-    !Case B
-    search = conn_info%bond_b(ibond)
-    CALL find_boundary(conn_info%bond_a,nbond,first,last,search)
-    IF (first /= 0) THEN
-      DO iibond=first,last
-        IF(conn_info%bond_a(ibond)/=conn_info%bond_b(iibond)) THEN
-          ntheta = ntheta + 1
-          IF(ntheta > SIZE(tmp_a)) THEN
-            CALL reallocate(tmp_a,1,ntheta+nblock)
-            CALL reallocate(tmp_b,1,ntheta+nblock)
-            CALL reallocate(tmp_c,1,ntheta+nblock)
-          END IF
-          tmp_a(ntheta) = conn_info%bond_a(ibond)
-          tmp_b(ntheta) = search
-          tmp_c(ntheta) = conn_info%bond_b(iibond)
+        conn_info%theta_a(ntheta) =  conn_info%bond_a(ibond)
+        conn_info%theta_b(ntheta) =  conn_info%bond_b(ibond)
+        conn_info%theta_c(ntheta) =  conn_info%bond_b(jbond)
+        WRITE(*,*) "BBB ",ntheta,"A"
+        CYCLE
+      END IF
+      !Test case B
+      IF( (conn_info%bond_b(ibond)==conn_info%bond_b(jbond)) ) THEN
+        ntheta = ntheta + 1
+        IF(ntheta > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
         END IF
-      END DO
-    END IF
-    !Case C
-    search = conn_info%bond_b(ibond)
-    CALL find_boundary(conn_info%bond_b,nbond,first,last,search)
-    IF (first /= 0) THEN
-      DO iibond=first,last
-        IF (conn_info%bond_a(ibond)/=conn_info%bond_a(iibond)) THEN
-          ntheta = ntheta + 1
-          IF(ntheta > SIZE(tmp_a)) THEN
-            CALL reallocate(tmp_a,1,ntheta+nblock)
-            CALL reallocate(tmp_b,1,ntheta+nblock)
-            CALL reallocate(tmp_c,1,ntheta+nblock)
-          END IF
-          tmp_a(ntheta) = conn_info%bond_a(ibond)
-          tmp_b(ntheta) = search
-          tmp_c(ntheta) = conn_info%bond_a(iibond)
+        conn_info%theta_a(ntheta) =  conn_info%bond_a(ibond)
+        conn_info%theta_b(ntheta) =  conn_info%bond_b(ibond)
+        conn_info%theta_c(ntheta) =  conn_info%bond_a(jbond)
+        WRITE(*,*) "BBB ",ntheta,"B"
+        CYCLE
+      END IF
+      !Test case c
+      IF( (conn_info%bond_a(ibond)==conn_info%bond_a(jbond)) ) THEN
+        ntheta = ntheta + 1
+        IF(ntheta > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
         END IF
-      END DO
-    END IF
-  END DO
-!------------------------------------------------------------------------------
-  !Sort all the bends first
-  CALL sort_bend(ntheta,tmp_a,tmp_b,tmp_c)
-
-  ALLOCATE(conn_info%theta_a(ntheta),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','theta_a',ntheta)
-  ALLOCATE(conn_info%theta_b(ntheta),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','theta_b',ntheta)
-  ALLOCATE(conn_info%theta_c(ntheta),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bend','theta_c',ntheta)
-  countme=1
-  IF (ntheta > 0) THEN
-    conn_info%theta_a(countme) = tmp_a(1)
-    conn_info%theta_b(countme) = tmp_b(1)
-    conn_info%theta_c(countme) = tmp_c(1)
-    DO itheta=2,ntheta
-      IF( .NOT.(tmp_a(itheta) == conn_info%theta_a(countme) .AND. &
-          tmp_b(itheta) == conn_info%theta_b(countme) .AND. &
-          tmp_c(itheta) == conn_info%theta_c(countme))) THEN
-        countme = countme + 1
-        conn_info%theta_a(countme) = tmp_a(itheta)
-        conn_info%theta_b(countme) = tmp_b(itheta)
-        conn_info%theta_c(countme) = tmp_c(itheta)
+        conn_info%theta_a(ntheta) =  conn_info%bond_b(ibond)
+        conn_info%theta_b(ntheta) =  conn_info%bond_a(ibond)
+        conn_info%theta_c(ntheta) =  conn_info%bond_b(jbond)
+        WRITE(*,*) "BBB ",ntheta,"C"
+        CYCLE
+      END IF
+      !Test case A
+      IF( (conn_info%bond_a(ibond)==conn_info%bond_b(jbond)) ) THEN
+        ntheta = ntheta + 1
+        IF(ntheta > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
+          CALL reallocate(conn_info%theta_c,1,ntheta+nblock)
+        END IF
+        conn_info%theta_a(ntheta) =  conn_info%bond_b(ibond)
+        conn_info%theta_b(ntheta) =  conn_info%bond_a(ibond)
+        conn_info%theta_c(ntheta) =  conn_info%bond_a(jbond)
+        WRITE(*,*) "BBB ",ntheta,"D"
+        CYCLE
       END IF
     END DO
-    ntheta = countme
-    CALL REALLOCATE(conn_info%theta_a,1,ntheta)
-    CALL REALLOCATE(conn_info%theta_b,1,ntheta)
-    CALL REALLOCATE(conn_info%theta_c,1,ntheta)
-  END IF
-  
-
-  !WRITE(*,*) "NTHETA = ",ntheta,SIZE(conn_info%theta_a)
-
+  END DO
 !------------------------------------------------------------------------------
-  DEALLOCATE(tmp_a)
-  DEALLOCATE(tmp_b)
-  DEALLOCATE(tmp_c)
+
+  CALL reallocate(conn_info%theta_a,1,ntheta)
+  CALL reallocate(conn_info%theta_b,1,ntheta)
+  CALL reallocate(conn_info%theta_c,1,ntheta)
+
+  !check for duplicates
+  DO itheta=1,ntheta
+    DO jtheta=itheta+1,ntheta
+      IF( (conn_info%theta_a(itheta) == conn_info%theta_a(jtheta)) .AND. &
+          (conn_info%theta_b(itheta) == conn_info%theta_b(jtheta)) .AND. &
+          (conn_info%theta_c(itheta) == conn_info%theta_c(jtheta)) ) THEN
+        IF(PM1) WRITE(iw,*) "    Duplicate BEND ",itheta,&
+                            conn_info%theta_a(itheta),&
+                            conn_info%theta_b(itheta),&
+                            conn_info%theta_c(itheta)
+        IF(PM1) WRITE(iw,*) "    Duplicate BEND ",jtheta,&
+                            conn_info%theta_a(jtheta),&
+                            conn_info%theta_b(jtheta),&
+                            conn_info%theta_c(jtheta)
+        CALL stop_program("topology_generate_bend","duplicate bend")
+      END IF
+    END DO
+  END DO
+!------------------------------------------------------------------------------
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bend"
 
@@ -1326,6 +999,7 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_dihe', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nblock = 1000
 
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
@@ -1358,11 +1032,10 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
 
   ntheta = SIZE(conn_info%theta_a)
   nphi = 0
-  !Stupid and inefficient but faster than alternative
-  ALLOCATE(tmp_a(2*ntheta))
-  ALLOCATE(tmp_b(2*ntheta))
-  ALLOCATE(tmp_c(2*ntheta))
-  ALLOCATE(tmp_d(2*ntheta))
+  CALL reallocate(conn_info%phi_a,1,nphi+nblock)
+  CALL reallocate(conn_info%phi_b,1,nphi+nblock)
+  CALL reallocate(conn_info%phi_c,1,nphi+nblock)
+  CALL reallocate(conn_info%phi_d,1,nphi+nblock)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
   DO itheta=1,ntheta
@@ -1371,60 +1044,73 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
       IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
           (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) ) THEN
         nphi = nphi + 1
-        tmp_a(nphi) = conn_info%theta_c(itheta)
-        tmp_b(nphi) = conn_info%theta_b(itheta)
-        tmp_c(nphi) = conn_info%theta_a(itheta)
-        tmp_d(nphi) = conn_info%theta_c(jtheta)
+        IF(nphi > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%phi_a,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_b,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_c,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_d,1,nphi+nblock)
+        END IF
+        conn_info%phi_a(nphi) = conn_info%theta_c(itheta)
+        conn_info%phi_b(nphi) = conn_info%theta_b(itheta)
+        conn_info%phi_c(nphi) = conn_info%theta_a(itheta)
+        conn_info%phi_d(nphi) = conn_info%theta_c(jtheta)
         CYCLE
       END IF
       !Test case B
       IF( (conn_info%theta_a(itheta)==conn_info%theta_b(jtheta)) .AND. &
           (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) ) THEN
         nphi = nphi + 1
-        tmp_a(nphi) = conn_info%theta_c(itheta)
-        tmp_b(nphi) = conn_info%theta_b(itheta)
-        tmp_c(nphi) = conn_info%theta_a(itheta)
-        tmp_d(nphi) = conn_info%theta_a(jtheta)
+        IF(nphi > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%phi_a,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_b,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_c,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_d,1,nphi+nblock)
+        END IF
+        conn_info%phi_a(nphi) = conn_info%theta_c(itheta)
+        conn_info%phi_b(nphi) = conn_info%theta_b(itheta)
+        conn_info%phi_c(nphi) = conn_info%theta_a(itheta)
+        conn_info%phi_d(nphi) = conn_info%theta_a(jtheta)
         CYCLE
       END IF
       !Test case C
       IF( (conn_info%theta_b(itheta)==conn_info%theta_a(jtheta)) .AND. &
           (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
         nphi = nphi + 1
-        tmp_a(nphi) = conn_info%theta_a(itheta)
-        tmp_b(nphi) = conn_info%theta_b(itheta)
-        tmp_c(nphi) = conn_info%theta_c(itheta)
-        tmp_d(nphi) = conn_info%theta_c(jtheta)
+        IF(nphi > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%phi_a,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_b,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_c,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_d,1,nphi+nblock)
+        END IF
+        conn_info%phi_a(nphi) = conn_info%theta_a(itheta)
+        conn_info%phi_b(nphi) = conn_info%theta_b(itheta)
+        conn_info%phi_c(nphi) = conn_info%theta_c(itheta)
+        conn_info%phi_d(nphi) = conn_info%theta_c(jtheta)
         CYCLE
       END IF
       !Test case D
       IF( (conn_info%theta_b(itheta)==conn_info%theta_c(jtheta)) .AND. &
           (conn_info%theta_c(itheta)==conn_info%theta_b(jtheta)) ) THEN
         nphi = nphi + 1
-        tmp_a(nphi) = conn_info%theta_a(itheta)
-        tmp_b(nphi) = conn_info%theta_b(itheta)
-        tmp_c(nphi) = conn_info%theta_c(itheta)
-        tmp_d(nphi) = conn_info%theta_a(jtheta)
+        IF(nphi > SIZE(conn_info%theta_a)) THEN
+          CALL reallocate(conn_info%phi_a,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_b,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_c,1,nphi+nblock)
+          CALL reallocate(conn_info%phi_d,1,nphi+nblock)
+        END IF
+        conn_info%phi_a(nphi) = conn_info%theta_a(itheta)
+        conn_info%phi_b(nphi) = conn_info%theta_b(itheta)
+        conn_info%phi_c(nphi) = conn_info%theta_c(itheta)
+        conn_info%phi_d(nphi) = conn_info%theta_a(jtheta)
         CYCLE
       END IF
     END DO
   END DO
 !------------------------------------------------------------------------------
-  ALLOCATE(conn_info%phi_a(nphi))
-  ALLOCATE(conn_info%phi_b(nphi))
-  ALLOCATE(conn_info%phi_c(nphi))
-  ALLOCATE(conn_info%phi_d(nphi))
-  DO iphi=1,nphi
-    conn_info%phi_a(iphi) = tmp_a(iphi)
-    conn_info%phi_b(iphi) = tmp_b(iphi)
-    conn_info%phi_c(iphi) = tmp_c(iphi)
-    conn_info%phi_d(iphi) = tmp_d(iphi)
-  END DO
-
-  nphi = SIZE(conn_info%phi_a)
-
-  CALL sort_dihe(nphi,conn_info%phi_a,conn_info%phi_b,&
-                      conn_info%phi_c,conn_info%phi_d)
+  CALL reallocate(conn_info%phi_a,1,nphi)
+  CALL reallocate(conn_info%phi_b,1,nphi)
+  CALL reallocate(conn_info%phi_c,1,nphi)
+  CALL reallocate(conn_info%phi_d,1,nphi)
 
   ! check for duplicate dihe. Can yank this out once the subroutine is DEBUGED
   DO iphi=1,nphi
@@ -1435,27 +1121,17 @@ SUBROUTINE topology_generate_dihe(topology,globenv)
           (conn_info%phi_d(iphi)==conn_info%phi_d(jphi)) ) THEN
         IF(PM1) THEN
           WRITE(iw,*) "      Dihe ",iphi,&
-                      conn_info%phi_a(iphi),&  
-                      conn_info%phi_b(iphi),&  
-                      conn_info%phi_c(iphi),&  
-                      conn_info%phi_d(iphi)
+                      conn_info%phi_a(iphi),conn_info%phi_b(iphi),&  
+                      conn_info%phi_c(iphi),conn_info%phi_d(iphi)
           WRITE(iw,*) "      Dihe ",jphi,&
-                      conn_info%phi_a(jphi),&  
-                      conn_info%phi_b(jphi),&  
-                      conn_info%phi_c(jphi),&  
-                      conn_info%phi_d(jphi)
+                      conn_info%phi_a(jphi),conn_info%phi_b(jphi),&  
+                      conn_info%phi_c(jphi),conn_info%phi_d(jphi)
         END IF
         CALL stop_program("topology_generate_dihe","duplicate dihe")
       END IF
     END DO
   END DO
-
-
 !------------------------------------------------------------------------------
-  DEALLOCATE(tmp_a)
-  DEALLOCATE(tmp_b)
-  DEALLOCATE(tmp_c)
-  DEALLOCATE(tmp_d)
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_dihe"
 
@@ -2269,18 +1945,18 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 !         END IF
 !       END DO
 !     END IF
-! 
-!     ! loop over params from charmm
-!     IF(ASSOCIATED(topology%ffch_info%ff_charge_atm)) THEN
-!       DO j=1,SIZE(topology%ffch_info%ff_charge_atm)
-!         IF(TRIM(topology%ffch_info%ff_charge_atm(j))==atmname) THEN
-!           charge(i) = topology%ffch_info%ff_charge(j)
-!           IF(found .AND. PM1) &
-!             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
-!           found = .TRUE.
-!         END IF
-!       END DO
-!     END IF
+  
+      ! loop over params from charmm
+      IF(ASSOCIATED(topology%ffch_info%ff_charge_atm)) THEN
+        DO j=1,SIZE(topology%ffch_info%ff_charge_atm)
+          IF(TRIM(topology%ffch_info%ff_charge_atm(j))==atmname) THEN
+            charge(i) = topology%ffch_info%ff_charge(j)
+            IF(found .AND. PM1) &
+              WRITE(iw,*) "    Multiple Charge declarations: overwriting"
+            found = .TRUE.
+          END IF
+        END DO
+      END IF
   
       ! always have the input param last to overwrite all the other ones
       IF(ASSOCIATED(topology%ffin_info%ff_charge_atm)) THEN
@@ -3222,38 +2898,39 @@ SUBROUTINE topology_force_field_pack (particle_set,atomic_kind_set,&
       ! loop over params from amber
       ! loop over params from amber
 
-!     ! loop over params from charmm
-!     IF(ASSOCIATED(ffch_info%ff_nonbond_a)) THEN
-!       ii = jj = 0
-!       DO k=1,SIZE(ffch_info%ff_nonbond_a)
-!         IF(TRIM(name_atm_a)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
-!           ii = k
-!         END IF
-!       END DO
-!       DO k=1,SIZE(ffch_info%ff_nonbond_a)
-!         IF(TRIM(name_atm_b)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
-!           jj = k
-!         END IF
-!       END DO
+      ! loop over params from charmm
+      IF(ASSOCIATED(ffch_info%ff_nonbond_a)) THEN
+        ii = 0 
+        jj = 0
+        DO k=1,SIZE(ffch_info%ff_nonbond_a)
+          IF(TRIM(name_atm_a)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
+            ii = k
+          END IF
+        END DO
+        DO k=1,SIZE(ffch_info%ff_nonbond_a)
+          IF(TRIM(name_atm_b)==TRIM(ffch_info%ff_nonbond_a(k))) THEN
+            jj = k
+          END IF
+        END DO
 
-!       IF(ii/=0 .AND. jj/=0) THEN
-!         rmin = ffch_info%ff_nonbond_rmin2(ii)+ffch_info%ff_nonbond_rmin2(jj)
-!         epsilon = sqrt(ffch_info%ff_nonbond_eps(ii)+&
-!                        ffch_info%ff_nonbond_eps(jj))
+        IF(ii/=0 .AND. jj/=0) THEN
+          rmin = ffch_info%ff_nonbond_rmin2(ii)+ffch_info%ff_nonbond_rmin2(jj)
+          epsilon = sqrt(ffch_info%ff_nonbond_eps(ii)+&
+                         ffch_info%ff_nonbond_eps(jj))
   
-!         potparm(i,j)%type       = 'LENNARD-JONES'
-!         potparm(i,j)%at1        = name_atm_a
-!         potparm(i,j)%at2        = name_atm_b
-!         potparm(i,j)%lj%epsilon = epsilon
-!         potparm(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
-!         potparm(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
-!         potparm(i,j)%rcutsq     = 0.0_dbl
+          potparm(i,j)%type       = 'LENNARD-JONES'
+          potparm(i,j)%at1        = name_atm_a
+          potparm(i,j)%at2        = name_atm_b
+          potparm(i,j)%lj%epsilon = epsilon
+          potparm(i,j)%lj%sigma6  = 0.5_dbl*rmin**6
+          potparm(i,j)%lj%sigma12 = 0.25_dbl*rmin**12
+          potparm(i,j)%rcutsq     = 0.0_dbl
 
-!         IF(found .AND. PM1) &
-!            WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
-!         found = .TRUE.
-!       END IF
-!     END IF
+          IF(found .AND. PM1) &
+             WRITE(iw,*) "    Multiple LJ-POT declarations: overwriting"
+          found = .TRUE.
+        END IF
+      END IF
 
       ! always have the input param last to overwrite all the other ones
       IF(ASSOCIATED(ffin_info%ff_nonbonded)) THEN

@@ -31,9 +31,6 @@ MODULE topology_psf
                                              search_label
   USE termination,                     ONLY: stop_memory
   USE topology_types,                  ONLY: topology_parameters_type
-  USE topology_util,                   ONLY: sort_bend,&
-                                             sort_bond,&
-                                             sort_dihe
 
   PRIVATE
   PUBLIC :: read_topology_psf,write_topology_psf,read_topology_mc
@@ -280,9 +277,9 @@ SUBROUTINE read_topology_psf (topology,globenv)
   !----------------------------------------------------------------------------
   !----------------------------------------------------------------------------
   !Sort the bonds, bends, and dihes
-  CALL sort_bond(nbond,bond_a,bond_b)
-  CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
-  CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
+  !CALL sort_bond(nbond,bond_a,bond_b)
+  !CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
+  !CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -483,9 +480,9 @@ SUBROUTINE read_topology_mc (topology,globenv)
   IF(PL1) WRITE(iw,*) '    NPHI = ',nphi
 
   !Sort the bonds, bends, and dihes
-  CALL sort_bond(nbond,bond_a,bond_b)
-  CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
-  CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
+  !CALL sort_bond(nbond,bond_a,bond_b)
+  !CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
+  !CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 
   !Copy the stuff from temporary array into the more permanent one
   ALLOCATE(topology%conn_info%bond_a(nbond),STAT=istat)
