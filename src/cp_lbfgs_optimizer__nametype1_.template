@@ -527,7 +527,25 @@ contains
     call timeset(routineN//','//moduleN,'I',"",handle)
     if (present(converged)) converged = optimizer%status==4
     CPPrecondition(optimizer%initialized,cp_failure_level,routineP,error,failure)
-    CPPrecondition(optimizer%status<4,cp_warning_level,routineP,error,failure)
+    if (optimizer%status>=4) then
+       call cp_assert(.false.,level=cp_warning_level,&
+            error_nr=cp_assertion_failed,fromWhere=routineP,&
+            message="status>=4, trying to restart in "//&
+            CPSourceFileRef,&
+            error=error)
+       optimizer%status=0
+       if (is_master) then
+          optimizer%task='START'
+          call setulb (size(optimizer%x), optimizer%m, optimizer%x, &
+               optimizer%lower_bound, optimizer%upper_bound, &
+               optimizer%kind_of_bound, optimizer%f, optimizer%gradient, &
+               optimizer%wanted_relative_f_delta, &
+               optimizer%wanted_projected_gradient, optimizer%work_array, &
+               optimizer%i_work_array, optimizer%task, optimizer%print_every,&
+               optimizer%csave, optimizer%lsave, optimizer%isave, &
+               optimizer%dsave)
+       end if
+    end if
     if (.not. failure) then
        is_master=optimizer%master==optimizer%global_env%mepos
        do
@@ -576,6 +594,7 @@ contains
                      CPSourceFileRef,error)
              end if
           end if ifMaster
+          justEntred=.false.
           call mp_bcast(optimizer%status,optimizer%master, &
                optimizer%global_env%group)
           select case (optimizer%status)
