@@ -634,10 +634,11 @@ CONTAINS
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
+    REAL(wp) :: flops
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("blacs_gemm","I","",handle)
+    CALL timeset("blacs_gemm","I","Gflops",handle)
 
     source = globenv%source
     context = globenv%context
@@ -651,7 +652,7 @@ CONTAINS
     descb(:) = matrix_b%descriptor(:)
     c => matrix_c%p(myprow,mypcol)%block
     descc(:) = matrix_c%descriptor(:)
-
+    flops=2.0_wp*(1E-9_wp*m*n*k)/(nprow*npcol)
     CALL pdgemm(transa,transb,m,n,k,alpha,a,1,1,desca,b,1,1,descb,beta,c,1,1,&
                 descc)
 
@@ -665,10 +666,11 @@ CONTAINS
     ldb = matrix_b%nrow_global
     ldc = matrix_c%nrow_global
 
+    flops=2.0_wp*(1E-9_wp*m*n*k)
     CALL dgemm(transa,transb,m,n,k,alpha,a,lda,b,ldb,beta,c,ldc)
 
 #endif
-    CALL timestop(0.0_wp,handle)
+    CALL timestop(flops,handle)
 
   END SUBROUTINE blacs_gemm
 
@@ -1861,7 +1863,7 @@ CONTAINS
     ALLOCATE (work(lwork),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"work",lwork*wp_size)
     work(:) = 0.0_wp
-    write(6,*) "done allocate"
+    ! write(6,*) "done allocate"
 
 !   *** Diagonalise matrix ***
 !    if (PRESENT(bmatrix)) then
@@ -1875,7 +1877,7 @@ CONTAINS
        CALL pdsyevx("V","I","U",n,a,1,1,desca,vl,vu,1,neig,abstol,m,nz,w,orfac,&
                  z,1,1,descz,work,lwork,iwork,liwork,ifail,iclustr,gap,info)
 !    endif
-    write(6,*) "done pdsyevx"
+    ! write(6,*) "done pdsyevx"
 
 
 !   *** Error handling ***

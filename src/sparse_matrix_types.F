@@ -704,7 +704,7 @@ CONTAINS
 
     CALL dcopy(sparse_matrix%ncol*nblock,0.0_wp,0,rep_v_out,1)
 
-    CALL timeset("sparse_times_replicated_local","I","Mflops",handle)
+    CALL timeset("sparse_times_replicated_local","I","Gflops",handle)
     flops=0.0_wp
 
 !   *** Traverse all block nodes of the sparse matrix ***
@@ -748,7 +748,7 @@ CONTAINS
       END DO
 
     END DO
-    flops=flops*1E-6_wp
+    flops=flops*1E-9_wp
     CALL timestop(flops,handle)
 
 #if defined(__parallel)
@@ -794,7 +794,7 @@ CONTAINS
     if (sparse_matrix%nrow .ne. sparse_matrix%ncol) then
       CALL stop_program(routine,"not allowed")
     endif
-    CALL timeset("sparse_plus_rep_rept","I","Mflops",handle)
+    CALL timeset("sparse_plus_rep_rept","I","Gflops",handle)
     flops=0.0_wp
 
 !   *** Traverse all block nodes of the sparse matrix ***
@@ -825,7 +825,7 @@ CONTAINS
       END DO
 
     END DO
-    flops=flops*1E-6_wp
+    flops=flops*1E-9_wp
     CALL timestop(flops,handle)
 
   END SUBROUTINE sparse_plus_rep_rept
