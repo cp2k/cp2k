@@ -482,6 +482,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   CHARACTER ( LEN = 20 ), DIMENSION ( : ), ALLOCATABLE :: tuple
   CHARACTER ( LEN = 80 ) :: bl = ' '
   CHARACTER ( LEN = 2 ) :: pt,la
+  CHARACTER ( LEN = 20 ), DIMENSION(:), ALLOCATABLE :: work
 
 !------------------------------------------------------------------------------
 
@@ -760,26 +761,29 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   END DO
 
 ! generate unique atom list
-  ALLOCATE ( setup % atom_names ( setup % natom_type ), STAT = ios )
+  ALLOCATE ( work( setup % natom_type ), STAT = ios )
   IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
-       'setup % atom_names', setup % natom_type )
+       'work', setup % natom_type )
 
   n = 0
   DO i = 1, nmol_type
      DO j = 1, mol_setup(i) % molpar % natom
-        IF(str_search(setup%atom_names,n,mol_setup(i)%molpar%aname(j))==0)THEN
+        IF(str_search(work,n,mol_setup(i)%molpar%aname(j))==0)THEN
            n = n + 1
-           setup % atom_names(n) = mol_setup(i) % molpar%aname(j)
+           work(n) = mol_setup(i) % molpar%aname(j)
         END IF
      END DO
   END DO
 
+  ALLOCATE ( setup%atom_names(n), STAT=ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'setup%atom_names', n )
   setup % natom_type = n
-  CALL reallocate(setup % atom_names,1,n)
-
-  !IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
-  !    'natom_type mismatch' )
-
+  setup % atom_names(1:n) = work(1:n)
+  DEALLOCATE( work, STAT=ios )
+  IF ( ios /= 0 ) CALL stop_memory ( 'read_molecule_section', &
+       'work' )
+  
 ! write some information to output
   IF (globenv%ionode) THEN
      IF (globenv%print_level>=0) THEN

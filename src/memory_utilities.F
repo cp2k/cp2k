@@ -23,7 +23,7 @@ MODULE memory_utilities
 
 ! *****************************************************************************
 
-  USE kinds,  ONLY: int_size,&
+  USE kinds,  ONLY: int_size, &
                     wp => dp,&
                     wp_size => dp_size
 
@@ -47,8 +47,8 @@ MODULE memory_utilities
 
   INTERFACE reallocate
     MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
-                     reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
-                     reallocate_str1
+                     reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4
+!                     reallocate_str1
   END INTERFACE
 
 !!***
@@ -60,14 +60,15 @@ CONTAINS
 
   SUBROUTINE reallocate_str1(p,lb1_new,ub1_new)
 
-!   Purpose: (Re)Allocate an integer vector with a new dimension.
+!   Purpose: (Re)Allocate a string varible
 
-!   History: - Creation (18.07.2002,MK)
+!TC This routine doesnt work on SUN/Solaris!!! It should probably not be used.
 
 !   ***************************************************************************
 
-    CHARACTER(LEN = *), DIMENSION(:), POINTER :: p
-    INTEGER, INTENT(IN)            :: lb1_new,ub1_new
+    CHARACTER(LEN=*), DIMENSION(:), POINTER :: p
+    INTEGER, INTENT(IN)              :: lb1_new, &
+                                        ub1_new 
 
 !   *** Local parameters ***
 
@@ -79,7 +80,7 @@ CONTAINS
 
     INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
 
-    CHARACTER(LEN = 20), DIMENSION(:), ALLOCATABLE :: work
+    CHARACTER(LEN=256), DIMENSION(:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
@@ -88,7 +89,7 @@ CONTAINS
       ub1_old = UBOUND(p,1)
       ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
-        old_size = (ub1_old - lb1_old + 1)*int_size
+        old_size = (ub1_old - lb1_old + 1)*1
         CALL stop_memory(routine,"work",old_size)
       END IF
       work(:) = p(:)
@@ -98,7 +99,7 @@ CONTAINS
 
     ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
     IF (istat /= 0) THEN
-      new_size = (ub1_new - lb1_new + 1)*int_size
+      new_size = (ub1_new - lb1_new + 1)*1
       CALL stop_memory(routine,"p",new_size)
     END IF
     p(:) = ''
