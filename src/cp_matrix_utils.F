@@ -37,12 +37,15 @@ module cp_matrix_utils
   use timings, only: timeset, timestop
   use sparse_matrix_types, only: real_matrix_type, get_matrix_info,&
        first_block_node, add_block_node, get_block_node, &
-       find_block_node, real_block_node_type, next_block_node
+       find_block_node, real_block_node_type, next_block_node,&
+       copy_sparse_to_full_matrix
   use message_passing, only: mp_sum
   use cp_b_matrix_structure, only: cp_b_matrix_struct_type,&
        cp_b_distribution_type
   use cp_array_utils, only: cp_2d_i_guarantee_size, &
-       cp_2d_logical_guarantee_size
+       cp_2d_logical_guarantee_size, cp_2d_r_output
+  use mathlib, only: symmetrize_matrix
+  use cp_output_handling, only: cp_would_output
   !use qs_blacs, only:
   implicit none
   private
@@ -66,7 +69,8 @@ module cp_matrix_utils
        cp_matrix_b_i_dealloc_ref, cp_matrix_b_i_get, &
        cp_matrix_b_i_next_block, cp_matrix_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
-       cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks
+       cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks,&
+       cp_sm_output
 
   ! return the trace of the given matrices
   interface cp_trace
@@ -1270,6 +1274,112 @@ subroutine cp_sm_alloc_nonsparse_blocks(matrix, m_struct, global_env,&
      end do
   end if
 end subroutine cp_sm_alloc_nonsparse_blocks
+!***************************************************************************
+
+!!****f* cp_matrix_utils/cp_sm_output [1.0] *
+!!
+!!   NAME
+!!     cp_sm_output
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_sm_output(logger, outputname, fromwhere, iter, matrix,&
+!!         global_env, comment, el_format, error)
+!!       Type(cp_logger_type):: logger
+!!       Character(Len=*), Intent (IN):: outputname
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: iter
+!!       Type(real_matrix_type), Pointer:: matrix
+!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
+!!       Type(global_environment_type), Intent (IN), Target, Optional::&
+!!         global_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_sm_output
+!!
+!!   FUNCTION
+!!     writes out the given matrix, at the moments converts it to a
+!!     full matrix and outputs it as a 2d real array (i.e. to a file
+!!     with rows separated by newlines, and comment preceded by #)
+!!
+!!   NOTES
+!!     conversion to a full matrix implies that this is a debugging
+!!     routine for small-ish systems
+!!
+!!   INPUTS
+!!     - logger: the logger that decides where the logging should go
+!!     - outputName: the name of the output, for example 'hamiltonian'
+!!     - fromWhere: string of the form module:function or file:lineNr
+!!       that says where the error happend
+!!     - iter: the iteration number, or some other number that permit to 
+!!       differentiate between different instances of the same object
+!!     - array: the array to output
+!!     - el_format: the (optional) format of a single number
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     06.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+subroutine cp_sm_output(logger, outputName, &
+       fromWhere, iter, matrix,global_env,&
+       comment, el_format, error)
+    type(cp_logger_type) ::logger
+    character(len=*) , intent(in) :: outputName
+    character(len=*), intent(in):: fromWhere
+    integer, intent(in) :: iter
+    type(real_matrix_type), pointer :: matrix
+    character(len=*), intent(in),optional :: comment, el_format
+    type(global_environment_type), intent(in), target, optional :: global_env
+    type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='cp_sm_output',&
+        routineP=moduleN//':'//routineN
+  character(len=40) :: symmetry
+  character(len=60) :: name
+  real(wp), dimension(:,:), pointer :: full_matrix
+  failure=.false.
+
+  CPPrecondition(associated(matrix),cp_failure_level,routineP,error,failure)
+  if (.not. failure) then
+     if (cp_would_output(logger, outputName , fromWhere, iter)) then
+        call get_matrix_info(matrix=matrix,&
+             matrix_name=name,&
+             matrix_symmetry=symmetry)
+        
+        nullify (full_matrix)
+        call copy_sparse_to_full_matrix(matrix,full_matrix)
+        if (symmetry == "symmetric") then
+           call symmetrize_matrix(full_matrix,"upper_to_lower")
+        else if (symmetry == "antisymmetric") then
+           call symmetrize_matrix(full_matrix,"anti_upper_to_lower")
+        else if (symmetry /= "none") then
+           call cp_assert(.false.,cp_warning_level,cp_assertion_failed,&
+                fromWhere=routineP,message="Unknown matrix structure in"//&
+                CPSourceFileRef,&
+                error=error)
+        end if
+        
+        call mp_sum(full_matrix,global_env%group)
+        
+        if (present(comment)) then
+           call cp_2d_r_output(logger=logger, outputName=outputName, &
+                fromWhere=fromWhere, iter=iter, array=full_matrix,&
+                comment=comment, el_format=el_format, error=error)
+        else
+           call cp_2d_r_output(logger=logger, outputName=outputName, &
+                fromWhere=fromWhere, iter=iter, array=full_matrix,&
+                comment=name, el_format=el_format, error=error)
+        end if
+        if (associated(full_matrix)) then
+           deallocate(full_matrix)
+        end if
+     end if
+  end if
+end subroutine cp_sm_output
 !***************************************************************************
 
 end module cp_matrix_utils
