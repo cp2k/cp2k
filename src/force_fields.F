@@ -914,7 +914,6 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
   ffch_info => topology%ffch_info
   CALL parser_init(topology%ff_file_name,globenv)
 
-
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
   ! 1. Read in all the Bonds info from the param file here
@@ -924,7 +923,7 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
   CALL search_label ( label, istat, ignore_case=.TRUE. )
   IF (istat == 0) THEN
      CALL read_line
-     DO WHILE (test_next()/='S')
+     DO WHILE (test_next()/='X')
        ilen = 7
        CALL get_next(string,ilen)
        CALL uppercase ( string )
@@ -1091,7 +1090,6 @@ SUBROUTINE read_force_field_charmm ( topology , globenv )
        CALL reallocate(ffch_info%ff_nonbond_eps_14,1,nnonbond)
        CALL reallocate(ffch_info%ff_nonbond_rmin2_14,1,nnonbond)
        ffch_info%ff_nonbond_a(nnonbond) = string
-       WRITE(*,*) "DDDDD ",nnonbond,TRIM(string)
        CALL get_next(ffch_info%ff_nonbond_eps(nnonbond))
        CALL get_next(ffch_info%ff_nonbond_eps(nnonbond))
        CALL get_next(ffch_info%ff_nonbond_rmin2(nnonbond))

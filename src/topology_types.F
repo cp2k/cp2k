@@ -156,6 +156,8 @@ MODULE topology_types
     LOGICAL                                   :: const_hydr
     LOGICAL                                   :: const_dist
     LOGICAL                                   :: const_33
+    LOGICAL                                   :: charge_occup
+    LOGICAL                                   :: charge_beta
   END TYPE topology_parameters_type
 
 
@@ -253,6 +255,8 @@ SUBROUTINE init_topology (topology)
   topology%const_hydr=.FALSE.
   topology%const_dist=.FALSE.
   topology%const_33=.FALSE.
+  topology%charge_occup=.FALSE.
+  topology%charge_beta=.FALSE.
 
 
   !-----------------------------------------------------------------------------

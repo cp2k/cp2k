@@ -725,8 +725,6 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         CALL convert_to_cp2k_units("ANGSTROM",length=vdw_radius(iatom))
 
         atom_info%atm_mass(iatom) = ptable(ielem)% amass
-        !Need to figure out the correct charge!!!
-        atom_info%atm_charge(iatom) = 0.0_dbl
         IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
         !EXIT
       END IF
@@ -1932,6 +1930,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
           charge(i) = topology%atom_info%atm_charge(j)
           found = .TRUE.
         END IF
+        IF(found) EXIT
       END DO
   
 !     ! loop over params from amber
@@ -1943,6 +1942,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 !             WRITE(iw,*) "    Multiple Charge declarations: overwriting"
 !           found = .TRUE.
 !         END IF
+!         IF(found) EXIT
 !       END DO
 !     END IF
   
@@ -1955,6 +1955,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
               WRITE(iw,*) "    Multiple Charge declarations: overwriting"
             found = .TRUE.
           END IF
+          IF(found) EXIT
         END DO
       END IF
   
@@ -1967,6 +1968,7 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
               WRITE(iw,*) "    Multiple Charge declarations: overwriting"
             found = .TRUE.
           END IF
+          IF(found) EXIT
         END DO
       END IF
 

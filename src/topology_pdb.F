@@ -197,9 +197,13 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
       READ(line(73:76),*,IOSTAT=istat) atom_info%label_molname(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
-      IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
       atom_info%atm_mass(natom)  =0.0_dbl
       atom_info%atm_charge(natom)=0.0_dbl
+      IF(topology%charge_occup) & 
+        atom_info%atm_charge(natom) = atom_info%beta(natom)
+      IF(topology%charge_beta) &
+        atom_info%atm_charge(natom) = atom_info%beta(natom)
+      IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
       IF(PM2) WRITE(iw,'(5X,A4,3F8.3,A4)') &
                    TRIM(atom_info%label_atmname(natom)),&
                    atom_info%r(1,natom),&
@@ -238,7 +242,6 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-
   IF(PM1) WRITE(iw,*) "  Exiting read_coordinate_pdb"
 
   CALL timestop(0.0_dbl,handle)
