@@ -96,9 +96,9 @@ CONTAINS
     TYPE ( cp_fm_type ), POINTER :: matrix_r, matrix_i
     COMPLEX( KIND = wp ) :: dum
 
-    ! write(6,*) "Start direct mini"
-    ! CALL direct_mini(weights,zij,vectors,sweeps)
-    ! write(6,*) "Stop direct mini"
+    !write(6,*) "Start direct mini"
+    !CALL direct_mini(weights,zij,vectors,sweeps)
+    !write(6,*) "Stop direct mini"
 
     CALL timeset("wannier_jacobi","I","",handle)
 
@@ -278,9 +278,8 @@ CONTAINS
     CALL cp_fm_release ( wf )
   END SUBROUTINE rotate_orbitals 
 ! *****************************************************************************
-  SUBROUTINE gradsq_at_0 ( matrix_p, weights, matrix )
+  SUBROUTINE gradsq_at_0 ( diag, weights, matrix )
     IMPLICIT NONE
-    TYPE ( cp_cfm_p_type ) :: matrix_p ( : )
     TYPE ( cp_fm_type ), POINTER :: matrix
     REAL ( KIND = wp ), INTENT ( IN ) :: weights ( : )
 ! Locals
@@ -291,17 +290,9 @@ CONTAINS
     INTEGER :: nrow_local, ncol_local, istate, jstate, idim, nrow_global
     INTEGER, POINTER, DIMENSION(:) :: row_indices,col_indices
 
-    NULLIFY(diag)
     CALL cp_fm_get_info ( matrix, nrow_local = nrow_local,  &
                    ncol_local = ncol_local, nrow_global = nrow_global, &
                    row_indices = row_indices, col_indices = col_indices, error = error )
-    ALLOCATE(diag(nrow_global,3))
-
-    DO idim = 1, 3
-      DO istate = 1, nrow_global
-         CALL cp_cfm_get_element(matrix_p(idim)%matrix,istate,istate,diag(istate,idim))
-      ENDDO
-    ENDDO
 
     DO istate = 1, nrow_local
       DO jstate = 1, ncol_local
@@ -310,13 +301,12 @@ CONTAINS
         DO idim = 1, 3
           zii = diag(row_indices(istate),idim)
           zjj = diag(col_indices(jstate),idim)
-          gradsq_ij = gradsq_ij - weights ( idim ) * &
+          gradsq_ij = gradsq_ij + weights ( idim ) * &
                      4.0_wp * ( CONJG ( zii ) * zii + CONJG ( zjj ) * zjj )
         END DO
         matrix % local_data ( istate, jstate ) = gradsq_ij
       END DO
     END DO
-    DEALLOCATE(diag)
   END SUBROUTINE gradsq_at_0
 ! *****************************************************************************
   SUBROUTINE grad_at_0 ( matrix_p, weights, matrix )
@@ -377,10 +367,11 @@ CONTAINS
     TYPE ( cp_fm_type ), POINTER :: vectors
     INTEGER :: iterations,handle,line_searches
 
-    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old
+    TYPE ( cp_fm_type ), POINTER :: matrix_A,matrix_G,matrix_T,matrix_G_search,matrix_G_old,matrix_H
     TYPE ( cp_cfm_p_type ), POINTER, DIMENSION(:) :: c_zij
     TYPE ( cp_cfm_type ), POINTER :: cmat_A,cmat_R,cmat_t1,cmat_t2,cmat_U, cmat_B, cmat_M
-    COMPLEX(KIND=wp), DIMENSION(:), POINTER :: evals_exp, diag_z
+    COMPLEX(KIND=wp), DIMENSION(:), POINTER :: evals_exp
+    COMPLEX(KIND=wp), DIMENSION(:,:), POINTER :: diag_z
     REAL(KIND=wp), DIMENSION(:), POINTER :: evals,fval,fvald
     INTEGER :: n,idim
     COMPLEX(KIND=wp), PARAMETER :: czero=(0.0_wp,0.0_wp), cone=(1.0_wp,0.0_wp)
@@ -403,7 +394,7 @@ CONTAINS
 
     CALL timeset("direct_mini","I","",handle)
     n = zij(1,1)%matrix%matrix_struct%nrow_global
-    ALLOCATE(evals(n),evals_exp(n),diag_z(n),fval(n),fvald(n))
+    ALLOCATE(evals(n),evals_exp(n),diag_z(n,3),fval(n),fvald(n))
     ALLOCATE(c_zij(SIZE(zij,2)))
 
 
@@ -420,8 +411,10 @@ CONTAINS
     CALL cp_fm_create  ( matrix_A, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_T, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    CALL cp_fm_create  ( matrix_H, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_search, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
     CALL cp_fm_create  ( matrix_G_old, zij ( 1, 1 ) % matrix % matrix_struct, error=error )
+    
     CALL cp_fm_set_all ( matrix_A, 0.0_wp )
     CALL cp_fm_init_random ( matrix_A )
 
@@ -454,6 +447,22 @@ CONTAINS
          CALL cp_cfm_column_scale(cmat_t1,evals_exp)
          CALL cp_cfm_gemm('N','C',n,n,n,cone,cmat_t1,cmat_R,czero,cmat_U) 
          cmat_U%local_data=REAL(cmat_U%local_data) ! enforce numerics, U is a real matrix
+         
+         IF ( new_direction .AND. MOD(line_searches,20).EQ.5 ) THEN ! reset with A .eq. 0
+            DO idim=1,SIZE(c_zij)
+               CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) 
+               CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,c_zij(idim)%matrix) 
+            ENDDO
+            CALL cp_cfm_set_all(cmat_U,czero,cone)
+            CALL cp_cfm_set_all(cmat_R,czero,cone)
+            CALL cp_cfm_set_all(cmat_A,czero)
+            CALL cp_fm_set_all(matrix_A,0.0_wp)
+            evals(:)=0.0_wp
+            evals_exp(:)=exp( (0.0_wp,-1.0_wp) * evals(:) )
+            CALL cp_fm_set_all(matrix_G_old,0.0_wp)
+            CALL cp_fm_set_all(matrix_G_search,0.0_wp)
+            normg_old=1.0E99_wp
+         ENDIF
 
          ! compute Omega and M
          CALL cp_cfm_set_all(cmat_M,czero)
@@ -462,25 +471,32 @@ CONTAINS
             CALL cp_cfm_gemm('N','N',n,n,n,cone,c_zij(idim)%matrix,cmat_U,czero,cmat_t1) ! t1=ZU
             CALL cp_cfm_gemm('C','N',n,n,n,cone,cmat_U,cmat_t1,czero,cmat_t2) ! t2=(U^T)ZU
             DO i=1,n    
-               CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i))
+               CALL cp_cfm_get_element(cmat_t2,i,i,diag_z(i,idim))
                SELECT CASE (2) ! allows for selection of different spread functionals
                CASE (1)
-                 fval(i) =-weights(idim)*log(ABS(diag_z(i))**2)
-                 fvald(i)=-weights(idim)/(ABS(diag_z(i))**2)
+                 fval(i) =-weights(idim)*log(ABS(diag_z(i,idim))**2)
+                 fvald(i)=-weights(idim)/(ABS(diag_z(i,idim))**2)
                CASE (2) ! corresponds to the jacobi setup
-                 fval(i) =1.0_wp-weights(idim)*abs(diag_z(i))**2
+                 fval(i) =1.0_wp-weights(idim)*abs(diag_z(i,idim))**2
                  fvald(i)=-weights(idim)
                END SELECT
                omega=omega+fval(i)
             ENDDO
             DO icol=1,ncol_local
                DO irow=1,nrow_local
-                  tmp = cmat_t1%local_data(irow,icol)*CONJG(diag_z(col_indices(icol)))
+                  tmp = cmat_t1%local_data(irow,icol)*CONJG(diag_z(col_indices(icol),idim))
                   cmat_M%local_data(irow,icol)=cmat_M%local_data(irow,icol) &
                                               +4.0_wp*fvald(col_indices(icol))*REAL(tmp)
                ENDDO
             ENDDO
          ENDDO
+
+         ! compute Hessian diagonal approximation
+         IF (.TRUE.) THEN
+            CALL gradsq_at_0(diag_z,weights,matrix_H)
+         ELSE
+            CALL cp_fm_set_all(matrix_H,1.0_wp)
+         ENDIF
 
          ! compute B
          DO icol=1,ncol_local
@@ -511,6 +527,13 @@ CONTAINS
          CALL cp_fm_transpose(matrix_G,matrix_T)
          CALL cp_fm_scale_and_add(  -1.0_wp,matrix_G, 1.0_wp,matrix_T)
          CALL cp_fm_maxval(matrix_G,tol)
+
+         ! apply the preconditioner
+         DO icol=1,ncol_local
+          DO irow=1,nrow_local
+             matrix_G%local_data(irow,icol)=matrix_G%local_data(irow,icol)/matrix_H%local_data(irow,icol)
+          ENDDO
+         ENDDO
 
          ! from here on, minimizing technology
          IF ( new_direction ) THEN
@@ -673,6 +696,7 @@ CONTAINS
 
     CALL cp_fm_release  ( matrix_A)
     CALL cp_fm_release  ( matrix_G)
+    CALL cp_fm_release  ( matrix_H)
     CALL cp_fm_release  ( matrix_T)
     CALL cp_fm_release  ( matrix_G_search)
     CALL cp_fm_release  ( matrix_G_old)
@@ -684,8 +708,9 @@ CONTAINS
     CALL cp_cfm_release ( cmat_B)
     CALL cp_cfm_release ( cmat_M)
 
-    DEALLOCATE(evals,evals_exp,diag_z,fval,fvald)
+    DEALLOCATE(evals,evals_exp,fval,fvald)
     DEALLOCATE(c_zij)
+    DEALLOCATE(diag_z)
 
     CALL timestop(0.0_wp,handle)
 
