@@ -50,10 +50,11 @@ MODULE cp_para_types
 !!     -
 !!
 !!   ATTRIBUTES
-!!     - mepos: id of the actual processor
-!!     - group: id of the actual mpi group
-!!     - num_pe: number of processors in the group
-!!     - source: id of a special processor (for example the one for i-o,
+!!     - mepos: rank of the actual processor
+!!     - group: id of the actual mpi communicator (I know that it is confusing, 
+!!       but this is not the mpi group)
+!!     - num_pe: number of processors in the communicator
+!!     - source: rank of a special processor (for example the one for i-o,
 !!       or the master
 !!     - owns_group: if it owns the group (and thus should free it when
 !!       this object is deallocated)
