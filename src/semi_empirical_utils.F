@@ -237,9 +237,11 @@ CONTAINS
       IF (se_parameter%natorb ==  9) nshell=3
       IF (se_parameter%natorb == 16) nshell=4
       ALLOCATE (nq(0:3),lq(0:3),zet(0:3),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "nq, lq, zet ",0)
       ALLOCATE (symbol(0:3),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
-                                       "nq, lq, zet, symbol",0)
+                                       "symbol",0)
       nq=0
       lq=0
       zet=0._dp
@@ -266,6 +268,13 @@ CONTAINS
         CALL create_gto_from_sto_basis(se_parameter%basis,orb_basis_set,&
                                se_parameter%ngauss)
       END IF
+
+      DEALLOCATE (nq,lq,zet,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "nq, lq, zet ",0)
+      DEALLOCATE (symbol,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
+                                       "symbol",0)
 
     ELSE
 
