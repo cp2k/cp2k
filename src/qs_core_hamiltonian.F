@@ -232,7 +232,7 @@ CONTAINS
                 jpgf,jset,jshell,katom,kkind,knode,maxblock,maxco,maxdco,maxl,&
                 maxppnl,natom,natom_of_kind,ncoa,ncob,nlist,nneighbor,nnode,nseta,&
                 nsetb,sgfa,sgfb
-    LOGICAL  :: gth_potential_present,ppnl_present,&
+    LOGICAL  :: gth_potential_present,ppl_present,&
                 return_s_derivatives,return_t_derivatives
 
     REAL(wp), DIMENSION(3)                  :: rab,rac,rbc
@@ -346,8 +346,7 @@ CONTAINS
       nder = 1
     END IF
 
-    ! Matthias, could you check if this is right ?
-    IF (globenv%print%derivatives .OR. globenv%print%optical_conductivity) nder = 1
+    IF (globenv%print%derivatives) nder = 1
 
     maxder = ncoset(nder)
 
@@ -467,7 +466,9 @@ CONTAINS
       END DO
     END IF
 
-    IF (gth_potential_present) THEN
+    ppl_present = ASSOCIATED(sac_ppl)
+
+    IF (ppl_present) THEN
 
       ALLOCATE (alpha_ppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl",nkind*wp_size)
@@ -499,6 +500,11 @@ CONTAINS
 
       ALLOCATE (vppl(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"vppl",nkind*int_size)
+      DO jkind=1,SIZE(vppl)
+        NULLIFY (vppl(jkind)%r2)
+        NULLIFY (vppl(jkind)%neighbor)
+        NULLIFY (vppl(jkind)%r)
+      END DO
 
     END IF
 
@@ -559,20 +565,15 @@ CONTAINS
 
           IF (calculate_forces) atom_a = atom_of_kind(iatom)
 
-!         *** Retrieve the data of the SAC_PPL neighbors of atom "iatom" ***
+          IF (ppl_present) THEN
 
-          IF (gth_potential_present) THEN
+!         *** Retrieve the data of the SAC_PPL neighbors of atom "iatom" ***
 
             DO kkind=1,nkind
 
               ac = ikind + (kkind - 1)*nkind
 
-              IF (.NOT.ASSOCIATED(sac_ppl(ac)%neighbor_list_set)) THEN
-                NULLIFY (vppl(kkind)%r2)
-                NULLIFY (vppl(kkind)%neighbor)
-                NULLIFY (vppl(kkind)%r)
-                CYCLE
-              END IF
+              IF (.NOT.ASSOCIATED(sac_ppl(ac)%neighbor_list_set)) CYCLE
 
               sac_ppl_neighbor_list =>&
                 find_neighbor_list(neighbor_list_set=&
@@ -950,75 +951,79 @@ CONTAINS
 
 !                 *** Loop over the GTH pseudo potential atoms (local part) ***
 
-                  DO kkind=1,nkind
+                  IF (ppl_present) THEN
 
-                    IF (.NOT.ASSOCIATED(vppl(kkind)%neighbor)) CYCLE
+                    DO kkind=1,nkind
 
-                    DO knode=1,SIZE(vppl(kkind)%neighbor)
+                      IF (.NOT.ASSOCIATED(vppl(kkind)%neighbor)) CYCLE
 
-                      katom = vppl(kkind)%neighbor(knode)
-                      rac(:) = vppl(kkind)%r(:,knode)
-                      rac2 = vppl(kkind)%r2(knode)
-                      dac = SQRT(rac2)
-                      IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
+                      DO knode=1,SIZE(vppl(kkind)%neighbor)
 
-                      rbc(:) = rac(:) - rab(:)
-                      rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
-                      dbc = SQRT(rbc2)
-                      IF (set_radius_b(jset) + ppl_radius(kkind) < dbc) CYCLE
+                        katom = vppl(kkind)%neighbor(knode)
+                        rac(:) = vppl(kkind)%r(:,knode)
+                        rac2 = vppl(kkind)%r2(knode)
+                        dac = SQRT(rac2)
+                        IF (set_radius_a(iset) + ppl_radius(kkind) < dac) CYCLE
 
-!                     *** Calculate the GTH pseudo potential forces ***
+                        rbc(:) = rac(:) - rab(:)
+                        rbc2 = rbc(1)*rbc(1) + rbc(2)*rbc(2) + rbc(3)*rbc(3)
+                        dbc = SQRT(rbc2)
+                        IF (set_radius_b(jset) + ppl_radius(kkind) < dbc) CYCLE
 
-                      IF (calculate_forces) THEN
+!                       *** Calculate the GTH pseudo potential forces ***
 
-                        CALL overlap_ppl(&
-                          la_max(iset),zeta(1:npgfa(iset),iset),&
-                          rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                          lb_max(jset),zetb(1:npgfb(jset),jset),&
-                          rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                          cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                          ppl_radius(kkind),&
-                          rab,rab2,dab,&
-                          rac,rac2,dac,&
-                          rbc,rbc2,dbc,&
-                          hab,nder,nder,.FALSE.,&
-                          pab,force_a,force_b)
+                        IF (calculate_forces) THEN
 
-!                       *** The derivatives w.r.t. atomic center c are    ***
-!                       *** calculated using the translational invariance ***
-!                       *** of the first derivatives                      ***
+                          CALL overlap_ppl(&
+                            la_max(iset),zeta(1:npgfa(iset),iset),&
+                            rpgfa(1:npgfa(iset),iset),la_min(iset),&
+                            lb_max(jset),zetb(1:npgfb(jset),jset),&
+                            rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+                            cexp_ppl(kkind)%c,alpha_ppl(kkind),&
+                            ppl_radius(kkind),&
+                            rab,rab2,dab,&
+                            rac,rac2,dac,&
+                            rbc,rbc2,dbc,&
+                            hab,nder,nder,.FALSE.,&
+                            pab,force_a,force_b)
 
-                        atom_c = atom_of_kind(katom)
+!                         *** The derivatives w.r.t. atomic center c are    ***
+!                         *** calculated using the translational invariance ***
+!                         *** of the first derivatives                      ***
 
-                        force(ikind)%gth_ppl(:,atom_a) =&
-                          force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
-                        force(kkind)%gth_ppl(:,atom_c) =&
-                          force(kkind)%gth_ppl(:,atom_c) - f0*force_a(:)
+                          atom_c = atom_of_kind(katom)
 
-                        force(jkind)%gth_ppl(:,atom_b) =&
-                          force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
-                        force(kkind)%gth_ppl(:,atom_c) =&
-                          force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
+                          force(ikind)%gth_ppl(:,atom_a) =&
+                            force(ikind)%gth_ppl(:,atom_a) + f0*force_a(:)
+                          force(kkind)%gth_ppl(:,atom_c) =&
+                            force(kkind)%gth_ppl(:,atom_c) - f0*force_a(:)
 
-                      ELSE
+                          force(jkind)%gth_ppl(:,atom_b) =&
+                            force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
+                          force(kkind)%gth_ppl(:,atom_c) =&
+                            force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
 
-                        CALL overlap_ppl(&
-                          la_max(iset),zeta(1:npgfa(iset),iset),&
-                          rpgfa(1:npgfa(iset),iset),la_min(iset),&
-                          lb_max(jset),zetb(1:npgfb(jset),jset),&
-                          rpgfb(1:npgfb(jset),jset),lb_min(jset),&
-                          cexp_ppl(kkind)%c,alpha_ppl(kkind),&
-                          ppl_radius(kkind),&
-                          rab,rab2,dab,&
-                          rac,rac2,dac,&
-                          rbc,rbc2,dbc,&
-                          hab,0,0,.FALSE.)
+                        ELSE
 
-                      END IF
+                          CALL overlap_ppl(&
+                            la_max(iset),zeta(1:npgfa(iset),iset),&
+                            rpgfa(1:npgfa(iset),iset),la_min(iset),&
+                            lb_max(jset),zetb(1:npgfb(jset),jset),&
+                            rpgfb(1:npgfb(jset),jset),lb_min(jset),&
+                            cexp_ppl(kkind)%c,alpha_ppl(kkind),&
+                            ppl_radius(kkind),&
+                            rab,rab2,dab,&
+                            rac,rac2,dac,&
+                            rbc,rbc2,dbc,&
+                            hab,0,0,.FALSE.)
+
+                        END IF
+
+                      END DO
 
                     END DO
 
-                  END DO
+                  END IF
 
 !                 *** Contraction step (core Hamiltonian matrix) ***
 
@@ -1050,15 +1055,13 @@ CONTAINS
 
           END DO
 
-          IF (gth_potential_present) THEN
+          IF (ppl_present) THEN
             DO kkind=1,nkind
               IF (ASSOCIATED(vppl(kkind)%r2)) THEN
                 DEALLOCATE (vppl(kkind)%r2,STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r2")
                 DEALLOCATE (vppl(kkind)%neighbor,STAT=istat)
-                IF (istat /= 0) THEN
-                  CALL stop_memory(routine,"vppl(kkind)%neighbor")
-                END IF
+                IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%neighbor")
                 DEALLOCATE (vppl(kkind)%r,STAT=istat)
                 IF (istat /= 0) CALL stop_memory(routine,"vppl(kkind)%r")
               END IF
@@ -1088,7 +1091,7 @@ CONTAINS
 
 !   *** Release work storage ***
 
-    IF (gth_potential_present) THEN
+    IF (ppl_present) THEN
 
       DEALLOCATE (alpha_ppl,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"alpha_ppl")
