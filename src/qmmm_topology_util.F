@@ -172,7 +172,7 @@ CONTAINS
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                first_atom=first_atom,last_atom=last_atom)
-          IF (ANY(qm_atom_index >= first_atom).AND.ANY(qm_atom_index <= last_atom))&
+          IF (ANY(qm_atom_index >= first_atom .AND. qm_atom_index <= last_atom))&
                qm_mol_num =qm_mol_num+1
        END DO
        !

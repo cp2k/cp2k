@@ -20,7 +20,11 @@
 !******************************************************************************
 
 MODULE topology_util
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type
   USE atomic_kind_types,               ONLY: allocate_atomic_kind_set,&
                                              atomic_kind_type,&
                                              get_atomic_kind,&
@@ -74,6 +78,9 @@ MODULE topology_util
                                              connectivity_info_type,&
                                              constraint_info_type
   USE qmmm_ff_fist, ONLY: qmmm_ff_precond_only_qm
+  USE qmmm_types,   ONLY: qmmm_env_mm_type
+  USE input_cp2k,   ONLY: do_qmmm_none
+  
 
   IMPLICIT NONE
 
@@ -2256,7 +2263,7 @@ END SUBROUTINE topology_connectivity_pack
 
 SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
                               molecule_kind_set,molecule_set,&
-                              topology,globenv)
+                              topology,globenv,qmmm,qmmm_env,error)
 
 
     TYPE(particle_type), DIMENSION(:), &
@@ -2271,6 +2278,10 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       INTENT(IN), OPTIONAL                   :: globenv
+    TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+    LOGICAL, OPTIONAL, INTENT(IN) :: qmmm
 
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_coordinate_pack', &
       routineP = moduleN//':'//routineN
@@ -2302,11 +2313,12 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
     LOGICAL                                  :: found
     REAL(KIND=dp)                                :: qeff, alpha_core_charge
     TYPE(elp_potential_type), POINTER        :: elp_potential
+    LOGICAL :: my_qmmm
 
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-
+    
   PM1 = .FALSE.
   PM2 = .FALSE.
   PM3 = .FALSE.
@@ -2321,7 +2333,8 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
   END IF
 
   IF(PM1) WRITE(iw,*) "  Entering topology_coordinate_pack"
-
+  my_qmmm = .FALSE.
+  IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm
 
   atom_info => topology%atom_info
 
@@ -2492,43 +2505,57 @@ SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
 
       CALL get_molecule_kind(molecule_kind,nbond=nbond,&
                              bond_list=bond_list)
-
+         
       DO j=1,nbond
-        IF (PM2) WRITE(*,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
-        IF( (bond_list(j)%a==i).OR. &
-            (bond_list(j)%b==i) ) THEN
-          atomlist(bond_list(j)%a) = 0
-          atomlist(bond_list(j)%b) = 0
-        END IF
+         IF (PM2) WRITE(*,*)"bond_list ::",bond_list(j)%a,bond_list(j)%b
+         IF(  (bond_list(j)%a==i).OR. &
+              (bond_list(j)%b==i) ) THEN
+            atomlist(bond_list(j)%a) = 0
+            atomlist(bond_list(j)%b) = 0
+         END IF
       END DO
       CALL get_molecule_kind(molecule_kind,nbend=nbend,&
                              bend_list=bend_list)
       DO j=1,nbend
-        IF (PM2) WRITE(*,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
-             bend_list(j)%c
-        IF( (bend_list(j)%a==i).OR. &
-            (bend_list(j)%b==i).OR. &
-            (bend_list(j)%c==i) ) THEN
-          atomlist(bend_list(j)%a) = 0
-          atomlist(bend_list(j)%b) = 0
-          atomlist(bend_list(j)%c) = 0
-        END IF
+         IF (PM2) WRITE(*,*)"bend_list ::",bend_list(j)%a,bend_list(j)%b,&
+              bend_list(j)%c
+         IF(  (bend_list(j)%a==i).OR. &
+              (bend_list(j)%b==i).OR. &
+              (bend_list(j)%c==i) ) THEN
+            atomlist(bend_list(j)%a) = 0
+            atomlist(bend_list(j)%b) = 0
+            atomlist(bend_list(j)%c) = 0
+         END IF
       END DO
       CALL get_molecule_kind(molecule_kind,ntorsion=ntorsion,&
                              torsion_list=torsion_list)
       DO j=1,ntorsion
          IF (PM2) WRITE(*,*)"tors_list ::",torsion_list(j)%a,&
               torsion_list(j)%b, torsion_list(j)%c, torsion_list(j)%d
-        IF( (torsion_list(j)%a==i).OR. &
-            (torsion_list(j)%b==i).OR. &
-            (torsion_list(j)%c==i).OR. &
-            (torsion_list(j)%d==i) ) THEN
-          atomlist(torsion_list(j)%a) = 0
-          atomlist(torsion_list(j)%b) = 0
-          atomlist(torsion_list(j)%c) = 0
-          atomlist(torsion_list(j)%d) = 0
-        END IF
+         IF(  (torsion_list(j)%a==i).OR. &
+              (torsion_list(j)%b==i).OR. &
+              (torsion_list(j)%c==i).OR. &
+              (torsion_list(j)%d==i) ) THEN
+            atomlist(torsion_list(j)%a) = 0
+            atomlist(torsion_list(j)%b) = 0
+            atomlist(torsion_list(j)%c) = 0
+            atomlist(torsion_list(j)%d) = 0
+         END IF
       END DO
+
+      IF (my_qmmm) THEN 
+         !
+         ! exclude all intramolecular interactions between QM atoms 
+         !
+         IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
+              ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
+            DO j = 1, SIZE(qmmm_env%qm_atom_index)
+               counter = qmmm_env%qm_atom_index(j)
+               IF ((counter >= first_atom).AND.(counter <= last_atom)) &
+                    atomlist(counter- first_atom + 1)= 0 
+            END DO
+         END IF
+      END IF
 
       DO j=1,SIZE(atomic_kind_set)
         counter = 0

@@ -110,6 +110,8 @@ MODULE force_fields
   USE topology_types,                  ONLY: topology_parameters_type,&
                                              constraint_info_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE qmmm_types,                      ONLY: qmmm_env_mm_type
+  USE input_cp2k,                      ONLY: do_qmmm_none
 
   IMPLICIT NONE
 
@@ -145,7 +147,7 @@ CONTAINS
 SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
                                 molecule_kind_set,molecule_set,&
                                 ewald_env,fist_nonbond_env,&
-                                globenv)
+                                globenv, qmmm, qmmm_env, error)
 
   TYPE(atomic_kind_type), DIMENSION(:), POINTER       :: atomic_kind_set
   TYPE(particle_type), DIMENSION(:), POINTER          :: particle_set
@@ -154,6 +156,9 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
   TYPE(global_environment_type), INTENT(IN),OPTIONAL  :: globenv
+  LOGICAL, INTENT(IN), OPTIONAL :: qmmm
+  TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
+  TYPE(cp_error_type), INTENT(inout), OPTIONAL   :: error
 
   CHARACTER(len=*), PARAMETER :: routineN = 'force_field_control', &
       routineP = moduleN//':'//routineN
@@ -244,7 +249,7 @@ SUBROUTINE force_field_control (atomic_kind_set,particle_set,&
   CALL force_field_pack (particle_set,atomic_kind_set,&
                          molecule_kind_set,molecule_set,&
                          ewald_env,fist_nonbond_env,&
-                         ff_type,globenv)
+                         ff_type,globenv, qmmm, qmmm_env, error=error)
 
 
   !-----------------------------------------------------------------------------
@@ -1579,7 +1584,8 @@ END SUBROUTINE read_force_field_amber
 
 SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
                              molecule_kind_set,molecule_set,&
-                             ewald_env,fist_nonbond_env,ff_type,globenv,error)
+                             ewald_env,fist_nonbond_env,ff_type,globenv,&
+                             qmmm, qmmm_env, error)
 
   TYPE ( ewald_environment_type ), POINTER :: ewald_env
   TYPE ( fist_nonbond_env_type ), POINTER ::  fist_nonbond_env
@@ -1593,6 +1599,9 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   TYPE(pair_potential_type), POINTER                     :: potparm_nonbond(:,:)
   TYPE(cp_error_type), INTENT (INOUT), &
     OPTIONAL                                    :: error
+  LOGICAL, INTENT(IN), OPTIONAL :: qmmm
+  TYPE (qmmm_env_mm_type), POINTER, OPTIONAL :: qmmm_env
+
   TYPE(spline_environment_type), POINTER                 :: spline_bond_env
   TYPE(spline_environment_type), POINTER                 :: spline_nonbond_env
 
@@ -1641,7 +1650,7 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
 
   REAL(KIND=dp)                                :: rmin,epsilon
   INTEGER                                  :: ii, jj, imul
-  LOGICAL :: only_qm
+  LOGICAL :: only_qm, my_qmmm
 
   CHARACTER(LEN=default_string_length)     :: atmname
   REAL(KIND=dp), DIMENSION(:), POINTER         :: charge
@@ -1659,6 +1668,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
   PM3 = .FALSE.
   PM4 = .FALSE.
   only_qm = .FALSE.
+  my_qmmm = .FALSE.
+  IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
   IF(PRESENT(globenv)) THEN
     CALL write_checkpoint_information("entering "//routineN,globenv)
     iw = globenv%scr
@@ -2895,8 +2906,8 @@ SUBROUTINE force_field_pack (particle_set,atomic_kind_set,&
     !
     ! QM/MM modifications
     !
-    IF (only_qm) THEN
-       charge(i) = 0.0_dp
+    IF (only_qm.AND.my_qmmm) THEN
+       IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) charge(i) = 0.0_dp
     END IF
     
     CALL set_potential(potential=elp_potential,&

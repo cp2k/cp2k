@@ -183,7 +183,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
-                             ewald_env, fist_nonbond_env, globenv )
+                             ewald_env, fist_nonbond_env, globenv, qmmm=qmmm,&
+                             qmmm_env=qmmm_env, error=error )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )
   CALL atomic_kind_list_create ( atomic_kinds, els_ptr = atomic_kind_set, error = error )

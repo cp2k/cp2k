@@ -100,7 +100,7 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   TYPE(qmmm_env_mm_type), POINTER, OPTIONAL        :: qmmm_env
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
-  LOGICAL, OPTIONAL :: qmmm
+  LOGICAL, OPTIONAL, INTENT(IN) :: qmmm
 
   CHARACTER(len=*), PARAMETER :: routineN = 'topology_control', &
       routineP = moduleN//':'//routineN
@@ -208,10 +208,27 @@ SUBROUTINE topology_control (atomic_kind_set,particle_set,&
   !-----------------------------------------------------------------------------
   ! 8. Pack everything into the atomic types
   !-----------------------------------------------------------------------------
-  CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-                                molecule_kind_set,molecule_set,&
-                                topology,globenv)
-
+  IF (PRESENT(qmmm)) THEN
+     !
+     ! A little bit pedant but just to be sure that in the future everything will
+     ! be used in a proper manner...
+     !
+     IF (qmmm) THEN
+        IF (.NOT.PRESENT(qmmm_env)) &
+             CALL stop_program("Error in qmmm_env in Fist","Illdefined subroutine!")
+        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
+                                      molecule_kind_set,molecule_set,&
+                                      topology,globenv, qmmm, qmmm_env, error=error)
+     ELSE 
+        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
+                                      molecule_kind_set,molecule_set,&
+                                      topology,globenv)
+     END IF
+  ELSE
+     CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
+                                   molecule_kind_set,molecule_set,&
+                                   topology,globenv)
+  END IF
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
