@@ -48,7 +48,7 @@ charges
   NH3 -1.14
    HC  0.38
  end
- PARMFILE CHM regtest/charmm.pot
+ PARMFILE CHM charmm.pot
 &END
 
 &CELL
