@@ -30,7 +30,7 @@ MODULE dft_input
   USE kinds, ONLY : dbl, YES, NO
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next
+       p_error, get_next, search_label
   USE termination, ONLY : stop_program
   USE string_utilities, ONLY : uppercase, str_comp, xstring
   
@@ -94,7 +94,8 @@ SUBROUTINE read_dft_section ( dft_control, dftpar )
   
 ! parse the input section
   label = "&DFT"
-  CALL parser_init ( dftpar % input_file_name, label, ierror, dftpar )
+  CALL parser_init ( dftpar % input_file_name, dftpar )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
      IF ( dftpar % ionode ) &
           WRITE ( iw, '( A )' ) &
@@ -241,7 +242,8 @@ SUBROUTINE read_wave_section ( wave_control, wavepar )
   
 ! parse the input section
   label = "&WAVE"
-  CALL parser_init ( wavepar % input_file_name, label, ierror, wavepar )
+  CALL parser_init ( wavepar % input_file_name, wavepar )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
      WRITE ( iw, '( A )' ) " No input section &WAVE found"
   ELSE
@@ -338,7 +340,8 @@ SUBROUTINE read_qs_section ( qs_control, qspar )
   
 ! parse the input section
   label = "&QS"
-  CALL parser_init ( qspar % input_file_name, label, ierror, qspar )
+  CALL parser_init ( qspar % input_file_name, qspar )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
      WRITE ( iw, '( A )' ) " No input section &QS found"
   ELSE

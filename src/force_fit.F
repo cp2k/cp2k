@@ -14,7 +14,7 @@ MODULE force_fit
   USE md, ONLY : simulation_parameters_type, thermodynamic_type
   USE pair_potential, ONLY : potentialparm_type, spline_nonbond_control
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       cfield, p_error, get_real, get_int
+       cfield, p_error, get_real, get_int, search_label
   USE structure_types, ONLY : structure_type
   USE termination, ONLY : stop_program
 
@@ -110,14 +110,19 @@ SUBROUTINE read_fit_section ( fit_param )
 
 !..parse the input section
 
-  IF ( globenv % ionode ) THEN
 
-     label = '&FIT'
+  label = '&FIT'
 
-     CALL parser_init ( globenv % input_file_name, label, ierror )
-     IF ( ierror /= 0 ) THEN
+  CALL parser_init ( globenv % input_file_name )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+
+  IF ( ierror /= 0 ) THEN
+
+     IF ( globenv % ionode ) THEN
         CALL stop_program ( 'read_fit_section', 'no input section &FIT found' )
      END IF
+
+  ELSE
 
      CALL read_line()
 

@@ -9,7 +9,7 @@ MODULE energy_input
   USE global_types, ONLY : global_environment_type
   USE kinds, ONLY : dbl
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE string_utilities, ONLY : uppercase
   USE termination, ONLY : stop_program 
 
@@ -82,14 +82,18 @@ SUBROUTINE read_energy_section ( energy_min, globenv )
 
 !..parse the input section
 
-  IF ( globenv % ionode ) THEN
+  label = '&ENERGY'
 
-     label = '&ENERGY'
+  CALL parser_init ( globenv % input_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
 
-     CALL parser_init ( globenv % input_file_name, label, ierror, globenv )
-     IF ( ierror /= 0 ) THEN
+  IF ( ierror /= 0 ) THEN
+
+     IF ( globenv % ionode ) THEN
         CALL stop_program ( 'read_energy_section', 'no input section &ENERGY found' )
      END IF
+
+  ELSE
 
      CALL read_line()
 

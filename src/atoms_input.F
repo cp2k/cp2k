@@ -24,7 +24,7 @@ MODULE atoms_input
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next
+       p_error, get_next, search_label
   USE string_utilities, ONLY : xstring, uppercase
   USE termination, ONLY : stop_memory, stop_program
   USE util, ONLY : get_unit
@@ -121,7 +121,8 @@ SUBROUTINE read_coord_vel ( atype, filen, globenv )
 
 !..parse the input section
   label = '&ATOMS'
-  CALL parser_init ( globenv % input_file_name, label, ierror, globenv )
+  CALL parser_init ( globenv % input_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
 
      IF( globenv % ionode) THEN

@@ -29,9 +29,14 @@ MODULE input_types
 
   INTEGER, PARAMETER :: ATOMNAMESLENGTH = 20
 
+  TYPE cell_setup_type
+     REAL ( dbl ), DIMENSION ( 3, 3 ) :: hmat
+     CHARACTER (LEN=20) :: poisson_solver
+     INTEGER, DIMENSION (3) :: perd
+  END TYPE cell_setup_type
+
   TYPE setup_parameters_type
      INTEGER                :: nmol, natoms, natom_type
-     INTEGER                :: perd ( 3 )
      LOGICAL                :: symmetry
      CHARACTER ( LEN = 40 ) :: set_file_name
      CHARACTER ( LEN = 40 ) :: coord_file_name
@@ -47,10 +52,12 @@ MODULE input_types
      REAL ( dbl )           :: etemp
      CHARACTER ( LEN = 40 ) :: broadening_method
      CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
+     TYPE ( cell_setup_type ) :: simulation_cell
+     TYPE ( cell_setup_type ) :: reference_cell
   END TYPE setup_parameters_type
 
   PRIVATE
-  PUBLIC :: setup_parameters_type, ATOMNAMESLENGTH
+  PUBLIC :: setup_parameters_type, cell_setup_type, ATOMNAMESLENGTH
 
 END MODULE input_types
 

@@ -24,7 +24,7 @@ MODULE cntl_input
   USE input_types, ONLY : setup_parameters_type
   USE kinds, ONLY : dbl
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE string_utilities, ONLY : uppercase, xstring
 
   PRIVATE
@@ -55,7 +55,6 @@ CONTAINS
 !!I simulation       [md,debug,min,amoeba]                                    I
 !!I printlevel       globenv%print_level                                      I
 !!I units            [kelvin,atomic]                                          I
-!!I periodic         [0,1][0,1][0,1]                                          I
 !!I Ewald_type       [ewald,pme,spme]                                         I
 !!I Ewald_param      alpha[,gmax,ns_max,epsilon]                              I
 !!I set_file         "filename"                                               I
@@ -81,8 +80,7 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
   INTEGER :: ierror, ilen, ia, ie, i, j, n, iw, source, group
   CHARACTER ( LEN = 20 ) :: string, str2
   CHARACTER ( LEN = 5 ) :: label
-  CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
-  LOGICAL :: ewald_set
+  LOGICAL :: ewald_set, found, setf, datf, topf
 
 !------------------------------------------------------------------------------
 
@@ -91,7 +89,6 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
 !..defaults
   setup % run_type = 'MD'
   setup % unit_type = 'KELVIN'
-  setup % perd = 1
   setup % symmetry = .false.
   setup % path_integrals = .false.
   IF ( ewald_set ) THEN
@@ -111,7 +108,8 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
 
 !..parse the input section
   label = '&CNTL'
-  CALL parser_init(globenv % input_file_name,label,ierror,globenv)
+  CALL parser_init(globenv % input_file_name,globenv)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror /= 0 ) THEN
      IF (globenv % ionode) &
         WRITE ( iw, '( a )' ) ' No input section &CNTL found '
@@ -135,10 +133,6 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
            ilen = 20
            CALL get_next(setup % unit_type,ilen)
            CALL uppercase(setup % unit_type )
-        CASE ( 'PERIODIC')
-           CALL get_next ( setup % perd(1) )
-           CALL get_next ( setup % perd(2) )
-           CALL get_next ( setup % perd(3) )
         CASE ( 'EWALD_TY')
            IF ( ewald_set ) THEN
              ilen=20
@@ -209,6 +203,25 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
   CALL parser_end
 !..end of parsing the input section
 
+!..check for files
+  setf =.TRUE.
+  INQUIRE ( FILE = setup % set_file_name, EXIST = found )
+  IF ( .NOT. found ) THEN
+     setup % set_file_name = globenv % input_file_name
+     setf =.FALSE.
+  END IF
+
+  datf =.TRUE.
+  INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
+  IF ( .NOT. found ) THEN
+     setup % coord_file_name = globenv % input_file_name
+     datf =.FALSE.
+  END IF
+
+  topf =.TRUE.
+  INQUIRE ( FILE = setup % coord_file_name, EXIST = found )
+  IF ( .NOT. found ) topf =.FALSE.
+
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF ( globenv % print_level >= 0 ) THEN
@@ -216,12 +229,6 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
              ' CONTROL| Run type ', ADJUSTR ( setup % run_type )
         WRITE ( iw, '( A, T61, A )' ) &
              ' CONTROL| Unit type ', ADJUSTR ( setup % unit_type )
-        WRITE ( iw, '( A, T78, A )' ) ' CONTROL| Periodic in X direction ', &
-             yn(setup % perd(1))
-        WRITE ( iw, '( A, T78, A )' ) ' CONTROL| Periodic in Y direction ', &
-             yn(setup % perd(2))
-        WRITE ( iw, '( A, T78, A )' ) ' CONTROL| Periodic in Z direction ', &
-             yn(setup % perd(3))
         IF ( setup%symmetry ) THEN
            WRITE (iw,'(A,T78,A)') ' CONTROL| Use of symmetry ','Yes'
         ELSE
@@ -232,12 +239,15 @@ SUBROUTINE read_cntl_section ( setup, globenv, ewald_param )
         ELSE
            WRITE (iw,'(A,T78,A)') ' CONTROL| Path Integrals ',' No'
         END IF
-        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name (if any)', &
-             ADJUSTR ( setup % set_file_name )
-        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Data file name (if any)', &
-             ADJUSTR ( setup % coord_file_name )
-        WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Topology file name (if any)', &
-             ADJUSTR ( setup % topology_file_name )
+        IF ( setf ) &
+           WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Set file name', &
+                ADJUSTR ( setup % set_file_name )
+        IF ( datf ) &
+           WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Data file name', &
+                ADJUSTR ( setup % coord_file_name )
+        IF ( topf ) &
+           WRITE ( iw, '( A, T41, A )' ) ' CONTROL| Topology file name', &
+                ADJUSTR ( setup % topology_file_name )
         WRITE ( iw, '( A, T76, I5 )' ) &
              ' CONTROL| Print level ', globenv % print_level
         WRITE ( iw, '( )' )

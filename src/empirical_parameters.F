@@ -27,7 +27,7 @@ MODULE empirical_parameters
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE string_utilities, ONLY : uppercase, xstring, str_search
   USE termination, ONLY : stop_memory, stop_program                               
 
@@ -88,7 +88,8 @@ CONTAINS
 
 !..parse the input section
   label = '&EMPIRICAL'
-  CALL parser_init ( set_fn, label, ierror, globenv )
+  CALL parser_init ( set_fn, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF ( ierror /= 0 ) THEN
      IF ( globenv % ionode ) THEN
         WRITE ( iw, '( A )' ) ' No input section &EMPIRICAL found on file '

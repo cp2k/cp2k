@@ -32,7 +32,7 @@ MODULE force_fields
        molecule_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE string_utilities, ONLY : uppercase, xstring, str_search,  &
        str_comp, make_tuple
   USE termination, ONLY : stop_memory, stop_program
@@ -41,10 +41,6 @@ MODULE force_fields
 
   PRIVATE
   PUBLIC :: read_force_field_section
-
-!*apsi* Because of a feature(?) in DEC compiler
-  PUBLIC :: ATOMNAMESLENGTH
-  INTEGER, PARAMETER :: ATOMNAMESLENGTH = 20
 
   INTEGER :: scr
   TYPE ( global_environment_type ) :: globenv
@@ -80,7 +76,6 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
 
 ! Arguments
   CHARACTER ( LEN = * ), INTENT ( IN ) :: set_fn
-  CHARACTER ( LEN = ATOMNAMESLENGTH ), DIMENSION ( : ), POINTER :: atom_names
   TYPE (intra_parameters_type ), INTENT ( OUT ) :: intra_param
   TYPE (potentialparm_type ), DIMENSION ( :, : ), POINTER :: potparm
   TYPE (molecule_type ), DIMENSION ( : ), INTENT ( IN ) :: mol_setup
@@ -116,6 +111,9 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
      END DO
   END DO
 
+!..start the parser
+  CALL parser_init(set_fn,globenv_input)
+
 !..read in non-bonded interaction information
   ALLOCATE (potparm(natom_type,natom_type),STAT=ios)
   IF ( ios /= 0 ) CALL stop_memory ( 'fist_input', &
@@ -134,6 +132,9 @@ SUBROUTINE read_force_field_section ( setup, mol_setup, set_fn, intra_param, &
 !..read the distance constraint parameters
   CALL input_distance_constraints ( intra_param % constraint_distance, &
        setup % atom_names, set_fn )
+
+!..end the parser session
+  CALL parser_end()
 
 END SUBROUTINE read_force_field_section
 
@@ -212,13 +213,12 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
-  CALL parser_init(set_fn,label,ierror,globenv)
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF (ierror /= 0 ) THEN
-     IF (globenv%ionode) THEN
+     IF (globenv%ionode .AND. globenv%print_level >= 2) THEN
         WRITE ( iw, '( a )' ) ' No input section &FORCE_FIELD found on file '
         WRITE ( iw, '( a )' ) set_fn
      END IF
-     CALL stop_parser( 'input_nonbond','FORCE_FIELD')
   ELSE
      CALL read_line
      DO WHILE (test_next()/='X')
@@ -314,7 +314,6 @@ SUBROUTINE input_nonbonded ( potparm, atom_names, set_fn )
         CALL read_line
      END DO
   END IF
-  CALL parser_end
 
 !..write some information to output
   IF (globenv%ionode) THEN
@@ -428,14 +427,8 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
-  CALL parser_init(set_fn,label,ierror,globenv)
-  IF (ierror /= 0 ) THEN
-     IF ( globenv % ionode ) THEN
-        WRITE ( iw, '( a )' ) ' No input section &FORCE_FIELD found on file '
-        WRITE ( iw, '( a )' ) set_fn
-     END IF
-     CALL stop_parser( 'input_bond', '&FORCE_FIELD' )
-  ELSE
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror == 0 ) THEN
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 5
@@ -477,7 +470,6 @@ SUBROUTINE input_bonds(bond_parm,atom_names,set_fn)
         CALL read_line
      END DO
   END IF
-  CALL parser_end
 
 !..write some information to output
   IF ( globenv % ionode ) THEN
@@ -568,14 +560,8 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
   iw = scr
 !..parse the input section
   label = '&FORCE_FIELD'
-  CALL parser_init(set_fn,label,ierror,globenv)
-  IF (ierror /= 0 ) THEN
-     IF ( globenv % ionode ) THEN
-        WRITE ( iw, '( a )' ) ' No input section &FORCE_FIELD found on file '
-        WRITE ( iw, '( a )' ) set_fn
-     END IF
-     CALL stop_parser( 'input_bend', '&FORCE_FIELD' )
-  ELSE
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror == 0 ) THEN
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 5
@@ -621,7 +607,6 @@ SUBROUTINE input_bends ( bend_parm, atom_names, set_fn )
         CALL read_line
      END DO
   END IF
-  CALL parser_end
 
 !..write some information to output
   IF ( globenv % ionode ) THEN
@@ -717,16 +702,8 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
 
 !..parse the input section
   label = '&FORCE_FIELD'
-  CALL parser_init(set_fn,label,ierror,globenv)
-  IF ( ierror /= 0 ) THEN
-     IF ( globenv % ionode ) THEN
-        WRITE ( iw, '( A )' ) &
-             ' No input section &FORCE_FIELD found on file '
-        WRITE ( iw, '( A )' ) set_fn
-     END IF
-     CALL stop_parser( 'input_torsion', '&FORCE_FIELD' )
-
-  ELSE
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF ( ierror == 0 ) THEN
      CALL read_line
      DO WHILE (test_next()/='X')
         ilen = 8
@@ -782,7 +759,6 @@ SUBROUTINE input_torsions ( torsion_parm, atom_names, set_fn )
         CALL read_line()
      END DO
   END IF
-  CALL parser_end()
 
 !..write some information to output
   IF ( globenv % ionode ) THEN
@@ -881,14 +857,8 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
 
 !..parse the input section
   label = '&FORCE_FIELD'
-  CALL parser_init(set_fn,label,ierror,globenv)
-  IF (ierror /= 0 ) THEN
-     IF ( globenv % ionode ) THEN
-        WRITE ( iw, '( A )' ) ' No input section &FORCE_FIELD found on file '
-        WRITE ( iw, '( A )' ) set_fn
-     END IF
-     CALL stop_parser ( 'input_distance_constraints', '&FORCE_FIELD' )
-  ELSE
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF (ierror == 0 ) THEN
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 7
@@ -923,7 +893,6 @@ SUBROUTINE input_distance_constraints ( constraint_distance, atom_names, &
         CALL read_line
      END DO
   END IF
-  CALL parser_end
 
 !..write some information to output
   IF ( globenv % ionode ) THEN

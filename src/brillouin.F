@@ -26,7 +26,7 @@
 
       USE global_types, ONLY : global_environment_type
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        p_error, get_next, stop_parser
+        p_error, get_next, stop_parser, search_label
       USE string_utilities, ONLY : uppercase
       USE termination, ONLY : stop_memory, stop_program
 !
@@ -103,7 +103,8 @@
 
 !..parse the input section
         label = '&KPOINT'
-        CALL parser_init(inpar%input_file_name,label,ierror,inpar)
+        CALL parser_init(inpar%input_file_name,inpar)
+        CALL search_label(label,ierror,ignore_case=.TRUE.)
         IF (ierror/=0) THEN
           IF (inpar%ionode .AND. inpar%print_level >= 2) &
             WRITE (iw,'(a,a)') ' No input section &KPOINT found on file ', &

@@ -24,7 +24,7 @@ MODULE read_pimd
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE particle_types, ONLY : particle_type
   USE string_utilities, ONLY : uppercase, xstring
   USE util, ONLY : gasdev
@@ -106,7 +106,8 @@ SUBROUTINE read_pimd_section ( pimdpar, mdpar )
      
 !..parse the input section
   label = '&PIMD'
-  CALL parser_init(mdpar % input_file_name,label,ierror,mdpar)
+  CALL parser_init(mdpar % input_file_name,mdpar)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror /= 0 ) THEN
      IF( mdpar % ionode ) &
         WRITE ( iw, '( a )' ) ' No input section &PIMD found '

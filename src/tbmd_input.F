@@ -24,7 +24,7 @@
       USE global_types, ONLY : global_environment_type
       USE input_types, ONLY : setup_parameters_type
       USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-        p_error, get_next, stop_parser
+        p_error, get_next, stop_parser, search_label
       USE string_utilities, ONLY : uppercase, xstring, &
         str_search, str_comp, make_tuple
       USE tbmd_types, ONLY : tbatom_param_type, tb_hopping_type
@@ -81,7 +81,8 @@ SUBROUTINE read_tb_hamiltonian ( setup, atom_names, tbatom, tbmdpar )
   IF (ios/=0) CALL stop_memory('read_tb_hamiltonian','tbatom',nt)
 !..parse the input section &HAMILTONIAN
   label = '&HAMILTONIAN'
-  CALL parser_init(setup%set_file_name,label,ierror,tbmdpar)
+  CALL parser_init(setup%set_file_name,tbmdpar)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror/=0) THEN
     IF (tbmdpar%ionode) &
       WRITE (tbmdpar%scr,'(a)') &
@@ -252,7 +253,8 @@ SUBROUTINE read_tb_hopping_elements ( setup, atom_names, tbatom, tbhop, tbmdpar 
   iw = tbmdpar%scr
 !..parse the input section &HAMILTONIAN
   label = '&HAMILTONIAN'
-  CALL parser_init(setup%set_file_name,label,ierror,tbmdpar)
+  CALL parser_init(setup%set_file_name,tbmdpar)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror/=0) THEN
     IF (tbmdpar%ionode) WRITE (iw,'(a)') &
       ' input_inter| No input section &HAMILTONIAN found '

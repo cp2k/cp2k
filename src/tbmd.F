@@ -259,11 +259,8 @@ SUBROUTINE tbmd ( globenv )
     CALL read_coord_vel ( ainp, project_name, globenv )
 
 !..initialize box, perd
-    CALL init_cell ( struc ( ibead ) % box, ainp % box, setup % perd )
-
-    IF ( simpar % read_type /= 'INIT' ) THEN
-      struc ( ibead ) % box_ref % hmat = ainp % box_ref
-    ENDIF
+    CALL init_cell ( struc ( ibead ) % box, ainp % box, setup % simulation_cell % perd )
+    struc ( ibead ) % box_ref % hmat = setup % reference_cell % hmat
 
 ! If run is a debug.  Make box_ref = box to work under
 ! all ensembles and restart options

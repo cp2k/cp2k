@@ -28,7 +28,7 @@ MODULE molecule_input
   USE molecule_types, ONLY : molecule_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE periodic_table, ONLY : ptable
   USE string_utilities, ONLY : uppercase, xstring, str_search, &
        str_comp, make_tuple
@@ -83,6 +83,8 @@ CONTAINS
 !!I    nummol        nmol                                                     I
 !!I    nhcopt        [molecule,global,massive,...]                            I
 !!I end molecule                                                              I
+!!I cell                                                                      I
+!!I end cell                                                                  I
 !!I                                                                           I
 !!I---------------------------------------------------------------------------I
 !!
@@ -99,11 +101,13 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: ierr1, ierr2, ilen, iw, source, group, icount, nmol_type, ios, i
-  INTEGER :: ierror
+  INTEGER :: ilen, iw, source, group, icount, nmol_type, ios
+  INTEGER :: ierror, ierr2, i, j
+  LOGICAL :: sim
   CHARACTER ( LEN = 20 ) :: string, string2
   CHARACTER ( LEN = 6 ) :: label
   CHARACTER ( LEN = 12 ) :: default_thermostat
+  CHARACTER ( LEN = 3 ), PARAMETER :: yn ( 0:1 ) = (/ ' NO', 'YES' /)
 
 !------------------------------------------------------------------------------
 
@@ -119,22 +123,21 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   setup % etemp = 0._dbl
   setup % charge = 0._dbl
   setup % broadening_method = ""
+  setup % reference_cell % hmat = 0._dbl
+  setup % reference_cell % poisson_solver = "STANDARD"
+  setup % reference_cell % perd = 1
+  setup % simulation_cell % hmat = 0._dbl
+  setup % simulation_cell % poisson_solver = "STANDARD"
+  setup % simulation_cell % perd = 1
 
 !..parse the input section
   label = '&SETUP'
-  ierr1 = 0
-  ierr2 = 1
 ! try to find the input section on the main input file
-  CALL parser_init ( globenv % input_file_name, label, ierr1, globenv )
-  IF ( ierr1 /= 0 ) THEN
-     CALL parser_end
-!    try to find the input section on the default file
-     CALL parser_init ( setup % set_file_name, label, ierr2, globenv )
-  ENDIF
-  IF ( ierr1 /= 0 .AND. ierr2 /= 0 ) THEN
+  CALL parser_init ( setup % set_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF ( ierror /= 0 ) THEN
      IF ( globenv % ionode .AND. globenv % print_level >= 2 ) THEN
         WRITE ( iw, '( A )' ) ' No input section &SETUP found on files '
-        WRITE ( iw, '( T2, A )' ) globenv % input_file_name
         WRITE ( iw, '( T2, A )' ) setup % set_file_name
      END IF
   ELSE
@@ -171,12 +174,8 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
      IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
         'mol_setup', nmol_type )
 !    reinitiate the parser at the beginning of the section
-     CALL parser_end
-     IF ( ierr1 == 0 ) CALL parser_init ( globenv % input_file_name, &
-                                          label, ierror, globenv )
-     IF ( ierr2 == 0 ) CALL parser_init ( setup % set_file_name, &
-                                          label, ierror, globenv )
-     IF ( ierror /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
+     CALL search_label ( label, ierror, ignore_case=.TRUE. )
+     IF ( ierr2 /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
      IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
           CALL stop_program ( 'read_setup_section', &
           'number of molecule types not yet specified')
@@ -209,6 +208,55 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
         CASE ( 'THERMOST')
            ilen = 0
            CALL get_next(default_thermostat,ilen)
+        CASE ( 'CELL')
+           sim = .TRUE.
+           DO
+              CALL read_line
+              ilen = 12
+              CALL get_next ( string2, ilen )
+              CALL uppercase ( string2 )
+              SELECT CASE ( string2 )
+              CASE DEFAULT
+                 CALL p_error()
+                 CALL stop_parser ( 'read_setup_section','unknown option')
+              CASE ( 'REFERENCE')
+                 sim = .FALSE.
+              CASE ( 'SIMULATION')
+                 sim = .TRUE.
+              CASE ( 'PARAMETER')
+                 DO i = 1, 3
+                   DO j = 1, 3
+                     IF ( sim ) THEN
+                       CALL get_next(setup % simulation_cell % hmat(i,j))
+                     ELSE
+                       CALL get_next(setup % reference_cell % hmat(i,j))
+                     END IF
+                   END DO
+                 END DO
+              CASE ( 'POISSON_SOLV')
+                 ilen=0
+                 IF ( sim ) THEN
+                   CALL get_next(setup % simulation_cell % poisson_solver,ilen)
+                 ELSE
+                   CALL get_next(setup % reference_cell % poisson_solver,ilen)
+                 END IF
+                 CALL uppercase ( setup % reference_cell % poisson_solver )
+              CASE ( 'PERIODIC')
+                 IF ( sim ) THEN
+                   CALL get_next(setup % simulation_cell % perd(1))
+                   CALL get_next(setup % simulation_cell % perd(2))
+                   CALL get_next(setup % simulation_cell % perd(3))
+                 ELSE
+                   CALL get_next(setup % reference_cell % perd(1))
+                   CALL get_next(setup % reference_cell % perd(2))
+                   CALL get_next(setup % reference_cell % perd(3))
+                 END IF
+              CASE ( 'END')
+                 ilen = 4
+                 CALL get_next(string2,ilen)
+                 EXIT
+              END SELECT
+           END DO
         CASE ( 'ATOM')
            icount = icount + 1
            IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
@@ -269,6 +317,15 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   END IF
   CALL parser_end
 
+!..cell setup
+  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+    setup % reference_cell = setup % simulation_cell
+  ELSE IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+    setup % simulation_cell = setup % reference_cell
+  END IF
+  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+    CALL stop_program ( "read_setup_section", "No cell information available" )
+  END IF
 !..write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv%print_level>=0) THEN
@@ -285,6 +342,22 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
                   ADJUSTR ( mol_setup(i) % nhcopt)
           END DO
         END IF
+        WRITE ( iw, '()' )
+        WRITE ( iw, '( A )' ) ' CELL| Reference Cell '
+        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in X direction ', &
+             yn(setup % reference_cell % perd(1))
+        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in Y direction ', &
+             yn(setup % reference_cell % perd(2))
+        WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in Z direction ', &
+             yn(setup % reference_cell % perd(3))
+        WRITE ( iw, '( A,T61,A20 )' ) ' CELL| Poisson Solver ', &
+            ADJUSTR(setup % reference_cell % poisson_solver)
+        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| Parameters  ', &
+            setup % reference_cell % hmat(1,1:3)
+        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| ', &
+            setup % reference_cell % hmat(2,1:3)
+        WRITE ( iw, '( A,T51,3F10.4 )' ) ' CELL| ', &
+            setup % reference_cell % hmat(3,1:3)
      END IF
   END IF
 
@@ -343,7 +416,7 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 ! Locals
-  INTEGER :: ierr1,ierr2, ilen, iw, source, group, icount, nmol_type, ios
+  INTEGER :: ierror, ilen, iw, source, group, icount, nmol_type, ios
   INTEGER :: i, j, imol, na, nat, j1, j2, nf, nt, ie, ia, i1, i2, i3, i4
   INTEGER :: isos, nbasis, ndrho, allgrp, npol, nrho0, anum, n
   CHARACTER ( LEN = 20 ) :: libstring, string, string2, at1, at2, at3, at4
@@ -369,17 +442,11 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
 
 !..parse the input section
   label = '&MOLEC'
-  ierr1 = 0
-  ierr2 = 0
-  CALL parser_init ( globenv % input_file_name, label, ierr1, globenv )
-  IF ( ierr1 /= 0 ) THEN
-     CALL parser_end
-     CALL parser_init ( setup % set_file_name, label, ierr2, globenv )
-  ENDIF
-  IF ( ierr1 /= 0 .AND. ierr2 /= 0 ) THEN
+  CALL parser_init ( setup % set_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
+  IF ( ierror /= 0 ) THEN
      IF ( globenv % ionode .AND. globenv % print_level >= 2 ) THEN
         WRITE ( iw, '( A )' ) ' No input section &MOLECULE found on file '
-        WRITE ( iw, '( T2, A )' ) globenv % input_file_name
         WRITE ( iw, '( T2, A )' ) setup % set_file_name
      END IF
   ELSE

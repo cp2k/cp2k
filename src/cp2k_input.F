@@ -27,7 +27,7 @@ MODULE cp2k_input
   USE global_types, ONLY : global_environment_type
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next
+       p_error, get_next, search_label
   USE string_utilities, ONLY : uppercase, xstring
   USE termination, ONLY : stop_program
 
@@ -94,7 +94,8 @@ SUBROUTINE read_cp2k_section ( globenv )
 ! ..parse the input section
    label = '&CP2K'
    ierror = 0
-   CALL parser_init(globenv%input_file_name,label,ierror,globenv)
+   CALL parser_init(globenv%input_file_name,globenv)
+   CALL search_label(label,ierror,ignore_case=.TRUE.)
    IF (ierror /= 0) THEN
 
       IF (globenv % ionode) &
@@ -173,14 +174,14 @@ SUBROUTINE read_cp2k_section ( globenv )
           ADJUSTR ( globenv % input_file_name ( 1:40 ) )
      WRITE ( iw, '( A, T41, A )' ) ' CP2K| Project name ', &
           ADJUSTR ( globenv % project_name ( 1:40 ) )
-     WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default FFT library ', &
-          ADJUSTR ( globenv % default_fft_library ( 1:40 ) )
      IF ( globenv % print_level >= 1 ) THEN
-       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Basis set file ', &
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default FFT library ', &
+            ADJUSTR ( globenv % default_fft_library ( 1:40 ) )
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default basis set file ', &
             ADJUSTR ( globenv % basis_set_file_name ( 1:40 ) )
-       WRITE ( iw, '( A, T41, A )' ) ' CP2K| External potential file ', &
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default external potential file ', &
             ADJUSTR ( globenv % potential_file_name ( 1:40 ) )
-       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Pseudopotential library path', &
+       WRITE ( iw, '( A, T41, A )' ) ' CP2K| Default library path', &
             ADJUSTR ( globenv % pp_library_path ( 1:40 ) )
      ENDIF
      WRITE ( iw, '( A, T77, I4 )' ) ' CP2K| Global print level ', &

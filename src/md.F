@@ -24,7 +24,7 @@ MODULE md
   USE kinds, ONLY : dbl
   USE message_passing, ONLY : mp_bcast
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE particle_types, ONLY : particle_type
   USE read_pimd, ONLY : pimd_parameters_type
   USE string_utilities, ONLY : uppercase, xstring
@@ -220,7 +220,8 @@ SUBROUTINE read_md_section ( simpar, mdpar, mdio )
 
 !..parse the input section
   label = '&MD'
-  CALL parser_init(mdpar % input_file_name,label,ierror,mdpar)
+  CALL parser_init(mdpar % input_file_name,mdpar)
+  CALL search_label(label,ierror,ignore_case=.TRUE.)
   IF (ierror /= 0 ) THEN
      IF( mdpar % ionode ) &
         WRITE ( iw, '( a )' ) ' No input section &MD found '

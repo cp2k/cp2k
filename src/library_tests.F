@@ -32,7 +32,7 @@ MODULE library_tests
   USE machine, ONLY : m_cputime
   USE message_passing, ONLY : mp_sum, mp_max
   USE parser, ONLY : parser_init, parser_end, read_line, test_next, &
-       p_error, get_next, stop_parser
+       p_error, get_next, stop_parser, search_label
   USE pw_grid_types, ONLY : pw_grid_type, HALFSPACE, FULLSPACE
   USE pw_grids, ONLY : pw_grid_setup, pw_grid_construct, pw_grid_destruct, &
        pw_find_cutoff
@@ -143,7 +143,8 @@ SUBROUTINE test_input ( globenv )
   max_memory = 256.e6_dbl
 !..parse the input section
   label = '&TEST'
-  CALL parser_init ( globenv % input_file_name, label, ierror, globenv )
+  CALL parser_init ( globenv % input_file_name, globenv )
+  CALL search_label ( label, ierror, ignore_case=.TRUE. )
   IF (ierror /= 0 ) THEN
      IF( globenv % ionode ) &
         WRITE ( iw, '( a )' ) ' No input section &TEST found '

@@ -22,8 +22,6 @@
 !!----------------------------------------------------------------------------
 !!          F R E E - F O R M A T  I N P U T  R O U T I N E S
 !!
-!! Function    INSCAN(iunit,label) : looks for an input dection started by
-!!                                   label un file associated with unit iunit
 !! Subroutine  READ_LINE(iunit) : reads an input line, physical end of lines
 !!                                can be masked by a & character, no further
 !!                                characters are alowed to the right
@@ -41,6 +39,7 @@
 !!                                     colon, semicolon, bracket, equal sign
 !! Subroutine  GET_INT(int) : read an integer from the input line
 !! Subroutine  GET_REAL(real) : read an real value from the input line
+!!
 !! Subroutine  P_ERROR : writes out current input line and current position
 !!                       within the line, does not stop code
 !!----------------------------------------------------------------------------
@@ -61,7 +60,7 @@ MODULE parser
 
   PRIVATE
   PUBLIC :: parser_init, parser_end, read_line, test_next, get_next, &
-       p_error, stop_parser
+       p_error, stop_parser, search_label
 
   INTEGER, PARAMETER :: max_line = 20
   CHARACTER ( LEN = 132 ) :: inp_line(max_line)
@@ -85,19 +84,15 @@ CONTAINS
 
 !******************************************************************************
 
-SUBROUTINE parser_init ( file_name, label, ierr, globenv )
+SUBROUTINE parser_init ( file_name, globenv )
   IMPLICIT NONE
-  INTEGER, INTENT ( OUT ) :: ierr
   CHARACTER ( LEN = * ), INTENT ( IN ) :: file_name
-  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: label
   TYPE(global_environment_type), INTENT ( IN ), OPTIONAL :: globenv
   CHARACTER ( LEN = 132 ) :: line
   INTEGER :: ios
   LOGICAL :: exists
 
 !------------------------------------------------------------------------------
-
-  ierr = 0
 
 ! setup parameters for parallel parser
   IF ( Present(globenv) ) THEN
@@ -117,29 +112,13 @@ SUBROUTINE parser_init ( file_name, label, ierr, globenv )
 
 !..check the file name
     INQUIRE ( FILE = file_name, EXIST = exists )
-    IF ( .NOT. exists ) ierr = 1
-
-    CALL uppercase ( label )
-
-    IF ( ierr == 0 ) THEN
-!..look for the label
+    IF ( .NOT. exists ) THEN
+       CALL stop_parser ( 'parser_init', 'file does not exist' )
+    ELSE
        OPEN (unit=iunit,file=file_name)
-       REWIND (iunit)
-       DO
-          READ (iunit,iostat=ios,fmt='(a )' ) line
-          IF ( ios >0) THEN
-             CALL stop_parser ( 'parser_init','read error')
-          ELSE IF ( ios <0) THEN
-             ierr = 2
-             EXIT
-          ELSE
-             CALL uppercase(line)
-             IF (index(line,label) /= 0 ) EXIT
-          END IF
-       END DO
     END IF
   END IF
-  IF ( parallel_io ) call mp_bcast(ierr,parenv%source,parenv%group)
+
 END SUBROUTINE parser_init
 
 !******************************************************************************
@@ -151,6 +130,48 @@ SUBROUTINE parser_end
   IF(ionode) CLOSE ( UNIT = iunit )
 
 END SUBROUTINE parser_end
+
+!******************************************************************************
+
+SUBROUTINE search_label ( label, ierr, ignore_case )
+
+  IMPLICIT NONE
+
+  INTEGER, INTENT ( OUT ) :: ierr
+  CHARACTER ( LEN = * ), INTENT ( INOUT ) :: label
+  LOGICAL, INTENT ( IN ), OPTIONAL :: ignore_case
+
+  CHARACTER ( LEN = 132 ) :: line
+  INTEGER :: ios
+  LOGICAL :: exists
+
+!------------------------------------------------------------------------------
+
+  ierr = 0
+
+  IF(ionode) THEN
+
+    IF ( ignore_case ) CALL uppercase ( label )
+
+    REWIND ( iunit )
+
+    DO
+       READ ( iunit, iostat = ios, fmt = '( a )' ) line
+       IF ( ios > 0 ) THEN
+          CALL stop_parser ( 'search_label','read error')
+       ELSE IF ( ios < 0 ) THEN
+          ierr = 2
+          EXIT
+       ELSE
+          IF ( ignore_case ) CALL uppercase ( line )
+          IF ( index ( line, label ) /= 0 ) EXIT
+       END IF
+    END DO
+  END IF
+
+  IF ( parallel_io ) call mp_bcast ( ierr, parenv%source, parenv%group )
+  
+END SUBROUTINE search_label
 
 !******************************************************************************
 
