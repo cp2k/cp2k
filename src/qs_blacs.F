@@ -810,7 +810,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER                 :: row_indices,col_indices
     TYPE(cp_blacs_env_type), POINTER :: context
 
-    CALL timeset("blacs_replicated_copy","I","",handle)
+    ! CALL timeset("blacs_replicated_copy","I","",handle)
 
     context => matrix_v%matrix_struct%context
     myprow=context%mepos(1)
@@ -851,7 +851,7 @@ CONTAINS
     ENDIF
 #endif
 
-    CALL timestop(0.0_wp,handle)
+    ! CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE blacs_replicated_copy
 

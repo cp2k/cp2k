@@ -690,8 +690,8 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER :: para_env
     TYPE(cp_blacs_env_type), POINTER :: context
     al=1.0_wp; be=0.0_wp; i0=1; j0=1; tr_a=.FALSE.
-
-    CALL timeset(routineN//','//moduleN,"I","",handle)
+    ! can be called too many times, making it a bit useless
+    ! CALL timeset(routineN//','//moduleN,"I","",handle)
 
     failure=.FALSE.
 
@@ -785,7 +785,7 @@ CONTAINS
        END IF
     END IF
 
-    CALL timestop(0.0_wp,handle)
+    ! CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE cp_fm_set_submatrix
 
