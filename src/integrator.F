@@ -321,14 +321,14 @@ SUBROUTINE set_energy_parm ( pconv, tempconv, l, vol, e, pres, temp, angl )
 
 !------------------------------------------------------------------------------
 
-  IF ( PRESENT ( pconv)) p_conv = pconv
-  IF ( PRESENT ( tempconv)) temp_conv = tempconv
-  IF ( PRESENT ( l)) l_label = l
-  IF ( PRESENT ( vol)) vol_label = vol
-  IF ( PRESENT ( e)) e_label = e
-  IF ( PRESENT ( pres)) pres_label = pres
-  IF ( PRESENT ( temp)) temp_label = temp
-  IF ( PRESENT ( angl)) angl_label = angl
+  IF ( PRESENT ( pconv ) ) p_conv = pconv
+  IF ( PRESENT ( tempconv ) ) temp_conv = tempconv
+  IF ( PRESENT ( l ) ) l_label = l
+  IF ( PRESENT ( vol ) ) vol_label = vol
+  IF ( PRESENT ( e ) ) e_label = e
+  IF ( PRESENT ( pres ) ) pres_label = pres
+  IF ( PRESENT ( temp ) ) temp_label = temp
+  IF ( PRESENT ( angl ) ) angl_label = angl
 END SUBROUTINE set_energy_parm
 
 !!*****
@@ -733,7 +733,7 @@ SUBROUTINE energy_fist ( itimes, constant, simpar, struc, thermo,  &
      averages%avetemp = temp
      averages%avepot = thermo%pot
      averages%avekin = thermo%kin
-     averages%avevol = struc%box%deth
+     averages%avevol = struc % box % deth
      averages%aveca = cell(1)
      averages%avecb = cell(2)
      averages%avecc = cell(3)
@@ -1138,7 +1138,7 @@ SUBROUTINE get_baro_energies ( struc, simpar, nhc, npt, baro_kin, baro_pot )
      DO i = 1, 3
         DO j = 1, 3
            baro_kin = baro_kin + 0.5_dbl * npt ( i, j ) % v *  &
-                      npt ( i, j ) % v * npt(i,j) % mass
+                      npt ( i, j ) % v * npt ( i, j ) % mass
         END DO
      END DO
   END IF
@@ -2036,14 +2036,15 @@ SUBROUTINE pressure ( pnode, thermo )
 
   CALL timeset ( 'PRESSURE', 'E', 'Mflops', handle )
 
-  thermo%pv_kin = 0._dbl
+  thermo % pv_kin = 0._dbl
   nnodes = size(pnode)
   DO i = 1, 3
      DO j = 1, 3
         DO iatom = 1, nnodes
-           thermo%pv_kin(i,j) = thermo%pv_kin(i,j) + &
-                pnode(iatom) %p%prop%mass*pnode(iatom) %p%v(i)* &
-                pnode(iatom) %p%v(j)
+           thermo % pv_kin ( i, j ) = thermo % pv_kin ( i, j ) + &
+                pnode ( iatom ) % p % prop % mass * &
+                pnode ( iatom ) % p % v ( i )* &
+                pnode ( iatom ) % p % v ( j )
         END DO
      END DO
   END DO
@@ -2267,11 +2268,10 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
   
 ! setting up for ROLL: saving old variables
   roll_tol = -1.0E+10_dbl
-
   IF (simpar%constraint) THEN
      iroll = 1
-     roll_tol = -1.0E+10_dbl
      CALL set(struc, npt, 'F' )
+     CALL getold ( struc % molecule )
   END IF
 
 
@@ -2375,8 +2375,8 @@ SUBROUTINE npt_f ( itimes, constant, simpar, inter, thermo, struc, &
      struc%pnode(i) %p%v ( : ) = MATVEC_3x3(u,uv)
   END DO
 
+  roll_tol = -1.0E+10_dbl
   IF (simpar%constraint) THEN
-     roll_tol = -1.0E+10_dbl
      first = .TRUE.
      iroll = 1
      CALL set ( struc, npt, 'F' )
@@ -2503,6 +2503,9 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
   INTEGER :: i, j, iatom, ii, nnodes
   REAL ( dbl ) :: kin, fdotr
   REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_kin, unit
+! dbg ISOTROPIC LIMIT
+!  REAL ( dbl ) :: trace
+! dbg
 
 ! initializing locals
   unit = 0.0_dbl
@@ -2550,9 +2553,15 @@ SUBROUTINE get_veps ( npt, simpar, struc, thermo, infree )
        kin = kin +  pv_kin ( ii, ii )
      END DO
      npt ( :, : ) % f = thermo % pv ( :, : ) +  &
-                        thermo % pv_const ( :, : )  -  &
-                        unit ( :, : ) * simpar % p_ext * struc % box % deth &
-                        + infree * unit ( :, : ) * kin
+                        thermo % pv_kin ( :, : ) +  &
+                 thermo % pv_const ( :, : )  -  &
+                 unit ( :, : ) * simpar % p_ext * struc % box % deth &
+                 + infree * unit ( :, : ) * kin
+! dbg
+! ISOTROPIC LIMIT
+!    trace = npt ( 1, 1 ) % f + npt ( 2, 2 ) % f + npt ( 3, 3 ) % f
+!    npt ( :, : ) % f = trace * unit ( :, : )
+! dbg
   ENDIF
 
 ! update barostat velocities
