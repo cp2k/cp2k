@@ -18,22 +18,54 @@ MODULE farming_types
   IMPLICIT NONE
   PRIVATE
 
-  PUBLIC :: farming_env_type, deallocate_farming_env
+  PUBLIC :: farming_env_type, deallocate_farming_env, init_farming_env
 
   TYPE farming_env_type
-     INTEGER :: group_size_wish      = 0
-     LOGICAL :: group_size_wish_set  = .FALSE.
-     INTEGER :: ngroup_wish          = 0
-     LOGICAL :: ngroup_wish_set      = .FALSE.
-     INTEGER, DIMENSION(:), POINTER                              :: group_partition => NULL() ! user preference for partitioning the cpus
-     CHARACTER(LEN=default_string_length)                        :: cwd        ="."           ! directory we started from
-     INTEGER                                                     :: Njobs      = 0            ! how many jobs to run
-     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_cwd    => NULL()      ! list of directories to go to
-     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_input  => NULL()      ! name of the input file to use
-     INTEGER, DIMENSION(:), POINTER                              :: Job_group  => NULL()      ! number of the target group
+     INTEGER :: group_size_wish      
+     LOGICAL :: group_size_wish_set  
+     INTEGER :: ngroup_wish          
+     LOGICAL :: ngroup_wish_set      
+     INTEGER, DIMENSION(:), POINTER                              :: group_partition ! user preference for partitioning the cpus
+     CHARACTER(LEN=default_string_length)                        :: cwd        ! directory we started from
+     INTEGER                                                     :: Njobs      ! how many jobs to run
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_cwd    ! list of directories to go to
+     CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Job_input  ! name of the input file to use
+     INTEGER, DIMENSION(:), POINTER                              :: Job_group  ! number of the target group
   END TYPE farming_env_type
 
 CONTAINS
+
+!!****f* farming_types/init_farming_env *
+!!
+!!   NAME
+!!      init_farming_env
+!!   FUNCTION
+!!      help poor compilers do their job
+!!      i.e. provide a default initialization
+!!   NOTES
+!!
+!!   INPUTS
+!!      an associated farming env pointer
+!!
+!!   MODIFICATION HISTORY
+!!     03.2004 created [Joost VandeVondele ]
+!!
+!!*** **********************************************************************
+SUBROUTINE init_farming_env(farming_env)
+    TYPE(farming_env_type), POINTER :: farming_env
+    IF (associated(farming_env)) THEN
+       farming_env%group_size_wish     = 0 
+       farming_env%group_size_wish_set = .FALSE.
+       farming_env%ngroup_wish         = 0
+       farming_env%ngroup_wish_set     = .FALSE.
+       NULLIFY(farming_env%group_partition)
+       farming_env%cwd                 = "."
+       farming_env%Njobs               = 0
+       NULLIFY(farming_env%Job_cwd)
+       NULLIFY(farming_env%Job_input)
+       NULLIFY(farming_env%Job_group)
+    ENDIF
+END SUBROUTINE
 
 !!****f* farming_types/deallocate_farming_env *
 !!
@@ -52,6 +84,7 @@ CONTAINS
 !!     03.2004 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
+
   SUBROUTINE deallocate_farming_env(farming_env)
      TYPE(farming_env_type), POINTER :: farming_env
      IF (ASSOCIATED(farming_env)) THEN

@@ -22,6 +22,7 @@ MODULE cp2k_runs
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: farming_env_type, &
+                                             init_farming_env, &
                                              deallocate_farming_env
   USE force_env_types,                 ONLY: force_env_type, &
                                              force_env_calculate_energy, &
@@ -242,6 +243,7 @@ CONTAINS
 
     ALLOCATE(farming_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
     CALL farming_parse_input(farming_env,globenv,error)
