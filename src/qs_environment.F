@@ -52,9 +52,7 @@ MODULE qs_environment
   USE machine,                         ONLY: m_flush
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set
-  USE molecule_types,                  ONLY: molecule_structure_type,&
-                                             molecule_type
-  USE molecule_types_new,              ONLY: molecule_type_new => molecule_type
+  USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE pao_read_section,                ONLY: pao_env_init_from_file
@@ -154,8 +152,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type_new), DIMENSION(:), POINTER  :: molecule_set
-    TYPE(molecule_type), DIMENSION(:), POINTER      :: mol_setup
+    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
 
@@ -183,7 +180,6 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
-    NULLIFY (mol_setup)
     NULLIFY (molecule_set)
     NULLIFY (pao_env)
     NULLIFY (particle_set)
@@ -219,7 +215,7 @@ CONTAINS
 
     CALL read_cntl_section(setup,globenv)
 
-    CALL read_setup_section(mol_setup,setup,globenv)
+    CALL read_setup_section(setup,globenv)
 
 !   *** Read the particle coordinates and allocate the atomic kind, ***
 !   *** the molecule kind, and the molecule data structures         ***

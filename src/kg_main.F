@@ -262,7 +262,7 @@ SUBROUTINE kg ( globenv )
 
   set_fn = setup % set_file_name
 
-  CALL read_setup_section ( mol_setup, setup, globenv )
+  CALL read_setup_section ( setup, globenv )
 
   CALL read_topology_section ( topology, globenv )
    

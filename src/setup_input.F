@@ -26,8 +26,6 @@ MODULE setup_input
   USE kinds,                           ONLY: dbl
   USE mathconstants,                   ONLY: pi,&
                                              zero
-  USE molecule_types,                  ONLY: init_molecule_type,&
-                                             molecule_type
   USE parser,                          ONLY: get_next,&
                                              p_error,&
                                              parser_end,&
@@ -75,9 +73,7 @@ CONTAINS
 !!     JGH
 !!
 !!   MODIFICATION HISTORY
-!!     JGH (30.11.2001) : automatic detection of nmol_type
-!!                        first search on input file, then on set file
-!!                        added short form for molecule and atom
+!!     JGH (30.11.2001) : first search on input file, then on set file
 !!                        additional input (charge, multiplicity etc)
 !!     JGH (01.12.2001) : new keyword to set default for thermostat option
 !!
@@ -94,13 +90,6 @@ CONTAINS
 !!I etemp            etemp                                                    I
 !!I broadening       bmethod                                                  I
 !!I thermostats      default_thermostat                                       I
-!!I atom             name numat {nhcopt}                                      I
-!!I molecule         name numol {nhcopt}                                      I
-!!I molecule                                                                  I
-!!I    name          molname                                                  I
-!!I    nummol        nmol                                                     I
-!!I    nhcopt        [molecule,global,massive,...]                            I
-!!I end molecule                                                              I
 !!I cell                                                                      I
 !!I end cell                                                                  I
 !!I                                                                           I
@@ -109,12 +98,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
+SUBROUTINE read_setup_section ( setup, globenv )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( molecule_type ), DIMENSION ( : ), POINTER :: mol_setup
   TYPE ( setup_parameters_type ) :: setup
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
@@ -130,8 +118,6 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   default_thermostat = "GLOBAL"
   iw = globenv % scr
   icount = 0
-  nmol_type = -1
-  nmol_topo = 0
 !
   setup % states = -1
   setup % nspins = 1
@@ -161,69 +147,14 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
      section_found = .FALSE.
   ELSE
      section_found = .TRUE.
-!    count number of molecule entries
-     nmol_type = 0
-     CALL read_line
-     DO WHILE ( test_next() /= 'X' )
-        ilen = 8
-        CALL get_next ( string, ilen )
-        CALL uppercase ( string )
-        SELECT CASE (string)
-        CASE ( 'MOLECULE')
-           nmol_type = nmol_type + 1
-           IF ( test_next() /= 'C' ) THEN
-              DO
-                 CALL read_line
-                 ilen = 6
-                 CALL get_next ( string2, ilen )
-                 CALL uppercase ( string2 )
-                 IF ( string2 == "END" ) THEN
-                    ilen = 8
-                    CALL get_next(string2,ilen)
-                    EXIT
-                 END IF
-              END DO
-           END IF
-        CASE ( 'ATOM')
-           nmol_type = nmol_type + 1
-        END SELECT
-        CALL read_line
-     END DO
-!    molecule types defined on topology file
-     IF ( nmol_topo > 0 ) THEN
-        IF ( nmol_topo < nmol_type ) &
-          CALL stop_program ( 'read_setup_section', &
-                ' inconsistent number of molecules specified ')
-        nmol_type = nmol_topo
-     END IF
-!    allocate space for the molecules
-     IF ( nmol_topo == 0 ) THEN
-        ALLOCATE (mol_setup(nmol_type ),STAT=ios)
-        IF ( ios /= 0 ) CALL stop_memory ( 'read_setup_section', &
-           'mol_setup', nmol_type )
-        DO i=1,SIZE(mol_setup)
-           CALL init_molecule_type(mol_setup(i))
-        ENDDO
-     END IF
   END IF
   CALL parser_end
-
-!!-------------------------------------------------------------------------
-!!Commented out....
-  !mol_setup (:) % molpar % name = "#"
-!!-------------------------------------------------------------------------
-
-! process the information from the topology file
-  !CALL set_molecule_type_topology ( mol_setup, default_thermostat )
 
   IF ( section_found ) THEN
 ! reinitiate the parser at the beginning of the section
      CALL parser_init ( setup % set_file_name, globenv )
      CALL search_label ( label, ierror, ignore_case=.TRUE. )
      IF ( ierror /= 0 ) CALL stop_parser ('read_setup_section','reinit failed')
-     IF ( .NOT. ASSOCIATED ( mol_setup ) ) &
-          CALL stop_program ( 'read_setup_section', &
-          'number of molecule types not yet specified')
      CALL read_line
      DO WHILE ( test_next() /= 'X' )
         ilen = 8
@@ -302,60 +233,6 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
                  EXIT
               END SELECT
            END DO
-        CASE ( 'ATOM')
-           icount = icount + 1
-           IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
-                'too many molecule types specified')
-           ilen = 0
-           CALL get_next ( mol_setup(icount) % molpar % name, ilen )
-           CALL get_next ( mol_setup(icount) % num_mol )
-!          set default for thermostats
-           mol_setup(icount) % nhcopt = default_thermostat
-           IF ( test_next() == 'C' ) THEN
-              ilen = 0
-              CALL get_next(mol_setup(icount) % nhcopt,ilen)
-              CALL uppercase(mol_setup(icount) % nhcopt)
-           ENDIF
-        CASE ( 'MOLECULE')
-           icount = icount + 1
-           IF (icount>nmol_type ) CALL stop_program ( 'read_setup_section', &
-                'too many molecule types specified')
-!          set default for thermostats
-           mol_setup(icount) % nhcopt = default_thermostat
-           IF ( test_next() == 'C' ) THEN
-              CALL get_next ( mol_setup(icount) % molpar % name, ilen )
-              CALL get_next ( mol_setup(icount) % num_mol )
-              IF ( test_next() == 'C' ) THEN
-                 ilen = 0
-                 CALL get_next(mol_setup(icount) % nhcopt,ilen)
-                 CALL uppercase(mol_setup(icount) % nhcopt)
-              ENDIF
-           ELSE
-              DO
-                 CALL read_line
-                 ilen = 6
-                 CALL get_next ( string2, ilen )
-                 CALL uppercase ( string2 )
-                 SELECT CASE ( string2 )
-                 CASE DEFAULT
-                    CALL p_error()
-                    CALL stop_parser ( 'read_setup_section','unknown option')
-                 CASE ( 'NAME')
-                    ilen = 0
-                    CALL get_next(mol_setup(icount) % molpar % name,ilen)
-                 CASE ( 'NUMMOL')
-                    CALL get_next ( mol_setup(icount) % num_mol )
-                 CASE ( 'NHCOPT')
-                    ilen = 0
-                    CALL get_next(mol_setup(icount) % nhcopt,ilen)
-                    CALL uppercase(mol_setup(icount) % nhcopt)
-                 CASE ( 'END')
-                    ilen = 8
-                    CALL get_next(string2,ilen)
-                    EXIT
-                 END SELECT
-              END DO
-           END IF
         END SELECT
         CALL read_line
      END DO
@@ -364,31 +241,18 @@ SUBROUTINE read_setup_section ( mol_setup, setup, globenv )
   END IF
 
 ! cell setup
-  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-    setup % reference_cell = setup % simulation_cell
-  ELSE IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-    setup % simulation_cell = setup % reference_cell
-  END IF
-  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
-    CALL stop_program ( "read_setup_section", "No cell information available" )
-  END IF
+!  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+!    setup % reference_cell = setup % simulation_cell
+!  ELSE IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+!    setup % simulation_cell = setup % reference_cell
+!  END IF
+!  IF ( SUM ( ABS (setup % reference_cell % hmat) ) == 0._dbl ) THEN
+!    CALL stop_program ( "read_setup_section", "No cell information available" )
+!  END IF
 
 ! write some information to output
   IF ( globenv % ionode ) THEN
      IF (globenv%print_level>=0) THEN
-        IF ( nmol_type > 0 ) THEN
-          WRITE ( iw, '()' )
-          WRITE ( iw, '( A,T71,I10 )' ) ' MOLECULE| Number of molecule types ', &
-               nmol_type
-          WRITE ( iw, '( A,T25,A,T50,A,T69,A )' ) ' MOLECULE| Molecule type', &
-               ' Molecule name ', 'Molecules', ' Nose option'
-          DO i = 1, nmol_type
-             WRITE ( iw, '( A,I6,T19,A,T50,I6,T61,A )' ) ' MOLECULE| ', i, &
-                  ADJUSTR ( mol_setup(i) % molpar % name), &
-                  mol_setup(i) % num_mol, &
-                  ADJUSTR ( mol_setup(i) % nhcopt)
-          END DO
-        END IF
         WRITE ( iw, '()' )
         WRITE ( iw, '( A )' ) ' CELL| Reference Cell '
         WRITE ( iw, '( A, T78, A )' ) ' CELL| Periodic in X direction ', &

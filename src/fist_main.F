@@ -283,7 +283,7 @@ SUBROUTINE fist ( globenv )
 
   set_fn = setup % set_file_name
 
-  CALL read_setup_section ( mol_setup, setup, globenv )
+  CALL read_setup_section ( setup, globenv )
 
 ! topology_control
 ! CALL topology_control (atomic_kind_set,particle_set,mol_setup,&

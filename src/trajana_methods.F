@@ -81,10 +81,8 @@ MODULE trajana_methods
                                              mol_struct_list_release,&
                                              mol_struct_list_retain,&
                                              mol_struct_list_type
-  USE molecule_types,                  ONLY: molecule_structure_type,&
-                                             molecule_type
-
-  USE molecule_types_new,              ONLY: molecule_type_new => molecule_type,deallocate_molecule_set
+  USE molecule_types_new,              ONLY: molecule_type,&
+                                             deallocate_molecule_set
   USE molecule_kind_types,             ONLY: molecule_kind_type,&
                                              write_molecule_kind_set, &
                                              deallocate_molecule_kind_set
@@ -141,7 +139,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), POINTER      :: particle_set
     TYPE(molecule_kind_type), DIMENSION(:), POINTER :: molecule_kind_set
-    TYPE(molecule_type_new), DIMENSION(:), POINTER      :: molecule_set    
+    TYPE(molecule_type), DIMENSION(:), POINTER      :: molecule_set    
     TYPE(distribution_1d_type), POINTER :: local_molecules,&
                                            local_particles
     LOGICAL  :: found_frame
