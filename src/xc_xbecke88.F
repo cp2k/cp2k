@@ -45,7 +45,7 @@ MODULE xc_xbecke88
 
   logical, private, parameter :: debug_this_module=.true.
   character(len=*), private, parameter :: moduleN='xc_xbecke88'
-  REAL(kind=dp), PARAMETER :: beta=0.0042
+  REAL(kind=dp), PARAMETER :: beta=0.0042_dp
   
   PUBLIC :: xb88_lda_info, xb88_lsd_info, xb88_lda_eval, xb88_lsd_eval
 !!***
