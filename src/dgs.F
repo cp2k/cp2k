@@ -211,6 +211,20 @@ SUBROUTINE dg_find_cutoff ( box_b, npts_s, cutoff_radius, grid_s,  &
   CALL dg_pol_get_spacing ( nout, cutoff_radius, dr )
   CALL dg_find_radix ( dr, cell_lengths, grid_b % npts )
 
+! In-line code to set grid_b % npts = npts_s if necessary
+  IF ( nout ( 1 ) > grid_b % npts ( 1 ) ) THEN
+    grid_b % npts ( 1 ) = nout ( 1 ) 
+    dr ( 1 ) = cell_lengths ( 1 ) / REAL ( nout ( 1 ), dbl )
+  ENDIF
+  IF ( nout ( 2 ) > grid_b % npts ( 2 ) ) THEN
+    grid_b % npts ( 2 ) = nout ( 2 ) 
+    dr ( 2 ) = cell_lengths ( 2 ) / REAL ( nout ( 2 ), dbl )
+  ENDIF
+  IF ( nout ( 3 ) > grid_b % npts ( 3 ) ) THEN
+    grid_b % npts ( 3 ) = nout ( 3 ) 
+    dr ( 3 ) = cell_lengths ( 3 ) / REAL ( nout ( 3 ), dbl )
+  ENDIF
+
   grid_b % bounds ( 1, : ) = - grid_b % npts / 2
   grid_b % bounds ( 2, : ) = + ( grid_b % npts - 1 ) / 2
   grid_b % grid_span = HALFSPACE
