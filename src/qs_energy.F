@@ -21,27 +21,16 @@
 
 MODULE qs_energy
 
-  USE kinds,                           ONLY: wp => dp
+  USE kinds, ONLY: wp => dp
 
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
-                                             qs_env_update_s_mstruct
+  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create
-  USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
-                                             qs_ks_env_type,&
-                                             qs_ks_release,&
-                                             qs_ks_retain
-  USE qs_matrix_pools,                 ONLY: mpools_rebuild_h_r_sm_pools
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
-!MK                                             rebuild_neighbor_lists
-  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_scf,                          ONLY: scf
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -83,8 +72,6 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(qs_ks_env_type), POINTER :: ks_env
-
     INTEGER :: handle
     LOGICAL :: my_neighbor_lists_from_scratch
 
@@ -94,7 +81,6 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    NULLIFY(ks_env)
     my_neighbor_lists_from_scratch = .FALSE.
     IF (PRESENT(neighbor_lists_from_scratch)) THEN
       my_neighbor_lists_from_scratch=neighbor_lists_from_scratch
@@ -113,7 +99,6 @@ CONTAINS
                                        calculate_forces=.FALSE.)
 
     CALL qs_env_update_s_mstruct(qs_env)
-    CALL mpools_rebuild_h_r_sm_pools(qs_env%mpools,h_redundant=qs_env%h)
 
 !   *** Perform a SCF run ***
 
