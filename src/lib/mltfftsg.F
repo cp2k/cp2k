@@ -118,7 +118,7 @@ SUBROUTINE mltfftsg ( transa, transb, a, ldax, lday, b, ldbx, ldby, &
      B(N+1:LDBX,1:M) = CMPLX(0._dbl,0._dbl,dbl)
   ELSE
      B(1:LDBX,N+1:LDBY) = CMPLX(0._dbl,0._dbl,dbl)
-     B(M+1:LDBX,1:M) = CMPLX(0._dbl,0._dbl,dbl)
+     B(M+1:LDBX,1:N) = CMPLX(0._dbl,0._dbl,dbl)
   ENDIF
     
 !******************************************************************************

@@ -43,6 +43,7 @@ MODULE atomic_kind_types
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_linked_list_int,              ONLY: cp_sll_int_create,&
+                                             cp_sll_int_dealloc,&
                                              cp_sll_int_get_empty,&
                                              cp_sll_int_insert_ordered,&
                                              cp_sll_int_type
@@ -68,7 +69,11 @@ MODULE atomic_kind_types
                                              dp
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
-  USE pao_bas_projection_types
+  USE pao_bas_projection_types,        ONLY: cp_proj_dealloc,&
+                                             cp_proj_create2,&
+                                             cp_proj_get,&
+                                             cp_proj_write,&
+                                             pao_bas_projection_type
   USE periodic_table,                  ONLY: ptable
   USE physcon,                         ONLY: massunit
   USE qs_parser,                       ONLY: finish_parser,&
@@ -222,7 +227,7 @@ CONTAINS
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
         END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%pao_bas_proj)) THEN
-          CALL cp_dealloc(atomic_kind_set(ikind)%pao_bas_proj)
+          CALL cp_proj_dealloc(atomic_kind_set(ikind)%pao_bas_proj)
         END IF
         DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routine_name,module_name,__LINE__,&
@@ -1025,7 +1030,7 @@ CONTAINS
      ELSE
         NULLIFY(atomic_kind%pao_bas_proj)
     END IF
-    CALL cp_dealloc(min_bas_sll,error=error)
+    CALL cp_sll_int_dealloc(min_bas_sll,error=error)
     CALL cp_error_dealloc_ref(error)
 
   END SUBROUTINE read_atomic_kind
@@ -1182,7 +1187,7 @@ CONTAINS
         CALL write_potential(atomic_kind%elp_potential,globenv)
         CALL write_potential(atomic_kind%gth_potential,globenv)
         IF (ASSOCIATED(atomic_kind%pao_bas_proj).AND.globenv%ionode) THEN
-          CALL cp_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)
+          CALL cp_proj_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)
         END IF
       END IF
 
