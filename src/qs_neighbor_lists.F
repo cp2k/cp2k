@@ -33,6 +33,7 @@ MODULE qs_neighbor_lists
   USE external_potential_types, ONLY: get_potential,&
                                       gth_potential_type
   USE global_types,             ONLY: LOW,global_environment_type
+  USE memory_utilities,         ONLY: write_memory
   USE message_passing,          ONLY: mp_sync
   USE particle_types,           ONLY: particle_type
   USE qs_environment_types,     ONLY: get_qs_env,&
@@ -81,6 +82,10 @@ MODULE qs_neighbor_lists
   TYPE pbc_coord_type
     REAL(wp), DIMENSION(:,:), POINTER :: r,s
   END TYPE pbc_coord_type
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_neighbor_lists"
 
 ! *** Global variables of the module ***
 
@@ -162,8 +167,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -176,7 +182,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_neighbor_lists","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -442,6 +450,8 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_wp,handle)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_neighbor_lists
 
@@ -1508,8 +1518,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "update_neighbor_lists"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE update_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1522,7 +1533,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("update_neighbor_lists","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -1721,6 +1734,8 @@ CONTAINS
     END IF
 
     CALL timestop(0.0_wp,handle)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE update_neighbor_lists
 

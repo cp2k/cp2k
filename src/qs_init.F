@@ -13,7 +13,8 @@
 !!     MK (18.05.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     - Merged with the Quickstep MODULE method_specification (17.01.2002, MK)
+!!     - Merged with the Quickstep MODULE method_specification (17.01.2002,MK)
+!!     - USE statements cleaned, write_memory added (25.09.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -29,6 +30,10 @@ MODULE qs_init
                                              read_atomic_kind_set,&
                                              write_atomic_kind_set,&
                                              write_gto_basis_sets
+  USE cp_para_env,                     ONLY: cp_para_env_from_globenv,&
+                                             cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type,&
                                              read_dft_control,&
                                              read_qs_control,&
@@ -37,6 +42,7 @@ MODULE qs_init
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE machine,                         ONLY: m_flush
+  USE memory_utilities,                ONLY: write_memory
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              init_particle_set,&
@@ -51,6 +57,11 @@ MODULE qs_init
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
+  USE scf_control_types,               ONLY: scf_c_create,&
+                                             scf_c_read_parameters,&
+                                             scf_c_release,&
+                                             scf_c_write_parameters,&
+                                             scf_control_type
   USE simulation_cell,                 ONLY: cell_type,&
                                              read_cell,&
                                              write_cell
@@ -59,16 +70,16 @@ MODULE qs_init
                                              timestop
   USE pao_types,                       ONLY: pao_env_type
   USE pao_read_section,                ONLY: pao_env_init_from_file
-  use cp_para_types,                   ONLY: cp_para_env_type
-  use cp_para_env,                     only: cp_para_env_retain, &
-       cp_para_env_release, cp_para_env_from_globenv
-  use scf_control_types,               only: scf_control_type,&
-       scf_c_create, scf_c_read_parameters, scf_c_write_parameters,&
-       scf_c_release
+
+
 
   IMPLICIT NONE
 
   PRIVATE
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_init"
 
 ! *** Public subroutines ***
 
@@ -94,8 +105,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "read_qs_env"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE read_qs_env (MODULE qs_init)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -116,12 +128,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("read_qs_env","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-!   *** Initialise the QUICKSTEP environment ***
+!   *** Initialise the Quickstep environment ***
 
     NULLIFY (atomic_kind_set)
     NULLIFY (cell)
@@ -132,8 +146,8 @@ CONTAINS
     NULLIFY (force)
     nullify (scf_control)
 
-    para_env=>cp_para_env_from_globenv(globenv) 
-    CALL init_qs_env(qs_env, para_env=para_env)
+    para_env => cp_para_env_from_globenv(globenv)
+    CALL init_qs_env(qs_env,para_env=para_env)
 
 !   *** Print the Quickstep program banner (copyright and version number) ***
 
@@ -147,11 +161,11 @@ CONTAINS
 
     CALL write_dft_control(dft_control,globenv)
 
-!   *** Read the input section with the QUICKSTEP control parameters ***
+!   *** Read the input section with the Quickstep control parameters ***
 
     CALL read_qs_control(dft_control%qs_control,globenv)
 
-!   *** Print the QUICKSTEP control parameters ***
+!   *** Print the Quickstep control parameters ***
 
     CALL write_qs_control(dft_control%qs_control,globenv)
 
@@ -224,8 +238,8 @@ CONTAINS
                                 globenv)
 
 !   *** SCF parameters ***
-    
-    call scf_c_create(scf_control)
+
+    CALL scf_c_create(scf_control)
     CALL scf_c_read_parameters(scf_control,globenv)
     CALL scf_c_write_parameters(scf_control,globenv)
 
@@ -240,13 +254,13 @@ CONTAINS
       ALLOCATE (natom_of_kind(nkind),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"natom_of_kind",nkind*int_size)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               natom_of_kind=natom_of_kind) 
+                               natom_of_kind=natom_of_kind)
       CALL allocate_qs_force(force,natom_of_kind)
       DEALLOCATE (natom_of_kind,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"natom_of_kind")
     END IF
 
-!   *** Get the current QUICKSTEP environment ***
+!   *** Get the current Quickstep environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -262,16 +276,18 @@ CONTAINS
 
 !   *** Read the pao section ***
 
-    if (dft_control%qs_control%pao) then
-       allocate(pao_env) ! check status ?
-       call set_qs_env(qs_env=qs_env,pao_env=pao_env)
-       call pao_env_init_from_file(qs_env,globenv)
-       !call cp_write_description(pao_env, unit_nr=globenv%scr)
-    end if
+    IF (dft_control%qs_control%pao) then
+      ALLOCATE (pao_env) ! check status ?
+      CALL set_qs_env(qs_env=qs_env,pao_env=pao_env)
+      CALL pao_env_init_from_file(qs_env,globenv)
+!     CALL cp_write_description(pao_env, unit_nr=globenv%scr)
+    END IF
 
     IF (ionode) CALL m_flush(output_unit)
 
     CALL timestop(0.0_wp,handle)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE read_qs_env
 
@@ -300,7 +316,7 @@ CONTAINS
 
       output_unit = globenv%scr
 
-      WRITE (UNIT=output_unit,FMT="(T2,A79)")&
+      WRITE (UNIT=output_unit,FMT="(/,(T2,A79))")&
         "*******************************************************************************",&
         "*******************************************************************************",&
         "**                                                                           **",&

@@ -30,6 +30,7 @@ MODULE qs_main
   USE kinds, ONLY: wp => dp
 
   USE global_types,         ONLY: global_environment_type
+  USE memory_utilities,     ONLY: write_memory
   USE qs_blacs,             ONLY: finish_blacs,&
                                   start_blacs
   USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
@@ -51,6 +52,12 @@ MODULE qs_main
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_main"
+
+! *** Global variables ***
+
   TYPE(qs_environment_type) :: qs_env
 
   PUBLIC :: quickstep
@@ -65,7 +72,7 @@ CONTAINS
 
 !   Purpose: Main driver routine for a Quickstep calculation.
 
-!   History: - Creation (23.01.2002, MK)
+!   History: - Creation (23.01.2002,MK)
 
 !   ***************************************************************************
 
@@ -73,8 +80,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "quickstep"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE quickstep (MODULE qs_main)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -84,13 +92,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("Quickstep","I","",handle)
+    CALL timeset(routine_name,"I","",handle)
+
+    CALL write_memory("entering "//routine_name,globenv)
 
 #if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
     CALL stop_program(routine,&
                       "Quickstep needs BLACS and SCALAPACK for parallel runs",&
                       globenv)
-
 #endif
 !   *** Initialise BLACS ***
 
@@ -120,8 +129,8 @@ CONTAINS
     CALL scf(ks_env,qs_env,globenv)
 
 !   *** TD calculation ***
-    
-    ! Joost : coredumps : CALL tddfpt_calculation(qs_env, ks_env, globenv)
+
+! Joost: coredumps: CALL tddfpt_calculation(qs_env,ks_env,globenv)
 
 !   *** Calculate forces ***
 
@@ -130,6 +139,8 @@ CONTAINS
 !   *** Release BLACS ***
 
     CALL finish_blacs(globenv)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
     CALL timestop(0.0_wp,handle)
 

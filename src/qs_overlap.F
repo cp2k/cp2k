@@ -35,6 +35,7 @@ MODULE qs_overlap
   USE basis_set_types,        ONLY: get_gto_basis_set,&
                                     gto_basis_set_type
   USE global_types,           ONLY: global_environment_type
+  USE memory_utilities,       ONLY: write_memory
   USE message_passing,        ONLY: mp_sum
   USE mathlib,                ONLY: symmetrize_matrix
   USE orbital_pointers,       ONLY: indco,init_orbital_pointers,ncoset,nso
@@ -76,6 +77,10 @@ MODULE qs_overlap
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_overlap"
+
 ! *** Public subroutines ***
 
   PUBLIC :: build_overlap_matrix,&
@@ -102,8 +107,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "distribute_overlap_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE distribute_overlap_matrix (MODULE qs_overlap)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -128,7 +134,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("distribute_overlap_matrix","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -353,6 +361,8 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
+    CALL write_memory("leaving "//routine_name,globenv)
+
   END SUBROUTINE distribute_overlap_matrix
 
 ! *****************************************************************************
@@ -371,8 +381,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_overlap_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_overlap_matrix (MODULE qs_overlap)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -409,7 +420,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_overlap_matrix","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -673,6 +686,8 @@ CONTAINS
         END DO
       END IF
     END IF
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_overlap_matrix
 

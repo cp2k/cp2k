@@ -28,6 +28,7 @@ MODULE qs_forces
                                   get_atomic_kind_set
   USE dft_types,            ONLY: dft_control_type
   USE global_types,         ONLY: global_environment_type
+  USE memory_utilities,     ONLY: write_memory
   USE message_passing,      ONLY: mp_sum
   USE qs_blacs,             ONLY: cp_fm_create2,&
                                   cp_full_matrix_type,&
@@ -62,6 +63,10 @@ MODULE qs_forces
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_forces"
+
 ! *** Public subroutines ***
 
   PUBLIC :: update_forces,&
@@ -87,8 +92,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "update_forces"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE update_forces (MODULE qs_forces)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -105,7 +111,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("update_forces","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
@@ -169,6 +177,8 @@ CONTAINS
     CALL write_forces(force,atomic_kind_set,globenv)
 
     CALL timestop(0.0_wp,handle)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE update_forces
 

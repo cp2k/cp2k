@@ -42,23 +42,24 @@
 
 PROGRAM cp2k
 
-  USE atom_module,ONLY : atomic_code
-  USE cp2k_input, ONLY : read_cp2k_section
-  USE environment, ONLY : initialisation, trailer
-  USE global_types, ONLY : global_environment_type
-  USE kg_main, ONLY : kg
-  USE kinds, ONLY : dbl, print_kind_info
-  USE library_tests,ONLY : lib_test
-  USE parallel, ONLY : start_parallel, end_parallel
-  USE physcon, ONLY : write_physcon
-  USE fist_main, ONLY : fist
-  USE qs_main, ONLY : quickstep
-  USE termination,  ONLY: stop_program
-  USE timings, ONLY: trace_debug
+  USE kinds, ONLY: dbl, print_kind_info
+
+  USE atom_module,   ONLY: atomic_code
+  USE cp2k_input,    ONLY: read_cp2k_section
+  USE environment,   ONLY: initialisation,trailer
+  USE fist_main,     ONLY: fist
+  USE global_types,  ONLY: global_environment_type
+  USE kg_main,       ONLY: kg
+  USE library_tests, ONLY: lib_test
+  USE parallel,      ONLY: start_parallel,end_parallel
+  USE physcon,       ONLY: write_physcon
+  USE qs_main,       ONLY: quickstep
+  USE termination,   ONLY: stop_program
+  USE timings,       ONLY: trace_debug
 
   IMPLICIT NONE
 
-  TYPE ( global_environment_type ), target :: globenv
+  TYPE(global_environment_type), TARGET :: globenv
 
 !------------------------------------------------------------------------------
   print*
@@ -109,7 +110,7 @@ PROGRAM cp2k
   CALL end_parallel ( )
 
   CALL trailer ( globenv )
-
+  print*
 !------------------------------------------------------------------------------
 
 END PROGRAM cp2k

@@ -27,13 +27,21 @@ MODULE memory_utilities
                     wp => dp,&
                     wp_size => dp_size
 
-  USE termination, ONLY: stop_memory
+  USE global_types,    ONLY: global_environment_type
+  USE machine,         ONLY: print_memory
+  USE message_passing, ONLY: mp_sync
+  USE termination,     ONLY: stop_memory
 
   IMPLICIT NONE
 
   PRIVATE
 
-  PUBLIC :: reallocate
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "memory_utilities"
+
+  PUBLIC :: reallocate,&
+            write_memory
 
 ! *****************************************************************************
 
@@ -61,8 +69,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i1"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_i1 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -117,8 +126,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i2"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_i2 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -179,8 +189,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_i3"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_i3 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -250,8 +261,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r1"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_r1 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -306,8 +318,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r2"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_r2 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -368,8 +381,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "reallocate_r3"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE reallocate_r3 (MODULE memory_utilities)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -423,6 +437,38 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_r3
+
+! *****************************************************************************
+
+  SUBROUTINE write_memory(checkpoint,globenv)
+
+!   Purpose: Write the current memory size of all processe in KBytes.
+
+!   History: - Creation (24.09.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    CHARACTER(LEN=*), INTENT(IN)              :: checkpoint
+
+!   *** Local variables ***
+
+    INTEGER :: group,ipe,mype,npe
+
+!   ---------------------------------------------------------------------------
+
+    IF (.NOT.globenv%print%memory) RETURN
+
+    group = globenv%group
+    npe = globenv%num_pe
+    mype = globenv%mepos
+
+    DO ipe=0,npe-1
+      IF (ipe == mype) CALL print_memory(checkpoint)
+      CALL mp_sync(group)
+    END DO
+
+  END SUBROUTINE write_memory
 
 ! *****************************************************************************
 

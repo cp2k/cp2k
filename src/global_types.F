@@ -174,7 +174,7 @@ CONTAINS
     print_key%kind_radii = key_value(level,(/f,t,t/))
     print_key%kinetic_energy_matrix = key_value(level,(/f,f,t/))
     print_key%kohn_sham_matrix = key_value(level,(/f,f,t/))
-    print_key%memory = key_value(level,(/f,t,t/))
+    print_key%memory = key_value(level,(/f,f,f/))
     print_key%mo_eigenvalues = key_value(level,(/f,t,t/))
     print_key%mo_eigenvectors = key_value(level,(/f,f,t/))
     print_key%mo_occupation_numbers = key_value(level,(/f,t,t/))

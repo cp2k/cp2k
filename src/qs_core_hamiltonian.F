@@ -95,6 +95,7 @@ MODULE qs_core_hamiltonian
   USE external_potential_types, ONLY: get_potential,&
                                       gth_potential_type
   USE global_types,             ONLY: global_environment_type
+  USE memory_utilities,         ONLY: write_memory
   USE message_passing,          ONLY: mp_sum
   USE orbital_pointers,         ONLY: indco,init_orbital_pointers,nco,ncoset
   USE orbital_symbols,          ONLY: cgf_symbol
@@ -147,6 +148,10 @@ MODULE qs_core_hamiltonian
   TYPE block_p_type
     REAL(wp), DIMENSION(:,:), POINTER :: block
   END TYPE block_p_type
+
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_core_hamiltonian"
 
 ! *** Global variables (in this module) ***
 
@@ -203,8 +208,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "build_core_hamiltonian_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_core_hamiltonian_matrix (MODULE qs_core_hamiltonian)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -249,7 +256,9 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_core_hamiltonian","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1099,21 +1108,22 @@ CONTAINS
     CALL timestop(0.0_wp,handle)
 
 !   *** Print the overlap integral matrix, if requested ***
+
     IF (globenv%print%overlap_matrix_magnitude) THEN
-        IF (globenv%num_pe > 1) THEN
-           WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
-           file_name = "S_MAGNITUDE"//"."//ADJUSTL(extension)
-        ELSE
-           file_name = "S_MAGNITUDE"
-        END IF
-        CALL open_file(file_name=file_name,&
-                       file_action="WRITE",&
-                       file_form="FORMATTED",&
-                       file_status="REPLACE",&
-                       unit_number=file_unit)
-        CALL write_blocks_maxabsval(s(1)%matrix,file_unit)
-        CALL close_file(unit_number=file_unit)
-    ENDIF
+      IF (globenv%num_pe > 1) THEN
+        WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
+        file_name = "S_MAGNITUDE"//"."//ADJUSTL(extension)
+      ELSE
+        file_name = "S_MAGNITUDE"
+      END IF
+      CALL open_file(file_name=file_name,&
+                     file_action="WRITE",&
+                     file_form="FORMATTED",&
+                     file_status="REPLACE",&
+                     unit_number=file_unit)
+      CALL write_blocks_maxabsval(s(1)%matrix,file_unit)
+      CALL close_file(unit_number=file_unit)
+    END IF
 
     IF (globenv%print%overlap_matrix) THEN
       CALL write_sparse_matrix(s(1)%matrix,4,6,qs_env,globenv)
@@ -1138,7 +1148,7 @@ CONTAINS
       CALL write_sparse_matrix(h(1)%matrix,4,6,qs_env,globenv)
     END IF
 
-    ! some of the matrices here should be deallocated (memory leakage on print, I guess) !
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE build_core_hamiltonian_matrix
 
@@ -1158,8 +1168,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "add_vppnl"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE add_vppnl (MODULE qs_core_hamiltonian)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 

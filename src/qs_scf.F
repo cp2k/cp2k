@@ -77,6 +77,7 @@ MODULE qs_scf
                                       init_l_info,&
                                       l_info_type
   USE mathconstants,            ONLY: fourpi,twopi
+  USE memory_utilities,         ONLY: write_memory
   USE message_passing,          ONLY: mp_max,mp_sum,mp_sync,&
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type
@@ -204,6 +205,12 @@ MODULE qs_scf
 
   PRIVATE
 
+! *** Global parameters ***
+
+  CHARACTER(LEN=*), PARAMETER :: module_name = "qs_scf"
+
+! *** Global variables ***
+
   TYPE(qs_ot_type)                  :: qs_ot_env
   TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: ot_orbs_to_rotate
 
@@ -218,8 +225,6 @@ MODULE qs_scf
 
   INTEGER :: nelectron
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.TRUE.
-
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN="qs_scf"
 
 ! *** Public variables ***
 
@@ -244,8 +249,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "scf"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE scf (MODULE qs_scf)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -303,7 +309,9 @@ CONTAINS
 !   *** Quick return, if no SCF iteration is requested ***
     IF (scf_control%max_scf < 1) RETURN
 
-    CALL timeset("scf","I","",handle)
+    CALL write_memory("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
 
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -756,8 +764,9 @@ CONTAINS
 
 !    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
 
-
     CALL timestop(0.0_wp,handle)
+
+    CALL write_memory("leaving "//routine_name,globenv)
 
   END SUBROUTINE scf
 
@@ -777,8 +786,9 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "init_scf_run"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE init_scf_run (MODULE qs_scf)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1173,8 +1183,10 @@ CONTAINS
 
 !   *** Local parameters ***
 
+    CHARACTER(LEN=*), PARAMETER :: routine_name =&
+      "calculate_first_density_matrix"
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE calculate_first_density_matrix (MODULE qs_scf)"
+      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
@@ -1374,8 +1386,7 @@ CONTAINS
 
     ELSE
 
-      CALL stop_program("SUBROUTINE calculate_first_density_matrix "//&
-                        "(MODULE qs_scf)",&
+      CALL stop_program(routine,&
                         "An invalid keyword for the initial density "//&
                         "guess was specified")
 
@@ -1415,10 +1426,11 @@ SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
   TYPE(qs_environment_type), INTENT(inout), TARGET :: qs_env
   TYPE(global_environment_type), INTENT(in), TARGET :: global_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
+
+  CHARACTER(len=*), PARAMETER :: routine_name = "pao_opt_create"
+  CHARACTER(len=*), PARAMETER :: routine = module_name//":"//routine_name
+
   LOGICAL :: failure,pao
-  CHARACTER(len=*), PARAMETER :: routineN='pao_opt_create',&
-        routineP=moduleN//':'//routineN
   TYPE(dft_control_type), POINTER :: dft_control
   TYPE(pao_env_type), POINTER :: pao_env
   REAL(kind=wp), DIMENSION(:), POINTER :: angles
@@ -1431,7 +1443,7 @@ SUBROUTINE pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
   CALL get_qs_env(qs_env,dft_control=dft_control, pao_env=pao_env, p=p)
   pao=dft_control%qs_control%pao
   IF (pao) THEN
-     CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routineP,error,failure)
+     CPPrecondition(ASSOCIATED(pao_env),cp_failure_level,routine,error,failure)
      IF (.NOT.failure) THEN
         ALLOCATE(pao_optimizer, pao_obj_f)
         CALL pao_g_ang_get(pao_env%angles_att,qs_env=qs_env,&
@@ -1491,9 +1503,10 @@ SUBROUTINE pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,global_env,&
   TYPE(global_environment_type), INTENT(in), TARGET :: global_env
   TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
   
+  CHARACTER(len=*), PARAMETER :: routine_name = "pao_opt_dealloc"
+  CHARACTER(len=*), PARAMETER :: routine = module_name//":"//routine_name
+
   LOGICAL :: failure
-  CHARACTER(len=*), PARAMETER :: routineN='pao_opt_dealloc',&
-        routineP=moduleN//':'//routineN
   INTEGER :: stat
   failure=.FALSE.
   
@@ -1501,7 +1514,7 @@ SUBROUTINE pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,global_env,&
      CALL cp_opt_gerd_f_dealloc_ref(pao_optimizer)
      CALL pao_gerd_f_dealloc_ref(pao_obj_f)
      DEALLOCATE(pao_optimizer, pao_obj_f, stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   END IF
 END SUBROUTINE pao_opt_dealloc
 !***************************************************************************
