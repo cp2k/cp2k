@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2004  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/molecule_types_new [1.0] *
 !!
@@ -14,7 +14,7 @@
 !!     MK (29.08.2003)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     JGH (22.05.2004) add last_atom information
 !!
 !!   SOURCE
 !******************************************************************************
@@ -62,7 +62,8 @@ MODULE molecule_types_new
     TYPE(molecule_kind_type), POINTER  :: molecule_kind ! pointer to molecule kind information
     TYPE(local_molecule_type), POINTER   :: lmi         ! local molecule information
     TYPE(local_constraint_type), POINTER :: lci         ! local molecule constraint info
-    INTEGER                              :: first_atom  ! global index of the first atom in the molecule
+    INTEGER                              :: first_atom  ! global index of first atom in molecule
+    INTEGER                              :: last_atom   ! global index of last atom in molecule
   END TYPE molecule_type
 
 ! *** Public data types ***
@@ -114,6 +115,7 @@ CONTAINS
       NULLIFY (molecule_set(imolecule)%molecule_kind)
       NULLIFY (molecule_set(imolecule)%lmi)
       molecule_set(imolecule)%first_atom = 0
+      molecule_set(imolecule)%last_atom = 0
     END DO
 
   END SUBROUTINE allocate_molecule_set
@@ -162,7 +164,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,ldist,first_atom)
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,ldist,&
+                          first_atom,last_atom)
 
 !   Purpose: Get components from a molecule data set.
 
@@ -180,6 +183,7 @@ CONTAINS
     TYPE(local_dist_constraint_type), OPTIONAL, &
       POINTER                                :: ldist ( : )
     INTEGER, OPTIONAL                        :: first_atom
+    INTEGER, OPTIONAL                        :: last_atom
 
     CHARACTER(LEN=*), PARAMETER              :: routine_name = "get_molecule"
 
@@ -188,6 +192,7 @@ CONTAINS
     IF (ASSOCIATED(molecule)) THEN
 
       IF (PRESENT(first_atom)) first_atom = molecule%first_atom
+      IF (PRESENT(last_atom)) last_atom = molecule%last_atom
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
       IF ( PRESENT ( ldist ) ) THEN
@@ -274,7 +279,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molecule_set(molecule_set,first_atom)
+  SUBROUTINE set_molecule_set(molecule_set,first_atom,last_atom)
 
 !   Purpose: Set a molecule data set.
 
@@ -286,6 +291,8 @@ CONTAINS
       POINTER                                :: molecule_set
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: first_atom
+    INTEGER, DIMENSION(:), INTENT(IN), &
+      OPTIONAL                               :: last_atom
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "set_molecule_set"
 
@@ -306,6 +313,21 @@ CONTAINS
         DO imolecule=1,SIZE(molecule_set)
           molecule_set(imolecule)%first_atom = first_atom(imolecule)
         END DO
+
+      END IF
+
+      IF (PRESENT(last_atom)) THEN
+
+        IF (SIZE(last_atom) /= SIZE(molecule_set)) THEN
+          CALL stop_program(routine_name,module_name,__LINE__,&
+                            "The sizes of last_atom and molecule_set "//&
+                            "are different")
+        END IF
+
+        DO imolecule=1,SIZE(molecule_set)
+          molecule_set(imolecule)%last_atom = last_atom(imolecule)
+        END DO
+
       END IF
 
     ELSE
