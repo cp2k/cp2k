@@ -2336,7 +2336,7 @@ END SUBROUTINE cp_sm_scale_and_add
                    source_block(1,1),1,target_block(1,1),1)
            ELSE
               CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
-                   0,0,target_block(1,1),1)
+                   0.0_dp,0,target_block(1,1),1)
            END IF
         END IF
         

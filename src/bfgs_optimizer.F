@@ -569,7 +569,10 @@ CONTAINS
         GOTO 400
      END IF
 
-     IF(.NOT. set) CALL DCOPY(ndf,1.0,0,work,1)
+     IF(.NOT. set) THEN
+        ! CALL DCOPY(ndf,1.0,0,work,1) ! bug
+        work(1:ndf)=1.0_dp
+     ENDIF
       
      DO indf = 1, ndf
        eigval(indf) = eigval(indf) - ln
