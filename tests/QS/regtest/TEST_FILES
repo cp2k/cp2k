@@ -31,3 +31,7 @@ Ar-11.inp          1
 # different pseudo style
 K2.inp             1
 H2.inp             1
+# test thermostats
+H2O-2.inp          1
+H2O-3.inp          1
+H2O-4.inp          1
