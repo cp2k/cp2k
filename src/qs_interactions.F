@@ -497,9 +497,10 @@ CONTAINS
 
   END SUBROUTINE write_ppnl_radii
 
+
 ! *****************************************************************************
 
-  FUNCTION exp_radius(l,alpha,threshold,prefactor) RESULT(radius)
+    FUNCTION exp_radius(l,alpha,threshold,prefactor,epsin) RESULT(radius)
 
 !   Purpose: The radius of a primitive Gaussian function for a given threshold
 !            is calculated.
@@ -507,6 +508,9 @@ CONTAINS
 !            g(r) = prefactor*r**l*exp(-alpha*r**2) - threshold = 0
 
 !   History: - Creation (26.02.1999, Matthias Krack)
+!            - Modified to bisection to avoid division by zero (01.2002, Joost)
+!            - that means the old version contains bugs .......(04.2002, Joost)
+!              so keep this one ...
 
 !   ***************************************************************************
 
@@ -517,33 +521,39 @@ CONTAINS
 !   radius   : Calculated radius of the Gaussian function.
 !   threshold: Threshold for radius.
 
-!   delta  : Newton-Raphson step length.
-!   dg     : Derivative of g.
-!   epsiter: Convergence criterion of the Newton-Raphson iteration.
+!   epsiter: Convergence criterion.
 !   g      : The function g(r).
-!   maxiter: Maximum number of Newton-Raphson iterations.
+!   maxiter: Maximum number of iterations.
 
 !   ***************************************************************************
 
+    USE termination, ONLY: stop_program
+
     REAL(wp), INTENT(IN) :: alpha,prefactor,threshold
     INTEGER, INTENT(IN)  :: l
+    REAL(wp), INTENT(IN), OPTIONAL :: epsin
 
     REAL(wp) :: radius
 
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "FUNCTION exp_radius (MODULE qs_interactions)"
+      "FUNCTION exp_radius (MODULE mathlib)"
 
-    REAL(wp), PARAMETER :: epsiter = 1.0E-12_wp
-    INTEGER, PARAMETER  :: maxiter = 50
+    REAL(wp) :: epsiter 
+    INTEGER, PARAMETER  :: maxiter = 500
 
 !   *** Local variables ***
 
-    REAL(wp) :: a,ar2,d,delta,dg,g,r,t
+    REAL(wp) :: a,ar2,d,delta,dg,g,r,t,rlow,rhigh,rmid
     INTEGER  :: iter
 
 !   ---------------------------------------------------------------------------
+    if (present(epsin)) then
+       epsiter=epsin
+    else
+       epsiter=1.0E-12_wp
+    endif
 
 !   *** Initialize function value ***
 
@@ -575,9 +585,7 @@ CONTAINS
     END IF
 
 !   *** Calculate the Maximum g(r) ***
-
     r = SQRT(0.5_wp*REAL(l,wp)/a)
-
     ar2 = a*r*r
 
     IF (l == 0) THEN
@@ -586,50 +594,40 @@ CONTAINS
       g = d*r**l*EXP(-ar2)
     END IF
 
-    IF (t < g) THEN
-
-!     *** Ensure that the iteration starts on ***
-!     *** the right-hand side of the maximum  ***
-
-      r = 2.0_wp*r
-
-    ELSE
-
-!     *** The radius is zero, if threshold >= Maximum g(r) ***
-
+    IF (t > g) THEN
       RETURN
-
     END IF
 
-    t = t/d
+    rlow  = r
+    rhigh = 2.0*rlow+1.0
+    iter=0
+    DO 
+       iter=iter+1
+       if (iter.gt.maxiter) CALL stop_program(routine,"Maximum number of iterations exceeded")
+       g = d*rhigh**l*EXP(-a*rhigh**2)
+       if (g < t) exit
+       rlow = rhigh
+       rhigh =  2.0*rlow+1.0 
+    ENDDO
 
-    IF (l == 0) THEN
-
-!     *** Analytical expression for l = 0 ***
-
-      radius = SQRT(-LOG(t)/a)
-
-    ELSE
-
-!     *** Find outer radius for l > 0 by Newton-Raphson procedure ***
-
-      DO iter=1,maxiter
-        ar2 = a*r*r
-        g = r**l*EXP(-ar2) - t
-        dg = (REAL(l,wp) - 2.0_wp*ar2)*r**(l-1)*EXP(-ar2)
-        delta = g/dg
-        r = r - SIGN(MIN(ABS(delta),0.5_wp*r),delta)
-        IF (ABS(delta) < epsiter) THEN
-          radius = r
-          RETURN
-        END IF
-      END DO
-
-      CALL stop_program(routine,"Maximum number of iterations exceeded")
-
-    END IF
-
+    DO iter=1,maxiter
+       rmid= (rlow+rhigh)*0.5_wp
+       ar2 = a*rmid*rmid
+       g   = d*rmid**l*EXP(-ar2)
+       if  (g.lt.t) then
+           rhigh=rmid
+       else
+           rlow=rmid
+       endif
+       IF (ABS(rhigh-rlow).lt.epsiter) THEN
+          radius=rhigh
+          return
+       ENDIF
+    ENDDO 
+    CALL stop_program(routine,"Maximum number of iterations exceeded")
+     
   END FUNCTION exp_radius
+
 
 ! *****************************************************************************
 
@@ -696,7 +694,7 @@ CONTAINS
     ENDDO
     ENDDO
     DO i=0,la_max+lb_max
-          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i)) )
+          radius=max(radius,exp_radius(i,zetp,eps,polycoef(i),1.0E-2_wp) )
     ENDDO
 
   END FUNCTION exp_radius_very_extended
