@@ -338,7 +338,7 @@ CONTAINS
   SUBROUTINE scf(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -405,7 +405,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -903,7 +903,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1806,7 +1806,7 @@ CONTAINS
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), &
-      INTENT(in), TARGET                     :: globenv
+      POINTER                                :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

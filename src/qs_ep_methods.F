@@ -175,8 +175,7 @@ CONTAINS
 !!*** **********************************************************************
 SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(inout), TARGET                  :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

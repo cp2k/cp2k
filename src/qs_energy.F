@@ -58,8 +58,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), &
-      INTENT(in)                             :: globenv
+    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in), OPTIONAL            :: neighbor_lists_from_scratch
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "qs_energies", &
