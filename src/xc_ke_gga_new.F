@@ -66,7 +66,7 @@ MODULE xc_ke_gga_new
   INTEGER, PARAMETER, PUBLIC :: ke_ol1=1, ke_ol2=2,ke_llp=3,ke_pw86=4,&
        ke_pw91=5, ke_lc=6,ke_t92=7
 
-  REAL(KIND=dp) :: cf, b, flda, flsd, sfac, t13
+  REAL(KIND=dp) :: cf, b, b_lda, b_lsd, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="xc_ke_gga_new"
@@ -87,7 +87,9 @@ CONTAINS
     cf = 0.3_dp*(3.0_dp*pi*pi)**f23
     flda = cf
     flsd = flda * 2.0_dp**f23
-    b = 2.0_dp**f43 * (3.0_dp*pi*pi)**(-f13)
+!   the_factor 2^(1/3) for LDA is here
+    b_lda = 2.0_dp**f43 * (3.0_dp*pi*pi)**(f13)
+    b_lsd = 2.0_dp * (3.0_dp*pi*pi)**(f13)
     sfac = 1.0_dp / (2.0_dp*(3.0_dp*pi*pi)**f13)
     t13 = 2.0_dp**f13
 
@@ -219,16 +221,13 @@ CONTAINS
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
        CALL ke_gga_init(rho_cutoff)
 
-!dbg
- write(*,*) 'K order ', order
-write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
-!dbg
        ALLOCATE ( s(npoints), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE ( fs(npoints,m+1), STAT=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL calc_wave_vector ( "u", rho, grho, s )
+!      s = norm_drho/(rho^(4/3)*2*(pi*pi*3)^(1/3))
+       CALL calc_wave_vector ( "p", rho, grho, s )
 
        SELECT CASE (functional)
        CASE (ke_ol1)
@@ -250,7 +249,10 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
        END SELECT
 
        fact = flda
-       tact = t13
+!      Definition of s has changed
+       b = b_lda
+!       tact = t13
+       tact =  1.0_dp
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
@@ -385,6 +387,7 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        fact = flsd
+       b = b_lsd
        tact = 1.0_dp
 
        DO ispin=1,2
@@ -711,11 +714,16 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
     INTEGER, INTENT(IN)                      :: m
 
     INTEGER                                  :: ip
-    REAL(KIND=dp) :: as, asp, asp2, asp3, bs, p, q, sas, sbs, sbs3, sbs5, t1, &
-      t11, t12, t13, t16, t19, t22, t24, t25, t3, t33, t34, t36, t39, t4, &
-      t43, t44, t60, t62, w1, x, ys
+    REAL(KIND=dp) :: as, asp, asp2, asp3, bs, p, q, sas, sbs, sbs3, sbs5, x, ys
+!, &
+!      t1, &
+!      t11, t12, t13, t16, t19, t22, t24, t25, t3, t33, t34, t36, t39, t4, &
+!      t43, t44, t60, t62, w1, x, ys
+    REAL(KIND=dp) t1, t2, t3, t4, t5, t7, t8, t9, t10, t11, t12, t133, t16, t17, &
+                  t19, t20, t22, t23, t26, t28, t29, t30, t33, t36, t39, t40, t42,&
+                   t43, t45, t46, t47, t49, t50, t54, t55, t71
 
-    p = 0.0045_dp*b*b
+    p = 0.0044188_dp*b*b
     q = 0.0253_dp*b
 !$omp parallel do private(ip,x,bs,sbs,as,sas,ys,asp,sbs3,asp2,asp3,sbs5,w1) &
 !$omp             private(t1,t3,t4,t11,t12,t13,t16,t19,t22,t24,t25,t33,t34,t36,t39) &
@@ -731,35 +739,155 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
       CASE (0)
          fs(ip,1) = 1.0_dp + p*x*x*ys
       CASE (1)
-         asp = as + bs / sbs
+!         asp = as + bs / sbs
+!         asp = as + bs /(bs + sbs) *b*(1.0_dp+bs/sbs)
          fs(ip,1) = 1.0_dp + p*x*x*ys
-         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
+         t2 = q*x
+         t4 = b**2
+         t5 = x**2
+         t8 = SQRT(1.0_dp+t4*t5)
+         t9 = b*x+t8
+         t10 = LOG(t9)
+         t12 = 1.0_dp+t2*t10
+         t17 = t12**2
+         fs(ip,2) = 2.0_dp*p*x/t12-p*t5/t17*(q*t10+t2*(b+1.0_dp/t8*t4*x)/t9)
+
+!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
       CASE (2)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
+!         asp = as + bs / sbs
+!         sbs3 = sbs*sbs*sbs
+!         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
          fs(ip,1) = 1.0_dp + p*x*x*ys
-         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
-         fs(ip,3) = 2.0_dp*p*ys - p*q*x*(4.0_dp*asp+x*asp2)*ys*ys + &
-                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
+         ! first der
+         t2 = q*x
+         t4 = b**2
+         t5 = x**2
+         t8 = SQRT(1.0_dp+t4*t5)
+         t9 = b*x+t8
+         t10 = LOG(t9)
+         t12 = 1.0_dp+t2*t10
+         t17 = t12**2
+         fs(ip,2) = 2.0_dp*p*x/t12-p*t5/t17*(q*t10+t2*(b+1.0_dp/t8*t4*x)/t9)
+
+         ! second der
+         t1 = q*x
+         t3 = b**2
+         t4 = x**2
+         t7 = SQRT(1.0_dp+t3*t4)
+         t8 = b*x+t7
+         t9 = LOG(t8)
+         t11 = 1.0_dp+t1*t9
+         t16 = t11**2
+         t17 = 1.0_dp/t16
+         t20 = 1.0_dp/t7*t3
+         t22 = b+t20*x
+         t23 = 1/t8
+         t26 = q*t9+t1*t22*t23
+         t30 = p*t4
+         t33 = t26**2
+         t40 = t7**2
+         t43 = t3**2
+         t49 = t22**2
+         t50 = t8**2
+         fs(ip,3) = 2.0_dp*p/t11-4.0_dp*p*x*t17*t26+2.0_dp*t30/t16/&
+               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
+              (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
+
+!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
+!         fs(ip,3) = 2.0_dp*p*ys - p*q*x*(4.0_dp*asp+x*asp2)*ys*ys + &
+!                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
       CASE (3)
-         asp = as + bs / sbs
-         sbs3 = sbs*sbs*sbs
-         sbs5 = sbs3*sbs*sbs
-         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
-         asp3 = -4.0_dp*b*b*bs / sbs3 + 3.0_dp*b*b*bs*bs*bs/ sbs5
+!         asp = as + bs / sbs
+!         sbs3 = sbs*sbs*sbs
+!         sbs5 = sbs3*sbs*sbs
+!         asp2 = 2.0_dp*b / sbs - b*bs*bs/ sbs3
+!         asp3 = -4.0_dp*b*b*bs / sbs3 + 3.0_dp*b*b*bs*bs*bs/ sbs5
          fs(ip,1) = 1.0_dp + p*x*x*ys
-         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
-         w1 = (4.0_dp*asp+x*asp2)
-         fs(ip,3) = 2.0_dp*p*ys - p*q*x*w1*ys*ys + &
-                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
-         t1 = q*x; t3 = b**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
-         t16 = 1/sbs; t19 = q*as+t1*b*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
-         t33 = t3*b; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*b*t16-q*t4*t33*t36
-         t43 = p*t4; t44 = t12**2; t60 = t3**2; t62 = t34**2
+!         fs(ip,2) = 2.0_dp*p*x*ys - p*q*x*x*asp*ys*ys
+!         w1 = (4.0_dp*asp+x*asp2)
+!         fs(ip,3) = 2.0_dp*p*ys - p*q*x*w1*ys*ys + &
+!                    2.0_dp*p*q*q*x*x*asp*asp*ys*ys*ys
+         fs(ip,1) = 1.0_dp + p*x*x*ys
+         ! first der
+         t2 = q*x
+         t4 = b**2
+         t5 = x**2
+         t8 = SQRT(1.0_dp+t4*t5)
+         t9 = b*x+t8
+         t10 = LOG(t9)
+         t12 = 1.0_dp+t2*t10
+         t17 = t12**2
+         fs(ip,2) = 2.0_dp*p*x/t12-p*t5/t17*(q*t10+t2*(b+1.0_dp/t8*t4*x)/t9)
+
+         ! second der
+         t1 = q*x
+         t3 = b**2
+         t4 = x**2
+         t7 = SQRT(1.0_dp+t3*t4)
+         t8 = b*x+t7
+         t9 = LOG(t8)
+         t11 = 1.0_dp+t1*t9
+         t16 = t11**2
+         t17 = 1.0_dp/t16
+         t20 = 1.0_dp/t7*t3
+         t22 = b+t20*x
+         t23 = 1/t8
+         t26 = q*t9+t1*t22*t23
+         t30 = p*t4
+         t33 = t26**2
+         t40 = t7**2
+         t43 = t3**2
+         t49 = t22**2
+         t50 = t8**2
+         fs(ip,3) = 2.0_dp*p/t11-4.0_dp*p*x*t17*t26+2.0_dp*t30/t16/&
+               t11*t33-t30*t17*(2.0_dp*q*t22*t23+t1*& 
+              (-1.0_dp/t40/t7*t43*t4+t20)*t23-t1*t49/t50)
+
+
+!         t1 = q*x; t3 = b**2; t4 = x**2; t11 = 1+t1*as; t12 = t11**2; t13 = 1/t12
+!         t16 = 1/sbs; t19 = q*as+t1*b*t16; t22 = p*x; t24 = 1/t12/t11; t25 = t19**2
+!         t33 = t3*b; t34 = sbs**2; t36 = 1/t34/sbs; t39 = 2*q*b*t16-q*t4*t33*t36
+!         t43 = p*t4; t44 = t12**2; t60 = t3**2; t62 = t34**2
+
+         t1 = q*x 
+         t3 = b**2
+         t4 = x**2
+         t7 = sqrt(1+t3*t4)
+         t8 = b*x+t7
+         t9 = log(t8)
+         t11 = 1.0_dp+t1*t9
+         t12 = t11**2
+         t133 = 1.0_dp/t12
+         t17 = 1.0_dp/t7*t3
+         t19 = b+t17*x
+         t20 = 1.0_dp/t8
+         t23 = q*t9+t1*t19*t20
+         t26 = p*x
+         t28 = 1.0_dp/t12/t11
+         t29 = t23**2
+         t36 = t7**2
+         t39 = t3**2
+         t40 = 1.0_dp/t36/t7*t39
+         t42 = -t40*t4+t17
+         t45 = t19**2
+         t46 = t8**2
+         t47 = 1.0_dp/t46
+         t50 = 2.0_dp*q*t19*t20+t1*t42*t20-t1*t45*t47
+         t54 = p*t4
+         t55 = t12**2
+         t71 = t36**2
          fs(ip,4) = &
-            -6*p*t13*t19+12*t22*t24*t25-6*t22*t13*t39-6*t43/t44*t25*t19+ &
-            6*t43*t24*t19*t39-t43*t13*(-4*q*t33*t36*x+3*q*t4*x*t60*b/t62/sbs)
+             -6.0_dp*p*t133*t23+12.0_dp*t26*t28*t29-&
+              6.0_dp*t26*t133*t50-6.0_dp*t54/t55*t29*t23+&
+              6.0_dp*t54*t28*t23*t50-t54*t133*&
+              (3.0_dp*q*t42*t20-3.0_dp*q*t45*t47+3.0_dp*t1*&
+              (1.0_dp/t71/t7*t39*t3*t4*x-t40*x)*t20-&
+              3.0_dp*t1*t42*t47*t19+2.0_dp*t1*t45*t19/t46/t8)
+
+
+!         fs(ip,4) = &
+!            -6*p*t133*t19+12*t22*t24*t25-6*t22*t133*t39-6*t43/t44*t25*t19+ &
+!            6*t43*t24*t19*t39-t43*t133*(-4*q*t33*t36*x+3*q*t4*x*t60*b/t62/sbs)
 
       CASE DEFAULT
          CALL stop_program("efactor_llp","Illegal order")
@@ -931,7 +1059,7 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
 
     pa(1:6,1)=(/0.19645_dp,    0.2743_dp,  &
                 0.1508_dp,   100.0_dp,      &
-                0.8145161_dp,  0.004_dp/)
+                7.7956_dp,  0.004_dp/)
     pa(1:6,2)=(/0.093907_dp,   0.26608_dp, &
                 0.0809615_dp,100.0_dp,      &
                76.320_dp,      0.57767e-4_dp/)
@@ -945,10 +1073,10 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
     IF ( m >= 0 ) THEN
       DO ip=1,SIZE(s)
         x = s(ip)
-        t3 = b**2
+        t3 = bb**2
         t4 = x**2
         t7 = SQRT(o+t3*t4)
-        t9 = LOG(b*x+t7)
+        t9 = LOG(bb*x+t7)
         t10 = a1*x*t9
         t12 = EXP(-a4*t4)
         t17 = t4**2
@@ -959,14 +1087,14 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
 !$omp parallel do private(ip,x)
       DO ip=1,SIZE(s)
         x = s(ip)
-        t2 = b**2 
+        t2 = bb**2 
         t3 = x**2
         t6 = SQRT(o+t2*t3)
-        t7 = b*x+t6
+        t7 = bb*x+t6
         t8 = LOG(t7)
         t9 = a1*t8
         t10 = a1*x
-        t17 = t10*(b+1/t6*t2*x)/t7
+        t17 = t10*(bb+1/t6*t2*x)/t7
         t19 = t3*x
         t21 = EXP(-a4*t3)
         t26 = a2-a3*t21
@@ -983,12 +1111,12 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
 !$omp parallel do private(ip,x,s1)
       DO ip=1,SIZE(s)
         x = s(ip)
-        t1 = b**2     
+        t1 = bb**2     
         t2 = x**2
         t5 = sqrt(o+t1*t2)
         t7 = o/t5*t1
-        t9 = b+t7*x
-        t12 = b*x+t5
+        t9 = bb+t7*x
+        t12 = bb*x+t5
         t13 = o/t12
         t15 = 2._dp*a1*t9*t13
         t16 = a1*x
@@ -1026,7 +1154,7 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
 !$omp parallel do private(ip,x,s1,s2,s3)
       DO ip=1,SIZE(s)
         x = s(ip)
-          t1 = b**2 
+          t1 = bb**2 
           t2 = x**2
           t5 = dsqrt(0.1D1+t1*t2)
           t6 = t5**2
@@ -1034,10 +1162,10 @@ write(*,*) 'K cutoff ', rho_cutoff, drho_cutoff
           t10 = 1/t6/t5*t9
           t13 = 1/t5*t1
           t14 = -t10*t2+t13
-          t17 = b*x+t5
+          t17 = bb*x+t5
           t18 = 1/t17
           t20 = 3*a1*t14*t18
-          t22 = b+t13*x
+          t22 = bb+t13*x
           t23 = t22**2
           t25 = t17**2
           t26 = 1/t25
