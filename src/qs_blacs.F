@@ -30,7 +30,7 @@ MODULE qs_blacs
                                              cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain,&
-                                             finish_blacs,&
+                                             end_blacs,&
                                              start_blacs
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
@@ -150,7 +150,7 @@ MODULE qs_blacs
        blacs_daxpy,  blacs_get_element
   
   PUBLIC :: start_blacs,&
-       finish_blacs, get_blacs_info
+       end_blacs, get_blacs_info
        
   PUBLIC ::  cp_fm_add,&
             blacs_add_to_element, &

@@ -31,13 +31,16 @@ MODULE message_passing
   USE machine, ONLY : m_cputime
   USE parallel_include
 
+  IMPLICIT NONE
+
   PRIVATE
+
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
        mp_bcast, mp_stop, mp_sum, mp_max, mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_transpose, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
-       mp_sum_scatter
+       mp_sum_scatter, mp_abort
   
   INTERFACE mp_bcast
      MODULE PROCEDURE mp_bcast_i1, mp_bcast_r1, mp_bcast_c1, mp_bcast_z, &
@@ -227,6 +230,27 @@ SUBROUTINE mp_stop ( ierr, prg_code )
 
 
 END SUBROUTINE mp_stop
+
+!******************************************************************************
+
+!..mp_abort
+SUBROUTINE mp_abort ( )
+
+! Locals
+  INTEGER :: numtask, taskid, groupid
+
+  CALL mp_world_setup ( numtask, taskid, groupid )
+
+  WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
+  WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
+
+#if defined(__parallel)
+  CALL mpi_abort ( MPI_COMM_WORLD, 0 )
+#else
+  STOP
+#endif
+
+END SUBROUTINE mp_abort
 
 !******************************************************************************
 

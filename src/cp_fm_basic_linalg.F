@@ -28,9 +28,7 @@ MODULE cp_fm_basic_linalg
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                              cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
-                                             cp_blacs_env_retain,&
-                                             finish_blacs,&
-                                             start_blacs
+                                             cp_blacs_env_retain
   USE cp_error_handling,               ONLY: cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&

@@ -28,7 +28,6 @@ OBJECTS_GENERIC =\
  constraint.o\
  convert_units.o\
  cp2k.o\
- cp2k_input.o\
  cp_array_i_utils.o\
  cp_array_logical_utils.o\
  cp_array_r_utils.o\
@@ -194,15 +193,17 @@ OBJECTS_GENERIC =\
  qs_core_energies.o\
  qs_core_hamiltonian.o\
  qs_diis.o\
+ qs_energy.o\
  qs_energy_types.o\
+ qs_environment.o\
  qs_environment_methods.o\
  qs_environment_types.o\
+ qs_force.o\
  qs_force_types.o\
- qs_forces.o\
- qs_init.o\
  qs_integrate_potential.o\
  qs_interactions.o\
  qs_main.o\
+ qs_md.o\
  qs_mo_types.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\

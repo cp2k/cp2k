@@ -328,28 +328,27 @@ SUBROUTINE trace_debug ( set, iw )
   INTEGER, OPTIONAL :: iw
 
 ! Locals
-  INTEGER :: ia, ie
   INTEGER :: numtask, taskid, groupid
 
   CALL uppercase(set)
-  CALL xstring ( set, ia, ie )
-  IF ( set(ia:ie) == "START") THEN
-    trace = .true.
-  ELSEIF ( set(ia:ie) == "STOP" ) THEN
-    trace = .false.
-  ELSE
-    call stop_program ("trace_debug","unknown action")
-  ENDIF
+
+  SELECT CASE (set)
+  CASE ("START")
+    trace = .TRUE.
+  CASE ("STOP")
+    trace = .FALSE.
+  CASE DEFAULT
+    CALL stop_program("trace_debug","unknown action")
+  END SELECT
+
   IF ( PRESENT ( iw ) ) iod = iw
+
+  astring = " >>>>>>>>>>>>> "
+  bstring = " >>>>>>>>>>>>> "
 #if defined (__parallel)
   CALL mp_world_setup ( numtask, taskid, groupid )
-  astring = " >>>>>>>>>>>>> "
-  bstring = " >>>>>>>>>>>>> "
-  WRITE(astring(1:9),'(i4,a,i4)') taskid,":",numtask
-  WRITE(bstring(1:9),'(i4,a,i4)') taskid,":",numtask
-#else
-  astring = " >>>>>>>>>>>>> "
-  bstring = " >>>>>>>>>>>>> "
+  WRITE (astring(1:9),"(I4,A,I4)") taskid,":",numtask
+  WRITE (bstring(1:9),"(I4,A,I4)") taskid,":",numtask
 #endif
 
 END SUBROUTINE trace_debug

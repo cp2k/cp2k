@@ -167,7 +167,6 @@ MODULE qs_scf
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type,&
                                              cp_sm_fm_multiply,&
-                                             finish_blacs,&
                                              power_blacs_matrix,&
                                              replicate_blacs_matrix,&
                                              symmetrise_blacs_matrix,&

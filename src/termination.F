@@ -28,16 +28,16 @@
 
 MODULE termination
 
-  USE global_types,     ONLY: global_environment_type
-  USE message_passing,  ONLY: mp_stop
-  USE output_utilities, ONLY: print_message
-  USE string_utilities, ONLY: compress
+  USE global_types,                    ONLY: global_environment_type
+  USE message_passing,                 ONLY: mp_abort
+  USE output_utilities,                ONLY: print_message
+  USE string_utilities,                ONLY: compress
 
   IMPLICIT NONE
 
   PRIVATE
 
-  INTEGER :: output_unit
+  INTEGER :: error_unit
 
   PUBLIC :: get_error_unit,&
             set_error_unit,&
@@ -77,7 +77,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    lunit = output_unit
+    lunit = error_unit
 
   END SUBROUTINE get_error_unit
 
@@ -106,7 +106,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    output_unit = lunit
+    error_unit = lunit
 
   END SUBROUTINE set_error_unit
 
@@ -245,11 +245,10 @@ CONTAINS
 !   *** Print the error message ***
 
     IF (ionode) THEN
-      CALL print_message("ERROR in "//TRIM(routine),output_unit,2,2,0)
-      CALL print_message(error_message,output_unit,1,1,1)
+      CALL print_message("ERROR in "//TRIM(routine),error_unit,2,2,0)
+      CALL print_message(error_message,error_unit,1,1,1)
+      CALL mp_abort()
     END IF
-
-    CALL mp_stop(0,"stop_program")
 
   END SUBROUTINE stop_program
 

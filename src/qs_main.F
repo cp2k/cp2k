@@ -26,31 +26,21 @@
 !******************************************************************************
 
 MODULE qs_main
+
   USE checkpoint_handler,              ONLY: write_checkpoint_information
-  USE cp_para_env,                     ONLY: cp_para_env_from_globenv
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp => dp
-  USE qs_blacs,                        ONLY: finish_blacs,&
-                                             start_blacs
-  USE qs_build_ks_matrix,              ONLY: qs_ks_dealloc_ref,&
-                                             qs_ks_env_type,&
-                                             qs_ks_init
-  USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_rho,&
-                                             qs_env_update_s_mstruct
+  USE qs_md,                           ONLY: qs_mol_dyn
+  USE qs_build_ks_matrix,              ONLY: qs_ks_env_type
+  USE qs_energy,                       ONLY: qs_energies
+  USE qs_environment,                  ONLY: qs_finalize,&
+                                             qs_init
   USE qs_environment_types,            ONLY: qs_environment_type
-  USE qs_forces,                       ONLY: update_forces
-  USE qs_init,                         ONLY: read_qs_env
-  USE qs_neighbor_lists,               ONLY: build_neighbor_lists,&
-                                             rebuild_neighbor_lists
-  USE qs_overlap,                      ONLY: distribute_overlap_matrix
-  USE qs_p_types,                      ONLY: qs_p_env_type
-  USE qs_scf,                          ONLY: scf
-  USE qs_tddfpt_module,                ONLY: tddfpt_calculation
+  USE qs_force,                        ONLY: qs_forces
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+
   IMPLICIT NONE
 
   PRIVATE
@@ -61,7 +51,7 @@ MODULE qs_main
 
 ! *** Global variables ***
 
-  TYPE(qs_environment_type) :: qs_env
+  TYPE(qs_environment_type), TARGET :: qs_env
 
   PUBLIC :: quickstep
 
@@ -89,9 +79,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(qs_ks_env_type) :: ks_env
-    TYPE(qs_p_env_type)  :: qs_p_env
-    TYPE(cp_para_env_type), POINTER :: para_env
+    TYPE(qs_ks_env_type) :: ks_env  
     INTEGER              :: handle
 
 !   ---------------------------------------------------------------------------
@@ -100,56 +88,27 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-!   *** Initialise BLACS ***
-
-    CALL start_blacs(globenv)
-
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL read_qs_env(qs_env,globenv)
+    CALL qs_init(qs_env,globenv)
 
-!   *** Build neighbor list sets ***
+    SELECT CASE (globenv%run_type)
+    CASE ("GEOMETRY OPTIMIZATION")
+!      CALL qs_geo_opt(qs_env,globenv,ks_env)
+      CALL qs_forces(qs_env,globenv,ks_env)
+    CASE ("MOLECULAR DYNAMICS")
+      CALL qs_mol_dyn(qs_env,globenv,ks_env)
+    CASE ("WAVEFUNCTION OPTIMIZATION")
+      CALL qs_energies(qs_env,globenv,ks_env)
+    CASE DEFAULT
+      CALL stop_program(routine,"Invalid run type <"//&
+                                TRIM(globenv%run_type)//&
+                                "> was specified for "//&
+                                TRIM(globenv%program_name),globenv)
+    END SELECT
 
-    CALL build_neighbor_lists(qs_env,globenv)
-
-!   *** Allocate the overlap matrix and distribute the atomic blocks ***
-
-    CALL distribute_overlap_matrix(qs_env,globenv)
-    para_env => cp_para_env_from_globenv(globenv)
-    CALL qs_env_update_s_mstruct(qs_env,para_env=para_env)
-
-!   *** Calculate the overlap and the core Hamiltonian integral matrix ***
-
-    CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.FALSE.)
-    
-!   *** Updates rho structure
-    
-    CALL qs_env_rebuild_rho(qs_env=qs_env)
-
-!   *** init the ks_env
-
-    CALL qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv)
-
-!   *** Perform a SCF run ***
-
-    CALL scf(ks_env,qs_env,globenv)
-
-!   *** TD calculation ***
-
-    CALL tddfpt_calculation(qs_env,ks_env,globenv)
-
-!   *** Calculate forces ***
-
-    CALL update_forces(ks_env,qs_env,globenv)
-
-    CALL qs_ks_dealloc_ref(ks_env)
-
-!   *** Release BLACS ***
-
-    CALL finish_blacs(globenv)
+    CALL qs_finalize(qs_env,globenv)
 
     CALL timestop(0.0_wp,handle)
 

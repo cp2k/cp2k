@@ -101,15 +101,20 @@ MODULE global_types
   END TYPE print_key_type
 
   TYPE global_environment_type
-     TYPE(print_key_type) :: print
-     CHARACTER(LEN=200)   :: basis_set_file_name,&
-                             default_fft_library,&
-                             input_file_name,&
-                             potential_file_name,&
-                             restart_file_name,&
-                             pp_library_path,&
-                             program_name,&
-                             project_name
+     TYPE(cp_para_env_type), POINTER  :: para_env
+     TYPE(cp_blacs_env_type), POINTER :: blacs_env
+     TYPE(print_key_type)             :: print
+     CHARACTER(LEN=200)               :: basis_set_file_name,&
+                                         default_fft_library,&
+                                         error_file_name,&
+                                         input_file_name,&
+                                         output_file_name,&
+                                         potential_file_name,&
+                                         pp_library_path,&
+                                         program_name,&
+                                         project_name,&
+                                         restart_file_name
+     CHARACTER(LEN=60) :: run_type
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor
@@ -118,8 +123,6 @@ MODULE global_types
      INTEGER :: scr          !! output unit
      INTEGER :: source       !! processor id for global output node
      LOGICAL :: ionode       !! this processor performs global output
-     type(cp_para_env_type), pointer :: para_env
-     type(cp_blacs_env_type), pointer :: blacs_env
   END TYPE global_environment_type
 
 ! *** Public parameters ***

@@ -1038,34 +1038,63 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE stop_parser(routine,error_message)
+  SUBROUTINE stop_parser(routine,message)
 
 !   Purpose: Print an input error message and stop the program run.
+
+!            There are default error messages for common instances:
+
+!            - END_OF_FILE or EOF
+!            - INVALID_KEYWORD
+!            - INVALID_OPTIONAL_KEYWORD
+!            - SECTION_NOT_FOUND
 
 !   History: - Creation (15.02.2001, Matthias Krack)
 
 !   ***************************************************************************
 
-    CHARACTER(LEN=*), INTENT(IN) :: error_message,routine
+    CHARACTER(LEN=*), INTENT(IN) :: message,routine
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=max_message_length) :: message
+    CHARACTER(LEN=max_message_length) :: error_message
 
 !   ---------------------------------------------------------------------------
 
     IF (ionode) THEN
+
       INQUIRE (UNIT=input_unit,NAME=input_file_name)
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
-        "Current input file: "//TRIM(input_file_name)
-      WRITE (UNIT=message,FMT="(A,I6,A,I6,A)")&
-        "ERROR in line ",input_line_number,", column ",icol1,":"
-      CALL compress(message)
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,T2,A)")&
-        TRIM(message),TRIM(input_line),&
-        REPEAT(blank_character,MAX(0,icol1-1))//&
-        REPEAT("^",MAX(1,icol2-icol1+1))
+
+      SELECT CASE (message)
+      CASE ("END_OF_FILE","EOF")
+        error_message = "Unexpected end of file found while reading the "//&
+                        "input section <"//TRIM(start_section)//&
+                        "> from the input file <"//TRIM(input_file_name)//">"
+      CASE ("SECTION_NOT_FOUND")
+        error_message = "No input section <"//TRIM(start_section)//&
+                        "> found while reading from the input file <"//&
+                        TRIM(input_file_name)//">"
+      CASE DEFAULT
+        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+          "Current input file: "//TRIM(input_file_name)
+        WRITE (UNIT=error_message,FMT="(A,I6,A,I6,A)")&
+          "ERROR in line ",input_line_number,", column ",icol1,":"
+        CALL compress(error_message)
+        WRITE (UNIT=output_unit,FMT="(/,T2,A,/,/,T2,A,/,T2,A)")&
+          TRIM(error_message),TRIM(input_line),&
+          REPEAT(blank_character,MAX(0,icol1-1))//&
+          REPEAT("^",MAX(1,icol2-icol1+1))
+        SELECT CASE (message)
+        CASE ("INVALID_KEYWORD")
+          error_message = "Invalid keyword found in the input section <"//&
+                          TRIM(start_section)//">"
+        CASE DEFAULT
+          error_message = message
+        END SELECT
+      END SELECT
+
       CALL stop_program(routine,error_message)
+
     END IF
 
     CALL mp_sync(group)

@@ -26,6 +26,8 @@ MODULE parallel
   USE cp_para_env, ONLY: cp_para_env_create
   use cp_log_handling, only: cp_init_default_logger
 
+  IMPLICIT NONE
+
   PRIVATE
   PUBLIC :: start_parallel, end_parallel, cp2k_is_parallel
 
@@ -43,14 +45,12 @@ CONTAINS
 
 SUBROUTINE start_parallel ( globenv )
 
-  IMPLICIT NONE
-
 ! Arguments
-  TYPE ( global_environment_type ), target :: globenv
+  TYPE ( global_environment_type ), TARGET :: globenv
 
 !------------------------------------------------------------------------------
 
-  CALL mp_start()
+  CALL mp_start ( )
   CALL mp_world_setup ( globenv % num_pe, globenv % mepos, globenv % group )
   globenv % source = 0
   globenv % ionode = (globenv % mepos==globenv % source)
@@ -65,13 +65,13 @@ END SUBROUTINE start_parallel
 
 !******************************************************************************
 
-SUBROUTINE end_parallel()
+SUBROUTINE end_parallel ( globenv )
 
-  IMPLICIT NONE
+  TYPE ( global_environment_type ), TARGET :: globenv
 
 !------------------------------------------------------------------------------
 
-  CALL mp_end()
+  CALL mp_end ( globenv%scr )
 
 END SUBROUTINE end_parallel
 

@@ -200,9 +200,15 @@ CONTAINS
     dft_control % integration_grid % pw_default = .TRUE.
     dft_control % integration_grid % pw_cutoff  = -1._wp
     dft_control % integration_grid % pw_mesh    = -1_wp
-    dft_control % forces = .FALSE.
     dft_control % do_tddfpt_calculation = .FALSE.
     dft_control % charge = 0
+
+    SELECT CASE (globenv%run_type)
+    CASE ("WAVEFUNCTION OPTIMIZATION")
+      dft_control%forces = .FALSE.
+    CASE DEFAULT
+      dft_control%forces = .TRUE.
+    END SELECT
 
 !   *** Read the input section ***
 
@@ -256,8 +262,6 @@ CONTAINS
         CALL read_object(dft_control%nspins)
       CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
         dft_control%nspins = 2
-      CASE ("FORCES")
-        dft_control%forces = .TRUE.
       CASE ("CHARGE")
          CALL read_object(dft_control%charge)
       CASE ("EXCITATIONS")

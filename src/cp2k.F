@@ -42,89 +42,39 @@
 
 PROGRAM cp2k
 
-  USE kinds, ONLY: dbl, print_kind_info
-
-  USE atom_module,   ONLY: atomic_code
-  USE cp2k_input,    ONLY: read_cp2k_section
-  USE environment,   ONLY: initialisation,trailer
-  USE fist_main,     ONLY: fist
-  USE global_types,  ONLY: global_environment_type
-  USE kg_main,       ONLY: kg
-  USE machine,       ONLY: m_getlog,m_getpid,m_hostnm
-  USE library_tests, ONLY: lib_test
-  USE parallel,      ONLY: start_parallel,end_parallel
-  USE physcon,       ONLY: write_physcon
-  USE qs_main,       ONLY: quickstep
-  USE termination,   ONLY: stop_program
-  USE timings,       ONLY: trace_debug
+  USE atom_module,                     ONLY: atomic_code
+  USE environment,                     ONLY: cp2k_finalize,&
+                                             cp2k_init
+  USE fist_main,                       ONLY: fist
+  USE global_types,                    ONLY: global_environment_type
+  USE kg_main,                         ONLY: kg
+  USE library_tests,                   ONLY: lib_test
+  USE qs_main,                         ONLY: quickstep
 
   IMPLICIT NONE
 
+  CHARACTER(LEN=*), PARAMETER :: routine = "PROGRAM cp2k"
+
   TYPE(global_environment_type), TARGET :: globenv
-  CHARACTER(LEN=30)                     :: host_name,user_name
-  INTEGER                               :: my_pid
 
-!------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 
-  CALL m_getpid(my_pid)
-  CALL m_getlog(user_name)
-  CALL m_hostnm(host_name)
+  CALL cp2k_init(globenv)
 
-  WRITE (UNIT=*,FMT="(T2,A,T70,I10)")&
-    TRIM(user_name)//"@"//TRIM(host_name)//" has created process number:",&
-    my_pid
-
-  CALL start_parallel ( globenv )
-
-  CALL initialisation ( globenv )
-
-  CALL read_cp2k_section ( globenv )
-
-  IF (globenv%ionode.AND.globenv%print%basic_data_types) THEN
-    CALL print_kind_info(globenv%scr)
-  END IF
-  IF (globenv%ionode.AND.globenv%print%physcon) THEN
-    CALL write_physcon(globenv%scr)
-  END IF
-
-  ! CALL trace_debug("START")
-
-  SELECT CASE ( globenv % program_name )
-
-  CASE DEFAULT
-
-     CALL stop_program ( "cp2k", "No valid program name given "&
-                         //globenv % program_name )
-
-  CASE ( "FIST" )
-
-     CALL fist ( globenv )
-
-  CASE ( "KG" )
-
-     CALL kg ( globenv )
-
-  CASE ( "QUICKSTEP", "QS" )
-
-     CALL quickstep ( globenv )
-
-  CASE ( "ATOM" )
-
-     CALL atomic_code ( globenv )
-
-  CASE ( "TEST" )
-
-     CALL lib_test ( globenv )
-
+  SELECT CASE (globenv%program_name)
+  CASE ("ATOM")
+    CALL atomic_code(globenv)
+  CASE ("FIST")
+    CALL fist(globenv)
+  CASE ("KG")
+    CALL kg(globenv)
+  CASE ("QS")
+    CALL quickstep(globenv)
+  CASE ("TEST")
+    CALL lib_test(globenv)
   END SELECT
 
-  CALL end_parallel ( )
-
-  CALL trailer ( globenv )
-  print*
-!------------------------------------------------------------------------------
+  CALL cp2k_finalize(globenv)
 
 END PROGRAM cp2k
-
-!------------------------------------------------------------------------------
 !!*****

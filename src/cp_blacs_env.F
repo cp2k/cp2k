@@ -52,7 +52,7 @@ module cp_blacs_env
 
   public :: cp_blacs_env_type ! make it accessible only through cp_para_types?
   public :: cp_blacs_env_create, cp_blacs_env_retain, cp_blacs_env_release
-  public :: start_blacs, finish_blacs, cp_blacs_env_write,&
+  public :: start_blacs, end_blacs, cp_blacs_env_write,&
        cp_blacs_env_from_globenv
 !***
 !****************************************************************************
@@ -477,7 +477,7 @@ end function cp_blacs_env_from_globenv
 
 ! *****************************************************************************
 
-  SUBROUTINE finish_blacs(globenv)
+  SUBROUTINE end_blacs(globenv)
 
 !   Purpose: Release the resources of a BLACS context.
 
@@ -490,7 +490,7 @@ end function cp_blacs_env_from_globenv
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE finish_blacs (MODULE qs_blacs)"
+      "SUBROUTINE end_blacs (MODULE qs_blacs)"
 
 !   *** Local variables ***
 
@@ -545,7 +545,7 @@ end function cp_blacs_env_from_globenv
     !globenv%npcol = 0
 
 #endif
-  END SUBROUTINE finish_blacs
+  END SUBROUTINE end_blacs
 
 ! *****************************************************************************
 
