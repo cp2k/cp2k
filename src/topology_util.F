@@ -659,20 +659,20 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
   TYPE(connectivity_info_type),POINTER     :: conn_info
 
   CHARACTER(len=default_string_length)       :: label_atmname
-    CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
-    CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
-    LOGICAL                                  :: element_found
-    INTEGER                                  :: ielem_found
-    INTEGER                                  :: first, i, iatom, ibond, &
-                                                ielem, istat, iw, j, jatom, &
-                                                k, last, natom, nbond, nelem, &
-                                                search
-    INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
-    LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
-    REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
-                                                rr(3)
-    REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
-                                                vdw_radius(:)
+  CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
+  CHARACTER(LEN=2)                         :: upper_sym_1,upper_sym_2
+  LOGICAL                                  :: element_found
+  INTEGER                                  :: ielem_found
+  INTEGER                                  :: first, i, iatom, ibond, &
+       ielem, istat, iw, j, jatom, &
+       k, last, natom, nbond, nelem, &
+       search
+  INTEGER, POINTER                         :: tbond_a(:), tbond_b(:)
+  LOGICAL                                  :: PM1, PM2, PM3, PM4, only_qm
+  REAL(KIND=dp)                                :: dr(3), r2, rbond, rbond2, &
+       rr(3)
+  REAL(KIND=dp), POINTER                       :: covalent_radius(:), &
+       vdw_radius(:)
 
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -699,23 +699,13 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
 
   !Get the temporary array that we need
   ALLOCATE(atm_symbol(natom),STAT=istat)
-  IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol',natom)
+  IF(istat/=0) CALL stop_memory('generate_bond','allocate:: atm_symbol',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = ''
     IF(ASSOCIATED(atom_info%element)) THEN
       atm_symbol(iatom) = atom_info%element(iatom)
     END IF
-    !
-    ! In general %element should always be set... I added this stuff for qmmm 
-    ! calculation because if you read coordinates from cp2k input %element is not
-    ! setted up!! We should change this...
-    !
-  !  IF(atm_symbol(iatom) == '') THEN
-  !     label_atmname = atom_info%label_atmname(iatom)
-  !     only_qm = qmmm_ff_precond_only_qm(id1=label_atmname)
-  !     atm_symbol(iatom) = label_atmname
-  !  END IF
   END DO
 !------------------------------------------------------------------------------
   !Set up the arrays that we need for this routine
@@ -753,6 +743,8 @@ SUBROUTINE topology_set_atm_mass(topology,globenv)
   END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
+  DEALLOCATE(atm_symbol,STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','deallocate:: atm_symbol',natom)
 END SUBROUTINE topology_set_atm_mass
 
 
