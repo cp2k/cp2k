@@ -320,6 +320,9 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        norm = ( 2.0_dbl * alphasq / pi ) ** ( 1.5_dbl )
        cutoff_radius = exp_radius ( 0, 2._dbl * alphasq, epsilon , norm )
 
+       pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
+       pw_big_grid%para%rs_dims ( 2 ) = 1
+
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   & 
                                 para_env )
@@ -359,6 +362,9 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, error )
        pw_big_grid % bounds ( 2, : ) = -gmax/2 + gmax - 1
 
        ecut = 0.5_dbl * cutoff * cutoff
+       pw_big_grid%para%rs_dims ( 1 ) = para_env%num_pe
+       pw_big_grid%para%rs_dims ( 2 ) = 1
+
        CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
             pe_group = para_env % group, info = output_unit, &
             fft_usage = .TRUE. )
