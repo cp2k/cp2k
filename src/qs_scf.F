@@ -673,7 +673,6 @@ CONTAINS
                   qs_env,error=error)
           END IF
 
-          scf_env%iter_delta=0.0_wp
           do_level_shift = ((scf_control%level_shift /= 0.0_wp).AND.&
                ((scf_control%density_guess == "CORE").OR.(scf_env%iter_count > 1)))
 
@@ -699,6 +698,8 @@ CONTAINS
              use_cholesky = scf_control%use_cholesky
              use_jacobi = .FALSE.
           END IF
+
+          scf_env%iter_delta=0.0_wp
 
           DO ispin=1,dft_control%nspins
 
