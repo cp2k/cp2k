@@ -288,17 +288,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    cflags1%rho=cflags1%rho.or.cflags2%rho
-    cflags1%rho_spin=cflags1%rho_spin.or.cflags2%rho_spin
-    cflags1%drho=cflags1%drho.or.cflags2%drho
-    cflags1%drho_spin=cflags1%drho_spin.or.cflags2%drho_spin
-    cflags1%norm_drho=cflags1%norm_drho.or.cflags2%norm_drho
-    cflags1%norm_drho_spin=cflags1%norm_drho_spin.or.cflags2%norm_drho_spin
-    cflags1%drhoa_drhob=cflags1%drhoa_drhob.or.cflags2%drhoa_drhob
-    cflags1%rho_1_3=cflags1%rho_1_3.or.cflags2%rho_1_3
-    cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.or.cflags2%rho_spin_1_3
-    cflags1%kinetic=cflags1%kinetic.or.cflags2%kinetic
-    cflags1%kinetic_spin=cflags1%kinetic_spin.or.cflags2%kinetic_spin
+    cflags1%rho=cflags1%rho.OR.cflags2%rho
+    cflags1%rho_spin=cflags1%rho_spin.OR.cflags2%rho_spin
+    cflags1%drho=cflags1%drho.OR.cflags2%drho
+    cflags1%drho_spin=cflags1%drho_spin.OR.cflags2%drho_spin
+    cflags1%norm_drho=cflags1%norm_drho.OR.cflags2%norm_drho
+    cflags1%norm_drho_spin=cflags1%norm_drho_spin.OR.cflags2%norm_drho_spin
+    cflags1%drhoa_drhob=cflags1%drhoa_drhob.OR.cflags2%drhoa_drhob
+    cflags1%rho_1_3=cflags1%rho_1_3.OR.cflags2%rho_1_3
+    cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.OR.cflags2%rho_spin_1_3
+    cflags1%kinetic=cflags1%kinetic.OR.cflags2%kinetic
+    cflags1%kinetic_spin=cflags1%kinetic_spin.OR.cflags2%kinetic_spin
 
   END SUBROUTINE xc_rho_cflags_or
 !***************************************************************************
@@ -336,17 +336,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    cflags1%rho=cflags1%rho.and.cflags2%rho
-    cflags1%rho_spin=cflags1%rho_spin.and.cflags2%rho_spin
-    cflags1%drho=cflags1%drho.and.cflags2%drho
-    cflags1%drho_spin=cflags1%drho_spin.and.cflags2%drho_spin
-    cflags1%norm_drho=cflags1%norm_drho.and.cflags2%norm_drho
-    cflags1%norm_drho_spin=cflags1%norm_drho_spin.and.cflags2%norm_drho_spin
-    cflags1%drhoa_drhob=cflags1%drhoa_drhob.and.cflags2%drhoa_drhob
-    cflags1%rho_1_3=cflags1%rho_1_3.and.cflags2%rho_1_3
-    cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.and.cflags2%rho_spin_1_3
-    cflags1%kinetic=cflags1%kinetic.and.cflags2%kinetic
-    cflags1%kinetic_spin=cflags1%kinetic_spin.and.cflags2%kinetic_spin
+    cflags1%rho=cflags1%rho.AND.cflags2%rho
+    cflags1%rho_spin=cflags1%rho_spin.AND.cflags2%rho_spin
+    cflags1%drho=cflags1%drho.AND.cflags2%drho
+    cflags1%drho_spin=cflags1%drho_spin.AND.cflags2%drho_spin
+    cflags1%norm_drho=cflags1%norm_drho.AND.cflags2%norm_drho
+    cflags1%norm_drho_spin=cflags1%norm_drho_spin.AND.cflags2%norm_drho_spin
+    cflags1%drhoa_drhob=cflags1%drhoa_drhob.AND.cflags2%drhoa_drhob
+    cflags1%rho_1_3=cflags1%rho_1_3.AND.cflags2%rho_1_3
+    cflags1%rho_spin_1_3=cflags1%rho_spin_1_3.AND.cflags2%rho_spin_1_3
+    cflags1%kinetic=cflags1%kinetic.AND.cflags2%kinetic
+    cflags1%kinetic_spin=cflags1%kinetic_spin.AND.cflags2%kinetic_spin
 
   END SUBROUTINE xc_rho_cflags_and
 !***************************************************************************
@@ -367,19 +367,10 @@ CONTAINS
 !!   FUNCTION
 !!     return true if the two cflags are equal
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - cflags1, cflags2: the flags to compare
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   FUNCTION xc_rho_cflags_equal(cflags1, cflags2, error) RESULT(equal)
@@ -394,17 +385,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    equal=(cflags1%rho.eqv.cflags2%rho.AND.&
-         cflags1%rho_spin.eqv.cflags2%rho_spin.AND.&
-         cflags1%drho.eqv.cflags2%drho.AND.&
-         cflags1%drho_spin.eqv.cflags2%drho_spin.AND.&
-         cflags1%norm_drho.eqv.cflags2%norm_drho.AND.&
-         cflags1%norm_drho_spin.eqv.cflags2%norm_drho_spin.AND.&
-         cflags1%drhoa_drhob.eqv.cflags2%drhoa_drhob.AND.&
-         cflags1%rho_1_3.eqv.cflags2%rho_1_3.AND.&
+    equal=(cflags1%rho.EQV.cflags2%rho.AND.&
+         cflags1%rho_spin.EQV.cflags2%rho_spin.AND.&
+         cflags1%drho.EQV.cflags2%drho.AND.&
+         cflags1%drho_spin.EQV.cflags2%drho_spin.AND.&
+         cflags1%norm_drho.EQV.cflags2%norm_drho.AND.&
+         cflags1%norm_drho_spin.EQV.cflags2%norm_drho_spin.AND.&
+         cflags1%drhoa_drhob.EQV.cflags2%drhoa_drhob.AND.&
+         cflags1%rho_1_3.EQV.cflags2%rho_1_3.AND.&
          cflags1%rho_spin_1_3.EQV.cflags2%rho_spin_1_3.AND.&
          cflags1%kinetic.EQV.cflags2%kinetic.AND.&
-         cflags1%kinetic_spin.eqv.cflags2%kinetic_spin)
+         cflags1%kinetic_spin.EQV.cflags2%kinetic_spin)
 
   END FUNCTION xc_rho_cflags_equal
 !***************************************************************************
@@ -434,12 +425,6 @@ CONTAINS
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
-!!
 !!*** **********************************************************************
   FUNCTION xc_rho_cflags_contain(cflags1, cflags2, error) RESULT(contain)
     TYPE(xc_rho_cflags_type), INTENT(inout) :: cflags1
@@ -453,17 +438,17 @@ CONTAINS
 
     failure=.FALSE.
 
-    contain=((cflags1%rho.or..not.cflags2%rho).AND.&
-         (cflags1%rho_spin.or..not.cflags2%rho_spin).AND.&
-         (cflags1%drho.OR..not.cflags2%drho).AND.&
-         (cflags1%drho_spin.or..not.cflags2%drho_spin).AND.&
-         (cflags1%norm_drho.or..not.cflags2%norm_drho).AND.&
-         (cflags1%norm_drho_spin.or..not.cflags2%norm_drho_spin).AND.&
+    contain=((cflags1%rho.OR..NOT.cflags2%rho).AND.&
+         (cflags1%rho_spin.OR..NOT.cflags2%rho_spin).AND.&
+         (cflags1%drho.OR..NOT.cflags2%drho).AND.&
+         (cflags1%drho_spin.OR..NOT.cflags2%drho_spin).AND.&
+         (cflags1%norm_drho.OR..NOT.cflags2%norm_drho).AND.&
+         (cflags1%norm_drho_spin.OR..NOT.cflags2%norm_drho_spin).AND.&
          (cflags1%drhoa_drhob.OR..NOT.cflags2%drhoa_drhob).AND.&
-         (cflags1%rho_1_3.or..not.cflags2%rho_1_3).AND.&
-         (cflags1%rho_spin_1_3.or..not.cflags2%rho_spin_1_3).AND.&
-         (cflags1%kinetic.or..not.cflags2%kinetic).AND.&
-         (cflags1%kinetic_spin.or..not.cflags2%kinetic_spin))
+         (cflags1%rho_1_3.OR..NOT.cflags2%rho_1_3).AND.&
+         (cflags1%rho_spin_1_3.OR..NOT.cflags2%rho_spin_1_3).AND.&
+         (cflags1%kinetic.OR..NOT.cflags2%kinetic).AND.&
+         (cflags1%kinetic_spin.OR..NOT.cflags2%kinetic_spin))
 
   END FUNCTION xc_rho_cflags_contain
 !***************************************************************************
@@ -485,19 +470,10 @@ CONTAINS
 !!   FUNCTION
 !!     allocates and does (minimal) initialization of a rho_set
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - rho_set: the structure to allocate
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_create(rho_set,local_bounds,rho_cutoff,drho_cutoff,&
@@ -514,6 +490,7 @@ CONTAINS
 
     failure=.FALSE.
 
+    CPPrecondition(.NOT.ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
     ALLOCATE(rho_set, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -558,19 +535,10 @@ CONTAINS
 !!   FUNCTION
 !!     retains the given rho_set
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - rho_set: the object to retain
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_retain(rho_set, error)
@@ -604,19 +572,10 @@ CONTAINS
 !!   FUNCTION
 !!     releases the given rho_set
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - rho_set: the structure to release
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_release(rho_set, error)
@@ -674,7 +633,7 @@ CONTAINS
                 END IF
              END DO
           END IF
-          IF (rho_set%owns%norm_drho.and.ASSOCIATED(rho_set%norm_drho)) THEN
+          IF (rho_set%owns%norm_drho.AND.ASSOCIATED(rho_set%norm_drho)) THEN
              DEALLOCATE(rho_set%norm_drho, stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
@@ -757,9 +716,6 @@ CONTAINS
 !!   FUNCTION
 !!     returns the various attributes of rho_set
 !!
-!!   NOTES
-!!     -
-!!
 !!   ARGUMENTS
 !!     - rho_set: the object you whant info about
 !!     - can_return_null: if true the object returned can be null,
@@ -769,12 +725,6 @@ CONTAINS
 !!       see module cp_error_handling 
 !!
 !!     for the other components see the attributes of xc_rho_set
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_get(rho_set, can_return_null, rho, drho, norm_drho,&
@@ -918,9 +868,6 @@ CONTAINS
 !!     rho_r (and rho_g). The rho set will contain the components specified
 !!     in needs
 !!
-!!   NOTES
-!!     when 
-!!
 !!   ARGUMENTS
 !!     - rho_set: the rho_set to update
 !!     - rho_r: the new density (in r space)
@@ -932,12 +879,6 @@ CONTAINS
 !!     - pw_pool: pool for the allocation of pw and cr3d
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     11.2003 created [fawzi]
 !!
 !!*** **********************************************************************
   SUBROUTINE xc_rho_set_update(rho_set, rho_r, rho_g, needs,&
