@@ -26,6 +26,7 @@ MODULE molecule_input
   USE input_types,                      ONLY : setup_parameters_type
   USE kinds,                            ONLY : dbl
   USE mathconstants,                    ONLY : pi, zero
+  USE memory_utilities,                 ONLY : reallocate
   USE molecule_types,                   ONLY : molecule_type, &
                                                topology_type, &
                                                init_molecule_type
@@ -765,8 +766,11 @@ SUBROUTINE read_molecule_section ( mol_setup, setup, globenv )
      END DO
   END DO
 
-  IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
-       'natom_type mismatch' )
+  setup % natom_type = n
+  CALL reallocate(setup % atom_names,1,n)
+
+  !IF ( n /= setup % natom_type ) CALL stop_program ( 'read_molecule_section', &
+  !    'natom_type mismatch' )
 
 ! write some information to output
   IF (globenv%ionode) THEN
