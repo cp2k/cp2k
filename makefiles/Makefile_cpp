@@ -10,7 +10,7 @@ CP2KHOME  := $(PWD)/..
 ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
 VERSION   = sopt
 SMAKE     = $(MAKE) -r
-PMAKE     = $(SMAKE) -j 1
+PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2klib
 
 ### Dependent variables ###
@@ -90,7 +90,6 @@ vpath %.F $(SRCDIRS)
 %.o: %.f90
 	$(FC) -c $(FCFLAGS) $<
 
-# for rapid aggrssive testing (modify the .f90) make it dependent of %.f90
 %.dep: %.F
 	$(CPP) $(CPPFLAGS) -P $< > $*.for
 	$(FORPAR) $*.for
@@ -115,6 +114,9 @@ realclean: clean
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
 	$(SMAKE) -C $(TOOLDIR) realclean
+
+# lib dependencies
+mltfftsg.o: mltfftsg_tools.o
 
 ### Load the automatically generated rules of sfmakedepend ###
 
