@@ -228,7 +228,7 @@ SUBROUTINE scf_env_release(scf_env,error)
 
   failure=.FALSE.
   
-  IF (.not.ASSOCIATED(scf_env)) THEN
+  IF (ASSOCIATED(scf_env)) THEN
      CPPreconditionNoFail(scf_env%ref_count>0,cp_failure_level,routineP,error)
      scf_env%ref_count=scf_env%ref_count-1
      IF (scf_env%ref_count==0) THEN
@@ -253,6 +253,7 @@ SUBROUTINE scf_env_release(scf_env,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
+  NULLIFY(scf_env)
 END SUBROUTINE scf_env_release
 !***************************************************************************
 
