@@ -112,10 +112,6 @@ MODULE qs_environment_methods
                                              pw_env_release,&
                                              pw_env_retain,&
                                              pw_env_type
-  USE pw_grid_types,                   ONLY: HALFSPACE,&
-                                             pw_grid_type
-  USE pw_grids,                        ONLY: pw_grid_construct,&
-                                             pw_grid_setup
   USE pw_pool_types,                   ONLY: pw_pool_init_coeff,&
                                              pw_pool_type
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
