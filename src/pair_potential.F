@@ -197,8 +197,9 @@ SUBROUTINE spline_nonbond_control ( spline_env, atomic_kind_set, ewald_env )
         hicut = SQRT(potparm(i,j)%rcutsq)
         IF ( hicut > cutmax ) cutmax = hicut
         IF ( locut < cutmin ) cutmin = locut
-
+        potparm(i,j) %energy_cutoff = 0.0_dbl
         potparm(i,j) %energy_cutoff = ener_pot(potparm(i,j),qi,qj,hicut)
+
         potparm(i,j) %e_cutoff_coul &
              = ener_coul ( potparm ( i, j ), qi, qj, hicut, ewald_env )
         potparm(j,i) %energy_cutoff = potparm(i,j) %energy_cutoff

@@ -308,7 +308,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  natom_types, error )
 
 ! set the fist_env
-  CALL set_fist_env ( fist_env, subsys = subsystem, error = error )
+  CALL set_fist_env ( fist_env = fist_env, subsys = subsystem, error = error )
   CALL set_fist_env ( fist_env=fist_env,&
                       cell=cell, cell_ref=cell_ref, &
                       local_molecules=local_molecules,&

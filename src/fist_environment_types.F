@@ -227,6 +227,7 @@ CONTAINS
     NULLIFY (fist_env%ewald_pw)
     NULLIFY (fist_env%thermo)
     NULLIFY (fist_env%fist_nonbond_env)
+    NULLIFY (fist_env%subsys)
     CALL cp_subsys_create(fist_env%subsys, para_env=para_env, error=error)
     CALL cp_para_env_retain(para_env,error=error)
     fist_env%para_env => para_env
@@ -246,7 +247,7 @@ CONTAINS
     IMPLICIT NONE
 !   Purpose: Set the FIST environment.
 
-    TYPE ( fist_environment_type ), INTENT(out)             :: fist_env
+    TYPE ( fist_environment_type ), INTENT(inout)             :: fist_env
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell
     TYPE ( cell_type ), OPTIONAL, POINTER                   :: cell_ref
     TYPE ( ewald_environment_type ), OPTIONAL, POINTER      :: ewald_env
