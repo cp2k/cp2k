@@ -689,6 +689,13 @@ SUBROUTINE read_topology_mc (topology,globenv)
     topology%conn_info%theta_b(itheta) = theta_b(itheta)
     topology%conn_info%theta_c(itheta) = theta_c(itheta)
   END DO
+! and urey-bradley stuff, even though we have none...just so it's associated
+  ALLOCATE(topology%conn_info%ub_a(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','ub_a',0)
+  ALLOCATE(topology%conn_info%ub_b(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','ub_b',0)
+  ALLOCATE(topology%conn_info%ub_c(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','ub_c',0)
 ! and torsional stuff, even though we have none...just so it's associated
   ALLOCATE(topology%conn_info%phi_a(0),STAT=istat)
   IF(istat/=0) CALL stop_memory('read_topology_mc','phi_a',0)
@@ -698,6 +705,20 @@ SUBROUTINE read_topology_mc (topology,globenv)
   IF(istat/=0) CALL stop_memory('read_topology_mc','phi_c',0)
   ALLOCATE(topology%conn_info%phi_d(0),STAT=istat)
   IF(istat/=0) CALL stop_memory('read_topology_mc','phi_d',0)
+! and improper stuff, even though we have none...just so it's associated
+  ALLOCATE(topology%conn_info%impr_a(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','impr_a',0)
+  ALLOCATE(topology%conn_info%impr_b(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','impr_b',0)
+  ALLOCATE(topology%conn_info%impr_c(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','impr_c',0)
+  ALLOCATE(topology%conn_info%impr_d(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','impr_d',0)
+! and one-four stuff, even though we have none...just so it's associated
+  ALLOCATE(topology%conn_info%onfo_a(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','onfo_a',0)
+  ALLOCATE(topology%conn_info%onfo_b(0),STAT=istat)
+  IF(istat/=0) CALL stop_memory('read_topology_mc','onfo_b',0)
 
 !------------------------------------------------------------------------------
 
