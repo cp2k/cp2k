@@ -49,6 +49,7 @@ MODULE pol_electrostatics_pw
 
   PRIVATE
   PUBLIC :: electrostatics
+  PUBLIC :: get_pol_charge
 
 !!*****
 !******************************************************************************
@@ -72,7 +73,7 @@ CONTAINS
 !******************************************************************************
 
 SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
-                           grid_b, ewald_param, energy, f_coef, f_part )
+                           grid_b, ewald_param, energy, e0, e1, e2, f_coef, f_part )
 
   IMPLICIT NONE
 
@@ -85,6 +86,9 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   TYPE ( pw_grid_type ), INTENT ( IN ), DIMENSION ( : ) :: grid_b
   TYPE ( ewald_parameters_type ), INTENT ( IN ) :: ewald_param
   REAL ( dbl ), INTENT ( OUT ) :: energy
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e0
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e1
+  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: e2
   COMPLEX ( dbl ), INTENT ( OUT ), DIMENSION ( : ), OPTIONAL :: f_coef
   REAL ( dbl ), INTENT ( OUT ), DIMENSION ( :, : ), OPTIONAL :: f_part
 
@@ -135,12 +139,17 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
   CALL coeff_allocate ( rho0 , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
   rho0 % pw % in_space = PW_RECIPROCALSPACE
 
-  CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
-  coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
+   CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
+!  CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_COMPLEXDATA3D )
+   coeff_dummy % pw % in_space = PW_RECIPROCALSPACE
+!  coeff_dummy % pw % in_space = PW_REALSPACE
  
   CALL coeff_zero ( rho0 )
   CALL coeff_zero ( drho )
   CALL coeff_zero ( coeff_dummy )
+!dbg
+!  CALL coeff_transform_space ( pw, coeff_dummy  )
+!dbg
 
   IF ( PRESENT ( f_coef ) )  f_coef = 0._dbl
   IF ( PRESENT ( f_part ) )  f_part = 0._dbl
@@ -239,6 +248,9 @@ SUBROUTINE electrostatics ( dg_part, pw, part, box, grid_s,  &
 
   energy =  ( e_rho0_rho0 +  ivol * ivol * e_drho_drho + e_rho0_drho )  &
               * inv_fourpi_eps0
+  e0 = e_rho0_rho0 * inv_fourpi_eps0
+  e1 = e_rho0_drho * inv_fourpi_eps0
+  e2 = ivol * ivol * e_drho_drho * inv_fourpi_eps0
 
 !-------------- ELECTROSTATIC CALCULATION DONE -----------
 
@@ -696,6 +708,59 @@ SUBROUTINE get_center ( part, box, centre, npts )
   END DO
 
 END SUBROUTINE get_center
+!******************************************************************************
+
+SUBROUTINE get_pol_charge ( pw, box,  charge, chargea )
+
+  IMPLICIT NONE
+
+! Arguments
+  TYPE ( pw_type ), INTENT ( INOUT ) :: pw
+  TYPE ( cell_type ), INTENT ( IN ) :: box
+  REAL (DBL) , INTENT (OUT) :: charge
+  REAL (DBL) , INTENT (OUT) :: chargea
+
+
+! Locals
+  TYPE ( coeff_type ) :: drho, coeff_dummy
+  INTEGER :: i, j, k
+  REAL (dbl) :: ivol
+  INTEGER, DIMENSION ( :, : ), POINTER :: bs
+
+!------------------------------------------------------------------------------
+
+  ivol = 1._dbl / box % deth
+  charge = 0.0_dbl
+  chargea = 0.0_dbl
+  bs => pw % pw_grid % bounds
+  CALL coeff_allocate ( drho , pw % pw_grid, use_data = PW_COMPLEXDATA1D )
+  drho % pw % in_space = PW_RECIPROCALSPACE
+
+  CALL coeff_allocate ( coeff_dummy , pw % pw_grid, use_data = PW_REALDATA3D)  
+  coeff_dummy % pw % in_space = PW_REALSPACE
+
+  CALL coeff_zero ( drho )
+  CALL coeff_zero ( coeff_dummy )
+  CALL pw_copy ( pw, drho % pw )
+!  drho% pw % cc = ivol *  CMPLX ( ABS (REAL ( phi2_r % pw % cc, dbl )), &
+!                        ABS(AIMAG ( phi2_r % pw % cc )), dbl )
+   drho% pw % cc = ivol *  CMPLX ( REAL ( drho % pw % cc, dbl ), &
+                         AIMAG ( drho % pw % cc ), dbl )
+  CALL coeff_transform_space ( drho % pw, coeff_dummy  )
+   DO i = bs ( 1, 1 ), bs ( 2, 1 )
+      DO j = bs ( 1, 2 ), bs ( 2, 2 )
+         DO k = bs ( 1, 3 ), bs ( 2, 3 )
+            charge = charge + coeff_dummy % pw % cr3d (i, j, k)
+            chargea = chargea + ABS(coeff_dummy % pw % cr3d (i, j, k))
+         END DO
+      END DO
+   END DO
+  charge = charge * pw % pw_grid % dvol
+  chargea = chargea * pw % pw_grid % dvol
+  CALL coeff_deallocate ( drho )
+  CALL coeff_deallocate ( coeff_dummy )
+         
+END SUBROUTINE get_pol_charge
 
 !******************************************************************************
 
