@@ -259,6 +259,7 @@ CONTAINS
     TYPE(vppnl_type), DIMENSION(:), POINTER      :: vppnl
     TYPE(vppl_type), DIMENSION(:,:), POINTER     :: vpplt
     TYPE(vppnl_type), DIMENSION(:,:), POINTER    :: vppnlt
+    TYPE(list_type), DIMENSION(:,:,:), POINTER   :: neighbor_att
 
     REAL(KIND = dp), DIMENSION(:,:), POINTER     :: hab,pab,sab,work
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER   :: sdab
@@ -1430,9 +1431,10 @@ CONTAINS
                          
                          ! The < and > operators don't work correctly on arrays in
                          ! the openmp version
+                         neighbor_att => vppnl(kkind)%neighbor
                          DO i=1, 3
-                            IF ( (cell_c(i) < LBOUND(vppnl(kkind)%neighbor,i)) .OR. &
-                                 (cell_c(i) > UBOUND(vppnl(kkind)%neighbor,i))) THEN
+                            IF ( (cell_c(i) < LBOUND(neighbor_att,i)) .OR. &
+                                 (cell_c(i) > UBOUND(neighbor_att,i))) THEN
                                sbc_ppnl_neighbor_node => next(sbc_ppnl_neighbor_node)
                                CYCLE knodeloop
                             END IF
