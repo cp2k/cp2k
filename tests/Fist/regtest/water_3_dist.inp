@@ -1,0 +1,55 @@
+&CP2K  
+  PROGRAM   FIST
+  PROJECT   water_3
+  IOLEVEL   1
+  FFTLIB    FFTSG
+  RUN_TYPE  MD
+&END
+
+&MD
+  ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
+  steps:        10                     total number of steps
+  timestep:     2.5 fs                 time step [fs]
+  temperature:  298                    temperature [K]
+  restart:      init                   start type (init,pos,posvel)
+  constraints   on 
+  nose_parameter:   &
+    length:    3        &
+    Yoshida:   3        &
+    timecon:   1000 fs  &
+    mts:       2
+
+  print  files        2
+  print  screen       1
+&END
+
+&TOPOLOGY
+ coord_file     ../sample_pdb/water_2.pdb
+ coordinate     pdb
+&END
+
+&EWALD
+ units angstrom
+ ewald_type pme
+ ewald_param .44 25
+&END
+
+&CONSTRAINTS
+   dist add 1 1 2 1.8897268
+   dist add 1 1 3 1.8897268
+   dist add 1 2 3 3.0859239
+&END
+
+&FORCE_FIELD
+ PARMFILE CHM ../sample_pot/water.pot
+ CHARGES
+   OT -0.8476
+   HT  0.4238
+ END CHARGE
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          24.955 24.955 24.955
+&END
+
