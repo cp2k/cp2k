@@ -158,7 +158,7 @@ MODULE qs_scf
   use cp_sparse_matrix,         only: cp_sparse_matrix_type, &
        cp_sparse_matrix_p_type
   use pao_proj_methods,         only: sm_matrix_transf_to_f,&
-       sm_matrix_transf_to_m
+       sm_matrix_transf_p_to_m
   use pao_qs_env_methods,       only: pao_qs_env_did_change
   use cp_error_handling,        only: cp_error_type, cp_assert, &
        cp_error_message, cp_error_init, cp_error_dealloc_ref, cp_debug,&
@@ -181,6 +181,7 @@ MODULE qs_scf
                                       qs_ot_get_derivative,      &
                                       qs_ot_get_p
   use qs_energy_types,          only: qs_energy_type
+  use cp_array_utils, only: cp_1d_r_output
 
   IMPLICIT NONE
 
@@ -439,6 +440,10 @@ CONTAINS
               target_m=ks%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
          if (cp_debug .and. debug_this_module) then
+            call cp_1d_r_output(logger=cp_error_get_logger(error),&
+                 outputName="scf_x",fromWhere=routine,&
+                 iter=iscf,array=pao_env%angles_att%angles,&
+                 error=error)
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_new_p", &
                  fromWhere=routine, iter=iscf, matrix=ks%matrix,&
@@ -1479,7 +1484,7 @@ subroutine pao_opt_create(pao_optimizer,pao_obj_f,qs_env,global_env,&
              obj_funct=pao_obj_f, x0=angles,wanted_relative_f_delta=0.0_wp,&
              wanted_projected_gradient=0.0_wp,max_f_per_iter=5,error=error)        
         ! map first_density to min_bas (should be calculated in the min_bas)
-        call sm_matrix_transf_to_m(source_m=p(1)%matrix, &
+        call sm_matrix_transf_p_to_m(source_m=p(1)%matrix, &
              target_m=pao_env%min_density_m(1)%matrix%matrix,&
              glob_angles=pao_env%angles_att,&
              qs_env=qs_env, global_env=global_env, error=error)
