@@ -62,6 +62,7 @@ MODULE qs_tddfpt_utils
   INTEGER, PARAMETER :: N_EV_DEFAULT = 1
   INTEGER, PARAMETER :: N_KV_FAC_DEFAULT = 20
   INTEGER, PARAMETER :: N_REORTHO_DEFAULT = 2
+  LOGICAL, PARAMETER :: DO_KERNEL_DEFAULT = .TRUE.
 
   PRIVATE
   
@@ -133,6 +134,7 @@ CONTAINS
     t_control%n_ev      = N_EV_DEFAULT
     t_control%n_kv_fac  = N_KV_FAC_DEFAULT
     t_control%n_reortho = N_REORTHO_DEFAULT
+    t_control%do_kernel = DO_KERNEL_DEFAULT
     CALL read_tddfpt_control(glob_env, t_control)
 
 
@@ -198,7 +200,7 @@ CONTAINS
     TYPE(tddfpt_control_type), POINTER        :: t_control
 
     ! LOCALS
-    CHARACTER(LEN=TOKEN_LENGTH)               :: label, token
+    CHARACTER(LEN=TOKEN_LENGTH)               :: label, token, field
     INTEGER                                   :: error, length
 
     CHARACTER(len=*), PARAMETER               :: routineN = "read_tddfpt_control", &
@@ -252,6 +254,18 @@ CONTAINS
              CALL stop_parser(routineP, "REORTHO requires an integer argument")
           END IF
 
+       CASE ('KERNEL')
+          IF (test_next() == 'C') THEN
+             CALL get_next(field, length)
+             CALL uppercase(field)
+             SELECT CASE (field)
+             CASE ('NO', 'N')
+                t_control%do_kernel = .false.
+             END SELECT
+          ELSE
+             CALL stop_parser(routineP, "KERNEL needs a text argument")
+          END IF
+          
        END SELECT
 
        CALL read_line()

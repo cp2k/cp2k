@@ -71,6 +71,7 @@ MODULE qs_tddfpt_types
      INTEGER :: n_spins ! number of spins used in the calculation (cached value)
      INTEGER :: n_kv_fac 
      INTEGER :: n_reortho
+     LOGICAL :: do_kernel
   END TYPE tddfpt_control_type
 
 
@@ -171,22 +172,6 @@ CONTAINS
           CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
                routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
           CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
-!!!          CALL cp_fm_struct_create(fm_struct, glob_env%para_env, glob_env%blacs_env, &
-!!!                                   p_env%n_ao(spin), p_env%n_mo(spin), &
-!!!                                   optimal_blacs_row_block_size, &
-!!!                                   optimal_blacs_col_block_size)
-!!!          CALL cp_fm_create(t_env%y(ev)%spins(spin)%matrix, fm_struct, &
-!!!               routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
-
-
-!!!          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-!!!               t_env%x(ev)%spins(spin)%matrix, &
-!!!               name = "X ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
-!!!          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
-!!!          CALL replicate_blacs_matrix(p_env%psi0d(spin)%matrix, &
-!!!               t_env%y(ev)%spins(spin)%matrix, &
-!!!               name = "Y ev = "//cp_to_string(ev)//" spin = "//cp_to_string(spin))
-!!!          CALL cp_fm_set_all(t_env%y(ev)%spins(spin)%matrix, 0.0_dbl) ! fill with zeros
 
        END DO
 

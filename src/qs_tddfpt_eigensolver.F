@@ -365,12 +365,14 @@ CONTAINS
     !------------------------!
     ! store results in t_env !
     !------------------------!
-    WRITE (*,*)
-    DO i=1, n_kv
-       WRITE (*,'(1X,F20.10)') eigenvals(i)
-    END DO
-    WRITE (*,*)
     ! remains to be done
+    IF (glob_env%ionode) THEN
+       WRITE (*,*)
+       DO i=1, n_kv
+          WRITE (*,'(1X,F20.10)') eigenvals(i)
+       END DO
+       WRITE (*,*)
+    END IF
 
     !----------!
     ! clean up !
@@ -417,28 +419,25 @@ CONTAINS
     
     n_spins = qs_env%dft_control%nspins
 
-
-!!    CALL p_preortho(p_env, qs_env, X) ! make X orthogonal to psi0
-
     !------------!
     ! R = HX-SXL !
     !------------!
     CALL p_op_l1(p_env, qs_env, X, R)  ! acts on both spins
 
-#if 1
     !-----------------!
     ! calc P1 and     !
     ! R = R + K(P1)*C !
     !-----------------!
-    DO spin=1, n_spins                 
-       CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dbl) ! optimize?
-       CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
-            matrix_v=p_env%psi0d(spin)%matrix,&
-            matrix_g=X(spin)%matrix,&
-            ncol=p_env%n_mo(spin))            
-    END DO
-    CALL p_op_l2(p_env, qs_env, p_env%p1, R, alpha=1.0_dbl, beta=1.0_dbl) ! tam-dancoff
-#endif
+    IF (t_env%control%do_kernel) THEN
+       DO spin=1, n_spins                 
+          CALL set_matrix(p_env%p1(spin)%matrix, value=0.0_dbl) ! optimize?
+          CALL cp_sm_plus_fm_fm_t(p_env%p1(spin)%matrix,&
+               matrix_v=p_env%psi0d(spin)%matrix,&
+               matrix_g=X(spin)%matrix,&
+               ncol=p_env%n_mo(spin))            
+       END DO
+       CALL p_op_l2(p_env, qs_env, p_env%p1, R, alpha=1.0_dbl, beta=1.0_dbl) ! tam-dancoff
+    END IF
 
     !----------------------!
     ! orthogonalize R to C !
