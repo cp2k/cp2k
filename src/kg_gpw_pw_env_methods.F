@@ -191,6 +191,8 @@ CONTAINS
                            nmolecule_local=nmol_local,&
                            natom=nat_mol,fm_mol_blocks=fm_mol_blocks)
 
+    molbox_env%nmolecule_local = nmol_local
+    molbox_env%natom = nat_mol
     rab_max = 0.0_dp
     rad_max = 0.0_dp
     DO imol = 1,nmol_local
@@ -288,6 +290,8 @@ CONTAINS
     CALL cell_release(cell_mol,error=error)
 
    ! init auxbas_grid
+
+    CALL get_molbox_env(molbox_env=molbox_env,pw_env_mol=new_pw_mol)
     DO i=1,ngrid_level
       IF (cutoff(i) == dft_control%qs_control%cutoff) new_pw_mol%auxbas_grid=i
     END DO
@@ -298,7 +302,9 @@ CONTAINS
             new_pw_mol%pw_pools(new_pw_mol%auxbas_grid)%pool)
 
    ! And now initialize the rho sructure for each molecule
+    NULLIFY(rho_mol_blocks)
     CALL rho_mol_blocks_create(rho_mol_blocks,nmol_local,nat_mol,fm_mol_blocks,error=error)
+    CALL set_molbox_env(molbox_env=molbox_env,rho_mol_blocks=rho_mol_blocks)
 
     CALL timestop(0.0_dp,handle)
 
@@ -319,7 +325,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_env_mol_rebuild',&
       routineP = module_name//':'//routineN
 
-    INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, istat, maxlgto, ncommensurate, &
+    INTEGER :: auxbas_grid, cmax, cmaxl, i, igrid_level, istat, maxlgto, &
+               my_icommensurate, my_ncommensurate, ncommensurate, &
                ngrid_level,  nlowest, nlowest_new, npts_out(3), npts_tmp(3), nsmax
     LOGICAL :: blocking, failure, fft, symmetry
     REAL(dp) :: cutilev, dr_g(3), drmin, ecut, hmat(3,3), maxradius, rel_cutoff
@@ -340,7 +347,7 @@ CONTAINS
 
     failure = .FALSE.
 
-    NULLIFY(cube_info_g,dft_control,l_info_g,pw_pools_mol,rs_pools_mol)
+    NULLIFY(cube_info_g,l_info_g,pw_pools_mol,rs_pools_mol)
 
     CPPrecondition(ASSOCIATED(pw_mol),cp_failure_level,routineP,error,failure)
     CPPrecondition(pw_mol%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -386,6 +393,12 @@ CONTAINS
       cutoff => dft_control%qs_control%e_cutoff
       ngrid_level = SIZE(cutoff)
 
+     ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
+     !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
+     !                     XXXXXXXXX same holds for radius
+     CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
+          ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+
       ! init pw_grids and pools
       ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -394,8 +407,10 @@ CONTAINS
 
       IF (dft_control % qs_control % commensurate_mgrids) THEN
          ncommensurate=ngrid_level 
+         my_icommensurate = 1
       ELSE 
          ncommensurate=0
+         my_icommensurate = 0
       ENDIF
 
       CALL pw_env_get(pw_env=pw_global,l_info=l_info_g,cube_info=cube_info_g,&
@@ -434,7 +449,7 @@ CONTAINS
        pw_grid_mol% para % group_head = .TRUE.
 
        pw_grid_mol % cutoff = ABS ( cutilev )
-       IF ( SUM ( ABS ( pw_grid_g % bounds ( :, : ) ) ) == 0 ) THEN
+       IF ( SUM ( ABS ( pw_grid_mol % bounds ( :, : ) ) ) == 0 ) THEN
 
          dr_g(1:3) = pw_grid_g % dr(1:3)
          DO i = 1,3
@@ -476,9 +491,10 @@ CONTAINS
            DO
              CALL fft_radix_operations ( npts_tmp(1), npts_out(1), FFT_RADIX_NEXT )
              ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=npts_out(1)/2**(ncommensurate-1)
+             nlowest=npts_out(1)/2**(my_ncommensurate-my_icommensurate)
              CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(npts_out(1),2**(ncommensurate-1)).EQ.0) THEN
+
+             IF (nlowest==nlowest_new .AND. MODULO(npts_out(1),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 npts_tmp(1)=npts_out(1)+1
@@ -488,9 +504,9 @@ CONTAINS
            DO
              CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT )
              ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=npts_out(2)/2**(ncommensurate-1)
+             nlowest=npts_out(2)/2**(My_ncommensurate-my_icommensurate)
              CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(ncommensurate-1)).EQ.0) THEN
+             IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 npts_tmp(2)=npts_out(2)+1
@@ -500,9 +516,9 @@ CONTAINS
            DO
              CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT )
              ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-             nlowest=npts_out(3)/2**(ncommensurate-1)
+             nlowest=npts_out(3)/2**(my_ncommensurate-my_icommensurate)
              CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-             IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(ncommensurate-1)).EQ.0) THEN
+             IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 npts_tmp(3)=npts_out(3)+1
@@ -576,6 +592,31 @@ CONTAINS
               pw_grid_mol%grid_span = HALFSPACE
            END IF
 
+! ncommensurate is the number of commensurate grids 
+  ! in order to have non-commensurate grids ncommensurate must be 0
+  ! icommensurte  is the level number of communensurate grids
+  ! this implies that the number of grid points in each direction
+  ! is k*2**(ncommensurate-icommensurate) 
+           my_ncommensurate = ncommensurate
+           IF(my_ncommensurate .GT. 0) THEN
+             my_icommensurate=igrid_level
+           ELSE
+             my_icommensurate=0
+           ENDIF
+           IF (my_icommensurate > my_ncommensurate ) THEN
+              CALL stop_program ( "grid_setup", &
+                            "my_icommensurate > my_ncommensurate" )
+           ENDIF
+           IF (my_icommensurate<=0 .AND. my_ncommensurate > 1) THEN
+              CALL stop_program ( "grid_setup", &
+                            " my_incommensurate<=0 .AND. my_ncommensurate > 1 " )
+           ENDIF
+           IF (my_ncommensurate < 0 ) THEN
+              CALL stop_program ( "grid_setup", &
+                            "my_ncommensurate < 0 " )
+           ENDIF
+!dbg
+!  write(*,*) 'ncomm', my_ncommensurate, my_icommensurate
          ! assign a unique tag to this grid
            grid_tag = grid_tag + 1
            pw_grid_mol % identifier = grid_tag
@@ -615,9 +656,9 @@ CONTAINS
               DO
                 CALL fft_radix_operations ( npts_tmp(1), npts_out(1), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                 nlowest=npts_out(1)/2**(ncommensurate-igrid_level)
+                 nlowest=npts_out(1)/2**(my_ncommensurate-my_icommensurate)
                  CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                 IF (nlowest==nlowest_new .AND. MODULO(npts_out(1),2**(ncommensurate-igrid_level)).EQ.0) THEN
+                 IF (nlowest==nlowest_new .AND. MODULO(npts_out(1),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                    EXIT
                  ELSE
                    npts_tmp(1)=npts_out(1)+1
@@ -627,9 +668,9 @@ CONTAINS
               DO
                 CALL fft_radix_operations ( npts_tmp(2), npts_out(2), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                nlowest=npts_out(2)/2**(ncommensurate-igrid_level)
+                nlowest=npts_out(2)/2**(my_ncommensurate-my_icommensurate)
                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(ncommensurate-igrid_level)).EQ.0) THEN
+                IF (nlowest==nlowest_new .AND. MODULO(npts_out(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                   EXIT
                 ELSE
                   npts_tmp(2)=npts_out(2)+1
@@ -639,9 +680,9 @@ CONTAINS
               DO
                 CALL fft_radix_operations ( npts_tmp(3), npts_out(3), FFT_RADIX_NEXT )
                ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
-                nlowest=npts_out(3)/2**(ncommensurate-igrid_level)
+                nlowest=npts_out(3)/2**(my_ncommensurate-my_icommensurate)
                 CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
-                IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(ncommensurate-igrid_level)).EQ.0) THEN
+                IF (nlowest==nlowest_new .AND. MODULO(npts_out(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                   EXIT
                 ELSE
                   npts_tmp(3)=npts_out(3)+1
@@ -658,7 +699,7 @@ CONTAINS
           pw_grid_mol%npts(:) = pw_grid_mol%bounds(2,:)-pw_grid_mol%bounds(1,:)+1
 
         ! final check if all went fine 
-         IF ( ANY( MODULO(pw_grid_mol%npts,2**(ncommensurate-igrid_level)).NE.0 ) ) THEN ! nope, sorry
+         IF ( ANY( MODULO(pw_grid_mol%npts,2**(my_ncommensurate-my_icommensurate)).NE.0 ) ) THEN ! nope, sorry
              CALL stop_program ( "pw_env_mol_rebuild", &
                "commensurate option failed (I) ... maybe not yet programmed for this combination of options ?" )
          END IF
@@ -755,7 +796,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'update_rho_mol_blocks',&
       routineP = module_name//':'//routineN
 
-    INTEGER :: handle, i, iat, iatom, imol, imoluecule_kind, istat, &
+    INTEGER :: handle, i, iat, iatom, imol, imolecule_kind, istat, &
                nat_mol, nmol, nmolecule_kind
     INTEGER, DIMENSION(:), POINTER              :: index_atom
     LOGICAL :: failure, my_rebuild_grids, my_rebuild_ao
@@ -781,10 +822,10 @@ CONTAINS
     IF(.NOT. failure) THEN
 
       nmolecule_kind = SIZE(kg_sub_pw_env%molbox_env_set,1)
-      DO imoluecule_kind = 1,nmolecule_kind
+      DO imolecule_kind = 1,nmolecule_kind
 
         NULLIFY(molbox_env, cell_mol, pw_env_mol, rho_mol_blocks)
-        molbox_env => kg_sub_pw_env%molbox_env_set(imoluecule_kind)
+        molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
         CALL get_molbox_env(molbox_env=molbox_env, natom = nat_mol, cell_mol=cell_mol,&
                             pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
 
@@ -941,16 +982,15 @@ CONTAINS
 
         END DO  ! imol
 
-      END DO  ! imoluecule_kind
+      END DO  ! imolecule_kind
     END IF  ! failure
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE update_rho_mol_blocks
 
 ! *****************************************************************************
 
-  SUBROUTINE kg_rho_update_rho_mol(rho_struct,kg_sub_pw_env,qs_env,kg_env,error)
+  SUBROUTINE kg_rho_update_rho_mol(kg_sub_pw_env,qs_env,kg_env,error)
 
-    TYPE(qs_rho_type), POINTER                   :: rho_struct
     TYPE(kg_sub_pw_env_type), POINTER            :: kg_sub_pw_env
     TYPE(qs_environment_type), POINTER           :: qs_env
     TYPE(kg_environment_type), POINTER           :: kg_env
@@ -962,7 +1002,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol',&
       routineP = module_name//':'//routineN
   
-    INTEGER                                      :: imol, imoluecule_kind, ispin, &
+    INTEGER                                      :: imol, imolecule_kind, ispin, &
                                                     nmol, nmolecule_kind, nspins
     INTEGER, DIMENSION(:), POINTER               :: i_atom, i_kind
     LOGICAL                                      :: failure
@@ -980,12 +1020,13 @@ CONTAINS
     TYPE(rho_mol_blocks_type), DIMENSION(:),&
       POINTER                                    :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER           :: rho_block
+    TYPE(qs_rho_type), POINTER                   :: rho_struct
     TYPE(qs_rho_type), POINTER                   :: rho_mol
 
 
     failure=.FALSE.
 
-    NULLIFY(dft_control, kg_fm)
+    NULLIFY(dft_control, kg_fm, rho_struct)
     CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho_struct)
     nspins=dft_control%nspins
 
@@ -996,15 +1037,15 @@ CONTAINS
     IF(.NOT. failure) THEN
 
       nmolecule_kind = SIZE(kg_sub_pw_env%molbox_env_set,1)
-      DO imoluecule_kind = 1,nmolecule_kind
+      DO imolecule_kind = 1,nmolecule_kind
 
         NULLIFY(fm_mol_set,fm_mol_blocks)
-        fm_mol_set => kg_fm%kg_fm_mol_set(imoluecule_kind)
+        fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind)
         CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set,&
                                fm_mol_blocks=fm_mol_blocks)
 
         NULLIFY(molbox_env, pw_env_mol, rho_mol_blocks)
-        molbox_env => kg_sub_pw_env%molbox_env_set(imoluecule_kind)
+        molbox_env => kg_sub_pw_env%molbox_env_set(imolecule_kind)
         CALL get_molbox_env(molbox_env=molbox_env, &
                             pw_env_mol=pw_env_mol, rho_mol_blocks=rho_mol_blocks)
 

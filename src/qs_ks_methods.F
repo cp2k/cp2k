@@ -87,6 +87,10 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE kg_environment_types,            ONLY: get_kg_env,&
+                                             kg_environment_type
+  USE kg_gpw_fm_mol_types,             ONLY: kg_fm_p_type
+  USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
   USE mulliken,                        ONLY: mulliken_restraint
   USE pw_env_types,                    ONLY: pw_env_get,&
@@ -276,7 +280,8 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
-       rho,energy,calculate_forces,just_energy,error)
+       rho,energy,calculate_forces,just_energy,kg_fm_set,kg_sub_pw_env, error)
+
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -285,6 +290,10 @@ CONTAINS
     TYPE(qs_energy_type), INTENT(inout), &
       TARGET                                 :: energy
     LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(kg_fm_p_type), OPTIONAL, &
+      POINTER                                :: kg_fm_set
+    TYPE(kg_sub_pw_env_type), OPTIONAL,& 
+      POINTER                                :: kg_sub_pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -817,10 +826,12 @@ CONTAINS
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
+SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
      calculate_forces, just_energy, error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(kg_environment_type), OPTIONAL,& 
+      POINTER                                :: kg_env
     LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -835,6 +846,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(kg_fm_p_type),  POINTER             :: kg_fm_set
+    TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -882,6 +895,14 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
           CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks,rho=rho,energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
+               error=error)
+        ELSEIF (PRESENT(kg_env)) THEN
+          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
+          CALL get_kg_env(kg_env=kg_env, kg_fm_set=kg_fm_set)
+          CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
+               ks_matrix=matrix_ks, rho=rho, energy=energy,&
+               calculate_forces=c_forces,just_energy=energy_only,&
+               kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
                error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&

@@ -450,7 +450,7 @@ CONTAINS
 
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
+       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env, kg_env=kg_env,&
                                 error=error,&
                                 calculate_forces=.FALSE.,&
                                 just_energy=energy_only)
@@ -684,7 +684,7 @@ CONTAINS
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 ! ** Updates the molecular rho for each molecule independently ***
        CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-       CALL kg_rho_update_rho_mol(rho, kg_sub_pw_env, qs_env, kg_env, error=error)
+       CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
 
        CALL timestop(0.0_dp,handle2)
 
@@ -746,7 +746,7 @@ CONTAINS
     CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
 ! ** Updates the molecular rho for each molecule independently ***
     CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-    CALL kg_rho_update_rho_mol(rho, kg_sub_pw_env, qs_env, kg_env, error=error)
+    CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
@@ -1631,7 +1631,7 @@ CONTAINS
                error=error)
 ! ** Updates the molecular rho for each molecule independently ***
          CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
-         CALL kg_rho_update_rho_mol(qs_env%rho, kg_sub_pw_env, qs_env, kg_env, error=error)
+         CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env, kg_env, error=error)
 
        END IF
     END IF

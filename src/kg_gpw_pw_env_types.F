@@ -392,7 +392,7 @@ CONTAINS
       molbox_env%pw_env_mol => pw_env_mol
     END IF
     IF(PRESENT(rho_mol_blocks)) THEN
-      CALL deallocate_rho_mol_blocks(rho_mol_blocks,error=error)
+      CALL deallocate_rho_mol_blocks( molbox_env%rho_mol_blocks,error=error)
       molbox_env%rho_mol_blocks => rho_mol_blocks
     END IF
 
