@@ -10,7 +10,6 @@
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     IKUO   08.16.03
 !!
 !!   MODIFICATION HISTORY
 !!
@@ -80,7 +79,6 @@ CONTAINS
 !!   FUNCTION
 !!
 !!   AUTHOR
-!!     IKUO   08.16.03
 !!
 !!   MODIFICATION HISTORY
 !!     TLAINO 05.2004 - Added the TER option to use different non-bonded molecules
@@ -303,13 +301,12 @@ SUBROUTINE write_coordinate_pdb (topology,globenv)
 
   CALL write_checkpoint_information("entering "//routineN,globenv)
   CALL timeset(routineN,'I','',handle)
-
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
   atom_info => topology%atom_info
 
-  record = "new.pdb"
+  record = "topology_dump.pdb"
 
   IF(PM1) WRITE(iw,*) "    Writing out PDB file ",TRIM(record)
 

@@ -22,15 +22,27 @@
 
 MODULE topology_psf
 
+  USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE global_types,                    ONLY: global_environment_type
-  USE kinds,                           ONLY: dbl
+  USE kinds,                           ONLY: dbl,&
+                                             default_string_length
   USE parser,                          ONLY: get_next,&
                                              parser_end,&
                                              parser_init,&
                                              read_line,&
                                              search_label
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
   USE termination,                     ONLY: stop_memory
-  USE topology_types,                  ONLY: topology_parameters_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+  USE topology_types,                  ONLY: topology_parameters_type,&
+                                             atom_info_type,&
+                                             connectivity_info_type
+
+  IMPLICIT NONE
+
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = "topology_psf"
 
   PRIVATE
   PUBLIC :: read_topology_psf,write_topology_psf,read_topology_mc
@@ -264,22 +276,6 @@ SUBROUTINE read_topology_psf (topology,globenv)
 ! WRITE(iw,*) 'Parsing the NGRP section'
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  ! XXXXXXXXXXXX Stil needed ?? Joost  XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-  !get the temporary memory
-  !ALLOCATE (map_mol_typ(natom),STAT=ierror)
-  !  IF(ierror/=0) CALL stop_memory &
-  !    ('read_topology_psf','map_mol_typ',nphi)
-  !ALLOCATE (map_mol_num(natom),STAT=ierror)
-  !  IF(ierror/=0) CALL stop_memory &
-  !    ('read_topology_psf','map_mol_num',nphi)
-  !----------------------------------------------------------------------------
-  !----------------------------------------------------------------------------
-  !Sort the bonds, bends, and dihes
-  !CALL sort_bond(nbond,bond_a,bond_b)
-  !CALL sort_bend(ntheta,theta_a,theta_b,theta_c)
-  !CALL sort_dihe(nphi,phi_a,phi_b,phi_c,phi_d)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
@@ -306,13 +302,9 @@ SUBROUTINE write_topology_psf (topology,globenv)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
-      INTENT(IN)                             :: globenv
+      INTENT(IN), OPTIONAL                   :: globenv
 
-    CHARACTER(LEN=20)                        :: label
-    CHARACTER(LEN=20), POINTER               :: atm_mol_name(:), &
-                                                atm_name1(:), atm_name2(:), &
-                                                atm_res_name(:)
-    INTEGER                                  :: i, iatom, ibond, ierror, &
+    INTEGER                                  :: i, j, iatom, ibond, ierror, &
                                                 ilen, iphi, itheta, iunit, &
                                                 iw, natom, nbond, nphi, ntheta
     INTEGER, POINTER :: atm_res_num(:), bond_a(:), bond_b(:), map_mol_num(:), &
@@ -320,11 +312,141 @@ SUBROUTINE write_topology_psf (topology,globenv)
       theta_b(:), theta_c(:)
     REAL(dbl), POINTER                       :: atm_charge(:), atm_mass(:)
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_psf', &
+      routineP = moduleN//':'//routineN
+    TYPE (atom_info_type),POINTER            :: atom_info
+    TYPE (connectivity_info_type),POINTER    :: conn_info
+    CHARACTER(LEN=default_string_length)     :: record
+    INTEGER                                  :: file_unit,imol,id1,id2,handle
+    LOGICAL                                  :: PM1, PM2, PM3, PM4
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  PM1 = .FALSE.
+  PM2 = .FALSE.
+  PM3 = .FALSE.
+  PM4 = .FALSE.
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("entering "//routineN,globenv)
+    iw = globenv%scr
+    IF((globenv%ionode).AND.(globenv%print%level>0)) PM1= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
+    IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
+  END IF
+
+  IF(PM1) WRITE(iw,*) "  Entering write_coordinate_pdb"
+
+  CALL write_checkpoint_information("entering "//routineN,globenv)
+  CALL timeset(routineN,'I','',handle)
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-  iw = globenv%scr
+  atom_info => topology%atom_info
+  conn_info => topology%conn_info
 
+  record = "topology_dump.psf"
+
+  IF(PM1) WRITE(iw,*) "    Writing out PSF file ",TRIM(record)
+
+  CALL open_file(file_name=record,&
+                 file_status="REPLACE",&
+                 file_action="WRITE",&
+                 unit_number=file_unit)
+
+  WRITE(file_unit,*) "PSF"
+  WRITE(file_unit,*) ""
+  WRITE(file_unit,*) " 1 !NTITLE"
+  WRITE(file_unit,*) "   CP2K generated DUMP of connectivity"
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " ",topology%natoms," !NATOM"
+  DO i=1,topology%natoms
+    WRITE(file_unit,'(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)') &
+      i,&
+      atom_info%label_molname(i),&
+      atom_info%map_mol_num(i),&
+      atom_info%label_resname(i),&
+      atom_info%label_atmname(i),&
+      atom_info%label_atmname(i),&
+      atom_info%atm_charge(i),&
+      atom_info%atm_mass(i),0
+  END DO
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " ",SIZE(conn_info%bond_a)," !NBOND"
+  DO i=1,SIZE(conn_info%bond_a),4
+    j=0
+    DO WHILE ((j<4).AND.((i+j)<=SIZE(conn_info%bond_a)))
+      WRITE(file_unit,'(I7,I7)',ADVANCE="NO") &
+            conn_info%bond_a(i+j),conn_info%bond_b(i+j)
+      j=j+1
+    END DO
+    WRITE(file_unit,*) ""
+  END DO
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " ",SIZE(conn_info%theta_a)," !NTHETA"
+  DO i=1,SIZE(conn_info%theta_a),3
+    j=0
+    DO WHILE ((j<3).AND.((i+j)<=SIZE(conn_info%theta_a)))
+      WRITE(file_unit,'(I7,I7,I7)',ADVANCE="NO") &
+            conn_info%theta_a(i+j),conn_info%theta_b(i+j),&
+            conn_info%theta_c(i+j)
+      j=j+1
+    END DO
+    WRITE(file_unit,*) ""
+  END DO
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " ",SIZE(conn_info%phi_a)," !NPHI"
+  DO i=1,SIZE(conn_info%phi_a),2
+    j=0
+    DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%phi_a)))
+      WRITE(file_unit,'(I7,I7,I7,I7)',ADVANCE="NO") &
+            conn_info%phi_a(i+j),conn_info%phi_b(i+j),&
+            conn_info%phi_c(i+j),conn_info%phi_d(i+j)
+      j=j+1
+    END DO
+    WRITE(file_unit,*) ""
+  END DO
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " ",SIZE(conn_info%impr_a)," !NIMPHI"
+  DO i=1,SIZE(conn_info%impr_a),2
+    j=0
+    DO WHILE ((j<2).AND.((i+j)<=SIZE(conn_info%impr_a)))
+      WRITE(file_unit,'(I7,I7,I7,I7)',ADVANCE="NO") &
+            conn_info%impr_a(i+j),conn_info%impr_b(i+j),&
+            conn_info%impr_c(i+j),conn_info%impr_d(i+j)
+      j=j+1
+    END DO
+    WRITE(file_unit,*) ""
+  END DO
+  WRITE(file_unit,*) ""
+
+  WRITE(file_unit,*) " 0 !NDON"
+  WRITE(file_unit,*) ""
+  WRITE(file_unit,*) " 0 !NACC"
+  WRITE(file_unit,*) ""
+  WRITE(file_unit,*) " 0 !NNB"
+  WRITE(file_unit,*) ""
+  
+  
+  !line = ''
+  !line(1:6) = "TITLE  "
+  !line(11:70) = "CP2K generated DUMP of coordinates"
+  !WRITE(file_unit,*) TRIM(line)
+
+
+!------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
+  IF(PM1) WRITE(iw,*) "  Exiting write_coordinate_pdb"
+
+  CALL timestop(0.0_dbl,handle)
+  IF(PRESENT(globenv)) THEN
+    CALL write_checkpoint_information("exiting "//routineN,globenv)
+  END IF
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
@@ -341,7 +463,6 @@ SUBROUTINE read_topology_mc (topology,globenv)
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
-    CHARACTER(LEN=20)                        :: label
     CHARACTER(LEN=20), POINTER               :: atm_mol_name(:), &
                                                 atm_name1(:), atm_name2(:), &
                                                 atm_res_name(:)
