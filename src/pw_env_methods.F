@@ -55,7 +55,6 @@ MODULE pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE greens_fn,                       ONLY: pw_green_release
   USE greens_fns,                      ONLY: pw_green_fn_rebuild
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
@@ -505,7 +504,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       DO igrid_level = 1, SIZE ( pw_pools )
         CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
       ENDDO
-      CALL pw_green_release(green)
       CALL pw_green_fn_rebuild(green,&
           pw_env%pw_pools(pw_env%auxbas_grid)%pool)
   ENDIF
