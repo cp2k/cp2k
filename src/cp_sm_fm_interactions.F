@@ -39,8 +39,8 @@ MODULE cp_sm_fm_interactions
                                              cp_internal_error,&
                                              cp_unimplemented_error
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                             cp_fm_struct_equivalent,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_compatible,&
+                                             cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type,&
                                              cp_fm_struct_write
@@ -69,9 +69,9 @@ MODULE cp_sm_fm_interactions
                                              distribution_2d_release,&
                                              distribution_2d_type,&
                                              distribution_2d_write
-  USE kinds,                           ONLY: int_size,&
-                                             dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp,&
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: lcm
   USE message_passing,                 ONLY: mp_alltoall,&
@@ -1049,7 +1049,7 @@ CONTAINS
 !!       Type(cp_fm_type), Pointer:: v_out
 !!       Integer, Intent (IN):: ncol
 !!       Type(cp_para_env_type), Pointer:: para_env
-!!       Real(KIND = dp), Intent (IN), Optional:: alpha, beta
+!!       Real(Kind=dp), Intent (IN), Optional:: alpha, beta
 !!       Type(cp_error_type), Intent (INOUT), Optional:: error
 !!     End Subroutine cp_sm_fm_multiply
 !!
@@ -1165,7 +1165,7 @@ END SUBROUTINE cp_sm_fm_multiply
 !!       Type(cp_fm_type), Pointer:: matrix_v
 !!       Type(cp_fm_type), Pointer, Optional:: matrix_g
 !!       Integer, Intent (IN):: ncol
-!!       Real(KIND = dp), Optional, Intent (IN):: alpha
+!!       Real(Kind=dp), Optional, Intent (IN):: alpha
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_sm_plus_fm_fm_t
 !!
@@ -1300,7 +1300,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
          fm_first_prow, fm_first_pcol, ikind, n_local_atomic_rows, &
-         n_local_atomic_cols
+         n_local_atomic_cols, fm_nrow_global
     INTEGER, DIMENSION(4) :: reqs
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, &
@@ -1330,7 +1330,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPrecondition(ASSOCIATED(sm),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_in),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fm_out),cp_failure_level,routineP,error,failure)
-    CALL cp_assert(cp_fm_struct_equivalent(fm_in%matrix_struct,fm_out%matrix_struct,error=error),&
+    CALL cp_assert(cp_fm_struct_compatible(fm_in%matrix_struct,fm_out%matrix_struct,error=error),&
          cp_failure_level, cp_assertion_failed, routineP, "input and output matrixes must be compatible "//&
          CPSourceFileRef,&
          error,failure)
@@ -1617,7 +1617,8 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          junk_in, junk_out, iblock_row, iblock_col, sbnrow,sbncol,&
          junk_recv_in, junk_recv_out, row_dest, row_src, col_dest,&
          col_src, sm_nblock_row, sm_nblock_col, fm_ncol_block, fm_nrow_block,&
-         fm_first_prow, fm_first_pcol, n_flat_local_rows, n_flat_local_cols
+         fm_first_prow, fm_first_pcol, n_flat_local_rows, n_flat_local_cols,&
+         fm_nrow_global,g_matrix_ncol_g, g_matrix_nrow_g
     INTEGER, DIMENSION(4) :: reqs
     INTEGER, DIMENSION(:), POINTER :: junk_of_col, ncol_local_of_junk,&
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
@@ -1655,10 +1656,11 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPrecondition(ASSOCIATED(matrix_v),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(my_matrix_g),cp_failure_level,routineP,error,failure)
 
-    CALL cp_assert(cp_fm_struct_equivalent(matrix_v%matrix_struct,my_matrix_g%matrix_struct,error=error),&
+    CALL cp_assert(cp_fm_struct_compatible(matrix_v%matrix_struct,my_matrix_g%matrix_struct,error=error),&
          cp_failure_level, cp_assertion_failed, routineP, "input and output matrixes must be compatible "//&
          CPSourceFileRef,&
          error,failure)
+    
     CALL cp_assert(sm%symmetry=="none".OR.sm%symmetry=="symmetric",cp_failure_level,&
          cp_assertion_failed,routineP,"matrix symmetry incorrect in "//&
          CPSourceFileRef,&
@@ -1685,10 +1687,23 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          first_col=sm_first_col)
 
     CALL cp_fm_get_info(matrix_v,ncol_global=fm_ncol_global,&
+         nrow_global=fm_nrow_global,&
          ncol_local=fm_ncol_local, nrow_local=fm_nrow_local,&
          row_indices=fm_row_indices, col_indices=fm_col_indices,&
          para_env=fm_para_env,error=error)
-    IF (PRESENT(ncol)) fm_ncol_global=ncol
+    CALL cp_fm_get_info(matrix_g,ncol_global=g_matrix_ncol_g,&
+         nrow_global=g_matrix_nrow_g,error=error)
+    IF (PRESENT(ncol)) THEN
+       CPPrecondition(ncol<=fm_ncol_global,cp_failure_level,routineP,error,failure)
+       fm_ncol_global=ncol
+    END IF
+    CPPrecondition(g_matrix_ncol_g>=fm_ncol_global,cp_failure_level,routineP,error,failure)
+    CALL cp_assert(g_matrix_nrow_g==fm_nrow_global .AND. &
+         sm_last_col(SIZE(sm_last_col))==sm_last_row(SIZE(sm_last_row)).AND.&
+         sm_last_row(SIZE(sm_last_row))==g_matrix_nrow_g, cp_failure_level,&
+         cp_assertion_failed,routineP,"unacceptable matrix sizes in "//&
+         CPSourceFileRef,&
+         error,failure) 
 
     njunk        =lcm(nprow,npcol)
     IF (njunk==nprow.OR.njunk==npcol)njunk=2*njunk
