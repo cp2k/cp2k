@@ -1286,6 +1286,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     TYPE(real_block_node_type), POINTER      :: block_node
 
     CALL timeset(routineN,"I","Gflops",handle)
+    failure=.false.
     NULLIFY( &
          col_offset_in_junk, row_offset_in_junk, fm_row_indices, fm_col_indices,&
          sm_last_row,&
