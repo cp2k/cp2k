@@ -1015,6 +1015,17 @@ CONTAINS
              t_control%do_kernel = .TRUE.
           END SELECT
 
+       CASE ("INVERT_S", "INV_S", "S-1")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("Y", "YES") 
+             t_control%invert_S = .TRUE.
+          CASE ("N", "NO")
+             t_control%invert_S = .FALSE.
+          CASE DEFAULT
+             t_control%invert_S = .FALSE.
+          END SELECT
+
        CASE ("RES_E_TYPE", &
              "RESTRICTED_EXCITATIONS_TYPE")
           CALL read_object(field, lower_to_upper=.TRUE.)
@@ -1025,6 +1036,17 @@ CONTAINS
              t_control%restricted_excitations_type = "TRIPLET"
           CASE DEFAULT
              t_control%restricted_excitations_type = "SINGLET"
+          END SELECT
+
+       CASE ("DIAG_METHOD")
+          CALL read_object(field, lower_to_upper=.TRUE.)
+          SELECT CASE (TRIM(field))
+          CASE ("DAVIDSON")
+             t_control%diag_method = "DAVIDSON"
+          CASE ("LANCZOS")
+             t_control%diag_method = "LANCZOS"
+          CASE DEFAULT
+             t_control%diag_method = "DAVIDSON"
           END SELECT
 
        CASE ("EXCHANGE-CORRELATION-FUNCTIONAL","XC-FUNCTIONAL","XC-FUN",&

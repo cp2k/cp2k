@@ -132,11 +132,7 @@ MODULE cp_control_types
 !!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
 !!   - restricted_excitations_type : { SINGLET | TRIPLET } which excitations
 !!                  to calculate
-!!   - functional : the functional to use in the perturbation kernel
-!!   - gradient_functionals:
-!!   - crossterms :
 !!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
-!!   - lumos      : holds the first few lumos (if calculated in QS)
 !!
 !! NOTES  
 !!   The lumos are helpfull in choosing a initial vector for the TDDFPT 
@@ -150,7 +146,9 @@ MODULE cp_control_types
      INTEGER                                   :: n_ev
      INTEGER                                   :: n_reortho
      LOGICAL                                   :: do_kernel
+     LOGICAL                                   :: invert_S
      CHARACTER(LEN=7)                          :: restricted_excitations_type
+     CHARACTER(LEN=8)                          :: diag_method
      REAL(KIND = dp), DIMENSION(:,:), POINTER    :: lumos_eigenvalues
   END TYPE tddfpt_control_type
 
