@@ -49,6 +49,7 @@ MODULE qs_mo_types
                                              cp_unimplemented_error
   USE cp_sm_fm_interactions,           ONLY: cp_sm_plus_fm_fm_t
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm, &
+                                             cp_fm_column_scale, &
                                              cp_fm_syrk
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -69,8 +70,7 @@ MODULE qs_mo_types
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
-  USE qs_blacs,                        ONLY: blacs_scale_matrix,&
-                                             copy_blacs_to_ionode_matrix
+  USE qs_blacs,                        ONLY: copy_blacs_to_ionode_matrix
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -445,7 +445,7 @@ CONTAINS
     DO imo=1,mo_set%homo
        eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
     ENDDO
-    CALL blacs_scale_matrix(weighted_vectors,eigocc,mo_set%homo)
+    CALL cp_fm_column_scale(weighted_vectors,eigocc)
     DEALLOCATE(eigocc)
 
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
@@ -511,8 +511,7 @@ CONTAINS
                     mo_set%eigenvectors,h_block,0.0_wp,weighted_vectors)
 
     ! scale every column with the occupation
-    CALL blacs_scale_matrix(weighted_vectors,mo_set%occupation_numbers, &
-                            mo_set%homo)
+    CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
 
     CALL set_matrix(w_matrix,0.0_wp)
     CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&

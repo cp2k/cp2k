@@ -85,6 +85,7 @@ MODULE cp_fm_basic_linalg
 
   PUBLIC :: cp_fm_scale, &
             cp_fm_scale_and_add, &
+            cp_fm_column_scale, &
             cp_fm_trace, &
             cp_fm_schur_product, &
             cp_fm_transpose, &
@@ -909,5 +910,48 @@ SUBROUTINE cp_fm_triangular_multiply(triangular_matrix,matrix_b,side,&
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE cp_fm_upper_to_full
+
+  SUBROUTINE cp_fm_column_scale(matrixa,scaling)
+
+! routine to perform a scaling of every column in a matrix, using as many columns as elements in scaling
+! ***************************************************************************
+
+    TYPE(cp_fm_type), POINTER          :: matrixa
+    REAL(wp), DIMENSION(:), POINTER           :: scaling
+
+!   *** Local variables ***
+
+    INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
+               myprow,npcol,nprow,source,i,k,n
+
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+
+!   ---------------------------------------------------------------------------
+
+    myprow=matrixa%matrix_struct%context%mepos(1)
+    mypcol=matrixa%matrix_struct%context%mepos(2)
+    nprow=matrixa%matrix_struct%context%num_pe(1)
+    npcol=matrixa%matrix_struct%context%num_pe(2)
+
+    a => matrixa%local_data
+    n =  SIZE(a,1)
+    k =  SIZE(scaling)
+
+#if defined(__SCALAPACK)
+
+    DO icol_global=1,k
+       CALL infog2l(1,icol_global,matrixa%matrix_struct%descriptor,&
+            nprow,npcol,myprow,mypcol,&
+            irow_local,icol_local,iprow,ipcol)
+       IF ((ipcol == mypcol)) THEN
+           CALL DSCAL(n,scaling(icol_global),a(1,icol_local),1)
+       END IF
+    ENDDO
+#else
+    DO i=1,k
+      CALL DSCAL(n,scaling(i),a(1,i),1)
+    ENDDO
+#endif
+  END SUBROUTINE cp_fm_column_scale
 
 END MODULE cp_fm_basic_linalg

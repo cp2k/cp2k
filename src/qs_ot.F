@@ -38,6 +38,7 @@ MODULE qs_ot
                                              cp_fm_to_fm, &
                                              cp_fm_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
+                                             cp_fm_column_scale, &
                                              cp_fm_transpose, &
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
@@ -50,8 +51,7 @@ MODULE qs_ot
                                              cp_fm_cholesky_restore
   USE cp_para_types,                   ONLY: cp_para_env_type, &
                                              cp_blacs_env_type
-  USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             blacs_scale_matrix
+  USE qs_blacs,                        ONLY: blacs_make_basis
   USE cp_fm_diag,                      ONLY: cp_fm_syevd, &
                                              cp_fm_syevx
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
@@ -579,7 +579,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
      qs_ot_env%dum(i)=COS(SQRT(qs_ot_env%evals(i)))
   ENDDO
   CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
-  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
+  CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_cosp)
 
@@ -588,7 +588,7 @@ SUBROUTINE qs_ot_p2m(qs_ot_env)
      qs_ot_env%dum(i)=qs_ot_sinc(SQRT(qs_ot_env%evals(i)))
   ENDDO
   CALL cp_fm_to_fm(qs_ot_env%matrix_r,qs_ot_env%matrix_buf1)
-  CALL blacs_scale_matrix(qs_ot_env%matrix_buf1,qs_ot_env%dum)
+  CALL cp_fm_column_scale(qs_ot_env%matrix_buf1,qs_ot_env%dum)
   CALL cp_fm_gemm('N','T',k,k,k,rone,qs_ot_env%matrix_r,qs_ot_env%matrix_buf1, &
                                      rzero,qs_ot_env%matrix_sinp)
 

@@ -24,7 +24,8 @@ MODULE preconditioner
                                              cp_fm_gemm,&
                                              cp_fm_schur_product,&
                                              cp_fm_symm,&
-                                             cp_fm_trace
+                                             cp_fm_trace, &
+                                             cp_fm_column_scale
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
@@ -53,8 +54,7 @@ MODULE preconditioner
   USE kinds,                           ONLY: wp => dp,&
                                              wp_size => dp_size
   USE message_passing,                 ONLY: mp_sum
-  USE qs_blacs,                        ONLY: blacs_make_basis,&
-                                             blacs_scale_matrix
+  USE qs_blacs,                        ONLY: blacs_make_basis
   USE qs_mo_types,                     ONLY: calculate_subspace_eigenvalues
   USE sparse_matrix_types,             ONLY: add_all_real_matrix_blocks,&
                                              add_block_node,&
@@ -629,7 +629,7 @@ SUBROUTINE make_full_single(preconditioner_env, matrix_h, matrix_s, &
         evals(i)=1.0_wp/MAX(evals(i)-energy_homo,energy_gap)
   ENDDO
   CALL cp_fm_to_fm(fm_h,preconditioner_env%fm)
-  CALL blacs_scale_matrix(preconditioner_env%fm,evals,n)
+  CALL cp_fm_column_scale(preconditioner_env%fm,evals)
   CALL cp_fm_gemm('N','T',n,n,n,1.0_wp,preconditioner_env%fm,fm_h,0.0_wp,fm_s)
   CALL cp_fm_to_fm(fm_s,preconditioner_env%fm)
 

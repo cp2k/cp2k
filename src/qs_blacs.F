@@ -99,8 +99,7 @@ MODULE qs_blacs
             blacs_column_copy,&
             write_blacs_matrix, &
             blacs_make_basis, &
-            blacs_get_element, &
-            blacs_scale_matrix
+            blacs_get_element
 
   PUBLIC :: blacs_vector_symv, & ! qs_arpack_full
             copy_vector_to_blacs, &
@@ -184,50 +183,6 @@ CONTAINS
 
   END SUBROUTINE blacs_add_to_element
 ! *****************************************************************************
-
-  SUBROUTINE blacs_scale_matrix(matrixa,scaling,kmax)
-! ugly routine to perform a scaling of every column in a matrix
-! ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER          :: matrixa
-    REAL(wp), DIMENSION(:), POINTER           :: scaling
-    INTEGER, OPTIONAL :: kmax
-
-!   *** Local variables ***
-
-    INTEGER :: icol_global,icol_local,ipcol,iprow,irow_local,mypcol,&
-               myprow,npcol,nprow,source,i,k,n
-
-    REAL(wp), DIMENSION(:,:), POINTER :: a
-
-!   ---------------------------------------------------------------------------
-
-    myprow=matrixa%matrix_struct%context%mepos(1)
-    mypcol=matrixa%matrix_struct%context%mepos(2)
-    nprow=matrixa%matrix_struct%context%num_pe(1)
-    npcol=matrixa%matrix_struct%context%num_pe(2)
-
-    a => matrixa%local_data
-    n =  SIZE(a,1)
-    k =  matrixa%matrix_struct%ncol_global
-
-#if defined(__SCALAPACK)
-    IF (PRESENT(kmax)) k =  kmax
-
-    DO icol_global=1,k
-       CALL infog2l(1,icol_global,matrixa%matrix_struct%descriptor,&
-            nprow,npcol,myprow,mypcol,&
-            irow_local,icol_local,iprow,ipcol)
-       IF ((ipcol == mypcol)) THEN
-           CALL DSCAL(n,scaling(icol_global),a(1,icol_local),1)
-       END IF
-    ENDDO
-#else
-    DO i=1,k
-      CALL DSCAL(n,scaling(i),a(1,i),1)
-    ENDDO
-#endif
-  END SUBROUTINE blacs_scale_matrix
 
 !
 ! decides what fraction of the vector has to be on the local pe,
