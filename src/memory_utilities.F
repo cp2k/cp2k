@@ -23,7 +23,8 @@ MODULE memory_utilities
 
 ! *****************************************************************************
 
-  USE kinds,  ONLY: wp => dp,&
+  USE kinds,  ONLY: int_size,&
+                    wp => dp,&
                     wp_size => dp_size
 
   USE termination, ONLY: stop_memory
@@ -37,14 +38,8 @@ MODULE memory_utilities
 ! *****************************************************************************
 
   INTERFACE reallocate
-    MODULE PROCEDURE reallocate_c0,reallocate_c1,reallocate_c2,reallocate_c3,&
-                     reallocate_c4,&
-                     reallocate_i0,reallocate_i1,reallocate_i2,reallocate_i3,&
-                     reallocate_i4,&
-                     reallocate_l0,reallocate_l1,reallocate_l2,reallocate_l3,&
-                     reallocate_l4,&
-                     reallocate_r0,reallocate_r1,reallocate_r2,reallocate_r3,&
-                     reallocate_r4
+    MODULE PROCEDURE reallocate_i1,reallocate_i2,reallocate_i3,&
+                     reallocate_r1,reallocate_r2,reallocate_r3
   END INTERFACE
 
 ! *****************************************************************************
@@ -53,1055 +48,381 @@ CONTAINS
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_c0(p_old) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a pointer to a complex number.
-
-!   History: - Creation (30.03.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    COMPLEX(wp), POINTER :: p_old
-
-    COMPLEX(wp), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory("FUNCTION reallocate_c0 (MODULE memory_utilities)",&
-                       "p_new",wp_size)
-    END IF
-
-    p_new = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      p_new = p_old
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_c0 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_c0
-
-! *****************************************************************************
-
-  FUNCTION reallocate_c1(p_old,n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real vector of with a new dimension.
-
-!   History: - Creation (20.08.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: n1_new,n2_new
-
-    COMPLEX(wp), DIMENSION(:), POINTER :: p_old
-
-    COMPLEX(wp), DIMENSION(:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_c1 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      n1_old = LBOUND(p_old,1)
-      n2_old = UBOUND(p_old,1)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(n1:n2) = p_old(n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_c1 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_c1
-
-! *****************************************************************************
-
-  FUNCTION reallocate_c2(p_old,m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: m1_new,m2_new,n1_new,n2_new
-
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: p_old
-
-    COMPLEX(wp), DIMENSION(:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,m1,m1_old,m2,m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_c2 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      m1_old = LBOUND(p_old,1)
-      m2_old = UBOUND(p_old,1)
-      n1_old = LBOUND(p_old,2)
-      n2_old = UBOUND(p_old,2)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(m1:m2,n1:n2) = p_old(m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_c2 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_c2
-
-! *****************************************************************************
-
-  FUNCTION reallocate_c3(p_old,l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: l1_new,l2_new,m1_new,m2_new,n1_new,n2_new
-
-    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: p_old
-
-    COMPLEX(wp), DIMENSION(:,:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,l1,l1_old,l2,l2_old,m1,m1_old,m2,m2_old,n1,n1_old,n2,&
-               n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_c3 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      l1_old = LBOUND(p_old,1)
-      l2_old = UBOUND(p_old,1)
-      m1_old = LBOUND(p_old,2)
-      m2_old = UBOUND(p_old,2)
-      n1_old = LBOUND(p_old,3)
-      n2_old = UBOUND(p_old,3)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(l1:l2,m1:m2,n1:n2) = p_old(l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_c3 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_c3
-
-! *****************************************************************************
-
-  FUNCTION reallocate_c4(p_old,k1_new,k2_new,&
-                               l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: k1_new,k2_new,l1_new,l2_new,m1_new,m2_new,n1_new,&
-                           n2_new
-
-    COMPLEX(wp), DIMENSION(:,:,:,:), POINTER :: p_old
-
-    COMPLEX(wp), DIMENSION(:,:,:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,k1,k1_old,k2,k2_old,l1,l1_old,l2,l2_old,m1,m1_old,m2,&
-               m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(k1_new:k2_new,l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),&
-              STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (k2_new - k1_new + 1)*&
-                 (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_c4 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      k1_old = LBOUND(p_old,1)
-      k2_old = UBOUND(p_old,1)
-      l1_old = LBOUND(p_old,2)
-      l2_old = UBOUND(p_old,2)
-      m1_old = LBOUND(p_old,3)
-      m2_old = UBOUND(p_old,3)
-      n1_old = LBOUND(p_old,4)
-      n2_old = UBOUND(p_old,4)
-      k1 = MAX(k1_new,k1_old)
-      k2 = MIN(k2_new,k2_old)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(k1:k2,l1:l2,m1:m2,n1:n2) = p_old(k1:k2,l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_c4 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_c4
-
-! *****************************************************************************
-
-  FUNCTION reallocate_i0(p_old) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a pointer to an integer number.
-
-!   History: - Creation (20.08.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, POINTER :: p_old
-
-    INTEGER, POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory("FUNCTION reallocate_i0 (MODULE memory_utilities)",&
-                       "p_new",BIT_SIZE(0)/8)
-    END IF
-
-    p_new = 0
-
-    IF (ASSOCIATED(p_old)) THEN
-      p_new = p_old
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_i0 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_i0
-
-! *****************************************************************************
-
-  FUNCTION reallocate_i1(p_old,n1_new,n2_new) RESULT(p_new)
+  SUBROUTINE reallocate_i1(p,lb1_new,ub1_new)
 
 !   Purpose: (Re)Allocate an integer vector with a new dimension.
 
-!   History: - Creation (20.08.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: n1_new,n2_new
+    INTEGER, DIMENSION(:), POINTER :: p
+    INTEGER, INTENT(IN)            :: lb1_new,ub1_new
 
-    INTEGER, DIMENSION(:), POINTER :: p_old
+!   *** Local parameters ***
 
-    INTEGER, DIMENSION(:), POINTER :: p_new
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_i1 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat,n1,n1_old,n2,n2_old,new_size
+    INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
+
+    INTEGER, DIMENSION(:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new(n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_i1 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:) = 0
-
-    IF (ASSOCIATED(p_old)) THEN
-      n1_old = LBOUND(p_old,1)
-      n2_old = UBOUND(p_old,1)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(n1:n2) = p_old(n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_i1 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*int_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:) = p(:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_i1
+    ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*int_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      p(lb1:ub1) = work(lb1:ub1)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_i1
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_i2(p_old,m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
+  SUBROUTINE reallocate_i2(p,lb1_new,ub1_new,lb2_new,ub2_new)
 
 !   Purpose: (Re)Allocate an integer array with new dimensions.
 
-!   History: - Creation (25.06.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: m1_new,m2_new,n1_new,n2_new
+    INTEGER, DIMENSION(:,:), POINTER :: p
+    INTEGER, INTENT(IN)              :: lb1_new,lb2_new,ub1_new,ub2_new
 
-    INTEGER, DIMENSION(:,:), POINTER :: p_old
+!   *** Local parameters ***
 
-    INTEGER, DIMENSION(:,:), POINTER :: p_new
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_i2 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat,m1,m1_old,m2,m2_old,n1,n1_old,n2,n2_old,new_size
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,new_size,old_size,ub1,ub1_old,&
+               ub2,ub2_old
+
+    INTEGER, DIMENSION(:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new(m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_i2 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:) = 0
-
-    IF (ASSOCIATED(p_old)) THEN
-      m1_old = LBOUND(p_old,1)
-      m2_old = UBOUND(p_old,1)
-      n1_old = LBOUND(p_old,2)
-      n2_old = UBOUND(p_old,2)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(m1:m2,n1:n2) = p_old(m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_i2 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*int_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:,:) = p(:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_i2
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*int_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_i2
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_i3(p_old,l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
+  SUBROUTINE reallocate_i3(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new)
 
 !   Purpose: (Re)Allocate an integer array with new dimensions.
 
-!   History: - Creation (25.06.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: l1_new,l2_new,m1_new,m2_new,n1_new,n2_new
+    INTEGER, DIMENSION(:,:,:), POINTER :: p
+    INTEGER, INTENT(IN)                :: lb1_new,lb2_new,lb3_new,&
+                                          ub1_new,ub2_new,ub3_new
 
-    INTEGER, DIMENSION(:,:,:), POINTER :: p_old
+!   *** Local parameters ***
 
-    INTEGER, DIMENSION(:,:,:), POINTER :: p_new
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_i3 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat,l1,l1_old,l2,l2_old,m1,m1_old,m2,m2_old,n1,n1_old,n2,&
-               n2_old,new_size
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,new_size,old_size,&
+               ub1,ub1_old,ub2,ub2_old,ub3,ub3_old
+
+    INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new(l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_i3 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:) = 0
-
-    IF (ASSOCIATED(p_old)) THEN
-      l1_old = LBOUND(p_old,1)
-      l2_old = UBOUND(p_old,1)
-      m1_old = LBOUND(p_old,2)
-      m2_old = UBOUND(p_old,2)
-      n1_old = LBOUND(p_old,3)
-      n2_old = UBOUND(p_old,3)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(l1:l2,m1:m2,n1:n2) = p_old(l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb3_old = LBOUND(p,3)
+      ub3_old = UBOUND(p,3)
+      ALLOCATE (work(lb1_old:ub1_old,&
+                     lb2_old:ub2_old,&
+                     lb3_old:ub3_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_i3 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*&
+                   (ub2_old - lb2_old + 1)*&
+                   (ub3_old - lb3_old + 1)*int_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:,:,:) = p(:,:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_i3
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*&
+                 (ub2_new - lb2_new + 1)*&
+                 (ub3_new - lb3_new + 1)*int_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:,:) = 0
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      lb3 = MAX(lb3_new,lb3_old)
+      ub3 = MIN(ub3_new,ub3_old)
+      p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_i3
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_i4(p_old,k1_new,k2_new,&
-                               l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
+  SUBROUTINE reallocate_r1(p,lb1_new,ub1_new)
 
-!   Purpose: (Re)Allocate an integer array with new dimensions.
+!   Purpose: (Re)Allocate an real vector with a new dimension.
 
-!   History: - Creation (25.06.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: k1_new,k2_new,l1_new,l2_new,m1_new,m2_new,n1_new,&
-                           n2_new
+    REAL(wp), DIMENSION(:), POINTER :: p
+    INTEGER, INTENT(IN)             :: lb1_new,ub1_new
 
-    INTEGER, DIMENSION(:,:,:,:), POINTER :: p_old
+!   *** Local parameters ***
 
-    INTEGER, DIMENSION(:,:,:,:), POINTER :: p_new
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_r1 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat,k1,k1_old,k2,k2_old,l1,l1_old,l2,l2_old,m1,m1_old,m2,&
-               m2_old,n1,n1_old,n2,n2_old,new_size
+    INTEGER :: istat,lb1,lb1_old,new_size,old_size,ub1,ub1_old
+
+    REAL(wp), DIMENSION(:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new(k1_new:k2_new,l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),&
-              STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (k2_new - k1_new + 1)*&
-                 (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_i4 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:,:) = 0
-
-    IF (ASSOCIATED(p_old)) THEN
-      k1_old = LBOUND(p_old,1)
-      k2_old = UBOUND(p_old,1)
-      l1_old = LBOUND(p_old,2)
-      l2_old = UBOUND(p_old,2)
-      m1_old = LBOUND(p_old,3)
-      m2_old = UBOUND(p_old,3)
-      n1_old = LBOUND(p_old,4)
-      n2_old = UBOUND(p_old,4)
-      k1 = MAX(k1_new,k1_old)
-      k2 = MIN(k2_new,k2_old)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(k1:k2,l1:l2,m1:m2,n1:n2) = p_old(k1:k2,l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      ALLOCATE (work(lb1_old:ub1_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_i4 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*wp_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:) = p(:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_i4
+    ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*wp_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:) = 0.0_wp
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      p(lb1:ub1) = work(lb1:ub1)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_r1
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_l0(p_old) RESULT(p_new)
+  SUBROUTINE reallocate_r2(p,lb1_new,ub1_new,lb2_new,ub2_new)
 
-!   Purpose: (Re)Allocate a pointer to a logical number.
+!   Purpose: (Re)Allocate an real array with new dimensions.
 
-!   History: - Creation (20.08.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    LOGICAL, POINTER :: p_old
+    REAL(wp), DIMENSION(:,:), POINTER :: p
+    INTEGER, INTENT(IN)               :: lb1_new,lb2_new,ub1_new,ub2_new
 
-    LOGICAL, POINTER :: p_new
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_r2 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,new_size,old_size,ub1,ub1_old,&
+               ub2,ub2_old
+
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory("FUNCTION reallocate_l0 (MODULE memory_utilities)",&
-                       "p_new",BIT_SIZE(0)/8)
-    END IF
-
-    p_new = .FALSE.
-
-    IF (ASSOCIATED(p_old)) THEN
-      p_new = p_old
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      ALLOCATE (work(lb1_old:ub1_old,lb2_old:ub2_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_l0 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*(ub2_old - lb2_old + 1)*wp_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:,:) = p(:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_l0
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*(ub2_new - lb2_new + 1)*wp_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:) = 0.0_wp
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      p(lb1:ub1,lb2:ub2) = work(lb1:ub1,lb2:ub2)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
+    END IF
+
+  END SUBROUTINE reallocate_r2
 
 ! *****************************************************************************
 
-  FUNCTION reallocate_l1(p_old,n1_new,n2_new) RESULT(p_new)
+  SUBROUTINE reallocate_r3(p,lb1_new,ub1_new,lb2_new,ub2_new,lb3_new,ub3_new)
 
-!   Purpose: (Re)Allocate a logical vector with a new dimension.
+!   Purpose: (Re)Allocate an real array with new dimensions.
 
-!   History: - Creation (20.08.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: n1_new,n2_new
-
-    LOGICAL, DIMENSION(:), POINTER :: p_old
-
-    LOGICAL, DIMENSION(:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_l1 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:) = .FALSE.
-
-    IF (ASSOCIATED(p_old)) THEN
-      n1_old = LBOUND(p_old,1)
-      n2_old = UBOUND(p_old,1)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(n1:n2) = p_old(n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_l1 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_l1
-
-! *****************************************************************************
-
-  FUNCTION reallocate_l2(p_old,m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a logical array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
+!   History: - Creation (18.07.2002,MK)
 
 !   ***************************************************************************
 
-    INTEGER, INTENT(IN) :: m1_new,m2_new,n1_new,n2_new
+    REAL(wp), DIMENSION(:,:,:), POINTER :: p
+    INTEGER, INTENT(IN)                 :: lb1_new,lb2_new,lb3_new,&
+                                           ub1_new,ub2_new,ub3_new
 
-    LOGICAL, DIMENSION(:,:), POINTER :: p_old
+!   *** Local parameters ***
 
-    LOGICAL, DIMENSION(:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,m1,m1_old,m2,m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_l2 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:) = .FALSE.
-
-    IF (ASSOCIATED(p_old)) THEN
-      m1_old = LBOUND(p_old,1)
-      m2_old = UBOUND(p_old,1)
-      n1_old = LBOUND(p_old,2)
-      n2_old = UBOUND(p_old,2)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(m1:m2,n1:n2) = p_old(m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_l2 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_l2
-
-! *****************************************************************************
-
-  FUNCTION reallocate_l3(p_old,l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a logical array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: l1_new,l2_new,m1_new,m2_new,n1_new,n2_new
-
-    LOGICAL, DIMENSION(:,:,:), POINTER :: p_old
-
-    LOGICAL, DIMENSION(:,:,:), POINTER :: p_new
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE reallocate_r3 (MODULE memory_utilities)"
 
 !   *** Local variables ***
 
-    INTEGER :: istat,l1,l1_old,l2,l2_old,m1,m1_old,m2,m2_old,n1,n1_old,n2,&
-               n2_old,new_size
+    INTEGER :: istat,lb1,lb1_old,lb2,lb2_old,lb3,lb3_old,new_size,old_size,&
+               ub1,ub1_old,ub2,ub2_old,ub3,ub3_old
+
+    REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: work
 
 !   ---------------------------------------------------------------------------
 
-    ALLOCATE (p_new(l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_l3 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:) = .FALSE.
-
-    IF (ASSOCIATED(p_old)) THEN
-      l1_old = LBOUND(p_old,1)
-      l2_old = UBOUND(p_old,1)
-      m1_old = LBOUND(p_old,2)
-      m2_old = UBOUND(p_old,2)
-      n1_old = LBOUND(p_old,3)
-      n2_old = UBOUND(p_old,3)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(l1:l2,m1:m2,n1:n2) = p_old(l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb2_old = LBOUND(p,2)
+      ub2_old = UBOUND(p,2)
+      lb3_old = LBOUND(p,3)
+      ub3_old = UBOUND(p,3)
+      ALLOCATE (work(lb1_old:ub1_old,&
+                     lb2_old:ub2_old,&
+                     lb3_old:ub3_old),STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_l3 (MODULE memory_utilities)",&
-                         "p_old")
+        old_size = (ub1_old - lb1_old + 1)*&
+                   (ub2_old - lb2_old + 1)*&
+                   (ub3_old - lb3_old + 1)*wp_size
+        CALL stop_memory(routine,"work",old_size)
       END IF
+      work(:,:,:) = p(:,:,:)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"p")
     END IF
 
-  END FUNCTION reallocate_l3
-
-! *****************************************************************************
-
-  FUNCTION reallocate_l4(p_old,k1_new,k2_new,&
-                               l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a logical array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: k1_new,k2_new,l1_new,l2_new,m1_new,m2_new,n1_new,&
-                           n2_new
-
-    LOGICAL, DIMENSION(:,:,:,:), POINTER :: p_old
-
-    LOGICAL, DIMENSION(:,:,:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,k1,k1_old,k2,k2_old,l1,l1_old,l2,l2_old,m1,m1_old,m2,&
-               m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(k1_new:k2_new,l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),&
-              STAT=istat)
+    ALLOCATE (p(lb1_new:ub1_new,lb2_new:ub2_new,lb3_new:ub3_new),STAT=istat)
     IF (istat /= 0) THEN
-      new_size = (k2_new - k1_new + 1)*&
-                 (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*BIT_SIZE(0)/8
-      CALL stop_memory("FUNCTION reallocate_l4 (MODULE memory_utilities)",&
-                       "p_new",new_size)
+      new_size = (ub1_new - lb1_new + 1)*&
+                 (ub2_new - lb2_new + 1)*&
+                 (ub3_new - lb3_new + 1)*wp_size
+      CALL stop_memory(routine,"p",new_size)
+    END IF
+    p(:,:,:) = 0.0_wp
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      lb2 = MAX(lb2_new,lb2_old)
+      ub2 = MIN(ub2_new,ub2_old)
+      lb3 = MAX(lb3_new,lb3_old)
+      ub3 = MIN(ub3_new,ub3_old)
+      p(lb1:ub1,lb2:ub2,lb3:ub3) = work(lb1:ub1,lb2:ub2,lb3:ub3)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"work")
     END IF
 
-    p_new(:,:,:,:) = .FALSE.
-
-    IF (ASSOCIATED(p_old)) THEN
-      k1_old = LBOUND(p_old,1)
-      k2_old = UBOUND(p_old,1)
-      l1_old = LBOUND(p_old,2)
-      l2_old = UBOUND(p_old,2)
-      m1_old = LBOUND(p_old,3)
-      m2_old = UBOUND(p_old,3)
-      n1_old = LBOUND(p_old,4)
-      n2_old = UBOUND(p_old,4)
-      k1 = MAX(k1_new,k1_old)
-      k2 = MIN(k2_new,k2_old)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(k1:k2,l1:l2,m1:m2,n1:n2) = p_old(k1:k2,l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_l4 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_l4
-
-! *****************************************************************************
-
-  FUNCTION reallocate_r0(p_old) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a pointer to a real number.
-
-!   History: - Creation (10.05.2000, Matthias Krack)
-
-!   ***************************************************************************
-
-    REAL(wp), POINTER :: p_old
-
-    REAL(wp), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new,STAT=istat)
-    IF (istat /= 0) THEN
-      CALL stop_memory("FUNCTION reallocate_r0 (MODULE memory_utilities)",&
-                       "p_new",wp_size)
-    END IF
-
-    p_new = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      p_new = p_old
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_r0 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_r0
-
-! *****************************************************************************
-
-  FUNCTION reallocate_r1(p_old,n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real vector of with a new dimension.
-
-!   History: - Creation (20.08.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: n1_new,n2_new
-
-    REAL(wp), DIMENSION(:), POINTER :: p_old
-
-    REAL(wp), DIMENSION(:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_r1 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      n1_old = LBOUND(p_old,1)
-      n2_old = UBOUND(p_old,1)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(n1:n2) = p_old(n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_r1 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_r1
-
-! *****************************************************************************
-
-  FUNCTION reallocate_r2(p_old,m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: m1_new,m2_new,n1_new,n2_new
-
-    REAL(wp), DIMENSION(:,:), POINTER :: p_old
-
-    REAL(wp), DIMENSION(:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,m1,m1_old,m2,m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_r2 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      m1_old = LBOUND(p_old,1)
-      m2_old = UBOUND(p_old,1)
-      n1_old = LBOUND(p_old,2)
-      n2_old = UBOUND(p_old,2)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(m1:m2,n1:n2) = p_old(m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_r2 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_r2
-
-! *****************************************************************************
-
-  FUNCTION reallocate_r3(p_old,l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: l1_new,l2_new,m1_new,m2_new,n1_new,n2_new
-
-    REAL(wp), DIMENSION(:,:,:), POINTER :: p_old
-
-    REAL(wp), DIMENSION(:,:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,l1,l1_old,l2,l2_old,m1,m1_old,m2,m2_old,n1,n1_old,n2,&
-               n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_r3 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      l1_old = LBOUND(p_old,1)
-      l2_old = UBOUND(p_old,1)
-      m1_old = LBOUND(p_old,2)
-      m2_old = UBOUND(p_old,2)
-      n1_old = LBOUND(p_old,3)
-      n2_old = UBOUND(p_old,3)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(l1:l2,m1:m2,n1:n2) = p_old(l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_r3 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_r3
-
-! *****************************************************************************
-
-  FUNCTION reallocate_r4(p_old,k1_new,k2_new,&
-                               l1_new,l2_new,&
-                               m1_new,m2_new,&
-                               n1_new,n2_new) RESULT(p_new)
-
-!   Purpose: (Re)Allocate a real array with new dimensions.
-
-!   History: - Creation (25.06.1999, Matthias Krack)
-
-!   ***************************************************************************
-
-    INTEGER, INTENT(IN) :: k1_new,k2_new,l1_new,l2_new,m1_new,m2_new,n1_new,&
-                           n2_new
-
-    REAL(wp), DIMENSION(:,:,:,:), POINTER :: p_old
-
-    REAL(wp), DIMENSION(:,:,:,:), POINTER :: p_new
-
-!   *** Local variables ***
-
-    INTEGER :: istat,k1,k1_old,k2,k2_old,l1,l1_old,l2,l2_old,m1,m1_old,m2,&
-               m2_old,n1,n1_old,n2,n2_old,new_size
-
-!   ---------------------------------------------------------------------------
-
-    ALLOCATE (p_new(k1_new:k2_new,l1_new:l2_new,m1_new:m2_new,n1_new:n2_new),&
-              STAT=istat)
-    IF (istat /= 0) THEN
-      new_size = (k2_new - k1_new + 1)*&
-                 (l2_new - l1_new + 1)*&
-                 (m2_new - m1_new + 1)*&
-                 (n2_new - n1_new + 1)*wp_size
-      CALL stop_memory("FUNCTION reallocate_r4 (MODULE memory_utilities)",&
-                       "p_new",new_size)
-    END IF
-
-    p_new(:,:,:,:) = 0.0_wp
-
-    IF (ASSOCIATED(p_old)) THEN
-      k1_old = LBOUND(p_old,1)
-      k2_old = UBOUND(p_old,1)
-      l1_old = LBOUND(p_old,2)
-      l2_old = UBOUND(p_old,2)
-      m1_old = LBOUND(p_old,3)
-      m2_old = UBOUND(p_old,3)
-      n1_old = LBOUND(p_old,4)
-      n2_old = UBOUND(p_old,4)
-      k1 = MAX(k1_new,k1_old)
-      k2 = MIN(k2_new,k2_old)
-      l1 = MAX(l1_new,l1_old)
-      l2 = MIN(l2_new,l2_old)
-      m1 = MAX(m1_new,m1_old)
-      m2 = MIN(m2_new,m2_old)
-      n1 = MAX(n1_new,n1_old)
-      n2 = MIN(n2_new,n2_old)
-      p_new(k1:k2,l1:l2,m1:m2,n1:n2) = p_old(k1:k2,l1:l2,m1:m2,n1:n2)
-      DEALLOCATE (p_old,STAT=istat)
-      IF (istat /= 0) THEN
-        CALL stop_memory("FUNCTION reallocate_r4 (MODULE memory_utilities)",&
-                         "p_old")
-      END IF
-    END IF
-
-  END FUNCTION reallocate_r4
+  END SUBROUTINE reallocate_r3
 
 ! *****************************************************************************
 

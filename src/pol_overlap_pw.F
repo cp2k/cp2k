@@ -49,7 +49,6 @@ MODULE pol_overlap_pw
                                       next_block_node,&
                                       real_block_node_type,&
                                       real_matrix_p_type
-  USE memory_utilities,         ONLY : reallocate
   USE method_specifications,    ONLY : maxder
   USE molecule_types,           ONLY : particle_node_type, &
                                        linklist_images, linklist_neighbor

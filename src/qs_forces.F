@@ -92,17 +92,16 @@ CONTAINS
 
 !   *** Local variables ***
 
-    TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors,w_blacs
     TYPE(dft_control_type), POINTER  :: dft_control
     TYPE(mo_set_type), POINTER       :: mo_set
     TYPE(real_matrix_type), POINTER  :: w
 
-    INTEGER :: handle,iatom,ikind,istat,nao,ncol_block,nrow_block,output_unit
+    INTEGER :: handle,ikind,istat,output_unit
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER   :: atomic_kind_set
     TYPE(mo_set_p_type), DIMENSION(:), POINTER      :: c
     TYPE(qs_force_type), DIMENSION(:), POINTER      :: force
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s,ks
+    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: k,p,s
 
 !   ---------------------------------------------------------------------------
 

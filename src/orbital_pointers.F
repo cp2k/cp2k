@@ -14,18 +14,12 @@
 !!     Matthias Krack (07.06.2000)
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     reallocate eliminated (17.07.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE orbital_pointers
-
-! *****************************************************************************
-
-! Index:
-
-! SUBROUTINE init_orbital_pointers(maxl)
 
 ! *****************************************************************************
 
@@ -42,15 +36,19 @@ MODULE orbital_pointers
 
 ! *****************************************************************************
 
+  USE kinds, ONLY: int_size
+
+  USE termination, ONLY: stop_memory
+
   IMPLICIT NONE
 
   PRIVATE
 
-  INTEGER :: current_maxl = -1
+  INTEGER, SAVE :: current_maxl = -1
 
-  INTEGER, DIMENSION(:), POINTER     :: nco,ncoset,nso,nsoset
-  INTEGER, DIMENSION(:,:), POINTER   :: indco
-  INTEGER, DIMENSION(:,:,:), POINTER :: co,coset
+  INTEGER, DIMENSION(:), ALLOCATABLE     :: nco,ncoset,nso,nsoset
+  INTEGER, DIMENSION(:,:), ALLOCATABLE   :: indco
+  INTEGER, DIMENSION(:,:,:), ALLOCATABLE :: co,coset
 
 ! *** Public subroutines ***
 
@@ -80,13 +78,16 @@ CONTAINS
 
 !   ***************************************************************************
 
-    USE memory_utilities, ONLY: reallocate
-
     INTEGER, INTENT(IN) :: maxl
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_orbital_pointers (MODULE orbital_pointers)"
 
 !   *** Local variables ***
 
-    INTEGER :: l,lx,ly,lz
+    INTEGER :: istat,l,lx,ly,lz
 
 !   ---------------------------------------------------------------------------
 
@@ -96,29 +97,52 @@ CONTAINS
 
 !   *** Initialize pointers in the first call ***
 
-    IF (current_maxl == -1) NULLIFY(co,coset,indco,nco,ncoset,nso,nsoset)
+    IF (current_maxl > -1) THEN
+      DEALLOCATE (co,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"co")
+      DEALLOCATE (coset,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"coset")
+      DEALLOCATE (indco,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"indco")
+      DEALLOCATE (nco,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nco")
+      DEALLOCATE (ncoset,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"ncoset")
+      DEALLOCATE (nso,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nso")
+      DEALLOCATE (nsoset,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"nsoset")
+    END IF
 
 !   *** Number of Cartesian orbitals for each l ***
 
-    nco => reallocate(nco,-1,maxl)
+    ALLOCATE (nco(-1:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nco",(maxl+2)*int_size)
 
+    nco(-1) = 0
     DO l=0,maxl
       nco(l) = (l + 1)*(l + 2)/2
     END DO
 
 !   *** Number of Cartesian orbitals up to l ***
 
-    ncoset => reallocate(ncoset,-1,maxl)
+    ALLOCATE (ncoset(-1:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"ncoset",(maxl+2)*int_size)
 
+    ncoset(-1) = 0
     DO l=0,maxl
       ncoset(l) = ncoset(l-1) + nco(l)
     END DO
 
 !   *** Build the Cartesian orbital pointer and the shell orbital pointer ***
 
-    co => reallocate(co,0,maxl,0,maxl,0,maxl)
+    ALLOCATE (co(0:maxl,0:maxl,0:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"co",(maxl+1)**3*int_size)
+    co(:,:,:) = 0
 
-    coset => reallocate(coset,-1,maxl,-1,maxl,-1,maxl)
+    ALLOCATE (coset(-1:maxl,-1:maxl,-1:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"coset",(maxl+2)**3*int_size)
+    coset(:,:,:) = 0
 
     coset(-1,:,:) = 1
     coset(:,-1,:) = 1
@@ -135,7 +159,9 @@ CONTAINS
       END DO
     END DO
 
-    indco => reallocate(indco,1,3,1,ncoset(maxl))
+    ALLOCATE (indco(3,ncoset(maxl)),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"indco",3*ncoset(maxl)*int_size)
+    indco(:,:) = 0
 
     DO l=0,maxl
       DO lx=0,l
@@ -148,16 +174,20 @@ CONTAINS
 
 !   *** Number of spherical orbitals for each l ***
 
-    nso => reallocate(nso,-1,maxl)
+    ALLOCATE (nso(-1:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nso",(maxl+2)*int_size)
 
+    nso(-1) = 0
     DO l=0,maxl
       nso(l) = 2*l + 1
     END DO
 
 !   *** Number of spherical orbitals up to l ***
 
-    nsoset => reallocate(nsoset,-1,maxl)
+    ALLOCATE (nsoset(-1:maxl),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"nsoset",(maxl+2)*int_size)
 
+    nsoset(-1) = 0
     DO l=0,maxl
       nsoset(l) = nsoset(l-1) + nso(l)
     END DO

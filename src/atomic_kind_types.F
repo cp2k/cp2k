@@ -21,7 +21,8 @@
 
 MODULE atomic_kind_types
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: int_size,&
+                   wp => dp
 
   USE basis_set_types,          ONLY: allocate_gto_basis_set,&
                                       deallocate_gto_basis_set,&
@@ -42,7 +43,6 @@ MODULE atomic_kind_types
                                       read_potential,&
                                       write_potential
   USE global_types,             ONLY: global_environment_type
-  USE memory_utilities,         ONLY: reallocate
   USE periodic_table,           ONLY: ptable
   USE qs_parser,                ONLY: finish_parser,&
                                       read_object,&
@@ -904,8 +904,17 @@ CONTAINS
     CHARACTER(LEN=max_name_length), OPTIONAL, INTENT(IN) :: name
     REAL(wp), OPTIONAL, INTENT(IN)                       :: mass
     INTEGER, OPTIONAL, INTENT(IN)                        :: kind_number
-    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN), TARGET  :: atom_list
+    INTEGER, DIMENSION(:), OPTIONAL, INTENT(IN)          :: atom_list
     TYPE(pao_bas_projection_type), TARGET, INTENT(in),optional :: pao_bas_proj
+
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE set_atomic_kind (MODULE atomic_kind_types)"
+
+!   *** Local variables ***
+
+    INTEGER :: istat
 
 !   ---------------------------------------------------------------------------
 
@@ -915,8 +924,9 @@ CONTAINS
     IF (PRESENT(kind_number)) atomic_kind%kind_number = kind_number
     IF (PRESENT(atom_list)) THEN
       atomic_kind%natom = SIZE(atom_list)
-      atomic_kind%atom_list => reallocate(atomic_kind%atom_list,&
-                                          1,atomic_kind%natom)
+      ALLOCATE (atomic_kind%atom_list(atomic_kind%natom),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"atomic_kind%atom_list",&
+                                       atomic_kind%natom*int_size)
       atomic_kind%atom_list(:) = atom_list(:)
     END IF
     IF (PRESENT(pao_bas_proj)) atomic_kind%pao_bas_proj => pao_bas_proj

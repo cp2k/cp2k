@@ -31,7 +31,8 @@ MODULE orbital_transformation_matrices
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: wp => dp,&
+                   wp_size => dp_size
 
   USE orbital_pointers, ONLY: co,nco,nso
 
@@ -45,12 +46,11 @@ MODULE orbital_transformation_matrices
 
   TYPE(orbtramat_type), DIMENSION(:), POINTER :: orbtramat
 
-  INTEGER :: current_maxl = -1
+  INTEGER, SAVE :: current_maxl = -1
 
 ! *** Public variables ***
 
-  PUBLIC :: current_maxl,&
-            orbtramat
+  PUBLIC :: orbtramat
 
 ! *** Public data types ***
 
@@ -82,7 +82,6 @@ CONTAINS
     USE global_types,     ONLY: global_environment_type
     USE mathconstants,    ONLY: dfac,fac,pi
     USE mathlib !,          ONLY: OPERATOR(.over.)
-    USE memory_utilities, ONLY: reallocate
     USE termination,      ONLY: stop_memory
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
@@ -129,12 +128,18 @@ CONTAINS
     DO l=0,maxl
       nc = nco(l)
       ns = nso(l)
-      NULLIFY (orbtramat(l)%c2s)
-      orbtramat(l)%c2s => reallocate(orbtramat(l)%c2s,1,ns,1,nc)
-      NULLIFY (orbtramat(l)%slm)
-      orbtramat(l)%slm => reallocate(orbtramat(l)%slm,1,ns,1,nc)
-      NULLIFY (orbtramat(l)%s2c)
-      orbtramat(l)%s2c => reallocate(orbtramat(l)%s2c,1,ns,1,nc)
+      ALLOCATE (orbtramat(l)%c2s(ns,nc),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+      END IF
+      ALLOCATE (orbtramat(l)%slm(ns,nc),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+      END IF
+      ALLOCATE (orbtramat(l)%s2c(ns,nc),STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routine,"orbtramat(l)%s2c",ns*nc*wp_size)
+      END IF
     END DO
 
 !   *** Loop over all angular momentum quantum numbers l ***

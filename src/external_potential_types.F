@@ -623,15 +623,15 @@ CONTAINS
           NULLIFY (elec_conf)
 
           l = 0
-          elec_conf => reallocate(elec_conf,0,l)
+          CALL reallocate(elec_conf,0,l)
           CALL read_object(elec_conf(l),newline=.TRUE.)
           DO WHILE (test_object() == "INT")
             l = l + 1
-            elec_conf => reallocate(elec_conf,0,l)
+            CALL reallocate(elec_conf,0,l)
             CALL read_object(elec_conf(l))
           END DO
 
-          potential%elec_conf => reallocate(potential%elec_conf,0,l)
+          CALL reallocate(potential%elec_conf,0,l)
           potential%elec_conf(:) = elec_conf(:)
 
           potential%z = SUM(elec_conf)
@@ -743,16 +743,15 @@ CONTAINS
           NULLIFY (elec_conf)
 
           l = 0
-          elec_conf => reallocate(elec_conf,0,l)
+          CALL reallocate(elec_conf,0,l)
           CALL read_object(elec_conf(l),newline=.TRUE.)
           DO WHILE (test_object() == "INT")
             l = l + 1
-            elec_conf => reallocate(elec_conf,0,l)
+            CALL reallocate(elec_conf,0,l)
             CALL read_object(elec_conf(l))
           END DO
 
-          potential%all_elec_conf =>&
-            reallocate(potential%all_elec_conf,0,l)
+          CALL reallocate(potential%all_elec_conf,0,l)
           potential%all_elec_conf(:) = elec_conf(:)
 
           potential%z = SUM(elec_conf)
@@ -763,15 +762,15 @@ CONTAINS
 !         *** Read the electronic configuration of the GTH-pseudo atom ***
 
           l = 0
-          elec_conf => reallocate(elec_conf,0,l)
+          CALL reallocate(elec_conf,0,l)
           CALL read_object(elec_conf(l),newline=.TRUE.)
           DO WHILE (test_object() == "INT")
             l = l + 1
-            elec_conf => reallocate(elec_conf,0,l)
+            CALL reallocate(elec_conf,0,l)
             CALL read_object(elec_conf(l))
           END DO
 
-          potential%elec_conf => reallocate(potential%elec_conf,0,l)
+          CALL reallocate(potential%elec_conf,0,l)
           potential%elec_conf(:) = elec_conf(:)
 
           potential%zeff = SUM(elec_conf)
@@ -797,7 +796,7 @@ CONTAINS
 
           CALL read_object(n)
           potential%nexp_ppl = n
-          potential%cexp_ppl => reallocate(potential%cexp_ppl,1,n)
+          CALL reallocate(potential%cexp_ppl,1,n)
 
           DO i=1,n
             CALL read_object(potential%cexp_ppl(i))
@@ -831,8 +830,8 @@ CONTAINS
 
 !           *** Load the parameter for n non-local projectors ***
 
-            potential%alpha_ppnl => reallocate(potential%alpha_ppnl,0,lppnl)
-            potential%nprj_ppnl => reallocate(potential%nprj_ppnl,0,lppnl)
+            CALL reallocate(potential%alpha_ppnl,0,lppnl)
+            CALL reallocate(potential%nprj_ppnl,0,lppnl)
 
             lprj_ppnl_max = -1
             nprj_ppnl_max = 0
@@ -845,8 +844,9 @@ CONTAINS
               nppnl = nppnl + nprj_ppnl*nco(l)
               IF (nprj_ppnl > nprj_ppnl_max) THEN
                 nprj_ppnl_max = nprj_ppnl
-                hprj_ppnl => reallocate(hprj_ppnl,1,nprj_ppnl_max,&
-                                        1,nprj_ppnl_max,0,lppnl)
+                CALL reallocate(hprj_ppnl,1,nprj_ppnl_max,&
+                                          1,nprj_ppnl_max,&
+                                          0,lppnl)
               END IF
               DO i=1,nprj_ppnl
                 IF (i == 1) THEN
@@ -871,21 +871,14 @@ CONTAINS
             potential%lprj_ppnl_max = lprj_ppnl_max
             potential%nprj_ppnl_max = nprj_ppnl_max
 
-            potential%hprj_ppnl => reallocate(potential%hprj_ppnl,&
-                                              1,nprj_ppnl_max,&
-                                              1,nprj_ppnl_max,&
-                                              0,lppnl)
+            CALL reallocate(potential%hprj_ppnl,1,nprj_ppnl_max,&
+                                                1,nprj_ppnl_max,&
+                                                0,lppnl)
             potential%hprj_ppnl(:,:,:) = hprj_ppnl(:,:,:)
 
-            potential%cprj => reallocate(potential%cprj,&
-                                         1,ncoset(lprj_ppnl_max),&
-                                         1,nppnl)
-            potential%cprj_ppnl => reallocate(potential%cprj_ppnl,&
-                                              1,nprj_ppnl_max,&
-                                              0,lppnl)
-            potential%vprj_ppnl => reallocate(potential%vprj_ppnl,&
-                                              1,nppnl,&
-                                              1,nppnl)
+            CALL reallocate(potential%cprj,1,ncoset(lprj_ppnl_max),1,nppnl)
+            CALL reallocate(potential%cprj_ppnl,1,nprj_ppnl_max,0,lppnl)
+            CALL reallocate(potential%vprj_ppnl,1,nppnl,1,nppnl)
 
             DEALLOCATE (hprj_ppnl,STAT=istat)
             IF (istat /= 0) CALL stop_memory(routine,"hprj_ppnl")

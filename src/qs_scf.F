@@ -80,7 +80,6 @@ MODULE qs_scf
                                       init_l_info,&
                                       l_info_type
   USE mathconstants,            ONLY: fourpi,twopi
-  USE memory_utilities,         ONLY: reallocate
   USE message_passing,          ONLY: mp_max,mp_sum,mp_sync,&
                                       mp_range,mp_allgather
   USE particle_types,           ONLY: particle_type

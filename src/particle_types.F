@@ -297,11 +297,11 @@ CONTAINS
     nkind = 0
     natom = 0
 
-    atom_list => reallocate(atom_list,1,nblock_kind,1,nblock_atom)
-    kind_label => reallocate(kind_label,1,max_name_length,1,nblock_atom)
-    kind_of => reallocate(kind_of,1,nblock_atom)
-    natom_of_kind => reallocate(natom_of_kind,1,nblock_kind)
-    r => reallocate(r,1,3,1,nblock_atom)
+    CALL reallocate(atom_list,1,nblock_kind,1,nblock_atom)
+    CALL reallocate(kind_label,1,max_name_length,1,nblock_atom)
+    CALL reallocate(kind_of,1,nblock_atom)
+    CALL reallocate(natom_of_kind,1,nblock_kind)
+    CALL reallocate(r,1,3,1,nblock_atom)
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -330,9 +330,9 @@ CONTAINS
       natom = natom + 1
 
       IF (natom > SIZE(atom_list,2)) THEN
-        atom_list => reallocate(atom_list,1,nkind,1,natom+nblock_atom)
-        kind_of => reallocate(kind_of,1,natom+nblock_atom)
-        r => reallocate(r,1,3,1,natom+nblock_atom)
+        CALL reallocate(atom_list,1,nkind,1,natom+nblock_atom)
+        CALL reallocate(kind_of,1,natom+nblock_atom)
+        CALL reallocate(r,1,3,1,natom+nblock_atom)
       END IF
 
 !     *** Read the atomic coordinates ***
@@ -360,10 +360,9 @@ CONTAINS
       IF (new_kind) THEN
         nkind = nkind + 1
         IF (nkind > SIZE(atom_list,1)) THEN
-          atom_list => reallocate(atom_list,1,nkind+nblock_kind,1,natom)
-          kind_label => reallocate(kind_label,1,max_name_length,&
-                                              1,nkind+nblock_kind)
-          natom_of_kind => reallocate(natom_of_kind,1,nkind+nblock_kind)
+          CALL reallocate(atom_list,1,nkind+nblock_kind,1,natom)
+          CALL reallocate(kind_label,1,max_name_length,1,nkind+nblock_kind)
+          CALL reallocate(natom_of_kind,1,nkind+nblock_kind)
         END IF
         ikind = nkind
         CALL string_to_integer(current_label,kind_label(:,ikind))
@@ -381,11 +380,11 @@ CONTAINS
 
     CALL finish_parser()
 
-    atom_list => reallocate(atom_list,1,nkind,1,natom)
-    kind_label => reallocate(kind_label,1,max_name_length,1,nkind)
-    kind_of => reallocate(kind_of,1,natom)
-    natom_of_kind => reallocate(natom_of_kind,1,nkind)
-    r => reallocate(r,1,3,1,natom)
+    CALL reallocate(atom_list,1,nkind,1,natom)
+    CALL reallocate(kind_label,1,max_name_length,1,nkind)
+    CALL reallocate(kind_of,1,natom)
+    CALL reallocate(natom_of_kind,1,nkind)
+    CALL reallocate(r,1,3,1,natom)
 
 !   *** Allocate the data structure for the atomic kind information ***
 

@@ -22,7 +22,8 @@ MODULE basis_set_types
 
 ! *****************************************************************************
 
-  USE kinds, ONLY: wp => dp
+  USE kinds, ONLY: wp => dp,&
+                   wp_size => dp_size
 
   USE ai_coulomb,                      ONLY: coulomb2
   USE global_types,                    ONLY: global_environment_type
@@ -469,13 +470,20 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER :: gto_basis_set
 
+!   *** Local parameters ***
+
+    CHARACTER(LEN=*), PARAMETER :: routine =&
+      "SUBROUTINE init_norm_cgf_aux (MODULE basis_set_types)"
+
 !   *** Local variables ***
 
     REAL(wp) :: fnorm,gcca,gccb
-    INTEGER  :: ico,icgf,ipgf,iset,ishell,jco,jpgf,lmax,lmin,lx,ly,lz,n,npgfa
+    INTEGER  :: ico,icgf,ipgf,iset,ishell,istat,jco,jpgf,lmax,lmin,lx,ly,lz,n,&
+                npgfa
 
-    REAL(wp), DIMENSION(:), POINTER   :: rpgfa,zeta
-    REAL(wp), DIMENSION(:,:), POINTER :: gaa
+    REAL(wp), DIMENSION(:), POINTER :: rpgfa,zeta
+
+    REAL(wp), DIMENSION(:,:), ALLOCATABLE :: gaa
 
 !   ---------------------------------------------------------------------------
 
@@ -485,9 +493,8 @@ CONTAINS
       n = MAX(n,gto_basis_set%npgf(iset)*ncoset(gto_basis_set%lmax(iset)))
     END DO
 
-    NULLIFY (gaa)
-
-    gaa => reallocate(gaa,1,n,1,n)
+    ALLOCATE (gaa(n,n),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"gaa",n*n*wp_size)
 
     DO iset=1,gto_basis_set%nset
       lmax = gto_basis_set%lmax(iset)
@@ -521,6 +528,9 @@ CONTAINS
         END DO
       END DO
     END DO
+
+    DEALLOCATE (gaa,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"gaa")
 
   END SUBROUTINE init_norm_cgf_aux
 
@@ -719,11 +729,11 @@ CONTAINS
 
           CALL read_object(nset,newline=.TRUE.)
 
-          npgf => reallocate(npgf,1,nset)
-          nshell => reallocate(nshell,1,nset)
-          lmax => reallocate(lmax,1,nset)
-          lmin => reallocate(lmin,1,nset)
-          n => reallocate(n,1,1,1,nset)
+          CALL reallocate(npgf,1,nset)
+          CALL reallocate(nshell,1,nset)
+          CALL reallocate(lmax,1,nset)
+          CALL reallocate(lmin,1,nset)
+          CALL reallocate(n,1,1,1,nset)
 
           maxl = 0
           maxpgf = 0
@@ -737,8 +747,8 @@ CONTAINS
             CALL read_object(npgf(iset))
             IF (npgf(iset) > maxpgf) THEN
               maxpgf = npgf(iset)
-              zet => reallocate(zet,1,maxpgf,1,nset)
-              gcc => reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
+              CALL reallocate(zet,1,maxpgf,1,nset)
+              CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
             END IF
             nshell(iset) = 0
             DO lshell=lmin(iset),lmax(iset)
@@ -747,9 +757,9 @@ CONTAINS
               nshell(iset) = nshell(iset) + ishell
               IF (nshell(iset) > maxshell) THEN
                 maxshell = nshell(iset)
-                n => reallocate(n,1,maxshell,1,nset)
-                l => reallocate(l,1,maxshell,1,nset)
-                gcc => reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
+                CALL reallocate(n,1,maxshell,1,nset)
+                CALL reallocate(l,1,maxshell,1,nset)
+                CALL reallocate(gcc,1,maxpgf,1,maxshell,1,nset)
               END IF
               DO i=1,ishell
                 n(nshell(iset)-ishell+i,iset) = nmin + i - 1
@@ -771,15 +781,14 @@ CONTAINS
 !         *** Allocate the global variables ***
 
           gto_basis_set%nset = nset
-          gto_basis_set%lmax => reallocate(gto_basis_set%lmax,1,nset)
-          gto_basis_set%lmin => reallocate(gto_basis_set%lmin,1,nset)
-          gto_basis_set%npgf => reallocate(gto_basis_set%npgf,1,nset)
-          gto_basis_set%nshell => reallocate(gto_basis_set%nshell,1,nset)
-          gto_basis_set%n => reallocate(gto_basis_set%n,1,maxshell,1,nset)
-          gto_basis_set%l => reallocate(gto_basis_set%l,1,maxshell,1,nset)
-          gto_basis_set%zet => reallocate(gto_basis_set%zet,1,maxpgf,1,nset)
-          gto_basis_set%gcc =>&
-            reallocate(gto_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%lmax,1,nset)
+          CALL reallocate(gto_basis_set%lmin,1,nset)
+          CALL reallocate(gto_basis_set%npgf,1,nset)
+          CALL reallocate(gto_basis_set%nshell,1,nset)
+          CALL reallocate(gto_basis_set%n,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%l,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%zet,1,maxpgf,1,nset)
+          CALL reallocate(gto_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
 
 !         *** Copy the basis set information into the data structure ***
 
@@ -802,22 +811,14 @@ CONTAINS
 
 !         *** Initialise the depending atomic kind information ***
 
-          gto_basis_set%set_radius =>&
-            reallocate(gto_basis_set%set_radius,1,nset)
-          gto_basis_set%pgf_radius =>&
-            reallocate(gto_basis_set%pgf_radius,1,maxpgf,1,nset)
-          gto_basis_set%first_cgf =>&
-            reallocate(gto_basis_set%first_cgf,1,maxshell,1,nset)
-          gto_basis_set%first_sgf =>&
-            reallocate(gto_basis_set%first_sgf,1,maxshell,1,nset)
-          gto_basis_set%last_cgf =>&
-            reallocate(gto_basis_set%last_cgf,1,maxshell,1,nset)
-          gto_basis_set%last_sgf =>&
-            reallocate(gto_basis_set%last_sgf,1,maxshell,1,nset)
-          gto_basis_set%ncgf_set =>&
-            reallocate(gto_basis_set%ncgf_set,1,nset)
-          gto_basis_set%nsgf_set =>&
-            reallocate(gto_basis_set%nsgf_set,1,nset)
+          CALL reallocate(gto_basis_set%set_radius,1,nset)
+          CALL reallocate(gto_basis_set%pgf_radius,1,maxpgf,1,nset)
+          CALL reallocate(gto_basis_set%first_cgf,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%first_sgf,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%last_cgf,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%last_sgf,1,maxshell,1,nset)
+          CALL reallocate(gto_basis_set%ncgf_set,1,nset)
+          CALL reallocate(gto_basis_set%nsgf_set,1,nset)
 
           maxco = 0
           ncgf = 0
@@ -845,13 +846,13 @@ CONTAINS
           gto_basis_set%ncgf = ncgf
           gto_basis_set%nsgf = nsgf
 
-          gto_basis_set%cphi => reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
-          gto_basis_set%sphi => reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
-          gto_basis_set%lx => reallocate(gto_basis_set%lx,1,ncgf)
-          gto_basis_set%ly => reallocate(gto_basis_set%ly,1,ncgf)
-          gto_basis_set%lz => reallocate(gto_basis_set%lz,1,ncgf)
-          gto_basis_set%m => reallocate(gto_basis_set%m,1,nsgf)
-          gto_basis_set%norm_cgf => reallocate(gto_basis_set%norm_cgf,1,ncgf)
+          CALL reallocate(gto_basis_set%cphi,1,maxco,1,ncgf)
+          CALL reallocate(gto_basis_set%sphi,1,maxco,1,nsgf)
+          CALL reallocate(gto_basis_set%lx,1,ncgf)
+          CALL reallocate(gto_basis_set%ly,1,ncgf)
+          CALL reallocate(gto_basis_set%lz,1,ncgf)
+          CALL reallocate(gto_basis_set%m,1,nsgf)
+          CALL reallocate(gto_basis_set%norm_cgf,1,ncgf)
           ALLOCATE (gto_basis_set%cgf_symbol(ncgf),STAT=istat)
           IF (istat /= 0) THEN
             CALL stop_memory(routine,"gto_basis_set%cgf_symbol",12*ncgf)
