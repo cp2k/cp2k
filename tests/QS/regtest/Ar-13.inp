@@ -6,7 +6,7 @@
 
 &DFT
  FUNCTIONAL   HCTH120
- XC_DERIVE    FD
+ XC_DERIV     FD
 &END
 
 &QS
