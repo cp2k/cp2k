@@ -125,6 +125,7 @@ SUBROUTINE projectors ( dg_proj, ao, pw, part, box, grid_s,  &
 
   ngt = SIZE ( grid_b )
  
+
   DO gt = 1, ngt
     first_time = .TRUE.
     igtot = SIZE ( dg_proj )
@@ -234,7 +235,7 @@ END SUBROUTINE projectors
 !!   SOURCE
 !******************************************************************************
 SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
-                               grid_b, rhos1, rhos2, fproj_part, drpot1 ) 
+                           grid_b, rhos1, rhos2, fproj_part, drpot1 ) 
 
   IMPLICIT NONE
 
@@ -288,11 +289,12 @@ SUBROUTINE proj_evaluate ( dg, rden, part, ao, box, exp_igr, grid_s,  &
 
 ! Projector calculation
      CALL dg_sum_patch_force_1d ( rden, rhos1, exp_igr % centre ( :, ip1 ), sum )
-     ao % cr ( c1 ) = sum
+     ao % cr ( c1 ) = sum * dvols
      IF ( p2 /= 0 ) THEN  
        CALL dg_sum_patch_force_1d ( rden, rhos2, exp_igr % centre ( :, ip2 ), sum )
-       ao % cr ( c2 ) = sum
+       ao % cr ( c2 ) = sum * dvols
      ENDIF
+
      IF ( PRESENT ( fproj_part ) ) THEN
 ! forces on the ions
      ! sum boxes on real space grids (big box) due to drpot1

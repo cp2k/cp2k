@@ -949,7 +949,7 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
   IMPLICIT NONE
   TYPE (ao_type), intent (inout) :: ao
   TYPE ( kind_info_type ),  INTENT (IN), DIMENSION (:) :: kind_info
-  TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ) :: fproj_part
+  TYPE ( pol_projector_type ), DIMENSION ( : ), INTENT ( IN ), TARGET :: fproj_part
   TYPE ( empirical_parameter_type ), DIMENSION ( : ), INTENT ( IN ) :: empparm
   REAL (dbl), INTENT (IN) , DIMENSION (:,:,:) :: atom_block
   TYPE (particle_type), DIMENSION ( : ), INTENT ( IN ) :: part
@@ -962,7 +962,7 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
   INTEGER :: ikind, jkind, first_cgfa, last_cgfa, first_cgfb, last_cgfb
   INTEGER :: nshellb, nshella, ncgfa, ncgfb, ic, jc, iproj, jproj      
   REAL ( dbl ) :: hpi, hpj
-  REAL ( dbl ),  DIMENSION ( 3 ) :: fpart_i, fpart_j
+  REAL ( dbl ),  DIMENSION ( : ), POINTER :: fpart_i, fpart_j
   REAL ( dbl ), POINTER :: proj_i, proj_j
 
   ikind = part (ipart) %  kind               
@@ -987,35 +987,41 @@ SUBROUTINE fpart_evaluate ( ao, kind_info, fproj_part, empparm, atom_block, &
 
         jproj = part ( jpart ) % coef_list ( jc )
 
-        fpart_i = fproj_part ( iproj ) % force
-        fpart_j = fproj_part ( jproj ) % force
+        fpart_i => fproj_part ( iproj ) % force
+        fpart_j => fproj_part ( jproj ) % force
 
         proj_i => ao % cr ( iproj )
         proj_j => ao % cr ( jproj )
 
-        fo_part ( 1, ipart ) = fo_part ( 1, ipart ) - 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 1, ipart ) = fo_part ( 1, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
-                              fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                              fpart_i ( 1 ) * proj_j * atom_block ( ic, jc, 1 )+ &
+                              proj_i * fpart_j ( 1 ) * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 1, jpart ) = fo_part ( 1, jpart ) + 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 1, jpart ) = fo_part ( 1, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 2 ) + &
-                              fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                              fpart_j ( 1 ) * proj_i * atom_block ( ic, jc, 1 ) + & 
+                              proj_j * fpart_i ( 1 ) * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 2, ipart ) = fo_part ( 2, ipart ) - 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 2, ipart ) = fo_part ( 2, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
-                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                              fpart_i ( 2 ) * proj_j * atom_block ( ic, jc, 1 ) + & 
+                              proj_i * fpart_j ( 2 ) * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 2, jpart ) = fo_part ( 2, jpart ) + 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 2, jpart ) = fo_part ( 2, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 3 ) + &
-                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                              fpart_j ( 2 ) * proj_i * atom_block ( ic, jc, 1 ) + &  
+                              proj_j * fpart_i ( 2 ) * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 3, ipart ) = fo_part ( 3, ipart ) - 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 3, ipart ) = fo_part ( 3, ipart ) + 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
-                              fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) )
+                              fpart_i ( 3 ) * proj_j * atom_block ( ic, jc, 1 ) + & 
+                              proj_i * fpart_j ( 3 ) * atom_block ( ic, jc, 1 ) )
 
-        fo_part ( 3, jpart ) = fo_part ( 3, jpart ) + 0.5_dbl *  ( hpi + hpj ) * &
+        fo_part ( 3, jpart ) = fo_part ( 3, jpart ) - 0.5_dbl *  ( hpi + hpj ) * &
                              ( proj_i * proj_j * atom_block ( ic, jc, 4 ) + &
-                              fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) )
+                              fpart_j ( 3 ) * proj_i * atom_block ( ic, jc, 1 ) + &
+                              proj_j * fpart_i ( 3 ) * atom_block ( ic, jc, 1 ) )
 
      END DO
  

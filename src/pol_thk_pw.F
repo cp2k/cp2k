@@ -280,13 +280,13 @@ SUBROUTINE rho_evaluate ( dg, rden, part, box, exp_igr, grid_s, &
 
      IF ( PRESENT ( f_part ) ) THEN
 ! forces on the ions
-       f_part ( 1, p1 ) = f_part ( 1, p1 ) - thk ( c1 ) * fproj_part ( c1 ) % force ( 1 )
-       f_part ( 2, p1 ) = f_part ( 2, p1 ) - thk ( c1 ) * fproj_part ( c1 ) % force ( 2 ) 
-       f_part ( 3, p1 ) = f_part ( 3, p1 ) - thk ( c1 ) * fproj_part ( c1 ) % force ( 3 )
+       f_part ( 1, p1 ) = f_part ( 1, p1 ) + thk ( c1 ) * fproj_part ( c1 ) % force ( 1 )
+       f_part ( 2, p1 ) = f_part ( 2, p1 ) + thk ( c1 ) * fproj_part ( c1 ) % force ( 2 ) 
+       f_part ( 3, p1 ) = f_part ( 3, p1 ) + thk ( c1 ) * fproj_part ( c1 ) % force ( 3 )
        IF ( p2 /= 0 ) THEN
-         f_part ( 1, p2 ) = f_part ( 1, p2 ) - thk ( c2 ) * fproj_part ( c2 ) % force ( 1 )
-         f_part ( 2, p2 ) = f_part ( 2, p2 ) - thk ( c2 ) * fproj_part ( c2 ) % force ( 2 ) 
-         f_part ( 3, p2 ) = f_part ( 3, p2 ) - thk ( c2 ) * fproj_part ( c2 ) % force ( 3 ) 
+         f_part ( 1, p2 ) = f_part ( 1, p2 ) + thk ( c2 ) * fproj_part ( c2 ) % force ( 1 )
+         f_part ( 2, p2 ) = f_part ( 2, p2 ) + thk ( c2 ) * fproj_part ( c2 ) % force ( 2 ) 
+         f_part ( 3, p2 ) = f_part ( 3, p2 ) + thk ( c2 ) * fproj_part ( c2 ) % force ( 3 ) 
        END IF
      ENDIF
      ip1 = ip2
