@@ -1,23 +1,21 @@
 &CP2K  
   PROGRAM   FIST
-  PROJECT   ar108
+  PROJECT   water3
   IOLEVEL   1
-  FFTLIB    FFTSG
-  RUN_TYPE     md
+  FFTLIB    FFTW
+  RUN_TYPE   md
 &END
 
 &MD
   ensemble:     nve                    ensemble type (nve,nvt,npt_i,npt_f)
-  steps:        100                      total number of steps
-  timestep:     5. fs                  time step [fs]
-  temperature:  85.0                   temperature [K]
+  steps:        100                    total number of steps
+  timestep:     .5 fs                  time step [fs]
+  temperature:  298.0                   temperature [K]
   restart:      init                   start type (init,pos,posvel)
-  constraints   off
+  constraints   on
   print  files        100
   print  screen       1
 &END
-  verlet_skin   1 angstroms
-  subcells: 10
 
 &TOPOLOGY
  FORCEFIELD ON
@@ -25,23 +23,20 @@
 
 &EWALD
  units angstrom
- ewald_type none
+ ewald_type ewald
+ ewald_param      .44 21
 &END
 
 &FORCE_FIELD
- bonds
-  harmonic O H 200 1.8
- end
- bends
-  harmonic H O H 200 1.8
- end
+ constraints
+   g3x3 add 1 1 2 3 1.88 1.88 3.08
+ end constraints
  nonbonded
-  LENNARD-JONES H H 0.1 0.2 10.0
-  LENNARD-JONES H O 0.3 0.4 11.0
-  LENNARD-JONES O O 0.5 0.6 12.0
+  LENNARD-JONES O O 78.198 3.166 10.0
+  LENNARD-JONES H O 0.0 3.6705 5.0
+  LENNARD-JONES H H 0.0 3.30523 8.0
  end
 &END
-  LENNARD-JONES Ar Ar eps sig rcut
 
 &CELL
  UNIT         ANGSTROM
