@@ -107,7 +107,7 @@ contains
     ! some checks !
     !-------------!
     CPPrecondition(associated(derivative_set),cp_failure_level,routineP,error,failure)
-     CPPrecondition(abs(order)<=3,cp_failure_level,routineP,error,failure)
+    CPPrecondition(abs(order)<=3,cp_failure_level,routineP,error,failure)
     if (any(xc_control%gradient_functionals)) then
        CPPrecondition(present(drhoa),cp_failure_level,routineP,error,failure)
        if (do_lsd) then

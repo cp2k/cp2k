@@ -400,7 +400,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r, drho_r)
+    NULLIFY(tmp_g, tmp_r, vxc_g, my_rho_g, my_rho_r, drho_r, derivative_set)
     logger => cp_error_get_logger(error)
     nd = RESHAPE ((/1,0,0,0,1,0,0,0,1/),(/3,3/))
     DO idir=1,3
