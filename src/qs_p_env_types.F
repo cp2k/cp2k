@@ -39,7 +39,6 @@ MODULE qs_p_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
@@ -368,29 +367,29 @@ END SUBROUTINE p_env_retain
             " , kpp1="
        CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
        IF (ASSOCIATED(p_env%kpp1)) THEN
-          IF (my_long_description) THEN
-             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ("
-             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-             uniquing_nr=uniquing_nr+1
-             DO i=1,SIZE(p_env%kpp1)
-                CALL cp_sm_output(logger,&
-                     outputName="p_env"//cp_to_string(p_env%id_nr)//'kpp1-'//&
-                     cp_to_string(i),&
-                     fromWhere=routineP,iter=uniquing_nr,&
-                     matrix=p_env%kpp1(i)%matrix,&
-                     para_env=para_env, comment='kpp1 matrix',error=error)
-                IF (should_w.and.i/=SIZE(p_env%kpp1)) THEN
-                   WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" ,"
-                   CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-                END IF
-             END DO
-             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
-             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
-          ELSE
+!FM          IF (my_long_description) THEN
+!FM             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ("
+!FM             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+!FM             uniquing_nr=uniquing_nr+1
+!FM             DO i=1,SIZE(p_env%kpp1)
+!FM                CALL cp_sm_output(logger,&
+!FM                     outputName="p_env"//cp_to_string(p_env%id_nr)//'kpp1-'//&
+!FM                     cp_to_string(i),&
+!FM                     fromWhere=routineP,iter=uniquing_nr,&
+!FM                     matrix=p_env%kpp1(i)%matrix,&
+!FM                     para_env=para_env, comment='kpp1 matrix',error=error)
+!FM                IF (should_w.and.i/=SIZE(p_env%kpp1)) THEN
+!FM                   WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" ,"
+!FM                   CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+!FM                END IF
+!FM             END DO
+!FM             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
+!FM             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+!FM          ELSE
              IF (should_w) THEN
                 WRITE(unit=unit_nr, fmt="(a)") '*associated*,'
              END IF
-          END IF
+!FM          END IF
        ELSE
           WRITE(unit=unit_nr, fmt="(a)") '*null*,'
        END IF

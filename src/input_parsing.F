@@ -250,9 +250,9 @@ CONTAINS
               END IF
            ELSE
               ! this should be an error (failure)
-              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                   routineP,"unknown subsection "//TRIM(token)//" of section "&
-                   //TRIM(section%name),error)
+!FM              CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
+!FM                   routineP,"unknown subsection "//TRIM(token)//" of section "&
+!FM                   //TRIM(section%name),error)
               nSub=1
               DO WHILE (nSub>0)
                  CALL parser_get_object(parser,token,newline=.TRUE.,&

@@ -141,8 +141,8 @@ SUBROUTINE enum_create(enum,c_vals,i_vals,strict,error)
      enum%ref_count=1
      ALLOCATE(enum%c_vals(SIZE(c_vals)),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     enum%c_vals=c_vals
      DO i=1,SIZE(enum%c_vals)
+        enum%c_vals(i)=c_vals(i)
         call uppercase(enum%c_vals(i))
      END DO
      ALLOCATE(enum%i_vals(SIZE(i_vals)),stat=stat)

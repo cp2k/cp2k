@@ -73,7 +73,6 @@ MODULE qs_environment_types
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE molecule_types_new,              ONLY: molecule_type
-  USE pao_types,                       ONLY: pao_env_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_release,&
@@ -136,7 +135,8 @@ MODULE qs_environment_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_retain,&
+       section_vals_release
   IMPLICIT NONE
 
   PRIVATE
@@ -185,7 +185,6 @@ MODULE qs_environment_types
 !!       hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
 !!     - sac_3c, sbc_3c: neighbor lists for the calculation of the 3 centers
 !!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
-!!     - pao_env: things needed by the pao method
 !!     - energy: place where the energies calculated are stored
 !!     - matrix_h: core hamiltonian (matrix_h(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (matrix_h(2:4))
@@ -249,7 +248,6 @@ MODULE qs_environment_types
                                                              sbc_ppnl,sac_oce,&
                                                              sbc_oce,sab_2c,&
                                                              sac_3c,sbc_3c
-    TYPE(pao_env_type), POINTER                           :: pao_env
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_h,&
@@ -274,6 +272,7 @@ MODULE qs_environment_types
     TYPE(oce_matrix_type), POINTER                        :: oce
     TYPE(local_rho_type), POINTER                         :: local_rho_set
     TYPE(hartree_local_type),  POINTER                    :: hartree_local
+    TYPE(section_vals_type), POINTER                      :: dft_section
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -311,9 +310,9 @@ CONTAINS
                         dft_control,mos,sab_orb,qmmm,&
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        pao_env,particle_set,energy,force,&
+                        particle_set,energy,force,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        rho, pw_env, mpools,&
+                        rho, pw_env, mpools,dft_section,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,&
@@ -336,6 +335,7 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: use_ref_cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(section_vals_type), POINTER, optional :: dft_section
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
@@ -344,7 +344,6 @@ CONTAINS
                                                 sac_oce,sbc_oce,sab_2c,&
                                                 sac_3c,sbc_3c
     LOGICAL, OPTIONAL                        :: qmmm
-    TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -436,7 +435,6 @@ CONTAINS
     IF (PRESENT(sab_2c)) sab_2c =>  qs_env%sab_2c
     IF (PRESENT(sac_3c)) sac_3c =>  qs_env%sac_3c
     IF (PRESENT(sbc_3c)) sbc_3c =>  qs_env%sbc_3c
-    IF (PRESENT(pao_env)) pao_env => qs_env%pao_env
     IF (PRESENT(energy)) energy => qs_env%energy
     IF (PRESENT(force)) force => qs_env%force
     IF (PRESENT(matrix_h)) matrix_h => qs_env%matrix_h
@@ -496,6 +494,7 @@ CONTAINS
     IF (PRESENT(particle_set)) particle_set => particles%els
     IF (PRESENT(molecule_kind_set)) molecule_kind_set => molecule_kinds_new%els
     IF (PRESENT(molecule_set)) molecule_set => molecules_new%els
+    IF (PRESENT(dft_section)) dft_section => qs_env%dft_section
 
   END SUBROUTINE get_qs_env
 
@@ -531,7 +530,6 @@ CONTAINS
     NULLIFY (qs_env%sab_2c)
     NULLIFY (qs_env%sac_3c)
     NULLIFY (qs_env%sbc_3c)
-    NULLIFY (qs_env%pao_env)
     NULLIFY (qs_env%energy)
     NULLIFY (qs_env%force)
     NULLIFY (qs_env%matrix_h)
@@ -555,6 +553,7 @@ CONTAINS
     NULLIFY (qs_env%oce)
     NULLIFY (qs_env%local_rho_set)
     NULLIFY (qs_env%hartree_local)
+    NULLIFY (qs_env%dft_section)
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
     CALL hartree_local_create(qs_env%hartree_local, error=error)
@@ -576,12 +575,12 @@ CONTAINS
                         dft_control,mos,qmmm,&
                         sab_orb,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
-                        pao_env,energy,force,&
+                        energy,force,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
                         pw_env,mpools,rho,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,&
-                        distribution_2d,&
+                        distribution_2d,dft_section,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
                         rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error)
 
@@ -604,7 +603,6 @@ CONTAINS
                                                 sac_ppnl, sbc_ppnl,&
                                                 sac_oce, sbc_oce,&
                                                 sab_2c,sac_3c,sbc_3c
-    TYPE(pao_env_type), OPTIONAL, POINTER    :: pao_env
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
@@ -645,6 +643,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER, optional :: dft_section
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
       routineP = moduleN//':'//routineN
@@ -685,7 +684,6 @@ CONTAINS
     IF (PRESENT(sab_2c)) qs_env%sab_2c => sab_2c
     IF (PRESENT(sac_3c)) qs_env%sac_3c => sac_3c
     IF (PRESENT(sbc_3c)) qs_env%sbc_3c => sbc_3c
-    IF (PRESENT(pao_env)) qs_env%pao_env => pao_env
     IF (PRESENT(energy)) qs_env%energy => energy
     IF (PRESENT(force)) qs_env%force => force
     IF (PRESENT(matrix_h)) qs_env%matrix_h => matrix_h
@@ -771,6 +769,11 @@ CONTAINS
        CALL distribution_2d_release(qs_env%distribution_2d)
        qs_env%distribution_2d => distribution_2d
     ENDIF
+    IF (PRESENT(dft_section)) THEN
+       CALL section_vals_retain(dft_section,error=error)
+       CALL section_vals_release(qs_env%dft_section,error=error)
+       qs_env%dft_section => dft_section
+    END IF
 
   END SUBROUTINE set_qs_env
 
@@ -1041,13 +1044,7 @@ SUBROUTINE qs_env_release(qs_env,error)
            CALL distribution_2d_release(qs_env%distribution_2d)
         ENDIF
         CALL cp_subsys_release(qs_env%subsys,error=error)
-        IF (ASSOCIATED(qs_env%pao_env)) THEN ! circular ref
-           NULLIFY(qs_env%pao_env)
-!FM           call pao_env_dealloc_ref(pao_env_dealloc_ref,error=error)
-!FM           deallocate(qs_env%pao_env,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
-
+        CALL section_vals_release(qs_env%dft_section,error=error)
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

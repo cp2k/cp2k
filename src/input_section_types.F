@@ -1105,7 +1105,12 @@ FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
           error=error)
      IF (isection>0) res => section_vals%subs_vals(isection,irep)%section_vals
   END IF
-  CPPostcondition(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,routineP,error,failure)
+  call cp_assert(ASSOCIATED(res).OR.my_can_return_null,cp_failure_level,&
+       cp_assertion_failed,routineP,&
+       "could not find subsection "//TRIM(subsection_name)//" in section "//&
+       TRIM(section_vals%section%name)//" at "//&
+       CPSourceFileRef,&
+       error,failure)
 END FUNCTION section_vals_get_subs_vals
 !***************************************************************************
 

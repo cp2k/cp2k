@@ -73,8 +73,6 @@ MODULE qs_environment
   USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
-  USE pao_read_section,                ONLY: pao_env_init_from_file
-  USE pao_types,                       ONLY: pao_env_type
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -114,7 +112,7 @@ MODULE qs_environment
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
-
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
 
   PRIVATE
@@ -168,9 +166,18 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER :: force_env_section, dft_section
 
     NULLIFY(subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
+    
+    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+         "FORCE_EVAL",error=error)
+    dft_section => section_vals_get_subs_vals(force_env_section,&
+         "DFT",error=error)
+
+    CALL set_qs_env(qs_env,dft_section=dft_section,error=error)
+    
     CALL cp_subsys_create(subsystem,para_env=globenv%para_env,error=error)
 
 !   *** Read the input section with the cell parameters ***
@@ -256,7 +263,6 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_energy_type), POINTER            :: energy
@@ -284,7 +290,6 @@ CONTAINS
     NULLIFY (force)
     NULLIFY (local_molecules)
     NULLIFY (local_particles)
-    NULLIFY (pao_env)
     NULLIFY (scf_control)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
@@ -448,7 +453,6 @@ CONTAINS
                     dft_control=dft_control,&
                     energy=energy,&
                     force=force,&
-                    pao_env=pao_env,&
                     scf_control=scf_control,&
                     wf_history=wf_history)
 
@@ -583,15 +587,6 @@ CONTAINS
 !   Allocate and Initialie rho0 soft on the global grid
     IF(dft_control%qs_control%method == "GAPW") & 
       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error=error)
-
-!   *** Read the pao section ***
-
-    IF (dft_control%qs_control%pao) THEN
-      ALLOCATE (pao_env) ! check status ?
-      CALL set_qs_env(qs_env=qs_env,pao_env=pao_env)
-      CALL pao_env_init_from_file(qs_env,globenv)
-!     CALL cp_write_description(pao_env, unit_nr=globenv%scr)
-    END IF
 
     IF (ionode) CALL m_flush(output_unit)
 

@@ -913,6 +913,7 @@ CONTAINS
           END IF
           call print_keys_release(logger%print_keys)
           CALL my_cp_para_env_release(logger%para_env)
+          call cp_iteration_info_release(logger%iter_info)
           DEALLOCATE(logger,stat=stat)
           IF (stat/=0) PRINT *, routineP," WARNING logger dealloc stat=",stat
        END IF
@@ -1522,6 +1523,7 @@ SUBROUTINE cp_iteration_info_create(iteration_info,project_name)
   END IF
   last_it_info_id=last_it_info_id+1
   iteration_info%id_nr=last_it_info_id
+  iteration_info%ref_count=1
   iteration_info%project_name=project_name
   iteration_info%print_level=2
   iteration_info%n_rlevel=1

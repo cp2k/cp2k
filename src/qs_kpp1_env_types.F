@@ -30,7 +30,6 @@ MODULE qs_kpp1_env_types
   USE cp_array_i_utils,                ONLY: cp_2d_i_write
   USE cp_array_logical_utils,          ONLY: cp_1d_logical_write,&
                                              cp_2d_logical_write
-  USE cp_array_r_utils,                ONLY: cp_2d_r_output
   USE cp_error_handling,               ONLY: cp_a_l,&
                                              cp_assert,&
                                              cp_error_get_logger,&
@@ -43,7 +42,6 @@ MODULE qs_kpp1_env_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
@@ -397,21 +395,21 @@ CONTAINS
           END IF
 
           IF (ASSOCIATED(kpp1_env%v_ao)) THEN
-             IF (my_long_description) THEN
-                DO ispin=1,SIZE(kpp1_env%v_ao)
-                   CALL cp_sm_output(logger=logger,&
-                        outputName=TRIM(base_filename)//"%v_ao-"//&
-                        TRIM(ADJUSTL(cp_to_string(ispin))),&
-                        fromWhere=routineP,iter=kpp1_env%print_count,&
-                        matrix=kpp1_env%v_ao(ispin)%matrix,&
-                        para_env=logger%para_env,&
-                        error=error)
-                END DO
-                WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
-                     filename,"*"
-             ELSE
+!FM             IF (my_long_description) THEN
+!FM                DO ispin=1,SIZE(kpp1_env%v_ao)
+!FM                   CALL cp_sm_write(logger=logger,&
+!FM                        outputName=TRIM(base_filename)//"%v_ao-"//&
+!FM                        TRIM(ADJUSTL(cp_to_string(ispin))),&
+!FM                        fromWhere=routineP,iter=kpp1_env%print_count,&
+!FM                        matrix=kpp1_env%v_ao(ispin)%matrix,&
+!FM                        para_env=logger%para_env,&
+!FM                        error=error)
+!FM                END DO
+!FM                WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_ao=*written to ",&
+!FM                     filename,"*"
+!FM             ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " v_ao=*associated*"
-             END IF
+!FM             END IF
           ELSE
              WRITE (unit=my_unit_nr,fmt="(a)") " v_ao=*null*"
           END IF
@@ -447,15 +445,15 @@ CONTAINS
           END IF
 
           IF (ASSOCIATED(kpp1_env%deriv_set)) THEN
-             IF (my_long_description) THEN
-                CALL cp_2d_r_output(logger=logger,&
-                     outputName=base_filename//"%deriv_set%data", &
-                     fromWhere=routineP, iter=kpp1_env%print_count,&
-                     array=kpp1_env%deriv_set%data,&
-                     local=my_local, error=error)
-             ELSE
+!FM             IF (my_long_description) THEN
+!FM                CALL cp_2d_r_output(logger=logger,&
+!FM                     outputName=base_filename//"%deriv_set%data", &
+!FM                     fromWhere=routineP, iter=kpp1_env%print_count,&
+!FM                     array=kpp1_env%deriv_set%data,&
+!FM                     local=my_local, error=error)
+!FM             ELSE
                 WRITE (unit=my_unit_nr,fmt="(a)") " deriv_xc=*associated*,"
-             END IF
+!FM             END IF
           ELSE
              WRITE (unit=my_unit_nr,fmt="(a)") " deriv_xc=*null*,"
           END IF

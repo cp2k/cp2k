@@ -41,10 +41,12 @@ MODULE pw_spline_utils
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             cp_logger_get_default_unit_nr
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE message_passing,                 ONLY: mp_sendrecv
+  USE message_passing,                 ONLY: mp_sendrecv, mp_isend,mp_irecv,&
+       mp_waitall
   USE pw_grid_types,                   ONLY: FULLSPACE
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
@@ -59,12 +61,18 @@ MODULE pw_spline_utils
                                              pw_sumup,&
                                              pw_copy
   USE pw_pool_types, ONLY: pw_pool_type, pw_pool_create_pw,&
-       pw_pool_give_back_pw
+       pw_pool_give_back_pw, pw_pool_retain, pw_pool_release
   USE simulation_cell,                 ONLY: cell_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE pws, ONLY: pw_integral_ab, pw_integral_aa
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals,&
+       section_vals_val_get
+  USE input_keyword_types, only: keyword_type
+  USE cp_output_handling, ONLY: cp_should_output, cp_iter_string, cp_iterate,&
+       cp_add_iter_level, cp_rm_iter_level, cp_unitnr_for_output, &
+       cp_finished_output
 
   IMPLICIT NONE
   PRIVATE
@@ -85,14 +93,13 @@ MODULE pw_spline_utils
          nn50_coeffs=&
          (/ 15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp,&
          1._dp/140608._dp /),&
-         spl3_1d_coeffs=&
-         (/ 2._dp/3._dp,23._dp/48._dp,1._dp/6._dp,1._dp/48._dp /),&
          spl3_aint_coeff=&
          (/ 46._dp/27._dp,-2._dp/(27._dp),-1._dp/(27._dp*2._dp),&
          -1._dp/(27._dp*8._dp) /),&
          spl3_precond1_coeff=&
-         (/ 64._dp/3._dp,-8._dp/3._dp,-1._dp/3._dp,&
-         -1._dp/24._dp /)
+         (/ 64._dp/3._dp,-8._dp/3._dp,-1._dp/3._dp, -1._dp/24._dp /),&
+         spl3_1d_transf_coeffs=&
+         (/ 2._dp/3._dp,23._dp/48._dp,1._dp/6._dp,1._dp/48._dp /)
     
          
     REAL ( KIND = dp ), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs=&
@@ -102,8 +109,12 @@ MODULE pw_spline_utils
          nn10_deriv_coeffs=&
          (/ 25._dp/72._dp, 5._dp/144, 1._dp/288._dp /),&
          nn50_deriv_coeffs=&
-         (/ 625._dp/1352._dp, 25._dp/2704._dp,1._dp/5408._dp /)
-
+         (/ 625._dp/1352._dp, 25._dp/2704._dp,1._dp/5408._dp /),&
+         spl3_1d_coeffs0=&
+         (/ 1._dp/6_dp,2._dp/3._dp,1._dp/6._dp /),&
+         spl3_1d_transf_border1=&
+         (/ 0.517977704_dp, 0.464044595_dp, 0.17977701e-1_dp /)
+    
     INTEGER, SAVE, PRIVATE :: last_precond_id=0
 
   PUBLIC :: pw_spline3_interpolate_values_g, pw_spline3_evaluate_values_g,&
@@ -112,7 +123,7 @@ MODULE pw_spline_utils
   PUBLIC :: pw_spline2_interpolate_values_g, pw_spline2_evaluate_values_g,&
        pw_spline2_deriv_g
   PUBLIC :: pw_nn_compose_r, pw_nn_smear_r, pw_nn_deriv_r, pw_inject_s3,&
-       pw_project_s3
+       pw_project_s3, spl3_nopbc, pw_nn_compose_r_no_pbc
 
 !***
 !****************************************************************************
@@ -138,8 +149,11 @@ MODULE pw_spline_utils
   !!   SOURCE
   !***************************************************************************
   type pw_spline_precond_type
-     INTEGER :: ref_count,id_nr, kind, iteration_nr
-     REAL(kind=dp), dimension(4) :: coeffs
+     INTEGER :: ref_count,id_nr, kind
+     REAL(kind=dp), DIMENSION(4) :: coeffs
+     REAL(kind=dp), DIMENSION(3) :: coeffs_1d
+     LOGICAL :: sharpen, normalize, pbc
+     TYPE(pw_pool_type), pointer :: pool
   end type pw_spline_precond_type
   !!***
   !****************************************************************************
@@ -1311,7 +1325,7 @@ END SUBROUTINE pw_compose_stripe
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
+SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,error)
   REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
   INTEGER, DIMENSION(2, 3)                 :: bo
   TYPE(pw_type), POINTER                   :: pw_in
@@ -1321,7 +1335,6 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
   REAL(kind=dp), DIMENSION(bo(1, 1):bo(2, &
        1), bo(1, 2):bo(2, 2), bo(1, 3):bo(2, &
        3)), INTENT(in)                        :: in_val
-  LOGICAL, OPTIONAL, intent(in)            :: pbc
   TYPE(cp_error_type), INTENT(inout), &
        OPTIONAL                               :: error
 
@@ -1333,9 +1346,8 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
   INTEGER, DIMENSION(2, 3)                 :: gbo
   INTEGER, DIMENSION(3)                    :: s
   LOGICAL                                  :: failure, has_boundary, &
-       yderiv, zderiv,my_pbc
+       yderiv, zderiv
   REAL(kind=dp)                            :: in_val_f, in_val_l
-  REAL(kind=dp), DIMENSION(0:2)            :: in_val_first, in_val_last
   REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
 
   zderiv=ALL(weights(:,:,1)==0.0_dp)
@@ -1345,42 +1357,27 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
   DO i=1,3
      s(i)=bo(2,i)-bo(1,i)+1
   END DO
-  my_pbc=.true.
-  if (present(pbc)) my_pbc=pbc
   IF (ANY(s<1)) RETURN
   has_boundary= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
-       pw_in%pw_grid%bounds(:,1)).or..not.my_pbc
+       pw_in%pw_grid%bounds(:,1))
   IF (has_boundary) THEN
      ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
           tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     IF (my_pbc) THEN ! to do
-        tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             l_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-        tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
-        CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             u_boundary,pw_in%pw_grid%para%pos_of_x(&
-             gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
-             pw_in%pw_grid%para%group)
-     END IF
+     tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
+     CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+          gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+          l_boundary,pw_in%pw_grid%para%pos_of_x(&
+          gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+          pw_in%pw_grid%para%group)
+     tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
+     CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+          gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+          u_boundary,pw_in%pw_grid%para%pos_of_x(&
+          gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+          pw_in%pw_grid%para%group)
      DEALLOCATE(tmp,stat=stat)
-     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-
-     IF (.NOT.my_pbc) THEN
-        IF (gbo(1,1)==bo(1,1)) THEN
-           l_boundary=0.0_dp
-        END IF
-        IF (gbo(2,1)==bo(2,1)) THEN
-           u_boundary=0.0_dp
-        END IF
-     END IF
-
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 
@@ -1390,11 +1387,11 @@ SUBROUTINE pw_nn_compose_r_work(weights,in_val,out_val,pw_in,bo,pbc,error)
   DO k=0,s(3)-1
      DO kw=0,2
         myk=bo(1,3)+MODULO(k+kw-1,s(3))
-        IF (zderiv.AND.kw==1.or..NOT.my_pbc.AND.myk/=bo(1,3)+k+kw-1) CYCLE
+        IF (zderiv.AND.kw==1) CYCLE
         DO j=0,s(2)-1
            DO jw=0,2
               myj=bo(1,2)+MODULO(j+jw-1,s(2))
-              IF (yderiv.AND.jw==1.OR..not.my_pbc.AND.myj/=bo(1,2)+j+jw-1) CYCLE
+              IF (yderiv.AND.jw==1) CYCLE
               IF (has_boundary) THEN
                  in_val_f=l_boundary(myj,myk)
                  in_val_l=u_boundary(myj,myk)
@@ -1446,10 +1443,9 @@ END SUBROUTINE pw_nn_compose_r_work
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, pbc,error)
+SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out,error)
     REAL(kind=dp), DIMENSION(0:2, 0:2, 0:2)  :: weights
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
-    LOGICAL, OPTIONAL, intent(in)            :: pbc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1473,7 +1469,7 @@ SUBROUTINE pw_nn_compose_r(weights, pw_in, pw_out, pbc,error)
   IF (.NOT.failure) THEN
      CALL pw_nn_compose_r_work(weights=weights,in_val=pw_in%cr3d,&
           out_val=pw_out%cr3d,pw_in=pw_in,bo=pw_in%pw_grid%bounds_local,&
-          pbc=pbc,error=error)
+          error=error)
   END IF
   CALL timestop(0.0_dp,handle)
 END SUBROUTINE pw_nn_compose_r
@@ -1515,10 +1511,9 @@ END SUBROUTINE pw_nn_compose_r
 !!     Fawzi Mohamed
 !!
 !!*** **********************************************************************
-  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,pbc,error)
+  SUBROUTINE pw_nn_smear_r(pw_in,pw_out,coeffs,error)
     TYPE(pw_type), POINTER                   :: pw_in, pw_out
     REAL(KIND=dp), DIMENSION(4), INTENT(in)  :: coeffs
-    LOGICAL, OPTIONAL, intent(in)            :: pbc
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1538,7 +1533,7 @@ END SUBROUTINE pw_nn_compose_r
     END DO
 
     CALL pw_nn_compose_r(weights=weights,pw_in=pw_in,pw_out=pw_out,&
-         pbc=pbc,error=error)
+         error=error)
   END SUBROUTINE pw_nn_smear_r
 !***************************************************************************
 
@@ -1637,14 +1632,15 @@ END SUBROUTINE pw_nn_compose_r
   END SUBROUTINE pw_nn_deriv_r
 !***************************************************************************
 
-!!****f* pw_spline_utils/add_coarse2fine [1.0] *
+!!****f* pw_spline_utils/add_coarse2fine *
 !!
 !!   NAME
 !!     add_coarse2fine
 !!
 !!   FUNCTION
-!!     low level function that adds a coarse grid (without boundary)
+!!     low level function that adds a coarse grid
 !!     to a fine grid.
+!!     If pbc is true periodic boundary conditions are applied
 !!
 !!     It will add to
 !!
@@ -1666,15 +1662,21 @@ END SUBROUTINE pw_nn_compose_r
 !!                 weights_1d(abs(k)+1)
 !!
 !!   NOTES
-!!     enormous optimization potential
+!!     coarse looping is continuos, I did not if keeping the fine looping
+!!     contiguos is better.
+!!     Mismatch of carse grid should be supported, and for the more coarse
+!!     grids with many processors it is bound to happen.
 !!
 !!   ARGUMENTS
-!!     - coarse_coeffs: 3d array with boundary of size 1 with the values of the
-!!       coefficients
-!!     - fine_values: 3d array where to add the values due to the
+!!     - coarse_coeffs_pw: the values of the coefficients
+!!     - fine_values_pw: where to add the values due to the
 !!       coarse coeffs
-!!     - coarse_bounds: bounds of the coarse coefficents
 !!     - weights_1d: the weights of the 1d smearing
+!!     - w_border0: the 1d weight at the border (when pbc is false)
+!!     - w_border1: the 1d weights for a point one off the border
+!!       (w_border1(1) is the weight of the coefficent at the border)
+!!       (used if pbc is false)
+!!     - pbc: if periodic boundary conditions should be applied
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1682,69 +1684,416 @@ END SUBROUTINE pw_nn_compose_r
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE add_coarse2fine(coarse_coeffs,fine_values,coarse_bounds,&
-       weights_1d,error)
-    INTEGER, DIMENSION(2,3) :: coarse_bounds
-    REAL(kind=dp), DIMENSION(coarse_bounds(1,1):coarse_bounds(2,1),&
-         coarse_bounds(1,2):coarse_bounds(2,2),&
-         coarse_bounds(1,3):coarse_bounds(2,3)), INTENT(in) :: coarse_coeffs
-    REAL(kind=dp), DIMENSION(2*coarse_bounds(1,1):2*coarse_bounds(2,1),&
-                   2*coarse_bounds(1,2):2*coarse_bounds(2,2),&
-                   2*coarse_bounds(1,3):2*coarse_bounds(2,3)),&
-                   INTENT(inout) :: fine_values
-    REAL(kind=dp), DIMENSION(4), intent(in) :: weights_1d
+  SUBROUTINE add_coarse2fine(coarse_coeffs_pw,fine_values_pw,&
+       weights_1d,w_border0,w_border1,pbc,error)
+    TYPE(pw_type), POINTER :: coarse_coeffs_pw, fine_values_pw
+    REAL(kind=dp), DIMENSION(4), INTENT(in) :: weights_1d
+    REAL(kind=dp), intent(in) :: w_border0
+    REAL(kind=dp), DIMENSION(3), INTENT(in) :: w_border1
+    LOGICAL, intent(in) :: pbc
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='add_coarse2fine',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i,j,k,fi,fj,fk,ii,ij,ik
-    REAL(kind=dp) :: wk,wj
-    
-    failure=.FALSE.
-    
-    IF (.NOT. failure) THEN
-!!       DO k=coarse_bounds(1,3)-1,coarse_bounds(2,3)+1
-!!          DO ik=-3,3
-!!             fk=2*k+ik
-!!             wk= weights_1d(ABS(ik)+1)
-!!             IF (fk<2*coarse_bounds(1,3).OR.fk>2*coarse_bounds(2,3)) cycle
-!!             DO j=coarse_bounds(1,2)-1,coarse_bounds(2,2)+1
-!!                DO ij=-3,3
-!!                   fj=2*j+ij
-!!                   IF (fj<2*coarse_bounds(1,2).OR.fj>2*coarse_bounds(2,2)) cycle
-!!                   wj=weights_1d(ABS(ij)+1)*wk
-!!                   DO i=coarse_bounds(1,1)-1,coarse_bounds(2,1)+1
-!!                      DO ii=-3,3
-!!                         fi=2*i+ii
-!!                         IF (fi<2*coarse_bounds(1,1).OR.fi>2*coarse_bounds(2,1)) cycle
-!!                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
-!!                              weights_1d(ABS(ii)+1)*wj*coarse_coeffs(i,j,k)
-!!                      END DO
-!!                   END DO
-!!                END DO
-!!             END DO
-!!          END DO
-!!       END DO
 
-       DO k=coarse_bounds(1,3),coarse_bounds(2,3)
+    LOGICAL :: failure, has_boundary, has_i_ubound, has_i_lbound
+    CHARACTER(len=*), PARAMETER :: routineN='add_coarse2fine_nopbc',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: i,j,k,fi,fj,fk,ii,ij,ik,rest_b,s(3), reqs(3), nReq
+    REAL(kind=dp) :: wk,wj,wi,v0,v1,v2,v3
+    REAL(kind=dp),DIMENSION(3) :: ww0, w_0
+    REAL(kind=dp),DIMENSION(4) :: ww1, w_1
+    INTEGER, DIMENSION(2,3) :: coarse_bo,coarse_gbo,fine_bo,fine_gbo
+    REAL(kind=dp), DIMENSION(:,:,:), POINTER :: coarse_coeffs, fine_values
+    REAL(kind=dp), DIMENSION(:,:), POINTER :: u_boundary1,u_boundary2,&
+         l_boundary1, l_boundary2, tmp1,tmp2
+
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       coarse_bo=coarse_coeffs_pw%pw_grid%bounds_local
+       coarse_gbo=coarse_coeffs_pw%pw_grid%bounds
+       fine_bo=fine_values_pw%pw_grid%bounds_local
+       fine_gbo=fine_values_pw%pw_grid%bounds
+       IF (pbc) THEN
+          CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)+1),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_bo(1,:)==2*coarse_bo(1,:)),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_bo(2,:)==2*coarse_bo(2,:)+1),cp_failure_level,routineP,error,failure)
+          ! should add support for mishmashed distribution of grids
+       ELSE
+          CPPrecondition(ALL(fine_gbo(1,:)==2*coarse_gbo(1,:)),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_gbo(2,:)==2*coarse_gbo(2,:)),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_bo(1,:)==2*coarse_bo(1,:)),cp_failure_level,routineP,error,failure)
+          CPPrecondition(ALL(fine_bo(2,:)==2*coarse_bo(2,:)),cp_failure_level,routineP,error,failure)
+          ! should add support for mishmashed distribution of grids
+       END IF
+       DO i=1,3
+          s(i)=coarse_bo(2,i)-coarse_bo(1,i)+1
+       END DO
+       IF (ANY(s<1)) RETURN
+       has_boundary= ANY(coarse_gbo(:,1) /= coarse_bo(:,1))
+       IF (has_boundary) THEN
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+          ! parallel part should be rewitten looping on the fine grid 
+          ! for the comunication and handling mismashed grids
+
+!FM          ALLOCATE(l_boundary1(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+!FM               u_boundary1(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+!FM               l_boundary2(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+!FM               u_boundary2(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+!FM               tmp1(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+!FM               tmp2(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+!FM          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!FM          tmp1(:,:)=pw_in%cr3d(bo(2,1),:,:)
+!FM          CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               l_boundary2,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               pw_in%pw_grid%para%group)
+!FM          tmp2(:,:)=pw_in%cr3d(bo(1,1),:,:)
+!FM          CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               u_boundary2,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               pw_in%pw_grid%para%group)
+!FM          nReq=0
+!FM          IF (pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1))/=&
+!FM               pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(2,1)+2-gbo(1,1),gbo(2,1)-gbo(1,1)+1))) THEN
+!FM             !tmp1(:,:)=pw_in%cr3d(bo(2,1),:,:)
+!FM             CALL mp_isend(tmp1,pw_in%pw_grid%para%pos_of_x(&
+!FM                  gbo(1,1)+MODULO(bo(2,1)+2-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM                  request=request,tag=myTag)
+!FM             nReq=nReq+1
+!FM             reqs(nReq)=request
+!FM          END IF
+!FM          IF (bo(2,1)-1>=bo(1,2)) THEN
+!FM             tmp2(:,:)=pw_in%cr3d(bo(2,1)-1,:,:)
+!FM             CALL mp_isend(tmp2,pw_in%pw_grid%para%pos_of_x(&
+!FM                  gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM                  request=request,tag=myTag)
+!FM             nReq=nReq+1
+!FM             reqs(nReq)=request
+!FM          END IF
+!FM          CALL mp_irecv(l_boundary1,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-2-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               request=request,tag=myTag)
+!FM          nReq=nReq+1
+!FM          reqs(nReq)=request
+!FM          call mp_waitall(reqs(:nReq))
+!FM
+!FM          nReq=0
+!FM          IF (bo(1,1)+1<=bo(2,2)) THEN
+!FM             tmp1(:,:)=pw_in%cr3d(bo(1,1)+1,:,:)
+!FM             CALL mp_isend(tmp1,pw_in%pw_grid%para%pos_of_x(&
+!FM                  gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM                  request=request,tag=myTag)
+!FM             nReq=nReq+1
+!FM             reqs(nReq)=request
+!FM          END IF
+!FM          IF (pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1))/=&
+!FM               pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-2-gbo(1,1),gbo(2,1)-gbo(1,1)+1))) THEN
+!FM             tmp2(:,:)=pw_in%cr3d(bo(1,1),:,:)
+!FM             CALL mp_isend(tmp2,pw_in%pw_grid%para%pos_of_x(&
+!FM                  gbo(1,1)+MODULO(bo(1,1)-2-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM                  request=request,tag=myTag)
+!FM             nReq=nReq+1
+!FM             reqs(nReq)=request
+!FM          END IF
+!FM          CALL mp_irecv(l_boundary1,pw_in%pw_grid%para%pos_of_x(&
+!FM               gbo(1,1)+MODULO(bo(1,1)-2-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM               request=request,tag=myTag)
+!FM          nReq=nReq+1
+!FM          reqs(nReq)=request
+!FM          call mp_waitall(reqs(:nReq))
+!FM
+!FM          DEALLOCATE(tmp1,stat=stat)
+!FM          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+!FM          DEALLOCATE(tmp2,stat=stat)
+!FM          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+!FM          
+!FM          IF (pbc) THEN
+!FM             has_i_ubound=.true.
+!FM             has_i_lbound=.true.
+!FM          ELSE
+!FM             has_i_ubound=(coarse_gbo(2,1)/=coarse_bo(2,1))
+!FM             has_i_lbound=(coarse_gbo(1,1)/=coarse_bo(1,1))
+!FM          END IF
+       END IF
+       
+       coarse_coeffs => coarse_coeffs_pw%cr3d
+       fine_values => fine_values_pw%cr3d
+       w_0=(/ weights_1d(3),weights_1d(1),weights_1d(3) /)
+       w_1=(/ weights_1d(4),weights_1d(2),weights_1d(2),weights_1d(4) /)
+       DO k=coarse_bo(1,3),coarse_bo(2,3)
           DO ik=-3,3
-             fk=2*k+ik
-             wk= weights_1d(ABS(ik)+1)
-             IF (fk<2*coarse_bounds(1,3).OR.fk>2*coarse_bounds(2,3)) cycle
-             DO j=coarse_bounds(1,2),coarse_bounds(2,2)
+             IF (pbc) THEN
+                wk=weights_1d(ABS(ik)+1)
+                fk=coarse_gbo(1,3)+MODULO(2*k+ik-coarse_bo(1,3),2*s(3))
+             ELSE
+                fk=2*k+ik
+                IF (fk<=fine_bo(1,3)+1.OR.fk>=fine_bo(2,3)-1) THEN
+                   IF (fk<fine_bo(1,3).OR.fk>fine_bo(2,3)) CYCLE
+                   IF (fk==2*coarse_bo(1,3).OR.fk==2*coarse_bo(2,3)) THEN
+                      IF (ik/=0) CYCLE
+                      wk=w_border0
+                   ELSE IF (fk==2*coarse_bo(1,3)+1) THEN
+                      SELECT CASE(ik)
+                      CASE(1)
+                         wk=w_border1(1)
+                      CASE(-1)
+                         wk=w_border1(2)
+                      CASE(-3)
+                         wk=w_border1(3)
+                      CASE default
+                         CYCLE
+                      END SELECT
+                   ELSE
+                      SELECT CASE(ik)
+                      CASE(3)
+                         wk=w_border1(3)
+                      CASE(1)
+                         wk=w_border1(2)
+                      CASE(-1)
+                         wk=w_border1(1)
+                      CASE default
+                         CYCLE
+                      END SELECT
+                   END IF
+                ELSE
+                   wk=weights_1d(ABS(ik)+1)
+                END IF
+             END IF
+             DO j=coarse_bo(1,2),coarse_bo(2,2)
                 DO ij=-3,3
-                   fj=2*j+ij
-                   IF (fj<2*coarse_bounds(1,2).OR.fj>2*coarse_bounds(2,2)) cycle
-                   wj=weights_1d(ABS(ij)+1)*wk
-                   DO i=coarse_bounds(1,1),coarse_bounds(2,1)
-                      DO ii=-3,3
-                         fi=2*i+ii
-                         IF (fi<2*coarse_bounds(1,1).OR.fi>2*coarse_bounds(2,1)) cycle
-                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
-                              weights_1d(ABS(ii)+1)*wj*coarse_coeffs(i,j,k)
-                      END DO
+                   IF (pbc) THEN
+                      wk=weights_1d(ABS(ij)+1)
+                      fj=coarse_bo(1,2)+MODULO(2*j+ij-coarse_bo(1,2),2*s(2))
+                   ELSE
+                      fj=2*j+ij
+                      IF (fj<=fine_bo(1,2)+1.OR.fj>=fine_bo(2,2)-1) THEN
+                         IF (fj<fine_bo(1,2).OR.fj>fine_bo(2,2)) CYCLE
+                         IF (fj==fine_bo(1,2).OR.fj==fine_bo(2,2)) THEN
+                            IF (ij/=0) CYCLE
+                            wj=w_border0*wk
+                         ELSE IF (fj==2*coarse_bo(1,2)+1) THEN
+                            SELECT CASE(ij)
+                            CASE(1)
+                               wj=w_border1(1)*wk
+                            CASE(-1)
+                               wj=w_border1(2)*wk
+                            CASE(-3)
+                               wj=w_border1(3)*wk
+                            CASE default
+                               CYCLE
+                            END SELECT
+                         ELSE
+                            SELECT CASE(ij)
+                            CASE(-1)
+                               wj=w_border1(1)*wk
+                            CASE(1)
+                               wj=w_border1(2)*wk
+                            CASE(3)
+                               wj=w_border1(3)*wk
+                            CASE default
+                               CYCLE
+                            END SELECT
+                         END IF
+                      ELSE
+                         wj=weights_1d(ABS(ij)+1)*wk
+                      END IF
+                   END IF
+
+                   IF (pbc) THEN
+                      ww0=wj*w_0
+                      ww1=wj*w_1
+                      v3=coarse_coeffs(coarse_bo(2,1),j,k)
+                      i=coarse_bo(1,1)
+                      fi=2*i
+                      v0= coarse_coeffs(i,j,k)
+                      v1= coarse_coeffs(i+1,j,k)
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           ww0(1)*v3+ww0(2)*v0+ww0(3)*v1
+                      v2= coarse_coeffs(i+2,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                        ww1(1)*v3+ww1(2)*v0+ww1(3)*v1+ww1(4)*v2
+                   ELSE 
+                      i=coarse_bo(1,1)
+                      fi=2*i
+                      v0= coarse_coeffs(i,j,k)
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           w_border0*wj*v0
+                      v1= coarse_coeffs(i+1,j,k)
+                      v2= coarse_coeffs(i+2,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           wj*(w_border1(1)*v0+w_border1(2)*v1+&
+                           w_border1(3)*v2)
+                      ww0=wj*w_0
+                      ww1=wj*w_1
+                   END IF
+                   fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                        ww0(1)*v0+ww0(2)*v1+&
+                        ww0(3)*v2
+                   DO i=coarse_bo(1,1)+3,coarse_bo(2,1)-3,4
+                      v3=coarse_coeffs(i,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww1(1)*v0+ww1(2)*v1+&
+                           ww1(3)*v2+ww1(4)*v3)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww0(1)*v1+ww0(2)*v2+&
+                           ww0(3)*v3)
+                      v0=coarse_coeffs(i+1,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww1(4)*v0+ww1(1)*v1+&
+                           ww1(2)*v2+ww1(3)*v3)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww0(1)*v2+ww0(2)*v3+&
+                           ww0(3)*v0)
+                      v1=coarse_coeffs(i+2,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww1(3)*v0+ww1(4)*v1+&
+                           ww1(1)*v2+ww1(2)*v3)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww0(1)*v3+ww0(2)*v0+&
+                           ww0(3)*v1)
+                      v2=coarse_coeffs(i+3,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww1(2)*v0+ww1(3)*v1+&
+                           ww1(4)*v2+ww1(1)*v3)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww0(1)*v0+ww0(2)*v1+&
+                           ww0(3)*v2)
                    END DO
+                   rest_b=MODULO(coarse_bo(2,1)-coarse_bo(1,1)-3+1,4)
+                   IF (rest_b>0) THEN
+                      i=coarse_bo(2,1)-rest_b+1
+                      v3=coarse_coeffs(i,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww1(1)*v0+ww1(2)*v1+&
+                           ww1(3)*v2+ww1(4)*v3)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           (ww0(1)*v1+ww0(2)*v2+&
+                           ww0(3)*v3)
+                      IF (rest_b>1) THEN
+                         v0=coarse_coeffs(i+1,j,k)
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              (ww1(4)*v0+ww1(1)*v1+&
+                              ww1(2)*v2+ww1(3)*v3)
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              (ww0(1)*v2+ww0(2)*v3+&
+                              ww0(3)*v0)
+                         IF (rest_b>2) THEN
+                            v1=coarse_coeffs(i+2,j,k)
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 (ww1(3)*v0+ww1(4)*v1+&
+                                 ww1(1)*v2+ww1(2)*v3)
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 (ww0(1)*v3+ww0(2)*v0+&
+                                 ww0(3)*v1)
+                            
+                            IF (pbc) THEN
+                               v2=coarse_coeffs(coarse_bo(1,1),j,k)
+                               fi=fi+1
+                               fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                    ww1(1)*v3+ww1(2)*v0+ww1(3)*v1+ww1(4)*v2
+                               fi=fi+1
+                               fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                    ww0(1)*v0+ww0(2)*v1+ww0(3)*v2
+                               v3=coarse_coeffs(coarse_bo(1,1)+1,j,k)
+                               fi=fi+1
+                               fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                    ww1(1)*v0+ww1(2)*v1+ww1(3)*v2+ww1(4)*v3
+                            ELSE
+                               fi=fi+1
+                               fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                    wj*(w_border1(3)*v3+w_border1(2)*v0+&
+                                    w_border1(1)*v1)
+                               fi=fi+1
+                               fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                    w_border0*wj*v1
+                            END IF
+                         ELSE IF (pbc) THEN
+                            v1=coarse_coeffs(coarse_bo(1,1),j,k)
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 ww1(1)*v2+ww1(2)*v3+ww1(3)*v0+ww1(4)*v1
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 ww0(1)*v3+ww0(2)*v0+ww0(3)*v1
+                            v2=coarse_coeffs(coarse_bo(1,1)+1,j,k)
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 ww1(1)*v3+ww1(2)*v0+ww1(3)*v1+ww1(4)*v2
+                         ELSE
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 wj*(w_border1(3)*v2+w_border1(2)*v3+&
+                                 w_border1(1)*v0)
+                            fi=fi+1
+                            fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                                 w_border0*wj*v0
+                         END IF
+                      ELSE if (pbc) then
+                         v0=coarse_coeffs(coarse_bo(1,1),j,k)
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              ww1(1)*v1+ww1(2)*v2+ww1(3)*v3+ww1(4)*v0
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              ww0(1)*v2+ww0(2)*v3+ww0(3)*v0
+                         v1=coarse_coeffs(coarse_bo(1,1)+1,j,k)
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              ww1(1)*v2+ww1(2)*v3+ww1(3)*v0+ww1(4)*v1
+                      ELSE
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              wj*(w_border1(3)*v1+w_border1(2)*v2+&
+                              w_border1(1)*v3)
+                         fi=fi+1
+                         fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                              w_border0*wj*v3
+                      END IF
+                   ELSE if (pbc) then
+                      v3=coarse_coeffs(coarse_bo(1,1),j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           ww1(1)*v0+ww1(2)*v1+ww1(3)*v2+ww1(4)*v3
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           ww0(1)*v1+ww0(2)*v2+ww0(3)*v3
+                      v0=coarse_coeffs(coarse_bo(1,1)+1,j,k)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           ww1(1)*v1+ww1(2)*v2+ww1(3)*v3+ww1(4)*v0
+                   ELSE
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           wj*(w_border1(3)*v0+w_border1(2)*v1+&
+                           w_border1(1)*v2)
+                      fi=fi+1
+                      fine_values(fi,fj,fk)=fine_values(fi,fj,fk)+&
+                           w_border0*wj*v2
+                   END IF
+
                 END DO
              END DO
           END DO
@@ -1754,13 +2103,16 @@ END SUBROUTINE pw_nn_compose_r
   END SUBROUTINE add_coarse2fine
 !***************************************************************************
 
+
+
 !!****f* pw_spline_utils/add_fine2coarse [1.0] *
 !!
 !!   NAME
 !!     add_fine2coarse
 !!
 !!   FUNCTION
-!!     low level function that adds the smoothed fine grid to a coarse grid
+!!     low level function that adds a coarse grid (without boundary)
+!!     to a fine grid.
 !!
 !!     It will add to
 !!
@@ -1773,6 +2125,7 @@ END SUBROUTINE pw_nn_compose_r
 !!       fine_values(2*coarse_bounds(1,1):2*coarse_bounds(2,1),
 !!                   2*coarse_bounds(1,2):2*coarse_bounds(2,2),
 !!                   2*coarse_bounds(1,3):2*coarse_bounds(2,3))
+!!
 !!     composed with the weights obtained by the direct product of the
 !!     1d coefficents weights:
 !!
@@ -1781,7 +2134,7 @@ END SUBROUTINE pw_nn_compose_r
 !!                 weights_1d(abs(k)+1)
 !!
 !!   NOTES
-!!     enormous optimization potential
+!!     not very efficent
 !!
 !!   ARGUMENTS
 !!     - coarse_coeffs: 3d array with boundary of size 1 with the values of the
@@ -1790,6 +2143,9 @@ END SUBROUTINE pw_nn_compose_r
 !!       coarse coeffs
 !!     - coarse_bounds: bounds of the coarse coefficents
 !!     - weights_1d: the weights of the 1d smearing
+!!     - w_border0: the 1d weight at the border
+!!     - w_border1: the 1d weights for a point one off the border
+!!       (w_border1(1) is the weight of the coefficent at the border)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1797,48 +2153,266 @@ END SUBROUTINE pw_nn_compose_r
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE add_fine2coarse(fine_coeffs,coarse_values,coarse_bounds,&
-       weights_1d,error)
-    INTEGER, DIMENSION(2,3) :: coarse_bounds
-    REAL(kind=dp), DIMENSION(coarse_bounds(1,1):coarse_bounds(2,1),&
-         coarse_bounds(1,2):coarse_bounds(2,2),&
-         coarse_bounds(1,3):coarse_bounds(2,3)), INTENT(inout) :: coarse_values
-    REAL(kind=dp), DIMENSION(2*coarse_bounds(1,1):2*coarse_bounds(2,1),&
-                   2*coarse_bounds(1,2):2*coarse_bounds(2,2),&
-                   2*coarse_bounds(1,3):2*coarse_bounds(2,3)),&
-                   INTENT(in) :: fine_coeffs
-    REAL(kind=dp), DIMENSION(4), intent(in) :: weights_1d
-    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-  
-    LOGICAL :: failure
-    CHARACTER(len=*), PARAMETER :: routineN='add_fine2coarse',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: i,j,k,fi,fj,fk,ii,ij,ik
-    REAL(kind=dp) :: wk,wj
-    
-    failure=.FALSE.
-    
-    IF (.NOT. failure) THEN
+  SUBROUTINE add_fine2coarse(fine_values,coarse_coeffs,coarse_bounds,&
+       weights_1d,w_border0,w_border1,error)
+    INTEGER, DIMENSION(2, 3)                 :: coarse_bounds
+    REAL(kind=dp), DIMENSION(2*coarse_bounds&
+      (1, 1):2*coarse_bounds(2, 1), 2*&
+      coarse_bounds(1, 2):2*coarse_bounds(2,&
+      2), 2*coarse_bounds(1, 3):2*&
+      coarse_bounds(2, 3)), INTENT(in)    :: fine_values
+    REAL(kind=dp), DIMENSION(coarse_bounds(1&
+      , 1):coarse_bounds(2, 1), &
+      coarse_bounds(1, 2):coarse_bounds(2, 2&
+      ), coarse_bounds(1, 3):coarse_bounds(2&
+      , 3)), INTENT(inout)                      :: coarse_coeffs
+    REAL(kind=dp), DIMENSION(4), INTENT(in)  :: weights_1d
+    REAL(kind=dp), intent(in)                :: w_border0
+    REAL(kind=dp), DIMENSION(3), INTENT(in)  :: w_border1
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'add_fine2coarse', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: fi, fj, fk, i, ij, ik, j, k, &
+                                                rest_b
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: vv0, vv1, vv2, vv3,vv4,vv5,vv6,vv7, wj, wk
+    REAL(kind=dp), DIMENSION(3)              :: w_0, ww0,border_norm
+    REAL(kind=dp), DIMENSION(4)              :: w_1, ww1
+
+    failure=.FALSE.
+
+    IF (.NOT. failure) THEN
+       CPPrecondition(coarse_bounds(2,1)-coarse_bounds(1,2)>1,cp_failure_level,routineP,error,failure)
+       w_0=(/ weights_1d(3),weights_1d(1),weights_1d(3) /)
+       w_1=(/ weights_1d(4),weights_1d(2),weights_1d(2),weights_1d(4) /)
+       border_norm=(/ weights_1d(4)+weights_1d(3)+w_border1(1)+w_border0 ,&
+             weights_1d(4)+weights_1d(3)+weights_1d(2)+weights_1d(1)+w_border1(2),&
+             weights_1d(4)+2*weights_1d(3)+2*weights_1d(2)+weights_1d(1)+w_border1(3) /)
+             
        DO k=coarse_bounds(1,3),coarse_bounds(2,3)
           DO ik=-3,3
              fk=2*k+ik
-             wk= weights_1d(ABS(ik)+1)
-             IF (fk<2*coarse_bounds(1,3).OR.fk>2*coarse_bounds(2,3)) cycle
+             IF (fk<=2*coarse_bounds(1,3)+1.OR.fk>=2*coarse_bounds(2,3)-1) THEN
+                IF (fk<2*coarse_bounds(1,3).OR.fk>2*coarse_bounds(2,3)) CYCLE
+                IF (fk==2*coarse_bounds(1,3).or.fk==2*coarse_bounds(2,3)) THEN
+                   IF (ik/=0) CYCLE
+                   wk=w_border0
+                ELSE IF (fk==2*coarse_bounds(1,3)+1) THEN
+                   SELECT CASE(ik)
+                   CASE(1)
+                      wk=w_border1(1)
+                   CASE(-1)
+                      wk=w_border1(2)
+                   CASE(-3)
+                      wk=w_border1(3)
+                   CASE default
+                      CYCLE
+                   END SELECT
+                ELSE
+                   SELECT CASE(ik)
+                   CASE(3)
+                      wk=w_border1(3)
+                   CASE(1)
+                      wk=w_border1(2)
+                   CASE(-1)
+                      wk=w_border1(1)
+                   CASE default
+                      CYCLE
+                   END SELECT
+                END IF
+             ELSE
+                wk=weights_1d(ABS(ik)+1)
+             END IF
+             IF (k<=coarse_bounds(1,3)+2) THEN
+                wk=wk/border_norm(k-coarse_bounds(1,3)+1)
+             END IF
+             IF (k>=coarse_bounds(2,3)-2) THEN
+                wk=wk/border_norm(coarse_bounds(2,3)-k+1)
+             END IF
              DO j=coarse_bounds(1,2),coarse_bounds(2,2)
                 DO ij=-3,3
                    fj=2*j+ij
-                   IF (fj<2*coarse_bounds(1,2).OR.fj>2*coarse_bounds(2,2)) cycle
-                   wj=weights_1d(ABS(ij)+1)*wk
-                   DO i=coarse_bounds(1,1),coarse_bounds(2,1)
-                      DO ii=-3,3
-                         fi=2*i+ii
-                         IF (fi<2*coarse_bounds(1,1).OR.fi>2*coarse_bounds(2,1)) cycle
-                         coarse_values(i,j,k)=coarse_values(i,j,k)+&
-                              fine_coeffs(fi,fj,fk)*weights_1d(ABS(ii)+1)*wj
-                      END DO
+                   IF (fj<=2*coarse_bounds(1,2)+1.OR.fj>=2*coarse_bounds(2,2)-1) THEN
+                      IF (fj<2*coarse_bounds(1,2).OR.fj>2*coarse_bounds(2,2)) CYCLE
+                      IF (fj==2*coarse_bounds(1,2).OR.fj==2*coarse_bounds(2,2)) THEN
+                         IF (ij/=0) CYCLE
+                         wj=w_border0*wk
+                      ELSE IF (fj==2*coarse_bounds(1,2)+1) THEN
+                         SELECT CASE(ij)
+                         CASE(1)
+                            wj=w_border1(1)*wk
+                         CASE(-1)
+                            wj=w_border1(2)*wk
+                         CASE(-3)
+                            wj=w_border1(3)*wk
+                         CASE default
+                            CYCLE
+                         END SELECT
+                      ELSE
+                         SELECT CASE(ij)
+                         CASE(-1)
+                            wj=w_border1(1)*wk
+                         CASE(1)
+                            wj=w_border1(2)*wk
+                         CASE(3)
+                            wj=w_border1(3)*wk
+                         CASE default
+                            CYCLE
+                         END SELECT
+                      END IF
+                   ELSE
+                      wj=weights_1d(ABS(ij)+1)*wk
+                   END IF
+                   IF (j<=coarse_bounds(1,2)+2) THEN
+                      wj=wj/border_norm(j-coarse_bounds(1,2)+1)
+                   END IF
+                   IF (j>=coarse_bounds(2,2)-2) THEN
+                      wj=wj/border_norm(coarse_bounds(2,2)-j+1)
+                   END IF
+
+                   i=coarse_bounds(1,1)
+                   fi=2*i
+                   vv0=fine_values(fi,fj,fk)
+                   fi=fi+1
+                   vv1=fine_values(fi,fj,fk)
+                   fi=fi+1
+                   vv2=fine_values(fi,fj,fk)
+                   ww0=wj*w_0
+                   ww1=wj*w_1
+                   coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)+&
+                        (vv0*w_border0+vv1*w_border1(1))*wj+vv2*ww0(1)
+                   coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)+&
+                        wj*w_border1(2)*vv1+ww0(2)*vv2
+                   coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)+&
+                        wj*w_border1(3)*vv1+ww0(3)*vv2
+                   DO i=coarse_bounds(1,1)+3,coarse_bounds(2,1)-3,4
+                      fi=fi+1
+                      vv0=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv1=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv2=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv3=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv4=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv5=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv6=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv7=fine_values(fi,fj,fk)
+                      coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                           +ww1(1)*vv0
+                      coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                           +ww1(2)*vv0+ww0(1)*vv1+ww1(1)*vv2
+                      coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                           +ww1(3)*vv0+ww0(2)*vv1+ww1(2)*vv2+ww0(1)*vv3+ww1(1)*vv4
+                      coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                           +ww1(4)*vv0+ww0(3)*vv1+ww1(3)*vv2+ww0(2)*vv3+ww1(2)*vv4+ww0(1)*vv5+ww1(1)*vv6
+                      coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                           +ww1(4)*vv2+ww0(3)*vv3+ww1(3)*vv4+ww0(2)*vv5+ww1(2)*vv6+ww0(1)*vv7
+                      coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                           +ww1(4)*vv4+ww0(3)*vv5+ww1(3)*vv6+ww0(2)*vv7
+                      coarse_coeffs(i+3,j,k)=coarse_coeffs(i+3,j,k)&
+                           +ww1(4)*vv6+ww0(3)*vv7
                    END DO
+                   rest_b=MODULO(coarse_bounds(2,1)-coarse_bounds(1,1)-3+1,4)
+                   IF (rest_b>0) THEN
+                      i=coarse_bounds(2,1)-rest_b+1
+                      fi=fi+1
+                      vv0=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv1=fine_values(fi,fj,fk)
+                      coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                           +ww1(1)*vv0
+                      coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                           +ww1(2)*vv0+ww0(1)*vv1
+                      coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                           +ww1(3)*vv0+ww0(2)*vv1
+                      coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                           +ww1(4)*vv0+ww0(3)*vv1
+                      IF (rest_b>1) THEN
+                         fi=fi+1
+                         vv2=fine_values(fi,fj,fk)
+                         fi=fi+1
+                         vv3=fine_values(fi,fj,fk)
+                         coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                              +ww1(1)*vv2
+                         coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                              +ww1(2)*vv2+ww0(1)*vv3
+                         coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                              +ww1(3)*vv2+ww0(2)*vv3
+                         coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                              +ww1(4)*vv2+ww0(3)*vv3
+                         IF (rest_b>2) THEN
+                            fi=fi+1
+                            vv4=fine_values(fi,fj,fk)
+                            fi=fi+1
+                            vv5=fine_values(fi,fj,fk)
+                            fi=fi+1
+                            vv6=fine_values(fi,fj,fk)
+                            fi=fi+1
+                            vv7=fine_values(fi,fj,fk)
+                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                 +ww1(1)*vv4
+                            coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                 +ww1(2)*vv4+ww0(1)*vv5+wj*w_border1(3)*vv6
+                            coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                 +ww1(3)*vv4+ww0(2)*vv5+wj*w_border1(2)*vv6
+                            coarse_coeffs(i+2,j,k)=coarse_coeffs(i+2,j,k)&
+                                 +ww1(4)*vv4+ww0(3)*vv5+wj*w_border1(1)*vv6+w_border0*wj*vv7
+                         ELSE
+                            fi=fi+1
+                            vv4=fine_values(fi,fj,fk)
+                            fi=fi+1
+                            vv5=fine_values(fi,fj,fk)
+                            coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                                 +wj*w_border1(3)*vv4
+                            coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                                 +wj*w_border1(2)*vv4
+                            coarse_coeffs(i+1,j,k)=coarse_coeffs(i+1,j,k)&
+                                 +wj*(w_border1(1)*vv4+w_border0*vv5)
+                         END IF
+                      ELSE
+                         fi=fi+1
+                         vv2=fine_values(fi,fj,fk)
+                         fi=fi+1
+                         vv3=fine_values(fi,fj,fk)
+                         coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                              +wj*w_border1(3)*vv2
+                         coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                              +wj*w_border1(2)*vv2
+                         coarse_coeffs(i,j,k)=coarse_coeffs(i,j,k)&
+                              +wj*(w_border1(1)*vv2+w_border0*vv3)
+                      END IF
+                   ELSE
+                      fi=fi+1
+                      vv0=fine_values(fi,fj,fk)
+                      fi=fi+1
+                      vv1=fine_values(fi,fj,fk)
+
+                      coarse_coeffs(i-3,j,k)=coarse_coeffs(i-3,j,k)&
+                           +wj*w_border1(3)*vv0
+                      coarse_coeffs(i-2,j,k)=coarse_coeffs(i-2,j,k)&
+                           +wj*w_border1(2)*vv0
+                      coarse_coeffs(i-1,j,k)=coarse_coeffs(i-1,j,k)&
+                           +wj*(w_border1(1)*vv0+w_border0*vv1)
+                   END IF
                 END DO
+             END DO
+          END DO
+       END DO
+       DO k=coarse_bounds(1,3),coarse_bounds(2,3)
+          DO j=coarse_bounds(1,2),coarse_bounds(2,3)
+             DO i=0,2
+                coarse_coeffs(coarse_bounds(1,1)+i,j,k)=&
+                     coarse_coeffs(coarse_bounds(1,1)+i,j,k)/border_norm(1+i)
+                coarse_coeffs(coarse_bounds(2,1)-i,j,k)=&
+                     coarse_coeffs(coarse_bounds(2,1)-i,j,k)/border_norm(1+i)
              END DO
           END DO
        END DO
@@ -1860,6 +2434,10 @@ END SUBROUTINE pw_nn_compose_r
 !!
 !!   ARGUMENTS
 !!     - preconditioner: the preconditioner to create
+!!     - precond_kind: the kind of preconditioner to use
+!!     - pool: a pool with grids of the same type as the elements to 
+!!       precondition
+!!     - pbc: if periodic boundary conditions should be applied
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -1868,10 +2446,11 @@ END SUBROUTINE pw_nn_compose_r
 !!
 !!*** **********************************************************************
 SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
-     iteration_nr,error)
+     pool,pbc,error)
   TYPE(pw_spline_precond_type), pointer :: preconditioner
   INTEGER, intent(in) :: precond_kind
-  INTEGER, INTENT(in), optional :: iteration_nr
+  TYPE(pw_pool_type), pointer :: pool
+  LOGICAL, intent(in) :: pbc
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -1887,21 +2466,102 @@ SUBROUTINE pw_spline_precond_create(preconditioner,precond_kind,&
      last_precond_id=last_precond_id+1
      preconditioner%id_nr=last_precond_id
      preconditioner%ref_count=1
+     preconditioner%kind=no_precond
+     preconditioner%pool => pool
+     preconditioner%pbc=pbc
+     CALL pw_pool_retain(pool,error=error)
+     CALL pw_spline_precond_set_kind(preconditioner,precond_kind,error=error)
+  END IF
+END SUBROUTINE pw_spline_precond_create
+!***************************************************************************
+
+!!****f* pw_spline_utils/pw_spline_precond_set_kind *
+!!
+!!   NAME
+!!     pw_spline_precond_set_kind
+!!
+!!   FUNCTION
+!!     switches the types of precoditioner to use
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - precoditioner: the preconditioner to be changed
+!!     - precond_kind: the new kind of preconditioner to use
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_spline_precond_set_kind(preconditioner,precond_kind,pbc,error)
+  TYPE(pw_spline_precond_type), pointer :: preconditioner
+  INTEGER, intent(in) :: precond_kind
+  LOGICAL, INTENT(in), OPTIONAL :: pbc
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  LOGICAL :: failure,do_3d_coeff
+  INTEGER :: i,j,k
+  real(kind=dp) :: s
+  character(len=*), parameter :: routineN='pw_spline_precond_set_kind',&
+        routineP=moduleN//':'//routineN
+  failure=.false.
+
+  CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
+  CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     do_3d_coeff=.false.
      preconditioner%kind=precond_kind
-     preconditioner%iteration_nr=1
-     if (present(iteration_nr)) preconditioner%iteration_nr=iteration_nr
-     SELECT CASE(preconditioner%kind)
+     if (present(pbc)) preconditioner%pbc=pbc
+     SELECT CASE(precond_kind)
      CASE(no_precond)
-        preconditioner%coeffs=0._dp
      CASE (precond_spl3_aint)
-        preconditioner%coeffs=spl3_aint_coeff
+        preconditioner%coeffs_1d=spl3_1d_coeffs0
+        preconditioner%sharpen=.true.
+        preconditioner%normalize=.true.
+        do_3d_coeff=.true.
      CASE (precond_spl3_1)
-        preconditioner%coeffs=spl3_precond1_coeff
+        preconditioner%coeffs_1d(1)=0.5_dp/3._dp**(1._dp/3._dp)
+        preconditioner%coeffs_1d(2)=4._dp/3._dp**(1._dp/3._dp)
+        preconditioner%coeffs_1d(3)=0.5_dp/3._dp**(1._dp/3._dp)
+        preconditioner%sharpen=.true.
+        preconditioner%normalize=.false.
+        do_3d_coeff=.true.
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
+     IF (do_3d_coeff) THEN
+        s=1._dp
+        IF (preconditioner%sharpen) s=-1._dp
+        preconditioner%coeffs(1)=&
+             s*preconditioner%coeffs_1d(2)*&
+             preconditioner%coeffs_1d(2)*&
+             preconditioner%coeffs_1d(2)
+        preconditioner%coeffs(2)=&
+             s*preconditioner%coeffs_1d(1)*&
+             preconditioner%coeffs_1d(2)*&
+             preconditioner%coeffs_1d(2)
+        preconditioner%coeffs(3)=&
+             s*preconditioner%coeffs_1d(1)*&
+             preconditioner%coeffs_1d(1)*&
+             preconditioner%coeffs_1d(2)
+        preconditioner%coeffs(4)=&
+             s*preconditioner%coeffs_1d(1)*&
+             preconditioner%coeffs_1d(1)*&
+             preconditioner%coeffs_1d(1)
+        IF (preconditioner%sharpen) THEN
+           IF (preconditioner%normalize) THEN
+              preconditioner%coeffs(1)=2._dp+&
+                   preconditioner%coeffs(1)
+           ELSE
+              preconditioner%coeffs(1)=-preconditioner%coeffs(1)
+           END IF
+        END IF
+     END IF
   END IF
-END SUBROUTINE pw_spline_precond_create
+END SUBROUTINE pw_spline_precond_set_kind
 !***************************************************************************
 
 !!****f* pw_spline_utils/pw_spline_precond_retain [1.0] *
@@ -1977,6 +2637,7 @@ SUBROUTINE pw_spline_precond_release(preconditioner,error)
      CPPreconditionNoFail(preconditioner%ref_count>0,cp_failure_level,routineP,error)
      preconditioner%ref_count=preconditioner%ref_count-1
      IF (preconditioner%ref_count==0) THEN
+        CALL pw_pool_release(preconditioner%pool,error=error)
         DEALLOCATE(preconditioner,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
@@ -1997,6 +2658,9 @@ END SUBROUTINE pw_spline_precond_release
 !!     -
 !!
 !!   ARGUMENTS
+!!     - preconditioner: the preconditioner to apply
+!!     - v_in: the grid on which the preconditioner should be applied
+!!     - v_out: place to store the preconditioner applied on v_out
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -2012,23 +2676,30 @@ SUBROUTINE pw_spline_do_precond(preconditioner,in_v,out_v,error)
   logical :: failure
   character(len=*), parameter :: routineN='pw_spline_do_precond',&
         routineP=moduleN//':'//routineN
+  TYPE(pw_type), pointer :: pw_tmp
 
   failure=.false.
   
   CPPrecondition(ASSOCIATED(preconditioner),cp_failure_level,routineP,error,failure)
   CPPrecondition(preconditioner%ref_count>0,cp_failure_level,routineP,error,failure)
-  if (.not. failure) then
-     select case(preconditioner%kind)
+  IF (.NOT. failure) THEN
+     SELECT CASE(preconditioner%kind)
      CASE(no_precond)
         CALL pw_copy(in_v,out_v)
      CASE (precond_spl3_aint,precond_spl3_1)
         CALL pw_zero(out_v)
-        CALL pw_nn_smear_r(in_v,out_v,spl3_precond1_coeff,pbc=.FALSE.,error=error)
-        CPAssert(preconditioner%iteration_nr==1,cp_failure_level,routineP,error,failure)
+        IF (preconditioner%pbc) THEN
+           CALL pw_nn_smear_r(pw_in=in_v,pw_out=out_v,&
+                coeffs=preconditioner%coeffs,error=error)
+        ELSE
+           CALL pw_nn_compose_r_no_pbc(weights_1d=preconditioner%coeffs_1d,&
+                pw_in=in_v, pw_out=out_v, sharpen=preconditioner%sharpen,&
+                normalize=preconditioner%normalize, error=error)
+        END IF
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
-  end if
+  END IF
 END SUBROUTINE pw_spline_do_precond
 !***************************************************************************
 
@@ -2038,13 +2709,25 @@ END SUBROUTINE pw_spline_do_precond
 !!     find_coeffs
 !!
 !!   FUNCTION
-!!     -
+!!     solves iteratively (CG) a systmes of linear equations
+!!          linOp(coeffs)=values
+!!     (for example those needed to find the coefficents of a spline)
+!!     Returns true if the it succeded to acheive the requested accuracy
 !!
 !!   NOTES
 !!     -
 !!
 !!   ARGUMENTS
-!!     -
+!!     - values: the right hand side of the system
+!!     - coeff: will contain the solution of the system (and on entry
+!!       it contains the starting point)
+!!     - linOp: the linear operator to be inverted
+!!     - preconditioner: the preconditioner to apply
+!!     - pool: a pool of grids (for the temporary objects)
+!!     - eps_r: the requested precision on the residual
+!!     - eps_x: the requested precision on the solution
+!!     - max_iter: maximum number of iteration allowed
+!!     - print_section: information about when to print information
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -2052,28 +2735,39 @@ END SUBROUTINE pw_spline_do_precond
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION find_coeffs(values,coeffs,weights,preconditioner, pool, &
-     eps_r,eps_x,max_iter,error) result(res)
+FUNCTION find_coeffs(values,coeffs,linOp,preconditioner, pool, &
+     eps_r,eps_x,max_iter,print_section,error) RESULT(res)
   TYPE(pw_type), POINTER :: values,coeffs
   type(cp_error_type), optional, intent(inout) :: error
-  REAL(kind=dp), DIMENSION(4), intent(in) :: weights
   TYPE(pw_spline_precond_type), pointer :: preconditioner
   TYPE(pw_pool_type), pointer :: pool
   INTEGER, intent(in) :: max_iter
   REAL(kind=dp), INTENT(in) :: eps_r, eps_x
+  TYPE(section_vals_type), POINTER, optional :: print_section
   logical :: res
+  INTERFACE
+     SUBROUTINE linOp(pw_in,pw_out,error)
+       USE pw_types, only: pw_type
+       USE cp_error_handling, only: cp_error_type
+       TYPE(pw_type), POINTER :: pw_in,pw_out
+       TYPE(cp_error_type), INTENT(inout), optional :: error
+     END SUBROUTINE linOp
+  END INTERFACE
 
-  logical :: failure
+  LOGICAL :: failure, last
   character(len=*), parameter :: routineN='find_coeffs',&
        routineP=moduleN//':'//routineN
   TYPE(pw_type), POINTER :: r,z,p,Ap
   REAL(kind=dp) :: alpha,beta,r_z,r_z_new,eps_x_att,eps_r_att
-  INTEGER :: i,j,k,iter,iiter
+  INTEGER :: i,j,k,iter,iiter,n_rlevel
   INTEGER, DIMENSION(2,3) :: bo
+  TYPE(section_vals_type), pointer :: print_key
+  TYPE(cp_logger_type), pointer :: logger
   failure=.false.
 
   res=.false.
   IF (.NOT. failure) THEN
+     logger => cp_error_get_logger(error)
      CALL pw_pool_create_pw(pool,r,use_data=REALDATA3D,in_space=REALSPACE,&
           error=error)
      CALL pw_pool_create_pw(pool,z,use_data=REALDATA3D,in_space=REALSPACE,&
@@ -2083,30 +2777,49 @@ FUNCTION find_coeffs(values,coeffs,weights,preconditioner, pool, &
      CALL pw_pool_create_pw(pool,Ap,use_data=REALDATA3D,in_space=REALSPACE,&
           error=error)
 
-     DO iiter=1,max_iter,10
+     nullify(print_key)
+     IF (PRESENT(print_section)) THEN
+        IF (ASSOCIATED(print_section)) THEN
+           print_key => section_vals_get_subs_vals(print_section,"conv_info",&
+                error=error)
+        END IF
+     END IF
+
+     CALL cp_add_iter_level(logger%iter_info,n_rlevel_new=n_rlevel,error=error)
+     ext_do:DO iiter=1,max_iter,10
         CALL pw_zero(r)
-        CALL pw_nn_smear_r(pw_in=coeffs,pw_out=r,coeffs=-weights,pbc=.FALSE.,&
-             error=error)
+        CALL linOp(pw_in=coeffs,pw_out=r,error=error)
+        r%cr3d=-r%cr3d
         CALL pw_sumup(values,r)
         CALL pw_spline_do_precond(preconditioner,in_v=r,out_v=z,error=error)
         CALL pw_copy(z,p)
         r_z=pw_integral_ab(r,z)
 
         DO iter=iiter,MIN(iiter+9,max_iter)
-           call pw_zero(Ap)
-           CALL pw_nn_smear_r(pw_in=p,pw_out=Ap,coeffs=weights,pbc=.false.,&
-                error=error)
-           alpha=r_z/pw_integral_ab(Ap,p)
-
-           CALL pw_sumup(p,coeffs,alpha=alpha)
-
-           eps_x_att=alpha*sqrt(pw_integral_aa(p,SQUARE)) ! try to spare if unneded?
            eps_r_att=sqrt(pw_integral_aa(r,SQUARE))
-           PRINT *, iter,"eps_x=",eps_x_att,"eps_r=",eps_r_att
-
-           IF (eps_r_att< eps_r.AND.eps_x_att< eps_x) THEN
+           IF (eps_r_att==0._dp) THEN
+              eps_x_att=0._dp
+              last=.true.
+           ELSE
+              CALL pw_zero(Ap)
+              CALL linOp(pw_in=p,pw_out=Ap,error=error)
+              alpha=r_z/pw_integral_ab(Ap,p)
+              
+              CALL pw_sumup(p,coeffs,alpha=alpha)
+              
+              eps_x_att=alpha*SQRT(pw_integral_aa(p,SQUARE)) ! try to spare if unneded?
+              IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
+           END IF
+           CALL cp_iterate(logger%iter_info,last=last,error=error)
+           IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+                logger%para_env%mepos==logger%para_env%source) THEN
+              WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.false.),&
+                   fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
+                   iter,eps_x_att,eps_r_att
+           END IF
+           IF (last) THEN
               res=.true.
-              exit
+              exit ext_do
            END IF
 
            CALL pw_sumup(Ap,r,alpha=-alpha)
@@ -2127,7 +2840,8 @@ FUNCTION find_coeffs(values,coeffs,weights,preconditioner, pool, &
            END DO
 
         END DO
-     END DO
+     END DO ext_do
+     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=n_rlevel,error=error)
 
      CALL pw_pool_give_back_pw(pool,r,error=error)
      CALL pw_pool_give_back_pw(pool,z,error=error)
@@ -2158,10 +2872,12 @@ END FUNCTION find_coeffs
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,error)
+SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,param_section,&
+     error)
   TYPE(pw_type), pointer :: pw_fine_in
   TYPE(pw_type), pointer :: pw_coarse_out
   TYPE(pw_pool_type), POINTER :: coarse_pool
+  TYPE(section_vals_type), pointer :: param_section
   type(cp_error_type), optional, intent(inout) :: error
   
   logical :: failure
@@ -2182,23 +2898,25 @@ SUBROUTINE pw_project_s3(pw_fine_in,pw_coarse_out,coarse_pool,error)
           in_space=REALSPACE,error=error)
      
      call pw_zero(values)
-     call add_fine2coarse(fine_coeffs=pw_fine_in%cr3d,&
-          coarse_values=values%cr3d,coarse_bounds=bo,&
-          weights_1d=spl3_1d_coeffs/2._dp,error=error)
+     call add_fine2coarse(fine_values=pw_fine_in%cr3d,&
+          coarse_coeffs=values%cr3d,coarse_bounds=bo,&
+          weights_1d=spl3_1d_transf_coeffs/2._dp, w_border0=0.5_dp,&
+          w_border1=spl3_1d_transf_border1/2._dp,&
+          error=error)
      
      CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
           in_space=REALSPACE,error=error)
      call pw_zero(coeffs)
-     CALL pw_nn_smear_r(values,coeffs,spl3_aint_coeff,pbc=.false.,error=error)
+     !CALL pw_nn_smear_r(values,coeffs,spl3_aint_coeff,pbc=.false.,error=error)
 
      nullify(precond)
-     call pw_spline_precond_create(precond,precond_kind=precond_spl3_1,&
-          iteration_nr=1,error=error)
+     call pw_spline_precond_create(precond,precond_kind=no_precond,&!precond_spl3_1
+          pool=coarse_pool,pbc=.FALSE.,error=error)
      success=find_coeffs(values=values,coeffs=coeffs,&
-          weights=spline3_coeffs,preconditioner=precond, pool=coarse_pool, &
+          linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
           eps_r=1.e-14_dp,eps_x=1.e-14_dp,&
           max_iter=100,error=error)
-     PRINT *, "success=",success
+     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
      CALL pw_spline_precond_release(precond,error=error)
 
      CALL pw_sumup(coeffs,pw_coarse_out)
@@ -2230,134 +2948,75 @@ END SUBROUTINE pw_project_s3
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,error)
+SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,param_section,&
+     error)
   TYPE(pw_type), pointer :: pw_coarse_in
   TYPE(pw_type), pointer :: pw_fine_out
   TYPE(pw_pool_type), POINTER :: coarse_pool
+  TYPE(section_vals_type), pointer :: param_section
   type(cp_error_type), optional, intent(inout) :: error
   
   LOGICAL :: failure, success
   character(len=*), parameter :: routineN='pw_inject_s3',&
         routineP=moduleN//':'//routineN
-  TYPE(pw_type), POINTER :: coeffs, pw_tmp ! pw_fine1,tmp_fine_g
-  INTEGER :: i,j,k, handle !,side,inc
+  TYPE(pw_type), POINTER :: coeffs
+  INTEGER :: i,j,k, handle,aint_precond,precond_kind,max_iter,unit_nr
   INTEGER, DIMENSION(2,3) :: bo
+  REAL(kind=dp) :: eps_x, eps_r
   TYPE(pw_spline_precond_type), pointer :: precond
+  TYPE(section_vals_type), pointer :: print_key
+  TYPE(cp_logger_type), pointer :: logger
 
   failure=.false.
   
   CALL timeset(routineN,"I","",handle)
   IF (.NOT. failure) THEN
-     NULLIFY(coeffs)!pw_fine1,tmp_fine_g)
+     NULLIFY(coeffs)
+     logger => cp_error_get_logger(error)
      CALL pw_pool_create_pw(coarse_pool,coeffs, use_data=REALDATA3D,&
           in_space=REALSPACE,error=error)
-     CALL pw_copy(pw_coarse_in,coeffs)
      bo=pw_coarse_in%pw_grid%bounds_local
 
-     call pw_zero(coeffs)
+     CALL section_vals_val_get(param_section,"aint_precond", &
+          i_val=aint_precond, error=error)
+     CALL section_vals_val_get(param_section,"precond", &
+          i_val=precond_kind, error=error)
+     CALL section_vals_val_get(param_section,"max_iter", &
+          i_val=max_iter, error=error)
+     CALL section_vals_val_get(param_section,"eps_r", &
+          r_val=eps_r, error=error)
+     CALL section_vals_val_get(param_section,"eps_x", &
+          r_val=eps_x, error=error)
+
      nullify(precond)
-     call pw_spline_precond_create(precond,precond_kind=precond_spl3_1,&
-          iteration_nr=1,error=error)
-     CALL pw_nn_smear_r(pw_coarse_in,coeffs,spl3_aint_coeff,pbc=.false.,error=error)
+     call pw_spline_precond_create(precond,precond_kind=aint_precond,&
+          pool=coarse_pool,pbc=.FALSE.,error=error)
+     CALL pw_spline_do_precond(precond,pw_coarse_in,coeffs,error=error)
+     CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
      success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-          weights=spline3_coeffs,preconditioner=precond, pool=coarse_pool, &
+          linOp=spl3_nopbc,preconditioner=precond, pool=coarse_pool, &
           eps_r=1.e-14_dp,eps_x=1.e-14_dp,&
-          max_iter=100,error=error)
+          max_iter=100,print_section=param_section,error=error)
+     CPPostconditionNoFail(success,cp_warning_level,routineP,error)
      CALL pw_spline_precond_release(precond,error=error)
-     PRINT *, "success=",success
 
-!FM     CALL pw_pool_create_pw(coarse_pool,pw_tmp, use_data=REALDATA3D,&
-!FM          in_space=REALSPACE,error=error)
-!FM     call pw_zero(coeffs)
-!FM     call pw_zero(pw_tmp)
-!FM     CALL pw_nn_smear_r(pw_coarse_in,pw_tmp,spl3_aint_coeff,pbc=.false.,error=error)
-!FM     CALL pw_nn_smear_r(pw_tmp,coeffs,spl3_aint_coeff,pbc=.FALSE.,error=error)
-!FM     CALL pw_pool_give_back_pw(coarse_pool,pw_tmp)
-!FM     success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-!FM          weights=spline3_coeffs,preconditioner=precond, pool=coarse_pool, &
-!FM          eps_r=10._dp*EPSILON(0._dp),eps_x=10.*epsilon(0._dp),&
-!FM          max_iter=2,error=error)
-!FM     PRINT *, "success=",success
-!FM     
-!FM     call pw_zero(coeffs)
-!FM     CALL pw_nn_smear_r(pw_coarse_in,coeffs,spl3_precond1_coeff,pbc=.false.,error=error)
-!FM     success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-!FM          weights=spline3_coeffs,preconditioner=precond, pool=coarse_pool, &
-!FM          eps_r=10._dp*EPSILON(0._dp),eps_x=10.*epsilon(0._dp),&
-!FM          max_iter=100,error=error)
-!FM     PRINT *, "success=",success
-!FM
-!FM     CALL pw_pool_create_pw(coarse_pool,pw_tmp, use_data=REALDATA3D,&
-!FM          in_space=REALSPACE,error=error)
-!FM     call pw_zero(coeffs)
-!FM     call pw_zero(pw_tmp)
-!FM     CALL pw_nn_smear_r(pw_coarse_in,pw_tmp,spl3_precond1_coeff,pbc=.false.,error=error)
-!FM     CALL pw_nn_smear_r(pw_tmp,coeffs,spl3_precond1_coeff,pbc=.FALSE.,error=error)
-!FM     CALL pw_pool_give_back_pw(coarse_pool,pw_tmp)
-!FM     success=find_coeffs(values=pw_coarse_in,coeffs=coeffs,&
-!FM          weights=spline3_coeffs,preconditioner=precond, pool=coarse_pool, &
-!FM          eps_r=10._dp*EPSILON(0._dp),eps_x=10.*epsilon(0._dp),&
-!FM          max_iter=2,error=error)
-!FM     PRINT *, "success=",success
+     print_key => section_vals_get_subs_vals(param_section,"spl_coeffs",&
+          error=error)
+     IF (cp_should_output(logger%iter_info,print_key,error=error)) THEN
+        unit_nr=cp_unitnr_for_output(logger=logger, print_key=print_key,&
+             extension=".cube", local=.false., log_filename=.true., error=error)
+        CALL rs_pw_to_cube(coeffs,unit_nr,&
+             logger%para_env%source==logger%para_env%mepos,"spl_coeffs")
+        CALL cp_finished_output(unit_nr,logger=logger, print_key=print_key,&
+             error=error)
+     END IF
 
-     bo=pw_coarse_in%pw_grid%bounds_local
-!FM     DO k=bo(1,3),bo(2,3)
-!FM        DO j=bo(1,2),bo(2,2)
-!FM           DO i=bo(1,1),bo(2,1)
-!FM              pw_fine1%cr3d(i,j,k)=pw_coarse_in%cr3d(i,j,k)
-!FM           END DO
-!FM        END DO
-!FM     END DO
-!FM
-!FM     do side=0,1
-!FM        k=bo(side+1,3)
-!FM        inc=2*side-1
-!FM        DO j=bo(1,2),bo(2,2)
-!FM           DO i=bo(1,1),bo(2,1)
-!FM              pw_fine1%cr3d(i,j,k+inc)=pw_fine1%cr3d(i,j,k+inc)+&
-!FM                   2._dp*pw_coarse_in%cr3d(i,j,k)-&
-!FM                   pw_coarse_in%cr3d(i,j,k-inc)
-!FM           END DO
-!FM        END DO
-!FM     end do
-!FM     do side=0,1
-!FM        inc=2*side-1
-!FM        j=bo(side+1,2)
-!FM        DO k=bo(1,3),bo(2,3)
-!FM           DO i=bo(1,1),bo(2,1)
-!FM              pw_fine1%cr3d(i,j+inc,k)=pw_fine1%cr3d(i,j+inc,k)+&
-!FM                   2._dp*pw_coarse_in%cr3d(i,j,k)-&
-!FM                   pw_coarse_in%cr3d(i,j-inc,k)
-!FM           END DO
-!FM        END DO
-!FM     end do
-!FM     do side=0,1
-!FM        inc=2*side-1
-!FM        i=bo(side+1,1)
-!FM        DO k=bo(1,3),bo(2,3)
-!FM           DO j=bo(1,2),bo(2,2)
-!FM              pw_fine1%cr3d(i+inc,j,k)=pw_fine1%cr3d(i+inc,j,k)+&
-!FM                   2._dp*pw_coarse_in%cr3d(i,j,k)-&
-!FM                   pw_coarse_in%cr3d(i-inc,j,k)
-!FM           END DO
-!FM        END DO
-!FM     end do
-     
-     OPEN(UNIT=21,FILE="coeffs.cube")
-     CALL rs_pw_to_cube(coeffs,21,.TRUE.,"coeffs")
-     CLOSE(21)
-
-!FM     CALL pw_pool_create_pw(pw_fine_pool,tmp_fine_g, use_data=COMPLEXDATA1D,&
-!FM          in_space=RECIPROCALSPACE,error=error)
-!FM     CALL pw_transfer(pw_fine1,tmp_fine_g)
-!FM     CALL pw_spline3_interpolate_values_g(tmp_fine_g,error=error)
-!FM     CALL pw_transfer(tmp_fine_g,pw_fine1)
-!FM     CALL pw_pool_give_back_pw(pw_fine_pool,tmp_fine_g,error=error)
-
-     CALL add_coarse2fine(coarse_coeffs=coeffs%cr3d,&
-          fine_values=pw_fine_out%cr3d,&
-          coarse_bounds=bo,&
-          weights_1d=spl3_1d_coeffs,&
+     CALL add_coarse2fine(coarse_coeffs_pw=coeffs,&
+          fine_values_pw=pw_fine_out,&
+          weights_1d=spl3_1d_transf_coeffs,&
+          w_border0=1._dp,&
+          w_border1=spl3_1d_transf_border1,&
+          pbc=.FALSE.,&
           error=error)
 
      CALL pw_pool_give_back_pw(coarse_pool,coeffs,error=error)
@@ -2367,4 +3026,204 @@ SUBROUTINE pw_inject_s3(pw_coarse_in,pw_fine_out,coarse_pool,error)
 END SUBROUTINE pw_inject_s3
 !***************************************************************************
 
+!!****f* pw_spline_utils/pw_nn_compose_r_no_pbc *
+!!
+!!   NAME
+!!     pw_compose_r_no_pbc
+!!
+!!   FUNCTION
+!!     adds to pw_out pw_in composed with the weights
+!!     pw_out%cr3d(i,j,k)=pw_out%cr3d(i,j,k)+sum(pw_in%cr3d(i+l,j+m,k+n)*
+!!        weights_1d(abs(l)+1)*weights_1d(abs(m)+1)*weights_1d(abs(n)+1),
+!!        l=-1..1,m=-1..1,n=-1..1)
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE pw_nn_compose_r_no_pbc(weights_1d,pw_in,pw_out,&
+     sharpen,normalize,error)
+  REAL(kind=dp), DIMENSION(-1:1)           :: weights_1d
+  TYPE(pw_type), POINTER                   :: pw_in, pw_out
+  LOGICAL, INTENT(in), OPTIONAL            :: sharpen,normalize
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                            :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = "pw_nn_compose_r_work", &
+       routineP = moduleN//":"//routineN
+
+  INTEGER                                  :: i, j, jw, k, kw, myj, myk, &
+       stat,n_els,first_index, last_index
+  INTEGER, DIMENSION(2, 3)                 :: bo,gbo
+  INTEGER, DIMENSION(3)                    :: s
+  LOGICAL                                  :: failure, has_l_boundary, &
+       has_u_boundary,is_split,my_sharpen,my_normalize
+  REAL(kind=dp)                            :: in_val_f, in_val_l,w_k,w_j
+  REAL(kind=dp), DIMENSION(-1:1)           :: w
+  REAL(kind=dp), DIMENSION(:, :), POINTER  :: l_boundary, tmp, u_boundary
+  REAL(kind=dp), DIMENSION(:,:,:), POINTER :: in_val, out_val
+
+  bo=pw_in%pw_grid%bounds_local
+  gbo=pw_in%pw_grid%bounds
+  in_val => pw_in%cr3d
+  out_val => pw_out%cr3d
+  my_sharpen=.false.
+  if (present(sharpen)) my_sharpen=sharpen
+  my_normalize=.false.
+  if (present(normalize)) my_normalize=normalize
+  DO i=1,3
+     s(i)=bo(2,i)-bo(1,i)+1
+  END DO
+  IF (ANY(s<1)) RETURN
+  is_split= ANY(pw_in%pw_grid%bounds_local(:,1) /= &
+       pw_in%pw_grid%bounds(:,1))
+  has_l_boundary=(gbo(1,1)==bo(1,1))
+  has_u_boundary= (gbo(2,1)==bo(2,1))
+  IF (is_split) THEN
+     ALLOCATE(l_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+          u_boundary(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),&
+          tmp(bo(1,2):bo(2,2),bo(1,3):bo(2,3)),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!FM     tmp(:,:)=pw_in%cr3d(bo(2,1),:,:)
+!FM     CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+!FM          gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM          l_boundary,pw_in%pw_grid%para%pos_of_x(&
+!FM          gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM          pw_in%pw_grid%para%group)
+!FM     tmp(:,:)=pw_in%cr3d(bo(1,1),:,:)
+!FM     CALL mp_sendrecv(tmp,pw_in%pw_grid%para%pos_of_x(&
+!FM          gbo(1,1)+MODULO(bo(1,1)-1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM          u_boundary,pw_in%pw_grid%para%pos_of_x(&
+!FM          gbo(1,1)+MODULO(bo(2,1)+1-gbo(1,1),gbo(2,1)-gbo(1,1)+1)),&
+!FM          pw_in%pw_grid%para%group)
+     DEALLOCATE(tmp,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+
+  n_els=s(1)
+  IF (has_l_boundary) THEN
+     n_els=n_els-1
+     first_index=bo(1,1)+1
+  ELSE
+     first_index=bo(1,1)
+  END IF
+  IF (has_u_boundary) THEN
+     n_els=n_els-1
+     last_index=bo(2,1)-1
+  ELSE
+     last_index=bo(2,1)
+  END IF
+  !#omp parallel do default(none) private(k,kw,myk,j,jw,myj,in_val_f,&
+  !#omp     in_val_l) shared(zderiv,yderiv,bo,in_val,out_val,s,l_boundary,&
+  !#omp     u_boundary,weights,is_split)
+  DO k=bo(1,3),bo(2,3)
+     DO kw=-1,1
+        IF (k==gbo(2,3).OR.k==gbo(1,3)) THEN
+           IF (kw/=0) CYCLE
+           w_k=1._dp
+        ELSE
+           w_k=weights_1d(kw)
+        END IF
+        myk=k+kw
+        DO j=bo(1,2),bo(2,2)
+           DO jw=-1,1
+              IF (j==gbo(2,2).OR.j==gbo(1,2)) THEN
+                 IF (jw/=0) CYCLE
+                 w_j=w_k
+              ELSE
+                 w_j=w_k*weights_1d(jw)
+              END IF
+              myj=j+jw
+              IF (has_l_boundary) THEN
+                 in_val_f=in_val(bo(1,1),myj,myk)
+                 IF (my_sharpen) then
+                    IF (kw==0.AND.jw==0) THEN
+                       IF (my_normalize) THEN
+                          out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
+                               (2.0_dp-w_j)*in_val_f
+                       ELSE
+                          out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
+                               in_val_f*w_j
+                       END IF
+                    ELSE
+                       out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)-&
+                            in_val_f*w_j
+                    END IF
+                 ELSE
+                    out_val(bo(1,1),j,k)=out_val(bo(1,1),j,k)+&
+                         in_val_f*w_j
+                 END IF
+              ELSE
+                 in_val_f=l_boundary(myj,myk)
+              END IF
+              if (has_u_boundary) then
+                 in_val_l=in_val(bo(2,1),myj,myk)
+                 IF (my_sharpen) then
+                    IF (kw==0.AND.jw==0) THEN
+                       IF (my_normalize) THEN
+                          out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                               in_val_l*(2._dp-w_j)
+                       ELSE
+                          out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                               in_val_l*w_j
+                       END IF
+                    ELSE
+                       out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)-&
+                            w_j*in_val_l
+                    END IF
+                 ELSE
+                    out_val(bo(2,1),j,k)=out_val(bo(2,1),j,k)+&
+                         w_j*in_val_l
+                 END IF
+              ELSE
+                 in_val_l=u_boundary(myj,myk)
+              END IF
+              IF (last_index>=first_index) THEN
+                 IF (my_sharpen) THEN
+                    w=-weights_1d*w_j
+                    IF (kw==0.AND.jw==0) THEN
+                       IF (my_normalize) THEN
+                          w(0)=w(0)+2._dp
+                       ELSE
+                          w(0)=-w(0)
+                       END IF
+                    END IF
+                 ELSE
+                    w=weights_1d*w_j
+                 END IF
+                 CALL pw_compose_stripe(weights=w,&
+                      in_val=in_val(first_index:last_index,myj,myk),&
+                      in_val_first=in_val_f,in_val_last=in_val_l,&
+                      out_val=out_val(first_index:last_index,j,k),&
+                      n_el=n_els)
+              END IF
+           END DO
+        END DO
+     END DO
+  END DO
+  
+  IF (is_split) THEN
+     DEALLOCATE(l_boundary,u_boundary,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+  END IF
+
+END SUBROUTINE pw_nn_compose_r_no_pbc
+!***************************************************************************
+
+SUBROUTINE spl3_nopbc(pw_in,pw_out,error)
+  TYPE(pw_type), POINTER :: pw_in, pw_out
+  TYPE(cp_error_type), INTENT(inout), optional :: error
+  
+  !CALL pw_zero(pw_out)
+  CALL pw_nn_compose_r_no_pbc(weights_1d=spl3_1d_coeffs0,pw_in=pw_in,&
+       pw_out=pw_out,sharpen=.FALSE.,normalize=.FALSE.,error=error)
+END SUBROUTINE spl3_nopbc
+  
 END MODULE pw_spline_utils

@@ -63,7 +63,6 @@ MODULE qs_p_env_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
@@ -1424,11 +1423,11 @@ END SUBROUTINE p_env_did_change
                   error=error)
           END IF
           IF (debug_this_module) THEN
-             CALL cp_sm_output(logger=logger, &
-                  outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
-                  "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
-                  fromWhere=routineP, iter=iter, matrix=p1_new(ispin)%matrix,&
-                  para_env=qs_env%para_env, error=error)
+!FM             CALL cp_sm_output(logger=logger, &
+!FM                  outputName="p_env"//TRIM(ADJUSTL(cp_to_string(p_env%id_nr)))//&
+!FM                  "%p1_new-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+!FM                  fromWhere=routineP, iter=iter, matrix=p1_new(ispin)%matrix,&
+!FM                  para_env=qs_env%para_env, error=error)
           END IF
        END DO
        CALL p_op_l2(p_env, qs_env, p1_new, res, alpha=my_alpha, beta=my_beta, error=error)

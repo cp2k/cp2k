@@ -54,7 +54,7 @@ MODULE message_passing
 
   PUBLIC :: mp_bcast, mp_sum, mp_max, mp_maxloc, mp_minloc, mp_min, mp_sync
   PUBLIC :: mp_gather, mp_alltoall, mp_sendrecv, mp_allgather
-  PUBLIC :: mp_cart_shift
+  PUBLIC :: mp_cart_shift, mp_isend, mp_irecv
   PUBLIC :: mp_sum_scatter, mp_shift, mp_isendrecv, mp_wait, mp_waitall
 
   ! currently not used
@@ -131,6 +131,14 @@ MODULE message_passing
      MODULE PROCEDURE mp_isendrecv_rm2
   END INTERFACE
 
+  INTERFACE mp_isend
+     MODULE PROCEDURE mp_isend_rm2
+  END INTERFACE
+
+  INTERFACE mp_irecv
+     MODULE PROCEDURE mp_irecv_rm2
+  END INTERFACE
+
   ! type internally used to store message passing performance indicators
   TYPE mp_perf_type
     CHARACTER ( LEN = 20 ) :: name
@@ -141,7 +149,7 @@ MODULE message_passing
 
   ! introduce a stack of mp_perfs, first index is the stack pointer, for convience is replacing
   INTEGER, PARAMETER :: max_stack_size = 10
-  INTEGER, PARAMETER :: MAX_PERF = 10
+  INTEGER, PARAMETER :: MAX_PERF = 12
   INTEGER            :: stack_pointer = 0
   TYPE ( mp_perf_type ), DIMENSION (max_stack_size, MAX_PERF ) :: mp_perf
 
@@ -149,7 +157,7 @@ MODULE message_passing
    (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
      "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
      "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
-     "MP_comm_split       "/)
+     "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            "/)
   REAL ( dbl ) :: t_start, t_end
 
   ! we make some assumptions on the length of INTEGERS, REALS and LOGICALS
@@ -2122,6 +2130,111 @@ SUBROUTINE mp_isendrecv_rm2(msgin,dest,msgout,source,comm,send_request,&
   msgout = msgin
 #endif
 END SUBROUTINE mp_isendrecv_rm2
+!***************************************************************************
+
+!!****f* message_passing/mp_isend_rm2 [1.0] *
+!!
+!!   NAME
+!!     mp_isend_rm2
+!!
+!!   FUNCTION
+!!     non blocking send of real arrays 
+!!
+!!   NOTES
+!!     the arguments must be pointers to be sure that we do not get a temporaries.
+!!     
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_isend_rm2(msgin,dest,comm,request,tag)
+  IMPLICIT NONE
+  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgin
+  INTEGER, INTENT ( IN ) :: dest, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1,lower2
+  REAL (dbl) :: foo(1)
+
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgin,1)*SIZE(msgin,2)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgin,1)
+     lower2=LBOUND(msgin,2)
+     CALL mpi_isend(msgin(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_isend(foo,msglen,MPI_DOUBLE_PRECISION,dest,my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_isend @ mp_isend_rm2" )
+
+  mp_perf (stack_pointer, 11 ) % count = mp_perf (stack_pointer, 11 ) % count + 1
+  mp_perf (stack_pointer, 11 ) % msg_size = mp_perf (stack_pointer, 11 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf (stack_pointer, 11 ) % time = mp_perf (stack_pointer, 11 ) % time + ( t_end - t_start )
+#else
+  CALL mp_stop( ierr, "mp_isend called in non parallel case" )
+#endif
+END SUBROUTINE mp_isend_rm2
+!***************************************************************************
+
+!!****f* message_passing/mp_irecv_rm2 [1.0] *
+!!
+!!   NAME
+!!     mp_irecv_rm2
+!!
+!!   FUNCTION
+!!     non blocking recieve of real arrays 
+!!
+!!   NOTES
+!!     the arguments must be pointers to be sure that we do not get a temporaries.
+!!     
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE mp_irecv_rm2(msgout,source,comm,request,tag)
+  IMPLICIT NONE
+  REAL ( dbl ), POINTER, DIMENSION (:,:) :: msgout
+  INTEGER, INTENT ( IN ) :: source, comm
+  INTEGER, INTENT(out) :: request
+  INTEGER, OPTIONAL, INTENT(in) :: tag
+  INTEGER :: msglen, ierr, my_tag
+  INTEGER :: lower1,lower2
+  REAL (dbl) :: foo(1)
+
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  my_tag = 0
+  IF (PRESENT(tag)) my_tag=tag
+
+  msglen = SIZE(msgout,1)*SIZE(msgout,2)
+  IF (msglen>0) THEN
+     lower1=LBOUND(msgout,1)
+     lower2=LBOUND(msgout,2)
+     CALL mpi_irecv(msgout(lower1,lower2),msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,request,ierr)
+  ELSE
+     CALL mpi_irecv(foo,msglen,MPI_DOUBLE_PRECISION,source, my_tag,&
+          comm,request,ierr)
+  END IF
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_ircv @ mp_irecv_rm2" )
+
+  mp_perf (stack_pointer, 12 ) % count = mp_perf (stack_pointer, 12 ) % count + 1
+  mp_perf (stack_pointer, 12 ) % msg_size = mp_perf (stack_pointer, 12 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf (stack_pointer, 12 ) % time = mp_perf (stack_pointer, 12 ) % time + ( t_end - t_start )
+#else
+  CALL mp_stop( ierr, "mp_irecv called in non parallel case" )
+#endif
+END SUBROUTINE mp_irecv_rm2
 !***************************************************************************
 
 !!****f* message_passing/mp_wait [1.0] *

@@ -1,10 +1,4 @@
 [
-{'nametype1':'gerd_f',
-'type1':'type(pao_gerd_functional_type)', 
-'USE':'USE pao_obj_function, ONLY: pao_gerd_functional_type, cp_eval_at, cp_retain, cp_release',
-'type1_retain':'cp_retain',
-'type1_release':'cp_release',
-'type1_eval_at':'cp_eval_at'},
 {'nametype1':'gopt',
 'type1':'type(gopt_f_type)', 
 'USE':'USE gopt_f_types, ONLY: gopt_f_type, gopt_f_eval_at,gopt_f_release,gopt_f_retain',

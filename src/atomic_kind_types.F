@@ -18,6 +18,7 @@
 !!     - 09.2002 adapted for POL/KG use [GT]
 !!     - 02.2004 flexible normalization of basis sets [jgh]
 !!     - 03.2004 attach/detach routines [jgh]
+!!     - 10.2004 removed pao [fawzi]
 !!   SOURCE
 !******************************************************************************
 
@@ -72,11 +73,6 @@ MODULE atomic_kind_types
                                              int_size
   USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                              ncoset
-  USE pao_bas_projection_types,        ONLY: cp_proj_create2,&
-                                             cp_proj_dealloc,&
-                                             cp_proj_get,&
-                                             cp_proj_write,&
-                                             pao_bas_projection_type
   USE paw_proj_set_types,              ONLY: allocate_paw_proj_set,&
                                              deallocate_paw_proj_set,&
                                              get_paw_proj_set,&
@@ -125,7 +121,6 @@ MODULE atomic_kind_types
     TYPE(semi_empirical_type), POINTER     :: se_parameter
     TYPE(gto_basis_set_type), POINTER      :: aux_basis_set
     TYPE(gto_basis_set_type), POINTER      :: orb_basis_set
-    TYPE(pao_bas_projection_type), POINTER :: pao_bas_proj
     TYPE(gto_basis_set_type), POINTER      :: soft_basis_set
     TYPE(gto_basis_set_type), POINTER      :: hard_basis_set
     TYPE(paw_proj_set_type),  POINTER      :: paw_proj_set
@@ -212,7 +207,6 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
       NULLIFY (atomic_kind_set(ikind)%atom_list)
-      NULLIFY (atomic_kind_set(ikind)%pao_bas_proj)
       NULLIFY (atomic_kind_set(ikind)%hard_basis_set)
       NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
       NULLIFY (atomic_kind_set(ikind)%paw_proj_set)
@@ -277,9 +271,6 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind_set(ikind)%orb_basis_set)) THEN
           CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%orb_basis_set)
         END IF
-        IF (ASSOCIATED(atomic_kind_set(ikind)%pao_bas_proj)) THEN
-          CALL cp_proj_dealloc(atomic_kind_set(ikind)%pao_bas_proj)
-        END IF
 !        IF (ASSOCIATED(atomic_kind_set(ikind)%hard_basis_set)) THEN
 !          CALL deallocate_gto_basis_set(atomic_kind_set(ikind)%hard_basis_set)
 !        END IF
@@ -324,7 +315,7 @@ CONTAINS
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
-                             pao_bas_proj,ldaCoreRadius,soft_basis_set,&
+                             ldaCoreRadius,soft_basis_set,&
                              hard_basis_set,paw_proj_set,softb,&
                              paw_atom,hard_radius,hard0_radius,&
                              harmonics, max_iso_not0, max_s_harm,&
@@ -367,8 +358,6 @@ CONTAINS
                                                 ngrid_rad, nsgf,&
                                                 z, zeff
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: qeff
-    TYPE(pao_bas_projection_type), &
-      OPTIONAL, POINTER                      :: pao_bas_proj
     REAL(kind=dp), DIMENSION(4), &
       INTENT(out), OPTIONAL                  :: ldaCoreRadius
     LOGICAL, OPTIONAL,  INTENT(OUT)          :: paw_atom
@@ -494,7 +483,6 @@ CONTAINS
           qeff = 0
         END IF
       END IF
-      IF (PRESENT(pao_bas_proj)) pao_bas_proj => atomic_kind%pao_bas_proj
       IF (PRESENT(ldaCoreRadius)) ldaCoreRadius = atomic_kind%ldaCoreRadius
       IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
       IF (PRESENT(hard_basis_set)) hard_basis_set => atomic_kind%hard_basis_set
@@ -535,10 +523,7 @@ CONTAINS
   SUBROUTINE get_atomic_kind_set(atomic_kind_set,maxatom,maxcgf,&
                                  maxco,maxco_proj,maxgtop,maxgtops,maxlgto,&
                                  maxlppl,maxlppnl,maxpgf,maxppnl,maxsgf,&
-                                 maxsgf_set,maxshell,pao_max_min_bas,&
-                                 pao_max_full_bas,pao_max_excl_bas,&
-                                 pao_tot_min_bas,pao_tot_full_bas,&
-                                 pao_tot_excl_bas,pao_max_l_angles,&
+                                 maxsgf_set,maxshell,&
                                  natom,nelectron,ncgf,ncgf_aux,&
                                  npgf,nset,nsgf,nshell,&
                                  all_potential_present,gth_potential_present,&
@@ -558,9 +543,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(OUT), OPTIONAL :: maxatom, maxcgf, maxco, maxco_proj, &
       maxgtop,maxgtops, maxlgto, maxlppl, maxlppnl, maxpgf, maxppnl, maxsgf, &
-      maxsgf_set, maxshell, pao_max_min_bas, pao_max_full_bas, &
-      pao_max_excl_bas, pao_tot_min_bas,pao_tot_full_bas, pao_tot_excl_bas, &
-      pao_max_l_angles, natom, nelectron, &
+      maxsgf_set, maxshell, natom, nelectron, &
       ncgf, ncgf_aux, npgf, nset, nsgf, nshell, &
       max_ngrid_rad, max_sph_harm, maxg_iso_not0
     LOGICAL, INTENT(OUT), OPTIONAL           :: all_potential_present, &
@@ -586,7 +569,7 @@ CONTAINS
       p_l_angles_max, p_min_bas, p_min_bas_max, p_min_bas_tot, zeff
     INTEGER, DIMENSION(:), POINTER           :: n_ppl
     INTEGER, DIMENSION(:), POINTER           :: npgf_kind
-    LOGICAL                                  :: pao, paw_atom
+    LOGICAL                                  :: paw_atom
     REAL(kind=dp), DIMENSION(4)              :: ldaCoreRadius
     REAL(kind=dp), DIMENSION(:,:), POINTER   :: zet_kind
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -632,25 +615,6 @@ CONTAINS
       IF (PRESENT(kind_of)) kind_of(:) = 0
       IF (PRESENT(natom_of_kind)) natom_of_kind(:) = 0
       IF (PRESENT(zetsoft_max))  zetsoft_max = 0.0_dp
-      pao=.FALSE.
-      IF (PRESENT(pao_max_excl_bas) .OR. PRESENT(pao_max_full_bas) .OR.&
-           PRESENT(pao_max_min_bas).OR. PRESENT(pao_tot_min_bas).OR.&
-           PRESENT(pao_tot_full_bas) .OR. PRESENT(pao_tot_excl_bas).OR.&
-           PRESENT(pao_max_l_angles)) THEN
-         IF (SIZE(atomic_kind_set)>0) THEN
-            IF (ASSOCIATED(atomic_kind_set(1)%pao_bas_proj)) pao=.TRUE.
-         END IF
-         IF (.NOT. pao) THEN
-            CALL cp_error_message(cp_warning_level,routine_name,&
-                 "requested pao_bas_proj info, and pao_bas_proj is not allocated")
-         END IF
-         p_min_bas_max=0
-         p_excl_bas_max=0
-         p_full_bas_max=0
-         p_min_bas_tot=0
-         p_full_bas_tot=0
-         p_l_angles_max=0
-      END IF
       IF (PRESENT(max_ldaCoreRadius)) THEN
          max_ldaCoreRadius=0.0_dp
       END IF
@@ -888,17 +852,6 @@ CONTAINS
         IF (PRESENT(natom_of_kind)) THEN
           natom_of_kind(ikind) = atomic_kind_set(ikind)%natom
         END IF
-        IF (pao) THEN
-           CALL cp_proj_get(atomic_kind%pao_bas_proj,&
-                size_min_bas=p_min_bas,&
-                size_excl_bas=p_excl_bas, size_full_bas=p_full_bas)
-           p_min_bas_max=MAX(p_min_bas_max,p_min_bas)
-           p_excl_bas_max=MAX(p_excl_bas_max,p_excl_bas)
-           p_full_bas_max=MAX(p_full_bas_max,p_full_bas)
-           p_l_angles_max=MAX(p_l_angles_max,p_min_bas*p_excl_bas)
-           p_min_bas_tot=p_min_bas_tot+p_min_bas*SIZE(atomic_kind%atom_list)
-           p_full_bas_tot=p_full_bas_tot+p_full_bas*SIZE(atomic_kind%atom_list)
-        END IF
         IF(PRESENT(max_ngrid_rad)) THEN
           max_ngrid_rad = MAX(max_ngrid_rad,ngrid_rad)
         ENDIF
@@ -921,15 +874,6 @@ CONTAINS
           END DO 
         END IF
       END DO
-      IF (PRESENT(pao_max_excl_bas)) pao_max_excl_bas=p_excl_bas_max
-      IF (PRESENT(pao_max_full_bas)) pao_max_full_bas=p_full_bas_max
-      IF (PRESENT(pao_max_min_bas)) pao_max_min_bas=p_min_bas_max
-      IF (PRESENT(pao_tot_excl_bas)) &
-           pao_tot_excl_bas=p_full_bas_tot-p_min_bas_tot
-      IF (PRESENT(pao_tot_full_bas)) pao_tot_full_bas=p_full_bas_tot
-      IF (PRESENT(pao_tot_min_bas)) pao_tot_min_bas=p_min_bas_tot
-      IF (PRESENT(pao_max_l_angles)) pao_max_l_angles=p_l_angles_max
-
     ELSE
 
       CALL stop_program(routine_name,module_name,__LINE__,&
@@ -1161,7 +1105,6 @@ CONTAINS
                                                 ngrid_ang, ngrid_rad, norb, z
     LOGICAL                                  :: failure, section_found
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_sll_int_type), POINTER           :: min_bas_sll
 
 !   ---------------------------------------------------------------------------
 
@@ -1173,7 +1116,6 @@ CONTAINS
     z = -1
     atomic_kind%mass=-1.0_dp
 
-    CALL cp_sll_int_create(min_bas_sll)
     CALL cp_error_init(error)
 
     CALL start_parser(file_name=globenv%input_file_name,&
@@ -1254,17 +1196,6 @@ CONTAINS
             CALL read_object(atomic_kind%mass)
           CASE ("POTENTIAL","POT")
             CALL read_object(potential_name)
-          CASE ("PAO_MIN_BAS")
-            DO
-              test_result = test_object()
-              IF (test_result == "INT") THEN
-                CALL read_object(min_b_index)
-                CALL cp_sll_int_insert_ordered(min_bas_sll,min_b_index,&
-                                               error=error)
-              ELSE
-                EXIT
-              END IF
-            END DO
           CASE ("LDA_CORE_RADIUS")
              DO i=1,SIZE(atomic_kind%ldaCoreRadius)
                 CALL read_object(atomic_kind%ldaCoreRadius(i))
@@ -1400,15 +1331,6 @@ CONTAINS
 
     END IF
 
-    IF (.not.cp_sll_int_get_empty(min_bas_sll)) THEN
-        CALL cp_proj_create2(atomic_kind%pao_bas_proj,&
-                proj_indexes=min_bas_sll,&
-                size_full_bas=atomic_kind%orb_basis_set%nsgf,&
-                error=error)
-    ELSE
-        NULLIFY(atomic_kind%pao_bas_proj)
-    END IF
-    CALL cp_sll_int_dealloc(min_bas_sll,error=error)
     CALL cp_error_dealloc_ref(error)
 
   END SUBROUTINE read_atomic_kind
@@ -1561,7 +1483,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             natom,atom_list,pao_bas_proj,&
+                             natom,atom_list,&
                              paw_atom,hard_radius,hard0_radius,&
                              elp_potential,soft_basis_set,hard_basis_set,&
                              lmax_rho0)
@@ -1579,8 +1501,6 @@ CONTAINS
                                                 lmax_rho0, natom
     INTEGER, DIMENSION(:), INTENT(IN), &
       OPTIONAL                               :: atom_list
-    TYPE(pao_bas_projection_type), &
-      INTENT(IN), OPTIONAL, TARGET           :: pao_bas_proj
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius
     REAL(dp), INTENT(IN), OPTIONAL           :: hard0_radius
@@ -1625,7 +1545,6 @@ CONTAINS
                             "An invalid atom_list was supplied")
         END IF
       END IF
-      IF (PRESENT(pao_bas_proj)) atomic_kind%pao_bas_proj => pao_bas_proj
       IF (PRESENT(paw_atom)) atomic_kind%paw_atom = paw_atom
       IF (PRESENT(hard_radius)) atomic_kind%hard_radius = hard_radius
       IF (PRESENT(hard0_radius)) atomic_kind%hard0_radius = hard0_radius
@@ -1694,9 +1613,6 @@ CONTAINS
         CALL write_potential(atomic_kind%all_potential,globenv)
         CALL write_potential(atomic_kind%elp_potential,globenv)
         CALL write_potential(atomic_kind%gth_potential,globenv)
-        IF (ASSOCIATED(atomic_kind%pao_bas_proj).AND.globenv%ionode) THEN
-          CALL cp_proj_write(atomic_kind%pao_bas_proj, unit_nr=globenv%scr)
-        END IF
       END IF
 
     ELSE

@@ -63,7 +63,6 @@ MODULE qs_ep_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
@@ -258,11 +257,11 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   IF (print_ep_matrixes) THEN
      IF (.not.failure) THEN
-        CALL cp_sm_output(logger=logger, &
-             outputName="ep_s", &
-             fromWhere=routineP, iter=0, &
-             matrix=ep_env%main_qs_env%matrix_s(1)%matrix,&
-             para_env=logger%para_env,error=error)
+!FM        CALL cp_sm_output(logger=logger, &
+!FM             outputName="ep_s", &
+!FM             fromWhere=routineP, iter=0, &
+!FM             matrix=ep_env%main_qs_env%matrix_s(1)%matrix,&
+!FM             para_env=logger%para_env,error=error)
      END IF
   END IF
 
@@ -310,13 +309,13 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           long_description=debug_this_module, local=.FALSE.,&
           error=error)
 
-     DO ispin=1,nspins
-        CALL cp_sm_output(logger=logger, &
-             outputName="ep_ks-"//cp_to_string(ispin), &
-             fromWhere=routineP, iter=0, &
-             matrix=ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
-             para_env=ep_env%main_qs_env%para_env,error=error)
-     END DO
+!FM     DO ispin=1,nspins
+!FM        CALL cp_sm_output(logger=logger, &
+!FM             outputName="ep_ks-"//cp_to_string(ispin), &
+!FM             fromWhere=routineP, iter=0, &
+!FM             matrix=ep_env%main_qs_env%matrix_ks(ispin)%matrix,&
+!FM             para_env=ep_env%main_qs_env%para_env,error=error)
+!FM     END DO
   END IF
 
   CALL get_qs_env(ep_env%main_qs_env, energy=energy, error=error)

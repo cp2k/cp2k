@@ -48,6 +48,8 @@ MODULE input_cp2k
          xc_deriv_spline3, xc_deriv_spline2,&
          xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth,&
          xc_deriv_spline3_smooth
+  USE pw_spline_utils, only: no_precond,precond_spl3_aint, precond_spl3_1
+  USE cp_output_handling, only: cp_print_key_section_create
   implicit none
   private
 
@@ -64,6 +66,8 @@ MODULE input_cp2k
        md_run=3, geo_opt_run=4,mc_run=5
   INTEGER, PARAMETER, public :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4
+  INTEGER, PARAMETER, public :: pw_interp=1,linear_interp=2,&
+         spline3_nopbc_interp=3,spline3_pbc_interp=4 ! to move somewhere else
   public :: create_cp2k_root_section
   !!***
   !****************************************************************************
@@ -545,6 +549,10 @@ contains
 !FM    CALL create_tddfpt_section(subsection,error)
 !FM    CALL section_add_subsection(section, subsection, error=error)
 !FM    CALL section_release(subsection,error=error)
+
+    CALL create_mgrid_section(subsection,error=error)
+    CALL section_add_subsection(section, subsection,error=error)
+    CALL section_release(subsection,error=error)
 
     CALL create_xc_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
@@ -1063,6 +1071,149 @@ SUBROUTINE create_subsys_section(section,error)
      
   end if
 END SUBROUTINE create_subsys_section
+!***************************************************************************
+
+
+!!****f* input_cp2k/create_mgrid_section *
+!!
+!!   NAME
+!!     create_mgrid_section
+!!
+!!   FUNCTION
+!!     creates the multigrid
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_mgrid_section(section,error)
+  TYPE(section_type), pointer :: section
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='create_mgrid_section',&
+        routineP=moduleN//':'//routineN
+  TYPE(section_type), POINTER :: subsection,print_key
+  TYPE(keyword_type), pointer :: keyword
+  failure=.false.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+    CALL section_create(section,name="mgrid",&
+         description="multigrid information",&
+         n_keywords=5, n_subsections=1, repeats=.FALSE., required=.false.,&
+         error=error)
+    nullify(keyword)
+    CALL keyword_create(keyword, name="ngrids",&
+         description="The number of multigrids to use",&
+         usage="ngrids 1", default_i_val=100, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="cutoff",&
+         description="The cutoff (from the highest grid to the lowest)",&
+         usage="cutoff 300", default_r_val=280._dp, n_var=-1, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="progression_factor",&
+         description="Factor used to find the cutoff of the multigrids that"//&
+         " where not given explicetly",&
+         usage="progression_factor 4", default_i_val=3, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="commensurate",&
+         description="If the grids should be commensurate. If true overrides "//&
+         "the progression factor and the cutoffs of the sub grids",&
+         usage="commensurate", default_l_val=.FALSE.,&
+              lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    nullify(subsection)
+    CALL section_create(subsection,name="interpolator",&
+         description="kind of interpolation used between the multigrids",&
+         n_keywords=5, n_subsections=0, repeats=.FALSE., required=.false.,&
+         error=error)
+    CALL keyword_create(keyword, name="kind",&
+         description="the interpolator to use",&
+         usage="kind spline3",&
+         default_i_val=pw_interp,&
+         enum_c_vals=(/&
+         "pw           ",&
+         "linear       ",&
+         "spline3_nopbc",&
+         "spline3      "/),&
+         enum_i_vals=(/pw_interp,linear_interp,&
+         spline3_nopbc_interp,spline3_pbc_interp/),error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="aint_precond",&
+         description="the approximate inverse to use to get the starting point"//&
+         " for the linear solver of the spline3 methods",&
+         usage="kind spline3",&
+         default_i_val=pw_interp,&
+         enum_c_vals=(/&
+         "copy               ",&
+         "spl3_nopbc_aint    ",&
+         "spl3_nopbc_precond1"/),&
+         enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="precond",&
+         description="The preconditioner used"//&
+         " for the linear solver of the spline3 methods",&
+         usage="kind spline3",&
+         default_i_val=pw_interp,&
+         enum_c_vals=(/&
+         "copy               ",&
+         "spl3_nopbc_aint    ",&
+         "spl3_nopbc_precond1"/),&
+         enum_i_vals=(/no_precond,precond_spl3_aint, precond_spl3_1/),&
+         error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="eps_x",&
+         description="accuracy on the solution for spline3 the interpolators",&
+         usage="eps_x 1.e-15", default_r_val=1.e-10_dp, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="eps_r",&
+         description="accuracy on the residual for spline3 the interpolators",&
+         usage="eps_r 1.e-15", default_r_val=1.e-10_dp, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="max_iter",&
+         description="the maximum number of iterations",&
+         usage="max_iter 200", default_i_val=100, error=error)
+    CALL section_add_keyword(subsection,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    nullify(print_key)
+    CALL cp_print_key_section_create(print_key,"conv_info",&
+         description="if convergence information about the linear solver"//&
+         " of the spline methods should be printed", &
+         print_level=medium_print_level,each=(/10/),filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL cp_print_key_section_create(print_key,"spl_coeffs",&
+         description="outputs a cube with the coefficents calculated for "//&
+         "the spline interpolation", &
+         print_level=debug_print_level,each=(/1/),&
+         error=error)
+    CALL section_add_subsection(subsection,print_key,error=error)
+    CALL section_release(print_key,error=error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)
+ END IF
+END SUBROUTINE create_mgrid_section
 !***************************************************************************
 
 END MODULE input_cp2k

@@ -42,9 +42,8 @@ MODULE qs_kpp1_env_methods
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
-  USE cp_output_handling,              ONLY: cp_finished_output,&
-                                             cp_unitnr_for_output
+                                             cp_warning_level,&
+                                             cp_logger_get_default_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
@@ -875,20 +874,12 @@ CONTAINS
     IF (logger%print_keys%total_densities) THEN
        total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
        IF (logger%para_env%mepos==logger%para_env%source) THEN
-          output_unit=cp_unitnr_for_output(logger,&
-               outputName="kpp1_charges",&
-               fromWhere=routineP, &
-               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter,&
-               local=.FALSE.,error=error)
+          output_unit=cp_logger_get_default_unit_nr(logger,local=.false.)
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "KPP1 total charge density (r-space):",&
                SUM(rho1%tot_rho_r),&
                "KPP1 total charge density (g-space):",&
                total_rho_gspace
-          CALL cp_finished_output(logger, outputName="kpp1_charges",&
-               fromWhere=routineP, &
-               iter=200*(kpp1_env%id_nr-1)+kpp1_env%iter, &
-               unit_nr=output_unit,local=.FALSE.,error=error)
        END IF
     END IF
 

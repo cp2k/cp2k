@@ -41,7 +41,9 @@
 !!     - parallel FFT (JGH 22.05.2002)
 !!     - 06.2002 moved KS matrix construction to qs_build_KS_matrix.F [fawzi]
 !!     - started to include more LSD (01.2003,Joost VandeVondele)
+!!     - 02.2003 scf_env [fawzi]
 !!     - got rid of nrebuild (01.2004, Joost VandeVondele)
+!!     - 10.2004 removed pao [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -110,7 +112,6 @@ MODULE qs_scf
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
-  USE pao_types,                       ONLY: pao_env_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
@@ -161,7 +162,6 @@ MODULE qs_scf
                                              diagonalisation_method_nr,&
                                              no_mixing_nr,&
                                              ot_method_nr,&
-                                             pao_mehod_nr,&
                                              qs_scf_env_type,&
                                              scf_env_release
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
@@ -255,19 +255,17 @@ CONTAINS
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(pao_env_type), POINTER              :: pao_env
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
-    NULLIFY(scf_control,dft_control,pao_env)
+    NULLIFY(scf_control,dft_control)
 
     ALLOCATE(scf_env, stat=stat)
     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     IF (.NOT. failure) THEN
        CALL get_qs_env(qs_env=qs_env,&
             scf_control=scf_control,&
-            dft_control=dft_control,&
-            pao_env=pao_env)
+            dft_control=dft_control)
 
        scf_env%ref_count=1
        scf_env%print_count=0
@@ -279,9 +277,6 @@ CONTAINS
 
 ! sets the method
        scf_env%method=diagonalisation_method_nr ! default with diagonalisation
-       IF (dft_control%qs_control%pao.AND.ASSOCIATED(pao_env)) THEN
-          scf_env%method=pao_mehod_nr
-       END IF
        IF (scf_control%use_ot) scf_env%method=ot_method_nr
 
        SELECT CASE(scf_env%method)
@@ -554,10 +549,6 @@ CONTAINS
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
        SELECT CASE (scf_env%method)
-       CASE (pao_mehod_nr) ! pao
-!FM         call pao_scf_iterate(pao_scf=scf_env%pao_scf, scf_env=scf_env,&
-!FM              qs_env=qs_env, globenv=globenv, error=error)
-!FM
        CASE(diagonalisation_method_nr) ! diagonalisation (default)
 
           DO ispin=1,dft_control%nspins 
@@ -1021,11 +1012,6 @@ CONTAINS
 
 ! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
-    CASE (pao_mehod_nr)
-!FM       if (.not.associated(scf_env%pao_scf)) then
-!FM          call pao_scf_env_create(scf_env%pao_scf,scf_env=scf_env,qs_env=qs_env,&
-!FM               globenv=globenv, error=error)
-!FM       end if
     CASE (diagonalisation_method_nr)
        IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
           CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
@@ -1953,8 +1939,6 @@ CONTAINS
           ENDDO
           DEALLOCATE(scf_env%qs_ot_env,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-       CASE(pao_mehod_nr)
-!    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
        CASE(diagonalisation_method_nr)
           !
        CASE default

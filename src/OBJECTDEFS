@@ -58,7 +58,6 @@ OBJECTS_GENERIC =\
  cp_keywords.o\
  cp_lbfgs.o\
  cp_lbfgs_optimizer_e_rosen.o\
- cp_lbfgs_optimizer_gerd_f.o\
  cp_lbfgs_optimizer_gopt.o\
  cp_lbfgs_optimizer_tests.o\
  cp_linked_list_3d_r.o\
@@ -81,7 +80,6 @@ OBJECTS_GENERIC =\
  cp_random_methods.o\
  cp_random_types.o\
  cp_rs_pool_types.o\
- cp_sll_int_tests.o\
  cp_sm_fm_interactions.o\
  cp_sm_pool_types.o\
  cp_sm_struct.o\
@@ -223,20 +221,6 @@ OBJECTS_GENERIC =\
  output_utilities.o\
  pair_potential.o\
  pair_potential_types.o\
- pao_bas_projection_types.o\
- pao_env_methods.o\
- pao_glob_angles_methods.o\
- pao_l_angles_methods.o\
- pao_obj_function.o\
- pao_plain_rot.o\
- pao_plain_rot_tests.o\
- pao_proj_methods.o\
- pao_qs_env_methods.o\
- pao_read_section.o\
- pao_types.o\
- pao_types_tests.o\
- pao_unitary_t.o\
- pao_utils.o\
  parallel_include.o\
  parser.o\
  particle_list_types.o\

@@ -64,7 +64,8 @@ MODULE input_keyword_types
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='input_keyword_types'
 
-  INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length
+  INTEGER, PARAMETER, PUBLIC :: description_string_length=10*default_string_length,&
+       usage_string_length=default_string_length
   INTEGER, SAVE, PRIVATE :: last_keyword_id=0
   
   PUBLIC :: keyword_p_type, keyword_type, keyword_create, keyword_retain,&
@@ -139,7 +140,7 @@ MODULE input_keyword_types
   TYPE keyword_type
      INTEGER :: ref_count,id_nr
      CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER:: names
-     CHARACTER(LEN=default_string_length) :: usage
+     CHARACTER(LEN=usage_string_length) :: usage
      CHARACTER(LEN=description_string_length) :: description
      INTEGER :: type_of_var,n_var
      LOGICAL :: repeats, required

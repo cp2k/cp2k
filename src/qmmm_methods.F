@@ -115,6 +115,7 @@ MODULE qmmm_methods
                                              qmmm_elec_with_gaussian,&
                                              qmmm_elec_with_gaussian_LR
   USE pw_spline_utils,                 ONLY: pw_project_s3
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
   
   PRIVATE
@@ -265,10 +266,11 @@ CONTAINS
     LOGICAL :: failure
     INTEGER :: handle, ispin, Imm, IndMM, stat
     REAL(KIND=dbl), DIMENSION(:,:), POINTER  :: Forces
+    TYPE(section_vals_type), POINTER :: dft_section, interp_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces)
+    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,dft_section)
     ALLOCATE(Forces(qmmm_env%num_mm_atoms,3),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL get_qs_env(qs_env=qs_env,&
@@ -277,8 +279,12 @@ CONTAINS
                     pw_env=pw_env,&
                     energy=energy,&
                     para_env=para_env,&
+                    dft_section=dft_section,&
                     error=error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
+    interp_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
+    interp_section => section_vals_get_subs_vals(interp_section,"INTERPOLATOR",&
+         error=error)
     !
     CALL pw_env_get(pw_env=pw_env,&
                     pw_pools=pw_pools,& 
@@ -336,6 +342,7 @@ CONTAINS
                                       pgfs=qmmm_env%pgfs,&
                                       Potentials=qmmm_env%potentials,&
                                       Forces=Forces,&
+                                      interp_section=interp_section,&
                                       error=error)
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -363,6 +370,7 @@ CONTAINS
                               mm_atom_index=qmmm_env%mm_atom_index,&
                               num_mm_atoms=qmmm_env%num_mm_atoms,&
                               Potentials=qmmm_env%Potentials,&
+                              interp_section=interp_section,&
                               error=error)                              
     ENDIF
     !
@@ -593,7 +601,8 @@ CONTAINS
   SUBROUTINE qmmm_forces_with_gaussian(rho, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        aug_pools, auxbas_grid, coarser_grid, cube_info, para_env,&
-       eps_mm_rspace, pw_pools, pgfs, Forces, Potentials, error)
+       eps_mm_rspace, pw_pools, pgfs, Forces, Potentials,&
+       interp_section, error)
     IMPLICIT NONE
      ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -614,6 +623,7 @@ CONTAINS
          DIMENSION(:), POINTER                   :: pgfs
     REAL(KIND=dbl), DIMENSION(:,:), POINTER      :: Forces
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
+    TYPE(section_vals_type), pointer :: interp_section
     ! Local Variables
     LOGICAL :: failure
     INTEGER, DIMENSION(3) :: lb, ub
@@ -652,12 +662,15 @@ CONTAINS
           grids(igrid+1) % pw % cr3d = grids(igrid+1) % pw % cr3d / REAL(8,dbl)
        END DO
     ELSE
+       
        ! Spline Interpolator
+       
        DO Igrid =  auxbas_grid, SIZE(grids)-1
           CALL pw_project_s3(grids(Igrid  ) % pw,&
                              grids(Igrid+1) % pw,&
                              aug_pools(Igrid+1)%pool,&
-                             error)
+                             param_section=interp_section,&
+                             error=error)
        END DO
     END IF
 
@@ -1031,7 +1044,7 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
                                mm_particles,mm_atom_index,num_mm_atoms,&
-                               Potentials,error)      
+                               Potentials,interp_section,error)      
     IMPLICIT NONE
     ! Arguments
     TYPE(pw_type), POINTER                       :: rho
@@ -1045,6 +1058,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                   :: error
     TYPE(qmmm_pot_p_type), DIMENSION(:), POINTER :: Potentials
+    TYPE(section_vals_type), pointer :: interp_section
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_debug_forces', &
          routineP = moduleN//':'//routineN      
@@ -1109,6 +1123,7 @@ CONTAINS
                                                 pw_pools=pw_pools,&
                                                 auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                                 coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
+                                                interp_section=interp_section,&
                                                 error=error)
              CASE("NONE")          
                 EXIT Atoms

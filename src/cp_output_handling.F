@@ -25,11 +25,13 @@
 !!     separate File, discriminate fromWhere,... should be implemented.
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     12.2001 created [fawzi]
+!!     08.2002 updated to new logger [fawzi]
+!!     10.2004 big rewrite of the output methods, connected to the new
+!!             input, and iteration_info [fawzi]
 !!
 !!   SOURCE
 !*****************************************************************************
@@ -47,7 +49,10 @@ MODULE cp_output_handling
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level,&
-                                             max_iter_r_level
+                                             max_iter_r_level,&
+                                             cp_logger_generate_filename,&
+                                             open_file, close_file,&
+                                             cp_log
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
@@ -56,7 +61,8 @@ MODULE cp_output_handling
                                              section_type,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, default_path_length,&
+       default_string_length
   USE string_utilities,                ONLY: compress
 
   IMPLICIT NONE
@@ -64,14 +70,12 @@ MODULE cp_output_handling
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_output_handling'
-! cp_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
-! cp_get_output_name, create_print_key
-  PUBLIC :: cp_would_output, cp_unitnr_for_output,&
-       cp_write_output, cp_finished_output
+  PUBLIC :: cp_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
+  PUBLIC :: cp_iter_string, cp_print_key_section_create
+  PUBLIC :: cp_unitnr_for_output, cp_finished_output
 
   INTEGER, PARAMETER, PUBLIC :: silent_print_level=0, low_print_level=1,&
        medium_print_level=2, high_print_level=3, debug_print_level=4
-       
 
 !!***
 !****************************************************************************
@@ -102,17 +106,22 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
-       print_level,error)
+       print_level,each,filename,common_iter_levels,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(in)             :: name, description
-    INTEGER, INTENT(in), OPTIONAL            :: print_level
+    INTEGER, INTENT(in), OPTIONAL            :: print_level,&
+         common_iter_levels
+    INTEGER, INTENT(in), OPTIONAL, dimension(:) :: each
+    CHARACTER, INTENT(in), optional          :: filename
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_section_create', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_print_level
+    INTEGER                                  :: my_print_level, &
+         my_comm_iter_levels
+    CHARACTER(len=default_string_length)     :: my_filename
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
 
@@ -139,20 +148,61 @@ CONTAINS
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="EACH",&
-            description="How often this proprety is printed, this is matched with"//&
-            " the actual iteration level from the right replacing non present "//&
-            "levels with 1. last_symbolic uses 'l' as iteration number in the "//&
-            "name. Not every process is able to identify the last iteration "//&
-            "early enough to be able to output.",&
-            usage="EACH 2 last_symbolic # each 2 external iterations prints the last internal iteration",&
-            default_i_val=my_print_level,lone_keyword_i_val=silent_print_level,&
-            enum_c_vals=(/&
-            "never         ",&
-            "last          ",&
-            "last_symbolic "/),&
-            enum_i_vals=(/ 0,-1,-2 /),&
-            enum_strict=.FALSE., error=error)
+       IF (PRESENT(each)) THEN
+          CALL keyword_create(keyword, name="EACH",&
+               description="How often this proprety is printed, this is matched with"//&
+               " the actual iteration level from the right replacing non present "//&
+               "levels with 1. last_symbolic uses 'l' as iteration number in the "//&
+               "name. Not every process is able to identify the last iteration "//&
+               "early enough to be able to output.",&
+               usage="EACH 2 last_symbolic",&
+               default_i_vals=each,&
+               enum_c_vals=(/&
+               "never         ",&
+               "last          ",&
+               "last_symbolic "/),&
+               enum_i_vals=(/ 0,-1,-2 /),&
+               enum_strict=.FALSE., error=error)
+       ELSE
+          CALL keyword_create(keyword, name="EACH",&
+               description="How often this proprety is printed, this is matched with"//&
+               " the actual iteration level from the right replacing non present "//&
+               "levels with 1. last_symbolic uses 'l' as iteration number in the "//&
+               "name. Not every process is able to identify the last iteration "//&
+               "early enough to be able to output.",&
+               usage="EACH 2 last_symbolic",&
+               default_i_val=1,&
+               enum_c_vals=(/&
+               "never         ",&
+               "last          ",&
+               "last_symbolic "/),&
+               enum_i_vals=(/ 0,-1,-2 /),&
+               enum_strict=.FALSE., error=error)
+       END IF
+       CALL section_add_keyword(print_key_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       my_comm_iter_levels=0
+       if (present(common_iter_levels)) my_comm_iter_levels=common_iter_levels
+       CALL keyword_create(keyword, name="COMMON_ITERATION_LEVELS",&
+            description="How many iterations levels should be written"//&
+            " in the same file (no extra information about the actual"//&
+            " iteration level is written to the file)",&
+            usage="COMMON_ITERATION_LEVELS 1",&
+            default_i_val=my_comm_iter_levels, error=error)
+       CALL section_add_keyword(print_key_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       my_filename=" "
+       if (present(filename)) my_filename=filename
+       CALL keyword_create(keyword, name="FILENAME",&
+            description="Root of the filename used for the output."//&
+            ' If not given uses the project name + "'//TRIM(name)//&
+            '"; "__STD_OUT__" (case sensitive, and spelled exactly as here)'//&
+            ' directs the output to the standard log (normally the standard '//&
+            'out).',&
+            usage="FILENAME somwhere/nice",&
+            default_c_val=my_filename, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
     END IF
@@ -180,55 +230,59 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION cp_should_output(iteration_info,print_key,error) RESULT(res)
+  FUNCTION cp_should_output(iteration_info,print_key,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     TYPE(section_vals_type), POINTER         :: print_key
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
     LOGICAL                                  :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_should_output', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ilevel, ival, print_level
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
-  CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
-  CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
-  res=.FALSE.
-  IF (.NOT. failure) THEN
-     NULLIFY(i_vals)
-     CALL section_vals_val_get(print_key,"PRINT",i_val=print_level,error=error)
-     CALL section_vals_val_get(print_key,"EACH",i_vals=i_vals,error=error)
-     CPPrecondition(ASSOCIATED(i_vals),cp_failure_level,routineP,error,failure)
-     IF (SIZE(i_vals)>=iteration_info%n_rlevel.AND.&
-          iteration_info%print_level>=print_level) THEN
-        res=.TRUE.
-        DO ilevel=1,SIZE(i_vals)
-           ival=i_vals(SIZE(i_vals)-ilevel+1)
-           SELECT CASE(ival)
-           CASE(0)
-              res=.FALSE.
-           CASE(-1,-2)
-              IF (.NOT.iteration_info%last_iter&
-                   (iteration_info%n_rlevel-ilevel+1)) THEN
-                 res=.FALSE.
-              END IF
-           CASE default
-              CPPrecondition(ival>0,cp_failure_level,routineP,error,failure)
-              IF (MODULO(iteration_info%iteration &
-                   (iteration_info%n_rlevel-ilevel+1)-1,ival)/=0) THEN
-                 res=.FALSE.
-              END IF
-           END SELECT
-        END DO
-     END IF
-  END IF
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(iteration_info),cp_failure_level,routineP,error,failure)
+    CPPrecondition(iteration_info%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.ASSOCIATED(print_key)) THEN
+       res=(iteration_info%print_level > debug_print_level)
+    ELSE
+       CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+       CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+       res=.FALSE.
+       IF (.NOT. failure) THEN
+          NULLIFY(i_vals)
+          CALL section_vals_val_get(print_key,"PRINT",i_val=print_level,error=error)
+          CALL section_vals_val_get(print_key,"EACH",i_vals=i_vals,error=error)
+          CPPrecondition(ASSOCIATED(i_vals),cp_failure_level,routineP,error,failure)
+          IF (SIZE(i_vals)>=iteration_info%n_rlevel.AND.&
+               iteration_info%print_level>=print_level) THEN
+             res=.TRUE.
+             DO ilevel=1,SIZE(i_vals)
+                ival=i_vals(SIZE(i_vals)-ilevel+1)
+                SELECT CASE(ival)
+                CASE(0)
+                   res=.FALSE.
+                CASE(-1,-2)
+                   IF (.NOT.iteration_info%last_iter&
+                        (iteration_info%n_rlevel-ilevel+1)) THEN
+                      res=.FALSE.
+                   END IF
+                CASE default
+                   CPPrecondition(ival>0,cp_failure_level,routineP,error,failure)
+                   IF (MODULO(iteration_info%iteration &
+                        (iteration_info%n_rlevel-ilevel+1)-1,ival)/=0) THEN
+                      res=.FALSE.
+                   END IF
+                END SELECT
+             END DO
+          END IF
+       END IF
+    END IF
 END FUNCTION cp_should_output
 !***************************************************************************
 
@@ -249,6 +303,10 @@ END FUNCTION cp_should_output
 !!       number
 !!     - print_key: the print key to optionally show the last iteration
 !!       symbolically
+!!     - for_file: if the string is to be used for file generation 
+!!       (and should consequently ignore some iteration levels depending
+!!       on COMMON_ITERATION_LEVELS).
+!!       Defaults to false.
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -256,10 +314,11 @@ END FUNCTION cp_should_output
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION cp_iter_string(iter_info,print_key,error) RESULT(res)
+FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     TYPE(cp_iteration_info_type), POINTER    :: iter_info
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: print_key
+    LOGICAL, INTENT(in), optional            :: for_file
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     CHARACTER(len=7*max_iter_r_level)        :: res
@@ -267,14 +326,17 @@ FUNCTION cp_iter_string(iter_info,print_key,error) RESULT(res)
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ilevel, shift
+    INTEGER                                  :: ilevel, shift, c_i_level,&
+         n_rlevel
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_for_file
     TYPE(section_vals_type), POINTER         :: my_print_key
 
   failure=.FALSE.
 
   res=""
+  my_for_file=.false.
+  IF (PRESENT(for_file)) my_for_file=for_file
   CPPrecondition(ASSOCIATED(iter_info),cp_failure_level,routineP,error,failure)
   CPPrecondition(iter_info%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
@@ -284,9 +346,13 @@ FUNCTION cp_iter_string(iter_info,print_key,error) RESULT(res)
         NULLIFY(i_vals)
         CALL section_vals_val_get(my_print_key,"EACH",i_vals=i_vals,&
              error=error)
+        CALL section_vals_val_get(my_print_key,"COMMON_ITERATION_LEVELS",&
+             i_val=c_i_level, error=error)
         CPPrecondition(ASSOCIATED(i_vals),cp_failure_level,routineP,error,failure)
         shift=iter_info%n_rlevel-SIZE(i_vals)
-        DO ilevel=1,iter_info%n_rlevel
+        n_rlevel=iter_info%n_rlevel
+        IF (my_for_file) n_rlevel=MIN(n_rlevel,MAX(0,n_rlevel-c_i_level))
+        DO ilevel=1,n_rlevel
            IF (ilevel>shift) THEN
               IF (i_vals(ilevel-shift)==-2) THEN
                  WRITE(res(7*ilevel-6:7*ilevel),"('l_')")
@@ -384,9 +450,9 @@ END SUBROUTINE cp_iterate
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_add_iter_level(iteration_info,n_level_new,error)
+SUBROUTINE cp_add_iter_level(iteration_info,n_rlevel_new,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
-    INTEGER, INTENT(out), OPTIONAL           :: n_level_new
+    INTEGER, INTENT(out), OPTIONAL           :: n_rlevel_new
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -404,15 +470,15 @@ SUBROUTINE cp_add_iter_level(iteration_info,n_level_new,error)
      iteration_info%n_rlevel=iteration_info%n_rlevel+1
      iteration_info%iteration(iteration_info%n_rlevel)=0
      iteration_info%last_iter(iteration_info%n_rlevel)=.FALSE.
-     IF (PRESENT(n_level_new)) n_level_new=iteration_info%n_rlevel
+     IF (PRESENT(n_rlevel_new)) n_rlevel_new=iteration_info%n_rlevel
   END IF
 END SUBROUTINE cp_add_iter_level
 !***************************************************************************
 
-!!****f* cp_output_handling/cp_remove_iter_level *
+!!****f* cp_output_handling/cp_rm_iter_level *
 !!
 !!   NAME
-!!     cp_remove_iter_level
+!!     cp_rm_iter_level
 !!
 !!   FUNCTION
 !!     Removes an iteration level
@@ -431,13 +497,13 @@ END SUBROUTINE cp_add_iter_level
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp_remove_iter_level(iteration_info,n_rlevel_att,error)
+SUBROUTINE cp_rm_iter_level(iteration_info,n_rlevel_att,error)
     TYPE(cp_iteration_info_type), POINTER    :: iteration_info
     INTEGER, INTENT(in), OPTIONAL            :: n_rlevel_att
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_remove_iter_level', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_rm_iter_level', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
@@ -454,53 +520,8 @@ SUBROUTINE cp_remove_iter_level(iteration_info,n_rlevel_att,error)
      iteration_info%last_iter(iteration_info%n_rlevel)=.FALSE.
      iteration_info%n_rlevel=iteration_info%n_rlevel-1
   END IF
-END SUBROUTINE cp_remove_iter_level
+END SUBROUTINE cp_rm_iter_level
 !***************************************************************************
-
-!!****f* cp_output_handling/cp_would_output [1.0] *
-!!
-!!   NAME
-!!     cp_would_output
-!!
-!!   FUNCTION
-!!    this function can be called to check if the logger would
-!!    write the output. This can be used to know if the generation 
-!!    of some costly output is necessary
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - logger: the logger that decides where the logging should go
-!!     - outputName: the name of the output, for example 'scf_hamiltonian'
-!!       this should be unique (i.e. no other routine should have the same
-!!       name, because it is used to build an unique identifier)
-!!     - fromWhere: string of the form module:function or file:lineNr
-!!       that gives the origin of the output
-!!     - iter: the iteration number, or some other number that permit to 
-!!       differentiate between different instances of the same object
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 updated to new logger [fawzi]
-!!
-!!*** *********************************************************************
-! pure 
-  FUNCTION cp_would_output(logger, outputName , fromWhere, iter, local, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    LOGICAL                                  :: cp_would_output
-
-    cp_would_output=.TRUE.
-  END FUNCTION cp_would_output
-!****************************************************************************
 
 !!****f* cp_output_handling/cp_unitnr_for_output [1.0] *
 !!
@@ -508,45 +529,106 @@ END SUBROUTINE cp_remove_iter_level
 !!     cp_unitnr_for_output
 !!
 !!   FUNCTION
-!!    returns the unit nr for the requested kind of output.
+!!    Utility function that opens a file with a unique filename, generated from
+!!    the print_key name and iteration info, and returns the unit nr.
+!!    (in future the print key might allow for more control on the filename, or
+!!    use of the std_out)
 !!
 !!    you should call cp_finished_output when an iteration output is
-!!    finished (to immediately close the file that might have been opened)
+!!    finished (to immediately close the file that has likely been opened)
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     logger: the logger that decides where the logging should go
-!!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere: string of the form module:function or file:lineNr
-!!                that says where the error happend
-!!     iter: the iteration number, or some other number that permit to 
-!!           differentiate between different instances of the same object
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
+!!     - logger: the logger for the parallel environment, iteration info
+!!       and filename generation
+!!     - print_key: section with the information, name, label to be used,...
+!!       for the output
+!!     - local: if the unit should be local to this task, or global to the
+!!       program (defaults to false).
+!!     - log_filename: if a small log with the filename should be written
+!!       to the main log (defaults to false)
+!!     - extension: extension to be applied to the filename (including the ".")
+!!     - middle_name: name to be added to the generated filename, useful when
+!!       print_key activates different distinct outputs, to be able to 
+!!       distinguish them
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
 !!
 !!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
+!!     Fawzi Mohamed
 !!
-!!   MODIFICATION HISTORY
-!!     08.2002 updated to new logger [fawzi]
 !!
 !!*** *********************************************************************
-!pure 
-  FUNCTION cp_unitnr_for_output(logger, outputName, fromWhere, iter, local,&
-       error) RESULT(res)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    INTEGER                                  :: res
+FUNCTION cp_unitnr_for_output(logger, print_key, extension, middle_name,&
+     local, log_filename, error) RESULT(res)
+  TYPE(cp_logger_type), POINTER            :: logger
+  TYPE(section_vals_type), pointer         :: print_key
+  CHARACTER(len=*), INTENT(in)             :: extension
+  CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
+  LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  INTEGER                                  :: res
 
-    res=cp_logger_get_default_unit_nr(logger,local=local)
-  END FUNCTION cp_unitnr_for_output
+  character(len=default_path_length)       :: filename
+  LOGICAL :: failure, my_local
+  character(len=default_string_length)     :: outPath
+  CHARACTER(len=*), PARAMETER :: routineN='cp_unitnr_for_output',&
+       routineP=moduleN//':'//routineN
+  CHARACTER(len=default_string_length)     :: my_middle_name
+
+  failure=.false.
+  my_local=.FALSE.
+  if (present(local)) my_local=local
+  CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+     CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF (.NOT.failure) THEN
+     IF (my_local.OR.&
+          logger%para_env%mepos==logger%para_env%source) THEN
+        CALL section_vals_val_get(print_key,"FILENAME",c_val=outPath,error=error)
+        IF (outPath=='__STD_OUT__') THEN
+           res=cp_logger_get_default_unit_nr(logger,local=my_local)
+        ELSE
+           IF (outPath==' ') THEN
+              my_middle_name=print_key%section%name
+              if (present(middle_name)) my_middle_name=middle_name
+              CALL cp_logger_generate_filename(logger,res=filename,&
+                   root=TRIM(logger%iter_info%project_name)//"-"//&
+                   TRIM(middle_name),&
+                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
+                   extension,local=my_local)
+           ELSE
+              my_middle_name=' '
+              if (present(middle_name)) my_middle_name=middle_name
+              CALL cp_logger_generate_filename(logger,res=filename,&
+                   root=TRIM(outPath)//TRIM(my_middle_name),&
+                   postfix="-"//TRIM(cp_iter_string(logger%iter_info,for_file=.TRUE.))//&
+                   extension,local=my_local)
+           END IF
+           CALL open_file(file_name=filename,file_status="UNKNOWN",&
+                file_form="FORMATTED",file_action="WRITE",&
+                file_position="APPEND",unit_number=res)
+           IF (PRESENT(log_filename)) THEN
+              IF (log_filename) THEN
+                 CALL cp_log(logger=logger, level=cp_note_level, &
+                      fromWhere=routineP , &
+                      message="writing "//TRIM(print_key%section%name)//" "//&
+                      TRIM(cp_iter_string(logger%iter_info))//" to "//&
+                      TRIM(filename),local=my_local)
+              END IF
+           END IF
+        END IF
+     ELSE
+        res=-1
+     END IF
+  END IF
+END FUNCTION cp_unitnr_for_output
 !****************************************************************************
 
 !!****f* cp_output_handling/cp_finished_output [1.0] *
@@ -560,7 +642,7 @@ END SUBROUTINE cp_remove_iter_level
 !!     can be closed.
 !!
 !!   NOTES
-!!     at the moment does nothing, but this should change in the future
+!!     at the moment always closes the unit
 !!
 !!   INPUTS
 !!     the inputs should be exactly the same of the corresponding
@@ -573,93 +655,32 @@ END SUBROUTINE cp_remove_iter_level
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_finished_output(logger, outputName, fromWhere, iter, &
-       unit_nr,local,error)
+  SUBROUTINE cp_finished_output(unit_nr, logger, print_key, local,&
+       error)
+    INTEGER, intent(inout)                   :: unit_nr
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter, unit_nr
+    TYPE(section_vals_type), pointer         :: print_key
     LOGICAL, INTENT(in), OPTIONAL            :: local
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_finished_output', &
       routineP = moduleN//':'//routineN
+    LOGICAL :: failure, my_local
 
-    LOGICAL                                  :: failure
-
-    failure=.FALSE.
-
+    failure=.false.
+    my_local=.false.
+    if (present(local)) my_local=local
+    CPPrecondition(ASSOCIATED(print_key),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(logger),cp_failure_level,routineP,error,failure)
+    CPPrecondition(print_key%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(logger%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (my_local.OR.&
+         logger%para_env%source==logger%para_env%mepos) then
+       CALL close_file(unit_nr,"KEEP")
+    END IF
   END SUBROUTINE cp_finished_output
 !***************************************************************************
-
-!!****f* cp_output_handling/cp_write_output [1.0] *
-!!
-!!   NAME
-!!     cp_write_output
-!!
-!!   FUNCTION
-!!     Used to write the result (output) of something
-!!     no frills, no label, just the message is written.
-!!     In the future some discrimination based on outputName could be 
-!!     introduced.
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - logger: the logger that decides where the logging should go
-!!     - outputName: the name of the output, for example 'scf_hamiltonian'.
-!!       this should be unique (i.e. no other routine should have the same
-!!       name, because it is used to build an unique identifier)
-!!     - fromWhere: string of the form module:function or file:lineNr
-!!       that gives the origin of the output
-!!     - iter: the iteration number, or some other number that permit to 
-!!       differentiate between different instances of the same object
-!!     - local: it the output is local to the task or not. defaults to false
-!!     
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!     @version 12.2001
-!!
-!!   MODIFICATION HISTORY
-!!     08.2002 updated to new logger [fawzi]
-!!
-!!*** *********************************************************************
-  SUBROUTINE cp_write_output(logger, outputName , fromWhere , iter, message,&
-       local,error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    CHARACTER(len=*), INTENT(in)             :: message
-    LOGICAL, INTENT(in), OPTIONAL            :: local
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: &
-      routineP = 'cp_output_handling:cp_write_output'
-
-    INTEGER                                  :: oErr, unitNr
-    LOGICAL                                  :: failure, my_local
-
-    failure=.FALSE.
-    my_local=.FALSE.
-    IF (PRESENT(local)) my_local=local
-    IF (cp_would_output(logger,outputName,fromWhere,iter,&
-         local=my_local,error=error)) THEN
-       IF (my_local.OR.logger%para_env%mepos==logger%para_env%source) THEN
-          unitNr=cp_unitnr_for_output(logger,outputName,fromWhere,iter,&
-               local=my_local,error=error) 
-          WRITE (unit=unitNr,fmt='(a)', iostat=oErr) message
-          CPPostcondition(oErr == 0,cp_failure_level,routineP,error,failure)
-          CALL cp_finished_output(logger,outputName,fromWhere,iter,&
-               unit_nr=unitNr,local=my_local,error=error)
-       END IF
-    END IF
-  END SUBROUTINE cp_write_output
-!****************************************************************************
 
 END MODULE cp_output_handling
 

@@ -29,7 +29,6 @@
 MODULE cp_matrix_utils
   USE cp_array_utils,                  ONLY: cp_2d_i_guarantee_size,&
                                              cp_2d_logical_guarantee_size,&
-                                             cp_2d_r_output,&
                                              cp_2d_r_write
   USE cp_b_matrix_structure,           ONLY: cp_b_matrix_struct_type
   USE cp_error_handling,               ONLY: cp_a_l,&
@@ -49,7 +48,6 @@ MODULE cp_matrix_utils
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
-  USE cp_output_handling,              ONLY: cp_would_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_struct,                    ONLY: cp_sm_struct_type,&
                                              sm_struct_add_local_block
@@ -92,7 +90,7 @@ MODULE cp_matrix_utils
        cp_sm_b_i_next, cp_sm_b_i_valid, &
        cp_sm_is_block_diagonal, cp_sm_init_diagonal_blocks,&
        cp_sm_set_dist_sparsity_from_sm,cp_sm_alloc_nonsparse_blocks,&
-       cp_sm_output, cp_sm_write, sm_struct_add_sm_local_blocks
+       cp_sm_write, sm_struct_add_sm_local_blocks
 
   ! return the trace of the given matrices
   INTERFACE cp_trace
@@ -1367,113 +1365,6 @@ SUBROUTINE cp_sm_alloc_nonsparse_blocks(matrix, m_struct, para_env,&
      END DO
   END IF
 END SUBROUTINE cp_sm_alloc_nonsparse_blocks
-!***************************************************************************
-
-!!****f* cp_matrix_utils/cp_sm_output [1.0] *
-!!
-!!   NAME
-!!     cp_sm_output
-!!
-!!   SYNOPSIS
-!!     Subroutine cp_sm_output(logger, outputname, fromwhere, iter, matrix,&
-!!         para_env, comment, el_format, error)
-!!       Type(cp_logger_type), Pointer:: logger
-!!       Character(Len=*), Intent (IN):: outputname
-!!       Character(Len=*), Intent (IN):: fromwhere
-!!       Integer, Intent (IN):: iter
-!!       Type(real_matrix_type), Pointer:: matrix
-!!       Character(Len=*), Intent (IN), Optional:: comment, el_format
-!!       Type(cp_para_env_type), Pointer:: para_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine cp_sm_output
-!!
-!!   FUNCTION
-!!     writes out the given matrix, at the moments converts it to a
-!!     full matrix and outputs it as a 2d real array (i.e. to a file
-!!     with rows separated by newlines, and comment preceded by #)
-!!
-!!   NOTES
-!!     conversion to a full matrix implies that this is a debugging
-!!     routine for small-ish systems
-!!
-!!   INPUTS
-!!     - logger: the logger that decides where the logging should go
-!!     - outputName: the name of the output, for example 'hamiltonian'
-!!     - fromWhere: string of the form module:function or file:lineNr
-!!       that says where the error happend
-!!     - iter: the iteration number, or some other number that permit to 
-!!       differentiate between different instances of the same object
-!!     - array: the array to output
-!!     - el_format: the (optional) format of a single number
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     06.2002 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_sm_output(logger, outputName, &
-       fromWhere, iter, matrix,para_env,&
-       comment, el_format, error)
-    TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=*), INTENT(in)             :: outputName, fromWhere
-    INTEGER, INTENT(in)                      :: iter
-    TYPE(real_matrix_type), POINTER          :: matrix
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: comment, el_format
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_sm_output', &
-      routineP = moduleN//':'//routineN
-
-    CHARACTER(len=40)                        :: symmetry
-    CHARACTER(len=80)                        :: name
-    LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fm
-
-  failure=.FALSE.
-
-  CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (cp_would_output(logger, outputName , fromWhere, iter)) THEN
-        CALL get_matrix_info(matrix=matrix,&
-             matrix_name=name,&
-             matrix_symmetry=symmetry)
-        
-        NULLIFY (fm)
-        CALL copy_local_sm_to_replicated_fm(matrix,fm)
-        IF (symmetry == "symmetric") THEN
-           CALL symmetrize_matrix(fm,"upper_to_lower")
-        ELSE IF (symmetry == "antisymmetric") THEN
-           CALL symmetrize_matrix(fm,"anti_upper_to_lower")
-        ELSE IF (symmetry /= "NONE") THEN
-           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
-                fromWhere=routineP,message="Unknown matrix structure in"//&
-                CPSourceFileRef,&
-                error=error)
-        END IF
-        
-        CALL mp_sum(fm,para_env%group)
-        
-        IF (PRESENT(comment)) THEN
-           CALL cp_2d_r_output(logger=logger, outputName=outputName, &
-                fromWhere=fromWhere, iter=iter, array=fm,&
-                comment=comment, el_format=el_format, error=error)
-        ELSE
-           CALL cp_2d_r_output(logger=logger, outputName=outputName, &
-                fromWhere=fromWhere, iter=iter, array=fm,&
-                comment=name, el_format=el_format, error=error)
-        END IF
-        IF (ASSOCIATED(fm)) THEN
-           DEALLOCATE(fm)
-        END IF
-     END IF
-  END IF
-END SUBROUTINE cp_sm_output
 !***************************************************************************
 
 !!****f* cp_matrix_utils/cp_sm_write [1.0] *

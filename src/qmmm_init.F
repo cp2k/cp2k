@@ -110,6 +110,7 @@ MODULE qmmm_init
   USE qmmm_gaussian_init,              ONLY: qmmm_gaussian_initialize
   USE qmmm_pw_grid,                    ONLY: qmmm_pw_grid_init
   USE qmmm_elpot,                      ONLY: qmmm_potential_init
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
 
   IMPLICIT NONE
   PRIVATE
@@ -171,6 +172,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, mm_el_pot_radius
     REAL(KIND=dp)                            :: eps_mm_rspace
     CHARACTER(len=default_string_length)     :: qmmm_coupl_type
+    TYPE(section_vals_type), POINTER         :: force_env_section, dft_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -256,6 +258,12 @@ CONTAINS
        CALL read_atomic_kind_set(subsys_qm%atomic_kinds%els,globenv)
      
        CALL qs_env_create(qs_env, para_env=para_env, error=error)
+
+       force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+            "FORCE_EVAL",error=error)
+       dft_section => section_vals_get_subs_vals(force_env_section,&
+            "DFT",error=error)
+       CALL set_qs_env(qs_env,dft_section=dft_section,error=error)
 
        CALL qs_init_subsys(qs_env,subsystem=subsys_qm,cell=qm_cell_small,&
             cell_ref=qm_cell_small, use_ref_cell=.FALSE.,qmmm=.true.,&

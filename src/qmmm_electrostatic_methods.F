@@ -34,7 +34,8 @@ MODULE qmmm_electrostatic_methods
                                              cp_fatal_level,&
                                              cp_note_level,&
                                              cp_to_string,&
-                                             cp_warning_level
+                                             cp_warning_level,&
+                                             open_file, close_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -69,13 +70,16 @@ MODULE qmmm_electrostatic_methods
                                              REALDATA3D,&
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
-                                             pw_p_type
+                                             pw_p_type,&
+                                             pw_compare_debug
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_retain,&
                                              pw_pools_create_pws,&
-                                             pw_pools_give_back_pws
+                                             pw_pools_give_back_pws,&
+                                             pw_pool_create_pw,&
+                                             pw_pool_give_back_pw
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -103,8 +107,9 @@ MODULE qmmm_electrostatic_methods
   USE pw_types,                        ONLY: pw_type,&
                                              pw_zero,&
                                              pw_prolongate_NoPBC
-  USE pw_spline_utils,                 ONLY: pw_inject_s3
+  USE pw_spline_utils,                 ONLY: pw_inject_s3, spl3_nopbc
   USE erf_fn,                          ONLY: erf
+  USE input_section_types, ONLY: section_vals_type, section_vals_get_subs_vals
   IMPLICIT NONE
   PRIVATE
 
@@ -161,13 +166,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     CHARACTER(LEN=80)  :: FileName
     CHARACTER(LEN=80)  :: Title
+    TYPE(section_vals_type), POINTER :: interp_section,dft_section
     ! Statements
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env)
+    NULLIFY(ks_qmmm_env_loc, pw_pools, pw_env,dft_section)
     CALL get_qs_env(qs_env=qs_env,&
                     pw_env=pw_env,&
                     para_env=para_env,&
+                    dft_section=dft_section,&
                     error=error)
 
     CALL pw_env_get(pw_env=pw_env, pw_pools=pw_pools, error=error)
@@ -195,6 +202,10 @@ CONTAINS
                                        error=error)
     CASE("GAUSS")
        Write(6,'(T3,A)')"QM/MM Coupling computed collocating the Gaussian Potential Functions."
+       interp_section => section_vals_get_subs_vals(dft_section,&
+            "MGRID",error=error)
+       interp_section => section_vals_get_subs_vals(interp_section,&
+            "INTERPOLATOR",error=error)
        CALL    qmmm_elec_with_gaussian(v_qmmm=ks_qmmm_env_loc%v_qmmm_rspace,&
                                        mm_particles=mm_particles,&
                                        mm_charges=qmmm_env%mm_atom_chrg,&
@@ -210,6 +221,7 @@ CONTAINS
                                        auxbas_grid=qmmm_env%gridlevel_info%auxbas_grid,&
                                        coarser_grid=qmmm_env%gridlevel_info%coarser_grid,&
                                        potentials=qmmm_env%Potentials,&
+                                       interp_section=interp_section,&
                                        error=error)
     CASE("NONE")
        Write(6,'(T3,A)')"No QM/MM Electrostatic coupling. Just Mechanical Coupling!"
@@ -420,7 +432,7 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian(v_qmmm, mm_particles,&
        mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
        aug_pools, cube_info, para_env, eps_mm_rspace, pgfs, pw_pools,&
-       auxbas_grid, coarser_grid, potentials, error)
+       auxbas_grid, coarser_grid, potentials, interp_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -438,6 +450,7 @@ CONTAINS
     TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
+    TYPE(section_vals_type), pointer :: interp_section
     ! Local Variables
     TYPE(pw_p_type), DIMENSION(:), pointer :: grids
     LOGICAL :: failure
@@ -458,11 +471,11 @@ CONTAINS
     DO igrid=1,ngrids
        CALL pw_zero(grids(igrid)%pw)
     END DO
- 
+    
     CALL qmmm_elec_with_gaussian_low( v_qmmm, grids, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms, cube_info,&
          para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid, pw_pools, aug_pools, &
-         potentials, error)
+         potentials,interp_section=interp_section, error=error)
 
     CALL pw_pools_give_back_pws(aug_pools,grids,error=error)
 
@@ -496,7 +509,7 @@ CONTAINS
   SUBROUTINE qmmm_elec_with_gaussian_low( v_qmmm, tmp_grid, mm_particles,&
          mm_charges, mm_el_pot_radius, mm_atom_index, num_mm_atoms,&
          cube_info, para_env, eps_mm_rspace, pgfs, auxbas_grid, coarser_grid,&
-         pw_pools, aug_pools, potentials, error)
+         pw_pools, aug_pools, potentials, interp_section, error)
     IMPLICIT NONE
     ! Arguments
     TYPE(cp_error_type), INTENT(inout), &
@@ -514,12 +527,16 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER       :: para_env
     TYPE(qmmm_gaussian_p_type), &
          DIMENSION(:), POINTER                   :: pgfs
+    TYPE(section_vals_type), pointer :: interp_section
     ! Local Variables
     CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_elec_with_gaussian_low', &
          routineP = moduleN//':'//routineN
     LOGICAL :: failure
     INTEGER :: stat, handle, ithread, ilevel, igrid
     INTEGER :: Imm, IndMM, LIndMM, IRadTyp, Icg, IGauss
+    INTEGER :: i,j,k, out_unit, bo(2,3)
+    real(dp) :: maxDiff
+    TYPE(pw_type), pointer :: tmp_pw2
     INTEGER, DIMENSION(3) :: ndim, lb, ub
     REAL(KIND=dp), DIMENSION(3)              :: ra
     REAL(KIND=dp) :: alpha, height, W
@@ -607,11 +624,69 @@ CONTAINS
                                    error)
        END DO
     ELSE
+!FM       bo=tmp_grid(coarser_grid)%pw%pw_grid%bounds_local
+!FM       DO k=bo(1,3),bo(2,3)
+!FM          DO j=bo(1,2),bo(2,2)
+!FM             DO i=bo(1,1),bo(2,1)
+!FM                tmp_grid(coarser_grid)%pw%cr3d(i,j,k)=REAL(i+j+k,dp)
+!FM             END DO
+!FM          END DO
+!FM       END DO
+!FM
+!FM       call open_file(file_name="orig.cube",file_status="UNKNOWN",&
+!FM            file_action="WRITE",unit_number=out_unit)
+!FM       call rs_pw_to_cube( tmp_grid(coarser_grid)%pw, iunit=out_unit, ionode=.true., title="fineV" )
+!FM       call close_file(out_unit)
+!FM
+!FM       nullify(tmp_pw2)
+!FM       CALL pw_pool_create_pw(aug_pools(coarser_grid)%pool,tmp_pw2,&
+!FM            in_space=REALSPACE, use_data=REALDATA3D,&
+!FM            error=error)
+!FM       call pw_zero(tmp_pw2)
+!FM       CALL spl3_nopbc(tmp_grid(coarser_grid)%pw,tmp_pw2,error=error)
+!FM       call open_file(file_name="smooth.cube",file_status="UNKNOWN",&
+!FM            file_action="WRITE",unit_number=out_unit)
+!FM       call rs_pw_to_cube( tmp_pw2, iunit=out_unit, ionode=.true., title="fineV" )
+!FM       call close_file(out_unit)
+!FM       CALL pw_pool_give_back_pw(aug_pools(coarser_grid)%pool,tmp_pw2,&
+!FM            error=error)
+!FM
+!FM       call pw_zero(tmp_grid(coarser_grid-1)%pw)
+!FM       CALL pw_inject_s3(tmp_grid(coarser_grid)%pw,&
+!FM            tmp_grid(coarser_grid-1)%pw,aug_pools(coarser_grid)%pool,&
+!FM            error=error)
+!FM
+!FM       nullify(tmp_pw2)
+!FM       CALL pw_pool_create_pw(aug_pools(coarser_grid-1)%pool,tmp_pw2,&
+!FM            in_space=REALSPACE, use_data=REALDATA3D,&
+!FM            error=error)
+!FM       bo=tmp_pw2%pw_grid%bounds_local
+!FM       DO k=bo(1,3),bo(2,3)
+!FM          DO j=bo(1,2),bo(2,2)
+!FM             DO i=bo(1,1),bo(2,1)
+!FM                tmp_pw2%cr3d(i,j,k)=0.5_dp*REAL(i+j+k,dp)
+!FM             END DO
+!FM          END DO
+!FM       END DO
+!FM   
+!FM       call pw_compare_debug(tmp_grid(coarser_grid-1)%pw,tmp_pw2,maxdiff,error)
+!FM       PRINT *, "maxdiff=",maxdiff
+!FM
+!FM       call open_file(file_name="fine.cube",file_status="UNKNOWN",&
+!FM            file_action="WRITE",unit_number=out_unit)
+!FM       call rs_pw_to_cube( tmp_grid(coarser_grid-1)%pw, iunit=out_unit, ionode=.true., title="fineV" )
+!FM       call close_file(out_unit)
+!FM       CALL pw_pool_give_back_pw(aug_pools(coarser_grid-1)%pool,tmp_pw2,&
+!FM            error=error)
+!FM
+!FM       stop "transfer done"
+
        ! Spline Iterpolator
        DO Ilevel = coarser_grid, auxbas_grid+1, -1
           CALL pw_inject_s3(tmp_grid(Ilevel  )%pw,&
                             tmp_grid(Ilevel-1)%pw,&
                             aug_pools(Ilevel)%pool,&
+                            param_section=interp_section,&
                             error=error)
        END DO
     ENDIF

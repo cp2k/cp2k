@@ -89,29 +89,29 @@ end subroutine write_string
 """
 },
 
-{
- 'nametype1':'int_ptr', 
- 'type1':'integer, pointer', 
- 'type1in':'integer, intent(in),target',
- 'type1out':'integer, pointer',
- 'USE':
-"""USE kinds, only: dp
-USE cp_array_i_utils, ONLY: cp_i_write""",
- 'defines':
-"""#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
-#define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
-#define PW_WRITE_UNIMPLEMENTED(el, unit, err)
-""",
- '=':'=>',
- 'type1arrayEl':'integer',
- 'array=':'=',
- 'arrayEl':'',
- 'lessQ':'CP_SLL_I_LESS_Q',
- 'equalQ':'CP_SLL_I_EQUAL_Q',
- 'write_el':'cp_i_write', # careful:no check for unassociated pointers!
- 'private_routines':''
-}
-,
+#{
+# 'nametype1':'int_ptr', 
+# 'type1':'integer, pointer', 
+# 'type1in':'integer, intent(in),target',
+# 'type1out':'integer, pointer',
+# 'USE':
+#"""USE kinds, only: dp
+#USE cp_array_i_utils, ONLY: cp_i_write""",
+# 'defines':
+#"""#define CP_SLL_I_LESS_Q(el1,el2) ( el1 < el2 )
+##define CP_SLL_I_EQUAL_Q(el1,el2) ( el1 == el2 )
+##define PW_WRITE_UNIMPLEMENTED(el, unit, err)
+#""",
+# '=':'=>',
+# 'type1arrayEl':'integer',
+# 'array=':'=',
+# 'arrayEl':'',
+# 'lessQ':'CP_SLL_I_LESS_Q',
+# 'equalQ':'CP_SLL_I_EQUAL_Q',
+# 'write_el':'cp_i_write', # careful:no check for unassociated pointers!
+# 'private_routines':''
+#}
+#,
 {
  'nametype1':'pw', 
  'type1':'type(pw_type),pointer', 

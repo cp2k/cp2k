@@ -41,7 +41,6 @@ MODULE cp_array_r_utils
        cp_error_init, cp_error_dealloc_ref
   USE global_types, ONLY: global_environment_type
   USE timings, ONLY: timeset, timestop
-  USE cp_output_handling
   USE qs_parser, ONLY: open_file, close_file
   USE machine, ONLY: m_flush
   
@@ -56,21 +55,15 @@ MODULE cp_array_r_utils
        cp_3d_r_p_type
 
   ! generic interfaces
-  PUBLIC :: cp_output, cp_guarantee_size, cp_write
+  PUBLIC :: cp_guarantee_size, cp_write
   
   ! the underlying procedures
-  PUBLIC :: cp_1d_r_output, cp_2d_r_output,&
-       cp_3d_r_output,&
-       cp_1d_r_guarantee_size, cp_r_write,&
+  PUBLIC :: cp_1d_r_guarantee_size, cp_r_write,&
        cp_1d_r_write, cp_2d_r_write,&
        cp_3d_r_write,&
        cp_2d_r_guarantee_size,&
        cp_1d_r_bsearch
 
-  INTERFACE cp_output
-     MODULE PROCEDURE cp_1d_r_output, &
-          cp_2d_r_output
-  END INTERFACE
   INTERFACE cp_guarantee_size
      MODULE PROCEDURE cp_1d_r_guarantee_size,&
           cp_2d_r_guarantee_size
@@ -216,99 +209,6 @@ END SUBROUTINE cp_r_write
 !***************************************************************************
 
 
-!!****f* cp_array_r_utils/cp_1d_r_output [1.0] *
-!!
-!!   NAME
-!!     cp_1d_r_output
-!!
-!!   FUNCTION
-!!     writes a 1d array to an aptly named file
-!!
-!!   NOTES
-!!     The filename is written as note to the log.
-!!     At the moment outputs the comment precede by a # and then the whole
-!!     with newlines between the entries, i.e. as a (n x 1) matrix.
-!!
-!!   INPUTS
-!!     - logger: the logger that decides where the logging should go
-!!     - outputName: the name of the output, for example 'hamiltonian'
-!!     - fromWhere: string of the form module:function or file:lineNr
-!!       that says where the error happend
-!!     - iter: the iteration number, or some other number that permit to 
-!!       differentiate between different instances of the same object
-!!     - array: the array to output
-!!     - comment: an (optional) comment that is written before the array
-!!     - local: if true each task writes its own file, otherwise (the default)
-!!       only the source writes its data
-!!     - el_format: the (optional) format of a single number
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2001 first version [fawzi]
-!!     03.2002 templatized [fawzi]
-!!     04.2002 separated write routine [fawzi]
-!!     06.2002 write to a separate file [fawzi]
-!!     08.2002 added local/global output [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_1d_r_output(logger, outputName,&
-     fromWhere, iter, array,&
-     comment, local, el_format, error)
-  TYPE(cp_logger_type), POINTER ::logger
-  CHARACTER(len=*) , INTENT(in) :: outputName
-  CHARACTER(len=*), INTENT(in):: fromWhere
-  INTEGER, INTENT(in) :: iter
-  real(kind=dp), INTENT(in), DIMENSION(:) :: array
-  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
-  LOGICAL, INTENT(in), OPTIONAL :: local
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  LOGICAL :: failure, exists, loc
-  CHARACTER(len=*), PARAMETER :: routineN='cp_1d_r_output',&
-       routineP=moduleN//':'//routineN
-  CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, iostat
-  failure=.FALSE.; loc=.FALSE.
-
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
-  IF (PRESENT(local)) loc=local
-  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
-     IF (cp_would_output(logger, outputName , fromWhere, iter,&
-          local=loc,error=error)) THEN
-
-        CALL cp_logger_generate_filename(logger,filename,&
-             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
-             '.dat',local=loc)
-        CALL cp_log(logger, cp_note_level, fromWhere,&
-             "writing output to file'"//TRIM(filename)//"'") 
-        INQUIRE (FILE=TRIM(filename),EXIST=exists)
-        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
-             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
-             error=error)
-        CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="write",&
-             unit_number=unitNr)
-
-        IF (PRESENT(comment)) THEN
-           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.NOT.failure) THEN
-           CALL cp_1d_r_write(array,unit_nr=unitNr,&
-                el_format=el_format,error=error)
-        END IF
-
-        CALL close_file(unitNr)
-     END IF
-  END IF
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE cp_1d_r_output
-!***************************************************************************
-
 !!****f* cp_array_r_utils/cp_1d_r_write [1.0] *
 !!
 !!   NAME
@@ -380,99 +280,6 @@ SUBROUTINE cp_1d_r_write(array, unit_nr, el_format, error)
 END SUBROUTINE cp_1d_r_write
 !***************************************************************************
 
-!!****f* cp_array_r_utils/cp_2d_r_output *
-!!
-!!   NAME
-!!     cp_2d_r_output
-!!
-!!   FUNCTION
-!!     writes a 2d array to an aptly named file
-!!
-!!   NOTES
-!!     The filename is written as note to the log.
-!!     At the moment outputs the comment precede by a # and then the whole
-!!     with spaces between the entries (with the default format) and newlines
-!!     between the rows of the matrix. 
-!!
-!!   INPUTS
-!!     logger: the logger that decides where the logging should go
-!!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere: string of the form module:function or file:lineNr
-!!                that says where the error happend
-!!     iter: the iteration number, or some other number that permit to 
-!!           differentiate between different instances of the same object
-!!     array: the array to output
-!!     local: if the output is local to each task
-!!     el_format: the (optional) format of a single number
-!!     local: if the output is local to this task (defaults to false)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     12.2001 first version [fawzi]
-!!     03.2002 templatized [fawzi]
-!!     04.2002 separated write routine [fawzi]
-!!     06.2002 write to a separate file [fawzi]
-!!     08.2002 added local/global output [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_2d_r_output(logger, outputName, &
-     fromWhere, iter, array,&
-     comment, local, el_format, error)
-  TYPE(cp_logger_type), POINTER ::logger
-  CHARACTER(len=*) , INTENT(in) :: outputName
-  CHARACTER(len=*), INTENT(in):: fromWhere
-  INTEGER, INTENT(in) :: iter
-  real(kind=dp), INTENT(in), DIMENSION(:,:) :: array
-  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
-  LOGICAL, INTENT(in), OPTIONAL :: local
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  LOGICAL :: failure, exists, loc
-  CHARACTER(len=*), PARAMETER :: routineN='cp_2d_r_output',&
-       routineP=moduleN//':'//routineN
-  CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, iostat
-  failure=.FALSE.; loc=.FALSE.
-
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
-  IF (PRESENT(local)) loc=local
-  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
-     IF (cp_would_output(logger, outputName , fromWhere, iter,&
-          local=loc,error=error)) THEN
-
-        CALL cp_logger_generate_filename(logger,filename,&
-             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
-             '.dat',local=loc)
-        CALL cp_log(logger, cp_note_level, fromWhere, &
-             "writing output to file'"//TRIM(filename)//"'") 
-        INQUIRE (FILE=TRIM(filename),EXIST=exists)
-        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
-             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
-             error=error)
-        CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="write",&
-             unit_number=unitNr)
-
-        IF (PRESENT(comment)) THEN
-           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.NOT.failure) THEN
-           CALL cp_2d_r_write(array,unit_nr=unitNr,&
-                el_format=el_format,error=error)
-        END IF
-
-        CALL close_file(unitNr)
-     END IF
-  END IF
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE cp_2d_r_output
-!***************************************************************************
-
 !!****f* cp_array_r_utils/cp_2d_r_write *
 !!
 !!   NAME
@@ -528,95 +335,6 @@ SUBROUTINE cp_2d_r_write(array, unit_nr, el_format, error)
 END SUBROUTINE cp_2d_r_write
 !***************************************************************************
 
-!!****f* cp_array_r_utils/cp_3d_r_output *
-!!
-!!   NAME
-!!     cp_3d_r_output
-!!
-!!   FUNCTION
-!!     writes a 3d array to an aptly named file
-!!
-!!   NOTES
-!!     The filename is written as note to the log.
-!!     At the moment outputs the comment precede by a # and then the sizes
-!!     of the dimesnion and finally the whole
-!!     with spaces between the entries (with the default format), and newlines
-!!     after each row.
-!!
-!!   INPUTS
-!!     logger: the logger that decides where the logging should go
-!!     outputName: the name of the output, for example 'hamiltonian'
-!!     fromWhere: string of the form module:function or file:lineNr
-!!                that says where the error happend
-!!     iter: the iteration number, or some other number that permit to 
-!!           differentiate between different instances of the same object
-!!     array: the array to output
-!!     local: if the output is local to each task
-!!     el_format: the (optional) format of a single number
-!!     local: if the output is local to this task (defaults to false)
-!!     error: variable to control error logging, stopping,... 
-!!            see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     @author Fawzi Mohamed
-!!
-!!   MODIFICATION HISTORY
-!!     05.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE cp_3d_r_output(logger, outputName, &
-     fromWhere, iter, array,&
-     comment, local, el_format, error)
-  TYPE(cp_logger_type), POINTER ::logger
-  CHARACTER(len=*) , INTENT(in) :: outputName
-  CHARACTER(len=*), INTENT(in):: fromWhere
-  INTEGER, INTENT(in) :: iter
-  real(kind=dp), INTENT(in), DIMENSION(:,:,:) :: array
-  CHARACTER(len=*), INTENT(in),OPTIONAL :: comment, el_format
-  LOGICAL, INTENT(in), OPTIONAL :: local
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-
-  LOGICAL :: failure, exists, loc
-  CHARACTER(len=*), PARAMETER :: routineN='cp_3d_r_output',&
-       routineP=moduleN//':'//routineN
-  CHARACTER(len=60) :: filename
-  INTEGER :: handle, unitNr, iostat
-  failure=.FALSE.; loc=.FALSE.
-
-  CALL timeset(routineN//','//moduleN,'I',"",handle)
-  IF (PRESENT(local)) loc=local
-  IF (loc .OR. logger%para_env%mepos==logger%para_env%source) THEN
-     IF (cp_would_output(logger, outputName , fromWhere, iter,&
-          local=loc,error=error)) THEN
-
-        CALL cp_logger_generate_filename(logger,filename,&
-             TRIM(outputName)//'-'//TRIM(ADJUSTL(cp_to_string(iter))),&
-             '.dat',local=loc)
-        CALL cp_log(logger, cp_note_level, fromWhere, &
-             "writing output to file'"//TRIM(filename)//"'") 
-        INQUIRE (FILE=TRIM(filename),EXIST=exists)
-        CALL cp_assert(.NOT.exists, cp_warning_level,cp_assertion_failed,&
-             fromWhere=routineP,message=" overwriting file '"//filename//"'",&
-             error=error)
-        CALL open_file(TRIM(filename),file_status="unknown",&
-             file_action="write",&
-             unit_number=unitNr)
-
-        IF (PRESENT(comment)) THEN
-           WRITE(unit=unitNr,fmt='(" ",a,a)',iostat=iostat) '# ',comment
-           CPInvariant(iostat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        IF (.NOT.failure) THEN
-           CALL cp_3d_r_write(array,unit_nr=unitNr,&
-                el_format=el_format,error=error)
-        END IF
-
-        CALL close_file(unitNr)
-     END IF
-  END IF
-  CALL timestop(0.0_dp,handle)
-END SUBROUTINE cp_3d_r_output
-!***************************************************************************
 
 !!****f* cp_array_r_utils/cp_3d_r_write *
 !!
