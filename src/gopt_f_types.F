@@ -55,7 +55,8 @@ MODULE gopt_f_types
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: wp=>dp
   USE particle_types,                  ONLY: particle_type,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_particle_distances
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -383,6 +384,11 @@ SUBROUTINE gopt_f_eval_at(gopt_env, x, f, gradient, error)
      IF (gopt_env%globenv%print%atomic_coordinates) &
           CALL write_qs_particle_coordinates(particles,&
           gopt_env%force_env%qs_env%cell,gopt_env%globenv)
+     IF (gopt_env%globenv%print%interatomic_distances) THEN
+       CALL write_particle_distances(particles,&
+                                     gopt_env%force_env%qs_env%cell,&
+                                     gopt_env%globenv)
+     END IF
   END DO
 
   CALL force_env_calculate_force(gopt_env%force_env,&
