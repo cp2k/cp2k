@@ -120,13 +120,26 @@ SUBROUTINE copy_cr ( n, z, r1 )
   REAL ( dbl ), INTENT ( OUT ) :: r1(*)
   REAL ( dbl ), INTENT ( IN ) :: z(2,*)
 
-  INTEGER :: i
-
-  DO i = 1, n
-    r1 ( i ) = z ( 1, i )
-  END DO
+  CALL dcopy ( n, z ( 1, 1 ), 2, r1, 1 )
 
 END SUBROUTINE copy_cr
 
 !-----------------------------------------------------------------------------!
 
+SUBROUTINE copy_rc ( n, r1, z )
+!
+! z = r1
+!
+  IMPLICIT NONE
+  INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
+
+  INTEGER, INTENT ( IN ) :: n
+  REAL ( dbl ), INTENT ( IN ) :: r1(*)
+  REAL ( dbl ), INTENT ( OUT ) :: z(2,*)
+
+  CALL dcopy ( n, r1, 1, z ( 1, 1 ), 2 )
+  CALL dcopy ( n, 0._dbl, 0, z ( 2, 1 ), 2 )
+
+END SUBROUTINE copy_rc
+
+!-----------------------------------------------------------------------------!
