@@ -37,6 +37,7 @@ MODULE pol_force
   USE pair_potential, ONLY : potentialparm_type
   USE pol_electrostatics, ONLY : electrostatics
   USE pol_overlap, ONLY : force_overlap
+  USE pol_thk, ONLY : force_thk
   USE particle_types, ONLY : particle_type
   USE pol_grids, ONLY : pol_grids_allocate, pol_grids_count, &
        pol_grids_map, pol_grids_initialize, assign_coefs_to_grids  
@@ -54,8 +55,10 @@ MODULE pol_force
 
   TYPE debug_variables_type
      REAL ( dbl ) :: pot_nonbond, pot_g, pot_bond, pot_bend, pot_torsion
+     REAL ( dbl ) :: pot_overlap, pot_thk, pot_electro
      REAL ( dbl ), DIMENSION ( :, : ), POINTER :: &
-          f_nonbond, f_g, f_bond, f_bend, f_torsion
+          f_nonbond, f_g, f_bond, f_bend, f_torsion, fc_part, fo_part
+     REAL ( dbl ), DIMENSION ( : ), POINTER :: fc_coef, fo_coef, fthk
      REAL ( dbl ), DIMENSION ( 3, 3 ) :: pv_nonbond, pv_g, pv_bond, &
           pv_bend, pv_torsion
   END TYPE debug_variables_type
@@ -104,11 +107,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, ncoefs
   INTEGER :: ng, igrid, ng_coef, ng_atom, nt_coef, nt_atom, iref
   REAL ( dbl ) :: pot_nonbond                                                
+  REAL ( dbl ) :: pot_overlap                                                
+  REAL ( dbl ) :: pot_thk                                                
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE, SAVE :: f_nonbond
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fc_part
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: fo_part
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fc_coef
   REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fo_coef
+  REAL ( dbl ), DIMENSION (:), ALLOCATABLE :: fthk
   REAL ( dbl ), DIMENSION ( :,: ), ALLOCATABLE :: f_total
   REAL ( dbl ), DIMENSION ( 3,3 ) :: pv_nonbond
   TYPE ( pw_grid_type ),POINTER, DIMENSION (:), SAVE :: big_grid, small_grid
@@ -124,6 +130,8 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
   natoms = SIZE ( part )
   ncoefs = size ( coef_pos % ao % cr )
   isos = 0
+  pot_overlap = 0._dbl
+  pot_thk = 0
 
   first_time = .NOT. ALLOCATED ( f_nonbond )
 
@@ -145,14 +153,14 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
                              nt_coef, nt_atom )
 
      ng = ng_coef + ng_atom
-     
+
      CALL pol_grids_allocate (dg_coef, dg_atom, small_grid, big_grid, &
               nt_coef, nt_atom, ng) 
-     
+
      igrid = 0
-     
+
      CALL pol_grids_map (dg_coef, drho_basis_info, igrid)
-     
+
      CALL pol_grids_map (dg_atom, rho0_basis_info, igrid)
 
      CALL assign_coefs_to_grids (coef_pos % ao, part, drho_basis_info, nt_coef)
@@ -162,7 +170,6 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
             small_grid, big_grid, iref  )    
 
      CALL pw_green_fn_init ( box % green, big_grid ( iref ) )
-	   
   END IF
 
 !
@@ -200,22 +207,34 @@ SUBROUTINE force_control ( molecule, pnode, part, box, box_ref, &
          ALLOCATE ( fo_part ( 3,nnodes ), STAT=isos )
  IF ( isos /= 0 ) &
       CALL stop_memory ( 'force_control', 'fc_part', 3 * nnodes )
-             
+
  IF ( .NOT. ALLOCATED ( fo_coef )  ) &
          ALLOCATE ( fo_coef ( ncoefs ), STAT=isos )
  IF ( isos /= 0 ) &
     CALL stop_memory ( 'force_control', 'fo_coef',  ncoefs )
 
+ IF ( .NOT. ALLOCATED ( fthk )  ) &
+         ALLOCATE ( fthk ( ncoefs ), STAT=isos )
+ IF ( isos /= 0 ) &
+    CALL stop_memory ( 'force_control', 'fthk',  ncoefs )
+
 ! get overlap forces
 
-     CALL force_overlap( coef_pos%ao, drho_basis_info, part, pnode, box, thermo, & 
-                       empparm, fo_coef, fo_part, fc_global)
+    CALL force_overlap( coef_pos%ao, drho_basis_info, part, pnode, box, thermo, & 
+                       empparm, fo_coef, fo_part, pot_overlap, fc_global)
 
+! get first order hk contribution
+
+    CALL force_thk( coef_pos%ao, empparm, fthk, pot_thk)
 
 ! get electrostatics forces   
 
    CALL electrostatics (dg_atom, dg_coef, thermo, part, coef_pos, box,  &
                small_grid, big_grid, ewald_param, iref, fc_coef, fc_part )
+
+   DO i = 1, ncoefs
+     coef_force % ao % cr (i)  = fo_coef (i) + fthk (i) + fc_coef (i)  
+   END DO
  
 !
 ! get real-space non-bonded forces:
