@@ -5,26 +5,13 @@
 
 #include "cp_prep_globals.h"
 
-!!****m* cp2k/qs_tddfpt_types *
-!!
-!!   NAME
-!!     qs_tddfpt_types
-!!
-!!   FUNCTION
-!!     
-!!
-!!   SYNOPSIS
-!!     
-!!
-!!   MODIFICATION HISTORY
-!!     05-09-2002, TCH, created
-!!
-!!   SEE ALSO
-!!     
-!!
-!!***
 MODULE qs_tddfpt_types
   USE cp_control_types,                ONLY: tddfpt_control_type
+  USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                             fm_pool_create_fm,&
+                                             fm_pool_give_back_fm,&
+                                             fm_pools_create_fm_vect,&
+                                             fm_pools_give_back_fm_vect
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -33,11 +20,12 @@ MODULE qs_tddfpt_types
                                              cp_fm_release,&
                                              cp_fm_set_all
   USE cp_log_handling,                 ONLY: cp_to_string
-  USE kinds,                           ONLY: dp
-  USE qs_environment_types,            ONLY: qs_environment_type
   USE hartree_local_types,             ONLY: hartree_local_create,&
                                              hartree_local_release,&
                                              hartree_local_type
+  USE kinds,                           ONLY: dp
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE termination,                     ONLY: stop_memory
 
@@ -45,40 +33,23 @@ MODULE qs_tddfpt_types
 
 ! *****************************************************************************
 
-!!****s* qs_tddfpt_types/qs_tddfpt_types
-!!
-!! NAME
-!!   tddfpt_env_type
-!!
-!! FUNCTION
-!!   A type to hold data necessary for a tddfpt calculation
-!!
-!!***
   TYPE tddfpt_env_type
-     TYPE(tddfpt_control_type)                          :: control
-     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: X      ! right eigenvector     
-     TYPE(fm_p_spins_p_type), DIMENSION(:), POINTER     :: Y      ! left eigenvector
-     REAL(KIND=dp), DIMENSION(:), POINTER                   :: eigenvalues
+     REAL(KIND=dp), DIMENSION(:), POINTER               :: evals  ! eigenvalues
+     TYPE(cp_fm_p_type), DIMENSION(:,:), &
+          POINTER                                       :: evecs  ! eigenvectors
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: invS   ! the inverse of the metric
+     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+          POINTER                                       :: ao_mo_fm_pools
   END TYPE tddfpt_env_type
     
-  TYPE fm_p_spins_p_type
-     TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: spins
-  END TYPE fm_p_spins_p_type
-
 ! *****************************************************************************
 
   CHARACTER(len=*), PARAMETER :: moduleN = "qs_tddfpt_types"
-  LOGICAL, PARAMETER          :: DEBUG_THIS_MODULE = .FALSE.
   
   PRIVATE
 
-  ! TYPES
-  PUBLIC :: tddfpt_control_type, &
-            tddfpt_env_type, &
-            fm_p_spins_p_type
+  PUBLIC :: tddfpt_env_type
 
-  ! METHODS
   PUBLIC :: tddfpt_env_allocate, &
             tddfpt_env_deallocate
   
@@ -86,12 +57,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/qs_tddfpt_types/tddfpt_env_allocate *
-!!
-!!   FUNCTION
-!!     Allocate enough memory for the tddfpt_environment_type structure
-!!
-!!***
   SUBROUTINE tddfpt_env_allocate(t_env, p_env, qs_env)
   
 
@@ -100,38 +65,27 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_allocate', &
-      routineP = moduleN//'/'//routineN
+                                   routineP = moduleN//'/'//routineN
 
-    INTEGER                                  :: ev, n_ev, n_spins, spin, stat
+    INTEGER                                  :: i, n_ev, n_spins, spin, stat
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
 
     n_ev    = qs_env%dft_control%tddfpt_control%n_ev
     n_spins = qs_env%dft_control%nspins
+    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=t_env%ao_mo_fm_pools)
 
-    ALLOCATE(t_env%eigenvalues(n_ev), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env%eigenvalues", n_ev)
+    ALLOCATE(t_env%evals(n_ev), stat=stat)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env%evals", n_ev)
 
-    !-----------------------------------------!
-    ! allocate memory for t_env%x and t_env%y !
-    !-----------------------------------------!
-    ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, "t_env%x/y", n_ev)
-    DO ev=1, n_ev
-       ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
-       IF (stat/=0) CALL stop_memory(routineP, "t_env : x%spins y%spins", n_spins)
-    END DO    
-    DO spin=1, n_spins
-       DO ev=1, n_ev
-          NULLIFY(t_env%x(ev)%spins(spin)%matrix, t_env%y(ev)%spins(spin)%matrix)
-          CALL cp_fm_struct_create(fm_struct, qs_env%para_env, qs_env%blacs_env, &
-                                   p_env%n_ao(spin), p_env%n_mo(spin))
-          CALL cp_fm_create(t_env%x(ev)%spins(spin)%matrix, fm_struct, &
-               routineP//"t_env%x-"//TRIM(cp_to_string(ev))//"-"//TRIM(cp_to_string(spin)))
-          CALL cp_fm_struct_release(fm_struct)
-          CALL cp_fm_set_all(t_env%x(ev)%spins(spin)%matrix, 0.0_dp) ! fill with zeros
+    ALLOCATE(t_env%evecs(n_ev, n_spins), stat=stat)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env%evecs", n_ev*n_spins)
+    DO spin=1,n_spins
+       DO i=1, n_ev
+          CALL fm_pool_create_fm(t_env%ao_mo_fm_pools(spin)%pool, &
+                                 t_env%evecs(i,spin)%matrix)
        END DO
     END DO
-  
+    
     !-------------------------------------------------!
     ! allocate memory for the inverse of the S matrix !
     !-------------------------------------------------!
@@ -149,52 +103,31 @@ CONTAINS
 
 ! *****************************************************************************
 
-!!****f* cp2k/qs_tddfpt_types/tddfpt_env_deallocate *
-!!
-!!   FUNCTION
-!!     To free memory held by a tddftpt_env_type structure
-!!
-!!***
   SUBROUTINE tddfpt_env_deallocate(t_env)
   
 
     TYPE(tddfpt_env_type), INTENT(inout)     :: t_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_env_deallocate', &
-      routineP = moduleN//'/'//routineN
+                                   routineP = moduleN//'/'//routineN
 
-    INTEGER                                  :: ev, n_ev, n_spins, spin, stat
+    INTEGER                                  :: i, spin, stat
 
-! -------------------------------------------------------------------
-
-    n_ev    = size(t_env%x)
-    n_spins = size(t_env%x(1)%spins)
-    
-    DO ev=1, n_ev
-       DO spin=1, n_spins
-          IF (ASSOCIATED(t_env%x(ev)%spins(spin)%matrix)) &
-               CALL cp_fm_release(t_env%x(ev)%spins(spin)%matrix)
-          IF (ASSOCIATED(t_env%y(ev)%spins(spin)%matrix)) &
-               CALL cp_fm_release(t_env%y(ev)%spins(spin)%matrix)
+    DO spin=1, SIZE(t_env%evecs, 2)
+       DO i=1, SIZE(t_env%evecs, 1)
+          CALL fm_pool_give_back_fm(t_env%ao_mo_fm_pools(spin)%pool, &
+                                    t_env%evecs(i,spin)%matrix)
        END DO
-       DEALLOCATE(t_env%x(ev)%spins, t_env%y(ev)%spins, stat=stat)
-       IF (stat /= 0) &
-            CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins")
     END DO
-    DEALLOCATE(t_env%x, t_env%y, stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%x, t_env%y")
 
-    DEALLOCATE(t_env%eigenvalues, stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%ev")
-
-    DO spin=1, n_spins
+    DO spin=1, size(t_env%invS)
        IF (ASSOCIATED(t_env%invS(spin)%matrix)) &
             CALL cp_fm_release(t_env%invS(spin)%matrix)
     END DO
-    DEALLOCATE (t_env%invS, stat=stat)
-    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS")
+    DEALLOCATE (t_env%invS, t_env%evecs, t_env%evals, stat=stat)
+    IF (stat /= 0) CALL stop_memory(routineP, "t_env%invS, t_env%evecs, t_env%evals")
 
-    NULLIFY(t_env%x, t_env%y, t_env%invS)
+    NULLIFY(t_env%invS)
   
   END SUBROUTINE tddfpt_env_deallocate
 

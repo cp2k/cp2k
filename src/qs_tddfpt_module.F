@@ -52,7 +52,8 @@ MODULE qs_tddfpt_module
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE qs_tddfpt_eigensolver,           ONLY: eigensolver
   USE qs_tddfpt_types,                 ONLY: tddfpt_env_type
-  USE qs_tddfpt_utils,                 ONLY: tddfpt_cleanup,&
+  USE qs_tddfpt_utils,                 ONLY: find_contributions,&
+                                             tddfpt_cleanup,&
                                              tddfpt_init,&
                                              tddfpt_write_banner
   USE termination,                     ONLY: stop_program
@@ -124,7 +125,9 @@ CONTAINS
 
     CALL tddfpt_init(p_env, t_env, qs_env)
 
-    CALL eigensolver(t_env, p_env, qs_env)
+    CALL eigensolver(p_env, qs_env, t_env, error)
+
+    CALL find_contributions(qs_env, t_env, error)
 
     CALL tddfpt_cleanup(t_env, p_env)
 

@@ -96,20 +96,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(t_env, p_env, qs_env, error)
+  SUBROUTINE eigensolver(p_env, qs_env, t_env, error)
 
-    TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
 
-    INTEGER                                  :: ispin, nspins, handle
+    INTEGER                                  :: ispin, nspins, handle, stat
     INTEGER                                  :: n_ev, i, restarts, out_unit
-    LOGICAL                                  :: do_kernel_save, converged, ionode
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: evals, ievals
-    TYPE(cp_fm_p_type), DIMENSION(:,:), &
-      POINTER                                :: evecs, iguess
+    LOGICAL                                  :: do_kernel_save, ionode, failure
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: ievals
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_logger_type), POINTER            :: logger
@@ -119,7 +117,8 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(ao_mo_fm_pools,evecs,logger)
+    NULLIFY(ao_mo_fm_pools,logger)
+    failure   = .FALSE.
 
     logger    => cp_error_get_logger(error)
     ionode    = (logger%para_env%mepos==logger%para_env%source)
@@ -128,71 +127,69 @@ CONTAINS
     n_ev      = qs_env%dft_control%tddfpt_control%n_ev
     nspins    = qs_env%dft_control%nspins
 
-    CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
-    ALLOCATE(evecs(n_ev,nspins),iguess(1,nspins),evals(n_ev),ievals(n_ev))
-    DO ispin=1,nspins
-       DO i=1, n_ev
-          CALL fm_pool_create_fm(ao_mo_fm_pools(ispin)%pool,evecs(i,ispin)%matrix)
-       END DO
-    END DO
-    
+    ALLOCATE(ievals(n_ev), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     !---------------!
     ! initial guess !
     !---------------!
-    converged = .FALSE.
     do_kernel_save = qs_env%dft_control%tddfpt_control%do_kernel
     qs_env%dft_control%tddfpt_control%do_kernel = .FALSE.
+    IF (ionode) THEN
+       WRITE (*,*) " Generating initial guess"
+       WRITE (*,*)
+    END IF
     IF (ASSOCIATED(qs_env%dft_control%tddfpt_control%lumos)) THEN
-       CALL co_initial_guess(evecs, ievals, n_ev, qs_env, p_env)
+       CALL co_initial_guess(t_env%evecs, ievals, n_ev, qs_env, p_env)
     ELSE
-       DO ispin=1, nspins
-          CALL cp_fm_set_all(evecs(1,ispin)%matrix,1.0_dp)
-          iguess(1,ispin)%matrix => evecs(1,ispin)%matrix
-       END DO
-       converged = iterative_solver('L', ievals, iguess, t_env, p_env, qs_env, ievals, evecs, error=error)
+       IF (ionode) WRITE (*,*) "LUMOS are needed in TDDFPT!"
+       CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
     END IF
-    IF (.NOT.converged) THEN
-       DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
-          IF (iterative_solver('L', ievals, evecs, t_env, p_env, qs_env, ievals, evecs, error=error)) EXIT
-       END DO
-    END IF
+    DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
+       IF (iterative_solver(ievals, t_env, p_env, qs_env, ievals, error=error)) EXIT
+       IF (ionode) THEN
+          WRITE (*,*) " Restarting"
+          WRITE (*,*)
+       END IF
+    END DO
     qs_env%dft_control%tddfpt_control%do_kernel = do_kernel_save
     
     !-----------------!
     ! call the solver !
     !-----------------!
+    IF (ionode) THEN
+       WRITE (*,*)
+       WRITE (*,*) " Doing TDDFPT calculation"
+       WRITE (*,*)
+    END IF
     DO restarts=1, qs_env%dft_control%tddfpt_control%n_restarts
-       IF (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_lanczos) THEN
-          IF (iterative_solver('L', ievals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) EXIT
-       ELSE IF (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_davidson) THEN
-          IF (iterative_solver('D', ievals, evecs, t_env, p_env, qs_env, evals, evecs, error=error)) EXIT
+          IF (iterative_solver(ievals, t_env, p_env, qs_env, t_env%evals, error=error)) EXIT
+       IF (ionode) THEN
+          WRITE (*,*) " Restarting"
+          WRITE (*,*)
        END IF
     END DO
 
     !-------------------!
     ! Print the results !
     !-------------------!
-    IF (ionode) THEN
-       WRITE (out_unit, *)
-       WRITE (out_unit, *)
-       WRITE (out_unit, '(1X,A,T19,A,T45,A)') &
-            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
-       DO i=1, n_ev
-          WRITE (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
-                 i, evals(i), evals(i)*evolt
-       END DO
-       WRITE (out_unit, *)
-    END IF
+!TC    IF (ionode) THEN
+!TC       WRITE (out_unit, *)
+!TC       WRITE (out_unit, *)
+!TC       WRITE (out_unit, '(1X,A,T19,A,T45,A)') &
+!TC            "Nr.", "Eigenvalue (hartree)", "Eigenvalue (eV)"
+!TC       DO i=1, n_ev
+!TC          WRITE (out_unit, '(1X,I3,T20,F19.10,2X,F19.10)') &
+!TC                 i, t_env%evals(i), t_env%evals(i)*evolt
+!TC       END DO
+!TC       WRITE (out_unit, *)
+!TC    END IF
           
     !---------!
     ! cleanup !
     !---------!
-    DO ispin=1,nspins
-       DO i=1, n_ev
-          CALL fm_pool_give_back_fm(ao_mo_fm_pools(ispin)%pool, evecs(i,ispin)%matrix)
-       END DO
-    END DO
-    DEALLOCATE(evecs,iguess,evals,ievals)
+    DEALLOCATE(ievals, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     CALL timestop(0.0_dp, handle)
 
@@ -200,35 +197,23 @@ CONTAINS
 
 ! *****************************************************************************
 
-  ! mode     : 'L' = lanczos, 'D' = davidson
-  !
   ! in_evals : intial guess eigenvalues  (ignored in lanczos)
-  ! in_evecs : intial guess eigenvectors 
-  !            - lanczos: can be any number up to n_ev
-  !            - davidson: must be n_ev
   ! iev      : which eigenvalue to converge to (ignored in lanczos)
   !
   ! t_env, p_env, qs_env : environments needed for calculation
   !
   ! out_evals : resulting eigenvalues
-  ! out_evecs : resulting eigenvectors
 
-  FUNCTION iterative_solver(mode, &
-                            in_evals, in_evecs, &
+  FUNCTION iterative_solver(in_evals, &
                             t_env, p_env, qs_env, &
-                            out_evals, out_evecs, error) RESULT(res)
+                            out_evals, error) RESULT(res)
 
-    CHARACTER, INTENT(in)                    :: mode
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: in_evals
-    TYPE(cp_fm_p_type), DIMENSION(:,:), &
-      POINTER                                :: in_evecs
     TYPE(tddfpt_env_type), INTENT(INOUT)     :: t_env
     TYPE(qs_p_env_type), POINTER             :: p_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(kind=dp), DIMENSION(:), &
          INTENT(OUT), OPTIONAL               :: out_evals
-    TYPE(cp_fm_p_type), DIMENSION(:,:), &
-      POINTER, OPTIONAL                      :: out_evecs
     TYPE(cp_error_type), &
          INTENT(INOUT), OPTIONAL             :: error
     LOGICAL                                  :: res
@@ -236,6 +221,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = "iterative_solver", &
                                    routineP = moduleN//"/"//routineN
 
+    CHARACTER                                :: mode
     INTEGER :: col, handle, i, iter, j, &
       max_krylovspace_dim, max_kv, n_ev, n_kv, nspins, &
       row, spin, stat, k, iev
@@ -276,6 +262,12 @@ CONTAINS
     out_unit  = cp_logger_get_default_unit_nr(logger)
     n_ev      = tddfpt_control%n_ev
     nspins    = qs_env%dft_control%nspins
+
+    if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_lanczos) then
+       mode = 'L'
+    else if (qs_env%dft_control%tddfpt_control%diag_method == tddfpt_davidson) then
+       mode = 'D'
+    end if
 
     !-----------------------------------------!
     ! determine the size of the problem       !
@@ -339,11 +331,11 @@ CONTAINS
        DO i=1, n_kv
           k=k+1
 
-          IF (k <= SIZE(in_evecs,1) ) THEN
+          IF (k <= SIZE(t_env%evecs,1)) THEN
 
              ! take the initial guess
              DO spin=1, nspins
-                CALL cp_fm_to_fm(in_evecs(k,spin)%matrix, b(k,spin)%matrix)
+                CALL cp_fm_to_fm(t_env%evecs(k,spin)%matrix, b(k,spin)%matrix)
              END DO
 
           ELSE
@@ -376,9 +368,6 @@ CONTAINS
                       CALL cp_fm_scale_and_add(1.0_dp, R(spin)%matrix, &
                                                tmp, X(spin)%matrix)
                    END DO
-
-                   CALL calc_norm(tmp,R,qs_env%matrix_s,X)
-                   write (*,*) k, iev, tmp
 
                    !----------------!
                    ! preconditioner !
@@ -477,13 +466,13 @@ CONTAINS
 
           evals_difference = ABS((evals(1:n_ev,iter-1)-evals(1:n_ev,iter))/evals(1:n_ev,iter-1))          
           ! For debugging
-          IF (ionode) THEN
-             WRITE (*,*)
-             DO i=1, n_ev
-                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter), evals_difference(i)
-             END DO
-             WRITE (*,*)
-          END IF
+!TC          IF (ionode) THEN
+!TC             WRITE (*,*)
+!TC             DO i=1, n_ev
+!TC                WRITE (out_unit,'(2X,F10.7,T69,ES11.4)') evals(i,iter), evals_difference(i)
+!TC             END DO
+!TC             WRITE (*,*)
+!TC          END IF
 
           convergence = MAXVAL(evals_difference)
           IF (ionode) WRITE (out_unit, '(2X,I4,T69,ES11.4)') k, convergence
@@ -501,6 +490,8 @@ CONTAINS
           DO i=1, n_ev
              IF (evals_difference(i) > tddfpt_control%tolerance) must_improve(i) = 1
           END DO
+!! Set must_improve to 1 if all the vectors should
+!! be updated in one iteration.
 !!          must_improve = 1
           n_kv = SUM(must_improve)
           j = 1
@@ -522,18 +513,16 @@ CONTAINS
        out_evals(1:n_ev) = evals(1:n_ev,iter)
     END IF
 
-    IF (PRESENT(out_evecs)) THEN
-       DO spin=1, nspins
-          DO j=1, n_ev
-             CALL cp_fm_set_all(out_evecs(j,spin)%matrix, 0.0_dp)
-             DO i=1, k
-                CALL cp_fm_get_element(Us%matrix, i, j, tmp)
-                CALL cp_fm_scale_and_add(1.0_dp, out_evecs(j,spin)%matrix, &
-                     tmp, b(i,spin)%matrix)
-             END DO
+    DO spin=1, nspins
+       DO j=1, n_ev
+          CALL cp_fm_set_all(t_env%evecs(j,spin)%matrix, 0.0_dp)
+          DO i=1, k
+             CALL cp_fm_get_element(Us%matrix, i, j, tmp)
+             CALL cp_fm_scale_and_add(1.0_dp, t_env%evecs(j,spin)%matrix, &
+                                      tmp, b(i,spin)%matrix)
           END DO
        END DO
-    END IF
+    END DO
 
     DO spin=1, nspins
        DO i=1, max_kv

@@ -42,10 +42,14 @@ MODULE qs_tddfpt_utils
                                              cp_fm_trace
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_invert
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+  USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
+                                             fm_pool_give_back_fm
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_element,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_init_random,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type, &
@@ -55,6 +59,7 @@ MODULE qs_tddfpt_utils
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_methods,           ONLY: init_coulomb_local
   USE kinds,                           ONLY: dp
+  USE physcon,                         ONLY: evolt
   USE qs_environment_types,            ONLY: qs_environment_type, &
                                              get_qs_env
   USE qs_kpp1_env_methods,             ONLY: kpp1_create
@@ -98,6 +103,7 @@ MODULE qs_tddfpt_utils
             tddfpt_env_init, &
             co_initial_guess, &
             calc_norm, &
+            find_contributions,&
             normalize, &
             reorthogonalize, &
             dot_prod
@@ -362,6 +368,100 @@ CONTAINS
     END DO
 
   END SUBROUTINE co_initial_guess
+
+! *****************************************************************************
+  
+  SUBROUTINE find_contributions(qs_env, t_env, error)
+    
+    TYPE(tddfpt_env_type), INTENT(IN)  :: t_env
+    TYPE(qs_environment_type), POINTER :: qs_env
+    TYPE(cp_error_type), &
+         INTENT(INOUT), OPTIONAL       :: error
+
+    CHARACTER(LEN=*), PARAMETER        :: routineN = 'find_contributions', &
+                                          routineP = moduleN//'/'//routineN
+
+    INTEGER                            :: i, j, n_ev, spin, n_spins, stat
+    INTEGER                            :: occ, virt
+    INTEGER, DIMENSION(2)              :: nrows, nhomos, nlumos
+    LOGICAL                            :: failure, ionode 
+    REAL(KIND=dp)                      :: contribution, summed_contributions
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                  :: homo_coeff_col, lumo_coeff_col
+    TYPE(tddfpt_control_type)          :: t_control
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+         POINTER                       :: S_lumos
+    TYPE(cp_logger_type), POINTER      :: logger
+
+    NULLIFY(S_lumos, logger)
+    failure = .FALSE.
+    logger    => cp_error_get_logger(error)
+    ionode    = (logger%para_env%mepos==logger%para_env%source)
+    IF (ionode) WRITE (*,*)
+    IF (ionode) WRITE (*,*)
+
+    t_control = qs_env%dft_control%tddfpt_control
+    n_ev      = t_control%n_ev
+    n_spins   = qs_env%dft_control%nspins
+
+    ALLOCATE(S_lumos(n_spins), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+    DO spin=1, n_spins
+       nrows(spin) = t_control%lumos(spin)%matrix%matrix_struct%nrow_global
+       nhomos(spin) = t_env%evecs(1,spin)%matrix%matrix_struct%ncol_global
+       nlumos(spin) = t_control%lumos(spin)%matrix%matrix_struct%ncol_global
+       CALL cp_fm_create(S_lumos(spin)%matrix, t_control%lumos(spin)%matrix%matrix_struct, &
+                         "S times lumos", error=error)
+       CALL cp_sm_fm_multiply(qs_env%matrix_s(spin)%matrix, t_control%lumos(spin)%matrix, &
+                              S_lumos(spin)%matrix, nlumos(spin), 1.0_dp, 0.0_dp)
+    END DO
+       
+    
+    DO spin=1, n_spins
+       ALLOCATE(homo_coeff_col(nrows(spin),1),lumo_coeff_col(nrows(spin),1), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END DO
+
+    DO i=1, n_ev
+       IF (ionode) THEN
+          WRITE (*,'(A,I3,10X,F11.6)') "  excited state : ", i, t_env%evals(i)*evolt
+          WRITE (*,*)
+       END IF
+       summed_contributions = 0.0_dp
+       DO spin=1, n_spins
+          searchloop: DO occ=nhomos(spin), 1, -1
+             CALL cp_fm_get_submatrix(t_env%evecs(i,spin)%matrix, homo_coeff_col, &
+                                      1, occ, nrows(spin), 1, error=error)
+             DO virt=1, nlumos(spin)
+                CALL cp_fm_get_submatrix(S_lumos(spin)%matrix, lumo_coeff_col, &
+                                         1, virt, nrows(spin), 1, error=error)
+                contribution = 0.0_dp
+                DO j=1, nrows(spin)
+                   contribution = contribution + homo_coeff_col(j,spin)*lumo_coeff_col(j,spin)
+                END DO
+                IF (ABS(contribution) > 1.0e-2_dp) THEN
+                   summed_contributions = summed_contributions + (contribution)**2
+                   IF (ionode) WRITE (*,'(18X,I3,A,I3,10X,F8.3,5X,F8.3)') &
+                        occ, " ->", nhomos(spin)+virt, ABS(contribution), summed_contributions
+                   IF (ABS(summed_contributions - 1.0_dp) < 1.0e-2_dp) CYCLE searchloop
+                END IF
+             END DO
+          END DO
+       END DO
+       IF (ionode) WRITE (*,*)
+    END DO
+
+    DO spin=1, n_spins
+       DEALLOCATE(homo_coeff_col, lumo_coeff_col, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL cp_fm_release(S_lumos(spin)%matrix, error=error)
+    END DO
+
+    DEALLOCATE(S_lumos, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+  END SUBROUTINE find_contributions
 
 ! *****************************************************************************
   
