@@ -83,6 +83,8 @@ MODULE qs_scf
   USE qs_arpack,                ONLY: arpack_diag
   USE qs_blacs,                 ONLY: allocate_blacs_matrix,&
                                       blacs_add_to_element,&
+                                      blacs_add, &
+                                      blacs_trace, &
                                       blacs_gemm,&
                                       blacs_get_element,&
                                       blacs_matrix_type,&
@@ -90,6 +92,7 @@ MODULE qs_scf
                                       blacs_set_element,&
                                       blacs_syevx,&
                                       blacs_symm,&
+                                      blacs_make_basis, &
                                       copy_blacs_to_blacs_matrix,&
                                       copy_blacs_to_sparse_matrix,&
                                       copy_sparse_to_blacs_matrix,&
@@ -100,7 +103,8 @@ MODULE qs_scf
                                       symmetrise_blacs_matrix, &
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
-                                      blacs_cholesky_restore
+                                      blacs_cholesky_restore, &
+                                      deallocate_blacs_matrix
   USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
@@ -134,6 +138,7 @@ MODULE qs_scf
                                       next_block_node,&
                                       real_block_node_type,&
                                       real_matrix_p_type,&
+                                      real_matrix_type,&
                                       replicate_matrix_structure,&
                                       set_matrix,&
                                       symmetrise_diagonal_blocks,&
@@ -170,10 +175,17 @@ MODULE qs_scf
   USE qs_core_energies,         ONLY: calculate_ecore,&
                                       calculate_ecore_overlap,&
                                       calculate_ecore_self
+  USE qs_ot,                    ONLY: qs_ot_type,qs_ot_allocate, &
+                                      qs_ot_destroy,qs_ot_init,  &
+                                      qs_ot_get_orbitals,        & 
+                                      qs_ot_get_derivative,      &
+                                      qs_ot_get_p
 
   IMPLICIT NONE
 
   PRIVATE
+
+  TYPE(qs_ot_type)                  :: qs_ot_env
 
   TYPE(blacs_matrix_type), POINTER  :: ortho,scf_work1,scf_work2
   TYPE(cell_type), POINTER          :: cell
@@ -192,7 +204,7 @@ MODULE qs_scf
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
                        ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
-                       rebuild,use_cholesky,use_arpack
+                       rebuild,use_cholesky,use_arpack,use_ot
   logical, parameter, private :: debug_this_module=.true.
 
   character(len=*), private, parameter :: moduleN="qs_scf"
@@ -228,9 +240,9 @@ CONTAINS
 
     TYPE(mo_set_type), POINTER :: mo_set
 
-    REAL(wp) :: delta,diis_error,t1,t2
-    INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,nmo,&
-                output_unit
+    REAL(wp) :: delta,diis_error,t1,t2,ds
+    INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,&
+                output_unit,n,k,nrow_block,ncol_block, type_switch
     LOGICAL  :: diis_step,do_level_shift,ionode
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
@@ -253,7 +265,6 @@ CONTAINS
    
 
 !   ---------------------------------------------------------------------------
-
 
 
 !   *** Quick return, if no SCF iteration is requested ***
@@ -329,6 +340,40 @@ CONTAINS
     diis_step = .FALSE.
     rebuild = .TRUE.
 
+    IF (use_ot) THEN
+       CALL get_mo_set(mo_set=mo_set,&
+                       eigenvectors=mo_eigenvectors)
+
+       CALL get_blacs_matrix_info(mo_eigenvectors,nrow_block=nrow_block, &
+                                                  ncol_block=ncol_block, &
+                                                  nrow_global=n, &
+                                                  ncol_global=k)
+
+       if (globenv%ionode) then
+          write(6,*) "n= ",n," k= ",k
+       endif
+
+       CALL qs_ot_allocate(qs_ot_env,n,k,nrow_block,ncol_block,globenv)
+       CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,qs_ot_env%matrix_c0)
+
+       CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_c0, &
+                                           qs_ot_env%matrix_sc0,globenv)
+
+       CALL blacs_make_basis(qs_ot_env%matrix_c0,k,globenv, &
+                         ortho=qs_ot_env%matrix_sc0,otype="SV")
+
+       CALL qs_ot_init(qs_ot_env,globenv)
+
+       CALL blacs_set_all(qs_ot_env%matrix_x,0.0_wp,globenv)
+       CALL blacs_set_all(qs_ot_env%matrix_sx,0.0_wp,globenv)
+
+       CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
+       CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
+       CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
+
+    ENDIF
+
+
     IF (ionode.AND.globenv%print%scf) THEN
       WRITE (UNIT=output_unit,&
              FMT="(/,T3,A,T9,A,T34,A,T49,A,T68,A,/,T3,A)")&
@@ -363,7 +408,14 @@ CONTAINS
 
       rebuild = (MODULO(iscf,nrebuild) == 0)
 
-      paoIf: if (pao) then
+                  type_switch=1 ! default with diagonalisation
+      if (pao)    type_switch=0
+      if (use_ot) type_switch=2
+
+      SELECT CASE (type_switch)
+
+      CASE (0)
+
          if (cp_debug .and. debug_this_module) then
             call cp_sm_output(logger=cp_error_get_logger(error), &
                  outputName="scf_ks", &
@@ -386,55 +438,103 @@ CONTAINS
          call sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%matrix,&
               target_m=ks%matrix, glob_angles=pao_env%angles_att,&
               qs_env=qs_env, global_env=globenv,error=error)
-      else paoIf
-      IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
-        CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
-      END IF
 
-      CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
+         t2 = cputime()
 
-      IF (iscf > 1) THEN
-        CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
-                      qs_env,globenv)
-      END IF
+         IF (diis_step) THEN
+           CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+           IF (ionode.AND.globenv%print%scf) THEN
+              WRITE (UNIT=output_unit,&
+                     FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
+                     iscf,"DIIS",diis_error,t2 - t1,delta,etotal
+           END IF
+         ELSE
+           CALL density_mixing(ks,p,p_mix,delta,globenv)
+           IF (ionode.AND.globenv%print%scf) THEN
+             WRITE (UNIT=output_unit,&
+                    FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
+               iscf,"Mixing",p_mix,t2 - t1,delta,etotal
+           END IF
+         END IF
 
-      do_level_shift = ((level_shift /= 0.0_wp).and.&
-           ((density_guess == "CORE").or.(iscf > 1)))
-      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
-                       do_level_shift,level_shift,globenv)
-      
-!     *** Update the MO occupation numbers, if smearing is used ***
+      CASE(1)
 
-      IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
-
-      IF (globenv%print%each_scf_step) THEN
-        CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
-      END IF
-
-      CALL calculate_density_matrix(mo_set,scf_work1,globenv)
-
-      CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
-      CALL symmetrise_diagonal_blocks(ks%matrix)
-      
-   end if paoIf
-
-      t2 = cputime()
-
-      IF (diis_step) THEN
-        CALL density_mixing(ks,p,1.0_wp,delta,globenv)
-        IF (ionode.AND.globenv%print%scf) THEN
-          WRITE (UNIT=output_unit,&
-                 FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-            iscf,"DIIS",diis_error,t2 - t1,delta,etotal
+        IF (globenv%print%kohn_sham_matrix.AND.globenv%print%each_scf_step) THEN
+          CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
         END IF
-      ELSE
-        CALL density_mixing(ks,p,p_mix,delta,globenv)
-        IF (ionode.AND.globenv%print%scf) THEN
-          WRITE (UNIT=output_unit,&
+
+        CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
+
+        IF (iscf > 1) THEN
+          CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
+                        qs_env,globenv)
+        END IF
+
+        do_level_shift = ((level_shift /= 0.0_wp).and.&
+             ((density_guess == "CORE").or.(iscf > 1)))
+        CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
+                         do_level_shift,level_shift,globenv)
+      
+!       *** Update the MO occupation numbers, if smearing is used ***
+
+        IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
+
+        IF (globenv%print%each_scf_step) THEN
+          CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
+        END IF
+
+        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+
+        CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
+        CALL symmetrise_diagonal_blocks(ks%matrix)
+      
+        t2 = cputime()
+
+        IF (diis_step) THEN
+           CALL density_mixing(ks,p,1.0_wp,delta,globenv)
+           IF (ionode.AND.globenv%print%scf) THEN
+              WRITE (UNIT=output_unit,&
+                   FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
+                   iscf,"DIIS",diis_error,t2 - t1,delta,etotal
+           END IF
+        ELSE
+           CALL density_mixing(ks,p,p_mix,delta,globenv)
+           IF (ionode.AND.globenv%print%scf) THEN
+              WRITE (UNIT=output_unit,&
                  FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
-            iscf,"Mixing",p_mix,t2 - t1,delta,etotal
+              iscf,"Mixing",p_mix,t2 - t1,delta,etotal
+           END IF
         END IF
-      END IF
+
+      CASE(2)
+
+        CALL sparse_times_blacs(ks%matrix,qs_ot_env%matrix_c, &
+                                          qs_ot_env%matrix_hc,globenv)
+        CALL blacs_add(4.0_wp,qs_ot_env%matrix_hc,0.0_wp,qs_ot_env%matrix_hc,globenv)
+
+        CALL qs_ot_get_derivative(qs_ot_env%matrix_hc,qs_ot_env%matrix_x, &
+                                        qs_ot_env%matrix_sx, &
+                                        qs_ot_env%matrix_dx,qs_ot_env,globenv)
+
+        CALL blacs_trace(qs_ot_env%matrix_dx,qs_ot_env%matrix_dx,delta,globenv)
+
+        ds=-0.1_wp
+        write(6,*) "delta", delta, etotal, etotal+delta*ds
+
+        ! steepest descent ...
+        CALL blacs_add(1.0_wp,qs_ot_env%matrix_x,ds,qs_ot_env%matrix_dx,globenv)
+        CALL sparse_times_blacs(s(1)%matrix,qs_ot_env%matrix_x, &
+                                          qs_ot_env%matrix_sx,globenv)
+
+        CALL qs_ot_get_p(qs_ot_env%matrix_x,qs_ot_env%matrix_sx,qs_ot_env,globenv)
+        CALL qs_ot_get_orbitals(qs_ot_env%matrix_c,qs_ot_env%matrix_x,qs_ot_env,globenv)
+        CALL copy_blacs_to_blacs_matrix(qs_ot_env%matrix_c,mo_eigenvectors)
+
+        CALL calculate_density_matrix(mo_set,scf_work1,globenv)
+        CALL copy_blacs_to_sparse_matrix(scf_work1,p%matrix,globenv)
+        CALL symmetrise_diagonal_blocks(p%matrix)
+
+      END SELECT
 
       IF (delta < eps_scf) THEN
         IF (ionode.AND.globenv%print%scf) THEN
@@ -502,9 +602,42 @@ CONTAINS
 
 !    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
 
+    IF (use_ot) THEN
+     call qs_ot_destroy(qs_ot_env,globenv)
+    END IF
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE scf
+
+! *****************************************************************************
+  SUBROUTINE sparse_times_blacs(m_a,m_b,m_c,globenv)
+
+    TYPE(real_matrix_type), POINTER :: m_a
+    TYPE(blacs_matrix_type), POINTER :: m_b,m_c
+    TYPE(global_environment_type), INTENT(IN) :: globenv
+    TYPE(blacs_matrix_type), POINTER :: dum
+    INTEGER  :: handle,n,k,nrow_block,ncol_block,i
+
+    CALL timeset("sparse_times_blacs","I","",handle)
+
+    CALL get_matrix_info(m_a,nrow=n)
+    CALL get_blacs_matrix_info(m_b,ncol_global=k, & 
+                  nrow_block=nrow_block,ncol_block=ncol_block)
+    CALL allocate_blacs_matrix(new_matrix=dum,&
+                               nrow_global=n,&
+                               ncol_global=n,&
+                               nrow_block=nrow_block,&
+                               ncol_block=ncol_block,&
+                               name="DUM SPARSE MATRIX",&
+                               globenv=globenv)
+    CALL copy_sparse_to_blacs_matrix(m_a,dum,globenv)
+    CALL blacs_symm('L','U',n,k,1.0_wp,dum,m_b,0.0_wp,m_c,globenv)
+    CALL deallocate_blacs_matrix(dum)
+
+    CALL timestop(0.0_wp,handle)
+
+  END SUBROUTINE sparse_times_blacs
 
 ! *****************************************************************************
 
@@ -666,6 +799,7 @@ CONTAINS
     IF (globenv%print%ortho_matrix) THEN
       CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
+
 
     CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),scf_work1,scf_work2,&
                                         globenv)
@@ -899,6 +1033,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+
     CALL timeset("calculate_first_density_matrix","I","",handle)
 
     IF (density_guess == "RESTART") THEN
@@ -1086,6 +1221,7 @@ CONTAINS
     work_syevx = 1.0_wp
     use_cholesky = .true.
     use_arpack = .false.
+    use_ot = .false.
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -1094,6 +1230,8 @@ CONTAINS
     DO WHILE (test_object(newline=.TRUE.) /= "EOS")
       CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
       SELECT CASE (TRIM(keyword))
+      CASE ("OT")
+        use_ot = .true.
       CASE ("CHARGE")
         CALL read_object(charge)
       CASE ("DENSITY_GUESS","SCF_GUESS","GUESS")

@@ -865,7 +865,6 @@ CONTAINS
 
     CALL timeset("blacs_make_basis","I","",handle)
 
-
 ! check input ...
 
     IF (present(pmatrix)) THEN
@@ -3393,8 +3392,13 @@ CONTAINS
 
     IF (PRESENT(formatted)) THEN
        IF (formatted) THEN
-         WRITE (UNIT=lunit,FMT=*)&
-           ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),j=1,ncol_local)
+         write(6,*) matrix%name
+         write(6,*) "row ,col ,value"
+         DO j=1,ncol_local
+         DO i=1,nrow_local
+         WRITE (UNIT=lunit,FMT='(I5,I5,F6.2)') i,j,matrix%p(myprow,mypcol)%block(i,j)
+         ENDDO
+         ENDDO
        ELSE
           WRITE (UNIT=lunit)&
             ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
