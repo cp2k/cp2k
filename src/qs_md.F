@@ -42,6 +42,7 @@ MODULE qs_md
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE dump,                            ONLY: dump_variables
   USE extended_system_dynamics,        ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE extended_system_types,           ONLY: extended_system_type
@@ -156,7 +157,7 @@ CONTAINS
     TYPE(qs_energy_type), POINTER                        :: energy
     TYPE(force_env_type), POINTER                        :: force_env
 
-    INTEGER :: handle,istat,natom,nmolecule
+    INTEGER :: handle,istat,istep,natom,nmolecule
     INTEGER :: nmoltype, nmol, nnodes, nsh
     LOGICAL :: should_stop
 
@@ -285,9 +286,13 @@ CONTAINS
     CALL force_env_calculate_force ( md_env%force_env )
     CALL md_energy_qs(md_env) ! inits the print env at itimes == 0
 
-    DO itimes=1,md_env%simpar%nsteps
+    DO istep=1,md_env%simpar%nsteps
       CALL velocity_verlet(md_env)
+      itimes = itimes + 1
       CALL md_energy_qs(md_env)
+      IF (MODULO(itimes,mdio%idump) == 0) THEN
+        CALL dump_variables(md_env,qs_env,mdio%dump_file_name,globenv)
+      END IF
       IF (qs_env%para_env%source==qs_env%para_env%mepos) &
            INQUIRE(file="EXIT",exist=should_stop)
       CALL mp_bcast(should_stop,qs_env%para_env%source,qs_env%para_env%group)

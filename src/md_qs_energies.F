@@ -14,52 +14,57 @@
 !!   AUTHOR
 !!     Joost VandeVondele (copy from md_fist_energies)
 !!
+!!   MODIFICATIONS
+!!     - New MD data are appended to the old data (15.09.2003,MK)
+!!
 !******************************************************************************
 
 MODULE md_qs_energies
 
-  USE cp2k_units,                      ONLY: unit_convert_type, get_cp2k_units
   USE global_types,                    ONLY: global_environment_type
-  USE integrator,                      ONLY : pressure
-  USE kinds,                           ONLY : dbl
-  USE linklist_types,                  ONLY : linklist_internal_data_type,  &
-                                              get_linklist_internal_data
-  USE machine,                         ONLY : m_flush
-  USE mathconstants,                   ONLY : zero
-  USE md,                              ONLY : simulation_parameters_type, &
-                                              mdio_parameters_type
-  USE md_conserved_quantities,         ONLY : compute_conserved_quantity,&
-                                              compute_conserved_quantity_pimd
-  USE md_environment_types,            ONLY : md_environment_type,&
-                                              get_md_env
-  USE message_passing,                 ONLY : mp_sum, mp_comm_dup
-  USE simulation_cell,                 ONLY : get_cell_param,&
-                                              cell_type
-  USE structure_types,                 ONLY : structure_type
-  USE particle_types,                  ONLY : particle_type, &
-                                              write_particle_coordinates
-  USE termination,                     ONLY : stop_memory,&
-                                              stop_program
-  USE timings,                         ONLY : timeset,&
-                                              timestop
-  USE util,                            ONLY : get_unit
-  USE physcon,                         ONLY : angstrom , a_bohr , e_mass , joule
+  USE integrator,                      ONLY: pressure
+  USE kinds,                           ONLY: wp => dp
+  USE linklist_types,                  ONLY: linklist_internal_data_type,&
+                                             get_linklist_internal_data
+  USE machine,                         ONLY: m_flush
+  USE mathconstants,                   ONLY: zero
+  USE md,                              ONLY: simulation_parameters_type,&
+                                             mdio_parameters_type
+  USE md_conserved_quantities,         ONLY: compute_conserved_quantity,&
+                                             compute_conserved_quantity_pimd
+  USE md_environment_types,            ONLY: md_environment_type,&
+                                             get_md_env
+  USE message_passing,                 ONLY: mp_bcast,mp_sum, mp_comm_dup
+  USE qs_parser,                       ONLY: open_file
+  USE simulation_cell,                 ONLY: get_cell_param,&
+                                             cell_type
+  USE structure_types,                 ONLY: structure_type
+  USE particle_types,                  ONLY: particle_type, &
+                                             write_particle_coordinates
+  USE physcon,                         ONLY: angstrom,&
+                                             femtoseconds,&
+                                             kelvin
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: set_qs_energies, md_energy_qs
 
-  REAL ( dbl ) :: econs_avg
+  CHARACTER(LEN=*), PARAMETER :: module_name = "md_qs_energies"
 
-  LOGICAL :: ionode
+  REAL(wp) :: econs_avg,t_old
+
   CHARACTER (LEN=50) :: crd_file_name, vel_file_name, ptens_file_name, &
                         ener_file_name, temp_file_name, dump_file_name
-  INTEGER :: crd, vel, ptn, ene, tem, scr, coe, pol
+  INTEGER :: crd, vel, ptn, ene, tem, scr, coe, pol, group, itimes_old, source
   INTEGER :: icrd, ivel, iptens, iener, itemp, idump, iscreen
-  TYPE ( unit_convert_type ), POINTER :: units
+  LOGICAL :: ionode
 
-
+  PUBLIC :: md_energy_qs,&
+            set_qs_energies
 !!***
 !******************************************************************************
 
@@ -91,8 +96,9 @@ SUBROUTINE set_qs_energies ( globenv, mdio )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
 
 !------------------------------------------------------------------------------
-  CALL get_cp2k_units ( units )
 
+  group = globenv % group
+  source = globenv % source
   ionode = globenv % ionode
   scr = globenv % scr
 
@@ -129,8 +135,7 @@ END SUBROUTINE set_qs_energies
 !!   MODIFICATION HISTORY
 !!     none
 !!
-!!*** *************************************************************************
-
+!!*****************************************************************************
 
 SUBROUTINE md_energy_qs ( md_env )
 
@@ -143,15 +148,17 @@ SUBROUTINE md_energy_qs ( md_env )
   TYPE ( simulation_parameters_type ), POINTER :: simpar
   TYPE ( structure_type ), POINTER :: struc (:)
   INTEGER, POINTER :: itimes
-  REAL (dbl), POINTER :: constant
+  REAL (wp), POINTER :: constant
   CHARACTER(LEN=200) :: title
 
   INTEGER i, j, id, n, l, nnodes, beads, iw, handle
-  REAL ( dbl ) :: alpha, epsilon0, qsq, lup, aup
-  REAL ( dbl ) :: cons, temp, rcons, ekin
-  REAL ( dbl ), DIMENSION(3) :: cell, ang
-  REAL ( dbl ) :: pv_scalar,t,au2fs
+  REAL ( wp ) :: alpha, epsilon0, qsq, lup, aup
+  REAL ( wp ) :: cons, temp, rcons, ekin
+  REAL ( wp ), DIMENSION(3) :: cell, ang
+  REAL ( wp ) :: pv_scalar,t
   TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
+
+  LOGICAL :: file_exists
 
 !------------------------------------------------------------------------------
 
@@ -165,37 +172,47 @@ SUBROUTINE md_energy_qs ( md_env )
 
   particle_set => struc(1) % part
 
-! GT : to be changed?
-  au2fs = 1.0 / ( 1.0E-15_dbl / ( a_bohr * SQRT ( e_mass / joule ) ) )
-  t = itimes * md_env % simpar % dt * au2fs
-
-  IF ( ionode .AND. itimes == 0 ) THEN
-     tem = get_unit()
-     OPEN ( UNIT = tem, FILE = temp_file_name )
-     ene = get_unit()
-     OPEN ( UNIT = ene, FILE = ener_file_name )
-     crd = get_unit()
-     OPEN ( UNIT = crd, FILE = crd_file_name )
-     vel = get_unit()
-     OPEN ( UNIT = vel, FILE = vel_file_name )
+  IF (itimes == 0) THEN
+    IF (ionode) THEN
+!MK   CALL open_md_file(temp_file_name,tem)
+      INQUIRE (FILE=TRIM(ener_file_name),EXIST=file_exists)
+      CALL open_md_file(ener_file_name,ene)
+      IF (file_exists) THEN
+        BACKSPACE (UNIT=ene)
+        READ (UNIT=ene,FMT=*) itimes_old,t_old
+      ELSE
+        itimes_old = 0
+        t_old = 0.0_wp
+      END IF
+      CALL open_md_file(crd_file_name,crd)
+      CALL open_md_file(vel_file_name,vel)
+    END IF
+    CALL mp_bcast(itimes_old,source,group)
+    CALL mp_bcast(t_old,source,group)
+    itimes = itimes_old
+    t = t_old
+  ELSE
+    t = t_old + REAL(itimes-itimes_old,wp)*md_env%simpar%dt*femtoseconds
   END IF
+
+  IF (itimes > itimes_old) THEN
 
   iw = scr
 
   CALL compute_conserved_quantity (md_env, md_env % force_env % qs_env % energy % total, cons,&
-                                   cons_rel=rcons, &
-                                   ekin=ekin, &
+                                   cons_rel=rcons,&
+                                   ekin=ekin,&
                                    temp=temp)
 
-  temp=temp / units % kelvin
+  temp = temp*kelvin
 
   write(title,'(A4,I8,A4,F12.3,X,A6,F20.9,X,A6,F9.3,X,A1)') " i= ",itimes," t= ",t,"fs E= ", &
                           md_env % force_env % qs_env % energy % total,"au T= ",temp,"K"
 
-  IF (ionode .AND. mod(itimes,itemp)==0) THEN
-     WRITE (tem, '(I8,F20.10,F20.10)') itimes,t, temp
-     CALL m_flush(tem)
-  END IF
+!MK  IF (ionode .AND. mod(itimes,itemp)==0) THEN
+!MK     WRITE (tem, '(I8,F20.10,F20.10)') itimes,t, temp
+!MK     CALL m_flush(tem)
+!MK  END IF
 
   IF (ionode .AND. mod(itimes,iscreen)==0) THEN
      WRITE (scr, '(A1)') " "
@@ -220,10 +237,46 @@ SUBROUTINE md_energy_qs ( md_env )
      CALL m_flush(vel)
   END IF
 
+  END IF
+
   CALL timestop ( zero, handle )
 
 END SUBROUTINE md_energy_qs
 
-!******************************************************************************
+! *****************************************************************************
+
+  SUBROUTINE open_md_file(file_name,unit_number)
+
+    CHARACTER(LEN=*), INTENT(IN) :: file_name
+    INTEGER, INTENT(OUT)         :: unit_number
+
+!   *** Local variables ***
+
+    INTEGER :: istat
+    LOGICAL :: file_exists
+
+!   ---------------------------------------------------------------------------
+
+    INQUIRE (FILE=TRIM(file_name),EXIST=file_exists)
+
+    IF (file_exists) THEN
+      CALL open_file(file_name=TRIM(file_name),&
+                     file_action="READWRITE",&
+                     file_form="FORMATTED",&
+                     file_position="APPEND",&
+                     file_status="OLD",&
+                     unit_number=unit_number)
+    ELSE
+      CALL open_file(file_name=TRIM(file_name),&
+                     file_action="WRITE",&
+                     file_form="FORMATTED",&
+                     file_position="REWIND",&
+                     file_status="REPLACE",&
+                     unit_number=unit_number)
+    END IF
+
+  END SUBROUTINE open_md_file
+
+! *****************************************************************************
+
 END MODULE md_qs_energies
-!******************************************************************************
