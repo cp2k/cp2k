@@ -4,22 +4,18 @@ import re
 import sys
 
 repl={
-    'allocate_blacs_matrix':'cp_fm_create2',
-    'allocate_blacs_matrix_vect':'cp_fm_vect_create2',
-    'blacs_add':'cp_fm_add',
-    'blacs_gemm':'cp_fm_gemm',
-    'blacs_matrix_p_type':'cp_full_matrix_p_type',
-    'blacs_matrix_type':'cp_full_matrix_type',
-    'blacs_symm':'cp_fm_symm',
-    'blacs_syrk':'cp_fm_syrk',
-    'deallocate_blacs_matrix':'cp_fm_release',
-    'deallocate_blacs_matrix_vect':'cp_fm_vect_dealloc',
-    'get_blacs_matrix_info':'cp_fm_get_info',
-    'sparse_plus_blacs_blacst':'cp_sm_plus_fm_fm_t',
-    'sparse_times_blacs':'cp_sm_fm_multiply',
+    'blacs_cholesky_decompose':'cp_fm_cholesky_decompose',
+    'blacs_triangular_multiply':'cp_fm_triangular_multiply',
+    'blacs_cholesky_invert':'cp_fm_cholesky_invert',
+    'blacs_cholesky_reduce':'cp_fm_cholesky_reduce',
+    'blacs_cholesky_restore':'cp_fm_cholesky_restore',
+    'cp_fm_pool':'cp_fm_pool_types',
+    'cp_f_matrix_struct':'cp_fm_struct',
+    'cp_full_matrix':'cp_fm_types'
     }
 
-specialRepl={re.compile(r"%blacs_matrix(\W)",flags=re.IGNORECASE):r"%matrix\1"}
+specialRepl={}
+# {re.compile(r"%blacs_matrix(\W)",flags=re.IGNORECASE):r"%matrix\1"}
 
 def replaceWords(infile,outfile,replacements,specialReplacements=None,
                  logFile=sys.stdout):
