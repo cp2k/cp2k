@@ -2245,8 +2245,9 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
   ! 6. Set the group 3x3 constraint g3x3_list
   !-----------------------------------------------------------------------------
   IF(topology%const_33) THEN
-    DO i=1,SIZE(molecule_kind_set)
-      molecule_kind => molecule_kind_set(i)
+    DO i=1,cons_info%nconst_g33
+      j = cons_info%const_g33_mol(i)
+      molecule_kind => molecule_kind_set(j)
       CALL get_molecule_kind(molecule_kind=molecule_kind,&
                              nmolecule=nmolecule,molecule_list=molecule_list)
       CALL find_boundary(cons_info%const_g33_mol,cons_info%nconst_g33,&
@@ -2278,7 +2279,6 @@ SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
         END DO
         CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
       END DO
-      
       ng3x3 = 0
       DO j=1,SIZE(cons_info%const_g33_a)
         ng3x3 = ng3x3 + 1

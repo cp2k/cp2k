@@ -464,7 +464,6 @@ SUBROUTINE input_bonds(topology,globenv)
               ilen = 0
               CALL get_next(string2,ilen)
               CALL uppercase(string2)
-              WRITE(*,*) "string2 ",string2
               SELECT CASE (string2)
               CASE DEFAULT
                  CALL p_error()

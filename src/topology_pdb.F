@@ -195,6 +195,7 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       READ(line(47:54),*,IOSTAT=istat) atom_info%r(3,natom)
       READ(line(55:60),*,IOSTAT=istat) atom_info%occup(natom)
       READ(line(61:66),*,IOSTAT=istat) atom_info%beta(natom)
+      READ(line(73:76),*,IOSTAT=istat) atom_info%label_molname(natom)
       READ(line(77:78),*,IOSTAT=istat) atom_info%element(natom)
       IF(PM2) WRITE(iw,*) natom,line(13:16),line(77:78)
       atom_info%atm_mass(natom)  =0.0_dbl
@@ -214,6 +215,8 @@ SUBROUTINE read_coordinate_pdb (topology,globenv)
       DO i =  1, 10
          if (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
       END DO
+    CASE ("REMARK")
+      IF(PM1) WRITE(iw,*) TRIM(line)
     CASE ("END")
       EXIT
     CASE DEFAULT
