@@ -555,7 +555,6 @@ END SUBROUTINE cp_sm_scale_and_add
     IF (istat /= 0) THEN
       CALL stop_memory(routineP,"new_block_node%block",dp_size*nrow*ncol)
     END IF
-    new_block_node%block(:,:) = 0.0_dp
 
     IF (PRESENT(BLOCK)) THEN
       IF (ASSOCIATED(BLOCK)) THEN
@@ -565,6 +564,7 @@ END SUBROUTINE cp_sm_scale_and_add
           CALL stop_program(routineP,"Incompatible block dimensions")
         END IF
       ELSE
+        new_block_node%block(:,:) = 0.0_dp
         BLOCK => new_block_node%block
       END IF
     END IF
@@ -1435,8 +1435,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
     ub = UBOUND(matrix%block_list,1)
     lb = LBOUND(matrix%block_list,1)
-    CPPrecondition(block_row>=lb,cp_failure_level,routineP,error,failure)
-    CPPrecondition(block_row<=ub,cp_failure_level,routineP,error,failure)
 
     block_node => matrix%block_list(block_row)%first_block_node
 
@@ -2274,8 +2272,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
     INTEGER                                  :: handle 
     INTEGER                                  :: iblock_row
-    INTEGER                                  :: iblock_col_source, iblock_col_source_old
-    INTEGER                                  :: iblock_col_target, iblock_col_target_old
+    INTEGER                                  :: iblock_col_source
+    INTEGER                                  :: iblock_col_target
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: source_block, target_block
     TYPE(real_block_node_type), POINTER      :: block_node_target, block_node_source
@@ -2299,8 +2297,6 @@ END SUBROUTINE cp_sm_scale_and_add
 
       block_node_target => first_block_node(target_matrix,iblock_row)
       block_node_source => first_block_node(source_matrix,iblock_row)
-      iblock_col_source_old=-1
-      iblock_col_target_old=-1
 
       DO WHILE (ASSOCIATED(block_node_target))
 
@@ -2309,8 +2305,6 @@ END SUBROUTINE cp_sm_scale_and_add
                             BLOCK=target_block)
 
         IF (ASSOCIATED(target_block)) THEN
-           CPPrecondition(iblock_col_target>iblock_col_target_old,cp_failure_level,routineP,error,failure) 
-           iblock_col_target_old=iblock_col_target
 
            NULLIFY(source_block)
 
@@ -2325,8 +2319,6 @@ END SUBROUTINE cp_sm_scale_and_add
            ENDDO 
            
            IF (ASSOCIATED(source_block)) THEN
-              CPPrecondition(SIZE(target_block,1)==SIZE(source_block,1),cp_failure_level,routineP,error,failure)
-              CPPrecondition(SIZE(target_block,2)==SIZE(source_block,2),cp_failure_level,routineP,error,failure)
               CALL dcopy(SIZE(target_block,1)*SIZE(target_block,2),&
                    source_block(1,1),1,target_block(1,1),1)
            ELSE
