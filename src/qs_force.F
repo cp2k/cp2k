@@ -37,9 +37,9 @@ MODULE qs_force
                                              set_qs_env
   USE qs_force_types,                  ONLY: init_qs_force,&
                                              qs_force_type
-  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env,&
+                                             calculate_w_matrix
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_mo_methods,                   ONLY: calculate_w_matrix
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_overlap,                      ONLY: write_sparse_matrix
@@ -181,10 +181,9 @@ CONTAINS
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
                                 globenv%para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     ENDIF
-
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
-!   *** compute core forces ***
+!   *** compute core forces (also overwrites matrix_w) ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                        globenv=globenv,&
                                        calculate_forces=.TRUE.)

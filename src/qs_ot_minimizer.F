@@ -25,7 +25,8 @@ MODULE qs_ot_minimizer
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_p_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner
   USE qs_ot,                           ONLY: qs_ot_get_derivative,&
@@ -51,8 +52,9 @@ CONTAINS
 ! all the information needed and  collected can be stored in the fist qs_ot_env only 
 ! (indicating that the data type for the gradient/position and minization should be separated)
 !
-SUBROUTINE ot_mini(qs_ot_env)
+SUBROUTINE ot_mini(qs_ot_env,matrix_hc)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_hc 
 
     INTEGER                                  :: handle, ispin, nspin
     REAL(KIND=dp)                            :: tmp
@@ -68,7 +70,7 @@ SUBROUTINE ot_mini(qs_ot_env)
    IF (.NOT. qs_ot_env(1)%energy_only) THEN
       qs_ot_env(1)%gradient=0.0_dp
       DO ispin=1,nspin
-         CALL qs_ot_get_derivative(qs_ot_env(ispin)%matrix_hc,qs_ot_env(ispin)%matrix_x, &
+         CALL qs_ot_get_derivative(matrix_hc(ispin)%matrix,qs_ot_env(ispin)%matrix_x, &
                                      qs_ot_env(ispin)%matrix_sx, &
                                      qs_ot_env(ispin)%matrix_gx,qs_ot_env(ispin))
         ! and also the gradient along the direction

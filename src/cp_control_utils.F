@@ -351,6 +351,7 @@ CONTAINS
     dft_control % charge = 0
     dft_control % multiplicity = 0
     dft_control % use_kinetic_energy_density = .FALSE.
+    dft_control % restricted = .FALSE.
 
     DO i=1,SIZE(dft_control % xc_control % functionals)
        dft_control % xc_control % functionals ( i ) = ""
@@ -444,6 +445,8 @@ CONTAINS
             CALL read_object(dft_control%nspins)
           CASE ("SPIN_POLARISATION","SPIN_POLARIZATION","LSD")
             dft_control%nspins = 2
+          CASE ("RESTRICTED")
+            dft_control%restricted = .TRUE.
           CASE ("CHARGE")
              CALL read_object(dft_control%charge)
           CASE ("KINETIC_ENERGY_DENSITY","TAU")
@@ -1283,6 +1286,10 @@ CONTAINS
           WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
                dft_control % nspins
        END IF
+
+       IF ( dft_control % restricted ) THEN
+          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","      spin restricted"
+       ENDIF
 
        IF ( dft_control % charge /= 0 ) THEN
           WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&

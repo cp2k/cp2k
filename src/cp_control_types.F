@@ -190,7 +190,8 @@ MODULE cp_control_types
      LOGICAL                         :: forces,&
                                         do_tddfpt_calculation, &
                                         derive_function_rho, &
-                                        use_kinetic_energy_density
+                                        use_kinetic_energy_density, & 
+                                        restricted
   END TYPE dft_control_type
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_control_types"

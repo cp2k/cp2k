@@ -386,6 +386,9 @@ CONTAINS
 !     *** If LSD, then combine alpha density and beta density to
 !     *** total density: alpha <- alpha + beta   and
 !     *** spin density:   beta <- alpha - beta
+!     (since all things can be computed based on the sum of these matrices anyway)
+!     (matrix_p is restored at the end of the run, matrix_w is left in its modified state
+!     (as it should not be needed afterwards)
 
       IF (SIZE(matrix_p) == 2) THEN
         CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,matrix_p(2)%matrix,1.0_dp)

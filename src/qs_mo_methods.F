@@ -74,15 +74,8 @@ MODULE qs_mo_methods
     MODULE PROCEDURE subspace_eigenvalues_ks 
   END INTERFACE
 
-  INTERFACE calculate_w_matrix
-    MODULE PROCEDURE calculate_w_matrix_1,&
-                     calculate_w_matrix_2
-  END INTERFACE
-
-
   PUBLIC :: make_basis, &
             calculate_density_matrix,&
-            calculate_w_matrix,&
             calculate_subspace_eigenvalues, &
             calculate_orthonormality
 
@@ -363,124 +356,6 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_density_matrix_sparse
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
-!   History: - Creation (03.03.03,MK)
-!            - Modification that computes it as a full block, several times (e.g. 20) 
-!              faster at the cost of some additional memory
-
-!   ***************************************************************************
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: w_matrix
-
-    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1", &
-      routine = "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
-
-    INTEGER                                  :: handle, imo, istat
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
-    TYPE(cp_fm_type), POINTER                :: weighted_vectors
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routine_name,"I","",handle)
-    NULLIFY(weighted_vectors)
-
-    CALL set_matrix(w_matrix,0.0_dp)
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
-
-    ! scale every column with the occupation
-    ALLOCATE(eigocc(mo_set%homo),stat=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"eigocc")
-    DO imo=1,mo_set%homo
-       eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
-    ENDDO
-    CALL cp_fm_column_scale(weighted_vectors,eigocc)
-    DEALLOCATE(eigocc)
-
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
-                            matrix_g=weighted_vectors,&
-                            ncol=mo_set%homo)
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE calculate_w_matrix_1
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix)
-
-!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
-!            and the MO occupation numbers.
-
-!   History: - Creation (17.07.2002,MK)
-
-!   ***************************************************************************
-
-    TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: ks_matrix, w_matrix
-
-    INTEGER                                  :: handle, ncol_block, &
-                                                ncol_global, nrow_block, &
-                                                nrow_global
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: h_block, weighted_vectors
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_w_matrix_2","I","",handle)
-
-    NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
-
-    CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
-                        ncol_global=ncol_global,&
-                        nrow_global=nrow_global,&
-                        nrow_block=nrow_block,&
-                        ncol_block=ncol_block)
-
-    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
-    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
-                                            para_env=mo_set%eigenvectors%matrix_struct%para_env, &
-                                            context=mo_set%eigenvectors%matrix_struct%context)
-    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
-    CALL cp_fm_struct_release(fm_struct_tmp)
-
-
-    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
-      CALL stop_program("calculate_w_matrix_2","NYI")
-    END IF
-
-    CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
-                           mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
-    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
-                    mo_set%eigenvectors,weighted_vectors,0.0_dp,h_block)
-    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
-                    mo_set%eigenvectors,h_block,0.0_dp,weighted_vectors)
-
-    ! scale every column with the occupation
-    CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
-
-    CALL set_matrix(w_matrix,0.0_dp)
-    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
-                            matrix_v=mo_set%eigenvectors,&
-                            matrix_g=weighted_vectors,&
-                            ncol=mo_set%homo)
-
-    CALL cp_fm_release(weighted_vectors)
-    CALL cp_fm_release(h_block)
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE calculate_w_matrix_2
-
 
 !!****f* qs_mo_methods/subspace_eigenvalues_ks *
 !!

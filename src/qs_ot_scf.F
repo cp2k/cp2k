@@ -23,21 +23,27 @@ MODULE qs_ot_scf
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add, &
                                              cp_fm_column_scale, &
                                              cp_fm_gemm
-  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type, & 
+                                             cp_fm_p_type, & 
+                                             cp_fm_write
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE qs_mo_types,                     ONLY: get_mo_set,&
-                                             mo_set_p_type
+                                             mo_set_p_type, &
+                                             mo_set_restrict
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_orbitals,&
                                              qs_ot_get_p,&
                                              qs_ot_init,&
+                                             qs_ot_settings_init,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
   USE qs_parser,                       ONLY: finish_parser,&
@@ -77,27 +83,10 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
 ! executable
 
     CALL timeset("ot_scf_read_input","I","",handle)
+
     ! decide default settings
+    CALL qs_ot_settings_init(qs_ot_env(1)%settings)
 
-    nspin=SIZE(qs_ot_env)
-
-    qs_ot_env(1)%settings%ot_method="CG"
-    qs_ot_env(1)%settings%diis_m=7 
-    qs_ot_env(1)%settings%preconditioner_type="FULL_KINETIC"
-    qs_ot_env(1)%settings%line_search_method="2PNT"
-    qs_ot_env(1)%settings%ds_min=0.15_dp
-    qs_ot_env(1)%settings%safer_diis=.TRUE.
-    qs_ot_env(1)%settings%energy_gap=0.2_dp
-    qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
-    qs_ot_env(1)%settings%max_taylor=4 
-    qs_ot_env(1)%settings%gold_target=0.01_dp
-    qs_ot_env(1)%settings%do_rotation=.FALSE.
-    ! should be removed
-    qs_ot_env(1)%settings%n=0
-    qs_ot_env(1)%settings%k=0
-    qs_ot_env(1)%settings%nrow_block=0
-    qs_ot_env(1)%settings%ncol_block=0
-    qs_ot_env(1)%settings%ortho_k=0
 
     CALL start_parser(file_name=globenv%input_file_name,&
                       globenv=globenv,&
@@ -253,7 +242,9 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
     WRITE(globenv%scr,'(A)') "  "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
- 
+
+    ! copy the ot settings type so it is identical 
+    nspin=SIZE(qs_ot_env)
     DO ispin=2,nspin
        qs_ot_env(ispin)%settings=qs_ot_env(1)%settings
     ENDDO
@@ -264,16 +255,16 @@ SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
 END SUBROUTINE
 !
 ! performs the actual minimisation, needs only limited info
+! updated for restricted calculations
+! matrix_dedc is the derivative of the energy with respect to the orbitals
 !
 !
-SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
+SUBROUTINE ot_scf_mini(mo_array,matrix_dedc,matrix_s,energy, &
                                      energy_only,delta,qs_ot_env,globenv)
  
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks
     TYPE(real_matrix_type), POINTER          :: matrix_s
     REAL(KIND=dp)                            :: energy
     LOGICAL                                  :: energy_only
@@ -281,65 +272,51 @@ SUBROUTINE ot_scf_mini(mo_array,matrix_ks,matrix_s,energy, &
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_dedc
 
     INTEGER                                  :: handle, ispin, nspin
-    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors, hc_tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers
     REAL(KIND=dp), DIMENSION(:), POINTER     :: scaling_factor
-    INTEGER                                  :: k,n
+    INTEGER                                  :: k,k2,n
     CHARACTER(LEN=*), PARAMETER              :: RoutineN="ot_scf_mini"
 
     CALL timeset("ot_scf_mini","I","",handle)
 
-    nspin=SIZE(mo_array)
+    ! we use the size of the ot_env to indicate the spin. 
+    ! this needs correction in case of restricted calculations
+    nspin=SIZE(qs_ot_env)  
 
     IF ( .NOT. energy_only) THEN
-       DO ispin=1,nspin
-          n=qs_ot_env(ispin)%settings%n
-          k=qs_ot_env(ispin)%settings%k
-          CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
-                          occupation_numbers=occupation_numbers )
-
-          ! check the user has rotation on if using non-equivalent MOs
-          IF (ANY(occupation_numbers.NE.occupation_numbers(1))) THEN
-             IF (.NOT. qs_ot_env(ispin)%settings%do_rotation) THEN
-                CALL stop_program(RoutineN, &
-                       "The ROTATION keyword is required for OT with non-equal occupation numbers")            
-             ENDIF
-          ENDIF
-
-          CALL cp_sm_fm_multiply(matrix_ks(ispin)%matrix,mo_eigenvectors,&
-                                       qs_ot_env(ispin)%matrix_hc,&
-                                       k, para_env=globenv%para_env)
-
-          ALLOCATE(scaling_factor(SIZE(occupation_numbers))) 
-          scaling_factor=2.0_dp*occupation_numbers
-          CALL cp_fm_column_scale(qs_ot_env(ispin)%matrix_hc,scaling_factor) 
-          DEALLOCATE(scaling_factor)
-
-          IF (qs_ot_env(1)%settings%do_rotation) THEN
-             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_eigenvectors,qs_ot_env(ispin)%matrix_hc, &
-                                      0.0_dp,qs_ot_env(ispin)%rot_mat_chcf)
-          ENDIF
-       ENDDO
+       IF (qs_ot_env(1)%settings%do_rotation) THEN
+          DO ispin=1,nspin
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+             CALL cp_fm_get_info(mo_eigenvectors,nrow_global=n,ncol_global=k)
+             CALL cp_fm_gemm('T','N',k,k,n,1.0_dp,mo_eigenvectors,matrix_dedc(ispin)%matrix, &
+                             0.0_dp,qs_ot_env(ispin)%rot_mat_chcf)
+          ENDDO
+       ENDIF
     ENDIF
 
-    ! notice we use (1) for driving all output and the minimization
+    ! notice we use (1) for driving all output and the minimization in case of LSD
     qs_ot_env(1)%etotal=energy
-    CALL ot_mini(qs_ot_env)
+    CALL ot_mini(qs_ot_env,matrix_dedc)
     delta           =qs_ot_env(1)%delta
     energy_only     =qs_ot_env(1)%energy_only
 
+    ! generate the orbitals using the new matrix_x
     DO ispin=1,nspin
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(ispin)%matrix_x, &
-                                      qs_ot_env(ispin)%matrix_sx, &
-                                      qs_ot_env(ispin)%settings%k,&
-                                      para_env=globenv%para_env)
+                                       qs_ot_env(ispin)%matrix_sx, &
+                                       qs_ot_env(ispin)%settings%k,&
+                                       para_env=globenv%para_env)
        CALL qs_ot_get_p(qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin)%matrix_sx,qs_ot_env(ispin))
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
        CALL qs_ot_get_orbitals(mo_eigenvectors,qs_ot_env(ispin)%matrix_x,qs_ot_env(ispin))
     ENDDO
-
+    IF (qs_ot_env(1)%restricted) THEN
+       CALL mo_set_restrict(mo_array)
+    ENDIF
     CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE
@@ -361,10 +338,13 @@ SUBROUTINE ot_scf_init(mo_array,matrix_s,qs_ot_env)
 ! executable
 
     CALL timeset("ot_scf_init","I","",handle)
-    nspin=SIZE(mo_array)
+
+    ! adapted for work with the restricted keyword
+    nspin=SIZE(qs_ot_env)
 
     DO ispin=1,nspin
        CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+       
        CALL cp_fm_get_info(mo_eigenvectors,nrow_block=nrow_block, &
                                            ncol_block=ncol_block, &
                                                    nrow_global=n, &

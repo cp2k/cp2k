@@ -26,6 +26,8 @@
 !!     10.2002 introduced pools, uses updated rho as input,
 !!             removed most temporary variables, renamed may vars,
 !!             began conversion to LSD [fawzi]
+!!     10.2004 moved calculate_w_matrix here [Joost VandeVondele]
+!!             introduced energy derivative wrt MOs [Joost VandeVondele]
 !!
 !!   SOURCE
 !****************************************************************************
@@ -45,6 +47,21 @@ MODULE qs_ks_methods
                                              cp_error_get_logger,&
                                              cp_error_message,&
                                              cp_error_type
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_info,&
+                                             cp_fm_init_random,&
+                                             cp_fm_release,&
+                                             cp_fm_retain,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_type,&
+                                             cp_fm_p_type,&
+                                             cp_fm_set_all
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_column_scale,&
+                                             cp_fm_scale_and_add
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -55,6 +72,8 @@ MODULE qs_ks_methods
                                              cp_warning_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -84,6 +103,9 @@ MODULE qs_ks_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                              integrate_v_rspace
+  USE qs_mo_types,                     ONLY: mo_set_type, &
+                                             mo_set_p_type, &
+                                             get_mo_set
   USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_ks_qmmm_types,                ONLY: qs_ks_qmmm_env_type
@@ -93,7 +115,9 @@ MODULE qs_ks_methods
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
-                                             transfer_matrix
+                                             transfer_matrix, &
+                                             real_matrix_type, &
+                                             set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xc,                              ONLY: xc_exc_calc,&
@@ -105,12 +129,17 @@ MODULE qs_ks_methods
 
   PRIVATE
 
+  INTERFACE calculate_w_matrix
+    MODULE PROCEDURE calculate_w_matrix_1,&
+                     calculate_w_matrix_2
+  END INTERFACE
+
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER :: moduleN='qs_ks_methods'
   INTEGER, SAVE, PRIVATE :: last_ks_id_nr=0
 
   PUBLIC :: qs_ks_create, qs_ks_did_change,&
-       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix
+       qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, calculate_w_matrix
 !***
 !****************************************************************************
 
@@ -229,6 +258,11 @@ CONTAINS
 !!     06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !!             new did_change scheme [fawzi]
 !!     10.2002 introduced pools, uses updated rho as input, LSD [fawzi]
+!!     10.2004 build_kohn_sham matrix now also computes the derivatives
+!!             of the total energy wrt to the MO coefs, if instructed to
+!!             do so. This appears useful for orbital dependent functionals
+!!             where the KS matrix alone (however this might be defined)
+!!              does not contain the info to construct this derivative.
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
@@ -263,6 +297,13 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
     TYPE(cp_para_env_type), POINTER          :: para_env
+
+    TYPE(mo_set_p_type), DIMENSION(:), &
+         POINTER                                :: mo_array
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:)   :: mo_derivs
+    INTEGER :: n,k,k2
+    REAL(KIND=dp), DIMENSION(:), POINTER :: scaling_factor,occupation_numbers
+    TYPE(cp_fm_type), POINTER            :: mo_eigenvectors,hc_tmp
 
 ! shorter for output
 
@@ -468,6 +509,55 @@ CONTAINS
                              ks_matrix=ks_matrix)
            ENDIF
        ENDIF
+
+       ! **** right now we can compute the orbital derivative here, as it depends currently only on the available
+       ! **** Kohn-Sham matrix. This might change in the future, in which case more pieces might need to be assembled 
+       ! **** from this routine, notice that this part of the calculation in not linear scaling
+       ! **** right now this operation is only non-trivial because of occupation numbers and the restricted keyword
+
+       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+          DO ispin=1,SIZE(mo_derivs)          
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,eigenvectors=mo_eigenvectors, &
+                             occupation_numbers=occupation_numbers )
+             CALL cp_fm_get_info(mo_eigenvectors,nrow_global=n,ncol_global=k)
+             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_eigenvectors,&
+                                          mo_derivs(ispin)%matrix,&
+                                          k, para_env=mo_derivs(ispin)%matrix%matrix_struct%para_env)
+             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
+             scaling_factor=2.0_dp*occupation_numbers
+             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
+             DEALLOCATE(scaling_factor)
+
+             IF (dft_control%restricted) THEN 
+                 ! only the first mo_set are actual variables, but we still need both
+                 CPPrecondition(ispin==1, cp_failure_level, routineP, error, failure)  
+                 CPPrecondition(SIZE(mo_array)==2, cp_failure_level, routineP, error, failure)  
+                 ! use a temporary array with the same size as the first spin for the second spin
+                 CALL cp_fm_create(hc_tmp,mo_derivs(1)%matrix%matrix_struct)
+                 CALL cp_fm_set_all(hc_tmp,0.0_dp)
+                 CALL cp_fm_get_info(hc_tmp,ncol_global=k2)
+
+                 CALL get_mo_set(mo_set=mo_array(2)%mo_set,eigenvectors=mo_eigenvectors, &
+                                 occupation_numbers=occupation_numbers )
+                 CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k)
+                 CALL cp_sm_fm_multiply(ks_matrix(2)%matrix,mo_eigenvectors,&
+                                        hc_tmp, k, para_env=mo_eigenvectors%matrix_struct%para_env)
+                 ALLOCATE(scaling_factor(k2))
+                 scaling_factor=0.0_dp
+                 scaling_factor(1:k)=2.0_dp*occupation_numbers(1:k)
+                 CALL cp_fm_column_scale(hc_tmp,scaling_factor)
+                 DEALLOCATE(scaling_factor)
+
+                 ! sum the corresponding columns (relies on the final columns of hc_tmp being zero)
+                 CALL cp_fm_scale_and_add(1.0_dp, mo_derivs(1)%matrix, 1.0_dp, hc_tmp)
+                 CALL cp_fm_release(hc_tmp)
+             ENDIF
+
+          ENDDO
+       ENDIF
+
+       ! sum all energy terms to obtain the total energy
 
        energy%total = energy%core_overlap + energy%core_self + &
             energy%core + energy%hartree + &
@@ -710,7 +800,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
                error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
-               ks_matrix=matrix_ks,rho=rho,energy=energy,&
+               ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                error=error)
         END IF
@@ -967,6 +1057,128 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau,qs_env,&
 END SUBROUTINE qs_vxc_create
 
 ! *****************************************************************************
+
+  SUBROUTINE calculate_w_matrix_1(mo_set,w_matrix,error)
+
+!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!            and the MO occupation numbers.
+
+!   History: - Creation (03.03.03,MK)
+!            - Modification that computes it as a full block, several times (e.g. 20) 
+!              faster at the cost of some additional memory
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: w_matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_w_matrix_1", &
+      routine = "SUBROUTINE "//routine_name//" (MODULE "//moduleN//")"
+
+    INTEGER                                  :: handle, imo, istat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigocc
+    TYPE(cp_fm_type), POINTER                :: weighted_vectors
+    LOGICAL                                  :: failure
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routine_name,"I","",handle)
+    failure=.FALSE.
+    NULLIFY(weighted_vectors)
+
+    CALL set_matrix(w_matrix,0.0_dp)
+    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
+    CALL cp_fm_to_fm(mo_set%eigenvectors,weighted_vectors)
+
+    ! scale every column with the occupation
+    ALLOCATE(eigocc(mo_set%homo),stat=istat)
+    CPPostcondition(istat==0,cp_failure_level,routine_name,error,failure)
+
+    DO imo=1,mo_set%homo
+       eigocc(imo) = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
+    ENDDO
+    CALL cp_fm_column_scale(weighted_vectors,eigocc)
+    DEALLOCATE(eigocc)
+
+    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
+                            matrix_v=mo_set%eigenvectors,&
+                            matrix_g=weighted_vectors,&
+                            ncol=mo_set%homo)
+
+    CALL cp_fm_release(weighted_vectors)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE calculate_w_matrix_1
+
+! *****************************************************************************
+
+  SUBROUTINE calculate_w_matrix_2(mo_set,ks_matrix,w_matrix,error)
+
+!   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
+!            and the MO occupation numbers.
+
+!   History: - Creation (17.07.2002,MK)
+
+!   ***************************************************************************
+
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: ks_matrix, w_matrix
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: handle, ncol_block, &
+                                                ncol_global, nrow_block, &
+                                                nrow_global
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: h_block, weighted_vectors
+    LOGICAL                                  :: failure
+!   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_w_matrix_2","I","",handle)
+    failure=.FALSE.
+    NULLIFY(weighted_vectors,h_block,fm_struct_tmp)
+
+    CALL cp_fm_get_info(matrix=mo_set%eigenvectors,&
+                        ncol_global=ncol_global,&
+                        nrow_global=nrow_global,&
+                        nrow_block=nrow_block,&
+                        ncol_block=ncol_block)
+
+    CALL cp_fm_create(weighted_vectors,mo_set%eigenvectors%matrix_struct,"weighted_vectors")
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol_global,  ncol_global=ncol_global, &
+                                            para_env=mo_set%eigenvectors%matrix_struct%para_env, &
+                                            context=mo_set%eigenvectors%matrix_struct%context)
+    CALL cp_fm_create(h_block,fm_struct_tmp, name="h block")
+    CALL cp_fm_struct_release(fm_struct_tmp)
+
+
+    IF ( mo_set%lfomo .LE. mo_set%homo) THEN ! not all orbitals 1..homo are equally occupied
+      CPErrorMessage(cp_failure_level,"calculate_w_matrix_2","lfomo .LE. homo",error)
+    END IF
+
+    CALL cp_sm_fm_multiply(ks_matrix,mo_set%eigenvectors,weighted_vectors, &
+                           mo_set%homo,mo_set%eigenvectors%matrix_struct%para_env)
+    CALL cp_fm_gemm('T','N',ncol_global,ncol_global,nrow_global,1.0_dp, &
+                    mo_set%eigenvectors,weighted_vectors,0.0_dp,h_block)
+    CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
+                    mo_set%eigenvectors,h_block,0.0_dp,weighted_vectors)
+
+    ! scale every column with the occupation
+    CALL cp_fm_column_scale(weighted_vectors,mo_set%occupation_numbers)
+
+    CALL set_matrix(w_matrix,0.0_dp)
+    CALL cp_sm_plus_fm_fm_t(sparse_matrix=w_matrix,&
+                            matrix_v=mo_set%eigenvectors,&
+                            matrix_g=weighted_vectors,&
+                            ncol=mo_set%homo)
+
+    CALL cp_fm_release(weighted_vectors)
+    CALL cp_fm_release(h_block)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE calculate_w_matrix_2
 
 END MODULE qs_ks_methods
 

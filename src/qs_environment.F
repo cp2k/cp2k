@@ -48,6 +48,9 @@ MODULE qs_environment
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
+  USE cp_fm_types,                     ONLY: cp_fm_p_type, &
+                                             cp_fm_type, &
+                                             cp_fm_create
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
                                              cp_subsys_set,&
@@ -90,7 +93,8 @@ MODULE qs_environment
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
-                                             mo_set_p_type
+                                             mo_set_p_type,&
+                                             get_mo_set
   USE qs_rho0_ggrid,                   ONLY: rho0_s_grid_create
   USE qs_rho0_methods,                 ONLY: init_rho0
   USE qs_rho_atom_methods,             ONLY: init_rho_atom
@@ -272,6 +276,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(setup_parameters_type)              :: setup
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:):: mo_derivs
 
 !   ---------------------------------------------------------------------------
 
@@ -481,6 +486,14 @@ CONTAINS
                     dft_control=dft_control,&
                     scf_control=scf_control)
 
+    ! decide what conditions need mo_derivs
+    ! right now, this only appears to be OT
+    IF (scf_control%use_ot) THEN
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.TRUE.)
+    ELSE
+      CALL set_qs_env(qs_env=qs_env,requires_mo_derivs=.FALSE.)
+    ENDIF
+
 !   Initialize the GAPW local densities and potentials
     IF(dft_control%qs_control%method == "GAPW") THEN
 !     *** Allocate and initialize the set of atomic densities ***
@@ -579,6 +592,19 @@ CONTAINS
                        "mos",dft_control%nspins*int_size)
     END IF
 
+    ! in principle the restricted calculation could be performed 
+    ! using just one set of MOs and special casing most of the code
+    ! right now we'll just take care of what is effectively an additional constraint
+    ! at as few places as possible, just duplicating the beta orbitals
+    IF (dft_control%restricted) THEN
+       ! it is really not yet tested till the end ! Joost
+       IF (globenv%ionode) write(globenv%scr,*) ""
+       IF (globenv%ionode) write(globenv%scr,*) " **************************************"
+       IF (globenv%ionode) write(globenv%scr,*) " restricted calculation cutting corners"
+       IF (globenv%ionode) write(globenv%scr,*) " experimental feature, check code      "
+       IF (globenv%ionode) write(globenv%scr,*) " **************************************"
+    ENDIF
+
     DO ispin=1,dft_control%nspins
       NULLIFY (mos(ispin)%mo_set)
       CALL allocate_mo_set(mo_set=mos(ispin)%mo_set,&
@@ -594,6 +620,7 @@ CONTAINS
 !   *** Sets up pw_env, qs_charges, mpools... ***
 
     CALL qs_env_setup(qs_env,error)
+
 !   Allocate and Initialie rho0 soft on the global grid
     IF(dft_control%qs_control%method == "GAPW") & 
       CALL rho0_s_grid_create(qs_env, qs_env%local_rho_set, error=error)

@@ -48,6 +48,7 @@ MODULE qs_mo_types
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
@@ -114,7 +115,8 @@ MODULE qs_mo_types
             init_mo_set,&
             read_mo_set,&
             set_mo_occupation,&
-            write_mo_set
+            write_mo_set, &
+            mo_set_restrict
 
 ! *****************************************************************************
 
@@ -284,6 +286,51 @@ CONTAINS
     CPPostcondition(nmo>=mo_set%nmo,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE init_mo_set
+
+!!****f* module/mo_set_restrict *
+!!
+!!   NAME
+!!      mo_set_restrict
+!!
+!!   FUNCTION
+!!      make the beta orbitals explicitly equal to the alpha orbitals
+!!      effectively copying the orbital data
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!    - mo_set
+!!
+!!   MODIFICATION HISTORY
+!!     10.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE mo_set_restrict(mo_array,error)
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mo_array
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    LOGICAL :: failure
+
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name="mo_set_restrict"
+    INTEGER :: handle
+
+    CALL timeset(routine_name,"I","",handle)
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(mo_array),cp_failure_level,routine_name,error,failure)
+    CPPrecondition(SIZE(mo_array).EQ.2,cp_failure_level,routine_name,error,failure)
+    CPPrecondition(mo_array(1)%mo_set%nmo>=mo_array(2)%mo_set%nmo,cp_failure_level,routine_name,error,failure)
+
+    ! first nmo_beta orbitals are copied from alpha to beta
+    IF (.NOT. failure) THEN
+       CALL cp_fm_to_fm(mo_array(1)%mo_set%eigenvectors,mo_array(2)%mo_set%eigenvectors,mo_array(2)%mo_set%nmo)
+    ENDIF
+
+    CALL timestop(0.0_dp,handle)
+  END SUBROUTINE mo_set_restrict
 
 ! *****************************************************************************
 
@@ -765,7 +812,9 @@ CONTAINS
         READ (restart_unit) mo_array(ispin)%mo_set%eigenvalues(1:nmo),&
                             mo_array(ispin)%mo_set%occupation_numbers(1:nmo)
         IF (mo_array(ispin)%mo_set%homo > nmo) THEN
-          CALL print_warning(routine,"The number of the occupied MOs on the "//&
+          ! can not make this a warning i.e. homo must be smaller than nmo
+          ! otherwise e.g. set_mo_occupation will go out of bounds
+          CALL stop_program(routine,"The number of the occupied MOs on the "//&
                                      "restart unit is greater than the "//&
                                      "number of the allocated MOs.")
           CALL set_mo_occupation(mo_array(ispin)%mo_set,0.0_dp)

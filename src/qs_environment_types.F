@@ -39,7 +39,8 @@ MODULE qs_environment_types
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
-                                             cp_fm_type
+                                             cp_fm_type, &
+                                             cp_fm_p_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_logger_type,&
@@ -214,6 +215,8 @@ MODULE qs_environment_types
 !!     - local_rho_set: contains the atomic, compensations and core densities
 !!                      and the local parts of the xc terms
 !!     - hartree_local: contains the 1, 2 and 3 centers coulomb terms 
+!!     - requires_mo_derivs: logical, true if dE/dC is required (e.g. OT) 
+!!     - mo_derivs: the actual derivatives of the total energy wrt to MO coeffs
 !!
 !!     compatibility get (things that you should get from the subsys):
 !!     - atomic_kind_set: array with infos about the species (atomic_kinds)
@@ -239,10 +242,12 @@ MODULE qs_environment_types
     INTEGER :: id_nr, ref_count
     LOGICAL :: use_ref_cell
     LOGICAL :: qmmm
+    LOGICAL :: requires_mo_derivs
     TYPE(cell_type), POINTER                              :: cell
     TYPE(cell_type), POINTER                              :: cell_ref
     TYPE(dft_control_type), POINTER                       :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER            :: mos
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER             :: mo_derivs
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb,sac_erfc,&
                                                              sac_ppl,sac_ppnl,&
                                                              sbc_ppnl,sac_oce,&
@@ -320,7 +325,8 @@ CONTAINS
                         distribution_2d,molecule_kind_set,molecule_set,&
                         subsys,error,oce,rho_atom_set,&
                         rho0_atom_set,rho0_mpole,&
-                        rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs)
+                        rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
+                        requires_mo_derivs,mo_derivs)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -399,6 +405,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(coeff_type), OPTIONAL, POINTER      :: rho0_s_rs,&
                                                 rho0_s_gs
+    LOGICAL, OPTIONAL                        :: requires_mo_derivs
+    TYPE(cp_fm_p_type), OPTIONAL, POINTER,&
+      DIMENSION(:)                           :: mo_derivs 
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_qs_env', &
       routineP = moduleN//':'//routineN
@@ -458,6 +467,8 @@ CONTAINS
     IF (PRESENT(para_env)) para_env => qs_env%para_env
     IF (PRESENT(distribution_2d)) distribution_2d => qs_env%distribution_2d
     IF (PRESENT(oce)) oce =>  qs_env%oce
+    IF (PRESENT(requires_mo_derivs)) requires_mo_derivs = qs_env%requires_mo_derivs
+    IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
 
     IF (PRESENT(rho_atom_set)) &
        CALL get_local_rho(qs_env%local_rho_set, rho_atom_set=rho_atom_set)
@@ -567,6 +578,8 @@ CONTAINS
     qs_env%id_nr=last_qs_env_id_nr
     qs_env%use_ref_cell=.FALSE.
     qs_env%qmmm=.FALSE.
+    qs_env%requires_mo_derivs=.FALSE.
+    NULLIFY(qs_env%mo_derivs)
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
@@ -582,7 +595,8 @@ CONTAINS
                         wf_history,scf_env,&
                         distribution_2d,dft_section,&
                         subsys, oce,rho_atom_set,rho0_atom_set,rho0_mpole,&
-                        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error)
+                        rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
+                        requires_mo_derivs,mo_derivs)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -643,6 +657,9 @@ CONTAINS
       OPTIONAL, POINTER                      :: VH_3c_list
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    LOGICAL, OPTIONAL                        :: requires_mo_derivs
+    TYPE(cp_fm_p_type), DIMENSION(:),&
+       POINTER, OPTIONAL                     :: mo_derivs
     TYPE(section_vals_type), POINTER, optional :: dft_section
 
     CHARACTER(len=*), PARAMETER :: routineN = "set_qs_env", &
@@ -691,6 +708,8 @@ CONTAINS
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
     IF (PRESENT(matrix_w)) qs_env%matrix_w => matrix_w
     IF (PRESENT(oce)) qs_env%oce => oce
+    IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
+    IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
@@ -921,7 +940,13 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%mos, stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-
+        IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+           DO I=1,SIZE(qs_env%mo_derivs)
+              CALL cp_fm_release(qs_env%mo_derivs(I)%matrix)
+           ENDDO
+           DEALLOCATE(qs_env%mo_derivs, stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
         IF (ASSOCIATED(qs_env%sab_orb)) THEN
            DO i=1,SIZE(qs_env%sab_orb)
               CALL deallocate_neighbor_list_set(&

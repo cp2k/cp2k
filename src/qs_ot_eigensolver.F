@@ -35,7 +35,8 @@ MODULE qs_ot_eigensolver
                                              cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_p_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
@@ -47,6 +48,7 @@ MODULE qs_ot_eigensolver
                                              qs_ot_get_orbitals,&
                                              qs_ot_get_p,&
                                              qs_ot_init,&
+                                             qs_ot_settings_init, &
                                              qs_ot_new_preconditioner,&
                                              qs_ot_type
   USE qs_ot_minimizer,                 ONLY: ot_mini
@@ -96,6 +98,7 @@ CONTAINS
                                                 matrix_buf2_ortho, &
                                                 matrix_os_ortho, &
                                                 matrix_s_ortho
+    TYPE(cp_fm_p_type), DIMENSION(:), POINTER:: matrix_hc
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
 !   ---------------------------------------------------------------------------
@@ -104,6 +107,9 @@ CONTAINS
     NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
                       matrix_buf1_ortho,matrix_buf2_ortho)
     ALLOCATE(qs_ot_env(1))
+
+    ALLOCATE(matrix_hc(1))
+    CALL cp_fm_create(matrix_hc(1)%matrix,matrix_c%matrix_struct)
 
     CALL cp_fm_get_info(matrix_c,nrow_block=nrow_block, &
                                                ncol_block=ncol_block, &
@@ -114,16 +120,12 @@ CONTAINS
     IF (PRESENT(matrix_orthogonal_space)) ortho=.TRUE.
 
     ! decide settings
-    qs_ot_env(1)%settings%ot_method="CG"
-    qs_ot_env(1)%settings%line_search_method="2PNT"
+    CALL qs_ot_settings_init(qs_ot_env(1)%settings)
+    ! overwrite defaults 
     qs_ot_env(1)%settings%ds_min=0.10_dp
-    qs_ot_env(1)%settings%safer_diis=.true.
-    qs_ot_env(1)%settings%diis_m=7 
     qs_ot_env(1)%settings%n=n 
     qs_ot_env(1)%settings%k=k 
-    qs_ot_env(1)%settings%eps_taylor=1.0E-16_dp
-    qs_ot_env(1)%settings%max_taylor=4
-    qs_ot_env(1)%settings%do_rotation=.FALSE.
+
     IF (ortho) THEN
        CALL cp_fm_get_info(matrix_orthogonal_space,&
                                   ncol_global=ortho_space_k)
@@ -229,16 +231,16 @@ CONTAINS
 
       ! the energy is cHc, the gradient is 2*H*c
       CALL cp_sm_fm_multiply(matrix_h,matrix_c, &
-                                     qs_ot_env(1)%matrix_hc,  &
+                                     matrix_hc(1)%matrix,  &
                                      qs_ot_env(1)%settings%k,&
                                      para_env=globenv%para_env)
-      CALL cp_fm_trace(matrix_c,qs_ot_env(1)%matrix_hc,energy)
+      CALL cp_fm_trace(matrix_c,matrix_hc(1)%matrix,energy)
       IF (.NOT. energy_only) THEN
-       CALL cp_fm_scale_and_add(2.0_dp,qs_ot_env(1)%matrix_hc)
+       CALL cp_fm_scale_and_add(2.0_dp,matrix_hc(1)%matrix)
       ENDIF
  
       qs_ot_env(1)%etotal=energy
-      CALL ot_mini(qs_ot_env)
+      CALL ot_mini(qs_ot_env,matrix_hc)
       delta           =qs_ot_env(1)%delta
       energy_only     =qs_ot_env(1)%energy_only
 
@@ -270,6 +272,8 @@ CONTAINS
 
     CALL qs_ot_destroy(qs_ot_env(1))
     DEALLOCATE(qs_ot_env)
+    CALL cp_fm_release(matrix_hc(1)%matrix)
+    DEALLOCATE(matrix_hc)
 
     CALL timestop(0.0_dp,handle)
 

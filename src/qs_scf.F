@@ -86,7 +86,8 @@ MODULE qs_scf
                                              cp_fm_release,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_logger_get_default_unit_nr,&
                                              cp_logger_type,&
@@ -139,11 +140,12 @@ MODULE qs_scf
                                              calculate_orthonormality,&
                                              make_basis
   USE qs_mo_types,                     ONLY: correct_mo_eigenvalues,&
-                                             get_mo_set,&
+                                             get_mo_set,& 
                                              init_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_type,&
                                              read_mo_set,&
+                                             mo_set_restrict,&
                                              set_mo_occupation,&
                                              write_mo_set
   USE qs_ot,                           ONLY: qs_ot_new_preconditioner, &
@@ -470,6 +472,16 @@ CONTAINS
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     energy_only = .FALSE.
 
+    ! some special checks to eliminate the first problems with restricted
+    IF (dft_control%restricted) THEN
+       ! OT only right now
+       IF (scf_env%method .NE. ot_method_nr) THEN 
+          IF (ionode) write(output_unit,*) "OT only for restricted"
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       ENDIF
+       CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
+    ENDIF
+
     IF (ionode.AND.logger%print_keys%scf) THEN
        WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
             "SCF WAVEFUNCTION OPTIMIZATION"
@@ -521,6 +533,7 @@ CONTAINS
        scf_env%iter_count = scf_env%iter_count + 1
 
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
+! ** should also be the case for restricted calculations
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             error=error,&
@@ -658,9 +671,10 @@ CONTAINS
 
          CASE(ot_method_nr) ! orbital transforms
 
-           ! in case of LSD the first spin qs_ot_env will drive the minimization
+! in case of LSD the first spin qs_ot_env will drive the minimization
+! in the case of a restricted calculation, it will make sure the spin orbitals are equal
 
-            CALL ot_scf_mini(mos,matrix_ks,matrix_s(1)%matrix,energy%total, &
+          CALL ot_scf_mini(mos,qs_env%mo_derivs,matrix_s(1)%matrix,energy%total, &
                energy_only,scf_env%iter_delta,scf_env%qs_ot_env,globenv)
 
             DO ispin=1,dft_control%nspins
@@ -957,7 +971,8 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, ispin, nao, &
                                                 ndep, nelectron_spin, &
-                                                output_unit, stat
+                                                output_unit, &
+                                                stat, number_of_OT_envs
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, ionode
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1085,14 +1100,30 @@ CONTAINS
                blacs_env=qs_env%blacs_env)
        END IF
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
-          ALLOCATE(scf_env%qs_ot_env(dft_control%nspins),stat=stat)
+
+          ! restricted calculations require just on set of OT orbitals
+          number_of_OT_envs=dft_control%nspins
+          IF (dft_control%restricted) number_of_OT_envs=1
+
+          ALLOCATE(scf_env%qs_ot_env(number_of_OT_envs),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+          ! XXX Joost XXX should disentangle reading input from this part
           CALL ot_scf_read_input(scf_env%qs_ot_env,globenv)
+
+          ! keep a note that we are restricted
+          IF (dft_control%restricted) THEN
+              scf_env%qs_ot_env(1)%restricted=.TRUE.
+              ! requires rotation
+              CPPrecondition(scf_env%qs_ot_env(1)%settings%do_rotation,cp_failure_level,routineP,error,failure) 
+          ELSE 
+              scf_env%qs_ot_env(:)%restricted=.FALSE.
+          ENDIF
 
           ! might need the KS matrix to init properly
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
-       
+
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
              ! constuct the preconditioner based on the first spin set. 
              ! this might or might not be reasonable. Presumably it is.
@@ -1104,15 +1135,16 @@ CONTAINS
                   qs_env%kinetic(1)%matrix, &
                   mo_eigenvectors,scf_env%qs_ot_env(1)%settings%energy_gap) 
           ENDIF
-          
+
           CALL ot_scf_init(mos,matrix_s(1)%matrix,scf_env%qs_ot_env)
           
           IF (scf_env%qs_ot_env(1)%settings%preconditioner_type .NE. "NONE") THEN
-             DO ispin=1,dft_control%nspins
+             DO ispin=1,SIZE(scf_env%qs_ot_env)
                 CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
                      scf_env%ot_preconditioner) 
              ENDDO
           ENDIF
+
        ENDIF
     END SELECT
 
@@ -1173,6 +1205,8 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
+    TYPE(cp_fm_p_type), POINTER, DIMENSION(:):: mo_derivs
+    TYPE(cp_fm_type), POINTER                :: mo_eigenvectors
 
 !   ---------------------------------------------------------------------------
 
@@ -1212,6 +1246,25 @@ CONTAINS
           END IF
        END DO
     END IF
+
+!   *** get the mo_derivs OK if needed ***
+    IF (qs_env%requires_mo_derivs) THEN
+       IF (dft_control%restricted) THEN ! right now, there might be more mos than needed derivs
+          allocate(mo_derivs(1))
+          CALL get_mo_set(mos(1)%mo_set,eigenvectors=mo_eigenvectors)
+          CALL cp_fm_create(mo_derivs(1)%matrix,mo_eigenvectors%matrix_struct)
+       ELSE
+          allocate(mo_derivs(dft_control%nspins))
+          DO ispin=1,dft_control%nspins
+             CALL get_mo_set(mos(ispin)%mo_set,eigenvectors=mo_eigenvectors)
+             CALL cp_fm_create(mo_derivs(ispin)%matrix,mo_eigenvectors%matrix_struct)
+          ENDDO
+       ENDIF
+       CALL set_qs_env(qs_env,mo_derivs=mo_derivs)
+    ELSE
+       ! nothing should be done
+    ENDIF
+
 
 !   *** Allocate the distributed SCF matrices ***
 
@@ -1267,7 +1320,7 @@ CONTAINS
 
     END IF
 
-!   *** Allocate k and put it in the QS environment ***
+!   *** Allocate matrix_ks and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(matrix_ks)) THEN
        CALL sm_pools_create_matrix_vect(S_sm_pools,matrix_ks,&
@@ -1684,10 +1737,7 @@ CONTAINS
     IF (scf_control%density_guess == "RESTART") THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       ! CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
-       !      id_nr=qs_env_id)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
-            id_nr=1)
+       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv, id_nr=1)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -1709,7 +1759,12 @@ CONTAINS
             CALL make_basis(mo_eigenvectors,nmo, &
                  ortho=sv,otype="SV")
             CALL cp_fm_release(sv)
-          END IF
+          ENDIF
+          ! only alpha spin is kept for restricted
+          IF (dft_control%restricted) EXIT
+       ENDDO
+       IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
+       DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
@@ -1730,16 +1785,24 @@ CONTAINS
             CALL make_basis(mo_eigenvectors,nmo, &
                  ortho=sv,otype="SV")
             CALL cp_fm_release(sv)
-          END IF
+          ENDIF
+          ! only alpha spin is kept for restricted
+          IF (dft_control%restricted) EXIT
+       ENDDO
+       IF (dft_control%restricted) CALL mo_set_restrict(mo_array)
+       DO ispin=1,nspin
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
     ELSE IF (scf_control%density_guess == "CORE") THEN
 
+       IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
+
        ! work1(1) should contain the core hamiltonian
        ! we need a copy the core matrix for every spin (the dumbest solution,
        ! we should copy the mos)..
+
        IF (dft_control%nspins.eq.2) THEN
           IF (.NOT. scf_control%use_ot) THEN
              CALL cp_fm_to_fm(work1(1)%matrix,&
@@ -1771,6 +1834,8 @@ CONTAINS
        ENDDO
 
     ELSE IF (scf_control%density_guess == "ATOMIC") THEN
+
+      IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
 
       group = qs_env%para_env%group
 

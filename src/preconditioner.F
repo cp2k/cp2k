@@ -167,10 +167,11 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 
   CALL cp_fm_get_info(mo_eigenvectors,ncol_global=k) 
   ALLOCATE(eigenvalues_ot(k))
-  ! XXXXXXXXXXXXXXXXxx makes MOs eigenstates, dangerous for non-equivalent guys...
+  ! XXXXXXXXXXXXXXXX do not touch the initial MOs, as needed in the case of non-equivalent MOs
   CALL calculate_subspace_eigenvalues(mo_eigenvectors,matrix_h,&
           eigenvalues_ot,para_env=preconditioner_env%para_env, &
                          do_rotation = .FALSE. ) 
+
   energy_homo=eigenvalues_ot(k)
   DEALLOCATE(eigenvalues_ot)
 

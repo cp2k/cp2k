@@ -68,6 +68,7 @@ MODULE qs_ot
   PUBLIC  :: qs_ot_type
   PUBLIC  :: qs_ot_allocate
   PUBLIC  :: qs_ot_init
+  PUBLIC  :: qs_ot_settings_init
   PUBLIC  :: qs_ot_get_p
   PUBLIC  :: qs_ot_get_orbitals
   PUBLIC  :: qs_ot_get_derivative
@@ -97,6 +98,7 @@ MODULE qs_ot
   TYPE qs_ot_type
      ! this sets the method to be used
      TYPE(qs_ot_settings_type) :: settings
+     LOGICAL                   :: restricted
 
      ! first part of the variables, for occupied subspace invariant optimisation 
 
@@ -135,8 +137,7 @@ MODULE qs_ot
 
      ! only here for the ease of programming. These will have to be supplied
      ! explicitly at all times
-     TYPE(cp_fm_type), POINTER :: matrix_hc,matrix_x,matrix_sx, & 
-                                         matrix_gx
+     TYPE(cp_fm_type), POINTER :: matrix_x,matrix_sx, matrix_gx
      TYPE(cp_fm_type), POINTER :: matrix_dx, matrix_gx_old
 
 
@@ -182,6 +183,44 @@ MODULE qs_ot
   END TYPE qs_ot_type
 
 CONTAINS
+
+
+!!****f* qs_ot/qs_ot_settings_init *
+!!
+!!   NAME
+!!       qs_ot_settings_init
+!!   FUNCTION
+!!       sets default values for the settings type
+!!   NOTES
+!!
+!!   INPUTS
+!!    -
+!!    -
+!!
+!!   MODIFICATION HISTORY
+!!     10.2004 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+  SUBROUTINE qs_ot_settings_init(settings)
+    TYPE(qs_ot_settings_type) :: settings 
+    settings%ot_method="CG"
+    settings%diis_m=7
+    settings%preconditioner_type="FULL_KINETIC"
+    settings%line_search_method="2PNT"
+    settings%ds_min=0.15_dp
+    settings%safer_diis=.TRUE.
+    settings%energy_gap=0.2_dp
+    settings%eps_taylor=1.0E-16_dp
+    settings%max_taylor=4
+    settings%gold_target=0.01_dp
+    settings%do_rotation=.FALSE.
+    settings%n=0
+    settings%k=0
+    settings%nrow_block=0
+    settings%ncol_block=0
+    settings%ortho_k=0
+  END SUBROUTINE qs_ot_settings_init
 
 !*******************************************************************************
 ! gets ready to use the preconditioner/ or renew the preconditioner
@@ -293,7 +332,6 @@ SUBROUTINE qs_ot_allocate(qs_ot_env,para_env,context)
    CALL cp_fm_create(qs_ot_env%matrix_buf3,fm_struct_k_k,name="matrix_buf3")
    CALL cp_fm_create(qs_ot_env%matrix_c0,fm_struct_n_k,name="matrix_c0")
    CALL cp_fm_create(qs_ot_env%matrix_sc0,fm_struct_n_o,name="matrix_sc0")
-   CALL cp_fm_create(qs_ot_env%matrix_hc,fm_struct_n_k,name="matrix_hc")
    CALL cp_fm_create(qs_ot_env%matrix_x,fm_struct_n_k,name="matrix_x")
    CALL cp_fm_create(qs_ot_env%matrix_sx,fm_struct_n_k,name="matrix_sx")
    CALL cp_fm_create(qs_ot_env%matrix_gx,fm_struct_n_k,name="matrix_gx")
@@ -421,7 +459,6 @@ SUBROUTINE qs_ot_destroy(qs_ot_env)
 
    CALL cp_fm_release(qs_ot_env%matrix_c0)
    CALL cp_fm_release(qs_ot_env%matrix_sc0)
-   CALL cp_fm_release(qs_ot_env%matrix_hc)
    CALL cp_fm_release(qs_ot_env%matrix_x)
    CALL cp_fm_release(qs_ot_env%matrix_gx)
    CALL cp_fm_release(qs_ot_env%matrix_sx)
