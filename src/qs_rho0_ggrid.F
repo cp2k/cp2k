@@ -75,6 +75,7 @@ MODULE qs_rho0_ggrid
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_local_rho_types,              ONLY: local_rho_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
@@ -381,11 +382,14 @@ MODULE qs_rho0_ggrid
 
 !******************************************************************************
 
-  SUBROUTINE integrate_vhg0_rspace(qs_env,v_rspace, calculate_forces, error)
+  SUBROUTINE integrate_vhg0_rspace(qs_env,v_rspace, calculate_forces, &
+                                   tddft, p_env, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type)                         :: v_rspace
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -443,7 +447,7 @@ MODULE qs_rho0_ggrid
     REAL(dp), DIMENSION(:,:,:),  POINTER     :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER      :: hdab, hadb
     REAL(dp), DIMENSION(:,:,:,:), POINTER    :: hdabt, hadbt
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: failure, paw_atom, my_tddft
 !   ---------------------------------------------------------------------------
     failure=.FALSE.
     c4pi = fourpi
@@ -452,6 +456,9 @@ MODULE qs_rho0_ggrid
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set)
     NULLIFY(cell,force,pw_env,rho0_mpole,ecoul_1c,tasks)
+
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -462,6 +469,12 @@ MODULE qs_rho0_ggrid
                     rho0_mpole=rho0_mpole,&
                     ecoul_1c=ecoul_1c,&
                     particle_set=particle_set)
+    
+    IF (my_tddft) THEN
+       rho0_mpole   => p_env%local_rho_set%rho0_mpole
+       ecoul_1c => p_env%hartree_local%ecoul_1c
+    END IF
+
 
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax0,&
                         zet0_s=zet0_s,igrid_zet0_s=igrid,&

@@ -48,6 +48,7 @@ MODULE qs_ks_atom
                                              next,&
                                              qlist_type
   USE qs_oce_types,                    ONLY: oce_matrix_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
                                              rho_atom_type
@@ -73,13 +74,15 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE update_ks_atom(qs_env,ks,p,ispin,forces,error)
+  SUBROUTINE update_ks_atom(qs_env,ks,p,ispin,forces,tddft,p_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(real_matrix_p_type), INTENT(INOUT)  :: ks
     TYPE(real_matrix_p_type), INTENT(IN)     :: p
     INTEGER                                  :: ispin
     LOGICAL, INTENT(IN)                      :: forces
+    LOGICAL, INTENT(IN), OPTIONAL            :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -92,12 +95,13 @@ CONTAINS
                nsetc, nsgfa, nsgfb, nsoctot
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
-    LOGICAL                                  :: paw_atom, new_atom_b
+    LOGICAL                                  :: paw_atom, new_atom_b, my_tddft
     REAL(dp), DIMENSION(3)                   :: rbc
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: C_coeff_h, C_coeff_s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block, p_block
     REAL(dp), DIMENSION(3,3)                 :: force_tmp
+    REAL(kind=dp)                            :: factor
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -128,6 +132,19 @@ CONTAINS
     NULLIFY(atomic_kind_set,force,oce,rho_atom,sab_orb,sac_oce,sbc_oce)
     NULLIFY(orb_basis,ecoul_1c)
 
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
+    factor = 1.0_dp
+    IF (my_tddft) THEN
+       IF (qs_env%dft_control%nspins == 1) THEN
+          IF (qs_env%dft_control%tddfpt_control%res_etype == "SINGLETS") THEN
+             factor = 2.0_dp
+          ELSE
+             factor = 0.0_dp
+          END IF
+       END IF
+    END IF
+
     CALL get_qs_env(qs_env=qs_env,&
            atomic_kind_set=atomic_kind_set,&
            force=force,&
@@ -137,6 +154,11 @@ CONTAINS
            sac_oce=sac_oce,&
            sbc_oce=sbc_oce,&
            ecoul_1c=ecoul_1c)
+
+    IF (my_tddft) THEN
+       rho_atom   => p_env%local_rho_set%rho_atom_set
+       ecoul_1c => p_env%hartree_local%ecoul_1c
+    END IF
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxsgf=max_nsgf,&
                              maxgtops=max_gau,natom=natom)
@@ -306,7 +328,7 @@ CONTAINS
 ! WRITE(*,*) 'iat' , iatom, jatom, katom
                 CALL add_vhxca_to_ks(h_block,oce,rho_at,ecoul_1c,ispin, &
                                     iatom,nsgfa,jatom,nsgfb,katom,nsoctot,&
-                                    C_coeff_h,C_coeff_s,max_gau)
+                                    C_coeff_h,C_coeff_s,max_gau,factor)
 
                 IF(forces)THEN
                   ia_kind = atom_of_kind(iatom)
@@ -369,7 +391,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE add_vhxca_to_ks(h_block,oce,rho_atom,ecoul_1c,ispin,ia,na,ja,nb,&
-                             ka,nsp,C_h,C_s,ldc)
+                             ka,nsp,C_h,C_s,ldc, factor)
 
 
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: h_block
@@ -380,6 +402,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ispin, ia, na, ja, nb, ka, &
                                                 nsp, ldc
     REAL(KIND=dp), DIMENSION(ldc, nb)        :: C_s, C_h
+    REAL(KIND=dp), INTENT(IN)                :: factor
 
     CHARACTER(LEN=*), PARAMETER              :: routine = "add_vhxca_to_ks"
 
@@ -424,7 +447,7 @@ CONTAINS
       END DO
     END DO
 
-! WRITE(24,'(\,3(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja
+! WRITE(24,'(\,4(A,I3))') 'iat ', ka, '  iat1 ', ia, ' iat2 ', ja,' ispin ', ispin
 ! WRITE(24,*) 'int_xc_h'
 !  DO is1 = 1,nsp
 !  WRITE(24,'(I4,36f16.8)') is1,int_xc_h(ispin)%r_coef(is1,1:nsp)
@@ -502,12 +525,12 @@ CONTAINS
       C_s(1:nsp,1:na)=c_block(1:nsp,1:na)
 
       CALL dgemm("T","N",na,nb,nsp,&
-               1.0_dp,C_h,ldc,&
+               factor,C_h,ldc,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
        
       CALL dgemm("T","N",na,nb,nsp,&
-               -1.0_dp,C_s,ldc,&
+               -factor,C_s,ldc,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
@@ -559,12 +582,12 @@ CONTAINS
       C_s(1:nsp,1:nb)=c_block(1:nsp,1:nb)
 
       CALL dgemm("T","N",nb,na,nsp,&
-               1.0_dp,C_h,ldc,&
+               factor,C_h,ldc,&
                intC_h,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 
       CALL dgemm("T","N",nb,na,nsp,&
-               -1.0_dp,C_s,ldc,&
+               -factor,C_s,ldc,&
                intC_s,nsp,1.0_dp,&
                h_block,SIZE(h_block,1))
 

@@ -60,6 +60,7 @@ MODULE  hartree_local_3centers
                                              next,&
                                              qlist_type
   USE qs_oce_types,                    ONLY: vtriple_type
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: trace_r_AxB
@@ -90,16 +91,18 @@ MODULE  hartree_local_3centers
   CONTAINS
  
 !******************************************************************************
-  SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,ispin,energy,just_energy,&
-                                calculate_forces,error)
+  SUBROUTINE integrate_a_vhg0_b(qs_env,h,p,ispin,energy_hartree_3c,just_energy,&
+                                calculate_forces,tddft,p_env,error)
 
-    TYPE(qs_energy_type), INTENT(INOUT)        :: energy
+    REAL(kind=dp), INTENT(OUT)                 :: energy_hartree_3c
     TYPE(real_matrix_p_type), INTENT(IN)       :: p
     TYPE(real_matrix_p_type), INTENT(INOUT)    :: h
     TYPE(qs_environment_type), POINTER         :: qs_env
     INTEGER, INTENT(IN)                        :: ispin
     LOGICAL, INTENT(IN)                        :: calculate_forces,&
                                                   just_energy
+    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
     TYPE(cp_error_type), INTENT(inout), &
         OPTIONAL                               :: error
 
@@ -129,8 +132,8 @@ MODULE  hartree_local_3centers
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole 
     TYPE(vtriple_type), DIMENSION(:,:),&
                                   POINTER      :: VH_3c_list
-    REAL(dp) :: alpha_core, c1, dab, ieqj, ra(3), rab(3), rab2, rac(3), rac2, rb(3), &
-                rbc(3), rbc2,  rc(3), rpgf0_h, rpgf0_s, trace, z0_h, z0_s, zhard 
+    REAL(dp) :: alpha_core, c1, dab, fac, ieqj, ra(3), rab(3), rab2, rac(3), rac2, rb(3), &
+                rbc(3), rbc2,  rc(3), rpgf0_s, r_V0, trace, z0_h, z0_s, zhard 
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),       POINTER      :: normhard
     REAL(dp), DIMENSION(:),   ALLOCATABLE      :: sum_ab_sph
@@ -161,7 +164,7 @@ MODULE  hartree_local_3centers
                                                   npgfa,npgfb,nsgfa_set,nsgfb_set
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
-    LOGICAL                                    :: new_atom_b, paw_atom
+    LOGICAL                                    :: new_atom_b, paw_atom, my_tddft
     INTEGER  :: ic1, ic2, ip1,ip2, n1, n2, nn1, nn2,jc
 
 !   ---------------------------------------------------------------------------
@@ -170,6 +173,19 @@ MODULE  hartree_local_3centers
     NULLIFY( para_env,particle_set,rho0_mpole)
     NULLIFY(sab_orb,sbc_3c,VH_3c_list)
 
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
+    fac = 1.0_dp
+    IF (my_tddft) THEN
+       IF (qs_env%dft_control%nspins == 1) THEN
+          IF (qs_env%dft_control%tddfpt_control%res_etype == "SINGLETS") THEN
+             fac = 2.0_dp
+          ELSE
+             fac = 0.0_dp
+          END IF
+       END IF
+    END IF
+
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,ecoul_1c=ecoul_1c,&
                     para_env=para_env,& 
@@ -177,6 +193,11 @@ MODULE  hartree_local_3centers
                     rho0_mpole=rho0_mpole,&
                     VH_3c_list=VH_3c_list,&
                     sab_orb=sab_orb,sbc_3c=sbc_3c)
+
+    IF (my_tddft) THEN
+       rho0_mpole   => p_env%local_rho_set%rho0_mpole
+       ecoul_1c => p_env%hartree_local%ecoul_1c
+    END IF
 
     nkind = SIZE(atomic_kind_set,1)
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -461,7 +482,7 @@ MODULE  hartree_local_3centers
 
               CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=kkind,&
                                   l0_ikind=l0_kkind,&
-                                  rpgf0_h=rpgf0_h,rpgf0_s=rpgf0_s)
+                                  rpgf0_s=rpgf0_s,r_V0hmV0s=r_V0)
 
               nchan0_car = ncoset(l0_kkind)
 
@@ -519,6 +540,9 @@ MODULE  hartree_local_3centers
                   sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
                   CYCLE knodeloop
                 END IF
+!                rac(:) =sac_3c_neighbor%r(:,kneighbor)
+!                rac2= rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3) 
+
 !dbg
 !   WRITE(*,*) 'kneighbor ' , iatom, jatom, katom
 
@@ -552,7 +576,8 @@ MODULE  hartree_local_3centers
                            rpgfa(:,iset1),zeta(:,iset1),nz1,&
                            lb_max(iset2),lb_min(iset2),nco2,m2,&
                            rpgfb(:,iset2),zetb(:,iset2),nz2,&
-                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
+!                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
+                           l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            rab,rab2,rac,rac2,rbc,rbc2,&
                            Int_ab_sum,Int_abc,maxder,&
@@ -562,15 +587,16 @@ MODULE  hartree_local_3centers
                            1.0_dp,Int_ab_sum(1,1),maxcoa,&
                            sphi_b(1,ifs2),SIZE(sphi_b,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
+                      
                       CALL dgemm("T","N",ns1,ns2,nco1,&
-                            1.0_dp,sphi_a(1,ifs1),SIZE(sphi_a,1),&
+                            fac,sphi_a(1,ifs1),SIZE(sphi_a,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(ifs1,ifs2),SIZE(h_block,1))
 
                       hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)  
 
                       trace = trace_r_AxB(hab,maxcoa,Int_ab_sum,maxcoa,nco1,nco2)
-                      energy%hartree_3c = energy%hartree_3c + ieqj*trace 
+                      energy_hartree_3c = energy_hartree_3c + ieqj*trace 
 
                       IF(calculate_forces) THEN
 !dbg
@@ -626,7 +652,8 @@ MODULE  hartree_local_3centers
                            rpgfb(:,iset1),zetb(:,iset1),nz1,&
                            la_max(iset2),la_min(iset2),nco2,m2,&
                            rpgfa(:,iset2),zeta(:,iset2),nz2,&
-                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
+!                           l0_kkind,normhard(0:),ng0_s(0:),rpgf0_s,rpgf0_s,&
+                           l0_kkind,normhard(0:),ng0_s(0:),r_V0,r_V0,&
                            QN_h,-QN_s,Qlm,zhard,z0_s,&
                            -rab,rab2,rbc,rbc2,rac,rac2,&
                            Int_ab_sum,Int_abc,maxder,&
@@ -637,13 +664,13 @@ MODULE  hartree_local_3centers
                            sphi_a(1,ifs2),SIZE(sphi_a,1),&
                            0.0_dp,work(1,1),SIZE(work,1))
                       CALL dgemm("T","N",ns1,ns2,nco1,&
-                            1.0_dp,sphi_b(1,ifs1),SIZE(sphi_b,1),&
+                            fac,sphi_b(1,ifs1),SIZE(sphi_b,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(ifs1,ifs2),SIZE(h_block,1))
 
                       hab(1:nco1,1:nco2) = CPC_ab(1+m1:m1+nco1,1+m2:m2+nco2)  
                       trace = trace_r_AxB(hab,maxcob,Int_ab_sum,maxcob,nco1,nco2)
-                      energy%hartree_3c = energy%hartree_3c + 2.0_dp*trace 
+                      energy_hartree_3c = energy_hartree_3c + 2.0_dp*trace 
 
                       IF(calculate_forces) THEN
 !dbg
@@ -692,7 +719,7 @@ MODULE  hartree_local_3centers
                                   ieqj*trace_r_AxB(CPC_ab,ns1,Int_abc(:,:,ico),&
                                   ns1,ns1,ns2)
                 END DO  ! ico
-
+!WRITE(*,'A,3I4,A,f16.8') 'kneighbor ' , iatom, jatom, katom,'    3c',energy_hartree_3c
                 sbc_3c_neighbor_node => next(sbc_3c_neighbor_node)
               END DO knodeloop  ! knode
             END DO  !kkind
@@ -704,7 +731,7 @@ MODULE  hartree_local_3centers
       END DO  ! jkind
     END DO  ! ikind
 
-    CALL mp_sum(energy%hartree_3c,para_env%group)
+    CALL mp_sum(energy_hartree_3c,para_env%group)
 
 !dbg
 ! IF(calculate_forces) THEN

@@ -48,6 +48,8 @@ MODULE qs_kpp1_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE hartree,                         ONLY: calculate_hartree
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
+  USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -74,10 +76,12 @@ MODULE qs_kpp1_env_methods
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
   USE qs_integrate_potential,          ONLY: integrate_v_rspace
   USE qs_kpp1_env_types,               ONLY: qs_kpp1_env_type
+  USE qs_ks_atom,                      ONLY: update_ks_atom
   USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
+  USE qs_rho0_ggrid,                   ONLY: integrate_vhg0_rspace
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
                                              deallocate_matrix_set,&
@@ -413,15 +417,12 @@ CONTAINS
        DEALLOCATE(rho1_r_pw, atoms,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       IF(gapw) THEN
-          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
-       END IF
-       
        ntot = SIZE(v_hartree_rspace%pw%cr3d,1) * &
               SIZE(v_hartree_rspace%pw%cr3d,2) * &
               SIZE(v_hartree_rspace%pw%cr3d,3)
        CALL dscal(ntot, v_hartree_rspace%pw%pw_grid%dvol, &
                         v_hartree_rspace%pw%cr3d,1)
+
        !-------------------------------!
        ! Add both hartree and xc terms !
        !-------------------------------!
@@ -458,6 +459,25 @@ CONTAINS
                k_p_p1(ispin)%matrix)
        END DO
 
+       IF(gapw) THEN
+          CALL Vh_1c_gg_integrals(qs_env,energy_hartree_1c, .TRUE., p_env)
+          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, &
+                                     .FALSE., .TRUE., p_env, error=error)
+          
+          CALL integrate_vhg0_g0(qs_env,energy_hartree_2c,.FALSE.,.FALSE., &
+                                 .TRUE., p_env)
+          DO ispin = 1,nspins
+             CALL integrate_a_vhg0_b(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
+                                     ispin,energy_hartree_3c,.FALSE.,.FALSE.,&
+                                     .TRUE.,p_env,error)
+          END DO
+!         ***  Add single atom contributions to the KS matrix ***
+             DO ispin = 1,nspins
+                CALL update_ks_atom(qs_env,k_p_p1(ispin),rho%rho_ao(ispin),&
+                     ispin,.FALSE.,.TRUE.,p_env,error)
+             ENDDO
+       END IF
+       
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_rspace,&

@@ -54,6 +54,7 @@ MODULE  hartree_local_2centers
                                              neighbor_list_type,&
                                              neighbor_node_type,&
                                              next
+  USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
   USE qs_util,                         ONLY: trace_r_AxB
@@ -82,12 +83,15 @@ MODULE  hartree_local_2centers
  
 !******************************************************************************
 
-  SUBROUTINE integrate_vhg0_g0(qs_env,energy,just_energy,calculate_forces)
+  SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
+                               tddft, p_env)
 
-    TYPE(qs_energy_type), INTENT(INOUT)        :: energy
+    REAL(kind=dp), INTENT(OUT)                 :: energy_hartree_2c
     TYPE(qs_environment_type), POINTER         :: qs_env
     LOGICAL, INTENT(IN)                        :: calculate_forces,&
                                                   just_energy
+    LOGICAL, INTENT(IN), OPTIONAL              :: tddft
+    TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "integrate_vhg0_g0"
 
@@ -109,7 +113,7 @@ MODULE  hartree_local_2centers
     TYPE(qs_force_type), DIMENSION(:), POINTER :: force
     TYPE(rho0_mpole_type),        POINTER      :: rho0_mpole
     REAL(dp) :: ene_2c, force_a(3), ieqj, ra(3), rab(3), rab2, rb(3),&
-                r0cut_a, r0cut_b,  z0_h, z0_s
+                r0cut_a, r0cut_b,  rpgf0_s_a, rpgf0_s_b, z0_h, z0_s
     REAL(dp), DIMENSION(:),       POINTER      :: ng0_h, ng0_s
     REAL(dp), DIMENSION(:),       POINTER      :: QN_h_a,QN_s_a,&
                                                   QN_h_b,QN_s_b !,Qlm_tot
@@ -124,7 +128,7 @@ MODULE  hartree_local_2centers
                nch0_sph, nkind, nlist, nnode, nset, nsotot
     INTEGER, DIMENSION(:),        POINTER      :: atom_list
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
-    LOGICAL                                    :: paw_atom
+    LOGICAL                                    :: paw_atom, my_tddft
 
 !   ---------------------------------------------------------------------------
 
@@ -132,12 +136,20 @@ MODULE  hartree_local_2centers
     NULLIFY(para_env,particle_set,rho0_mpole)
     NULLIFY(sab_2c)
 
+    my_tddft = .FALSE.
+    IF (PRESENT(tddft)) my_tddft = tddft
+
     CALL get_qs_env(qs_env=qs_env,atomic_kind_set=atomic_kind_set,&
                     cell=cell,ecoul_1c=ecoul_1c,&
                     para_env=para_env,& 
                     particle_set=particle_set,&
                     rho0_mpole=rho0_mpole,&
                     sab_2c=sab_2c)
+
+    IF (my_tddft) THEN
+       rho0_mpole   => p_env%local_rho_set%rho0_mpole
+       ecoul_1c => p_env%hartree_local%ecoul_1c
+    END IF
 
     nkind = SIZE(atomic_kind_set,1)
     natom = SIZE(particle_set,1)
@@ -177,7 +189,8 @@ MODULE  hartree_local_2centers
     DO ikind = 1,nkind
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=ikind,&
-                              l0_ikind=l0_a,r_V0hmV0s=r0cut_a)
+                              l0_ikind=l0_a,r_V0hmV0s=r0cut_a,&
+                              rpgf0_s=rpgf0_s_a)
 
       DO jkind = 1,nkind
 
@@ -194,7 +207,8 @@ MODULE  hartree_local_2centers
         END IF
 
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,ikind=jkind,&
-                         l0_ikind=l0_b,r_V0hmV0s=r0cut_b)
+                         l0_ikind=l0_b,r_V0hmV0s=r0cut_b,&
+                              rpgf0_s=rpgf0_s_b)
 
         DO ilist = 1,nlist
 
@@ -231,8 +245,10 @@ MODULE  hartree_local_2centers
 
             IF(calculate_forces) THEN
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
-                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
+!                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+!                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
+                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
+                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
 
@@ -249,14 +265,16 @@ MODULE  hartree_local_2centers
             ELSE
 
               CALL sumup_2c_integrals(z0_h,z0_s,ng0_h(0:),ng0_s(0:),&
-                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
-                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
+!                       l0_a,r0cut_a,QN_h_a,QN_s_a,&
+!                       l0_b,r0cut_b,QN_h_b,QN_s_b,&
+                       l0_a,rpgf0_s_a,QN_h_a,QN_s_a,&
+                       l0_b,rpgf0_s_b,QN_h_b,QN_s_b,&
                        rab,rab2,ieqj,ene_2c,Isum_a_car(:,iatom),&
                        Isum_a_car(:,jatom),maxder,force_a)
             END IF 
 
 !           *** sum up in the energy of hartree local from 2 centers terms
-            energy%hartree_2c = energy%hartree_2c + 0.5_dp*ieqj*ene_2c
+            energy_hartree_2c = energy_hartree_2c + 0.5_dp*ieqj*ene_2c
             sab_2c_neighbor_node => next(sab_2c_neighbor_node)
           END DO  ! inode
 
@@ -267,7 +285,7 @@ MODULE  hartree_local_2centers
 
     END DO  ! ikind
 
-    CALL mp_sum(energy%hartree_2c,para_env%group)
+    CALL mp_sum(energy_hartree_2c,para_env%group)
 
     IF(just_energy) GOTO 100
 !   One center contributions from the 2-centers term
