@@ -96,7 +96,7 @@ SUBROUTINE init_mathcon
   dfac ( -1 ) = one
   dfac (  0 ) = one
   dfac (  1 ) = one
-  DO i = 3, 2 * maxfac + 1
+  DO i = 2, 2 * maxfac + 1
      dfac(i) = REAL ( i, dbl ) * dfac ( i - 2 )
   END DO
 !
