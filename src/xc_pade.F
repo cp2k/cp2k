@@ -121,7 +121,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
 !   *** Local variables ***
@@ -176,7 +176,7 @@ CONTAINS
 
     TYPE(xc_derivative_set_type), POINTER :: derivative_set
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT) :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT) :: pot
     INTEGER, INTENT(IN), OPTIONAL :: order
 
 !   *** Local variables ***
@@ -243,7 +243,7 @@ CONTAINS
   SUBROUTINE pade_lda_0 ( rho, rs, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: p, q, epade
@@ -274,7 +274,7 @@ CONTAINS
   SUBROUTINE pade_lda_1 ( rho, rs, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: p, q, dp, dq, epade, depade
@@ -310,7 +310,7 @@ CONTAINS
   SUBROUTINE pade_lda_01 ( rho, rs, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: p, q, dp, dq, epade, depade
@@ -347,7 +347,7 @@ CONTAINS
   SUBROUTINE pade_lda_2 ( rho, rs, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: p, q, dp, dq, d2p, d2q, rsr, t1, t2, t3
@@ -389,7 +389,7 @@ CONTAINS
   SUBROUTINE pade_lda_3 ( rho, rs, pot )
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rho, rs
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: ab1, ab2, ab3, rsr1, rsr2, rsr3
@@ -439,7 +439,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -484,7 +484,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -539,7 +539,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -595,7 +595,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
@@ -677,7 +677,7 @@ CONTAINS
 
     REAL(dbl), DIMENSION(:), INTENT(IN)  :: rhoa, rhob, rs
     REAL(dbl), DIMENSION(:,:), INTENT(IN)  :: fx
-    REAL(dbl), DIMENSION(:,:), INTENT(OUT)  :: pot
+    REAL(dbl), DIMENSION(:,:), INTENT(INOUT)  :: pot
 
     INTEGER :: ip, npoints
     REAL(dbl) :: fa0, fa1, fa2, fa3, fb1, fb2, fb3, fb4
