@@ -872,10 +872,19 @@ CONTAINS
     zz(:,:,:) = 0.0_wp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
-      CALL stop_program(routine_name,module_name,__LINE__,&
-                        "The default FFT library <"//&
-                        TRIM(globenv%default_fft_library)//&
-                        "> is not available",globenv)
+      IF (globenv%ionode) THEN
+         write(globenv%scr,*) " WARNING : FFT library "//TRIM(globenv%default_fft_library)//" is not available "
+         write(globenv%scr,*) "           Trying FFTSG as a default "
+      ENDIF
+      globenv%default_fft_library="FFTSG"
+      CALL init_fft(fftlib=TRIM(globenv%default_fft_library))
+      CALL fft3d(1,n,zz,status=stat) 
+      IF (stat /= 0) THEN
+           CALL stop_program(routine_name,module_name,__LINE__,&
+                             "The default FFT library <"//&
+                             TRIM(globenv%default_fft_library)//&
+                             "> is not available",globenv)
+      ENDIF
     END IF
     num_threads=1
 !$omp parallel
