@@ -51,6 +51,7 @@ SUBROUTINE vc_x_vc ( n, cvec2, cvec )
   INTEGER :: i
   REAL ( dbl ) :: re_c, im_c, re_c2, im_c2
 
+!$OMP PARALLEL DO
   DO i = 1, n
     re_c = cvec ( 1, i )
     im_c = cvec ( 2, i )
@@ -77,6 +78,7 @@ SUBROUTINE vr_x_vc ( n, rvec, cvec )
 
   INTEGER :: i
 
+!$OMP PARALLEL DO
   DO i = 1, n
     cvec ( 1, i ) = cvec ( 1, i ) * rvec ( i )
     cvec ( 2, i ) = cvec ( 2, i ) * rvec ( i )
@@ -100,6 +102,7 @@ SUBROUTINE copy_cri ( n, z, r1, r2 )
 
   INTEGER :: i
 
+!$OMP PARALLEL DO
   DO i = 1, n
     r1 ( i ) = z ( 1, i )
     r2 ( i ) = z ( 2, i )
@@ -117,10 +120,14 @@ SUBROUTINE copy_cr ( n, z, r1 )
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( OUT ) :: r1(*)
-  REAL ( dbl ), INTENT ( IN ) :: z(2,*)
+  REAL ( dbl ), INTENT ( OUT ) :: r1(n)
+  REAL ( dbl ), INTENT ( IN ) :: z(2,n)
+  INTEGER :: i
 
-  CALL dcopy ( n, z ( 1, 1 ), 2, r1, 1 )
+!$OMP PARALLEL DO
+  do i=1,n
+       r1(i)=z(1,i)
+  enddo
 
 END SUBROUTINE copy_cr
 
@@ -134,11 +141,14 @@ SUBROUTINE copy_rc ( n, r1, z )
   INTEGER, PARAMETER :: dbl = SELECTED_REAL_KIND ( 14, 200 )
 
   INTEGER, INTENT ( IN ) :: n
-  REAL ( dbl ), INTENT ( IN ) :: r1(*)
-  REAL ( dbl ), INTENT ( OUT ) :: z(2,*)
-
-  CALL dcopy ( n, r1, 1, z ( 1, 1 ), 2 )
-  CALL dcopy ( n, 0._dbl, 0, z ( 2, 1 ), 2 )
+  REAL ( dbl ), INTENT ( IN ) :: r1(n)
+  REAL ( dbl ), INTENT ( OUT ) :: z(2,n)
+  INTEGER :: i
+!$OMP PARALLEL DO
+  do i=1,n
+       z(1,i)=r1(i)
+       z(2,i)=0._dbl
+  enddo
 
 END SUBROUTINE copy_rc
 
