@@ -124,14 +124,14 @@ parallel_include.dep:
 parallel_include.int: parallel_include.o
 
 clean:
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) || rm -f *.mod
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) || rm -f *.o
+	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.mod
+	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.o
 
 realclean: clean
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) || rm -f *.f90
-	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) || rm -f *
-	-rm $(PROG)
-	-rm $(LIB1_ARCHIVE)
+	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *.f90
+	-test ! -d $(OBJDIR)/$(VERSION) || cd $(OBJDIR)/$(VERSION) ; rm -f *
+	-rm -f $(PROG)
+	-rm -f $(LIB1_ARCHIVE)
 
 distclean:
 	rm -rf $(MAINEXEDIR) $(MAINLIBDIR) $(MAINOBJDIR)
