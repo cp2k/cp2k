@@ -1,0 +1,28 @@
+&CP2K
+ PROGRAM      Quickstep
+ PROJECT      H2O
+ IOLEVEL      10
+ FFTLIB       FFTSG
+&END
+
+&QS
+ METHOD        MNDO
+ CUTOFF        200
+ EPS_DEFAULT   1.0E-8
+&END
+
+&SCF
+ EPS_SCF      1.0E-5
+ GUESS        ATOMIC
+&END
+
+&CELL
+ UNIT         ANGSTROM
+ ABC          10.0  10.0  10.0
+&END
+
+&COORD
+ O   0.000000    0.000000   -0.065587
+ H   0.000000   -0.757136    0.520545
+ H   0.000000    0.757136    0.520545
+&END
