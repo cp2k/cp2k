@@ -421,8 +421,8 @@ CONTAINS
     CALL blacs_syevd(h_block,e_vectors,evals)
 
     if (globenv%ionode) then
-       write(globenv%scr,*) ""
-       write(globenv%scr,*) " eigenvalues of the occupied subspace"
+       write(globenv%scr,fmt="(a)") " "
+       write(globenv%scr,fmt="(a)") " eigenvalues of the occupied subspace"
        do i=1,ncol_global,4
           j=MIN(3,ncol_global-i)
           select case (j)

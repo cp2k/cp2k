@@ -51,11 +51,13 @@ module cp_log_handling
   use output_utilities, only: print_message
   use qs_parser, only: open_file, close_file
   use machine, only: m_flush
-  use message_passing, only: mp_comm_free
+  use message_passing, only: mp_comm_free, mp_bcast
   use termination, only: stop_program
   use cp_para_types, only: cp_para_env_type
   use global_types, only: print_key_type, init_print_keys
   use string_utilities, only: compress_all
+  use timesl, only: walltime
+  use kinds, only: wp=>dp
   implicit none
   private
 
@@ -101,6 +103,7 @@ module cp_log_handling
 
   logical, save, private :: default_logger_initialized=.false.
   integer, save, private :: last_logger_id_nr=0
+  real(kind=wp), save, private :: start_time
 
 !!***
 !****************************************************************************
@@ -231,6 +234,7 @@ contains
             suffix=suffix, print_keys=print_keys,&
             template_logger=template_logger)
     end if
+    start_time=walltime()
     default_logger_initialized=.true.
   end subroutine cp_init_default_logger
 !**************************************************************************
@@ -282,6 +286,25 @@ contains
 !!
 !!   NAME
 !!     cp_logger_create
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_logger_create(logger, para_env, print_level,&
+!!         default_global_unit_nr, default_local_unit_nr, global_filename,&
+!!         local_filename, close_global_unit_on_dealloc,&
+!!         close_local_unit_on_dealloc, print_keys, suffix,&
+!!         template_logger)
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Type(cp_para_env_type), Pointer, Optional:: para_env
+!!       Integer, Intent (IN), Optional:: print_level,&
+!!         default_global_unit_nr, default_local_unit_nr
+!!       Character(Len=*), Intent (IN), Optional:: global_filename,&
+!!         local_filename
+!!       Logical, Intent (IN), Optional:: close_global_unit_on_dealloc,&
+!!         close_local_unit_on_dealloc
+!!       Type(print_key_type), Target, Optional:: print_keys
+!!       Character(Len=*), Intent (IN), Optional:: suffix
+!!       Type(cp_logger_type), Target, Optional:: template_logger
+!!     End Subroutine cp_logger_create
 !!
 !!   FUNCTION
 !!     initializes a logger
@@ -374,12 +397,17 @@ contains
       logger%suffix=template_logger%suffix
    else
     logger%default_global_unit_nr=cp_std_out_unit_nr
-    logger%default_local_unit_nr=-1
     logger%local_filename="localLog"
     logger%global_filename="mainLog"
     logger%print_level=cp_note_level
     logger%close_global_unit_on_dealloc=.false.
+#ifdef __parallel
+    logger%default_local_unit_nr=-1
     logger%close_local_unit_on_dealloc=.true.
+#else
+    logger%default_local_unit_nr=cp_std_out_unit_nr
+    logger%close_local_unit_on_dealloc=.false.
+#endif
     logger%suffix=""
    end if
     if (present(para_env)) logger%para_env => para_env
@@ -443,6 +471,11 @@ contains
 !!   NAME
 !!     cp_logger_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine cp_logger_retain(logger)
+!!       Type(cp_logger_type), Pointer:: logger
+!!     End Subroutine cp_logger_retain
+!!
 !!   FUNCTION
 !!     retains the given logger (to be called to keep a shared copy of 
 !!     the logger)
@@ -482,6 +515,11 @@ contains
 !!
 !!   NAME
 !!     cp_logger_release
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_logger_release(logger)
+!!       Type(cp_logger_type), Pointer:: logger
+!!     End Subroutine cp_logger_release
 !!
 !!   FUNCTION
 !!     releases this logger
@@ -548,11 +586,13 @@ contains
 !!     cp_logger_would_log
 !!
 !!   SYNOPSIS
-!!     Function cp_logger_would_log(logger, level, fromwhere)
-!!       Logical:: cp_logger_would_log
-!!       Type(cp_logger_type), Intent (IN):: logger
+!!     Function cp_logger_would_log(logger, level, fromwhere, local)&
+!!         Result(res)
+!!       Logical:: res
+!!       Type(cp_logger_type), Pointer:: logger
 !!       Integer, Intent (IN):: level
 !!       Character(Len=*), Intent (IN):: fromwhere
+!!       Logical, Intent (IN), Optional:: local
 !!     End Function cp_logger_would_log
 !!
 !!   FUNCTION
@@ -606,11 +646,13 @@ contains
 !!     cp_logger_get_unit_nr
 !!
 !!   SYNOPSIS
-!!     Function cp_logger_get_unit_nr(logger, level, fromwhere)
-!!       Integer:: cp_logger_get_unit_nr
-!!       Type(cp_logger_type), Intent (IN):: logger
+!!     Function cp_logger_get_unit_nr(logger, level, fromwhere, local)&
+!!         Result(res)
+!!       Integer:: res
+!!       Type(cp_logger_type), Pointer:: logger
 !!       Integer, Intent (IN):: level
 !!       Character(Len=*), Intent (IN):: fromwhere
+!!       Logical, Intent (IN), Optional:: local
 !!     End Function cp_logger_get_unit_nr
 !!
 !!   FUNCTION
@@ -723,7 +765,9 @@ contains
        end select
        unitNr=cp_logger_get_unit_nr(lggr,level,fromWhere,local=loc)
        if (loc .or. lggr%para_env%mepos==lggr%para_env%source) then
-          call print_message(label//' in '//fromWhere//', '//message,unitNr,&
+          call print_message(label//' in '//fromWhere//',t'//&
+               trim(adjustl(cp_to_string(walltime()-start_time)))//&
+               ' '//message,unitNr,&
                level, level,level/2)
 ! old (more failsafe, no trim, compress,...) code:
 !write (unit=unitNr,fmt='(a)', iostat=oErr) ' '
@@ -745,7 +789,7 @@ contains
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_logger_set_log_level(logger, level)
-!!       Type(cp_logger_type), Intent (OUT):: logger
+!!       Type(cp_logger_type), Pointer:: logger
 !!       Integer, Intent (IN):: level
 !!     End Subroutine cp_logger_set_log_level
 !!
@@ -824,6 +868,13 @@ contains
 !!   NAME
 !!     cp_logger_get_default_unit_nr
 !!
+!!   SYNOPSIS
+!!     Function cp_logger_get_default_unit_nr(logger, local) Result(res)
+!!       Integer:: res
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Logical, Intent (IN), Optional:: local
+!!     End Function cp_logger_get_default_unit_nr
+!!
 !!   FUNCTION
 !!     asks the default unit number of the given logger.
 !!     try to use cp_logger_get_unit_nr
@@ -863,15 +914,20 @@ contains
     if (present(local)) loc=local
     if (.not.local) then
        if (lggr%default_global_unit_nr<=0) then
-          call cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
-               ".out",local=.false.)
-          INQUIRE (FILE=trim(filename),EXIST=exists)
-          if (exists) then
-             print *," WARNING ", routineP, " overwriting file ",filename
+          if (lggr%para_env%mepos==lggr%para_env%source) then
+             call cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
+                  ".out",local=.false.)
+             INQUIRE (FILE=trim(filename),EXIST=exists)
+             if (exists) then
+                print *," WARNING ", routineP, " overwriting file ",filename
+             end if
+             call open_file(trim(filename),file_status="unknown",&
+                  file_action="write",&
+                  unit_number=lggr%default_global_unit_nr)
           end if
-          call open_file(trim(filename),file_status="unknown",&
-               file_action="write",&
-               unit_number=lggr%default_global_unit_nr)
+          ! bcast? dangerous if called only in source processor
+          !call mp_bcast(lggr%default_global_unit_nr,lggr%para_env%source,&
+          !     lggr%para_env%group)
        end if
        res=lggr%default_global_unit_nr
     else
@@ -941,6 +997,15 @@ contains
 !!
 !!   NAME
 !!     cp_logger_generate_filename
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_logger_generate_filename(logger, res, root, postfix,&
+!!         local)
+!!       Type(cp_logger_type), Pointer:: logger
+!!       Character(Len=*), Intent (INOUT):: res
+!!       Character(Len=*), Intent (IN):: root, postfix
+!!       Logical, Intent (IN), Optional:: local
+!!     End Subroutine cp_logger_generate_filename
 !!
 !!   FUNCTION
 !!     generates a unique filename (ie adding eventual suffixes and 

@@ -1284,7 +1284,7 @@ end subroutine cp_sm_alloc_nonsparse_blocks
 !!   SYNOPSIS
 !!     Subroutine cp_sm_output(logger, outputname, fromwhere, iter, matrix,&
 !!         para_env, comment, el_format, error)
-!!       Type(cp_logger_type):: logger
+!!       Type(cp_logger_type), Pointer:: logger
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter

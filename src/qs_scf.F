@@ -176,7 +176,7 @@ MODULE qs_scf
        cp_error_message, cp_error_init, cp_error_dealloc_ref, cp_debug,&
        cp_internal_error, cp_error_get_logger
   use cp_log_handling,          only: cp_failure_level, cp_warning_level,&
-       cp_to_string
+       cp_to_string, cp_note_level, cp_log
   use pao_glob_angles_methods,  only: pao_g_ang_get,pao_g_ang_set
   use pao_l_angles_methods,     only: pao_guarantee_owned_NUi
   use qs_build_KS_matrix,       only: qs_ks_env_type, qs_ks_init, &
@@ -437,7 +437,6 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
-
       IF (ionode) CALL m_flush(output_unit)
 
       iscf = iscf + 1
@@ -687,49 +686,49 @@ CONTAINS
     if (globenv%ionode) close(21)
 
 
-    CALL  calculate_occupied_eigenvalues(mo_set,ks%matrix,globenv)
+    Call  Calculate_occupied_eigenvalues(Mo_set,Ks%matrix,Globenv)
 
-    ! overwrites rho_rspace with a wavefunction !
-    CALL get_mo_set(mo_set=mo_set,homo=ivector)
-    CALL calculate_wavefunction(mo_set,ivector,ks_env%rho_elec_rspace,ks_env%rho_gspace,&
-                                 ks_env%gridlevel_info,ks_env%cube_info,ks_env%l_info,&
-                                 qs_env,globenv)
+    ! Overwrites Rho_rspace With A Wavefunction !
+    Call Get_mo_set(Mo_set=Mo_set,Homo=Ivector)
+    Call Calculate_wavefunction(Mo_set,Ivector,Ks_env%rho_elec_rspace,Ks_env%rho_gspace,&
+                                 Ks_env%gridlevel_info,Ks_env%cube_info,Ks_env%l_info,&
+                                 Qs_env,Globenv)
 
-    write(filename,'(a13,I5.5,a5)') "WAVEFUNCTION_",ivector,".cube"
-    if (globenv%ionode) open(UNIT=21,FILE=filename)
-    write(filename,*) "WAVEFUNCTION ",ivector," i.e. HOMO"
-    call rs_pw_to_cube(ks_env%v_hartree_rspace%pw,21,globenv%ionode,filename)
-    if (globenv%ionode) close(21)
+    Write(Filename,'(A13,I5.5,A5)') "Wavefunction_",Ivector,".Cube"
+    If (Globenv%ionode) Open(Unit=21,File=Filename)
+    Write(Filename,*) "Wavefunction ",Ivector," I.E. Homo"
+    Call Rs_pw_to_cube(Ks_env%v_hartree_rspace%pw,21,Globenv%ionode,Filename)
+    If (Globenv%ionode) Close(21)
 
-    IF (globenv%print%density_matrix) THEN
-      CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
-    END IF
+    If (Globenv%print%density_matrix) Then
+      Call Write_sparse_matrix(P%matrix,4,6,Qs_env,Globenv)
+    End If
 
-    IF (globenv%print%density_matrix_magnitude) THEN
-        IF (globenv%num_pe > 1) THEN
-           WRITE (UNIT=extension,FMT="(I6)") globenv%mepos
-           file_name = "P_MAGNITUDE"//"."//ADJUSTL(extension)
-        ELSE
-           file_name = "P_MAGNITUDE"
-        END IF
-        CALL open_file(file_name=file_name,&
-                       file_action="WRITE",&
-                       file_form="FORMATTED",&
-                       file_status="REPLACE",&
-                       unit_number=file_unit)
+    If (Globenv%print%density_matrix_magnitude) Then
+        If (Globenv%num_pe > 1) Then
+           Write (Unit=Extension,Fmt="(I6)") Globenv%mepos
+           File_name = "P_magnitude"//"."//Adjustl(Extension)
+        Else
+           File_name = "P_magnitude"
+        End If
+        Call Open_file(File_name=File_name,&
+                       File_action="Write",&
+                       File_form="Formatted",&
+                       File_status="Replace",&
+                       Unit_number=File_unit)
       
-       NULLIFY(pfull) 
-       CALL replicate_matrix(s(1)%matrix,pfull,"FULL DENSITY MATRIX",.false.)
-       CALL add_all_real_matrix_blocks(pfull,globenv)
-       CALL calculate_density_matrix(mo_set,pfull,globenv)
-       CALL write_blocks_maxabsval(pfull,file_unit)
-       CALL deallocate_matrix(pfull)
-       CALL close_file(unit_number=file_unit)
-    ENDIF
+       Nullify(Pfull) 
+       Call Replicate_matrix(S(1)%matrix,Pfull,"Full Density Matrix",.False.)
+       Call Add_all_real_matrix_blocks(Pfull,Globenv)
+       Call Calculate_density_matrix(Mo_set,Pfull,Globenv)
+       Call Write_blocks_maxabsval(Pfull,File_unit)
+       Call Deallocate_matrix(Pfull)
+       Call Close_file(Unit_number=File_unit)
+    Endif
 
-    IF (globenv%print%kohn_sham_matrix) THEN
-      CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
-    END IF
+    If (Globenv%print%kohn_sham_matrix) Then
+      Call Write_sparse_matrix(Ks%matrix,4,6,Qs_env,Globenv)
+    End If
 
 !   *** Write restart file ***
 

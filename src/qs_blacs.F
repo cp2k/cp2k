@@ -57,7 +57,7 @@ MODULE qs_blacs
   use cp_error_handling, only: cp_assert, cp_error_message, cp_error_type,&
        cp_assertion_failed, cp_unimplemented_error, cp_error_get_logger
   use cp_log_handling,   only: cp_to_string, cp_warning_level, &
-       cp_failure_level, cp_logger_type, cp_logger_get_default_unit_nr
+       cp_failure_level, cp_logger_type, cp_logger_get_unit_nr, cp_log
   use cp_matrix_utils,   only: cp_init, cp_dealloc_ref, cp_next, cp_get, &
        cp_matrix_block_iterator
   use cp_para_types,     only: cp_para_env_type, cp_blacs_env_type
@@ -69,6 +69,7 @@ MODULE qs_blacs
   use cp_f_matrix_struct, only:   cp_f_matrix_struct_type,&
        cp_fmstruct_create,cp_fmstruct_retain, cp_fmstruct_release,&
        cp_fmstruct_equivalent
+  use parallel, only: cp2k_is_parallel
 
 
   IMPLICIT NONE
@@ -78,17 +79,18 @@ MODULE qs_blacs
   character(len=*), parameter, private :: moduleN='qs_blacs'
   integer,save,private :: last_fm_id_nr=0
 
-  TYPE blacs_matrix_block_type
-    PRIVATE
-    REAL(wp), DIMENSION(:,:), POINTER :: block
-  END TYPE blacs_matrix_block_type
+!!FM  TYPE blacs_matrix_block_type
+!!FM    PRIVATE
+!!FM    REAL(wp), DIMENSION(:,:), POINTER :: block
+!!FM  END TYPE blacs_matrix_block_type
 
   TYPE blacs_matrix_type
     PRIVATE
     CHARACTER(LEN=60) :: name ! remove?
     integer :: id_nr, ref_count
     type(cp_f_matrix_struct_type), pointer :: matrix_struct
-    TYPE(blacs_matrix_block_type), DIMENSION(:,:), POINTER :: p
+!!FM    TYPE(blacs_matrix_block_type), DIMENSION(:,:), P$OINTER :: p
+    real(kind=wp), dimension(:,:), pointer :: local_data
   END TYPE blacs_matrix_type
 
   TYPE blacs_matrix_p_type
@@ -245,6 +247,13 @@ CONTAINS
     type(cp_blacs_env_type), pointer :: context
     failure=.false.
 
+#if defined(__parallel) && ! defined(__SCALAPACK)
+    call cp_assert(.false.,cp_failure_level,cp_assertion_failed,&
+         routineP,"full matrixes need scalapack for parallel runs "//&
+         CPSourceFileRef,&
+         error)
+#endif
+
     CPPrecondition(associated(matrix_struct),cp_failure_level,routineP,error,failure)
     if (.not.failure) then
        allocate(matrix,stat=stat)
@@ -260,23 +269,14 @@ CONTAINS
 
        nprow=context%num_pe(1)
        npcol=context%num_pe(2)
-       allocate (matrix%p(0:nprow-1, 0:npcol-1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-       do iprow=0,nprow-1
-          do ipcol=0,npcol-1
-             nullify (matrix%p(iprow,ipcol)%block)
-          end do
-       end do
-
+       nullify(matrix%local_data)
+       
        nrow_local=matrix_struct%nrow_local(context%mepos(1))
        ncol_local=matrix_struct%ncol_local(context%mepos(2))
-       allocate(matrix%p(context%mepos(1),context%mepos(2))%block &
-            (nrow_local,ncol_local),stat=stat)
+       allocate(matrix%local_data(nrow_local,ncol_local),stat=stat)
 
-       call dcopy(nrow_local*ncol_local,0.0_wp,0,&
-            matrix%p(context%mepos(1),context%mepos(2))%block,1)
-       !matrix%p(myprow,mypcol)%block(:,:) = 0.0_wp
+       call dcopy(nrow_local*ncol_local,0.0_wp,0,matrix%local_data,1)
+       ! matrix%local_data(:,:) = 0.0_wp
        
        if (present(name)) then
           matrix%name=name
@@ -366,16 +366,8 @@ subroutine cp_fm_release(matrix,error)
      matrix%ref_count=matrix%ref_count-1
      context=> matrix%matrix_struct%context
      if (matrix%ref_count<1) then
-        if (associated(matrix%p)) then
-           do iprow=0,context%num_pe(1)-1
-              do ipcol=0,context%num_pe(2)-1
-                 if (associated(matrix%p(iprow,ipcol)%block)) then
-                    deallocate(matrix%p(iprow,ipcol)%block,stat=stat)
-                    CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-                 end if
-              end do
-           end do
-           deallocate(matrix%p,stat=stat)
+        if (associated(matrix%local_data)) then
+           deallocate(matrix%local_data,stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         end if
         matrix%name=""
@@ -458,8 +450,7 @@ end subroutine allocate_blacs_matrix_vect
     REAL(wp),DIMENSION(:,:), POINTER          :: mblock
     INTEGER :: nelements
 
-    mblock => matrix%p(matrix%matrix_struct%context%mepos(1),&
-         matrix%matrix_struct%context%mepos(2))%block
+    mblock => matrix%local_data
     nelements = size(mblock,1)*&
          matrix%matrix_struct%ncol_local(matrix%matrix_struct%context%mepos(2))
 
@@ -513,8 +504,8 @@ end subroutine allocate_blacs_matrix_vect
        myprow=matrix_a%matrix_struct%context%mepos(1)
        mypcol=matrix_a%matrix_struct%context%mepos(2)
 
-       a => matrix_a%p(myprow,mypcol)%block
-       b => matrix_b%p(myprow,mypcol)%block
+       a => matrix_a%local_data
+       b => matrix_b%local_data
 
        IF (alpha == 0.0_wp) THEN
           IF (beta == 0.0_wp) THEN
@@ -576,7 +567,7 @@ end subroutine allocate_blacs_matrix_vect
     nprow=matrixa%matrix_struct%context%num_pe(1)
     npcol=matrixa%matrix_struct%context%num_pe(2)
 
-    a => matrixa%p(myprow,mypcol)%block
+    a => matrixa%local_data
     n =  size(a,1)
     k =  matrixa%matrix_struct%ncol_global
 
@@ -628,7 +619,7 @@ end subroutine allocate_blacs_matrix_vect
     nprow=matrix%matrix_struct%context%num_pe(1)
     npcol=matrix%matrix_struct%context%num_pe(2)
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
 
 #if defined(__SCALAPACK)
     CALL infog2l(irow_global,icol_global,matrix%matrix_struct%descriptor,&
@@ -790,12 +781,9 @@ end subroutine allocate_blacs_matrix_vect
 
     CALL timeset("blacs_gemm","I","Gflops",handle)
 
-    a => matrix_a%p(matrix_a%matrix_struct%context%mepos(1),&
-         matrix_a%matrix_struct%context%mepos(2))%block
-    b => matrix_b%p(matrix_b%matrix_struct%context%mepos(1),&
-         matrix_b%matrix_struct%context%mepos(2))%block
-    c => matrix_c%p(matrix_c%matrix_struct%context%mepos(1),&
-         matrix_c%matrix_struct%context%mepos(2))%block
+    a => matrix_a%local_data
+    b => matrix_b%local_data
+    c => matrix_c%local_data
 
 #if defined(__SCALAPACK)
 
@@ -833,7 +821,7 @@ end subroutine allocate_blacs_matrix_vect
 
     myprow=matrix_a%matrix_struct%context%mepos(1)
     mypcol=matrix_a%matrix_struct%context%mepos(2)
-    a => matrix_a%p(myprow,mypcol)%block
+    a => matrix_a%local_data
     n = size(a,1)
 
 #if defined(__SCALAPACK)
@@ -921,11 +909,11 @@ end subroutine allocate_blacs_matrix_vect
           if (i.eq.0) offset=1
 
           if (mypcol.eq.i) then
-             CALL DCOPY(ndata,matrix_a%p(myprow,mypcol)%block(offset,icol_local),1,&
+             CALL DCOPY(ndata,matrix_a%local_data(offset,icol_local),1,&
                         v,1)
           else
              CALL DGESD2D(context%group,ndata,1,   &
-             matrix_a%p(myprow,mypcol)%block(offset,icol_local),  &
+             matrix_a%local_data(offset,icol_local),  &
              ndata,myprow,i)
           endif
        else
@@ -941,7 +929,7 @@ end subroutine allocate_blacs_matrix_vect
     if (matrix_a%matrix_struct%nrow_local(myprow).lt.use_col_nr) then
        call stop_program("copy_blacs_to_vector","hmm")
     endif
-    CALL DCOPY(nloc,matrix_a%p(myprow,mypcol)%block(1,use_col_nr),1,v,1)
+    CALL DCOPY(nloc,matrix_a%local_data(1,use_col_nr),1,v,1)
 #endif
 
   END SUBROUTINE copy_blacs_to_vector
@@ -990,10 +978,10 @@ end subroutine allocate_blacs_matrix_vect
           if (i.eq.0) offset=1
 
           if (mypcol.eq.i) then
-             CALL DCOPY(ndata,v,1,matrix_a%p(myprow,mypcol)%block(offset,icol_local),1)
+             CALL DCOPY(ndata,v,1,matrix_a%local_data(offset,icol_local),1)
           else
              CALL DGERV2D(context%group,ndata,1,   &
-             matrix_a%p(myprow,mypcol)%block(offset,icol_local),  &
+             matrix_a%local_data(offset,icol_local),  &
              ndata,myprow,i)
           endif
        else
@@ -1009,7 +997,7 @@ end subroutine allocate_blacs_matrix_vect
     if (matrix_a%matrix_struct%ncol_local(mypcol).lt.use_col_nr) then
        call stop_program("copy_vector_to_blacs","hmm")
     endif
-    CALL DCOPY(nloc,v,1,matrix_a%p(source,source)%block(1,use_col_nr),1)
+    CALL DCOPY(nloc,v,1,matrix_a%local_data(1,use_col_nr),1)
 #endif
 
   END SUBROUTINE copy_vector_to_blacs
@@ -1055,11 +1043,11 @@ end subroutine allocate_blacs_matrix_vect
     beta=0.0_wp
     inc=1
 
-    a => matrix_a%p(myprow,mypcol)%block
+    a => matrix_a%local_data
     n = matrix_a%matrix_struct%nrow_global
 #if defined(__SCALAPACK)
     desca(:) = matrix_a%matrix_struct%descriptor(:)
-    b => matrix_buf%p(myprow,mypcol)%block
+    b => matrix_buf%local_data
     descb(:) = matrix_buf%matrix_struct%descriptor(:)
     call copy_vector_to_blacs(vin,matrix_buf,1)
     call pdsymv('U',n,alpha,a(1,1),1,1,desca,b(1,1),1,1,descb,inc,beta,b(1,1),1,2,descb,inc)
@@ -1166,22 +1154,22 @@ end subroutine allocate_blacs_matrix_vect
                                context=context,&
                                para_env=vmatrix%matrix_struct%para_env)
 
-    a => vmatrix%p(myprow,mypcol)%block
-    vv => overlap_vv%p(myprow,mypcol)%block
+    a => vmatrix%local_data
+    vv => overlap_vv%local_data
 #if defined(__SCALAPACK)
     desca(:) = vmatrix%matrix_struct%descriptor(:)
     descvv(:) = overlap_vv%matrix_struct%descriptor(:)
 #endif
     IF (use_pmatrix) THEN
        CALL blacs_init_random(work,ncol)
-       p => pmatrix%p(myprow,mypcol)%block
-       w => work%p(myprow,mypcol)%block
+       p => pmatrix%local_data
+       w => work%local_data
 #if defined(__SCALAPACK)
        descp(:) = pmatrix%matrix_struct%descriptor(:)
        descw(:) = work%matrix_struct%descriptor(:)
        CALL PDSYMM('L','U',n,ncol,rone,p(1,1),1,1,descp,w(1,1),1,1,descw,rzero,a(1,1),1,1,desca)
        IF (use_cholesky) THEN
-         o => ortho%p(myprow,mypcol)%block
+         o => ortho%local_data
          desco(:) = ortho%matrix_struct%descriptor(:)
          CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
        ENDIF
@@ -1189,14 +1177,14 @@ end subroutine allocate_blacs_matrix_vect
        ! U*P*U^T*V
        CALL DSYMM('L','U',n,ncol,rone,p(1,1),n,w(1,1),n,rzero,a(1,1),n)
        IF (use_cholesky) THEN
-         o => ortho%p(myprow,mypcol)%block
+         o => ortho%local_data
          CALL DTRMM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
        ENDIF
 #endif
     ELSE
        ! U*V should be used
        IF (use_cholesky) THEN
-         o => ortho%p(myprow,mypcol)%block
+         o => ortho%local_data
 #if defined(__SCALAPACK)
          desco(:) = ortho%matrix_struct%descriptor(:)
          CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
@@ -1210,9 +1198,9 @@ end subroutine allocate_blacs_matrix_vect
       CALL blacs_GEMM('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
                                           overlap_vv)
       CALL blacs_cholesky_decompose(overlap_vv)
-      a => vmatrix%p(myprow,mypcol)%block
-      vv => overlap_vv%p(myprow,mypcol)%block
-      o => ortho%p(myprow,mypcol)%block
+      a => vmatrix%local_data
+      vv => overlap_vv%local_data
+      o => ortho%local_data
 #if defined(__SCALAPACK)
       desca(:) = vmatrix%matrix_struct%descriptor(:)
       descvv(:) = overlap_vv%matrix_struct%descriptor(:)
@@ -1225,8 +1213,8 @@ end subroutine allocate_blacs_matrix_vect
 #endif
     ELSE
       ! ortho (U*V) inner product should be one
-      a => vmatrix%p(myprow,mypcol)%block
-      vv => overlap_vv%p(myprow,mypcol)%block
+      a => vmatrix%local_data
+      vv => overlap_vv%local_data
 #if defined(__SCALAPACK)
       desca(:) = vmatrix%matrix_struct%descriptor(:)
       descvv(:) = overlap_vv%matrix_struct%descriptor(:)
@@ -1282,7 +1270,7 @@ end subroutine allocate_blacs_matrix_vect
     npcol=context%num_pe(2)
     n = matrix%matrix_struct%nrow_global
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
 
 #if defined(__SCALAPACK)
     IF (FIRST) THEN
@@ -1347,7 +1335,7 @@ end subroutine allocate_blacs_matrix_vect
 
 #if defined(__SCALAPACK)
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
 
     CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
@@ -1361,7 +1349,7 @@ end subroutine allocate_blacs_matrix_vect
 
 #else
 
-    alpha = matrix%p(myprow,mypcol)%block(irow_global,icol_global)
+    alpha = matrix%local_data(irow_global,icol_global)
 
 #endif
   END SUBROUTINE blacs_get_element
@@ -1394,7 +1382,7 @@ end subroutine allocate_blacs_matrix_vect
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    my_block => matrix%p(myprow,mypcol)%block
+    my_block => matrix%local_data
 
     a_max = MAXVAL(ABS(my_block))
 
@@ -1428,7 +1416,7 @@ end subroutine allocate_blacs_matrix_vect
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    matrix%p(myprow,mypcol)%block(:,:) = alpha
+    matrix%local_data(:,:) = alpha
 
   END SUBROUTINE blacs_set_all
 
@@ -1467,7 +1455,7 @@ end subroutine allocate_blacs_matrix_vect
 
 #if defined(__SCALAPACK)
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
 
     desca(:) = matrix%matrix_struct%descriptor(:)
 
@@ -1480,7 +1468,7 @@ end subroutine allocate_blacs_matrix_vect
 
 #else
 
-    matrix%p(myprow,mypcol)%block(irow_global,icol_global) = alpha
+    matrix%local_data(irow_global,icol_global) = alpha
 
 #endif
   END SUBROUTINE blacs_set_element
@@ -1517,7 +1505,7 @@ end subroutine allocate_blacs_matrix_vect
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    blacs_block=>matrix_v%p(myprow,mypcol)%block
+    blacs_block=>matrix_v%local_data
 
     CALL get_blacs_matrix_info(matrix=matrix_v, &
                           nrow_global=nrow_global,ncol_global=ncol_global, &
@@ -1638,7 +1626,7 @@ end subroutine allocate_blacs_matrix_vect
     para_env => blacs_matrix%matrix_struct%para_env
     context => blacs_matrix%matrix_struct%context
 
-    blacs_block => blacs_matrix%p(context%mepos(1),context%mepos(2))%block
+    blacs_block => blacs_matrix%local_data
 
     call get_blacs_matrix_info(matrix=blacs_matrix,&
          nrow_global=nrow_global,ncol_global=ncol_global,&
@@ -1784,7 +1772,7 @@ end subroutine allocate_blacs_matrix_vect
     para_env => blacs_matrix%matrix_struct%para_env
     context => blacs_matrix%matrix_struct%context
 
-    blacs_block => blacs_matrix%p(context%mepos(1),context%mepos(2))%block
+    blacs_block => blacs_matrix%local_data
 #if defined(__SCALAPACK)
     ! zero-out whole target_m 
     call dcopy(size(target_m,1)*size(target_m,2),0.0_wp,0,target_m(1,1),1)
@@ -1853,7 +1841,7 @@ end subroutine allocate_blacs_matrix_vect
     context => matrix%matrix_struct%context
     n = matrix%matrix_struct%nrow_global
 
-    a => matrix%p(context%mepos(1),context%mepos(2))%block
+    a => matrix%local_data
 
 #if defined(__SCALAPACK)
 
@@ -1898,7 +1886,7 @@ end subroutine allocate_blacs_matrix_vect
     context => matrix%matrix_struct%context
     n = matrix%matrix_struct%nrow_global
 
-    a => matrix%p(context%mepos(1),context%mepos(2))%block
+    a => matrix%local_data
 
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
@@ -1943,8 +1931,8 @@ end subroutine allocate_blacs_matrix_vect
     n = matrix%matrix_struct%nrow_global
     itype =1
 
-    a => matrix%p(context%mepos(1),context%mepos(2))%block
-    b => matrixb%p(context%mepos(1),context%mepos(2))%block
+    a => matrix%local_data
+    b => matrixb%local_data
 
 #if defined(__SCALAPACK)
 
@@ -2003,9 +1991,9 @@ end subroutine allocate_blacs_matrix_vect
     ENDIF
 
     ! notice b is the cholesky guy
-    a => matrix%p(myprow,mypcol)%block
-    b => matrixb%p(myprow,mypcol)%block
-    out => matrixout%p(myprow,mypcol)%block
+    a => matrix%local_data
+    b => matrixb%local_data
+    out => matrixout%local_data
 
 #if defined(__SCALAPACK)
 
@@ -2138,8 +2126,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     mypcol=context%mepos(2)
     n = msource%matrix_struct%nrow_global
 
-    a => msource%p(myprow,mypcol)%block
-    b => mtarget%p(myprow,mypcol)%block
+    a => msource%local_data
+    b => mtarget%local_data
 
 #if defined(__SCALAPACK)
     desca(:) = msource%matrix_struct%descriptor(:)
@@ -2159,10 +2147,11 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !especially in parallel with thightly clustered evals
 !needs more workspace
 !*************************************************************************
-  SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues)
+  SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues,error)
 
     TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
+    type(cp_error_type), intent(inout), optional :: error
 
     INTEGER  :: handle,info,istat,liwork,lwork,mypcol,myprow,n
 
@@ -2171,20 +2160,24 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     REAL(wp), DIMENSION(:), POINTER :: work
     INTEGER, DIMENSION(:), POINTER  :: iwork
     type(cp_blacs_env_type), pointer          :: context
+    logical :: failure
+    character(len=*), parameter :: routineN='blacs_syevd',&
+         routineP=moduleN//':'//routineN
+!!FM    integer :: muno1,muno2
 
     CALL timeset("blacs_syevd","I","",handle)
-
+    failure=.false.
    
     context => matrix%matrix_struct%context
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     n = matrix%matrix_struct%nrow_global
 
-    m => matrix%p(myprow,mypcol)%block
+    m => matrix%local_data
 
 #if defined(__SCALAPACK)
     descm(:) = matrix%matrix_struct%descriptor(:)
-    v => eigenvectors%p(myprow,mypcol)%block
+    v => eigenvectors%local_data
     descv(:) = eigenvectors%matrix_struct%descriptor(:)
 
     liwork=7*n+8*context%num_pe(2)+2
@@ -2203,13 +2196,14 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     CALL PDSYEVD('V','U',n,m(1,1),1,1,descm,eigenvalues(1),v(1,1),1,1,descv, &
                   work(1),lwork,iwork(1),liwork,info)
 #else
-    lwork=1+6*n+2*n**2
+    ! for n=4 with my lapack (linux) I need to add 50 to the value of lwork.
+    ! unfortunately query is not supported. I did not test n dependence[fawzi]
+    lwork=1+6*n+2*n**2+50
     liwork=5*n+3
     allocate(work(lwork),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","work")
     allocate(iwork(liwork),STAT=istat)
     if (istat.ne.0) CALL stop_memory("blacs_syevd","iwork")
-
     CALL DSYEVD('V','U', n, m(1,1), n, eigenvalues(1), work(1), lwork, iwork(1), liwork, info)
     CALL copy_blacs_to_blacs_matrix(matrix,eigenvectors)
 #endif
@@ -2249,8 +2243,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 !   *** Local parameters ***
 
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE blas_syevx (MODULE qs_blacs)"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "blacs_syevx",&
+      routineP=moduleN//':'//routineN
     REAL(wp), PARAMETER :: abstol = 0.0_wp,&
                            orfac = -1.0_wp,&
                            vl = 0.0_wp,&
@@ -2275,8 +2269,6 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     INTEGER, EXTERNAL  :: ilaenv
 #endif
 
-    type(cp_logger_type), pointer :: logger
-
 !   ---------------------------------------------------------------------------
 
     CALL timeset("blacs_syevx","I","",handle)
@@ -2284,9 +2276,6 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     ! to do : redefine io using error
     ionode = matrix%matrix_struct%para_env%mepos==&
          matrix%matrix_struct%para_env%source ! globenv%ionode
-    ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX CORE DUMP XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    !output_unit = cp_logger_get_default_unit_nr(cp_error_get_logger(error))! globenv%scr
-    output_unit = 6
 
     context =>  matrix%matrix_struct%context
     myprow=context%mepos(1)
@@ -2297,19 +2286,19 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     n = matrix%matrix_struct%nrow_global
 
     ALLOCATE (w(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"w",n*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"w",n*wp_size)
     w(:) = 0.0_wp
 
     eigenvalues(:) = 0.0_wp
 #if defined(__SCALAPACK)
 
     IF (matrix%matrix_struct%nrow_block /= matrix%matrix_struct%ncol_block) THEN
-       CALL stop_program(routine,"Invalid blocksize (no square blocks)")
+       CALL stop_program(routineP,"Invalid blocksize (no square blocks)")
     END IF
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
     desca(:) = matrix%matrix_struct%descriptor(:)
-    z => eigenvectors%p(myprow,mypcol)%block
+    z => eigenvectors%local_data
     descz(:) = eigenvectors%matrix_struct%descriptor(:)
 
 !   *** Get the optimal work storage size ***
@@ -2325,26 +2314,26 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     liwork = MAX(3*n + npe + 1,4*n,14) + 2*n
 
     ALLOCATE (gap(npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gap",npe*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"gap",npe*wp_size)
     gap(:) = 0.0_wp
     ALLOCATE (iclustr(2*npe),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iclustr",2*npe*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"iclustr",2*npe*int_size)
     iclustr(:) = 0
     ALLOCATE (ifail(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ifail",n*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"ifail",n*int_size)
     ifail(:) = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iwork",liwork*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     iwork(:) = 0
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",lwork*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*wp_size)
     work(:) = 0.0_wp
     ! write(6,*) "done allocate"
 
 !   *** Diagonalise matrix ***
 !    if (PRESENT(bmatrix)) then
 !       itype=1
-!       b => bmatrix%p(myprow,mypcol)%block
+!       b => bmatrix%local_data
 !       descb(:) = matrix%matrix_struct%descriptor(:)
 !       CALL pdsygvx(itype,"V","I","U",n,a,1,1,desca,b,1,1,descb,vl,vu,1,neig, &
 !                 abstol,m,nz,w,orfac,&
@@ -2359,6 +2348,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   *** Error handling ***
 
     IF (info /= 0) THEN
+       output_unit = cp_logger_get_unit_nr(cp_error_get_logger(error),&
+            cp_failure_level,routineP,local=.false.)
       IF (ionode) THEN
         WRITE (unit=output_unit,FMT="(/,(T3,A,T12,1X,I10))")&
           "info    = ",info,&
@@ -2374,26 +2365,26 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
             "gap     = ",gap
         END IF
       END IF
-      CALL stop_program(routine,"Error in pdsyevx")
+      CALL stop_program(routineP,"Error in pdsyevx")
     END IF
 
 !   *** Release work storage ***
 
     DEALLOCATE (gap,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"gap")
+    IF (istat /= 0) CALL stop_memory(routineP,"gap")
     DEALLOCATE (iclustr,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iclustr")
+    IF (istat /= 0) CALL stop_memory(routineP,"iclustr")
     DEALLOCATE (ifail,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ifail")
+    IF (istat /= 0) CALL stop_memory(routineP,"ifail")
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iwork")
+    IF (istat /= 0) CALL stop_memory(routineP,"iwork")
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
 #else
 
-    a => matrix%p(myprow,mypcol)%block
-    z => eigenvectors%p(myprow,mypcol)%block
+    a => matrix%local_data
+    z => eigenvectors%local_data
 
 !   *** Get the optimal work storage size ***
 
@@ -2404,20 +2395,20 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     liwork = 5*n
 
     ALLOCATE (ifail(n),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ifail",n*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"ifail",n*int_size)
     ifail(:) = 0
     ALLOCATE (iwork(liwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iwork",liwork*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"iwork",liwork*int_size)
     iwork(:) = 0
     ALLOCATE (work(lwork),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",lwork*wp_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"work",lwork*wp_size)
     work(:) = 0.0_wp
 
 !   *** Diagonalise matrix ***
 !   dsygvx seems not to be in all lapack versions ...
 !    if (PRESENT(bmatrix)) then
 !       itype=1
-!       b => bmatrix%p(source,source)%block
+!       b => bmatrix%local_data
 !       CALL dsygvx(itype,"V","I","U",n,a,n,b,n,vl,vu,1,neig,abstol,m,w,z,n, &
 !                   work,lwork,iwork,ifail,info)
 !    else
@@ -2427,21 +2418,21 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 !   *** Error handling ***
 
-    IF (info /= 0) CALL stop_program(routine,"Error in dsyevx")
+    IF (info /= 0) CALL stop_program(routineP,"Error in dsyevx")
 
 !   *** Release work storage ***
 
     DEALLOCATE (ifail,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"ifail")
+    IF (istat /= 0) CALL stop_memory(routineP,"ifail")
     DEALLOCATE (iwork,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"iwork")
+    IF (istat /= 0) CALL stop_memory(routineP,"iwork")
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineP,"work")
 
 #endif
     eigenvalues(1:neig) = w(1:neig)
     DEALLOCATE (w,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"w")
+    IF (istat /= 0) CALL stop_memory(routineP,"w")
 
     CALL timestop(0.0_wp,handle)
 
@@ -2481,9 +2472,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-    a => matrix_a%p(myprow,mypcol)%block
-    b => matrix_b%p(myprow,mypcol)%block
-    c => matrix_c%p(myprow,mypcol)%block
+    a => matrix_a%local_data
+    b => matrix_b%local_data
+    c => matrix_c%local_data
 
 #if defined(__SCALAPACK)
 
@@ -2541,8 +2532,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     npcol=context%num_pe(2)
     n = matrix_a%matrix_struct%nrow_global
 
-    a => matrix_a%p(myprow,mypcol)%block
-    c => matrix_c%p(myprow,mypcol)%block
+    a => matrix_a%local_data
+    c => matrix_c%local_data
 
 #if defined(__SCALAPACK)
 
@@ -2591,9 +2582,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
 
-    a => matrix_a%p(myprow,mypcol)%block
-    b => matrix_b%p(myprow,mypcol)%block
-    c => matrix_c%p(myprow,mypcol)%block
+    a => matrix_a%local_data
+    b => matrix_b%local_data
+    c => matrix_c%local_data
 
     nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
     ncol_local = matrix_a%matrix_struct%ncol_local(mypcol)
@@ -2641,8 +2632,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
     group = matrix_a%matrix_struct%para_env%group
 
-    a => matrix_a%p(myprow,mypcol)%block
-    b => matrix_b%p(myprow,mypcol)%block
+    a => matrix_a%local_data
+    b => matrix_b%local_data
 
     nrow_local = matrix_a%matrix_struct%nrow_local(myprow)
     ncol_local = matrix_b%matrix_struct%ncol_local(mypcol)
@@ -2662,8 +2653,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
   END SUBROUTINE blacs_trace
 
 ! *****************************************************************************
-
-  SUBROUTINE copy_blacs_to_blacs_matrix(source,target)
+  SUBROUTINE copy_blacs_to_blacs_matrix(source,target,error)
 
 !   Purpose: Copy BLACS matrix to a BLACS matrix of the same type.
 
@@ -2672,6 +2662,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER :: source,target
+    type(cp_error_type), intent(inout), optional :: error
 
 !   *** Local parameters ***
 
@@ -2682,44 +2673,49 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
     INTEGER :: ipcol,iprow,istat,npcol,nprow,ncol_local,nrow_local,msize1,msize2
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
+    logical :: failure
 
 !   ---------------------------------------------------------------------------
 
-    nprow = SIZE(source%p,1)
-    npcol = SIZE(source%p,2)
+    failure=.true.
+    nprow = source%matrix_struct%context%num_pe(1)
+    npcol = source%matrix_struct%context%num_pe(2)
 
-    DO iprow=0,nprow-1
-      DO ipcol=0,npcol-1
-        IF (ASSOCIATED(source%p(iprow,ipcol)%block)) THEN
-          IF (.NOT.ASSOCIATED(target%p(iprow,ipcol)%block)) THEN
-            nrow_local = target%matrix_struct%nrow_local(iprow)
-            ncol_local = target%matrix_struct%ncol_local(ipcol)
-            ALLOCATE (target%p(iprow,ipcol)%block(nrow_local,ncol_local),&
-                      STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"target%p(iprow,ipcol)%block",&
-                               nrow_local*ncol_local*wp_size)
-            END IF
-          END IF
-          msize1=SIZE(source%p(iprow,ipcol)%block,1)*SIZE(source%p(iprow,ipcol)%block,2)
-          msize2=SIZE(target%p(iprow,ipcol)%block,1)*SIZE(target%p(iprow,ipcol)%block,2)
-          if (msize1.ne.msize2) then
-             CALL stop_program("copy_blacs_to_blacs_matrix","no identical sizes")
-          endif
-          a => source%p(iprow,ipcol)%block
-          b => target%p(iprow,ipcol)%block
-          CALL DCOPY(msize1,a(1,1),1,b(1,1),1)
-        ELSE
-          IF (ASSOCIATED(target%p(iprow,ipcol)%block)) THEN
-            DEALLOCATE (target%p(iprow,ipcol)%block,STAT=istat)
-            IF (istat /= 0) THEN
-              CALL stop_memory(routine,"target%p(iprow,ipcol)%block")
-            END IF
-          END IF
-        END IF
-      END DO
-    END DO
-
+    if(.not. cp2k_is_parallel .or.&
+         cp_fmstruct_equivalent(source%matrix_struct,&
+         target%matrix_struct,error=error)) then
+      call cp_assert(size(source%local_data,1)==size(target%local_data,1).and.&
+         size(source%local_data,2)==size(target%local_data,2),cp_failure_level,&
+         cp_assertion_failed, routine, &
+         "internal error, local_data has different sizes"//&
+         CPSourceFileRef,&
+         error=error)
+      call dcopy(size(source%local_data,1)*size(source%local_data,2),&
+           source%local_data(1,1),1,target%local_data(1,1),1)
+   else
+      call cp_assert(source%matrix_struct%nrow_global==&
+           target%matrix_struct%nrow_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between blacs matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+      call cp_assert(source%matrix_struct%ncol_global==&
+           target%matrix_struct%ncol_global,&
+           cp_failure_level,&
+           cp_assertion_failed, routine, &
+           "cannot copy between blacs matrixes of differen sizes"//&
+           CPSourceFileRef,&
+           error=error)
+#ifdef __SCALAPACK
+      call pdcopy(source%matrix_struct%nrow_global*&
+           source%matrix_struct%ncol_global,&
+           source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
+           target%local_data(1,1),1,1,target%matrix_struct%descriptor,1)
+#else
+      CPAssert(.false.,cp_failure_level,routine,error,failure)
+#endif
+   end if
   END SUBROUTINE copy_blacs_to_blacs_matrix
 
 ! *****************************************************************************
@@ -2729,7 +2725,8 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !   Purpose: Copy a BLACS matrix to a full matrix.
 
 !   History: - Creation (18.06.2001, Matthias Krack)
-
+!   - 08.2002 changed for the transition to local_data, unoptimized 
+!     (but used for debugging only...) [fawzi]
 !   ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
@@ -2798,19 +2795,18 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
         IF (ionode) THEN
 
           IF (ipe /= mype) THEN
-            ALLOCATE (blacs_matrix%p(iprow,ipcol)%block(nrow_local,&
-                                                        ncol_local),&
+            ALLOCATE (blacs_block(nrow_local, ncol_local),&
                       STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block",&
+              CALL stop_memory(routine,"alloc blacs_block",&
                                nrow_local*ncol_local*wp_size)
             END IF
             CALL dgerv2d(context%group,nrow_local,ncol_local,&
-                         blacs_matrix%p(iprow,ipcol)%block(1,1),nrow_local,&
+                         blacs_block(1,1),nrow_local,&
                          iprow,ipcol)
+          ELSE
+            blacs_block => blacs_matrix%local_data
           END IF
-
-          blacs_block => blacs_matrix%p(iprow,ipcol)%block
 
           DO icol_local=1,ncol_local
             icol_global = indxl2g(icol_local,ncol_block,ipcol,&
@@ -2824,9 +2820,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
           END DO
 
           IF (ipe /= mype) THEN
-            DEALLOCATE (blacs_matrix%p(iprow,ipcol)%block,STAT=istat)
+            DEALLOCATE (blacs_block,STAT=istat)
             IF (istat /= 0) THEN
-              CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block")
+              CALL stop_memory(routine,"dealloc blacs_block")
             END IF
           END IF
 
@@ -2834,7 +2830,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
           IF (ipe == mype) THEN
             CALL dgesd2d(context%group,nrow_local,ncol_local,&
-                         blacs_matrix%p(iprow,ipcol)%block(1,1),nrow_local,&
+                         blacs_matrix%local_data(1,1),nrow_local,&
                          blacs_matrix%matrix_struct%first_p_pos(1),&
                          blacs_matrix%matrix_struct%first_p_pos(2))
           END IF
@@ -2848,7 +2844,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 #else
 
-    full_matrix(:,:) = blacs_matrix%p(myprow,mypcol)%block(:,:)
+    full_matrix(:,:) = blacs_matrix%local_data(:,:)
 
 #endif
     CALL timestop(0.0_wp,handle)
@@ -2863,7 +2859,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 !            are deallocated during the copy procedure.
 
 !   History: - Creation (06.06.2001, Matthias Krack)
-
+!   08.2002 adapted to local_data, could be optimized
 !   ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
@@ -2923,15 +2919,16 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
         IF (ipe /= mype) THEN
           nrow_local = blacs_matrix%matrix_struct%nrow_local(iprow)
           ncol_local = blacs_matrix%matrix_struct%ncol_local(ipcol)
-          ALLOCATE (blacs_matrix%p(iprow,ipcol)%block(nrow_local,ncol_local),&
+          ALLOCATE (blacs_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block",&
+            CALL stop_memory(routine,"alloc blacs_block",&
                              nrow_local*ncol_local*wp_size)
           END IF
+        ELSE
+          blacs_block => blacs_matrix%local_data
         END IF
 
-        blacs_block => blacs_matrix%p(iprow,ipcol)%block
 
         CALL mp_bcast(blacs_block,ipe,group)
 
@@ -2992,9 +2989,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
         END DO
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (blacs_matrix%p(iprow,ipcol)%block,STAT=istat)
+          DEALLOCATE (blacs_block,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block")
+             CALL stop_memory(routine,"dealloc blacs_block")
           END IF
         END IF
 
@@ -3003,7 +3000,7 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 #else
 
-    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+    blacs_block => blacs_matrix%local_data
 
     DO iblock_row=1,nblock_row
 
@@ -3114,15 +3111,15 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
         IF (ipe /= mype) THEN
           nrow_local = blacs_matrix%matrix_struct%nrow_local(iprow)
           ncol_local = blacs_matrix%matrix_struct%ncol_local(ipcol)
-          ALLOCATE (blacs_matrix%p(iprow,ipcol)%block(nrow_local,ncol_local),&
+          ALLOCATE (blacs_block(nrow_local,ncol_local),&
                     STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block",&
+            CALL stop_memory(routine,"alloc blacs_block",&
                              nrow_local*ncol_local*wp_size)
           END IF
+        ELSE
+           blacs_block => blacs_matrix%local_data
         END IF
-
-        blacs_block => blacs_matrix%p(iprow,ipcol)%block
 
         blacs_block(:,:) = 0.0_wp
 
@@ -3185,9 +3182,9 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
         CALL mp_sum(blacs_block,ipe,group)
 
         IF (ipe /= mype) THEN
-          DEALLOCATE (blacs_matrix%p(iprow,ipcol)%block,STAT=istat)
+          DEALLOCATE (blacs_block,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routine,"blacs_matrix%p(iprow,ipcol)%block")
+            CALL stop_memory(routine,"dealloc blacs_block")
           END IF
         END IF
 
@@ -3196,18 +3193,18 @@ subroutine blacs_triangular_multiply(triangular_matrix,b_matrix,side,&
 
 #else
 
-    IF (.NOT.ASSOCIATED(blacs_matrix%p(myprow,mypcol)%block)) THEN
+    IF (.NOT.ASSOCIATED(blacs_matrix%local_data)) THEN
       nrow_local = blacs_matrix%matrix_struct%nrow_local(myprow)
       ncol_local = blacs_matrix%matrix_struct%ncol_local(mypcol)
-      ALLOCATE (blacs_matrix%p(myprow,mypcol)%block(nrow_local,ncol_local),&
+      ALLOCATE (blacs_matrix%local_data(nrow_local,ncol_local),&
                 STAT=istat)
       IF (istat /= 0) THEN
-        CALL stop_memory(routine,"blacs_matrix%p(source,source)%block",&
+        CALL stop_memory(routine,"blacs_matrix%local_data",&
                          nrow_local*ncol_local*wp_size)
       END IF
     END IF
 
-    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+    blacs_block => blacs_matrix%local_data
 
     blacs_block(:,:) = 0.0_wp
 
@@ -3530,7 +3527,7 @@ end subroutine deallocate_blacs_matrix_vect
     nrow_block = work%matrix_struct%nrow_block
     ncol_block = work%matrix_struct%ncol_block
 
-    eigenvectors => work%p(myprow,mypcol)%block
+    eigenvectors => work%local_data
 
 !   *** Build matrix**exponent with eigenvector quenching ***
 
@@ -3589,7 +3586,7 @@ end subroutine deallocate_blacs_matrix_vect
 
 #else
 
-    eigenvectors => work%p(myprow,mypcol)%block
+    eigenvectors => work%local_data
 
 !   *** Build matrix**exponent with eigenvector quenching ***
 
@@ -3647,7 +3644,7 @@ end subroutine deallocate_blacs_matrix_vect
     nrow_local = matrix%matrix_struct%nrow_local(myprow)
     ncol_local = matrix%matrix_struct%ncol_local(mypcol)
 
-    READ (UNIT=lunit) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
+    READ (UNIT=lunit) ((matrix%local_data(i,j),i=1,nrow_local),&
                                                            j=1,ncol_local)
 
   END SUBROUTINE read_blacs_matrix
@@ -3678,10 +3675,10 @@ end subroutine deallocate_blacs_matrix_vect
 
     call cp_fm_create(new_matrix,prototype_matrix%matrix_struct)
     context => prototype_matrix%matrix_struct%context
-    call dcopy(size(new_matrix%p(context%mepos(1),context%mepos(2))%block,1)*&
-         size(new_matrix%p(context%mepos(1),context%mepos(2))%block,2),&
-         prototype_matrix%p(context%mepos(1),context%mepos(2))%block(1,1),&
-         1,new_matrix%p(context%mepos(1),context%mepos(2))%block(1,1),1)
+    call dcopy(size(new_matrix%local_data,1)*&
+         size(new_matrix%local_data,2),&
+         prototype_matrix%local_data(1,1),&
+         1,new_matrix%local_data(1,1),1)
 
   END SUBROUTINE replicate_blacs_matrix
 
@@ -3718,8 +3715,8 @@ end subroutine deallocate_blacs_matrix_vect
     nrow_global = matrix%matrix_struct%nrow_global
     ncol_global = matrix%matrix_struct%ncol_global
 
-    a => matrix%p(myprow,mypcol)%block
-    c => matrixt%p(myprow,mypcol)%block
+    a => matrix%local_data
+    c => matrixt%local_data
 
 #if defined(__SCALAPACK)
     desca(:) = matrix%matrix_struct%descriptor(:)
@@ -3784,9 +3781,9 @@ end subroutine deallocate_blacs_matrix_vect
     nrow_local = matrix%matrix_struct%nrow_local(myprow)
     ncol_local = matrix%matrix_struct%ncol_local(mypcol)
 
-    a => work%p(myprow,mypcol)%block
+    a => work%local_data
     desca(:) = work%matrix_struct%descriptor(:)
-    c => matrix%p(myprow,mypcol)%block
+    c => matrix%local_data
     descc(:) = matrix%matrix_struct%descriptor(:)
 
     DO icol_local=1,ncol_local
@@ -3809,7 +3806,7 @@ end subroutine deallocate_blacs_matrix_vect
 
 #else
 
-    a => matrix%p(myprow,mypcol)%block
+    a => matrix%local_data
 
     CALL symmetrize_matrix(a,"upper_to_lower")
 
@@ -3855,16 +3852,16 @@ end subroutine deallocate_blacs_matrix_vect
          write(6,*) "row ,col ,value"
          DO j=1,ncol_local
          DO i=1,nrow_local
-         WRITE (UNIT=lunit,FMT='(I5,I5,F6.2)') i,j,matrix%p(myprow,mypcol)%block(i,j)
+         WRITE (UNIT=lunit,FMT='(I5,I5,F6.2)') i,j,matrix%local_data(i,j)
          ENDDO
          ENDDO
        ELSE
           WRITE (UNIT=lunit)&
-            ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
+            ((matrix%local_data(i,j),i=1,nrow_local),&
                                                  j=1,ncol_local)
        ENDIF
     ELSE
-          WRITE (UNIT=lunit) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
+          WRITE (UNIT=lunit) ((matrix%local_data(i,j),i=1,nrow_local),&
                                                             j=1,ncol_local)
 
     ENDIF
@@ -4035,8 +4032,8 @@ end subroutine deallocate_blacs_matrix_vect
        do sm_block_nr=1,nblock_col
           call get_block_node(target_ptr,sm_block_nr,sm_block_nr,&
                block=block_val)
-          block_val=block_val+source_m%p(context%mepos(1),context%mepos(2))%&
-               block(first_row(sm_block_nr):last_row(sm_block_nr),&
+          block_val=block_val+source_m%local_data &
+               (first_row(sm_block_nr):last_row(sm_block_nr),&
                first_col(sm_block_nr):last_col(sm_block_nr))
        end do
 #endif
@@ -4198,34 +4195,34 @@ end subroutine deallocate_blacs_matrix_vect
 #if defined(__SCALAPACK)
     call stop_program("blacs_jacobi_davidson","is not parallel")
 
-    a => matrix_a%p(myprow,mypcol)%block
+    a => matrix_a%local_data
     desca(:) = matrix_a%matrix_struct%descriptor(:)
 
-    v => matrix_v%p(myprow,mypcol)%block
+    v => matrix_v%local_data
     descv(:) = matrix_v%matrix_struct%descriptor(:)
 
-    work => matrix_work%p(myprow,mypcol)%block
+    work => matrix_work%local_data
     descwork(:) = matrix_work%matrix_struct%descriptor(:)
 
-    vecbuf => vecbuffer%p(myprow,mypcol)%block
+    vecbuf => vecbuffer%local_data
     descvecbuf(:) = vecbuffer%matrix_struct%descriptor(:)
 
-    overlap_vh => matrix_overlap_vh%p(myprow,mypcol)%block
+    overlap_vh => matrix_overlap_vh%local_data
     descvh(:) = matrix_overlap_vh%matrix_struct%descriptor(:)
 
-    overlap_hh => matrix_overlap_hh%p(myprow,mypcol)%block
+    overlap_hh => matrix_overlap_hh%local_data
     deschh(:) = matrix_overlap_hh%matrix_struct%descriptor(:)
 
-    overlap_vv => matrix_overlap_vv%p(myprow,mypcol)%block
+    overlap_vv => matrix_overlap_vv%local_data
     descvv(:) = matrix_overlap_vv%matrix_struct%descriptor(:)
 #else
-    a => matrix_a%p(myprow,mypcol)%block
-    v => matrix_v%p(myprow,mypcol)%block
-    work => matrix_work%p(myprow,mypcol)%block
-    vecbuf => vecbuffer%p(myprow,mypcol)%block
-    overlap_vh => matrix_overlap_vh%p(myprow,mypcol)%block
-    overlap_hh => matrix_overlap_hh%p(myprow,mypcol)%block
-    overlap_vv => matrix_overlap_vv%p(myprow,mypcol)%block
+    a => matrix_a%local_data
+    v => matrix_v%local_data
+    work => matrix_work%local_data
+    vecbuf => vecbuffer%local_data
+    overlap_vh => matrix_overlap_vh%local_data
+    overlap_hh => matrix_overlap_hh%local_data
+    overlap_vv => matrix_overlap_vv%local_data
 #endif
 
 ! ****************************************************************************
@@ -4598,7 +4595,7 @@ subroutine blacs_scale_and_d(blacs_matrix,scale, diagonal_add,error)
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
 
-    blacs_block => blacs_matrix%p(myprow,mypcol)%block
+    blacs_block => blacs_matrix%local_data
 
     if (diag==0.0_wp) then
       blacs_block=sc*blacs_block

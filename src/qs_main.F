@@ -43,6 +43,7 @@ MODULE qs_main
   USE qs_tddfpt_module,     ONLY: tddfpt_calculation
   USE timings,              ONLY: timeset,&
                                   timestop
+  USE termination,          ONLY: stop_program
 
   USE qs_build_ks_matrix, ONLY: qs_ks_env_type
 
@@ -80,8 +81,11 @@ CONTAINS
 
     CALL timeset("Quickstep","I","",handle)
 
+#if defined(__parallel) && (! defined(__BLACS) || ! defined(__SCALAPACK))
+    call stop_program("qs_main:quickstep",&
+         "quikstep need blacs and scalapack for parallel runs",globenv)
+#endif
 !   *** Initialise BLACS ***
-
     CALL start_blacs(globenv)
 
 !   *** Read the input and the database files and perform further  ***

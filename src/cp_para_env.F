@@ -336,6 +336,13 @@ contains
 !!   NAME
 !!     cp_para_env_from_globenv
 !!
+!!   SYNOPSIS
+!!     Function cp_para_env_from_globenv(global_env, error) Result(res)
+!!       Type(cp_para_env_type), Pointer:: res
+!!       Type(global_environment_type), Intent (IN), Target:: global_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Function cp_para_env_from_globenv
+!!
 !!   FUNCTION
 !!     returns the parallel environment stored in the global environment
 !!     gives a warning if not initialized
@@ -374,6 +381,13 @@ end function cp_para_env_from_globenv
 !!
 !!   NAME
 !!     cp_para_env_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_para_env_write(para_env, unit_nr, error)
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_para_env_write
 !!
 !!   FUNCTION
 !!     writes a description of the parallel environment to the given unit
