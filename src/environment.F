@@ -16,6 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     - init_mathcon is now called (27.02.2001, MK)
 !!     - Merged with Quickstep MODULE start_program_run (17.01.2002, MK)
+!!     - Compile information added (16.01.2002,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -54,6 +55,15 @@ MODULE environment
 
   PRIVATE
 
+#if defined(__COMPILE_ARCH)
+  CHARACTER(LEN=*), PARAMETER :: compile_arch = __COMPILE_ARCH
+#endif
+#if defined(__COMPILE_DATE)
+  CHARACTER(LEN=*), PARAMETER :: compile_date = __COMPILE_DATE
+#endif
+#if defined(__COMPILE_HOST)
+  CHARACTER(LEN=*), PARAMETER :: compile_host = __COMPILE_HOST
+#endif
   CHARACTER(LEN=60) :: curdir = " " !! current directory name
   CHARACTER(LEN=32) :: hname = " "  !! name of the computer
   CHARACTER(LEN=10) :: user = " "   !! user name
@@ -156,6 +166,21 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(T21,A60)") ADJUSTR(curdir)
       END IF
       WRITE (UNIT=output_unit,FMT=*)
+#if defined(__COMPILE_DATE)
+      WRITE (UNIT=*,FMT="(T2,A,T31,A50)")&
+        "CP2K| Program compiled at",&
+        ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+#endif
+#if defined(__COMPILE_HOST)
+      WRITE (UNIT=*,FMT="(T2,A,T31,A50)")&
+        "CP2K| Program compiled on",&
+        ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+#endif
+#if defined(__COMPILE_ARCH)
+      WRITE (UNIT=*,FMT="(T2,A,T31,A50)")&
+        "CP2K| Program compiled for",&
+        ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+#endif
     END IF
 
 !   *** Read the input section with the input/output parameters ***

@@ -678,8 +678,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_blacs_matrix(blacs_matrix,before,after,context,qs_env,&
-                                globenv)
+  SUBROUTINE write_blacs_matrix(blacs_matrix,before,after,qs_env,globenv)
 
 !   Purpose: Write a spherical matrix of blacs_type.
 
@@ -690,7 +689,7 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(IN)     :: qs_env
-    INTEGER, INTENT(IN)                       :: after,before,context
+    INTEGER, INTENT(IN)                       :: after,before
 
 !   *** Local parameters ***
 
@@ -725,7 +724,7 @@ CONTAINS
     CALL get_blacs_matrix_info(blacs_matrix,name=name)
 
     NULLIFY (matrix)
-    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix,context,globenv)
+    CALL copy_blacs_to_full_matrix(blacs_matrix,matrix,globenv)
 
     IF (.NOT.globenv%ionode) RETURN
 

@@ -36,6 +36,7 @@ MODULE qs_init
                                              write_qs_control
   USE gamma,                           ONLY: init_md_ftable
   USE global_types,                    ONLY: global_environment_type
+  USE machine,                         ONLY: m_flush
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              init_particle_set,&
@@ -45,6 +46,8 @@ MODULE qs_init
   USE qs_environment_types,            ONLY: init_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
+  USE qs_energy_types,                 ONLY: allocate_qs_energy,&
+                                             qs_energy_type
   USE qs_force_types,                  ONLY: allocate_qs_force,&
                                              qs_force_type
   USE qs_interactions,                 ONLY: init_interaction_radii
@@ -91,13 +94,18 @@ CONTAINS
     TYPE(dft_control_type), POINTER               :: dft_control
     TYPE(pao_env_type), POINTER                   :: pao_env
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
+    TYPE(qs_energy_type), POINTER                 :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
 
-    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl,nkind
+    INTEGER :: handle,lmax,maxl,maxlppl,maxlppnl,nkind,output_unit
+    LOGICAL :: ionode
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("read_qs_env","I","",handle)
+
+    ionode = globenv%ionode
+    output_unit = globenv%scr
 
 !   *** Initialise the QUICKSTEP environment ***
 
@@ -106,6 +114,7 @@ CONTAINS
     NULLIFY (dft_control)
     NULLIFY (pao_env)
     NULLIFY (particle_set)
+    NULLIFY (energy)
     NULLIFY (force)
 
     CALL init_qs_env(qs_env)
@@ -206,6 +215,10 @@ CONTAINS
 
     CALL write_scf_parameters(globenv)
 
+!   *** Allocate the data structure for Quickstep energies ***
+
+    CALL allocate_qs_energy(energy)
+
 !   *** Allocate the force data structure ***
 
     IF (dft_control%forces) THEN
@@ -221,6 +234,7 @@ CONTAINS
                     dft_control=dft_control,&
                     pao_env=pao_env,&
                     particle_set=particle_set,&
+                    energy=energy,&
                     force=force)
 
 !   *** Read the pao section ***
@@ -230,6 +244,8 @@ CONTAINS
        call pao_env_init_from_file(qs_env,globenv)
        !call cp_write_description(pao_env, unit_nr=globenv%scr)
     end if
+
+    IF (ionode) CALL m_flush(output_unit)
 
     CALL timestop(0.0_wp,handle)
 

@@ -132,7 +132,7 @@ MODULE qs_neighbor_lists
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_qs_neighbor_lists
+  PUBLIC :: build_neighbor_lists
 
 ! *****************************************************************************
 
@@ -140,7 +140,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv)
+  SUBROUTINE build_neighbor_lists(qs_env,globenv)
 
 !   Purpose: Build all the required neighbor lists.
 
@@ -154,7 +154,7 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE build_qs_neighbor_lists (MODULE qs_neighbor_lists)"
+      "SUBROUTINE build_neighbor_lists (MODULE qs_neighbor_lists)"
 
 !   *** Local variables ***
 
@@ -167,7 +167,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("build_qs_neighbor_lists","I","",handle)
+    CALL timeset("build_neighbor_lists","I","",handle)
 
     group = globenv%group
     ionode = globenv%ionode
@@ -418,7 +418,7 @@ CONTAINS
 
     CALL timestop(0.0_wp,handle)
 
-  END SUBROUTINE build_qs_neighbor_lists
+  END SUBROUTINE build_neighbor_lists
 
 ! *****************************************************************************
 

@@ -13,6 +13,7 @@
 !!     MK (03.06.2002)
 !!
 !!   MODIFICATION HISTORY
+!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -123,6 +124,11 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    IF (.NOT.ASSOCIATED(qs_force)) THEN
+      CALL stop_program(routine,"The qs_force pointer is not associated "//&
+                                "and cannot be deallocated")
+    END IF
+
     nkind = SIZE(qs_force)
 
     DO ikind=1,nkind
@@ -219,7 +225,8 @@ CONTAINS
     IF (.NOT.globenv%print%forces) RETURN
 
     IF (.NOT.ASSOCIATED(qs_force)) THEN
-      CALL stop_program(routine,"The qs_force pointer is not associated")
+      CALL stop_program(routine,"The qs_force pointer is not associated "//&
+                                "and cannot be printed")
     END IF
 
     output_unit = globenv%scr

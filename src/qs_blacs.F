@@ -135,7 +135,7 @@ MODULE qs_blacs
             blacs_cholesky_invert, &
             blacs_cholesky_reduce, &
             blacs_cholesky_restore, &
-            blacs_jacobi_davidson, & 
+            blacs_jacobi_davidson, &
             blacs_column_copy, &
             blacs_make_basis, &
             blacs_init_random, &
@@ -151,7 +151,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE allocate_blacs_matrix(new_matrix,nrow_global,ncol_global,&
-                                   nrow_block,ncol_block,name,context,globenv)
+                                   nrow_block,ncol_block,name,globenv)
 
 !   Purpose: Allocate a new distributed BLACS matrix.
 
@@ -162,7 +162,7 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: new_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=*), INTENT(IN)              :: name
-    INTEGER, INTENT(IN)                       :: context,ncol_block,&
+    INTEGER, INTENT(IN)                       :: ncol_block,&
                                                  ncol_global,nrow_block,&
                                                  nrow_global
 
@@ -174,8 +174,8 @@ CONTAINS
 !   *** Local variables ***
 
     CHARACTER(LEN=40) :: message
-    INTEGER           :: group,ierror,ipcol,ipe,iprow,istat,mype,mypcol,&
-                         myprow,ncol_local,npcol,npe,nprow,nrow_local,&
+    INTEGER           :: context,group,ierror,ipcol,ipe,iprow,istat,mype,&
+                         mypcol,myprow,ncol_local,npcol,npe,nprow,nrow_local,&
                          output_unit,source
     LOGICAL           :: ionode
 
@@ -191,6 +191,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+    context = globenv%context
 
     ALLOCATE (new_matrix,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"new_matrix",int_size)
@@ -307,29 +308,29 @@ CONTAINS
   END SUBROUTINE allocate_blacs_matrix
 
 ! *****************************************************************************
-  SUBROUTINE blacs_set_local_block(matrix,block,context,globenv)
+  SUBROUTINE blacs_set_local_block(matrix,block,globenv)
 ! *****************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp),DIMENSION(:,:), POINTER          :: block,mblock
 
-    INTEGER nprow,npcol,myprow,mypcol
-    INTEGER nrow_local,ncol_local,source,nelements
-   
+    INTEGER :: context,nprow,npcol,myprow,mypcol,&
+               nrow_local,ncol_local,source,nelements
+
     source=globenv%source
+    context = globenv%context
 
 #if defined(__parallel)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
     nrow_local  = matrix%p(myprow,mypcol)%nrow_local
     ncol_local  = matrix%p(myprow,mypcol)%ncol_local
-    nelements = nrow_local*ncol_local 
-    mblock => matrix%p(myprow,mypcol)%block 
+    nelements = nrow_local*ncol_local
+    mblock => matrix%p(myprow,mypcol)%block
 #else
     nrow_local  = matrix%p(source,source)%nrow_local
     ncol_local  = matrix%p(source,source)%ncol_local
-    nelements = nrow_local*ncol_local 
+    nelements = nrow_local*ncol_local
     mblock => matrix%p(source,source)%block
 #endif
 
@@ -340,7 +341,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_add(alpha,matrix_a,beta,matrix_b,context,globenv)
+  SUBROUTINE blacs_add(alpha,matrix_a,beta,matrix_b,globenv)
 
 !   Purpose: Scale and add two BLACS matrices (a <- alpha*a + beta*b).
 
@@ -351,11 +352,10 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: handle,mypcol,myprow,npcol,nprow,source
+    INTEGER :: context,handle,mypcol,myprow,npcol,nprow,source
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
 
@@ -364,6 +364,7 @@ CONTAINS
     CALL timeset("blacs_add","I","",handle)
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -408,19 +409,18 @@ CONTAINS
   END SUBROUTINE blacs_add
 
 ! *****************************************************************************
-  SUBROUTINE blacs_scale_matrix(matrixa,scaling,context,globenv)
+  SUBROUTINE blacs_scale_matrix(matrixa,scaling,globenv)
 ! ugly routine to perform a scaling of every column in a matrix
 ! ***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrixa
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:), POINTER           :: scaling
 
 !   *** Local variables ***
 
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,nprow,&
-               source,i,k,n,icol_global,icol_local
+    INTEGER :: context,icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow,source,i,k,n
 
     INTEGER, DIMENSION(9) :: desca
     REAL(wp), DIMENSION(:,:), POINTER :: a
@@ -428,7 +428,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
-
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -461,8 +461,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_add_to_element(matrix,irow_global,icol_global,alpha,&
-                                  context,globenv)
+  SUBROUTINE blacs_add_to_element(matrix,irow_global,icol_global,alpha,globenv)
 
 !   Purpose: Add alpha to the BLACS matrix element
 !            matrix(irow_global,icol_global).
@@ -474,13 +473,13 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: context,icol_global,&
+    INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
 
 !   *** Local variables ***
 
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,nprow,&
-               source
+    INTEGER :: context,icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow,source
 
     INTEGER, DIMENSION(9) :: desca
 
@@ -489,6 +488,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -515,7 +515,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_gemm(transa,transb,m,n,k,alpha,matrix_a,matrix_b,beta,&
-                        matrix_c,context,globenv)
+                        matrix_c,globenv)
 
 !   Purpose: BLACS interface to the BLAS routine dgemm.
 
@@ -527,11 +527,11 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: transa,transb
     REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: context,k,m,n
+    INTEGER, INTENT(IN)                       :: k,m,n
 
 !   *** Local variables ***
 
-    INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow,source
+    INTEGER :: context,handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow,source
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
@@ -542,6 +542,7 @@ CONTAINS
     CALL timeset("blacs_gemm","I","",handle)
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -573,26 +574,26 @@ CONTAINS
 
   END SUBROUTINE blacs_gemm
 
-  SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2,context,globenv)
+  SUBROUTINE blacs_daxpy(matrix_a,c1,alpha,c2,globenv)
     TYPE(blacs_matrix_type), POINTER       :: matrix_a
     TYPE(global_environment_type)          :: globenv
-    INTEGER, INTENT(IN)                    :: context
     INTEGER, INTENT(IN)                    :: c1,c2
     REAL(wp), INTENT(IN)                   :: alpha
 
-    INTEGER :: nprow,npcol,myprow,mypcol,n,source
+    INTEGER :: context,nprow,npcol,myprow,mypcol,n,source
     REAL(wp), DIMENSION(:,:), POINTER :: a
     INTEGER, DIMENSION(9) :: desca
 
     n = matrix_a%nrow_global
     source = globenv%source
+    context = globenv%context
 
 #if defined(__parallel)
     desca(:)=matrix_a%descriptor(:)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
     a => matrix_a%p(myprow,mypcol)%block
     CALL PDAXPY(n,alpha,a,1,c1,desca,1,a,1,c2,desca,1)
-#else    
+#else
     a => matrix_a%p(source,source)%block
     CALL DAXPY(n,alpha,a(1,c1),1,a(1,c2),1)
 #endif
@@ -604,18 +605,18 @@ CONTAINS
 ! giving each pe about the same amount of data (that is nloc elements),
 ! in this way we can map more easily to the blacs distribution
 ! the size of the vector is determined from matrix_a
-! columns of matrix_a should represent a vector 
+! columns of matrix_a should represent a vector
 ! notice that it is the blacs layout that defines how the vector is distributed
-! and what element of the vector actually is where 
+! and what element of the vector actually is where
 
-  SUBROUTINE blacs_find_vector_distribution(matrix_a,nloc,context,globenv)
+  SUBROUTINE blacs_find_vector_distribution(matrix_a,nloc,globenv)
     TYPE(blacs_matrix_type), POINTER       :: matrix_a
     TYPE(global_environment_type), INTENT(IN)      :: globenv
-    INTEGER, INTENT(IN)                    :: context
     INTEGER, INTENT(OUT)                   :: nloc
-    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs
+    INTEGER :: context,nprow,npcol,myprow,mypcol,n,nloc_blacs
 
     n = matrix_a%nrow_global
+    context = globenv%context
 
 #if defined(__parallel)
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -634,21 +635,21 @@ CONTAINS
 ! has obviously to be consistent with find_vector_distribution
 ! see notes at blacs_vector_symv
 ! use_col_nr specifies the column of the matrix_a to use.
-! this is the global col index 
+! this is the global col index
 !
-  SUBROUTINE copy_blacs_to_vector(matrix_a,use_col_nr,v,context,globenv)
+  SUBROUTINE copy_blacs_to_vector(matrix_a,use_col_nr,v,globenv)
     TYPE(blacs_matrix_type), POINTER       :: matrix_a
     TYPE(global_environment_type)          :: globenv
-    INTEGER, INTENT(IN)                    :: context
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
-    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
+    INTEGER :: context,nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
     INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
     INTEGER :: ndata,offset
     INTEGER, DIMENSION(9) :: desca
 
     n = matrix_a%nrow_global
     source = globenv%source
+    context = globenv%context
 
 #if defined (__parallel)
     desca(:) = matrix_a%descriptor(:)
@@ -697,24 +698,24 @@ CONTAINS
 
   END SUBROUTINE copy_blacs_to_vector
 
-! 
+!
 ! copy a full distributed vector into a blacs vector
 ! has obviously to be consistent with find_vector_distribution
 ! see notes at blacs_vector_symv
-! 
-  SUBROUTINE copy_vector_to_blacs(v,matrix_a,use_col_nr,context,globenv)
+!
+  SUBROUTINE copy_vector_to_blacs(v,matrix_a,use_col_nr,globenv)
     TYPE(blacs_matrix_type), POINTER       :: matrix_a
     TYPE(global_environment_type)          :: globenv
-    INTEGER, INTENT(IN)                    :: context
     INTEGER, INTENT(IN)                    :: use_col_nr
     REAL(wp), POINTER, DIMENSION(:)        :: v
-    INTEGER :: nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
+    INTEGER :: context,nprow,npcol,myprow,mypcol,n,nloc_blacs,source,nloc,nloc0,i
     INTEGER :: irow_global,icol_global,irow_local,icol_local,iprow,ipcol
     INTEGER :: ndata,offset
     INTEGER, DIMENSION(9) :: desca
 
     n = matrix_a%nrow_global
     source = globenv%source
+    context = globenv%context
 
 #if defined (__parallel)
     desca(:) = matrix_a%descriptor(:)
@@ -764,10 +765,10 @@ CONTAINS
   END SUBROUTINE copy_vector_to_blacs
 
 ! *****************************************************************************
-! computes the product of an upper symmetric blacs matrix with vin 
-! and stores the result in vout ! vin (vout) is a distributed vector, 
+! computes the product of an upper symmetric blacs matrix with vin
+! and stores the result in vout ! vin (vout) is a distributed vector,
 ! (so that every pe has a part of vin, not necessarily the blacs way thus)
-! it is not evident where a given vector element v_i will be 
+! it is not evident where a given vector element v_i will be
 ! (i.e. pe and v(xxx) ) since this is determined by the blacs ordering
 ! of matrix elements
 !
@@ -776,17 +777,16 @@ CONTAINS
 ! vout )
 ! *****************************************************************************
 
-  SUBROUTINE blacs_vector_symv(matrix_a,vin,vout,matrix_buf,context,globenv)
+  SUBROUTINE blacs_vector_symv(matrix_a,vin,vout,matrix_buf,globenv)
 ! *****************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_buf
     TYPE(global_environment_type)             :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:), POINTER           :: vin,vout
 
 !   *** Local variables ***
 
-    INTEGER :: handle,source,n,inc
+    INTEGER :: context,handle,source,n,inc
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
     REAL(wp) :: alpha,beta
     INTEGER :: nprow,npcol,myprow,mypcol
@@ -798,6 +798,7 @@ CONTAINS
     CALL timeset("blacs_vector_symv","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     alpha=1.0D0
     beta=0.0D0
     inc=1
@@ -809,9 +810,9 @@ CONTAINS
     desca(:) = matrix_a%descriptor(:)
     b => matrix_buf%p(myprow,mypcol)%block
     descb(:) = matrix_buf%descriptor(:)
-    call copy_vector_to_blacs(vin,matrix_buf,1,context,globenv)
+    call copy_vector_to_blacs(vin,matrix_buf,1,globenv)
     call pdsymv('U',n,alpha,a,1,1,desca,b,1,1,descb,inc,beta,b,1,2,descb,inc)
-    call copy_blacs_to_vector(matrix_buf,2,vout,context,globenv)
+    call copy_blacs_to_vector(matrix_buf,2,vout,globenv)
 #else
     a => matrix_a%p(source,source)%block
     call dsymv('U',n,alpha,a,n,vin,inc,beta,vout,inc)
@@ -824,9 +825,9 @@ CONTAINS
 ! *****************************************************************************
 ! orthogonalises a set of vectors, taking into account S
 !
-! c) if ortho is present, this is 
+! c) if ortho is present, this is
 !            1) the decomposed 'S' matrix of the system
-!               so that v^T*S*v=1 
+!               so that v^T*S*v=1
 !            2) S*V (no pmatrix in this case) both v, and sv will be changed
 !               v->v*u^-1 sv*u^-1
 !
@@ -837,27 +838,27 @@ CONTAINS
 ! b) if pmatrix is present, it is assumed that this is a projector of rank nmo
 ! and a basis for this projector is found i.e. pmatrix=v*v^T
 !
-! 
+!
 ! *****************************************************************************
-  SUBROUTINE blacs_make_basis(vmatrix,ncol,context,globenv,ortho,otype,pmatrix,work)
+  SUBROUTINE blacs_make_basis(vmatrix,ncol,globenv,ortho,otype,pmatrix,work)
 ! *****************************************************************************
 
     TYPE(blacs_matrix_type), POINTER                   :: vmatrix
     TYPE(blacs_matrix_type), POINTER, OPTIONAL         :: pmatrix,work,ortho
     TYPE(global_environment_type)                      :: globenv
-    INTEGER, INTENT(IN)                                :: context, ncol
+    INTEGER, INTENT(IN)                                :: ncol
     CHARACTER ( LEN = * ), INTENT ( IN ),OPTIONAL      :: otype
 
 !   *** Local variables ***
 
-    INTEGER :: handle,n,source,info
+    INTEGER :: context,handle,n,source,info
     REAL(wp), DIMENSION(:,:), POINTER :: a,b,vv,w,p,o
     REAL(wp) :: rone,rzero
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block,i
     INTEGER, DIMENSION(9) :: desca,descb,descvv,descw,descp,desco
     TYPE(blacs_matrix_type), POINTER           :: overlap_vv
     logical :: found_type,use_pmatrix,use_cholesky,use_sv,use_simple
-    
+
 
 
 !   ---------------------------------------------------------------------------
@@ -866,7 +867,7 @@ CONTAINS
 
 
 ! check input ...
-    
+
     IF (present(pmatrix)) THEN
        IF (.not. present(work)) THEN
 	   call stop_program("make_basis","pmatrix needs work space !?")
@@ -897,6 +898,7 @@ CONTAINS
     ENDIF
 
     source = globenv%source
+    context = globenv%context
     rone=1.0D0
     rzero=0.0D0
     n   = vmatrix%nrow_global
@@ -910,7 +912,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_vv",&
-                               context=context,&
                                globenv=globenv)
 
 #if defined(__parallel)
@@ -923,12 +924,8 @@ CONTAINS
     a => vmatrix%p(source,source)%block
     vv => overlap_vv%p(source,source)%block
 #endif
-
-
-
     IF (use_pmatrix) THEN
-       CALL blacs_init_random(work,ncol,context,globenv)
-
+       CALL blacs_init_random(work,ncol,globenv)
 #if defined(__parallel)
        p => pmatrix%p(myprow,mypcol)%block
        descp(:) = pmatrix%descriptor(:)
@@ -966,8 +963,8 @@ CONTAINS
 
     IF (use_sv) THEN
       CALL blacs_GEMM('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
-                                          overlap_vv,context,globenv)
-      CALL blacs_cholesky_decompose(overlap_vv,context,globenv)
+                                          overlap_vv,globenv)
+      CALL blacs_cholesky_decompose(overlap_vv,globenv)
 #if defined(__parallel)
       CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
       a => vmatrix%p(myprow,mypcol)%block
@@ -995,14 +992,14 @@ CONTAINS
       descvv(:) = overlap_vv%descriptor(:)
       CALL PDSYRK('U','T',ncol,n,rone,a,1,1,desca,rzero,vv,1,1,descvv,ncol)
       CALL PDPOTRF('U',ncol,vv,1,1,descvv,info)
-      if (info.ne.0) call stop_program("make_basis","DPOTRF degenerate vectors")  
+      if (info.ne.0) call stop_program("make_basis","DPOTRF degenerate vectors")
       CALL PDTRSM('R','U','N','N',n,ncol,rone,vv,1,1,descvv,a,1,1,desca)
 #else
       a => vmatrix%p(source,source)%block
       vv => overlap_vv%p(source,source)%block
       CALL DSYRK('U','T',ncol,n,rone,a(1,1),n,rzero,vv(1,1),ncol)
       CALL DPOTRF('U',ncol,vv(1,1),ncol,info)
-      if (info.ne.0) call stop_program("make_basis","DPOTRF degenerate vectors")  
+      if (info.ne.0) call stop_program("make_basis","DPOTRF degenerate vectors")
       CALL DTRSM('R','U','N','N',n,ncol,rone,vv(1,1),ncol,a(1,1),n)
 #endif
     ENDIF
@@ -1024,13 +1021,13 @@ CONTAINS
 ! *****************************************************************************
 ! init ncol vectors of a blacs matrix with random numbers
 ! *****************************************************************************
-    SUBROUTINE BLACS_INIT_RANDOM(matrix,ncol,context,globenv)
+    SUBROUTINE BLACS_INIT_RANDOM(matrix,ncol,globenv)
 
     TYPE(blacs_matrix_type), POINTER           :: matrix
     TYPE(global_environment_type)              :: globenv
-    INTEGER, INTENT(IN)                        :: context, ncol
+    INTEGER, INTENT(IN)                        :: ncol
 
-    INTEGER :: handle,n,source,i
+    INTEGER :: context,handle,n,source,i
     REAL(wp), DIMENSION(:,:), POINTER :: a
     INTEGER :: nprow,npcol,myprow,mypcol,nrow_block,ncol_block
     INTEGER, DIMENSION(9) :: desca
@@ -1041,6 +1038,7 @@ CONTAINS
     CALL timeset("blacs_init_random","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     n   = matrix%nrow_global
 
 #if defined(__parallel)
@@ -1060,7 +1058,7 @@ CONTAINS
      IF (ipcol == mypcol) THEN
         CALL dlarnv(1,iseed,size(a,1),a(1,icol_local))
      ENDIF
-    enddo 
+    enddo
 #else
     IF (FIRST) THEN
        ISEED(1)=4
@@ -1077,8 +1075,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_get_element(matrix,irow_global,icol_global,alpha,context,&
-                               globenv)
+  SUBROUTINE blacs_get_element(matrix,irow_global,icol_global,alpha,globenv)
 
 !   Purpose: Get the BLACS matrix element (irow_global,icol_global).
 
@@ -1088,14 +1085,13 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: alpha
-    INTEGER, INTENT(IN)                       :: context,&
-                                                 icol_global,&
+    INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
 
 !   *** Local variables ***
 
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,nprow,&
-               source
+    INTEGER :: context,icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow,source
 
     INTEGER, DIMENSION(9) :: desca
 
@@ -1104,6 +1100,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1129,7 +1126,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_maxval(matrix,a_max,context,globenv)
+  SUBROUTINE blacs_maxval(matrix,a_max,globenv)
 
 !   Purpose: Get the maximum absolute element of a BLACS matrix.
 
@@ -1140,12 +1137,12 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: a_max
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: group,handle,mypcol,myprow,npcol,nprow,source
-    REAL(kind=wp), dimension(:,:), pointer    :: my_block
+    INTEGER :: context,group,handle,mypcol,myprow,npcol,nprow,source
+
+    REAL(wp), DIMENSION(:,:), POINTER :: my_block
 
 !   ---------------------------------------------------------------------------
 
@@ -1153,6 +1150,7 @@ CONTAINS
 
     source = globenv%source
     group = globenv%group
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1163,9 +1161,11 @@ CONTAINS
     mypcol = source
 
 #endif
+
     my_block => matrix%p(myprow,mypcol)%block
+
     a_max = MAXVAL(ABS(my_block))
-    
+
     CALL mp_max(a_max,group)
 
     CALL timestop(0.0_wp,handle)
@@ -1174,7 +1174,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_set_all(matrix,alpha,context,globenv)
+  SUBROUTINE blacs_set_all(matrix,alpha,globenv)
 
 !   Purpose: Set the BLACS matrix elements to alpha.
 
@@ -1185,15 +1185,15 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: mypcol,myprow,npcol,nprow,source
+    INTEGER :: context,mypcol,myprow,npcol,nprow,source
 
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1209,8 +1209,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_set_element(matrix,irow_global,icol_global,alpha,context,&
-                               globenv)
+  SUBROUTINE blacs_set_element(matrix,irow_global,icol_global,alpha,globenv)
 
 !   Purpose: Set the BLACS matrix element (irow_global,icol_global) to alpha.
 
@@ -1221,13 +1220,13 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: alpha
-    INTEGER, INTENT(IN)                       :: context,icol_global,&
+    INTEGER, INTENT(IN)                       :: icol_global,&
                                                  irow_global
 
 !   *** Local variables ***
 
-    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,nprow,&
-               source
+    INTEGER :: context,icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow,source
 
     INTEGER, DIMENSION(9) :: desca
 
@@ -1236,6 +1235,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1260,14 +1260,13 @@ CONTAINS
 !******************************************************************
 ! used to replace the cholesky decomposition by the inverse
 !******************************************************************
-  SUBROUTINE blacs_cholesky_invert(matrix,context,globenv)
+  SUBROUTINE blacs_cholesky_invert(matrix,globenv)
    TYPE(blacs_matrix_type), POINTER           :: matrix
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a
-    integer                                   :: info,handle
+    integer                                   :: context,info,handle
     INTEGER                                   :: source,n
     integer                                   :: nprow,npcol,myprow,mypcol
     INTEGER, DIMENSION(9)                     :: desca
@@ -1275,6 +1274,7 @@ CONTAINS
     CALL timeset("blacs_cholesky_invert","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     n = matrix%nrow_global
 
 #if defined(__parallel)
@@ -1304,17 +1304,16 @@ CONTAINS
 
 
 !******************************************************************
-! used to replace a symmetric positive def. matrix by its cholesky 
+! used to replace a symmetric positive def. matrix by its cholesky
 ! decomposition
 !******************************************************************
 
-  SUBROUTINE blacs_cholesky_decompose(matrix,context,globenv)
+  SUBROUTINE blacs_cholesky_decompose(matrix,globenv)
    TYPE(blacs_matrix_type), POINTER           :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a
-    integer                                   :: info,handle
+    integer                                   :: context,info,handle
     INTEGER                                   :: output_unit,source,n
     LOGICAL                                   :: ionode
     integer                                   :: nprow,npcol,myprow,mypcol
@@ -1325,6 +1324,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+    context = globenv%context
     n = matrix%nrow_global
 
 #if defined(__parallel)
@@ -1357,13 +1357,12 @@ CONTAINS
 ! A,B -> inv(U^T)*A*inv(U),1 (AX=BX -> inv(U^T)*A*inv(U)*U*X=U*X hence evecs U*X)
 !******************************************************************
 
-  SUBROUTINE blacs_cholesky_reduce(matrix,matrixb,context,globenv)
+  SUBROUTINE blacs_cholesky_reduce(matrix,matrixb,globenv)
    TYPE(blacs_matrix_type), POINTER           :: matrix,matrixb
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b
-    integer                                   :: info,itype,handle
+    integer                                   :: context,info,itype,handle
     INTEGER                                   :: output_unit,source,n
     LOGICAL                                   :: ionode
     integer                                   :: nprow,npcol,myprow,mypcol
@@ -1375,6 +1374,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+    context = globenv%context
     n = matrix%nrow_global
     itype =1
 
@@ -1386,7 +1386,7 @@ CONTAINS
     b => matrixb%p(myprow,mypcol)%block
     descb(:) = matrixb%descriptor(:)
 
-    CALL pdsygst(itype,'U',n,a,1,1,desca,b,1,1,descb,scale,info) 
+    CALL pdsygst(itype,'U',n,a,1,1,desca,b,1,1,descb,scale,info)
     IF (scale .ne. 1.0_wp) THEN
        ! this is supposed to be one in current version of lapack
        ! if not, eigenvalues have to be scaled by this number
@@ -1415,15 +1415,14 @@ CONTAINS
 ! op can be SOLVE (out = U^-1 * in ) or MULTIPLY   (out = U * in )
 !
 !******************************************************************
-  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op,context,globenv)
+  SUBROUTINE blacs_cholesky_restore(matrix,neig,matrixb,matrixout,op,globenv)
     TYPE(blacs_matrix_type), POINTER          :: matrix,matrixb,matrixout
     INTEGER, INTENT(IN)                       :: neig
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     CHARACTER ( LEN = * ), INTENT ( IN )      :: op
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b,out
-    integer                                   :: info,itype,handle
+    integer                                   :: context,info,itype,handle
     INTEGER                                   :: output_unit,source,n
     LOGICAL                                   :: ionode
     REAL(wp)                                  :: alpha
@@ -1435,8 +1434,9 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+    context = globenv%context
     n = matrix%nrow_global
-    itype = 1 
+    itype = 1
     IF (op .ne. "SOLVE" .and. op .ne. "MULTIPLY") THEN
        call stop_program("blacs_cholesky_restore","wrong argument op")
     ENDIF
@@ -1479,17 +1479,18 @@ CONTAINS
 
   END  SUBROUTINE blacs_cholesky_restore
 ! ****
-  SUBROUTINE blacs_column_copy(msource,mtarget,ncol,context,globenv)
+  SUBROUTINE blacs_column_copy(msource,mtarget,ncol,globenv)
     TYPE(blacs_matrix_type), POINTER          :: msource,mtarget
     INTEGER, INTENT(IN)                       :: ncol
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
     REAL(wp), DIMENSION(:,:), POINTER         :: a,b
-    integer                                   :: nprow,npcol,myprow,mypcol,i,source,n
+    integer                                   :: context,nprow,npcol,&
+                                                 myprow,mypcol,i,source,n
     INTEGER, DIMENSION(9)                     :: desca,descb
 
     source = globenv%source
+    context = globenv%context
     n = msource%nrow_global
 
 #if defined(__parallel)
@@ -1515,14 +1516,13 @@ CONTAINS
 !especially in parallel with thightly clustered evals
 !needs more workspace
 !*************************************************************************
-  SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues,context,globenv)
+  SUBROUTINE blacs_syevd(matrix,eigenvectors,eigenvalues,globenv)
 
     TYPE(blacs_matrix_type), POINTER          :: eigenvectors,matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
 
-    INTEGER  :: handle,info,istat,liwork,lwork,mypcol,myprow,n,&
+    INTEGER  :: context,handle,info,istat,liwork,lwork,mypcol,myprow,n,&
                 npcol,nprow,source
 
     INTEGER, DIMENSION(9) :: descm,descv
@@ -1533,6 +1533,7 @@ CONTAINS
     CALL timeset("blacs_syevx","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     n = matrix%nrow_global
 
 #if defined(__parallel)
@@ -1582,10 +1583,10 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
-                         context,globenv)
+                         globenv)
 !  alternative , needs dsygvx
 !  SUBROUTINE blacs_syevx(matrix,eigenvectors,eigenvalues,neig,work_syevx,&
-!                         context,globenv,bmatrix)
+!                         globenv,bmatrix)
 
 !   Purpose: Diagonalise the symmetric n by n matrix using the LAPACK library.
 !            if bmatrix present, use general solver, will overwrite bmatrix
@@ -1601,7 +1602,7 @@ CONTAINS
 !    TYPE(blacs_matrix_type), POINTER, OPTIONAL:: bmatrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: work_syevx
-    INTEGER, INTENT(IN)                       :: context,neig
+    INTEGER, INTENT(IN)                       :: neig
     REAL(wp), DIMENSION(:), INTENT(OUT)       :: eigenvalues
 
 !   *** Local parameters ***
@@ -1615,8 +1616,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER  :: handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,nn,np0,&
-                npcol,npe,nprow,nq0,nz,output_unit,source,itype
+    INTEGER  :: context,handle,info,istat,liwork,lwork,m,mypcol,myprow,n,nb,&
+                nn,np0,npcol,npe,nprow,nq0,nz,output_unit,source,itype
     LOGICAL  :: ionode
 
     INTEGER, DIMENSION(9) :: desca,descz,descb
@@ -1638,6 +1639,7 @@ CONTAINS
     ionode = globenv%ionode
     output_unit = globenv%scr
     source = globenv%source
+    context = globenv%context
 
     n = matrix%nrow_global
 
@@ -1795,7 +1797,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_symm(side,uplo,m,n,alpha,matrix_a,matrix_b,beta,matrix_c,&
-                        context,globenv)
+                        globenv)
 
 !   Purpose: BLACS interface to the BLAS routine dsymm.
 
@@ -1807,11 +1809,11 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: side,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: context,m,n
+    INTEGER, INTENT(IN)                       :: m,n
 
 !   *** Local variables ***
 
-    INTEGER :: handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow,source
+    INTEGER :: context,handle,lda,ldb,ldc,mypcol,myprow,npcol,nprow,source
 
     INTEGER, DIMENSION(9) :: desca,descb,descc
 
@@ -1822,6 +1824,7 @@ CONTAINS
     CALL timeset("blacs_symm","I","",handle)
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1855,7 +1858,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE blacs_syrk(uplo,trans,k,alpha,matrix_a,ia,ja,beta,matrix_c,&
-                        context,globenv)
+                        globenv)
 
 !   Purpose: BLACS interface to the BLAS routine dsyrk.
 
@@ -1867,11 +1870,11 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     CHARACTER(LEN=1), INTENT(IN)              :: trans,uplo
     REAL(wp), INTENT(IN)                      :: alpha,beta
-    INTEGER, INTENT(IN)                       :: context,ia,ja,k
+    INTEGER, INTENT(IN)                       :: ia,ja,k
 
 !   *** Local variables ***
 
-    INTEGER :: handle,lda,ldc,mypcol,myprow,n,npcol,nprow,source
+    INTEGER :: context,handle,lda,ldc,mypcol,myprow,n,npcol,nprow,source
 
     INTEGER, DIMENSION(9) :: desca,descc
 
@@ -1882,6 +1885,7 @@ CONTAINS
     CALL timeset("blacs_syrk","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     n = matrix_a%nrow_global
 #if defined(__parallel)
 
@@ -1911,7 +1915,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE blacs_schur_product(matrix_a,matrix_b,matrix_c,context,globenv)
+  SUBROUTINE blacs_schur_product(matrix_a,matrix_b,matrix_c,globenv)
 
 !   Purpose: Calculate the schur product of two matrices
 
@@ -1919,12 +1923,11 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b,matrix_c
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,ncol_local,&
-               npcol,nprow,nrow_local,source
+    INTEGER :: context,group,handle,icol_local,irow_local,mypcol,myprow,&
+               ncol_local,npcol,nprow,nrow_local,source
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b,c
 
@@ -1934,6 +1937,7 @@ CONTAINS
 
     group = globenv%group
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -1963,9 +1967,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-! *****************************************************************************
-
-  SUBROUTINE blacs_trace(matrix_a,matrix_b,trace,context,globenv)
+  SUBROUTINE blacs_trace(matrix_a,matrix_b,trace,globenv)
 
 !   Purpose: Calculate the trace of the product of two BLACS matrices.
 
@@ -1976,12 +1978,11 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix_a,matrix_b
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(OUT)                     :: trace
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: group,handle,icol_local,irow_local,mypcol,myprow,ncol_local,&
-               npcol,nprow,nrow_local,source
+    INTEGER :: context,group,handle,icol_local,irow_local,mypcol,myprow,&
+               ncol_local,npcol,nprow,nrow_local,source
 
     REAL(wp), DIMENSION(:,:), POINTER :: a,b
 
@@ -1991,6 +1992,7 @@ CONTAINS
 
     group = globenv%group
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -2085,8 +2087,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_blacs_to_full_matrix(blacs_matrix,full_matrix,context,&
-                                       globenv)
+  SUBROUTINE copy_blacs_to_full_matrix(blacs_matrix,full_matrix,globenv)
 
 !   Purpose: Copy a BLACS matrix to a full matrix.
 
@@ -2096,7 +2097,6 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:,:), POINTER         :: full_matrix
 
 !   *** Local parameters ***
@@ -2106,10 +2106,10 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: handle,icol_global,icol_local,ipcol,ipe,iprow,irow_global,&
-               irow_local,istat,mypcol,mype,myprow,ncol_block,ncol_global,&
-               ncol_local,npcol,npe,nprow,nrow_block,nrow_global,nrow_local,&
-               source
+    INTEGER :: context,handle,icol_global,icol_local,ipcol,ipe,iprow,&
+               irow_global,irow_local,istat,mypcol,mype,myprow,ncol_block,&
+               ncol_global,ncol_local,npcol,npe,nprow,nrow_block,nrow_global,&
+               nrow_local,source
     LOGICAL :: ionode
 
     REAL(wp), DIMENSION(:,:), POINTER :: blacs_block
@@ -2124,6 +2124,7 @@ CONTAINS
 
     ionode = globenv%ionode
     source = globenv%source
+    context = globenv%context
 
     nrow_global = blacs_matrix%nrow_global
     ncol_global = blacs_matrix%ncol_global
@@ -2209,8 +2210,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_blacs_to_sparse_matrix(blacs_matrix,sparse_matrix,context,&
-                                         globenv)
+  SUBROUTINE copy_blacs_to_sparse_matrix(blacs_matrix,sparse_matrix,globenv)
 
 !   Purpose: Copy a BLACS matrix to a sparse matrix. The BLACS matrix blocks
 !            are deallocated during the copy procedure.
@@ -2222,7 +2222,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local parameters ***
 
@@ -2233,10 +2232,10 @@ CONTAINS
 
     TYPE(real_block_node_type), POINTER :: block_node
 
-    INTEGER :: group,handle,iblock_col,iblock_row,icol,icol_global,icol_local,&
-               ipcol,ipe,iprow,irow,irow_global,irow_local,istat,jpcol,jprow,&
-               mypcol,mype,myprow,nblock_row,ncol_block,ncol_local,npcol,npe,&
-               nprow,nrow_block,nrow_local,source
+    INTEGER :: context,group,handle,iblock_col,iblock_row,icol,icol_global,&
+               icol_local,ipcol,ipe,iprow,irow,irow_global,irow_local,istat,&
+               jpcol,jprow,mypcol,mype,myprow,nblock_row,ncol_block,&
+               ncol_local,npcol,npe,nprow,nrow_block,nrow_local,source
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
     REAL(wp), DIMENSION(:,:), POINTER :: blacs_block,sparse_block
@@ -2251,6 +2250,7 @@ CONTAINS
 
     group = globenv%group
     source = globenv%source
+    context = globenv%context
 
     CALL get_matrix_info(matrix=sparse_matrix,&
                          nblock_row=nblock_row,&
@@ -2396,8 +2396,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_sparse_to_blacs_matrix(sparse_matrix,blacs_matrix,context,&
-                                         globenv)
+  SUBROUTINE copy_sparse_to_blacs_matrix(sparse_matrix,blacs_matrix,globenv)
 
 !   Purpose: Copy a sparse matrix to a BLACS matrix. The BLACS matrix blocks
 !            are allocated during the copy procedure.
@@ -2409,7 +2408,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: blacs_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(real_matrix_type), POINTER           :: sparse_matrix
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local parameters ***
 
@@ -2420,10 +2418,10 @@ CONTAINS
 
     TYPE(real_block_node_type), POINTER :: block_node
 
-    INTEGER :: group,handle,iblock_col,iblock_row,icol,icol_global,icol_local,&
-               ipcol,ipe,iprow,irow,irow_global,irow_local,istat,jpcol,jprow,&
-               mypcol,mype,myprow,nblock_row,ncol_block,ncol_local,npcol,npe,&
-               nprow,nrow_block,nrow_local,source
+    INTEGER :: context,group,handle,iblock_col,iblock_row,icol,icol_global,&
+               icol_local,ipcol,ipe,iprow,irow,irow_global,irow_local,istat,&
+               jpcol,jprow,mypcol,mype,myprow,nblock_row,ncol_block,&
+               ncol_local,npcol,npe,nprow,nrow_block,nrow_local,source
 
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
     REAL(wp), DIMENSION(:,:), POINTER :: blacs_block,sparse_block
@@ -2438,6 +2436,7 @@ CONTAINS
 
     group = globenv%group
     source = globenv%source
+    context = globenv%context
 
     CALL get_matrix_info(matrix=sparse_matrix,&
                          nblock_row=nblock_row,&
@@ -2656,7 +2655,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE finish_blacs(context,globenv)
+  SUBROUTINE finish_blacs(globenv)
 
 !   Purpose: Release the resources of a BLACS context.
 
@@ -2664,8 +2663,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
 !   *** Local parameters ***
 
@@ -2674,7 +2672,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: group,ipe,istat,mype,npe,output_unit
+    INTEGER :: context,group,ipe,istat,mype,npe,output_unit
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: pcon
@@ -2684,6 +2682,7 @@ CONTAINS
     group = globenv%group
     ionode = globenv%ionode
     output_unit = globenv%scr
+    context = globenv%context
 #if defined(__parallel)
 
     IF (globenv%print%blacs_info) THEN
@@ -2716,12 +2715,16 @@ CONTAINS
 
     CALL blacs_gridexit(context)
 
+    globenv%context = 0
+    globenv%nprow = 0
+    globenv%npcol = 0
+
 #endif
   END SUBROUTINE finish_blacs
 
 ! *****************************************************************************
 
-  SUBROUTINE get_blacs_info(context,globenv,my_process_row,my_process_column,&
+  SUBROUTINE get_blacs_info(globenv,my_process_row,my_process_column,&
                             my_process_number,number_of_process_rows,&
                             number_of_process_columns,number_of_processes)
 
@@ -2732,7 +2735,6 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     INTEGER, OPTIONAL, INTENT(OUT)            :: my_process_column,&
                                                  my_process_number,&
                                                  my_process_row,&
@@ -2742,7 +2744,7 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: mypcol,mype,myprow,npcol,npe,nprow,source
+    INTEGER :: context,mypcol,mype,myprow,npcol,npe,nprow,source
 
 #if defined(__parallel)
     INTEGER, EXTERNAL :: blacs_pnum
@@ -2751,6 +2753,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_pinfo(mype,npe)
@@ -2778,11 +2781,11 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_blacs_matrix_info(matrix,name,nrow_global,ncol_global,&
-                                   nrow_block,ncol_block,nrow_local,ncol_local,& 
+                                   nrow_block,ncol_block,nrow_local,ncol_local,&
                                    row_indices,col_indices,context,globenv)
 
 !   Purpose: Return informations about the specified BLACS matrix.
-!   always allocates the indices vector if present. 
+!   always allocates the indices vector if present.
 !   indices is an array that maps the local indices to the global ones
 
 !   History: - Creation (08.06.2001, Matthias Krack)
@@ -2811,10 +2814,10 @@ CONTAINS
     IF (PRESENT(nrow_block)) nrow_block = matrix%nrow_block
     IF (PRESENT(ncol_block)) ncol_block = matrix%ncol_block
 
-    IF (present(nrow_local)) THEN 
+    IF (present(nrow_local)) THEN
       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
       IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-      source=globenv%source   
+      source=globenv%source
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           nrow_local = matrix%p(myprow,mypcol)%nrow_local
@@ -2823,10 +2826,10 @@ CONTAINS
 #endif
     ENDIF
 
-    IF (present(ncol_local)) THEN 
+    IF (present(ncol_local)) THEN
       IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
       IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-      source=globenv%source   
+      source=globenv%source
 #if defined(__parallel)
           CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
           ncol_local = matrix%p(myprow,mypcol)%ncol_local
@@ -2838,7 +2841,7 @@ CONTAINS
     IF (present(row_indices)) THEN
        IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
        IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-       source=globenv%source   
+       source=globenv%source
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(row_indices(matrix%p(myprow,mypcol)%nrow_local))
@@ -2856,7 +2859,7 @@ CONTAINS
     IF (present(col_indices)) THEN
        IF (.not. present(globenv)) CALL stop_program("get_blacs_matrix_info","globenv")
        IF (.not. present(context)) CALL stop_program("get_blacs_matrix_info","context")
-       source=globenv%source   
+       source=globenv%source
 #if defined(__parallel)
        CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
        allocate(col_indices(matrix%p(myprow,mypcol)%ncol_local))
@@ -2876,7 +2879,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE power_blacs_matrix(matrix,work,exponent,threshold,n_dependent,&
-                                work_syevx,context,globenv)
+                                work_syevx,globenv)
 
 !   Purpose: Raise the real symmetric n by n matrix to the power given by
 !            exponent. All eigenvectors with a corresponding eigenvalue lower
@@ -2890,7 +2893,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: matrix,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     REAL(wp), INTENT(IN)                      :: exponent,threshold,work_syevx
-    INTEGER, INTENT(IN)                       :: context
     INTEGER, INTENT(OUT)                      :: n_dependent
 
 !   *** Local parameters ***
@@ -2901,7 +2903,7 @@ CONTAINS
 !   *** Local variables ***
 
     REAL(wp) :: f,p
-    INTEGER  :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+    INTEGER  :: context,handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                 irow_local,istat,mypcol,myprow,ncol_block,ncol_global,npcol,&
                 nprow,nrow_block,nrow_global,source
 
@@ -2917,6 +2919,7 @@ CONTAINS
     CALL timeset("power_blacs_matrix","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     n_dependent = 0
     p = 0.5_wp*exponent
 
@@ -2929,8 +2932,7 @@ CONTAINS
 
 !   *** Compute the eigenvectors and eigenvalues ***
 
-    CALL blacs_syevx(matrix,work,eigenvalues,ncol_global,work_syevx,context,&
-                     globenv)
+    CALL blacs_syevx(matrix,work,eigenvalues,ncol_global,work_syevx,globenv)
 
 #if defined(__parallel)
 
@@ -3012,8 +3014,7 @@ CONTAINS
     END DO
 
 #endif
-    CALL blacs_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix,context,&
-                    globenv)
+    CALL blacs_syrk("U","N",ncol_global,1.0_wp,work,1,1,0.0_wp,matrix,globenv)
 
     DEALLOCATE (eigenvalues,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"eigenvalues")
@@ -3024,7 +3025,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_blacs_matrix(matrix,lunit,context,globenv)
+  SUBROUTINE read_blacs_matrix(matrix,lunit,globenv)
 
 !   Purpose: Read a BLACS matrix from the logical unit number "lunit".
 
@@ -3034,15 +3035,17 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context,lunit
+    INTEGER, INTENT(IN)                       :: lunit
 
 !   *** Local variables ***
 
-    INTEGER :: i,j,mypcol,myprow,ncol_local,npcol,nprow,nrow_local,source
+    INTEGER :: context,i,j,mypcol,myprow,ncol_local,npcol,nprow,nrow_local,&
+               source
 
 !   ---------------------------------------------------------------------------
 
     source =  globenv%source
+    context =  globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -3131,7 +3134,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE start_blacs(nprow,npcol,context,globenv)
+  SUBROUTINE start_blacs(globenv)
 
 !   Purpose: Initialize a BLACS process grid. The BLACS context is returned.
 
@@ -3139,8 +3142,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(INOUT)                    :: context,npcol,nprow
+    TYPE(global_environment_type), INTENT(INOUT) :: globenv
 
 !   *** Local parameters ***
 
@@ -3149,7 +3151,8 @@ CONTAINS
 
 !   *** Local variables ***
 
-    INTEGER :: group,ipe,istat,mypcol,mype,myprow,npe,output_unit,source
+    INTEGER :: context,group,ipe,istat,mypcol,mype,myprow,npcol,npe,nprow,&
+               output_unit,source
     LOGICAL :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE :: pcol,pcon,prow
@@ -3161,6 +3164,8 @@ CONTAINS
     output_unit = globenv%scr
     source = globenv%source
     context = 0
+    npcol = 0
+    nprow = 0
 #if defined(__parallel)
 
     CALL blacs_pinfo(mype,npe)
@@ -3221,19 +3226,24 @@ CONTAINS
     END IF
 
 #endif
+    globenv%context = context
+    globenv%nprow = nprow
+    globenv%npcol = npcol
+
   END SUBROUTINE start_blacs
-!************************************************************
-  SUBROUTINE blacs_transpose(matrix,matrixt,context,globenv)
+
+! *****************************************************************************
+
+  SUBROUTINE blacs_transpose(matrix,matrixt,globenv)
 ! matrixt=matrix^T ! assumes no symmetry
 !***************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrix,matrixt
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+    INTEGER :: context,handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
                npcol,nprow,nrow_block,nrow_global,nrow_local,source
 
@@ -3247,6 +3257,7 @@ CONTAINS
     CALL timeset("blacs_transpose","I","",handle)
 
     source = globenv%source
+    context = globenv%context
     nrow_global = matrix%nrow_global
     ncol_global = matrix%ncol_global
 #if defined(__parallel)
@@ -3271,7 +3282,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE symmetrise_blacs_matrix(matrix,work,context,globenv)
+  SUBROUTINE symmetrise_blacs_matrix(matrix,work,globenv)
 
 !   Purpose: Symmetrise a symmetric BLACS matrix.
 
@@ -3281,11 +3292,10 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER          :: matrix,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
-    INTEGER :: handle,icol_global,icol_local,ipcol,iprow,irow_global,&
+    INTEGER :: context,handle,icol_global,icol_local,ipcol,iprow,irow_global,&
                irow_local,mypcol,myprow,ncol_block,ncol_global,ncol_local,&
                npcol,nprow,nrow_block,nrow_global,nrow_local,source
 
@@ -3302,6 +3312,7 @@ CONTAINS
     CALL timeset("symmetrise_blacs_matrix","I","",handle)
 
     source = globenv%source
+    context = globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -3347,8 +3358,9 @@ CONTAINS
 
   END SUBROUTINE symmetrise_blacs_matrix
 
+! *****************************************************************************
 
-  SUBROUTINE write_blacs_matrix(matrix,lunit,context,globenv,formatted)
+  SUBROUTINE write_blacs_matrix(matrix,lunit,globenv,formatted)
 
 !   Purpose: Write a BLACS matrix to the logical unit number "lunit".
 
@@ -3358,16 +3370,18 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER          :: matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context,lunit
+    INTEGER, INTENT(IN)                       :: lunit
     LOGICAL, INTENT(IN), OPTIONAL             :: formatted
 
 !   *** Local variables ***
 
-    INTEGER :: i,j,mypcol,myprow,ncol_local,npcol,nprow,nrow_local,source
+    INTEGER :: context,i,j,mypcol,myprow,ncol_local,npcol,nprow,nrow_local,&
+               source
 
 !   ---------------------------------------------------------------------------
 
     source =  globenv%source
+    context =  globenv%context
 #if defined(__parallel)
 
     CALL blacs_gridinfo(context,nprow,npcol,myprow,mypcol)
@@ -3380,7 +3394,7 @@ CONTAINS
 #endif
     nrow_local = matrix%p(myprow,mypcol)%nrow_local
     ncol_local = matrix%p(myprow,mypcol)%ncol_local
- 
+
     IF (PRESENT(formatted)) THEN
        IF (formatted) THEN
           WRITE (UNIT=lunit,*) ((matrix%p(myprow,mypcol)%block(i,j),i=1,nrow_local),&
@@ -3589,7 +3603,7 @@ CONTAINS
 !!     alpha: defaults to 1
 !!     beta: defaults to 0
 !!     error: variable to control error logging, stopping,...
-!!            see module cp_error_handling 
+!!            see module cp_error_handling
 !!
 !!   AUTHOR
 !!     @author Fawzi Mohamed
@@ -3685,35 +3699,34 @@ CONTAINS
   end subroutine blacs_diag_mult
 
 !***************************************************************************
-! 
+!
 ! this is a jacobi-davidson method.
 ! diagonalises matrix_a, using matrix_v as an initial guess
 ! tol is the final tol for the eigenvalues
-! 
+!
 ! the method expands the subspace by selecting a bunch of vectors
 ! and computing (A-shift*I)^-1*V  where shift is fixed somewhere in the spectrum
-! 
+!
 ! for the 32 water, doesn't outperform dsyevx if more than 1/6 of the vectors are needed
 !
 ! hence has not been parallellised. Kept here for later use. might need some
-! cleaning. 
+! cleaning.
 ! additionally, the method used to expand the subspace might be not optimal,
 ! experimenting (or reading literature) might help.
 ! (mai 2002 JVdV)
 !***************************************************************************
 
   SUBROUTINE blacs_jacobi_davidson(matrix_a,matrix_v,evals,neig,tol, &
-                                                 matrix_work,context,globenv)
+                                                 matrix_work,globenv)
 
 ! **************************************************************************
 
     TYPE(blacs_matrix_type), POINTER          :: matrix_a, matrix_v, matrix_work
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
     REAL(wp), DIMENSION(:)                    :: evals
     INTEGER, INTENT(IN)                       :: neig
     REAL(wp), INTENT(IN)                      :: tol
-    
+
 
 !   *** Local variables ***
 
@@ -3733,6 +3746,7 @@ CONTAINS
     REAL(wp) :: rone,rzero,dum,dum2,ddot,dnrm2,shift,gap,gapnow
     INTEGER  :: nhigh,nvec,nlow,levwork,liwork,iter,ksteps,kblock,iter_getrs
     INTEGER  :: handle,handle2,handle3,this_one,count,j,igap,idamax,split
+    INTEGER  :: context
     INTEGER, DIMENSION(:), POINTER :: to_be_used,to_be_used_old
     REAL(wp) :: time_init_start,time_init_end,time_init_total
     REAL(wp) :: time_full_start,time_full_end,time_full_total
@@ -3748,6 +3762,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
     CALL timeset("blacs_jacobi_davidson","I","",handle)
+
+    context = globenv%context
 
     time_init_total=0.0_wp
     time_full_total=0.0_wp
@@ -3800,7 +3816,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="VEC BUFFER",&
-                               context=context,&
                                globenv=globenv)
     CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vh,&
                                nrow_global=neig,&
@@ -3808,7 +3823,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_vh",&
-                               context=context,&
                                globenv=globenv)
     CALL allocate_blacs_matrix(new_matrix=matrix_overlap_hh,&
                                nrow_global=nhigh,&
@@ -3816,7 +3830,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_hh",&
-                               context=context,&
                                globenv=globenv)
     CALL allocate_blacs_matrix(new_matrix=matrix_overlap_vv,&
                                nrow_global=nvec,&
@@ -3824,7 +3837,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="overlap_vv",&
-                               context=context,&
                                globenv=globenv)
 
 ! put the right pointers in place
@@ -3851,7 +3863,7 @@ CONTAINS
 
     overlap_vv => matrix_overlap_vv%p(myprow,mypcol)%block
     descvv(:) = matrix_overlap_vv%descriptor(:)
-#else 
+#else
     a => matrix_a%p(source,source)%block
     v => matrix_v%p(source,source)%block
     work => matrix_work%p(source,source)%block
@@ -3865,7 +3877,7 @@ CONTAINS
 ! make the input symmetrical
 ! ****************************************************************************
 
-    call symmetrise_blacs_matrix(matrix_a,matrix_work,context,globenv)
+    call symmetrise_blacs_matrix(matrix_a,matrix_work,globenv)
 
 
 ! ****************************************************************************
@@ -3875,7 +3887,7 @@ CONTAINS
 #if defined(__parallel)
 
 #else
-    call dcopy(n*neig,v,1,vecbuf,1) 
+    call dcopy(n*neig,v,1,vecbuf,1)
 #endif
 
     time_av_start=cputime()
@@ -3909,7 +3921,7 @@ CONTAINS
 #else
     CALL DSYEVD('V','U',neig,overlap_vv,nvec,evalslold,evwork,levwork,iwork,liwork,info)
 #endif
-    if (info.ne.0) call stop_program("jacobi_davidson","dsyevd overlap_vv 1")  
+    if (info.ne.0) call stop_program("jacobi_davidson","dsyevd overlap_vv 1")
     time_diag_end=cputime()
     time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
 
@@ -3954,7 +3966,7 @@ CONTAINS
     ! shift=1.1*evalslold(1)
 #if defined(__parallel)
     CALL pdgetrf(n,n,work,1,1,descwork,ipivot,info)
-#else 
+#else
     ! put the singularity in the middle of the spectrum
     DO i=1,n
        work(i,i)=work(i,i)-shift
@@ -4004,7 +4016,7 @@ CONTAINS
           if (info.ne.0) call stop_program("jacobi_davidson","Dgetrs")
        time_getrs_end=cputime()
        time_getrs_total=time_getrs_total+(time_getrs_end-time_getrs_start)
-          
+
 
        ! *********************************************************************
        ! keep the new vectors orthogonal, is numerically rather hard, it seems
@@ -4020,7 +4032,7 @@ CONTAINS
        ! and ortho again within the new set
        CALL DSYRK('U','T',nhigh,n,rone,vecbuf(1,neig+1),n,rzero,overlap_hh,nhigh)
        CALL DPOTRF('U',nhigh,overlap_hh,nhigh,info)
-       if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF overlap_hh")  
+       if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF overlap_hh")
        CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
        ! ortho to the existing basis vectors
        CALL DGEMM('T','N',neig,nhigh,n,rone,vecbuf(1,1),n,vecbuf(1,neig+1),n,rzero,overlap_vh,neig)
@@ -4028,7 +4040,7 @@ CONTAINS
        ! and ortho again within the new set
        CALL DSYRK('U','T',nhigh,n,rone,vecbuf(1,neig+1),n,rzero,overlap_hh,nhigh)
        CALL DPOTRF('U',nhigh,overlap_hh,nhigh,info)
-       if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF overlap_hh")  
+       if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF overlap_hh")
        CALL DTRSM('R','U','N','N',n,nhigh,rone,overlap_hh,nhigh,vecbuf(1,neig+1),n)
 
        time_ortho_end=cputime()
@@ -4079,7 +4091,7 @@ CONTAINS
 #else
        CALL DSYEVD('V','U',nvec,overlap_vv,nvec,evalsl,evwork,levwork,iwork,liwork,info)
 #endif
-       if (info.ne.0) call stop_program("jacobi_davidson","dsyevd overlap_vv")  
+       if (info.ne.0) call stop_program("jacobi_davidson","dsyevd overlap_vv")
        time_diag_end=cputime()
        time_diag_total=time_diag_total+(time_diag_end-time_diag_start)
 
@@ -4130,7 +4142,7 @@ CONTAINS
     ENDDO
 
     ! *********************************************************************
-    ! make the final vectors exactly ortho 
+    ! make the final vectors exactly ortho
     ! *********************************************************************
     time_ortho_start=cputime()
 #if defined(__parallel)
@@ -4139,7 +4151,7 @@ CONTAINS
       CALL DSYRK('U','T',neig,n,rone,v(1,1),n,rzero,overlap_vv,nvec)
       CALL DPOTRF('U',neig,overlap_vv,nvec,info)
       ! in this case the vectors are exactly degenerate
-      if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF final wave functions")  
+      if (info.ne.0) call stop_program("jacobi_davidson","DPOTRF final wave functions")
       CALL DTRSM('R','U','N','N',n,neig,rone,overlap_vv,nvec,v(1,1),n)
 #endif
     time_ortho_end=cputime()

@@ -13,19 +13,22 @@
 !!     APSI & JGH
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     - m_flush added (12.06.2002,MK)
 !!
 !!   SOURCE
 !!*****
 !******************************************************************************
 
 MODULE machine_absoft
-  
+
   USE kinds, ONLY : dbl, sgl
-  
+
+  IMPLICIT NONE
+
   PRIVATE
-  PUBLIC :: m_walltime, m_cputime, m_datum
-  PUBLIC :: m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
+
+  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, &
+            m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg
 
 !!*****
 !******************************************************************************
@@ -35,20 +38,15 @@ CONTAINS
 !******************************************************************************
 !!  cpu time in seconds
 FUNCTION m_cputime() RESULT (ct)
-  IMPLICIT NONE
   REAL (dbl) :: ct
   REAL (sgl) etime,tarray(2),d
   EXTERNAL etime
-
   d=ETIME(tarray)
   ct = DBLE(tarray(1))
-
 END FUNCTION m_cputime
-!
 !******************************************************************************
 !!  wall clock time in seconds
 FUNCTION m_walltime() RESULT (wt)
-  IMPLICIT NONE
   REAL (dbl) :: wt
   REAL (sgl) :: etime
   TYPE tb_type
@@ -57,70 +55,64 @@ FUNCTION m_walltime() RESULT (wt)
      REAL (sgl) systime
   END TYPE tb_type
   TYPE (tb_type) etime_struct
-
   wt = etime(etime_struct)
 END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
-  IMPLICIT NONE
   CHARACTER (len=*), INTENT (OUT) :: cal_date
   CHARACTER (len=24) :: datum
-
   CALL fdate(datum)
   cal_date = datum
 END SUBROUTINE m_datum
 !******************************************************************************
+
+! *** Flush the output to a logical unit ***
+
+  SUBROUTINE m_flush(lunit)
+
+    INTEGER, INTENT(IN) :: lunit
+
+    CALL flush(lunit)
+
+  END SUBROUTINE m_flush
+
+!******************************************************************************
 SUBROUTINE m_hostnm(hname)
-  IMPLICIT NONE
   CHARACTER (len=*), INTENT (OUT) :: hname
   INTEGER :: hostnm, ierror
-
   ierror = hostnm(hname)
 END SUBROUTINE m_hostnm
 !******************************************************************************
 SUBROUTINE m_getcwd(curdir)
-  IMPLICIT NONE
   CHARACTER (len=*), INTENT (OUT) :: curdir
   INTEGER :: getcwd, ierror
   CHARACTER (len=255) :: dir
-
   ierror = getcwd(dir)
   curdir = dir
 END SUBROUTINE m_getcwd
 !******************************************************************************
 SUBROUTINE m_getlog(user)
-  IMPLICIT NONE
   CHARACTER (len=*), INTENT (OUT) :: user
-
   CALL getlog(user)
 END SUBROUTINE m_getlog
 !******************************************************************************
 SUBROUTINE m_getuid(uid)
-  IMPLICIT NONE
   INTEGER, INTENT (OUT) :: uid
   INTEGER :: getuid
-
   uid = getuid()
 END SUBROUTINE m_getuid
 !******************************************************************************
 SUBROUTINE m_getpid(pid)
-  IMPLICIT NONE
   INTEGER, INTENT (OUT) :: pid
   INTEGER :: getpid
-
   pid = getpid()
 END SUBROUTINE m_getpid
 !******************************************************************************
 SUBROUTINE m_getarg(i,arg)
-  IMPLICIT NONE
   INTEGER, INTENT (IN) :: i
   CHARACTER (len=*), INTENT (OUT) :: arg
-
   CALL getarg(i,arg)
 END SUBROUTINE m_getarg
 !******************************************************************************
-
 END MODULE machine_absoft
-
-!******************************************************************************

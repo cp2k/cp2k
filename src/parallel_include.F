@@ -1,26 +1,32 @@
-c----------------------------------------------------------------------!
-c   CP2K: A general program to perform molecular dynamics simulations  !
-c   Copyright (C) 2000  CP2K developers group                          !
-c----------------------------------------------------------------------!
-c
-c     This is a fixed format file
-c
-c-----------------------------------------------------------------------
-c
-c     Holds External information for Message Passing Systems
-c
-c-----------------------------------------------------------------------
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2002 CP2K developers group                                  !
+!-----------------------------------------------------------------------------!
+!!****** cp2k/parallel_include [1.0] *
+!!
+!!   NAME
+!!     parallel_include
+!!
+!!   FUNCTION
+!!     Loads external information for the Message Passing Systems.
+!!
+!!   AUTHOR
+!!     JGH,MK
+!!
+!!   MODIFICATION HISTORY
+!!     - Changed from fixed to free format (13.06.2002,MK)
+!!
+!!   SOURCE
+!******************************************************************************
 
-      MODULE parallel_include
+MODULE parallel_include
 #if defined(__parallel)
-c
-c     Include file for MPI
-c
-        INCLUDE 'mpif.h'
+  INCLUDE "mpif.h"
 #endif
+  IMPLICIT NONE
 
-        PUBLIC
+  PUBLIC
 
-        INTEGER :: nothing
+  INTEGER :: dummy
 
-      END MODULE parallel_include
+END MODULE parallel_include

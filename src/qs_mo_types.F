@@ -107,7 +107,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc,nrow_block,&
-                             ncol_block,context,globenv)
+                             ncol_block,globenv)
 
 !   Purpose: Allocate a wavefunction data structure.
 
@@ -118,8 +118,8 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     REAL(wp), INTENT(IN)                      :: maxocc
-    INTEGER, INTENT(IN)                       :: context,nao,ncol_block,&
-                                                 nelectron,nmo,nrow_block
+    INTEGER, INTENT(IN)                       :: nao,ncol_block,nelectron,nmo,&
+                                                 nrow_block
 
 !   *** Local parameters ***
 
@@ -171,14 +171,13 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="MO EIGENVECTORS",&
-                               context=context,&
                                globenv=globenv)
 
   END SUBROUTINE allocate_mo_set
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_density_matrix(mo_set,density_matrix,context,globenv)
+  SUBROUTINE calculate_density_matrix(mo_set,density_matrix,globenv)
 
 !   Purpose: Calculate the density matrix from the MO eigenvectors and the
 !            MO occupation numbers.
@@ -190,7 +189,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: density_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -201,14 +199,13 @@ CONTAINS
     CALL timeset("calculate_density_matrix","I","",handle)
 
     CALL blacs_syrk("U","N",mo_set%lfomo-1,2.0_wp,mo_set%eigenvectors,1,1,&
-                    0.0_wp,density_matrix,context,globenv)
+                    0.0_wp,density_matrix,globenv)
 
 !   *** Add the density contribution from the fractional occupied MOs ***
 
     DO imo=mo_set%lfomo,mo_set%homo
       CALL blacs_syrk("U","N",1,mo_set%occupation_numbers(imo),&
-                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix,context,&
-                      globenv)
+                      mo_set%eigenvectors,1,imo,1.0_wp,density_matrix,globenv)
     END DO
 
     CALL timestop(0.0_wp,handle)
@@ -217,7 +214,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_w_matrix(mo_set,w_matrix,context,globenv)
+  SUBROUTINE calculate_w_matrix(mo_set,w_matrix,globenv)
 
 !   Purpose: Calculate the W matrix from the MO eigenvectors, MO eigenvalues,
 !            and the MO occupation numbers.
@@ -229,7 +226,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: w_matrix
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -240,12 +236,12 @@ CONTAINS
 
     CALL timeset("calculate_w_matrix","I","",handle)
 
-    CALL blacs_set_all(w_matrix,0.0_wp,context,globenv)
+    CALL blacs_set_all(w_matrix,0.0_wp,globenv)
 
     DO imo=1,mo_set%homo
       eigocc = mo_set%eigenvalues(imo)*mo_set%occupation_numbers(imo)
       CALL blacs_syrk("U","N",1,eigocc,mo_set%eigenvectors,1,imo,1.0_wp,&
-                      w_matrix,context,globenv)
+                      w_matrix,globenv)
     END DO
 
     CALL timestop(0.0_wp,handle)
@@ -360,7 +356,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_mo_set(mo_set,context,globenv)
+  SUBROUTINE read_mo_set(mo_set,globenv)
 
 !   Purpose: Read the MO eigenvectors from the restart file.
 
@@ -371,7 +367,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -381,8 +376,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_blacs_info(context=context,&
-                        globenv=globenv,&
+    CALL get_blacs_info(globenv=globenv,&
                         my_process_number=mype,&
                         number_of_processes=npe)
 
@@ -401,7 +395,6 @@ CONTAINS
 
     CALL read_blacs_matrix(matrix=mo_set%eigenvectors,&
                            lunit=restart_unit,&
-                           context=context,&
                            globenv=globenv)
 
     CALL close_file(unit_number=restart_unit)
@@ -498,7 +491,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_mo_set_to_restart_unit(mo_set,context,globenv)
+  SUBROUTINE write_mo_set_to_restart_unit(mo_set,globenv)
 
 !   Purpose: Write the MO eigenvectors to the restart file.
 
@@ -508,7 +501,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -518,8 +510,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL get_blacs_info(context=context,&
-                        globenv=globenv,&
+    CALL get_blacs_info(globenv=globenv,&
                         my_process_number=mype,&
                         number_of_processes=npe)
 
@@ -538,7 +529,6 @@ CONTAINS
 
     CALL write_blacs_matrix(matrix=mo_set%eigenvectors,&
                             lunit=restart_unit,&
-                            context=context,&
                             globenv=globenv)
 
     CALL close_file(unit_number=restart_unit)
@@ -548,7 +538,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,context,globenv)
+                                         before,after,globenv)
 
 !   Purpose: Write the MO eigenvalues, MO occupation numbers and
 !            MO eigenvectors.
@@ -568,7 +558,7 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)     :: globenv
     TYPE(mo_set_type), POINTER                    :: mo_set
     TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-    INTEGER, INTENT(IN)                           :: after,before,context
+    INTEGER, INTENT(IN)                           :: after,before
 
 !   *** Local parameters ***
 
@@ -601,8 +591,7 @@ CONTAINS
 
     IF (globenv%print%mo_eigenvectors) THEN
       NULLIFY (matrix)
-      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix,context,&
-                                     globenv)
+      CALL copy_blacs_to_full_matrix(mo_set%eigenvectors,matrix,globenv)
     END IF
 
     IF (.NOT.globenv%ionode) RETURN

@@ -255,7 +255,6 @@ contains
             nrow_block=cp_optimal_blacs_block_size,&
             ncol_block=cp_optimal_blacs_block_size,&
             name='min blacs 1',&
-            context=gf_env%blacs_context,&
             globenv=global_env)
        call allocate_blacs_matrix(gf_env%min_blacs_2,&
             nrow_global=ntot_min_bas,&
@@ -263,7 +262,6 @@ contains
             nrow_block=cp_optimal_blacs_block_size,&
             ncol_block=cp_optimal_blacs_block_size,&
             name='min blacs 2',&
-            context=gf_env%blacs_context,&
             globenv=global_env)
        call allocate_blacs_matrix(gf_env%min_blacs_3,&
             nrow_global=ntot_min_bas,&
@@ -271,7 +269,6 @@ contains
             nrow_block=cp_optimal_blacs_block_size,&
             ncol_block=cp_optimal_blacs_block_size,&
             name='min blacs 3',&
-            context=gf_env%blacs_context,&
             globenv=global_env)
        gf_env%scf_work1 => scf_work1
        gf_env%scf_work2 => scf_work2
@@ -291,7 +288,7 @@ contains
           call allocate_mo_set(gf_env%mo_set(1)%mo_set,nao=ntot_min_bas,&
                nmo=nelectron/2,&
                nelectron=nelectron,maxocc=2.0_wp,nrow_block=n_atoms,&
-               ncol_block=n_atoms,context=gf_env%blacs_context,&
+               ncol_block=n_atoms,&
                globenv=global_env)
           gf_env%should_dealloc_mo=.true.
        end if
@@ -575,31 +572,29 @@ contains
        ! do not do it every time?
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
             blacs_matrix=gf_env%min_blacs_1, &
-            context=gf_env%blacs_context, &
             globenv=g_env)
 
        call orthogonalise_matrix(ortho=gf_env%min_blacs_1,&
             ks=gf_env%min_blacs_2,&
-            work=gf_env%min_blacs_3,context=gf_env%blacs_context,&
+            work=gf_env%min_blacs_3,&
             globenv=g_env)
        
        call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
             blacs_matrix=gf_env%min_blacs_2, &
-            context=gf_env%blacs_context, &
             globenv=g_env)
 
        ! min_blacs1 = S^{-1/2}, min_blacs2= H_{KS}
        call eigensolver(ks=gf_env%min_blacs_2,&
             mo_set=gf_env%mo_set(1)%mo_set,&
             ortho=gf_env%min_blacs_1, work=gf_env%min_blacs_3,&
-            context=gf_env%blacs_context,globenv=g_env)
+            globenv=g_env)
 
        call calculate_density_matrix(mo_set=gf_env%mo_set(1)%mo_set,&
             density_matrix=gf_env%min_blacs_2,&
-            context=gf_env%blacs_context,globenv=g_env)
+            globenv=g_env)
        
        call copy_blacs_to_sparse_matrix(gf_env%min_blacs_2,&
-            min_density_m,gf_env%blacs_context,g_env)
+            min_density_m,g_env)
 
        call symmetrise_diagonal_blocks(min_density_m)
 
@@ -607,11 +602,9 @@ contains
        ! (copy from qs_blacs to qs_blacs does not need communication)
 !!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(h_matrix),&
 !!FM            blacs_matrix=gf_env%min_blacs_1, &
-!!FM            context=gf_env%blacs_context, &
 !!FM            globenv=g_env)
 !!FM       call copy_sparse_to_blacs_matrix(sparse_matrix=cp_get_matrix(s_matrix),&
 !!FM            blacs_matrix=gf_env%min_blacs_1,&
-!!FM            context=gf_env%blacs_context,&
 !!FM            globenv=g_env)
 !!FM       ! min_blacs1=H_{KS} min_blacs2=density
 
@@ -644,15 +637,15 @@ contains
                     
           ! N H B P i^*
           call copy_sparse_to_blacs_matrix(full_h_rmpv(1)%matrix,&
-               gf_env%scf_work1,gf_env%blacs_context,g_env)
+               gf_env%scf_work1,g_env)
           call cp_m2f_with_B_M_pi(min_density_m,cp_get_matrix(gf_env%full_work_m),&
                glob_angles=angles, qs_env=gf_env%qs_env, global_env=g_env,&
                error=error)
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, gf_env%blacs_context,g_env)
+               gf_env%scf_work2,g_env)
           call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3,gf_env%blacs_context,g_env)
+               gf_env%scf_work3,g_env)
           call cp_set_to(diagMatrix,value=0.0_wp)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
@@ -662,10 +655,10 @@ contains
                gf_env%min_blacs_2,gf_env%min_blacs_3, global_env=g_env)
           call blacs_gemm('N','N',min_bas_size,min_bas_size,min_bas_size,&
                1.0_wp,gf_env%min_blacs_2,gf_env%min_blacs_3, 0.0_wp,&
-               gf_env%min_blacs_1, context=gf_env%blacs_context,&
+               gf_env%min_blacs_1,&
                globenv=g_env)
           call copy_blacs_to_sparse_matrix(gf_env%min_blacs_1,&
-               cp_get_matrix(gf_env%min_work_m),gf_env%blacs_context, g_env)
+               cp_get_matrix(gf_env%min_work_m),g_env)
           call cp_m2f_with_B_M_pi(cp_get_matrix(gf_env%min_work_m),&
                cp_get_matrix(gf_env%full_work_m),glob_angles=angles,&
                qs_env=gf_env%qs_env, global_env=g_env,&
@@ -674,12 +667,12 @@ contains
           !call cp_dealloc_ref(full_pao_m,error=error)
 
           call copy_sparse_to_blacs_matrix(cp_get_matrix(gf_env%full_work_m),&
-               gf_env%scf_work2, gf_env%blacs_context, g_env)
+               gf_env%scf_work2,g_env)
           call copy_sparse_to_blacs_matrix(full_s_rmpv(1)%matrix,&
-               gf_env%scf_work1, gf_env%blacs_context, g_env)
+               gf_env%scf_work1,g_env)
           call blacs_gemm('N','N',full_bas_size,full_bas_size,full_bas_size,&
                1.0_wp,gf_env%scf_work1,gf_env%scf_work2,0.0_wp,&
-               gf_env%scf_work3, gf_env%blacs_context, g_env)
+               gf_env%scf_work3,g_env)
           call add_blacs_to_block_diag_sm(gf_env%scf_work3,&
                diagMatrix,&
                global_env=g_env,d_struct=gf_env%d_struct, error=error)
@@ -733,7 +726,7 @@ contains
 
 !=========== qs_scf rip off (to avoid circular ref) to do =========
 
-  SUBROUTINE orthogonalise_matrix(ortho,ks,work,context,globenv)
+  SUBROUTINE orthogonalise_matrix(ortho,ks,work,globenv)
 
 !   Purpose: Orthogonalisation matrix (S**(-1/2))
 
@@ -743,7 +736,6 @@ contains
 
     TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -754,10 +746,8 @@ contains
     CALL timeset("orthogonalise_matrix","I","",handle)
 
     CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
-    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,context,&
-                    globenv)
-    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,context,&
-                    globenv)
+    CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp,work,globenv)
+    CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp,ks,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -765,7 +755,7 @@ contains
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo_set,ortho,work,context,globenv)
+  SUBROUTINE eigensolver(ks,mo_set,ortho,work,globenv)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -777,7 +767,6 @@ contains
     TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local variables ***
 
@@ -798,10 +787,10 @@ contains
 
 !   *** Diagonalise the Kohn-Sham matrix ***
 
-    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp,context,globenv)
+    CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,1.0_wp,globenv)
 
     CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                    mo_eigenvectors,context,globenv)
+                    mo_eigenvectors,globenv)
 
     CALL timestop(0.0_wp,handle)
 

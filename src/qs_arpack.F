@@ -108,19 +108,19 @@ END SUBROUTINE
 ! otherwise arpack_op_blacs has to be modified
 ! vmatrix should contain at least two column
 ! 
-SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,globenv,bmatrix)
+SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,globenv,bmatrix)
 
   ! arguments
   TYPE(blacs_matrix_type), POINTER           :: amatrix
   TYPE(blacs_matrix_type), POINTER           :: vmatrix
   REAL(WP), DIMENSION(:), POINTER            :: eval
-  INTEGER, INTENT(IN)                        :: neig,context
+  INTEGER, INTENT(IN)                        :: neig
   TYPE(blacs_matrix_type), POINTER, OPTIONAL :: bmatrix
   TYPE(global_environment_type), INTENT(IN) :: globenv
   LOGICAL, INTENT(IN)                        :: use_vectors
 
   ! locals
-  INTEGER :: handle,istat
+  INTEGER :: context,handle,istat
   REAL(wp), DIMENSION(:), POINTER :: vin,vout
 
   ! locals arpack
@@ -137,7 +137,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
 
   CALL timeset('arpack_diag_blacs','I',' ',handle)
 
-
+  context = globenv%context
   CALL arpack_confirm(globenv)
   CALL get_blacs_matrix_info(amatrix,nrow_global=n)
   CALL get_blacs_matrix_info(vmatrix,ncol_global=ncolsv)
@@ -157,7 +157,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
   endif
 
   ! here we learn how big nloc has to be
-  CALL blacs_find_vector_distribution(vmatrix,nloc,context,globenv)
+  CALL blacs_find_vector_distribution(vmatrix,nloc,globenv)
 
 !
 ! allocate the scratch space, notice that some of these (cv,workl) are not small...
@@ -233,11 +233,11 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
     alpha=1.0D0
     ! sum all eigenvectors in the first one
     DO i=2,neig
-    CALL blacs_daxpy(vmatrix,i,alpha,1,context,globenv)
+    CALL blacs_daxpy(vmatrix,i,alpha,1,globenv)
     ENDDO
     !  and use as an initial state
     info=1
-    CALL copy_blacs_to_vector(vmatrix,1,resid,context,globenv)
+    CALL copy_blacs_to_vector(vmatrix,1,resid,globenv)
   ENDIF 
    
   !  the famous reverse communication let dsaupd 'call' arpack_op_blacs
@@ -262,9 +262,9 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
        vout=>workd(ipntr(2):)
        ! vmatrix is buff here
        IF (present(bmatrix)) THEN
-         call arpack_op(amatrix,vin,vout,vmatrix,context,globenv,bmatrix)
+         call arpack_op(amatrix,vin,vout,vmatrix,globenv,bmatrix)
        ELSE
-         call arpack_op(amatrix,vin,vout,vmatrix,context,globenv)
+         call arpack_op(amatrix,vin,vout,vmatrix,globenv)
        ENDIF
      else
        exit
@@ -312,7 +312,7 @@ SUBROUTINE arpack_diag_blacs(amatrix,vmatrix,eval,neig,ncv,use_vectors,context,g
   do i=1,neig
      ! is there any clean way to do this ... ?
      workd(1:nloc)=cv(1:nloc,i)
-     call copy_vector_to_blacs(workd,vmatrix,i,context,globenv)
+     call copy_vector_to_blacs(workd,vmatrix,i,globenv)
   enddo
 
   deallocate(cv,workl,workd,d,resid,ax,select)
@@ -325,20 +325,19 @@ END SUBROUTINE arpack_diag_blacs
 ! L^X A L^X  should be calculate as described in the ARPACK manual
 ! right now, it is not implemented
 !
-SUBROUTINE arpack_op_blacs(amatrix,vin,vout,matrix_buf,context,globenv,bmatrix)
+SUBROUTINE arpack_op_blacs(amatrix,vin,vout,matrix_buf,globenv,bmatrix)
 
   ! arguments
   TYPE(blacs_matrix_type), POINTER           :: amatrix,matrix_buf
   TYPE(blacs_matrix_type), POINTER, OPTIONAL :: bmatrix
   REAL(wp), DIMENSION(:), POINTER            :: vin,vout
-  integer, intent(IN)                        :: context
   TYPE(global_environment_type), INTENT(IN) :: globenv
 
   IF (PRESENT(bmatrix)) THEN
      call stop_program("arpack_op_blacs","bmatrix not yet implemented",globenv)
   ENDIF
 
-  CALL  blacs_vector_symv(amatrix,vin,vout,matrix_buf,context,globenv)
+  CALL  blacs_vector_symv(amatrix,vin,vout,matrix_buf,globenv)
 
 END SUBROUTINE arpack_op_blacs
 

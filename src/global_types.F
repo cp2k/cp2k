@@ -106,6 +106,9 @@ MODULE global_types
      INTEGER :: print_level  !! how much information is written
      INTEGER :: scr          !! output unit
      INTEGER :: source       !! processor id for global output node
+     INTEGER :: context      !! BLACS context
+     INTEGER :: nprow        !! BLACS process grid: number of rows
+     INTEGER :: npcol        !! BLACS process grid: number of columns
      LOGICAL :: ionode       !! this processor performs global output
   END TYPE global_environment_type
 

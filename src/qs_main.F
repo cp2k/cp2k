@@ -30,14 +30,19 @@ MODULE qs_main
   USE kinds, ONLY: wp => dp
 
   USE global_types,         ONLY: global_environment_type
+  USE qs_blacs,             ONLY: finish_blacs,&
+                                  start_blacs
   USE qs_core_hamiltonian,  ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types, ONLY: qs_environment_type
+  USE qs_forces,            ONLY: update_forces
   USE qs_init,              ONLY: read_qs_env
-  USE qs_neighbor_lists,    ONLY: build_qs_neighbor_lists
+  USE qs_neighbor_lists,    ONLY: build_neighbor_lists
   USE qs_overlap,           ONLY: distribute_overlap_matrix
   USE qs_scf,               ONLY: scf
   USE timings,              ONLY: timeset,&
                                   timestop
+
+  USE qs_build_ks_matrix, ONLY: qs_ks_env_type
 
   IMPLICIT NONE
 
@@ -65,11 +70,17 @@ CONTAINS
 
 !   *** Local variables ***
 
+    TYPE(qs_ks_env_type) :: ks_env
+
     INTEGER :: handle
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("Quickstep","I","",handle)
+
+!   *** Initialise BLACS ***
+
+    CALL start_blacs(globenv)
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
@@ -78,7 +89,7 @@ CONTAINS
 
 !   *** Build neighbor list sets ***
 
-    CALL build_qs_neighbor_lists(qs_env,globenv)
+    CALL build_neighbor_lists(qs_env,globenv)
 
 !   *** Allocate the overlap matrix and distribute the atomic blocks ***
 
@@ -90,7 +101,15 @@ CONTAINS
 
 !   *** Perform a SCF run ***
 
-    CALL scf(qs_env,globenv)
+    CALL scf(ks_env,qs_env,globenv)
+
+!   *** Calculate forces ***
+
+    CALL update_forces(ks_env,qs_env,globenv)
+
+!   *** Release BLACS ***
+
+    CALL finish_blacs(globenv)
 
     CALL timestop(0.0_wp,handle)
 

@@ -61,11 +61,11 @@ MODULE qs_scf
                                       coeff_type,&
                                       coeff_zero,&
                                       coeff_sumup
-  USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE cube_utils,               ONLY: cube_info_type,&
                                       destroy_cube_info,&
                                       init_cube_info
   USE dft_types,                ONLY: dft_control_type
+  USE machine,                  ONLY: m_flush
   USE external_potential_types, ONLY: all_potential_type,&
                                       get_potential,&
                                       gth_potential_type
@@ -97,22 +97,19 @@ MODULE qs_scf
                                       get_blacs_matrix_info,&
                                       power_blacs_matrix,&
                                       replicate_blacs_matrix,&
-                                      start_blacs,&
                                       symmetrise_blacs_matrix, &
                                       blacs_cholesky_decompose, &
                                       blacs_cholesky_reduce, &
                                       blacs_cholesky_restore
+  USE qs_core_hamiltonian,      ONLY: build_core_hamiltonian_matrix
   USE qs_diis,                  ONLY: eps_diis,max_diis,scf_diis
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type,&
                                       set_qs_env
-  USE qs_force_types,           ONLY: qs_force_type,&
-                                      write_qs_force
   USE qs_integrate_potential,   ONLY: integrate_v_rspace, &
                                       integrate_v_core_rspace
   USE qs_mo_types,              ONLY: allocate_mo_set,&
                                       calculate_density_matrix,&
-                                      calculate_w_matrix,&
                                       correct_mo_eigenvalues,&
                                       get_mo_set,&
                                       mo_set_p_type,&
@@ -185,9 +182,6 @@ MODULE qs_scf
   TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
   TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
   TYPE(particle_type), DIMENSION(:), POINTER    :: particle_set
-  TYPE(qs_force_type), DIMENSION(:), POINTER    :: force
-
-  TYPE(real_matrix_p_type) :: w
 
   CHARACTER(LEN=10) :: density_guess
   REAL(wp)          :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
@@ -195,7 +189,7 @@ MODULE qs_scf
 !!$       etotal,ex,total_rho_core_rspace,total_rho_elec_rspace,&
 !!$                       total_rho_gspace,total_rho_rspace
   INTEGER           :: charge,max_scf,nelectron,nrebuild,nrow_block,&
-                       ncol_block,nprow,npcol,maxl,nkind
+                       ncol_block,maxl,nkind
   LOGICAL           :: gradient_functional,gth_potential_present,&
                        rebuild,use_cholesky,use_arpack
 
@@ -217,10 +211,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE scf(qs_env,globenv)
+  SUBROUTINE scf(ks_env,qs_env,globenv)
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
+    TYPE(qs_ks_env_type), INTENT(INOUT)       :: ks_env
 
 !   *** Local parameters ***
 
@@ -232,9 +227,9 @@ CONTAINS
     TYPE(mo_set_type), POINTER :: mo_set
 
     REAL(wp) :: delta,diis_error,t1,t2
-    INTEGER  :: context,handle,homo,igrid_level,imo,iscf,istat,nmo,&
+    INTEGER  :: handle,homo,igrid_level,imo,iscf,istat,nmo,&
                 output_unit
-    LOGICAL  :: calculate_forces,diis_step,do_level_shift,ionode
+    LOGICAL  :: diis_step,do_level_shift,ionode
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
@@ -246,7 +241,6 @@ CONTAINS
     type(cp_sparse_matrix_p_type),dimension(:),pointer :: min_density_m
     real(kind=wp)  ::pao_f,pao_last_f,pao_actual_grad
     
-    type(qs_ks_env_type) :: ks_env
     type(real_matrix_p_type), pointer :: ks, p
     type(real_matrix_p_type), dimension(:), pointer :: ks_rmpv, p_rmpv,&
          p_old_rmpv
@@ -280,7 +274,6 @@ CONTAINS
                     particle_set=particle_set,&
                     pao_env=pao_env)
 
-    calculate_forces = dft_control%forces
     pao=dft_control%qs_control%pao.and.associated(pao_env)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -300,8 +293,11 @@ CONTAINS
         "SCF WAVEFUNCTION OPTIMIZATION"
     END IF
 
-    CALL init_scf_run(mo_set,context,qs_env,globenv,ecore_self=ecore_self, &
-       ecore_overlap=ecore_overlap,calculate_forces=calculate_forces)
+    CALL init_scf_run(mo_set=mo_set,&
+                      qs_env=qs_env,&
+                      globenv=globenv,&
+                      ecore_self=ecore_self,&
+                      ecore_overlap=ecore_overlap)
 
     call qs_ks_init(ks_env,qs_env=qs_env,global_env=globenv, error=error)
     ks_env%ecore_self=ecore_self ! ugly
@@ -334,6 +330,8 @@ CONTAINS
 !   *** SCF loop ***
 
     scf_loop: DO
+
+      IF (ionode) CALL m_flush(output_unit)
 
       iscf = iscf + 1
 
@@ -374,30 +372,29 @@ CONTAINS
         CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
       END IF
 
-      CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,context,globenv)
+      CALL copy_sparse_to_blacs_matrix(ks%matrix,scf_work1,globenv)
 
       IF (iscf > 1) THEN
         CALL scf_diis(mo_set,scf_work1,scf_work2,delta,diis_error,diis_step,&
-                      context,qs_env,globenv)
+                      qs_env,globenv)
       END IF
 
       do_level_shift = ((level_shift /= 0.0_wp).and.&
            ((density_guess == "CORE").or.(iscf > 1)))
-      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2, &
-                       do_level_shift,level_shift,context,globenv)
+      CALL eigensolver(scf_work1,mo_set,ortho,scf_work2,&
+                       do_level_shift,level_shift,globenv)
       
 !     *** Update the MO occupation numbers, if smearing is used ***
 
       IF (smear /= 0.0_wp) CALL set_mo_occupation(mo_set,smear)
 
       IF (globenv%print%each_scf_step) THEN
-        CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,context,&
-                          globenv)
+        CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
       END IF
 
-      CALL calculate_density_matrix(mo_set,scf_work1,context,globenv)
+      CALL calculate_density_matrix(mo_set,scf_work1,globenv)
 
-      CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(scf_work1,ks%matrix,globenv)
       CALL symmetrise_diagonal_blocks(ks%matrix)
       
    end if paoIf
@@ -458,7 +455,7 @@ CONTAINS
 
     IF (.NOT.diis_step) CALL transfer_matrix(ks%matrix,p%matrix)
 
-    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,context,globenv)
+    CALL write_mo_set(mo_set,atomic_kind_set,particle_set,4,6,globenv)
 
     IF (globenv%print%density_matrix) THEN
       CALL write_sparse_matrix(p%matrix,4,6,qs_env,globenv)
@@ -478,53 +475,13 @@ CONTAINS
       CALL write_sparse_matrix(ks%matrix,4,6,qs_env,globenv)
     END IF
 
-!   *** Calculate forces ***
-
-    IF (calculate_forces) THEN
-      NULLIFY (w%matrix)
-      CALL replicate_matrix_structure(h(1)%matrix,w%matrix,"W MATRIX")
-      CALL calculate_w_matrix(mo_set,scf_work1,context,globenv)
-      CALL copy_blacs_to_sparse_matrix(scf_work1,w%matrix,context,globenv)
-      CALL symmetrise_diagonal_blocks(w%matrix)
-      IF (globenv%ionode.AND.globenv%print%w_matrix) THEN
-        CALL write_sparse_matrix(w%matrix,4,6,qs_env,globenv)
-      END IF
-      CALL build_core_hamiltonian_matrix(qs_env,globenv,.TRUE.,p%matrix,&
-                                         w%matrix)
-      CALL build_kohn_sham_matrix(ks_env=ks_env,&
-                                  qs_env=qs_env,&
-                                  globenv=globenv,&
-                                  ks=ks_rmpv,&
-                                  p=p_rmpv,&
-                                  p_old=p_old_rmpv,&
-                                  rebuild=rebuild,&
-                                  nrebuild=nrebuild,&
-                                  ex=ex,&
-                                  ec=ec,&
-                                  ecore=ecore,&
-                                  ecore_overlap=ecore_overlap,&
-                                  ecore_self=ecore_self,&
-                                  ehartree=ehartree,&
-                                  total_rho_gspace=total_rho_gspace,&
-                                  total_rho_elec_rspace=total_rho_elec_rspace,&
-                                  etotal=etotal,&
-                                  total_rho_core_rspace=total_rho_core_rspace,&
-                                  total_rho_rspace=total_rho_rspace,&
-                                  error=error,&
-                                  calculate_forces=.TRUE.)
-      CALL get_qs_env(qs_env=qs_env,force=force)
-      CALL write_qs_force(force,globenv)
-    END IF
-
 !   *** Write restart file ***
 
-    CALL write_mo_set(mo_set,context,globenv)
+    CALL write_mo_set(mo_set,globenv)
 
-    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
-    
-    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
+!    call pao_opt_dealloc(pao_optimizer,pao_obj_f,qs_env,globenv,error)
 
-    CALL finish_blacs(context,globenv)
+!    call qs_ks_dealloc_ref(ks_env, qs_env=qs_env, global_env=globenv, error=error)
 
     CALL timestop(0.0_wp,handle)
 
@@ -532,8 +489,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_scf_run(mo_set,context,qs_env,globenv, ecore_self, &
-       ecore_overlap,calculate_forces)
+  SUBROUTINE init_scf_run(mo_set,qs_env,globenv,ecore_self,ecore_overlap)
 
 !   Purpose: Initialise a SCF run.
 
@@ -544,8 +500,6 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    INTEGER, INTENT(OUT)                      :: context
-    LOGICAL, INTENT(IN)                       :: calculate_forces
     real(kind=wp), intent(out)                :: ecore_self, ecore_overlap
 
 !   *** Local parameters ***
@@ -557,7 +511,8 @@ CONTAINS
 
     TYPE(blacs_matrix_type), POINTER :: mo_eigenvectors
 
-    INTEGER :: handle,homo,ikind,istat,nao,ndep,nmo,output_unit
+    INTEGER :: context,handle,homo,ikind,istat,nao,ndep,nmo,npcol,nprow,&
+               output_unit
     LOGICAL :: ionode, pao
 
     INTEGER, DIMENSION(0:globenv%num_pe-1) :: nblock_pe,nelement_pe
@@ -570,10 +525,9 @@ CONTAINS
 
     ionode = globenv%ionode
     output_unit = globenv%scr
-
-!   *** Initialise BLACS ***
-
-    CALL start_blacs(nprow,npcol,context,globenv)
+    context = globenv%context
+    nprow = globenv%nprow
+    npcol = globenv%npcol
 
 !   *** Get the dimension of the full SCF matrices, ***
 !   *** i.e. the total number of atomic orbitals    ***
@@ -597,7 +551,7 @@ CONTAINS
 !   *** Allocate the distributed MO eigenvectors ***
 
     CALL allocate_mo_set(c(1)%mo_set,nao,nmo,nelectron,2.0_wp,nrow_block,&
-                         ncol_block,context,globenv)
+                         ncol_block,globenv)
 
 !   *** Put the MO set in the QS environment ***
 
@@ -626,7 +580,6 @@ CONTAINS
                                nrow_block=nrow_block,&
                                ncol_block=ncol_block,&
                                name="ORTHOGONALIZATION MATRIX",&
-                               context=context,&
                                globenv=globenv)
 
     CALL replicate_blacs_matrix(prototype_matrix=ortho,&
@@ -637,7 +590,7 @@ CONTAINS
                                 new_matrix=scf_work2,&
                                 name="SCF WORK MATRIX 2")
 
-    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1,context,globenv)
+    CALL copy_sparse_to_blacs_matrix(h(1)%matrix,scf_work1,globenv)
 
 !   *** Redistribute the core Hamiltonian matrix in ***
 !   *** order to eliminate redundant atomic blocks  ***
@@ -646,7 +599,7 @@ CONTAINS
       CALL deallocate_matrix(h(1)%matrix)
       CALL replicate_matrix_structure(s(1)%matrix,h(1)%matrix,&
                                       "CORE HAMILTONIAN MATRIX")
-      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(scf_work1,h(1)%matrix,globenv)
       call set_qs_env(qs_env,h=h)
     END IF
 
@@ -663,8 +616,11 @@ CONTAINS
     NULLIFY (p_old_rmpv(1)%matrix)
     CALL replicate_matrix_structure(h(1)%matrix,p_old_rmpv(1)%matrix,"OLD DENSITY MATRIX")
 
-    CALL calculate_ecore_self(ecore_self,qs_env)
-    CALL calculate_ecore_overlap(ecore_overlap,qs_env,globenv,calculate_forces)
+    CALL calculate_ecore_self(qs_env)
+    CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.)
+
+    ecore_overlap = qs_env%energy%core_overlap
+    ecore_self = qs_env%energy%core_self
 
     IF (ionode.AND.globenv%print%scf_energies) THEN
       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
@@ -674,10 +630,10 @@ CONTAINS
 
     if (use_cholesky .or. use_arpack) then
        ndep=0
-       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,context,globenv)
-       CALL blacs_cholesky_decompose(ortho,context,globenv)
+       CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,globenv)
+       CALL blacs_cholesky_decompose(ortho,globenv)
     else
-       CALL calculate_ortho_matrix(ortho,scf_work2,ndep,context,globenv)
+       CALL calculate_ortho_matrix(ortho,scf_work2,ndep,globenv)
     endif
 
     IF (ionode.AND.globenv%print%scf) THEN
@@ -689,11 +645,11 @@ CONTAINS
     END IF
 
     IF (globenv%print%ortho_matrix) THEN
-      CALL write_blacs_matrix(ortho,4,6,context,qs_env,globenv)
+      CALL write_blacs_matrix(ortho,4,6,qs_env,globenv)
     END IF
 
     CALL calculate_first_density_matrix(ortho,mo_set,p_rmpv(1),scf_work1,scf_work2,&
-                                        context,globenv)
+                                        globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -701,7 +657,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,context,globenv)
+  SUBROUTINE calculate_ortho_matrix(ortho,work,ndep,globenv)
 
 !   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
 
@@ -711,7 +667,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(blacs_matrix_type), POINTER          :: ortho,work
-    INTEGER, INTENT(IN)                       :: context
     INTEGER, INTENT(OUT)                      :: ndep
 
 !   *** Local variables ***
@@ -722,10 +677,10 @@ CONTAINS
 
     CALL timeset("calculate_ortho_matrix","I","",handle)
 
-    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,context,globenv)
+    CALL copy_sparse_to_blacs_matrix(s(1)%matrix,ortho,globenv)
     CALL power_blacs_matrix(ortho,work,-0.5_wp,eps_eigval,ndep,work_syevx,&
-                            context,globenv)
-    CALL symmetrise_blacs_matrix(ortho,work,context,globenv)
+                            globenv)
+    CALL symmetrise_blacs_matrix(ortho,work,globenv)
 
     CALL timestop(0.0_wp,handle)
 
@@ -733,8 +688,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(ks,mo_set,ortho,work, &
-    do_level_shift,level_shift,context,globenv)
+  SUBROUTINE eigensolver(ks,mo_set,ortho,work,do_level_shift,level_shift,&
+                         globenv)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -747,7 +702,6 @@ CONTAINS
     TYPE(blacs_matrix_type), POINTER          :: ks,ortho,work
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
-    INTEGER, INTENT(IN)                       :: context
     LOGICAL, INTENT(IN)                       :: do_level_shift
     REAL(WP), INTENT(IN)                      :: level_shift
 
@@ -780,35 +734,34 @@ CONTAINS
 
     IF (use_cholesky) THEN
 
-       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",context,globenv)
+       CALL blacs_cholesky_reduce(ks,ortho,globenv)
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",globenv)
 
     ELSEIF (use_arpack) THEN ! not really recommended, since rather slow, except for huge basis sets
 
        ncv = nmo + 64
-       CALL blacs_cholesky_reduce(ks,ortho,context,globenv)
-       CALL arpack_diag(ks,work,mo_eigenvalues,nmo,ncv,.false.,context,globenv)
-       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",context,globenv)
+       CALL blacs_cholesky_reduce(ks,ortho,globenv)
+       CALL arpack_diag(ks,work,mo_eigenvalues,nmo,ncv,.false.,globenv)
+       CALL blacs_cholesky_restore(work,nmo,ortho,mo_eigenvectors,"SOLVE",globenv)
 
     ELSE
 
        CALL get_blacs_matrix_info(matrix=ks,nrow_global=nao)
        CALL blacs_symm("L","U",nao,nao,1.0_wp,ks,ortho,0.0_wp, & 
-                        work,context,globenv)
+                        work,globenv)
        CALL blacs_gemm("T","N",nao,nao,nao,1.0_wp,ortho,work,0.0_wp, &
-                        ks,context,globenv)
+                        ks,globenv)
  
        IF (do_level_shift) THEN
          DO imo=homo+1,nmo
-            CALL blacs_add_to_element(ks,imo,imo,level_shift,context,&
-                                    globenv)
+            CALL blacs_add_to_element(ks,imo,imo,level_shift,globenv)
          END DO
        ENDIF
 
-       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,context,globenv)
+       CALL blacs_syevx(ks,work,mo_eigenvalues,nmo,work_syevx,globenv)
        CALL blacs_gemm("N","N",nao,nmo,nao,1.0_wp,ortho,work,0.0_wp,&
-                        mo_eigenvectors,context,globenv)
+                        mo_eigenvectors,globenv)
 
        IF (do_level_shift) THEN
           CALL correct_mo_eigenvalues(mo_set,level_shift)
@@ -896,14 +849,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,work1,work2,&
-                                            context,globenv)
+  SUBROUTINE calculate_first_density_matrix(ortho,mo_set,p,work1,work2,globenv)
 
     TYPE(blacs_matrix_type), POINTER          :: ortho,work1,work2
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(mo_set_type), POINTER                :: mo_set
     TYPE(real_matrix_p_type), INTENT(INOUT)   :: p
-    INTEGER, INTENT(IN)                       :: context
 
 !   *** Local parameters ***
 
@@ -933,31 +884,31 @@ CONTAINS
 
     IF (density_guess == "RESTART") THEN
 
-      CALL read_mo_set(mo_set,context,globenv)
+      CALL read_mo_set(mo_set,globenv)
       IF (level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       END IF
-      CALL calculate_density_matrix(mo_set,work1,context,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL calculate_density_matrix(mo_set,work1,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
      ELSE IF (density_guess == "CORE") THEN
 
-      CALL eigensolver(work1,mo_set,ortho,work2,.false.,0.0_wp,context,globenv)
+      CALL eigensolver(work1,mo_set,ortho,work2,.false.,0.0_wp,globenv)
       IF (level_shift /= 0.0_wp) THEN
         CALL get_mo_set(mo_set=mo_set,&
                         eigenvectors=mo_eigenvectors)
         CALL copy_blacs_to_blacs_matrix(mo_eigenvectors,ortho)
       END IF
-      CALL calculate_density_matrix(mo_set,work1,context,globenv)
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL calculate_density_matrix(mo_set,work1,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
       CALL symmetrise_diagonal_blocks(p%matrix)
 
     ELSE IF (density_guess == "ATOMIC") THEN
 
-      CALL blacs_set_all(work1,0.0_wp,context,globenv)
+      CALL blacs_set_all(work1,0.0_wp,globenv)
 
       sum = 0.0_wp
 
@@ -966,7 +917,7 @@ CONTAINS
       ALLOCATE (econf(0:maxl),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"econf",(maxl + 1)*int_size)
 
-      CALL copy_sparse_to_blacs_matrix(s(1)%matrix,work2,context,globenv)
+      CALL copy_sparse_to_blacs_matrix(s(1)%matrix,work2,globenv)
 
       DO ikind=1,nkind
 
@@ -1016,8 +967,8 @@ CONTAINS
                 DO iatom=1,natom
                   atom_a = atom_list(iatom)
                   isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                  CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
-                  CALL blacs_get_element(work2,isgf,isgf,saa,context,globenv)
+                  CALL blacs_set_element(work1,isgf,isgf,paa,globenv)
+                  CALL blacs_get_element(work2,isgf,isgf,saa,globenv)
                   sum = sum + paa*saa
                 END DO
               END DO
@@ -1058,16 +1009,16 @@ CONTAINS
               DO iatom=1,natom
                 atom_a = atom_list(iatom)
                 isgf = particle_set(atom_a)%first_sgf + isgfa - 1
-                CALL blacs_get_element(work1,isgf,isgf,paa,context,globenv)
+                CALL blacs_get_element(work1,isgf,isgf,paa,globenv)
                 paa = paa*saa
-                CALL blacs_set_element(work1,isgf,isgf,paa,context,globenv)
+                CALL blacs_set_element(work1,isgf,isgf,paa,globenv)
               END DO
             END DO
           END DO
         END DO
       END DO
 
-      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,context,globenv)
+      CALL copy_blacs_to_sparse_matrix(work1,p%matrix,globenv)
 
     ELSE
 
@@ -1108,8 +1059,6 @@ CONTAINS
     level_shift = 0.0_wp
     max_diis = 4
     max_scf = 50
-    nprow = 0
-    npcol = 0
     nrebuild = 1
     nrow_block = 32
     ncol_block = 32
@@ -1155,12 +1104,6 @@ CONTAINS
       CASE ("NREBUILD")
         CALL read_object(nrebuild)
         nrebuild = MAX(1,nrebuild)
-      CASE ("BLOCKSIZE")
-        CALL read_object(nrow_block)
-        ncol_block = nrow_block
-      CASE ("PROCESS_GRID")
-        CALL read_object(nprow)
-        CALL read_object(npcol)
       CASE ("SMEAR")
         CALL read_object(smear)
       CASE ("WORK_SYEVX")

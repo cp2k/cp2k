@@ -39,12 +39,12 @@ CLEAN_TARGETS   = sopt/clean sdbg/clean popt/clean pdbg/clean\
 ### Master rules ###
 
 build:
-	@cd $(EXEDIR) || mkdir -p $(EXEDIR)
-	@cd $(LIBDIR)/$(VERSION) || mkdir -p $(LIBDIR)/$(VERSION)
-	@cd $(TOOLDIR) || mkdir -p $(TOOLDIR)
-	@cd $(OBJDIR)/$(VERSION) || mkdir -p $(OBJDIR)/$(VERSION)
+	@mkdir -p $(EXEDIR)
+	@mkdir -p $(LIBDIR)/$(VERSION)
+	@mkdir -p $(TOOLDIR)
+	@mkdir -p $(OBJDIR)/$(VERSION)
 	@echo
-	@echo "*** machine file = $(MACHINEDEFS)"	
+	@echo "*** machine file = $(MACHINEDEFS)"
 	@echo
 	$(SMAKE) -C $(TOOLDIR) -f $(TOOLSRC)/Makefile SRCDIR=$(TOOLSRC)
 	$(SMAKE) -C $(OBJDIR)/$(VERSION) -f $(MAKEFILE) dependencies
@@ -60,10 +60,14 @@ include $(OBJECTDEFS)
 
 include $(MACHINEDEFS)
 
+CPPFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
+            -D__COMPILE_DATE="\"$(shell date)\""\
+            -D__COMPILE_HOST="\"$(shell hostname)\""
+
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
 
-LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o \
-	           mltfftsg_tools.o mltfftsg.o
+LIB1_OBJECTS = ctrig.o fftpre.o fftrot.o fftstp.o fast.o mltfftsg_tools.o\
+               mltfftsg.o
 
 DEPENDENCIES = $(OBJECTS:.o=.dep)
 
@@ -75,11 +79,11 @@ LIBRARIES = -L$(LIBDIR)/$(VERSION) -l$(LIB1) $(LIBS)
 
 dependencies: $(DEPENDENCIES)
 	@echo
-	@echo "** DFLAGS= $(DFLAGS)"
-	@echo "** CPPFLAGS= $(CPPFLAGS)"
-	@echo "** FCFLAGS= $(FCFLAGS)"
-	@echo "** LDFLAGS= $(LDFLAGS)"
-	@echo "** LIBS= $(LIBS)"
+	@echo "** DFLAGS   = $(DFLAGS)"
+	@echo "** CPPFLAGS = $(CPPFLAGS)"
+	@echo "** FCFLAGS  = $(FCFLAGS)"
+	@echo "** LDFLAGS  = $(LDFLAGS)"
+	@echo "** LIBS     = $(LIBS)"
 	@echo
 
 all: $(PROG)
@@ -107,14 +111,11 @@ vpath %.F $(SRCDIRS)
 	$(PERL) $(SFMAKEDEPEND) $*.dep $*.for
 	@rm -f $*.dep.old $*.for
 
-parallel_include.o: parallel_include.f90
-	$(FC_fixed) -c $(FCFLAGS) $*.f90
-
 parallel_include.dep:
 	touch -a parallel_include.dep parallel_include.int
 
 clean:
-	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod 
+	cd $(OBJDIR)/$(VERSION) ; rm -f *.o *.mod
 
 realclean: clean
 	cd $(OBJDIR)/$(VERSION) ; rm -f $(PROG) *

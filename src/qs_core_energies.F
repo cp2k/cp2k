@@ -36,6 +36,7 @@ MODULE qs_core_energies
   USE particle_types,           ONLY: particle_type
   USE qs_environment_types,     ONLY: get_qs_env,&
                                       qs_environment_type
+  USE qs_energy_types,          ONLY: qs_energy_type
   USE qs_force_types,           ONLY: qs_force_type
   USE simulation_cell,          ONLY: cell_type,&
                                       get_cell,&
@@ -141,8 +142,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(ecore_overlap,qs_env,globenv,&
-                                     calculate_forces)
+  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
@@ -153,7 +153,6 @@ CONTAINS
 
     TYPE(global_environment_type), INTENT(IN) :: globenv
     TYPE(qs_environment_type), INTENT(INOUT)  :: qs_env
-    REAL(wp), INTENT(OUT)                     :: ecore_overlap
     LOGICAL, INTENT(IN)                       :: calculate_forces
 
 !   *** Local parameters ***
@@ -171,10 +170,11 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
     TYPE(cell_type), POINTER        :: cell
+    TYPE(qs_energy_type), POINTER   :: energy
     CHARACTER(LEN=8)                :: unit_of_length_name
     REAL(wp)                        :: a_max,a_min,aab,&
                                        b_max,b_min,&
-                                       c_max,c_min,dab,eab,f0,&
+                                       c_max,c_min,dab,eab,ecore_overlap,f0,&
                                        rab_max,rab2,rab2_max,rootaab,&
                                        unit_of_length,zab
     INTEGER                         :: atom_a,handle,iatom,icell,igrid,iijk,&
@@ -212,6 +212,7 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     cell=cell,&
                     particle_set=particle_set,&
+                    energy=energy,&
                     force=force)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -558,13 +559,15 @@ CONTAINS
     DEALLOCATE (pbc_coord,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"pbc_coord")
 
+    energy%core_overlap = ecore_overlap
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_ecore_overlap
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_self(ecore_self,qs_env)
+  SUBROUTINE calculate_ecore_self(qs_env)
 
 !   Purpose: Calculate the self energy of the core charge distribution.
 
@@ -573,12 +576,12 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), INTENT(IN) :: qs_env
-    REAL(wp), INTENT(OUT)                 :: ecore_self
 
 !   *** Local variables ***
 
     TYPE(atomic_kind_type), POINTER :: atomic_kind
-    REAL(wp)                        :: alpha_core_charge
+    TYPE(qs_energy_type), POINTER   :: energy
+    REAL(wp)                        :: alpha_core_charge,ecore_self
     INTEGER                         :: ikind,natom,zeff
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
@@ -586,7 +589,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set)
+                    atomic_kind_set=atomic_kind_set,&
+                    energy=energy)
 
     ecore_self = 0.0_wp
 
@@ -603,7 +607,7 @@ CONTAINS
 
     END DO
 
-    ecore_self = ecore_self/SQRT(twopi)
+    energy%core_self = ecore_self/SQRT(twopi)
 
   END SUBROUTINE calculate_ecore_self
 
