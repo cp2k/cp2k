@@ -366,8 +366,10 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! XXXXXXXXXXXXXX this duplicates the functionality of get_subgrid_size  XXXXXXXXXXXXXXXXXX
      ! try to predict the maximum radius of the gaussians to be mapped on the grid
      ! up to now, it is not yet very good 
+     maxradius=0.0_dp
      DO igrid_level=1,ngrid_level
-        maxradius=0.0_dp
+        IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
+
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
          
@@ -393,7 +395,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                  ! for calculate wavefunction
                  zetp = zeta(ipgf,iset)
                  la = lshella(ishell,iset)
-                 lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+                 IF (dft_control%qs_control%map_paa) THEN
+                    lgrid_level = 1
+                 ELSE
+                    lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info,zetp)
+                 ENDIF
                  IF (lgrid_level .eq. igrid_level) THEN
                     maxradius=MAX(maxradius,exp_radius( la, zetp, &
                                   dft_control%qs_control%eps_rho_rspace, 1.0_dp))
@@ -424,7 +430,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         ! one could possibly decide that this *is* the maximum allowed radius
         maxradius = maxradius * safety_factor 
         ! write(6,*) igrid_level,maxradius, CEILING(maxradius/MINVAL(pw_pools(igrid_level)%pool%pw_grid%dr(:)))
-
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
              maxradius,cmaxl)

@@ -94,6 +94,8 @@ MODULE cp_control_types
                                        progression_factor,&
                                        relative_cutoff
     LOGICAL                         :: commensurate_mgrids
+    LOGICAL                         :: realspace_mgrids
+    LOGICAL                         :: map_paa
     LOGICAL                         :: gapw,gpw,pao
     REAL(KIND = dp)                        :: cutoff
     REAL(KIND = dp), DIMENSION(:), POINTER :: e_cutoff

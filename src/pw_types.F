@@ -63,6 +63,7 @@ MODULE pw_types
   PUBLIC :: pw_zero, pw_gather, pw_scatter
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer
   PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
+  PUBLIC :: pw_prolongate, pw_inject
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
   PUBLIC :: NOSPACE, REALSPACE, RECIPROCALSPACE
 
@@ -899,22 +900,282 @@ SUBROUTINE pw_derive_fd ( pw, pw_der, n )
      ENDIF
   ENDIF
 
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw x", pw%pw_grid%bounds(1:2,1)
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw y", pw%pw_grid%bounds(1:2,2)
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds of the pw z", pw%pw_grid%bounds(1:2,3)
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw x", pw%pw_grid%bounds_local(1:2,1)
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw y", pw%pw_grid%bounds_local(1:2,2)
-  !write(6,*) pw%pw_grid%para%my_pos,"bounds local of the pw z", pw%pw_grid%bounds_local(1:2,3)
-  !IF (pw%pw_grid%para%my_pos .EQ. 0) THEN
-  !    DO i=pw%pw_grid%bounds(1,1),pw%pw_grid%bounds(2,1)
-  !       write(6,*) i,pw%pw_grid%para%pos_of_x(i)
-  !    ENDDO
-  !ENDIF
-
   CALL timestop(0.0_dbl,handle)
 
 END SUBROUTINE pw_derive_fd
 
+! ******************************************************************************
+!          prolongates the values of a coarse grid to a fine grid
+!          uses simple linear interpolation
+! ******************************************************************************
+SUBROUTINE pw_prolongate(pw_coarse, pw_fine )
+
+  TYPE(pw_type), INTENT(IN)                :: pw_coarse
+  TYPE(pw_type), INTENT(INOUT)             :: pw_fine
+  INTEGER, DIMENSION(3)                    :: n,lb,ub
+  INTEGER                                  :: i,j,k,handle
+  INTEGER, DIMENSION(:), ALLOCATABLE       :: wrapx,wrapy,wrapz
+  CALL timeset ( 'pw_prolongate', 'I', '', handle )
+
+  ! only cr3d supported
+  IF ( pw_coarse % in_space /= REALSPACE .OR.  pw_coarse % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_prolongate","wrong pw type (I)")
+  ENDIF
+  ! only cr3d supported
+  IF ( pw_fine % in_space /= REALSPACE .OR.  pw_fine % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_prolongate","wrong pw type (II)")
+  ENDIF
+  ! only local for the time being
+  IF ( pw_coarse % pw_grid % para % mode /= PW_MODE_LOCAL ) THEN
+     CALL stop_program("pw_prolongate","sorry local only")
+  ENDIF
+  ! only for the easiest case 
+  IF ( ANY(pw_coarse % pw_grid % npts * 2 .NE. pw_fine % pw_grid % npts )) THEN
+     CALL stop_program("pw_prolongate","sorry too difficult ")
+  ENDIF
+  ! we use the bounds of the smaller grid
+  n   = pw_coarse % pw_grid % npts
+  lb  = pw_coarse % pw_grid % bounds_local(1,:)
+  ub  = pw_coarse % pw_grid % bounds_local(2,:)
+
+  ! we'll need a wrap for PBC
+  ALLOCATE(wrapx(lb(1)*2-1:ub(1)*2+2))
+  DO i=lb(1)*2,ub(1)*2+1
+     wrapx(i)=i
+  ENDDO
+  wrapx(lb(1)*2-1)=ub(1)*2+1
+  wrapx(ub(1)*2+2)=lb(1)*2
+  ALLOCATE(wrapy(lb(2)*2-1:ub(2)*2+2))
+  DO i=lb(2)*2,ub(2)*2+1
+     wrapy(i)=i
+  ENDDO
+  wrapy(lb(2)*2-1)=ub(2)*2+1
+  wrapy(ub(2)*2+2)=lb(2)*2
+  ALLOCATE(wrapz(lb(3)*2-1:ub(3)*2+2))
+  DO i=lb(3)*2,ub(3)*2+1
+     wrapz(i)=i
+  ENDDO
+  wrapz(lb(3)*2-1)=ub(3)*2+1
+  wrapz(ub(3)*2+2)=lb(3)*2
+
+  ! copy the indentical points
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i,2*j,2*k ) = pw_coarse % cr3d(i,j,k)
+    ENDDO
+   ENDDO
+  ENDDO
+  ! other points are averages of the points we have already. The points we have are the corners
+  ! of a cube, we fill in edges, faces and center, in this order
+  ! put values on the x edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i+1,2*j,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) + &
+                                                  pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the y edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i,2*j+1,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
+                                                  pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the z edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i,2*j,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k ) +  &
+                                                  pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the xy faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i+1,2*j+1,2*k ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j+1,2*k ) + &  
+                                                    pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the xz faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i+1,2*j,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
+                                                    pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the yz faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i,2*j+1,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i,2*j,2*k+1 ) + &
+                                                    pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 ))
+    ENDDO
+   ENDDO
+  ENDDO
+  ! put values on the center
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_fine % cr3d(2*i+1,2*j+1,2*k+1 ) = 0.5_dbl* (pw_fine % cr3d(2*i ,2*j+1,2*k+1 ) + &
+                                                      pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 ))
+    ENDDO
+   ENDDO
+  ENDDO
+  DEALLOCATE(wrapx,wrapy,wrapz)
+  CALL timestop ( 0.0_dbl, handle )
+
+END SUBROUTINE pw_prolongate
+
+
+! ******************************************************************************
+!          injectes the values of a fine grid to a coarse grid
+!          uses simple linear interpolation, and is the 'inverse' of the pw_prolongate
+!          i.e. read prolongate backwards
+!          xx WARNING xx for efficiency reasons, pw_fine gets destroyed ! sorry...
+! ******************************************************************************
+SUBROUTINE pw_inject(pw_fine, pw_coarse )
+
+  TYPE(pw_type), INTENT(IN)                :: pw_coarse
+  TYPE(pw_type), INTENT(INOUT)             :: pw_fine
+  INTEGER, DIMENSION(3)                    :: n,lb,ub
+  INTEGER                                  :: i,j,k,handle
+  INTEGER, DIMENSION(:), ALLOCATABLE       :: wrapx,wrapy,wrapz
+  REAL(KIND=dbl)                           :: dum
+  CALL timeset ( 'pw_inject', 'I', '', handle )
+
+  ! only cr3d supported
+  IF ( pw_coarse % in_space /= REALSPACE .OR.  pw_coarse % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_inject","wrong pw type (I)")
+  ENDIF
+  ! only cr3d supported
+  IF ( pw_fine % in_space /= REALSPACE .OR.  pw_fine % in_use /= REALDATA3D ) THEN
+     CALL stop_program("pw_inject","wrong pw type (II)")
+  ENDIF
+  ! only local for the time being
+  IF ( pw_coarse % pw_grid % para % mode /= PW_MODE_LOCAL ) THEN
+     CALL stop_program("pw_inject","sorry local only")
+  ENDIF
+  ! only for the easiest case
+  IF ( ANY(pw_coarse % pw_grid % npts * 2 .NE. pw_fine % pw_grid % npts )) THEN
+     CALL stop_program("pw_inject","sorry too difficult ")
+  ENDIF
+  n   = pw_coarse % pw_grid % npts
+  lb  = pw_coarse % pw_grid % bounds_local(1,:)
+  ub  = pw_coarse % pw_grid % bounds_local(2,:)
+
+  ! we'll need a wrap for PBC
+  ALLOCATE(wrapx(lb(1)*2-1:ub(1)*2+2))
+  DO i=lb(1)*2,ub(1)*2+1
+     wrapx(i)=i
+  ENDDO
+  wrapx(lb(1)*2-1)=ub(1)*2+1
+  wrapx(ub(1)*2+2)=lb(1)*2
+  ALLOCATE(wrapy(lb(2)*2-1:ub(2)*2+2))
+  DO i=lb(2)*2,ub(2)*2+1
+     wrapy(i)=i
+  ENDDO
+  wrapy(lb(2)*2-1)=ub(2)*2+1
+  wrapy(ub(2)*2+2)=lb(2)*2
+  ALLOCATE(wrapz(lb(3)*2-1:ub(3)*2+2))
+  DO i=lb(3)*2,ub(3)*2+1
+     wrapz(i)=i
+  ENDDO
+  wrapz(lb(3)*2-1)=ub(3)*2+1
+  wrapz(ub(3)*2+2)=lb(3)*2
+
+  ! values from the center
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j+1,2*k+1 )
+       pw_fine % cr3d(2*i ,2*j+1,2*k+1 )         = pw_fine % cr3d(2*i ,2*j+1,2*k+1 )+ dum
+       pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 ) = pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k+1 )+ dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the yz faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j+1,2*k+1 )
+       pw_fine % cr3d(2*i,2*j,2*k+1 )            = pw_fine % cr3d(2*i,2*j,2*k+1 ) + dum
+       pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 )   = pw_fine % cr3d(2*i,wrapy(2*j+2),2*k+1 ) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the xz faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j,2*k+1 )
+       pw_fine % cr3d(2*i,2*j,2*k+1 )          = pw_fine % cr3d(2*i,2*j,2*k+1 ) + dum
+       pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ) = pw_fine % cr3d(wrapx(2*i+2),2*j,2*k+1 ) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the xy faces
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j+1,2*k )
+       pw_fine % cr3d(2*i,2*j+1,2*k )          = pw_fine % cr3d(2*i,2*j+1,2*k ) + dum
+       pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ) = pw_fine % cr3d(wrapx(2*i+2),2*j+1,2*k ) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the z edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j,2*k+1 )
+       pw_fine % cr3d(2*i,2*j,2*k )         = pw_fine % cr3d(2*i,2*j,2*k ) + dum
+       pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)) = pw_fine % cr3d(2*i,2*j,wrapz(2*k+2)) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the y edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i,2*j+1,2*k )
+       pw_fine % cr3d(2*i,2*j,2*k )          = pw_fine % cr3d(2*i,2*j,2*k ) + dum
+       pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ) = pw_fine % cr3d(2*i,wrapy(2*j+2),2*k ) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! values from the x edges
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       dum = 0.5_dbl * pw_fine % cr3d(2*i+1,2*j,2*k )
+       pw_fine % cr3d(2*i,2*j,2*k )          = pw_fine % cr3d(2*i,2*j,2*k ) + dum
+       pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ) = pw_fine % cr3d(wrapx(2*i+2),2*j,2*k ) + dum
+    ENDDO
+   ENDDO
+  ENDDO
+  ! copy the indentical points
+  DO k=lb(3),ub(3)
+   DO j=lb(2),ub(2)
+    DO i=lb(1),ub(1)
+       pw_coarse % cr3d(i,j,k) = pw_fine % cr3d(2*i,2*j,2*k )
+    ENDDO
+   ENDDO
+  ENDDO
+
+  DEALLOCATE(wrapx,wrapy,wrapz)
+  CALL timestop ( 0.0_dbl, handle )
+
+END SUBROUTINE pw_inject
 
 !******************************************************************************
 !!****** pw_types/pw_transfer [1.0] *

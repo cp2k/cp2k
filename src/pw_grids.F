@@ -373,6 +373,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, fft, symmetry
     REAL(dbl)                                :: ecut, rv(3,3)
+    INTEGER                                  :: nlowest,nlowest_new
 
 ! in atomic units
 ! parent group for this grid
@@ -521,24 +522,34 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
            ! keep looping to find the right one
            DO
              CALL fft_radix_operations ( ntest(1), n(1), FFT_RADIX_NEXT )
-             ! we need an even lowest grid
-             IF (my_ncommensurate<=1 .OR. MODULO(n(1),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
+             nlowest=n(1)/2**(my_ncommensurate-my_icommensurate)
+             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+             IF (nlowest==nlowest_new .AND. MODULO(n(1),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(1)=n(1)+1
              ENDIF
            ENDDO
+           ! keep looping to find the right one
            DO
              CALL fft_radix_operations ( ntest(2), n(2), FFT_RADIX_NEXT )
-             IF (my_ncommensurate<=1 .OR. MODULO(n(2),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
+             nlowest=n(2)/2**(my_ncommensurate-my_icommensurate)
+             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+             IF (nlowest==nlowest_new .AND. MODULO(n(2),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(2)=n(2)+1
              ENDIF
            ENDDO
+           ! keep looping to find the right one
            DO
              CALL fft_radix_operations ( ntest(3), n(3), FFT_RADIX_NEXT )
-             IF (my_ncommensurate<=1 .OR. MODULO(n(3),2**(1+my_ncommensurate-my_icommensurate)).EQ.0) THEN
+             ! is also the lowest grid allowed (e.g could be 17, which is too large, but might be 5)
+             nlowest=n(3)/2**(my_ncommensurate-my_icommensurate)
+             CALL fft_radix_operations ( nlowest,nlowest_new, FFT_RADIX_NEXT )
+             IF (nlowest==nlowest_new .AND. MODULO(n(3),2**(my_ncommensurate-my_icommensurate)).EQ.0) THEN
                 EXIT
              ELSE
                 ntest(3)=n(3)+1

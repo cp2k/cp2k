@@ -35,6 +35,7 @@
 !!     - OpenMP parallelization (JGH 03.12.03)
 !!     - Modified to compute tau (Joost 12.03)
 !!     - removed the incremental density rebuild (Joost 01.04)
+!!     - introduced realspace multigridding (Joost 02.04)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -75,7 +76,10 @@ MODULE qs_collocate_density
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
+                                             RECIPROCALSPACE, &
+                                             pw_sumup, &
+                                             pw_copy, &
+                                             pw_prolongate
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              cp_rs_pool_type,&
                                              rs_pool_create_rs,&
@@ -340,7 +344,7 @@ CONTAINS
       ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
       maxco, maxsgf, maxsgf_set, n, na1, na2, nalimit(2), natom_pairs, nb1, &
       nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, &
+      omp_get_max_threads, igridlevel, &
       omp_get_thread_num, pdim1, pdim2, sgfa, sgfb, tp, stat
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -380,7 +384,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: deltap
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_rho
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_rspace, mgrid_gspace, mgrid_temp_rspace
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     LOGICAL                                  :: failure
@@ -399,6 +403,7 @@ CONTAINS
          rpgfa,rpgfb,sphi_a,sphi_b,zeta,zetb,first_sgfa,first_sgfb,&
          tasks,tasks_local,ival,latom,ntasks,asets,atasks,pabt,workt,mgrid_rspace,&
          mgrid_gspace,pw_pools)
+    NULLIFY(mgrid_temp_rspace)
 
     ! by default, do not compute the kinetic energy density (tau)
     ! if compute_tau, all grids referening to rho are actually tau
@@ -423,23 +428,34 @@ CONTAINS
                     para_env=para_env,&
                     pw_env=pw_env)
 
-    ! *** set up the pw multi-grids 
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
-    ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
-             stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
-                use_data = COMPLEXDATA1D,&
-                in_space = RECIPROCALSPACE, error=error)
-    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
-                use_data = REALDATA3D,&
-                in_space = REALSPACE, error=error)
-
     ! *** assign from pw_env
     gridlevel_info=pw_env%gridlevel_info
     cube_info=>pw_env%cube_info
     l_info=pw_env%l_info
+
+    ! *** set up the pw multi-grids 
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+
+    ALLOCATE(mgrid_rspace(SIZE(pw_pools)) ,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CALL pw_pools_init_coeffs(pw_pools,mgrid_rspace,&
+                              use_data = REALDATA3D,&
+                              in_space = REALSPACE, error=error)
+ 
+    IF (dft_control % qs_control % realspace_mgrids) THEN
+        ALLOCATE(mgrid_temp_rspace(SIZE(pw_pools)) ,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+        CALL pw_pools_init_coeffs(pw_pools,mgrid_temp_rspace,&
+                                  use_data = REALDATA3D,&
+                                  in_space = REALSPACE, error=error)
+    ELSE
+        ALLOCATE(mgrid_gspace(SIZE(pw_pools)) ,stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+        CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
+                                  use_data = COMPLEXDATA1D,&
+                                  in_space = RECIPROCALSPACE, error=error)
+    ENDIF
 
     ! *** set up the rs multi-grids
     CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
@@ -635,7 +651,12 @@ CONTAINS
                      IF (rpgfa(ipgf,iset) + rpgfb(jpgf,jset) < dab) CYCLE
 
                      zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-                     igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+
+                     IF (dab.lt.0.1D0 .AND. dft_control%qs_control%map_paa) THEN
+                         igrid_level = 1
+                     ELSE
+                         igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+                     ENDIF
 
                      ntasks(igrid_level) = ntasks(igrid_level) + 1
                      n = ntasks(igrid_level)
@@ -885,37 +906,52 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"pabt,workt,ntasks,"//&
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
-    IF (gridlevel_info%ngrid_levels==1 .AND. .NOT.rho%pw%pw_grid%spherical) THEN
+    IF (gridlevel_info%ngrid_levels==1) THEN
        CALL rs_pw_transfer(rs_rho(1)%rs_grid,rho%pw,"FORWARD")
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
-!FM copy also in mgrid_rspace?
        CALL coeff_transform_space(rho,rho_gspace)
+       IF (rho%pw%pw_grid%spherical) THEN ! rho_gspace = rho
+          CALL coeff_transform_space(rho_gspace,rho)
+       ENDIF
     ELSE
        DO igrid_level=1,gridlevel_info%ngrid_levels
           CALL rs_pw_transfer(rs_rho(igrid_level)%rs_grid,&
                mgrid_rspace(igrid_level)%pw,"FORWARD")
        ENDDO
-
        CALL rs_pools_give_back_rs_vect(rs_pools, rs_rho, error=error)
 
-       !   *** Get the density on the auxillary basis cutoff grid ***
-
-       CALL coeff_zero(rho_gspace)
-       DO igrid_level=1,gridlevel_info%ngrid_levels
-          CALL coeff_transform_space(mgrid_rspace(igrid_level),&
-               mgrid_gspace(igrid_level))
-          CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
-       END DO
-
-       CALL coeff_transform_space(rho_gspace,rho)
-
+       ! we want both rho an rho_gspace, the latter for Hartree and co-workers.
+       IF (dft_control % qs_control % realspace_mgrids) THEN 
+           CALL pw_copy(mgrid_rspace(gridlevel_info%ngrid_levels)%pw,mgrid_temp_rspace(gridlevel_info%ngrid_levels)%pw)
+           DO igridlevel=gridlevel_info%ngrid_levels,2,-1
+              ! prologate to the next grid and addup
+              CALL pw_prolongate(mgrid_temp_rspace(igridlevel)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
+              ! add the next grid to the prolongated grid
+              CALL pw_sumup(mgrid_rspace(igridlevel-1)%pw,mgrid_temp_rspace(igridlevel-1)%pw)
+           ENDDO 
+           CALL pw_copy(mgrid_temp_rspace(1)%pw,rho%pw)
+           CALL coeff_transform_space(rho,rho_gspace)
+       ELSE
+           CALL coeff_zero(rho_gspace)
+           DO igrid_level=1,gridlevel_info%ngrid_levels
+              CALL coeff_transform_space(mgrid_rspace(igrid_level),&
+                   mgrid_gspace(igrid_level))
+              CALL coeff_sumup(mgrid_gspace(igrid_level),rho_gspace)
+           END DO
+           CALL coeff_transform_space(rho_gspace,rho)
+       ENDIF
     END IF
     
     total_rho = calculate_total_rho(rho)
 
     ! *** give back the pw multi-grids
-    CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
-         error=error)
+    IF (dft_control % qs_control % realspace_mgrids) THEN
+       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_temp_rspace,&
+                                      error=error)
+    ELSE
+       CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
+                                      error=error)
+    ENDIF
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_rspace,&
          error=error)
 

@@ -519,6 +519,8 @@ CONTAINS
 !!  CUTOFF                 : ecut                                             !
 !!  MULTI-GRID             : ngrid e1 e2 e3 ...                               !
 !!  COMMENSURATE           : grids are commensurate in realspace              !
+!!  REALSPACE_MGRIDS       : use realspace techniques for multigriding        !
+!!  MAP_PAA                : map diagonal blocks on the highest grid          !
 !!  EPS_DEFAULT            : eps                                              !
 !!  EPS_CORE_CHARGE        : eps                                              !
 !!  EPS_GVG_RSPACE         : eps                                              !
@@ -586,6 +588,8 @@ CONTAINS
     qs_control%rs_distributed = .FALSE.
     qs_control%wf_interpolation_method_nr = wfi_linear_p_method_nr
     qs_control%commensurate_mgrids = .FALSE.
+    qs_control%realspace_mgrids = .FALSE.
+    qs_control%map_paa = .FALSE.
 !
     cutoff_set = .FALSE.
     multgrid_set = .FALSE.
@@ -618,8 +622,12 @@ CONTAINS
             CALL read_object(value)
             qs_control%cutoff = MAX(0.01_dp,0.5_dp*value) ! ok input is in Ry, value is in a.u.
             cutoff_set = .TRUE.
+          CASE ("REALSPACE_MGRIDS","REALSPACE_MGRID")
+            qs_control%realspace_mgrids = .TRUE.
           CASE ("COMMENSURATE")
             qs_control%commensurate_mgrids = .TRUE.
+          CASE ("MAP_PAA")
+            qs_control%map_paa = .TRUE.
           CASE ("MULTI_GRID","MULTGRID","MGRID")
             CALL read_object(igrid_level)
             IF ( ngrid_set ) THEN
@@ -773,6 +781,10 @@ CONTAINS
     END IF
 
     CALL finish_parser()
+
+    IF (qs_control%realspace_mgrids .AND. .NOT. qs_control%commensurate_mgrids) THEN
+       CALL stop_program(routine,"Realspace multigrids require the COMMENSURATE keyword")
+    ENDIF
 
     IF (qs_control%commensurate_mgrids) THEN
       IF (progression_set) CALL stop_program(routine,"Do not specify a progression factor for commensurate grids (NYI)")
