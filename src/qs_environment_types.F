@@ -50,8 +50,6 @@ MODULE qs_environment_types
     TYPE(qs_energy_type), POINTER                         :: energy
     TYPE(qs_force_type), DIMENSION(:), POINTER            :: force
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: h,k,p,p_old,s
-!MK should be removed:
-    INTEGER                                               :: n_electrons
   END TYPE qs_environment_type
 
 ! *** Public data types ***
@@ -72,8 +70,7 @@ CONTAINS
 
   SUBROUTINE get_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s,&
-                        natoms,n_electrons)
+                        particle_set,energy,force,h,k,p,p_old,s)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -99,7 +96,6 @@ CONTAINS
       OPTIONAL, POINTER                         :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                         :: h,k,p,p_old,s
-    INTEGER, INTENT(OUT), OPTIONAL              :: natoms,n_electrons
 
 !   ---------------------------------------------------------------------------
 
@@ -121,9 +117,6 @@ CONTAINS
     IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(p_old)) p_old => qs_env%p_old
     IF (PRESENT(s)) s => qs_env%s
-!MK should be retrieved directly
-    IF (PRESENT(natoms)) natoms = SIZE(qs_env%particle_set)
-    IF (PRESENT(n_electrons)) n_electrons = qs_env%n_electrons
 
   END SUBROUTINE get_qs_env
 
@@ -166,8 +159,7 @@ CONTAINS
 
   SUBROUTINE set_qs_env(qs_env,atomic_kind_set,cell,dft_control,c,sab_orb,&
                         sac_erfc,sac_ppl,sca_ppnl,scb_ppnl,pao_env,&
-                        particle_set,energy,force,h,k,p,p_old,s,&
-                        n_electrons)
+                        particle_set,energy,force,h,k,p,p_old,s)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -193,7 +185,6 @@ CONTAINS
       OPTIONAL, POINTER                       :: force
     TYPE(real_matrix_p_type), DIMENSION(:),&
       OPTIONAL, POINTER                       :: h,k,p,p_old,s
-    INTEGER, INTENT(IN), OPTIONAL             :: n_electrons
 
 !   ---------------------------------------------------------------------------
 
@@ -215,7 +206,6 @@ CONTAINS
     IF (PRESENT(p)) qs_env%p => p
     IF (PRESENT(p_old)) qs_env%p_old => p_old
     IF (PRESENT(s)) qs_env%s => s
-    IF (PRESENT(n_electrons)) qs_env%n_electrons = n_electrons
 
   END SUBROUTINE set_qs_env
 
