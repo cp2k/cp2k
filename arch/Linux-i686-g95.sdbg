@@ -8,7 +8,7 @@ LD       = g95
 AR       = ar -r
 
 CPPFLAGS = -C -D__G95 -D__FFTSG -traditional -P
-FCFLAGS  = -O3 -g -ffast-math -fomit-frame-pointer
+FCFLAGS  = -O0 -g
 LDFLAGS  = $(FCFLAGS) 
 LIBS     = /data1/vondele/downloads/LAPACK/LAPACK_g95/lapack_LINUX.a  /data1/vondele/downloads/LAPACK/LAPACK_g95/blas_LINUX.a
 
