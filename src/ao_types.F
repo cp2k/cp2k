@@ -97,6 +97,7 @@ SUBROUTINE ao_allocate ( ao, ncoefs, mass_flag, grid_flag )
   NULLIFY ( ao % cr, ao % coef_to_basis, ao % coef_to_set, ao % coef_to_part )
   NULLIFY ( ao % mass )
   NULLIFY ( ao % grid_id )
+  NULLIFY ( ao % kind_info )
 
   ALLOCATE ( ao % cr ( ncoefs ), STAT = allocstat )
   IF ( allocstat /= 0 ) CALL stop_memory ( "ao_allocate", &
