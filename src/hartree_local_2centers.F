@@ -88,7 +88,7 @@ MODULE  hartree_local_2centers
     SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
                                tddft, p_env)
 
-    REAL(kind=dp), INTENT(OUT)                 :: energy_hartree_2c
+    REAL(kind=dp), INTENT(INOUT)               :: energy_hartree_2c
     TYPE(qs_environment_type), POINTER         :: qs_env
     LOGICAL, INTENT(IN)                        :: calculate_forces,&
                                                   just_energy
