@@ -48,8 +48,7 @@ MODULE qs_diis
                                              cp_fm_gemm,&
                                              cp_fm_symm,&
                                              cp_fm_trace
-  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm, &
-                                             copy_sm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&

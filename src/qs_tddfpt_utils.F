@@ -24,7 +24,6 @@ MODULE qs_tddfpt_utils
   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                              cp_fm_trace
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply, &
-                                             copy_fm_to_sm, &
                                              copy_sm_to_fm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose, &
                                              cp_fm_cholesky_invert
