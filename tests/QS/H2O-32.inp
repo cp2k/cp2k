@@ -7,11 +7,6 @@
 &END
 
 &SETUP
-  cell
-    parameter 9.865  0.000   0.000 &
-              0.000  9.865   0.000 &
-              0.000  0.000   9.865
-  end cell
 &END
 
 &MD

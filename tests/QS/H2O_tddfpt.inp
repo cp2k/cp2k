@@ -12,13 +12,6 @@
  BASIS_SET_FILE BASIS_SET
 &END
 
-&SETUP
-  cell
-    parameter 10.000  0.000   0.000 &
-              0.000   10.000   0.000 &
-              0.000   0.000    10.000
-  end cell
-&END
 
 &TOPOLOGY
 &END

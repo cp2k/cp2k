@@ -23,11 +23,6 @@
   nummol 2
   nhcopt global
  end molecule
- cell
-    parameter 4.00   0.000   0.000 &
-              0.000   4.00   0.000 &
-              0.000   0.000   4.00
- end cell
 &END
 
 &MOLECULES

@@ -6,13 +6,6 @@
  RUN_TYPE     MC
 &END
 
-&SETUP
-   cell
-    parameter 12.422  0.000   0.000 &
-              0.000   12.422   0.000 &
-              0.000   0.000    12.422
-  end cell
-&END
 
 &PRINT low
 &END

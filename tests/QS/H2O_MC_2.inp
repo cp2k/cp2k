@@ -6,13 +6,6 @@
  RUN_TYPE     MC
 &END
 
-&SETUP
-   cell
-    parameter 3.8528  0.000   0.000 &
-              0.000   3.8528   0.000 &
-              0.000   0.000    3.8528
-  end cell
-&END
 
 &MOLECULE
 &END
