@@ -256,6 +256,7 @@ OBJECTS_GENERIC =\
  qs_rho_types.o\
  qs_scf.o\
  qs_scf_types.o\
+ qs_simple_md.o\
  qs_tddfpt_eigensolver.o\
  qs_tddfpt_module.o\
  qs_tddfpt_types.o\

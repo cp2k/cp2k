@@ -114,6 +114,7 @@ MODULE global_types
      TYPE(cp_para_env_type), POINTER  :: para_env
      TYPE(print_key_type)             :: PRINT
      CHARACTER(LEN=200)               :: basis_set_file_name,&
+                                         coord_file_name,&
                                          default_fft_library,&
                                          error_file_name,&
                                          input_file_name,&

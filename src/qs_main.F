@@ -26,6 +26,7 @@
 !******************************************************************************
 
 MODULE qs_main
+
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_blacs_env,                    ONLY: end_blacs,&
                                              start_blacs
@@ -42,6 +43,7 @@ MODULE qs_main
   USE qs_force,                        ONLY: qs_forces
   USE qs_geoopt,                       ONLY: qs_geo_opt
   USE qs_md,                           ONLY: qs_mol_dyn
+  USE qs_simple_md,                    ONLY: simple_md
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
@@ -80,13 +82,13 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "quickstep"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
 
 !   *** Local variables ***
 
-    INTEGER              :: handle
     TYPE(cp_blacs_env_type), POINTER :: blacs_env
+
+    INTEGER :: handle
+
     TYPE(molecule_type), DIMENSION(:), POINTER :: mol_setup
 
 !   ---------------------------------------------------------------------------
@@ -95,44 +97,45 @@ CONTAINS
 
     CALL timeset(routine_name,"I","",handle)
 
-    NULLIFY(blacs_env)
-    NULLIFY ( mol_setup )
+    NULLIFY (blacs_env)
+    NULLIFY (mol_setup)
 
 !   *** Initialize the BLACS environment ***
 
     CALL start_blacs(blacs_env,globenv)
 
-    CALL qs_env_create(qs_env,para_env=globenv%para_env,&
-         blacs_env=blacs_env)
+    CALL qs_env_create(qs_env,para_env=globenv%para_env,blacs_env=blacs_env)
 
 !   *** Read the input and the database files and perform further  ***
 !   *** initializations for the setup of the QUICKSTEP environment ***
 
-    CALL qs_init( qs_env, mol_setup, globenv )
+    CALL qs_init(qs_env,mol_setup,globenv)
 
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY OPTIMIZATION")
       CALL qs_geo_opt(qs_env,globenv)
-!      CALL qs_forces(qs_env,globenv)
+!     CALL qs_forces(qs_env,globenv)
     CASE ("MOLECULAR DYNAMICS")
-      CALL qs_mol_dyn ( qs_env, mol_setup, globenv )
+      CALL qs_mol_dyn(qs_env,mol_setup,globenv)
+    CASE ("SIMPLE_MD")
+      CALL simple_md(qs_env,globenv)
     CASE ("WAVEFUNCTION OPTIMIZATION")
       CALL qs_energies(qs_env,globenv)
       CALL tddfpt_calculation(qs_env, globenv) ! should possibly go in qs_scf/scf_env_post_calc
     CASE ("EP")
       CALL qs_ep_calculation(qs_env,globenv)
     CASE DEFAULT
-      CALL stop_program(routine,"Invalid run TYPE <"//&
-                                TRIM(globenv%run_type)//&
-                                "> was specified for "//&
-                                TRIM(globenv%program_name),globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Invalid run TYPE <"//TRIM(globenv%run_type)//&
+                        "> was specified for "//&
+                        TRIM(globenv%program_name),globenv)
     END SELECT
 
     CALL qs_finalize(qs_env)
 
-    !   *** Release BLACS environment ***
-    CALL end_blacs(blacs_env,globenv)
+!   *** Release BLACS environment ***
 
+    CALL end_blacs(blacs_env,globenv)
 
     CALL timestop(0.0_dp,handle)
 

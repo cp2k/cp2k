@@ -275,9 +275,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_print_section"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
     CHARACTER(LEN=*), PARAMETER :: start_section_label = "PRINT"
 
 !   *** Local variables ***
@@ -326,9 +323,9 @@ CONTAINS
         CASE ("DEBUG","ALL")
           globenv%print%level = DEBUG
         CASE DEFAULT
-          CALL stop_parser(routine=routine,&
-                           message="Invalid definition <"//TRIM(keyword)//&
-                                   "> found for the default print level")
+          CALL stop_parser(routine_name,module_name,__LINE__,&
+                           "Invalid definition <"//TRIM(keyword)//&
+                           "> found for the default print level")
         END SELECT
       END IF
     END IF
@@ -341,7 +338,7 @@ CONTAINS
         IF (test_result == "EOS") THEN
           EXIT
         ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine=routine,message="EOF")
+          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           IF (keyword(1:3) == "NO_") THEN
@@ -513,7 +510,7 @@ CONTAINS
           CASE ("ORTHO","MO_ORTHONORMALITY")
              globenv%print%mo_orthonormality = print_request
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
@@ -538,9 +535,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_io_section"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
     CHARACTER(LEN=*), PARAMETER :: start_section_label = "IO"
 
 !   *** Local variables ***
@@ -557,6 +551,7 @@ CONTAINS
     globenv%pp_library_path = "./"
 
     globenv%basis_set_file_name = "BASIS_SET"
+    globenv%coord_file_name = globenv%input_file_name
     globenv%error_file_name = "(stdout)"
     globenv%output_file_name = "(stdout)"
     globenv%potential_file_name = "POTENTIAL"
@@ -572,18 +567,20 @@ CONTAINS
         test_result = test_object()
         IF (test_result /= "EOL") THEN
           CALL read_object(keyword)
-          CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+          CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
         END IF
         test_result = test_object(newline=.TRUE.)
         IF (test_result == "EOS") THEN
           EXIT
         ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine=routine,message="EOF")
+          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
           CASE ("BASIS_SET_FILE_NAME","BASIS_SET_FILE")
             CALL read_object(globenv%basis_set_file_name)
+          CASE ("COORD_FILE_NAME","COORD_FILE")
+            CALL read_object(globenv%coord_file_name)
           CASE ("ERROR_FILE_NAME","ERROR_FILE")
             CALL read_object(globenv%error_file_name)
             CALL open_file(file_name=globenv%error_file_name,&
@@ -606,7 +603,7 @@ CONTAINS
           CASE ("RESTART_FILE_NAME","RESTART_FILE")
             CALL read_object(globenv%restart_file_name)
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
@@ -630,8 +627,10 @@ CONTAINS
         start_section_label//"| Potential file name",&
         ADJUSTR(globenv%potential_file_name(:40)),&
         start_section_label//"| Restart file name",&
-        ADJUSTR(globenv%restart_file_name(:40))
-    ENDIF
+        ADJUSTR(globenv%restart_file_name(:40)),&
+        start_section_label//"| Coordinate file name",&
+        ADJUSTR(globenv%coord_file_name(:40))
+    END IF
 
   END SUBROUTINE read_io_section
 !!******
@@ -671,9 +670,6 @@ CONTAINS
 !   *** Local parameters ***
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "read_cp2k_section"
-    CHARACTER(LEN=*), PARAMETER :: routine =&
-      "SUBROUTINE "//routine_name//" (MODULE "//module_name//")"
-
     CHARACTER(LEN=*), PARAMETER :: start_section_label = "CP2K"
 
 !   *** Local variables ***
@@ -709,13 +705,13 @@ CONTAINS
         test_result = test_object()
         IF (test_result /= "EOL") THEN
           CALL read_object(keyword)
-          CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+          CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
         END IF
         test_result = test_object(newline=.TRUE.)
         IF (test_result == "EOS") THEN
           EXIT
         ELSE IF (test_result == "EOF") THEN
-          CALL stop_parser(routine=routine,message="EOF")
+          CALL stop_parser(routine_name,module_name,__LINE__,"EOF")
         ELSE
           CALL read_object(keyword,lower_to_upper=.TRUE.,newline=.TRUE.)
           SELECT CASE (TRIM(keyword))
@@ -723,13 +719,13 @@ CONTAINS
             CALL read_object(keyvalue,lower_to_upper=.TRUE.)
             SELECT CASE(TRIM(keyvalue))
             CASE ("SQUARE")
-                 globenv%blacs_grid_layout = BLACS_GRID_SQUARE
+              globenv%blacs_grid_layout = BLACS_GRID_SQUARE
             CASE ("ROW")
-                 globenv%blacs_grid_layout = BLACS_GRID_ROW
+              globenv%blacs_grid_layout = BLACS_GRID_ROW
             CASE ("COL","COLUMN")
-                 globenv%blacs_grid_layout = BLACS_GRID_COL
+              globenv%blacs_grid_layout = BLACS_GRID_COL
             CASE DEFAULT
-                 CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+              CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
             END SELECT
           CASE ("FFT_LIBRARY","FFT_LIB","FFTLIB")
             CALL read_object(globenv%default_fft_library,lower_to_upper=.TRUE.)
@@ -744,12 +740,12 @@ CONTAINS
           CASE ("TRACE")
             CALL trace_debug("start")
           CASE DEFAULT
-            CALL stop_parser(routine=routine,message="INVALID_KEYWORD")
+            CALL stop_parser(routine_name,module_name,__LINE__,"INVALID_KEYWORD")
           END SELECT
         END IF
       END DO
     ELSE
-      CALL stop_parser(routine=routine,message="SECTION_NOT_FOUND")
+      CALL stop_parser(routine_name,module_name,__LINE__,"SECTION_NOT_FOUND")
     END IF
 
     CALL finish_parser()
@@ -765,11 +761,13 @@ CONTAINS
       globenv%program_name = "QS"
     CASE ("TEST")
     CASE (" ")
-      CALL stop_program(routine,"No PROGRAM_NAME was specified in the "//&
-                                TRIM(start_section_label)//" section",globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "No PROGRAM_NAME was specified in the "//&
+                        TRIM(start_section_label)//" section",globenv)
     CASE DEFAULT
-      CALL stop_program(routine,"Invalid program name <"//&
-                                 TRIM(globenv%program_name)//"> found",globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Invalid program name <"//&
+                        TRIM(globenv%program_name)//"> found",globenv)
     END SELECT
 
     SELECT CASE (globenv%run_type)
@@ -777,6 +775,8 @@ CONTAINS
       globenv%run_type = "GEOMETRY OPTIMIZATION"
     CASE ("MOLECULAR_DYNAMICS","MD")
       globenv%run_type = "MOLECULAR DYNAMICS"
+    CASE ("SIMPLE_MD")
+      globenv%run_type = "SIMPLE_MD"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")
       globenv%run_type = "WAVEFUNCTION OPTIMIZATION"
     CASE ("EP")
@@ -794,15 +794,18 @@ CONTAINS
        CASE ("TEST")
           globenv%run_type = "NONE"
        CASE DEFAULT
-         CALL stop_program(routine,"Invalid program name <"//&
-                                 TRIM(globenv%program_name)//"> found",globenv)
+         CALL stop_program(routine_name,module_name,__LINE__,&
+                           "Invalid program name <"//&
+                           TRIM(globenv%program_name)//"> found",globenv)
        END SELECT
     CASE (" ")
-      CALL stop_program(routine,"No RUN_TYPE was specified in the "//&
-                                TRIM(start_section_label)//" section",globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "No RUN_TYPE was specified in the "//&
+                        TRIM(start_section_label)//" section",globenv)
     CASE DEFAULT
-      CALL stop_program(routine,"Invalid run type <"//&
-                                TRIM(globenv%run_type)//"> found",globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "Invalid run type <"//&
+                        TRIM(globenv%run_type)//"> found",globenv)
     END SELECT
 
 !   *** Initialize FFT library ***
@@ -815,9 +818,10 @@ CONTAINS
     zz(:,:,:) = 0.0_wp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
-      CALL stop_program(routine,"The default FFT library <"//&
-                                TRIM(globenv%default_fft_library)//&
-                                "> is not available",globenv)
+      CALL stop_program(routine_name,module_name,__LINE__,&
+                        "The default FFT library <"//&
+                        TRIM(globenv%default_fft_library)//&
+                        "> is not available",globenv)
     END IF
     num_threads=1
 !$omp parallel
