@@ -80,7 +80,7 @@ CONTAINS
 
     only_qm = .FALSE.
     my_link = .FALSE.
-    IF (INDEX(id1,"_QM_") /= 0 ) THEN
+    DO WHILE (INDEX(id1,"_QM_") /= 0 )
        my_link = qmmm_ff_precond_only_link(id1).OR.my_link
        my_index=INDEX(id1,"_QM_")+LEN_TRIM("_QM_")
        only_qm = .TRUE.
@@ -89,10 +89,11 @@ CONTAINS
           id1(j:j) = " "
        END DO clean_string_1
        id1 = TRIM(tmp)
-    END IF
+    END DO
     
     IF (PRESENT(id2)) THEN
-       IF (INDEX(id2,"_QM_") /= 0 ) THEN
+       IF (INDEX(id2,"_QM_") == 0 ) only_qm = .FALSE.
+       DO WHILE (INDEX(id2,"_QM_") /= 0 )
           my_link = qmmm_ff_precond_only_link(id2).OR.my_link
           my_index=INDEX(id2,"_QM_")+LEN_TRIM("_QM_")
           tmp=TRIM(id2(my_index:))
@@ -100,13 +101,12 @@ CONTAINS
              id2(j:j) = " "
           END DO clean_string_2
           id2 = TRIM(tmp)
-       ELSE
-          only_qm = .FALSE.
-       END IF
+       END DO
     END IF
 
     IF (PRESENT(id3)) THEN
-       IF (INDEX(id3,"_QM_") /= 0 ) THEN
+       IF (INDEX(id3,"_QM_") == 0 ) only_qm = .FALSE.
+       DO WHILE (INDEX(id3,"_QM_") /= 0 )
           my_link = qmmm_ff_precond_only_link(id3).OR.my_link
           my_index=INDEX(id3,"_QM_")+LEN_TRIM("_QM_")
           tmp=TRIM(id3(my_index:))
@@ -114,13 +114,12 @@ CONTAINS
              id3(j:j) = " "
           END DO clean_string_3
           id3 = TRIM(tmp)
-       ELSE
-          only_qm = .FALSE.
-       END IF
+       END DO
     END IF
 
     IF (PRESENT(id4)) THEN
-       IF (INDEX(id4,"_QM_") /= 0 ) THEN
+       IF (INDEX(id4,"_QM_") == 0 ) only_qm = .FALSE.
+       DO WHILE (INDEX(id4,"_QM_") /= 0 )
           my_link = qmmm_ff_precond_only_link(id4).OR.my_link
           my_index=INDEX(id4,"_QM_")+LEN_TRIM("_QM_")
           tmp=TRIM(id4(my_index:))
@@ -128,9 +127,7 @@ CONTAINS
              id4(j:j) = " "
           END DO clean_string_4
           id4 = TRIM(tmp)
-       ELSE
-          only_qm = .FALSE.
-       END IF
+       END DO
     END IF
 
     IF (PRESENT(is_link)) is_link = my_link
@@ -148,7 +145,7 @@ CONTAINS
     INTEGER :: j, my_index
     
     is_link = .FALSE.
-    IF (INDEX(id1,"_LNK") /= 0 ) THEN
+    DO WHILE (INDEX(id1,"_LNK") /= 0 )
        my_index=INDEX(id1,"_LNK")+1
        my_index=INDEX(id1(my_index:),"_QM_")+my_index-1
        is_link = .TRUE.
@@ -157,7 +154,7 @@ CONTAINS
           id1(j:j) = " "
        END DO clean_string_1
        id1 = TRIM(tmp)
-    END IF
+    END DO
 
    END FUNCTION qmmm_ff_precond_only_link
 

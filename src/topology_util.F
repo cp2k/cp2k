@@ -497,6 +497,8 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
 
   IF (my_qmmm) THEN
      do_again = .FALSE.
+     IF (PM4) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
+     IF (PM4) WRITE(iw,*)"MAP_MOL_TYP ",atom_info%map_mol_typ
      ALLOCATE(qm_atom_index(SIZE(qmmm_env%qm_atom_index)),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      qm_atom_index = qmmm_env%qm_atom_index
@@ -524,12 +526,7 @@ SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,error)
            atom_info%label_molname(iatm) = "_QM_"//&
                 TRIM(atom_info%label_molname(iatm))
            IF (PM2) WRITE(iw,*)"QM Molecule name :: ", atom_info%label_molname(iatm)
-           DO jatm = 1, SIZE(qm_atom_index)
-              IF (qm_atom_index(jatm) == iatm) THEN
-                 qm_atom_index(jatm) = 0
-                 EXIT
-              END IF
-           END DO
+           WHERE (qm_atom_index == iatm) qm_atom_index = 0
         END DO
         DO iatm = 1, ifirst-1
            IF ( ANY(qm_atom_index == iatm) ) do_again = .TRUE.
