@@ -58,3 +58,12 @@ farming.inp        0
 H2O-5.inp          1
 # the added_MOs keyword
 H2O-6.inp          1
+# more complete OT testing
+Ar-14.inp          1
+Ar-15.inp          1
+Ar-16.inp          1
+Ar-17.inp          1
+Ar-18.inp          1
+Ar-19.inp          1
+Ar-20.inp          1
+Ar-21.inp          1
