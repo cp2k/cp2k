@@ -128,7 +128,7 @@ CONTAINS
 !!     - qs_env: the environment to which rho belongs
 !!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
 !!       redundant structure of h, or just that of s.
-!!       If rho is not given defaults to true, otherwise defaults to false.
+!!       Defaults to false.
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.

@@ -538,11 +538,10 @@ END SUBROUTINE qs_env_rebuild_pw_env
 !!     If necessary rho is created from scratch.
 !!
 !!   INPUTS
-!!     - qs_env: the environment to which rho belongs
-!!     - rho: the rho type to rebuild (defaults to qs_env%rho)
+!!     - qs_env: the environment in which rho should be rebuilt
 !!     - rho_ao_with_h_mstruct: if rho%rho_ao should have the 
 !!       redundant structure of h, or just that of s.
-!!       If rho is not given defaults to true, otherwise defaults to false.
+!!       Defaults to true.
 !!     - rebuild_ao: if it is necessary to rebuild rho_ao. Defaults to true.
 !!     - rebuild_grids: if it in necessary to rebuild rho_r and rho_g.
 !!       Defaults to false.
@@ -563,12 +562,14 @@ SUBROUTINE qs_env_rebuild_rho(qs_env, rho_ao_with_h_mstruct,&
        rebuild_grids,rebuild_ao
   TYPE(cp_error_type), OPTIONAL, INTENT(inout)     :: error
   
-  LOGICAL :: failure
+  LOGICAL :: failure, my_rho_ao_with_h_mstruct
   CHARACTER(len=*), PARAMETER :: routineN='qs_env_rebuild_rho',&
         routineP=moduleN//':'//routineN
-
+  
+  my_rho_ao_with_h_mstruct=.true.
+  if (present(rho_ao_with_h_mstruct)) my_rho_ao_with_h_mstruct=rho_ao_with_h_mstruct
   CALL qs_rho_rebuild(qs_env%rho,qs_env=qs_env,&
-       rho_ao_with_h_mstruct=rho_ao_with_h_mstruct,&
+       rho_ao_with_h_mstruct=my_rho_ao_with_h_mstruct,&
        rebuild_ao=rebuild_ao, rebuild_grids=rebuild_grids, error=error)
 END SUBROUTINE qs_env_rebuild_rho
 !***************************************************************************
