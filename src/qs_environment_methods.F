@@ -109,11 +109,11 @@ MODULE qs_environment_methods
                                              REALSPACE,&
                                              RECIPROCALSPACE,&
                                              pw_type
-  USE qs_blacs,                        ONLY: cp_fm_scale_and_add,&
-                                             cp_fm_create2,&
+  USE qs_blacs,                        ONLY: cp_fm_create2,&
                                              cp_fm_gemm,&
                                              cp_fm_get_info,&
                                              cp_fm_release,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_vect_create2,&
                                              cp_fm_vect_dealloc,&
                                              cp_full_matrix_p_type,&
@@ -141,6 +141,7 @@ MODULE qs_environment_methods
                                              scf_control_type
   USE simulation_cell,                 ONLY: cell_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             deallocate_matrix_set,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
@@ -291,6 +292,7 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
        error=error)
   n_atoms=SIZE(qs_env%particle_set)
   
+  ! *** rebuilds the S_sm_pools ***
   IF (ASSOCIATED(qs_env%S_sm_pools)) THEN
      s_mstruct => sm_pool_get_mstruct(qs_env%S_sm_pools(1)%pool,error=error)
      CALL sm_struct_clear_local_blocks(s_mstruct,error=error)
@@ -359,6 +361,14 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
      CALL sm_pools_flush_cache(qs_env%S_sm_pools)
   END IF
 
+  ! *** removes h, k , kinetic (that have the wrong structure)
+  IF (ASSOCIATED(qs_env%h))&
+       CALL deallocate_matrix_set(qs_env%h)
+  IF (ASSOCIATED(qs_env%k))&
+       CALL deallocate_matrix_set(qs_env%k)
+  IF (ASSOCIATED(qs_env%kinetic))&
+       CALL deallocate_matrix_set(qs_env%kinetic)
+  
   ! *** updates rho core ***
   CPPrecondition(ASSOCIATED(qs_env%rho_core),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(qs_env%pw_env),cp_failure_level,routineP,error,failure)

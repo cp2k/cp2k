@@ -174,8 +174,6 @@ MODULE qs_environment_types
 !!       its derivatives wrt. x,y, and z (h(2:4))
 !!     - k: Khon-Sham matrix (filtred by the structure of S).
 !!       with LSD an array with the differents orbitals
-!!     - p: the density matrix (filtred by the structure of S).
-!!       with LSD an array with the differents orbitals
 !!     - s: the overlap matrix (s(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (s(2:4))
 !!     - kinetic: kinetic part of h
@@ -335,7 +333,6 @@ CONTAINS
     IF (PRESENT(force)) force => qs_env%force
     IF (PRESENT(h)) h => qs_env%h
     IF (PRESENT(k)) k => qs_env%k
-!FM    IF (PRESENT(p)) p => qs_env%p
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(s)) s => qs_env%s
     IF (PRESENT(S_sm_pools)) S_sm_pools => qs_env%S_sm_pools
@@ -485,7 +482,6 @@ CONTAINS
     IF (PRESENT(force)) qs_env%force => force
     IF (PRESENT(h)) qs_env%h => h
     IF (PRESENT(k)) qs_env%k => k
-!FM    IF (PRESENT(p)) qs_env%p => p
     IF (PRESENT(s)) qs_env%s => s
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
@@ -738,8 +734,6 @@ SUBROUTINE qs_env_release(qs_env,error)
              CALL deallocate_matrix_set(qs_env%h)
         IF (ASSOCIATED(qs_env%k))&
              CALL deallocate_matrix_set(qs_env%k)
-!FM        IF (ASSOCIATED(qs_env%p))&
-!FM             CALL deallocate_matrix_set(qs_env%p)
         IF (ASSOCIATED(qs_env%s))&
              CALL deallocate_matrix_set(qs_env%s)
         IF (ASSOCIATED(qs_env%kinetic))&

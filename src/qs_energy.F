@@ -113,14 +113,6 @@ CONTAINS
                                        globenv=globenv,&
                                        calculate_forces=.FALSE.)
 
-!   *** init the ks_env
-    
-    CALL get_qs_env(qs_env, ks_env=ks_env)
-    IF (.not.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env)
-       CALL set_qs_env(qs_env, ks_env=ks_env)
-    END IF
-
 !   *** Perform a SCF run ***
 
     CALL scf(qs_env,globenv)

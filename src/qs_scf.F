@@ -98,7 +98,9 @@ MODULE qs_scf
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              cp_sm_pool_type,&
                                              sm_pool_create_matrix,&
-                                             sm_pool_give_back_matrix
+                                             sm_pool_give_back_matrix,&
+                                             sm_pools_create_matrix_vect,&
+                                             sm_pools_give_back_matrix_vect
   USE cube_utils,                      ONLY: cube_info_type,&
                                              destroy_cube_info,&
                                              init_cube_info
@@ -166,7 +168,6 @@ MODULE qs_scf
                                              copy_blacs_to_blacs_matrix,&
                                              copy_full_matrix_to_real_matrix,&
                                              copy_real_matrix_to_full_matrix,&
-                                             cp_fm_scale_and_add,&
                                              cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore,&
@@ -175,6 +176,7 @@ MODULE qs_scf
                                              cp_fm_get_info,&
                                              cp_fm_init_random,&
                                              cp_fm_release,&
+                                             cp_fm_scale_and_add,&
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_symm,&
@@ -204,7 +206,8 @@ MODULE qs_scf
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
+  USE qs_ks_methods,                   ONLY: qs_ks_create,&
+                                             qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_p_type,&
                                              qs_ks_env_type,&
@@ -527,12 +530,6 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
          atomic_kind_set=atomic_kind_set,&
          dft_control=dft_control,&
-         h=h,&
-         s=s,energy=energy,&
-         particle_set=particle_set,&
-         pw_env=pw_env,&
-         qs_charges=qs_charges,&
-         ks_env=ks_env,&
          scf_control=scf_control)
 
 !   *** Quick return, if no SCF iteration is requested ***
@@ -556,6 +553,14 @@ CONTAINS
     CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
          globenv=globenv,&
          error=error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         h=h,&
+         s=s,energy=energy,&
+         particle_set=particle_set,&
+         pw_env=pw_env,&
+         qs_charges=qs_charges,&
+         ks_env=ks_env)
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
@@ -1106,20 +1111,24 @@ CONTAINS
     TYPE(cp_full_matrix_type), POINTER :: eigenvectors
     TYPE(dft_control_type), POINTER   :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), POINTER    :: c
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+    TYPE(qs_ks_env_type), POINTER :: ks_env
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
     NULLIFY(k,ao_mo_fm_pools, s, ao_mo_fmstruct, ao_ao_fmstruct,&
-         eigenvectors, dft_control, c)
+         eigenvectors, dft_control, c, S_sm_pools, ks_env)
     failure=.FALSE.
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          c=c,&
          k=k,&
+         ks_env=ks_env,&
          ao_mo_fm_pools=ao_mo_fm_pools,&
+         S_sm_pools=S_sm_pools,&
          s=s)
 
 !   *** finish initialization of the MOs ***
@@ -1189,29 +1198,31 @@ CONTAINS
 
     END IF
 
-!   *** Allocate k and p and put them in the QS environment ***
+!   *** Allocate k and put it in the QS environment ***
 
     IF (.not.ASSOCIATED(k)) THEN
-       CALL allocate_matrix_set(k,dft_control%nspins)
-       DO ispin=1,dft_control%nspins
-          NULLIFY (k(ispin)%matrix)
-          CALL replicate_matrix_structure(s(1)%matrix,k(ispin)%matrix,&
-               "SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-               "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))))
-       END DO
+       CALL sm_pools_create_matrix_vect(S_sm_pools,k,&
+            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+            "KOHN-SHAM_MATRIX-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            error=error)
        CALL set_qs_env(qs_env=qs_env,&
             k=k)
     END IF
 
+!   *** allocate p_new ***
     IF (.not.ASSOCIATED(scf_env%p_new)) THEN
-       CALL allocate_matrix_set(scf_env%p_new,dft_control%nspins)
-       DO ispin=1,dft_control%nspins
-          NULLIFY (scf_env%p_new(ispin)%matrix)
-          CALL replicate_matrix_structure(s(1)%matrix,&
-               scf_env%p_new(ispin)%matrix,&
-               "DENSITY MATRIX")
-       END DO
+       CALL sm_pools_create_matrix_vect(S_sm_pools,scf_env%p_new,&
+            name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+            "DENSITY-"//TRIM(ADJUSTL(cp_to_string(ispin))),&
+            error=error)
     END IF
+
+!   *** allocate the ks env **
+    IF (.not.ASSOCIATED(ks_env)) THEN
+       CALL qs_ks_create(ks_env,qs_env=qs_env)
+       CALL set_qs_env(qs_env, ks_env=ks_env)
+    END IF
+
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE scf_env_check_i_alloc
@@ -1752,8 +1763,6 @@ CONTAINS
 
     END IF
 
-    CALL qs_ks_did_change(qs_env%ks_env,qs_env,p_changed=.TRUE.,error=error)
-
     CALL timestop(0.0_wp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
@@ -1809,6 +1818,8 @@ CONTAINS
           CALL qs_rho_update_rho(qs_env%rho, rho_ao_new=scf_env%p_new,&
                qs_env=qs_env,&
                rebuild=.TRUE., error=error)
+          CALL qs_ks_did_change(qs_env%ks_env,qs_env,p_changed=.TRUE.,&
+               error=error)
 
        END IF
     END IF
@@ -2178,14 +2189,20 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='scf_env_cleanup',&
          routineP=moduleN//':'//routineN
-    INTEGER :: stat, ispin
+    INTEGER :: stat, ispin,handle
+    TYPE(cp_sm_pool_p_type), DIMENSION(:), POINTER :: S_sm_pools
+
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
+    NULLIFY(S_sm_pools)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       CALL get_qs_env(qs_env,S_sm_pools=S_sm_pools,error=error)
+
 !   *** Release SCF work storage ***
 
        IF (ASSOCIATED(scf_env%scf_work1)) THEN
@@ -2198,7 +2215,8 @@ CONTAINS
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
 
        IF (ASSOCIATED(scf_env%p_new)) THEN
-          CALL deallocate_matrix_set(scf_env%p_new)
+          CALL sm_pools_give_back_matrix_vect(S_sm_pools,scf_env%p_new,&
+               error=error)
        END IF
 
 ! *** method dependent cleanup
@@ -2223,6 +2241,7 @@ CONTAINS
        END SELECT
 
     END IF
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE scf_env_cleanup
 !***************************************************************************
 
@@ -2275,7 +2294,9 @@ SUBROUTINE scf_env_did_change(scf_env,qs_env,s_mstruct_changed,error)
   CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
-     CALL deallocate_matrix_set(scf_env%p_new)
+     IF (ASSOCIATED(scf_env%p_new)) THEN
+        CALL deallocate_matrix_set(scf_env%p_new)
+     END IF
   END IF
 END SUBROUTINE scf_env_did_change
 !***************************************************************************
