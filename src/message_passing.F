@@ -675,8 +675,8 @@ SUBROUTINE mp_shift_im( msg, group, displ_in)
   ELSE
      displ=1
   ENDIF
-  right=MOD(nprocs+myrank+displ,nprocs)
-  left =MOD(nprocs+myrank-displ,nprocs)
+  right=MODULO(myrank+displ,nprocs)
+  left =MODULO(myrank-displ,nprocs)
   tag=17
   msglen = size(msg)
   t_start = m_cputime ( )
@@ -713,8 +713,8 @@ SUBROUTINE mp_shift_rm( msg, group, displ_in)
   ELSE
      displ=1
   ENDIF
-  right=MOD(nprocs+myrank+displ,nprocs) 
-  left =MOD(nprocs+myrank-displ,nprocs) 
+  right=MODULO(myrank+displ,nprocs) 
+  left =MODULO(myrank-displ,nprocs) 
   tag=17
   msglen = size(msg)
   t_start = m_cputime ( )

@@ -482,7 +482,7 @@ CONTAINS
 
     DO ishift=0,num_pe-1
        CALL sparse_times_local(sparse_matrix,local_v_in,local_v_out,&
-            ncol_loc(MOD(mepos-ishift+num_pe,num_pe)), ncol_max, para_env=para_env,alpha=alpha_l)
+            ncol_loc(MODULO(mepos-ishift,num_pe)), ncol_max, para_env=para_env,alpha=alpha_l)
        CALL mp_shift(local_v_in,para_env%group)
        CALL mp_shift(local_v_out,para_env%group)
     ENDDO
@@ -761,7 +761,7 @@ CONTAINS
 
     DO ishift=0,num_pe-1
        CALL sparse_plus_loc_loct(sparse_matrix,loc_v,loc_g,&
-                                 ncol_loc(MOD(mepos-ishift+num_pe,num_pe)), &
+                                 ncol_loc(MODULO(mepos-ishift,num_pe)), &
                                  ncol_max,alpha=prefactor)
        IF (g_present) THEN
           CALL mp_shift(loc_g,matrix_g%matrix_struct%para_env%group)
