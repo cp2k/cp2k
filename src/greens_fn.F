@@ -217,7 +217,7 @@ SUBROUTINE pw_green_fn ( gftype )
      CALL stop_program ( "pw_green_fn", " Method not implemented ")
   END SELECT
 
-  ! check if influence function is consisten with current box volume
+  ! check if influence function is consistent with current box volume
   IF ( gftype % volume /= grid % vol ) THEN
 
     gftype % volume = grid % vol

@@ -25,8 +25,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_types
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_allocate,&
+  USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
                                              coeff_sumup,&

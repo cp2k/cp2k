@@ -275,6 +275,7 @@ SUBROUTINE pw_poisson_solver ( density, ehartree, vhartree, dvhartree, h_stress 
 
 ! update the greens function
     CALL pw_green_fn ( gf )
+! apply the greens function
     ng = SIZE ( pw_grid % gsq )
     SELECT CASE ( gf % method )
     CASE ( PERIODIC3D, ANALYTIC2D, ANALYTIC1D, ANALYTIC0D, MT2D, MT1D, MT0D )

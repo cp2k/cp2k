@@ -26,8 +26,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_kpp1_env_methods
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_allocate,&
+  USE coefficient_types,               ONLY: coeff_allocate,&
                                              coeff_copy,&
                                              coeff_deallocate,&
                                              coeff_sumup,&
