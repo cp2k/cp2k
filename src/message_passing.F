@@ -35,7 +35,7 @@ MODULE message_passing
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN="message_passing"
   PUBLIC :: mp_start, mp_end, mp_world_setup, mp_group, mp_cart_create, &
-       mp_bcast, mp_stop, mp_sum, mp_max, mp_minloc,mp_min, mp_sync, mp_environ, &
+       mp_bcast, mp_stop, mp_sum, mp_max, mp_maxloc,mp_minloc,mp_min, mp_sync, mp_environ, &
        mp_gather, mp_comm_compare, mp_cart_coords, mp_rank_compare, &
        mp_alltoall, mp_dims_create, mp_cart_rank, mp_cart_sub, mp_comm_free, &
        mp_comm_dup, mp_cart_shift, mp_sendrecv, mp_range, mp_allgather, &
@@ -43,6 +43,10 @@ MODULE message_passing
 
   INTERFACE mp_minloc
      MODULE PROCEDURE mp_minloc_rv
+  END INTERFACE
+
+  INTERFACE mp_maxloc
+     MODULE PROCEDURE mp_maxloc_i
   END INTERFACE
 
   INTERFACE mp_shift
@@ -1595,6 +1599,29 @@ SUBROUTINE mp_max_r(msg,gid)
 #endif
 END SUBROUTINE mp_max_r
 
+SUBROUTINE mp_maxloc_i(msg,gid)
+  IMPLICIT NONE
+  INTEGER, INTENT ( INOUT ) :: msg ( : )
+  INTEGER, INTENT ( IN ) :: gid
+  INTEGER :: msglen, ierr
+  INTEGER, ALLOCATABLE :: res ( : )
+#if defined(__parallel)
+  t_start = m_cputime ( )
+  msglen = SIZE(msg)
+  ALLOCATE (res(1:msglen),STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_maxloc_i" )
+  CALL mpi_allreduce(msg,res,1,MPI_2INTEGER,MPI_MAXLOC,gid, &
+       ierr)
+  msg = res
+  DEALLOCATE (res,STAT=ierr)
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_maxloc_i" )
+  mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
+  mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
+  t_end = m_cputime ( )
+  mp_perf ( 3 ) % time = mp_perf ( 3 ) % time + ( t_end - t_start )
+#endif
+END SUBROUTINE mp_maxloc_i
+
 SUBROUTINE mp_minloc_rv(msg,gid)
   IMPLICIT NONE
   REAL ( dbl ), INTENT ( INOUT ) :: msg ( : )
@@ -1605,12 +1632,12 @@ SUBROUTINE mp_minloc_rv(msg,gid)
   t_start = m_cputime ( )
   msglen = SIZE(msg)
   ALLOCATE (res(1:msglen),STAT=ierr)
-  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_max_rv" )
+  IF ( ierr /= 0 ) CALL mp_stop( 0, "allocate @ mp_min_rv" )
   CALL mpi_allreduce(msg,res,1,MPI_2DOUBLE_PRECISION,MPI_MINLOC,gid, &
        ierr)
   msg = res
   DEALLOCATE (res)
-  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_max_rv" )
+  IF ( ierr /= 0 ) CALL mp_stop( ierr, "mpi_allreduce @ mp_min_rv" )
   mp_perf ( 3 ) % count = mp_perf ( 3 ) % count + 1
   mp_perf ( 3 ) % msg_size = mp_perf ( 3 ) % msg_size + msglen * reallen
   t_end = m_cputime ( )

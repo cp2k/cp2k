@@ -243,7 +243,6 @@ SUBROUTINE topology_generate_molecule(topology,globenv)
     END DO
   END IF
 
-
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_molecule"
 
   IF(PRESENT(globenv)) THEN
@@ -715,7 +714,8 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   INTEGER :: iatom,jatom,ibond
   INTEGER :: first,last,search
   INTEGER :: ielem,nelem
-  INTEGER :: iw,handle
+  INTEGER :: iw,istat,handle
+  INTEGER, PARAMETER :: nblock = 1000
   INTEGER, POINTER :: tbond_a(:),tbond_b(:)
   REAL(dbl) :: dr(3),rr(3),r2,rbond,rbond2
   REAL(dbl), POINTER :: covalent_radius(:)
@@ -742,10 +742,14 @@ SUBROUTINE topology_generate_bond(topology,globenv)
   natom = topology%natoms
 
   !Get the temporary array that we need
-  ALLOCATE(tbond_a(4*natom))
-  ALLOCATE(tbond_b(4*natom))
-  ALLOCATE(atm_symbol(natom))
-  ALLOCATE(covalent_radius(natom))
+  ALLOCATE(tbond_a(nblock),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_a',nblock)
+  ALLOCATE(tbond_b(nblock),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_b',nblock)
+  ALLOCATE(atm_symbol(natom),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol',natom)
+  ALLOCATE(covalent_radius(natom),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius',natom)
 !------------------------------------------------------------------------------
   DO iatom=1,natom
     atm_symbol(iatom) = topology%label_atmname(iatom)
@@ -764,7 +768,7 @@ SUBROUTINE topology_generate_bond(topology,globenv)
         topology%atm_mass(iatom) = ptable(ielem)% amass
         !Need to figure out the correct charge!!!
         topology%atm_charge(iatom) = 0.0
-        IF(PM1) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
+        IF(PM2) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem)%symbol
         !EXIT
       END IF
     END DO
@@ -797,16 +801,22 @@ SUBROUTINE topology_generate_bond(topology,globenv)
       !Test the distance to the sum of the covalent radius
       IF(r2 < rbond2) THEN
         nbond=nbond+1
+        IF(nbond > SIZE(tbond_a)) THEN
+          CALL reallocate(tbond_a,1,nbond+nblock)
+          CALL reallocate(tbond_b,1,nbond+nblock)
+        END IF
         tbond_a(nbond)=iatom
         tbond_b(nbond)=jatom
-        !WRITE(*,*) "bond ",nbond,iatom,jatom
+        IF(PM2) WRITE(iw,'(7X,A,I5,I5,I5)') "bond ",nbond,iatom,jatom
       END IF
     END DO
   END DO
 !------------------------------------------------------------------------------
   !Copy the stuff from temporary array into the more permanent one
-  ALLOCATE(topology%bond_a(nbond))
-  ALLOCATE(topology%bond_b(nbond))
+  ALLOCATE(topology%bond_a(nbond),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','bond_a',nbond)
+  ALLOCATE(topology%bond_b(nbond),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bond','bond_b',nbond)
   DO ibond=1,nbond
     topology%bond_a(ibond) = tbond_a(ibond)
     topology%bond_b(ibond) = tbond_b(ibond)
@@ -857,9 +867,13 @@ SUBROUTINE topology_generate_bond(topology,globenv)
 
 !------------------------------------------------------------------------------
   DEALLOCATE(tbond_a)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_a')
   DEALLOCATE(tbond_b)
+  IF(istat/=0) CALL stop_memory('generate_bond','tbond_b')
   DEALLOCATE(atm_symbol)
+  IF(istat/=0) CALL stop_memory('generate_bond','atm_symbol')
   DEALLOCATE(covalent_radius)
+  IF(istat/=0) CALL stop_memory('generate_bond','covalent_radius')
 
 
   IF(PM1) WRITE(iw,*) "    Exiting  topology_generate_bond"
@@ -903,7 +917,8 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   INTEGER :: first,last,search,countme
   INTEGER :: nbond
   INTEGER :: ibond,iibond,itheta
-  INTEGER :: iw,handle
+  INTEGER :: iw,istat,handle
+  INTEGER, PARAMETER :: nblock = 1000
   INTEGER, POINTER :: tmp_a(:),tmp_b(:),tmp_c(:)
   CHARACTER(len=*), PARAMETER :: routineN='topology_generate_bend',&
        routineP=moduleN//':'//routineN
@@ -928,9 +943,12 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   !WRITE(*,*) "nbond = ",nbond
   ntheta = 0
   !Stupid and inefficient but faster than alternative
-  ALLOCATE(tmp_a(2*nbond))
-  ALLOCATE(tmp_b(2*nbond))
-  ALLOCATE(tmp_c(2*nbond))
+  ALLOCATE(tmp_a(nblock),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','tmp_a',nblock)
+  ALLOCATE(tmp_b(nblock),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','tmp_b',nblock)
+  ALLOCATE(tmp_c(nblock),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','tmp_c',nblock)
 !------------------------------------------------------------------------------
   ntheta=0
   DO ibond=1,nbond
@@ -941,6 +959,11 @@ SUBROUTINE topology_generate_bend(topology,globenv)
       DO iibond=first,last
         IF (topology%bond_b(ibond)/=topology%bond_b(iibond)) THEN
           ntheta = ntheta + 1
+          IF(ntheta > SIZE(tmp_a)) THEN
+            CALL reallocate(tmp_a,1,ntheta+nblock)
+            CALL reallocate(tmp_b,1,ntheta+nblock)
+            CALL reallocate(tmp_c,1,ntheta+nblock)
+          END IF
           tmp_a(ntheta) = topology%bond_b(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = topology%bond_b(iibond)
@@ -954,6 +977,11 @@ SUBROUTINE topology_generate_bend(topology,globenv)
       DO iibond=first,last
         IF(topology%bond_a(ibond)/=topology%bond_b(iibond)) THEN
           ntheta = ntheta + 1
+          IF(ntheta > SIZE(tmp_a)) THEN
+            CALL reallocate(tmp_a,1,ntheta+nblock)
+            CALL reallocate(tmp_b,1,ntheta+nblock)
+            CALL reallocate(tmp_c,1,ntheta+nblock)
+          END IF
           tmp_a(ntheta) = topology%bond_a(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = topology%bond_b(iibond)
@@ -967,6 +995,11 @@ SUBROUTINE topology_generate_bend(topology,globenv)
       DO iibond=first,last
         IF (topology%bond_a(ibond)/=topology%bond_a(iibond)) THEN
           ntheta = ntheta + 1
+          IF(ntheta > SIZE(tmp_a)) THEN
+            CALL reallocate(tmp_a,1,ntheta+nblock)
+            CALL reallocate(tmp_b,1,ntheta+nblock)
+            CALL reallocate(tmp_c,1,ntheta+nblock)
+          END IF
           tmp_a(ntheta) = topology%bond_a(ibond)
           tmp_b(ntheta) = search
           tmp_c(ntheta) = topology%bond_a(iibond)
@@ -978,9 +1011,12 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   !Sort all the bends first
   CALL sort_bend(ntheta,tmp_a,tmp_b,tmp_c)
 
-  ALLOCATE(topology%theta_a(ntheta))
-  ALLOCATE(topology%theta_b(ntheta))
-  ALLOCATE(topology%theta_c(ntheta))
+  ALLOCATE(topology%theta_a(ntheta),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','theta_a',ntheta)
+  ALLOCATE(topology%theta_b(ntheta),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','theta_b',ntheta)
+  ALLOCATE(topology%theta_c(ntheta),STAT=istat)
+  IF(istat/=0) CALL stop_memory('generate_bend','theta_c',ntheta)
   countme=1
   IF (ntheta > 0) THEN
     topology%theta_a(countme) = tmp_a(1)
@@ -1003,7 +1039,7 @@ SUBROUTINE topology_generate_bend(topology,globenv)
   END IF
   
 
-  WRITE(*,*) "NTHETA = ",ntheta,SIZE(topology%theta_a)
+  !WRITE(*,*) "NTHETA = ",ntheta,SIZE(topology%theta_a)
 
 !------------------------------------------------------------------------------
   DEALLOCATE(tmp_a)

@@ -43,8 +43,9 @@ MODULE molecular_states
   USE global_types,                    ONLY: DEBUG,&
                                              global_environment_type
   USE kinds,                           ONLY: int_size,&
+                                             default_string_length,&
                                              dp
-  USE message_passing,                 ONLY: mp_max,mp_minloc,mp_sum,&
+  USE message_passing,                 ONLY: mp_max,mp_maxloc,mp_sum,&
                                              mp_allgather,mp_bcast
   USE molecule_types_new,              ONLY: molecule_type
   USE pw_env_types,                    ONLY: pw_env_type 
@@ -98,7 +99,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
   
 ! locals
   TYPE ( cp_para_env_type ), POINTER :: para_env
-  CHARACTER (LEN=20)                            :: filename
+  CHARACTER (LEN=default_string_length)                            :: filename
   INTEGER                                       :: i, j, k, imol, isos, &
                                                    nrow_global, ncol_global, ns
   REAL(KIND = dp), ALLOCATABLE                           :: evals( : )
@@ -110,16 +111,28 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
   TYPE(cp_fm_struct_type), POINTER                :: fm_struct_tmp
   TYPE(cp_error_type)                             :: error
 
-  INTEGER  :: my_nmol, nproc, counter,iproc,nstates_max,nmol,istates
-  INTEGER, POINTER  :: tmp_index(:)
-  INTEGER, POINTER  :: nstates_array(:),nmol_array(:)
+  INTEGER  :: nproc, iproc,nmol,istates
+  INTEGER, POINTER :: nstates(:)
+  INTEGER, POINTER :: states(:)
   INTEGER, DIMENSION ( : ), POINTER               :: ind
-  INTEGER, POINTER  :: states_index(:,:)
   INTEGER :: unit_report
   REAL(KIND = dp) :: tmp
-  TYPE(distribution_1d_type), POINTER :: local_molecules
   INTEGER :: ikind,nkind
+!-------------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 1. 
+  !-----------------------------------------------------------------------------
+  para_env => qs_env % para_env
+  nproc = para_env%num_pe
+ 
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 2. 
+  !-----------------------------------------------------------------------------
   IF (globenv%ionode) THEN 
      unit_report=171
      OPEN(unit_report,FILE="Molecular_DOS")
@@ -129,121 +142,11 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
      ENDDO
   ENDIF
 
-#if defined ( __parallel )
 
-  para_env => qs_env % para_env
-  local_molecules => qs_env % subsys % local_molecules_new
-
-  nproc = para_env%num_pe
-
-  !WRITE(*,*) "nproc = ",nproc
-
-  my_nmol = 0
-  nkind = SIZE ( local_molecules%list )
-  DO ikind=1,nkind
-    nmol = SIZE ( local_molecules%list(ikind)%array )
-    my_nmol = my_nmol + nmol
-  END DO
-  nmol = my_nmol
-
-  !WRITE(*,*) "my_nmol = ",my_nmol
-
-  CALL mp_sum(nmol,para_env%group)
-
-  !WRITE(*,*) "nmol = ",nmol
-
-  ALLOCATE(nstates_array(nmol),STAT=isos) !hold the nstates each imol has
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates_array')
-  ALLOCATE(nmol_array(nproc),STAT=isos)   !hold the nmol in each procs
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','nmol_array')
-
-  nstates_array(:) = 0
-
-  counter = 0
-  DO ikind=1,nkind
-    DO imol=1, SIZE ( local_molecules%list(ikind)%array )
-      counter = counter + 1
-      i = local_molecules%list(ikind)%array(imol)
-      nstates_array(counter) = molecule_set(i)%lmi%nstates
-    END DO
-  END DO
-  !WRITE(*,*) "counter = ",counter
-
-  nstates_max = MAXVAL(nstates_array)
-  CALL mp_max(nstates_max,para_env%group)
-  !WRITE(*,*) "nstates_max = ",nstates_max
-
-  ALLOCATE(states_index(1:nmol,1:nstates_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','states_index')
-  states_index(:,:) = 0
-
-  !Set up nmol_array on all procs
-  CALL mp_allgather(my_nmol,nmol_array,para_env%group)
-  !WRITE(*,*) "nmol_array ",nmol_array
-
-  !WRITE(*,*) "AAAAAAAAAAAA"
-  ALLOCATE(tmp_index(nstates_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','tmp_index')
-  counter = 0
-  !WRITE(*,*) "BAAAAAAAAAAA"
-  DO iproc=0,nproc-1
-    DO imol = 1,nmol_array(iproc+1)
-      counter = counter + 1
-      tmp_index(:) = 0
-      IF(iproc == para_env%mepos) THEN
-        i = local_molecules%list(1)%array(imol)
-        tmp_index(:) = molecule_set(i)%lmi%states
-      END IF
-      !BCAST from here root = iproc
-      CALL mp_bcast(tmp_index,iproc,para_env%group)
-      !WRITE(*,*) "oi ",counter,tmp_index(:)
-      states_index(counter,1:nstates_max) = tmp_index(1:nstates_max)
-      !WRITE(*,*) "si ",counter,states_index(counter,:)
-    END DO
-  END DO
-  !WRITE(*,*) "CAAAAAAAAAAA",counter
-  DEALLOCATE(tmp_index,STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','tmp_index')
-
-  !WRITE(*,*) "DAAAAAAAAAAA"
-  DO imol=1,nmol
-    !Count number of states for each molecule using the states_index(:,:) info
-    counter = 0
-    DO istates=1,nstates_max
-      IF(states_index(imol,istates) /= 0) counter = counter + 1
-    END DO
-    nstates_array(imol) = counter
-  END DO
-  !WRITE(*,*) "EAAAAAAAAAAA"
-
-#else
-
-  !WRITE(*,*) "Enter serial section"
-  nmol = SIZE(molecule_set)
-  ALLOCATE(nstates_array(nmol),STAT=isos) !hold the nstates each imol has
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates_array')
-
-  DO imol = 1,nmol
-    nstates_array(imol) = molecule_set(imol)%lmi%nstates
-  END DO
-
-  nstates_max = MAXVAL(nstates_array)
-
-  ALLOCATE(states_index(nmol,nstates_max),STAT=isos)
-  IF(isos/=0) CALL stop_memory('construct_molecular_states','states_index')
-
-  DO imol = 1,nmol
-    states_index(imol,:) = molecule_set(imol)%lmi%states
-  END DO
-
-#endif
-
-  IF (globenv%ionode) THEN 
-    DO imol = 1,nmol
-      WRITE(*,*) imol,states_index(imol,:)
-    END DO
-  END IF
-
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 3. 
+  !-----------------------------------------------------------------------------
   CALL cp_fm_get_info(mo_localized, &
                       ncol_global=ncol_global, &
                       nrow_global=nrow_global )
@@ -251,13 +154,35 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
   CALL cp_fm_create(smo,mo_eigenvectors%matrix_struct)
   CALL cp_sm_fm_multiply(matrix_S,mo_eigenvectors,smo,ncol_global,qs_env%para_env)
 
-  IF (globenv%ionode) THEN
-     WRITE(unit_report,*) nmol,nstates_max, " number of molecules, maximum number of states "
-  ENDIF
 
-  DO imol = 1, nmol
-    ns = nstates_array( imol )
-    ind => states_index ( imol, : )
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. 
+  !-----------------------------------------------------------------------------
+  ALLOCATE(nstates(2),STAT=isos)
+  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
+
+  DO imol = 1, SIZE(molecule_set)
+    nstates(1) = molecule_set(imol)%lmi%nstates
+    nstates(2) = para_env%mepos
+
+    CALL mp_maxloc(nstates,para_env%group)
+
+    NULLIFY(states)
+    ALLOCATE(states(nstates(1)),STAT=isos)
+    IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+    states(:) = 0
+
+    iproc=nstates(2)
+    IF(iproc == para_env%mepos) THEN
+      states(:) = molecule_set(imol)%lmi%states(:)
+    END IF
+    !!BCAST from here root = iproc
+    CALL mp_bcast(states,iproc,para_env%group)
+
+    ns = nstates(1)
+    ind => states( : )
+
     ALLOCATE ( evals ( ns ), STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
                                         "eval", ns )
@@ -360,8 +285,14 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     CALL cp_fm_release ( e_vectors )
     CALL cp_fm_release ( rot_e_vectors )
 
+    DEALLOCATE(states,STAT=isos)
+    IF(isos/=0) CALL stop_memory('construct_molecular_states','states')
+
   END DO 
+  DEALLOCATE(nstates,STAT=isos)
+  IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
   IF (globenv%ionode) CLOSE(unit_report)
+  !CALL stop_program("molecular_states","checkpoint")
 !------------------------------------------------------------------------------
 END SUBROUTINE construct_molecular_states
 
