@@ -199,7 +199,7 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER      :: routineN='p_env_create',&
                                         routineP=moduleN//':'//routineN
-    INTEGER                          :: n_ao, n_mo, n_spins, spin, stat
+    INTEGER                          :: n_ao, n_mo, n_spins, spin, stat,handle
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     TYPE(dft_control_type), POINTER  :: dft_control
     TYPE(cp_full_matrix_type), POINTER :: qs_env_c
@@ -209,6 +209,7 @@ CONTAINS
 
     ! code
 
+    CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(atomic_kind_set, dft_control, ao_mo_fm_pools, para_env)
     
@@ -289,7 +290,9 @@ CONTAINS
        END IF
        
     END IF
-    
+
+    CALL timestop(0.0_wp,handle)
+
   END SUBROUTINE p_env_create
 !***************************************************************************
 
@@ -323,12 +326,14 @@ CONTAINS
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
-    INTEGER :: stat, ispin, nspins
+    INTEGER :: stat, ispin, nspins, handle
     CHARACTER(len=*), PARAMETER :: routineN='p_env_check_i_alloc',&
          routineP=moduleN//':'//routineN
     CHARACTER(len=25) :: name
     TYPE(dft_control_type), POINTER :: dft_control
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: s
+
+    CALL timeset(routineN,"I","",handle)
 
     failure=.FALSE.
     NULLIFY(dft_control,s)
@@ -360,6 +365,7 @@ CONTAINS
           CALL qs_rho_rebuild(p_env%rho1, qs_env=qs_env, error=error)
        END IF
     END IF
+    CALL timestop(0.0_wp,handle)
   END SUBROUTINE p_env_check_i_alloc
 !***************************************************************************
 

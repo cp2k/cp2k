@@ -281,10 +281,10 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     NULLIFY(dft_control,auxbas_pw_pool, pw_pools,&
          pw_env,v_rspace_new,rho_r,rho_g,rho1_r, rho1_g,&
-         mgrid_rspace, mgrid_gspace,logger,cell)
+         mgrid_rspace, mgrid_gspace,cell)
+    logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(kpp1_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(k_p_p1),cp_failure_level,routineP,error,failure)
@@ -357,6 +357,7 @@ CONTAINS
        DO ispin=2,nspins
           CALL coeff_sumup(rho1%rho_g(ispin),rho1_tot_gspace)
        END DO
+
        IF (logger%print_keys%total_densities) THEN
           total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
 !FM          if (cp_would_output(logger,outputName="kpp1_charges",&

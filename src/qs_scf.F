@@ -494,15 +494,19 @@ CONTAINS
             END IF
          END DO
          CALL pao_env_get(pao_env, min_density_m=min_density_m,error=error)
-         CALL sm_matrix_transf_to_f(source_m=min_density_m(1)%matrix%sm,&
-              target_m=p_new%matrix, glob_angles=pao_env%angles_att,&
-              qs_env=qs_env, global_env=globenv,error=error)
-         CALL pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
-              global_env=globenv,error=error)
-         CALL get_mo_set(pao_obj_f%mo_set(1)%mo_set,eigenvectors=min_mo)
-         CALL get_mo_set(mo_set,eigenvectors=full_mo)
-         CALL cp_sp_multiplies_blacs(pao_env%angles_att%NUi_injection,&
-              min_mo,full_mo)
+         DO ispin=1,dft_control%nspins
+            CPPrecondition(ispin==1,cp_failure_level,routine,error,failure)
+            ! pao_env%angles_att should be spin dependent
+            CALL sm_matrix_transf_to_f(source_m=min_density_m(ispin)%matrix%sm,&
+                 target_m=p_new(ispin)%matrix, glob_angles=pao_env%angles_att,&
+                 qs_env=qs_env, global_env=globenv,error=error)
+            CALL pao_guarantee_owned_NUi(pao_env%angles_att, qs_env=qs_env,&
+                 global_env=globenv,error=error)
+            CALL get_mo_set(pao_obj_f%mo_set(ispin)%mo_set,eigenvectors=min_mo)
+            CALL get_mo_set(mo_set,eigenvectors=full_mo)
+            CALL cp_sp_multiplies_blacs(pao_env%angles_att%NUi_injection,&
+                 min_mo,full_mo)
+         END DO
          IF (cp_debug .AND. debug_this_module) THEN
             logger => cp_error_get_logger(error)
             CALL cp_1d_r_output(logger=logger,&
@@ -515,21 +519,25 @@ CONTAINS
             CALL w_blacs_matrix(full_mo,output_unit,globenv,formatted=.TRUE.)
             CALL cp_sm_output(logger=logger, &
                  outputName="scf_new_p", &
-                 fromWhere=routine, iter=iscf, matrix=p_new%matrix,&
+                 fromWhere=routine, iter=iscf, matrix=p_new(1)%matrix,&
                  para_env=globenv%para_env,error=error)
          END IF
 
          t2 = m_cputime()
 
          IF (diis_step) THEN
-           CALL density_mixing(p_new,p,1.0_wp,delta,globenv)
-           IF (ionode.AND.globenv%print%scf) THEN
-              WRITE (UNIT=output_unit,&
-                     FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
-                     iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
-           END IF
+            DO ispin=1,dft_control%nspins
+               CALL density_mixing(p_new(ispin),p_rmpv(ispin),1.0_wp,delta,globenv)
+            END DO
+            IF (ionode.AND.globenv%print%scf) THEN
+               WRITE (UNIT=output_unit,&
+                    FMT="(T2,I5,2X,A,T15,E10.2,T30,F8.2,T40,2F20.10)")&
+                    iscf,"DIIS",diis_error,t2 - t1,delta,energy%total
+            END IF
          ELSE
-           CALL density_mixing(p_new,p,scf_control%p_mix,delta,globenv)
+            DO ispin=1,dft_control%nspins
+               CALL density_mixing(p_new(ispin),p_rmpv(ispin),scf_control%p_mix,delta,globenv)
+            END DO
            IF (ionode.AND.globenv%print%scf) THEN
              WRITE (UNIT=output_unit,&
                     FMT="(T2,I5,2X,A,T15,F6.2,T30,F8.2,T40,2F20.10)")&
@@ -1088,7 +1096,7 @@ CONTAINS
                         homo=homo, &
                         nelectron=nelectron_spin, &
                         nao=nao)
-        WRITE (UNIT=output_unit,*) " For spin ",ispin
+        WRITE (UNIT=output_unit,fmt=*) " For spin ",ispin
         WRITE (UNIT=output_unit,FMT="(/,(T3,A,I10))")&
            "Number of electrons:                    ",nelectron_spin,&
            "Number of occupied orbitals:            ",homo,&
@@ -1103,7 +1111,7 @@ CONTAINS
 
     ! XXXXXXXXXX
     IF (dft_control%nspins.ne.1) THEN
-    write(6,*) "calculate first dm not yet ok CORE and RANDOM might work"
+    WRITE(6,*) "calculate first dm not yet ok CORE and RANDOM might work"
     ENDIF
     ! XXXXXXXXXX
     DO ispin=1,dft_control%nspins

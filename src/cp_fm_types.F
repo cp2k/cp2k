@@ -55,6 +55,7 @@ MODULE cp_fm_types
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
+                                             cp_logger_generate_filename,&
                                              cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
@@ -70,6 +71,8 @@ MODULE cp_fm_types
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
+  USE qs_parser,                       ONLY: close_file,&
+                                             open_file
   USE sparse_matrix_types,             ONLY: first_block_node,&
                                              get_block_node,&
                                              get_matrix_info,&
@@ -180,7 +183,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(cp_full_matrix_type), POINTER          :: new_matrix
+    TYPE(cp_full_matrix_type), POINTER        :: new_matrix
     CHARACTER(LEN=*), INTENT(IN)              :: name
     INTEGER, INTENT(IN)                       :: ncol_block,&
          ncol_global,nrow_block,&
@@ -1121,10 +1124,10 @@ CONTAINS
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, loc, my_long_description
+    LOGICAL :: failure, loc, my_long_description, exists
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_write',&
          routineP=moduleN//':'//routineN
-    INTEGER :: iostat
+    INTEGER :: iostat, desc_unit, data_unit
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
     CHARACTER(len=60):: filename
@@ -1136,65 +1139,70 @@ CONTAINS
     logger=>cp_error_get_logger(error) 
     para_env=>logger%para_env
     IF (ASSOCIATED(matrix)) THEN
-       filename=matrix%name
-       CALL compress(filename)
+       data_unit=unit_nr
+       desc_unit=unit_nr
+       IF (.not.loc.and.long_description) THEN
+          matrix%print_count=matrix%print_count+1
+          IF (para_env%mepos==para_env%source) THEN
+             filename=TRIM(matrix%name)//&
+                  ADJUSTL(cp_to_string(matrix%print_count))
+             CALL compress(filename)
+             WRITE (unit=desc_unit,&
+                  fmt="(' <cp_fm_types>:{ id_nr=',i10,' written to files ',a,'*')",&
+                  iostat=iostat) matrix%id_nr, TRIM(filename)
+          END IF
+          CALL cp_logger_generate_filename(logger=logger,res=filename,&
+               root=TRIM(filename)//"-"//&
+               TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
+               postfix=".desc",local=.TRUE.)
+          INQUIRE (FILE=TRIM(filename),EXIST=exists)
+          CPPreconditionNoFail(.not.exists,cp_warning_level,routineP,error)
+          CALL open_file(TRIM(filename),file_status="unknown",&
+               file_action="WRITE",&
+               unit_number=desc_unit)
 
-       IF (loc .OR. para_env%mepos==para_env%source) THEN
-          WRITE (unit=unit_nr,&
+          CALL cp_logger_generate_filename(logger=logger,res=filename,&
+            root=TRIM(filename)//"-"//&
+            TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
+            postfix=".dat",local=.TRUE.)
+          INQUIRE (FILE=TRIM(filename),EXIST=exists)
+          CPPreconditionNoFail(.not.exists,cp_warning_level,routineP,error)
+          CALL open_file(TRIM(filename),file_status="unknown",&
+               file_action="WRITE",&
+               unit_number=data_unit)
+       END IF
+
+       IF (loc .OR. para_env%mepos==para_env%source.or.long_description) THEN
+          WRITE (unit=desc_unit,&
                fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
                iostat=iostat) matrix%id_nr, matrix%ref_count
-          WRITE (unit=unit_nr,&
+          WRITE (unit=desc_unit,&
                fmt="(' name=',a,',')",&
                iostat=iostat) matrix%name
-          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " matrix_structure="
-          CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=unit_nr,&
+          WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " matrix_structure="
+          CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=desc_unit,&
                long_description=my_long_description,error=error)
-          WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ,"
+          WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " ,"
           IF (my_long_description) THEN
-             IF (loc) THEN
-                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " local_data=("
-                CALL cp_2d_r_write(matrix%local_data,unit_nr=unit_nr,error=error)
-                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
-             ELSE
-                WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) &
-                     " local_data=( output to files "//TRIM(filename)//"-"//&
-                     TRIM(ADJUSTL(cp_to_string(matrix%print_count)))//")"
+             WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " local_data=("
+             CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+             IF (desc_unit/=data_unit) THEN
+                WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) &
+                     "  written to file "//TRIM(filename)
              END IF
           ELSE IF (loc) THEN
              IF (ASSOCIATED(matrix%local_data)) THEN
-                WRITE (unit=unit_nr,&
+                WRITE (unit=desc_unit,&
                      fmt="(' local_data=(REAL(wp, DIMENSION(',i8,', ',i8,'))')",&
                      iostat=iostat) SIZE(matrix%local_data,1), SIZE(matrix%local_data,2)
              END IF
           END IF
-          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " }"
+          WRITE (unit=desc_unit,fmt="(a)",iostat=iostat) " }"
        END IF
 
-       IF (.NOT.loc .AND. my_long_description) THEN
-          CALL cp_assert(ASSOCIATED(matrix%matrix_struct),&
-               cp_warning_level,cp_assertion_failed,routineP,&
-               "matrix context not associated "//&
-               CPSourceFileRef,&
-               error,failure)
-          IF (.NOT.failure) THEN
-             CALL cp_assert(ASSOCIATED(matrix%matrix_struct%context),&
-                  cp_warning_level,cp_assertion_failed,routineP,&
-                  "matrix context not associated "//&
-                  CPSourceFileRef,&
-                  error,failure)
-          END IF
-          IF (.NOT.failure) THEN
-             matrix%print_count=matrix%print_count+1
-             CALL cp_2d_r_output(logger=logger,&
-                  outputName=filename,&
-                  fromWhere=routineP, iter=matrix%print_count,&
-                  array=matrix%local_data,&
-                  comment="proc_row="//&
-                  cp_to_string(matrix%matrix_struct%context%mepos(1))//&
-                  " proc_col="//&
-                  cp_to_string(matrix%matrix_struct%context%mepos(2)),&
-                  local=.TRUE.,error=error)
-           END IF
+       IF (.not.loc.and.long_description) THEN
+          CALL close_file(desc_unit)
+          CALL close_file(data_unit)
        END IF
     ELSE
        IF (loc .OR. para_env%mepos==para_env%source) THEN

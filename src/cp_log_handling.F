@@ -62,6 +62,7 @@ MODULE cp_log_handling
                                              open_file
   USE string_utilities,                ONLY: compress_all
   USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: print_stack
   IMPLICIT NONE
   PRIVATE
 
@@ -1138,9 +1139,17 @@ CONTAINS
   FUNCTION cp_int_to_string(i) RESULT(res)
     CHARACTER(len=6) :: res
     INTEGER, INTENT(in):: i
-    WRITE (res,'(i6)') i
+    REAL(kind=wp) :: tmp_r
+    INTEGER :: iostat
     IF (i>999999 .OR. i<-99999) THEN
-       WRITE (res, '(es6.1)') REAL(i)
+       tmp_r=i
+       WRITE (res,fmt='(es6.1)',iostat=iostat) tmp_r
+    ELSE
+       WRITE (res,fmt='(i6)',iostat=iostat) i
+    END IF
+    IF (iostat/=0) THEN
+       PRINT *,"cp_int_to_string ioerror",iostat
+       CALL print_stack()
     END IF
   END FUNCTION cp_int_to_string
 

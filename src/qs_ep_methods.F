@@ -163,7 +163,8 @@ MODULE qs_ep_methods
                                              real_matrix_type,&
                                              replicate_matrix_structure
   USE timings,                         ONLY: timeset,&
-                                             timestop
+                                             timestop,&
+                                             trace_debug
   IMPLICIT NONE
   PRIVATE
 
@@ -242,6 +243,8 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL cp_error_check(error,failure)
 
   ! define projections (i.e. subsystems)
+  CALL cp_log(logger,cp_note_level,routineP,&
+       "Defining projections (i.e. subsystmes)")
   IF (.NOT. failure) THEN
      CALL get_qs_env(qs_env,particle_set=particle_set)
      natoms=SIZE(particle_set)
@@ -271,8 +274,12 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   ! create ep_env
   IF (.not.failure) THEN
+  CALL cp_log(logger,cp_note_level,routineP,&
+       "Creating ep_env")
      CALL ep_env_create(ep_env,main_qs_env=qs_env, projections=sub_proj,&
           error=error)
+     CALL cp_log(logger,cp_note_level,routineP,&
+          "Creating ep_env_created")
      CALL ep_env_get(ep_env,nspins=nspins,error=error)
      CALL cp_error_check(error,failure)
   END IF
@@ -379,9 +386,9 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,psi1,error=error)
   CALL fm_pools_give_back_matrix_vect(ao_mo_fm_pools,L_psi1,error=error)
 
-!FM  call p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
-!FM       qs_env=ep_env%main_qs_env, &
-!FM       name="ep_op", error=error)
+  CALL p_env_write_ep_matrix(p_env=ep_env%main_p_env, &
+       qs_env=ep_env%main_qs_env, &
+       name="ep_op", error=error)
 
   CALL stupid_solve(ep_env,eps_r=1.0e-5_wp,error=error)
 
@@ -465,7 +472,7 @@ END SUBROUTINE qs_ep_calculation
     NULLIFY(atom_list, sub_atom_list, dft_control,scf_control,&
          para_env, blacs_env, sub_c,atomic_kind_set,sub_qs_charges,&
          proj, sub_qs, particle_set, p_set, sub_rho_core, auxbas_pw_pool,&
-         pw_env, sub_cell, logger, ao_mo_fm_pools)
+         pw_env, sub_cell, ao_mo_fm_pools)
 
     ALLOCATE(ep_env, stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -945,7 +952,7 @@ SUBROUTINE stupid_solve(ep_env,eps_r,error)
      CALL cp_error_check(error,failure)
   END IF
   IF (.not.failure) THEN
-     DO i=1,10
+     DO i=1,20
         ! orthogonalize x wrt. to psi0
         CALL p_preortho(p_env=ep_env%main_p_env, &
              qs_env=ep_env%main_qs_env, v=ep_env%psi1,&
@@ -1232,20 +1239,18 @@ SUBROUTINE p_env_write_ep_matrix(p_env, qs_env, name, error)
                  v_norm=v_norm+v_norm_s
               END DO
               v_norm=SQRT(v_norm)
+              CPPreconditionNoFail(v_norm>1.0e-8,cp_warning_level,routineP,error)
               DO ispin2=1,dft_control%nspins
                  CALL cp_fm_add(1.0_wp/v_norm,v(ispin2)%matrix,error=error)
               END DO
 
               CALL p_op_ep(p_env=p_env, qs_env=qs_env, v=v,&
                    res=res, error=error)
+
               DO ispin2=1,dft_control%nspins
                  CALL cp_fm_add(v_norm,res(ispin2)%matrix,error=error)
               END DO
               
-              DO ispin2=1,dft_control%nspins
-                 CALL cp_fm_add(1.0_wp/v_norm,res(ispin2)%matrix)
-              END DO
-
               CALL cp_fm_vect_write(matrixes=res, &
                    unit_nr=cp_logger_get_default_unit_nr(logger),&
                    long_description=.TRUE., error=error)
