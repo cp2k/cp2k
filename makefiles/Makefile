@@ -3,7 +3,7 @@ SHELL = /bin/sh
 # the home dir is taken from the current directory: you must cd to the makefiles
 # directory before executing make
 CP2KHOME  := $(PWD)/..
-ARCH      = $(shell $(CP2KHOME)/tools/get_arch_code)
+ARCH      := $(shell $(CP2KHOME)/tools/get_arch_code)
 SMAKE     = $(MAKE) -r
 PMAKE     = $(SMAKE) -j 4
 LIB1      = cp2klib
@@ -61,10 +61,12 @@ include $(OBJECTDEFS)
 
 include $(MACHINEDEFS)
 
-CPPFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
+CPPSHELL := -D__COMPILE_ARCH="\"$(ARCH)\""\
             -D__COMPILE_DATE="\"$(shell date)\""\
             -D__COMPILE_HOST="\"$(shell hostname)\""\
-            -D__COMPILE_LASTCVS="\"$(shell tail -1 $(SRCDIR)/CVS/Entries)\""\
+            -D__COMPILE_LASTCVS="\"$(shell tail -1 $(SRCDIR)/CVS/Entries)\""
+
+CPPFLAGS += $(CPPSHELL)\
 	    -I$(SRCDIR)
 
 OBJECTS = $(OBJECTS_GENERIC) $(OBJECTS_ARCHITECTURE)
