@@ -195,7 +195,7 @@ SUBROUTINE read_atoms_input ( topology, globenv )
   DO iatom=1,natom
     IF(topology%label_resname(iatom)==topology%label_atmname(iatom))THEN
       atm_equal_mol = atm_equal_mol + 1
-      topology%bondparm_factor=0.0
+      topology%bondparm_factor=0.0_dbl
     END IF
   END DO
 
