@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2003  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
 #include "cp_prep_globals.h"
@@ -352,7 +352,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set,deriv_set,&
         CALL xb88_lsd_eval(rho_set=rho_set,deriv_set=deriv_set,&
                 grad_deriv=grad_deriv,error=error)
      CASE("NONE")
-        ;
+        !
      CASE default
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional)//"' in "//&
