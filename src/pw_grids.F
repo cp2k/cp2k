@@ -468,9 +468,11 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, pe_group, info, fft_usage, &
       pw_grid % para % mode = PW_MODE_DISTRIBUTED
     ELSE
       pw_grid % para % mode = PW_MODE_LOCAL
+      pw_grid % para % group_head = .TRUE.
     END IF
   ELSE
     pw_grid % para % mode = PW_MODE_LOCAL
+    pw_grid % para % group_head = .TRUE.
   END IF
 
   IF ( PRESENT ( cutoff ) ) THEN

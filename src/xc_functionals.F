@@ -607,7 +607,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: string
     CHARACTER(LEN=*), DIMENSION(:), &
       INTENT(INOUT)                          :: functional
-    LOGICAL, DIMENSION(:), INTENT(OUT)       :: gradient_functionals, &
+    LOGICAL, DIMENSION(:), INTENT(INOUT)     :: gradient_functionals, &
                                                 crossterms
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

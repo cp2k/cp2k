@@ -468,6 +468,7 @@ CONTAINS
     qs_control%map_paa = .FALSE.
     qs_control%map_consistent = .FALSE.
     qs_control%polarization = .FALSE.
+    qs_control%wf_extrapolation_order = 0
 
     CALL gapw_control_create(qs_control%gapw_control)
 
