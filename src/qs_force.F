@@ -206,6 +206,7 @@ CONTAINS
       CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
       CALL mp_sum(force(ikind)%vhxc_atom,globenv%group)
+      CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%group)
       CALL mp_sum(force(ikind)%hartree_2c,globenv%group)
       CALL mp_sum(force(ikind)%hartree_3c,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&

@@ -23,6 +23,7 @@ MODULE  hartree_local_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE global_types,                    ONLY: global_environment_type
   USE hartree_local_types,             ONLY: allocate_ecoul_1center,&
@@ -34,6 +35,7 @@ MODULE  hartree_local_methods
                                              int_size
   USE mathconstants,                   ONLY: fourpi,pi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -56,6 +58,8 @@ MODULE  hartree_local_methods
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
+
   IMPLICIT NONE
 
   PRIVATE
@@ -272,6 +276,7 @@ MODULE  hartree_local_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
                             POINTER            :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER            :: atom_kind
+    TYPE(cp_para_env_type), POINTER            :: para_env
     TYPE(gto_basis_set_type), POINTER          :: orb_basis
     TYPE(grid_atom_type), POINTER              :: grid_atom
     TYPE(harmonics_atom_type), &
@@ -313,13 +318,13 @@ MODULE  hartree_local_methods
     REAL(dp), DIMENSION(:,:,:),  POINTER       :: Qlm_gg
     REAL(dp), DIMENSION(:,:,:), POINTER        :: my_CG
 
-    INTEGER                                    :: handle,iat, iatom, icg, ikind, &
+    INTEGER                                    :: bo(2), handle, iat, iatom, icg, ikind, &
                                                   ipgf1, ipgf2, ir, iset1, iset2, &
                                                   is1, is2, iso, iso1, iso2, ispin,  &
                                                   l_ang, lmax_0, lmax0, m1, m2, max_nr, &
-                                                  max_iso, max_iso_not0, maxso, n1,&
+                                                  max_iso, max_iso_not0, maxso, mepos, n1,&
                                                   n2, nat, nchan_0, nkind, nr, nset, &
-                                                  nsotot, nspins
+                                                  nsotot, nspins, num_pe
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: my_tddft, paw_atom
 
@@ -327,6 +332,7 @@ MODULE  hartree_local_methods
 
     CALL timeset("Vh_1c_gg_integrals","I","",handle)
 
+    NULLIFY(dft_control,para_env)
     NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
     NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
     NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
@@ -337,6 +343,7 @@ MODULE  hartree_local_methods
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
                     atomic_kind_set=atomic_kind_set)
 
 
@@ -425,7 +432,22 @@ MODULE  hartree_local_methods
         m1 = m1 + maxso
       END DO  ! iset1
 
+!     Initialize to zero the local ks integrals
       DO iat = 1,nat
+        iatom = atom_list(iat)
+        ecoul_1c(iatom)%Vh1_h%r_coef = 0.0_dp
+        ecoul_1c(iatom)%Vh1_s%r_coef = 0.0_dp
+        ecoul_1c(iatom)%aVh1b_h%r_coef = 0.0_dp
+        ecoul_1c(iatom)%aVh1b_s%r_coef = 0.0_dp
+        ecoul_1c(iatom)%aVh1b_0%r_coef = 0.0_dp
+      END DO
+
+!     Distribute the atoms of this kind
+      num_pe = para_env%num_pe
+      mepos  = para_env%mepos
+      bo = get_limit( nat, num_pe, mepos )
+
+      DO iat = bo(1), bo(2) !1,nat
         iatom = atom_list(iat)
 
         NULLIFY(rho_atom,r_h,r_s,vr_h,vr_s,cpc_h,cpc_s)
@@ -437,8 +459,6 @@ MODULE  hartree_local_methods
 
         NULLIFY(Vh1_h,Vh1_s,rrad_0)
         CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,Vh1_h=Vh1_h,Vh1_s=Vh1_s)
-        Vh1_h=0.0_dp
-        Vh1_s=0.0_dp
 
         rrad_0 => rho0_atom_set(iatom)%rho0_rad_h%r_coef
         vrrad_0 => rho0_atom_set(iatom)%vrho0_rad_h%r_coef
@@ -494,9 +514,6 @@ MODULE  hartree_local_methods
         NULLIFY(aVh1b_h,aVh1b_s,aVh1b_0)
         CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,&
                            aVh1b_h=aVh1b_h,aVh1b_s=aVh1b_s,aVh1b_0=aVh1b_0)
-        aVh1b_h = 0.0_dp
-        aVh1b_s = 0.0_dp
-        aVh1b_0 = 0.0_dp
 
         m1 = 0
         DO iset1 = 1,nset
@@ -609,6 +626,14 @@ MODULE  hartree_local_methods
       END DO  ! iat
 
     END DO  ! ikind 
+
+    nat = SIZE(ecoul_1c,1)
+    DO iatom = 1,nat
+      CALL mp_sum(ecoul_1c(iatom)%aVh1b_h%r_coef,para_env%group)
+      CALL mp_sum(ecoul_1c(iatom)%aVh1b_s%r_coef,para_env%group)
+      CALL mp_sum(ecoul_1c(iatom)%aVh1b_0%r_coef,para_env%group)
+    END DO
+    CALL mp_sum(energy_hartree_1c,para_env%group)
 
     DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr)
 

@@ -31,6 +31,7 @@ MODULE qs_vxc_atom
                                              xc_control_type
   USE cp_error_handling,               ONLY: cp_error_type
   USE cp_log_handling,                 ONLY: cp_failure_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp,dp_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_sum
@@ -49,6 +50,7 @@ MODULE qs_vxc_atom
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util,                            ONLY: get_limit
   USE xc_atom,                         ONLY: vxc_of_r,&
                                              vxc_of_r_new,&
                                              xc_rho_set_atom_update
@@ -100,6 +102,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:),&
                             POINTER     :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER     :: atom_kind
+    TYPE(cp_para_env_type), POINTER     :: para_env
     TYPE(dft_control_type), POINTER     :: dft_control
     TYPE(grid_atom_type), POINTER       :: grid_atom
     TYPE(harmonics_atom_type), POINTER  :: harmonics
@@ -133,19 +136,19 @@ CONTAINS
     LOGICAL                             :: cross_term,&
                                            gradient_f,lsd,paw_atom
     REAL(dp)                            :: exc_h,exc_s,rad,urad,usin_ia,rtot
-    INTEGER                             :: handle,i,ia,iat,iatom, ierr,&
+    INTEGER                             :: bo(2),handle,i,ia,iat,iatom, ierr,&
                                            ifunc,ikind,ipot,ir,&
-                                           iso,ispin,lp,na,natom,nkind,&
-                                           nr,nspins 
+                                           iso,ispin,lp,mepos,na,natom,nkind,&
+                                           nr,nspins,num_pe 
     INTEGER, DIMENSION(:), POINTER      :: atom_list
-    INTEGER, DIMENSION(2, 3)            :: bo
+    INTEGER, DIMENSION(2, 3)            :: bounds
 
 
 !   ***************************************************************************
 
     CALL timeset("calculate_vxc_atom","I","",handle)
 
-    NULLIFY(dft_control,xc_control)
+    NULLIFY(dft_control,xc_control,para_env)
     NULLIFY(energy)
     NULLIFY(atomic_kind_set,atom_kind)
     NULLIFY(rho_atom_set,rho_atom)
@@ -157,6 +160,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    para_env=para_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     rho_atom_set=rho_atom_set)
@@ -191,13 +195,13 @@ CONTAINS
 !    Array dimension: here anly one dimensional arrays are used,
 !    i.e. only the first column of deriv_data is read.
 !    The other to dimensions  are set to size equal 1
-     bo(1:2,1:3) = 1
-     bo(2,1) = na
+     bounds(1:2,1:3) = 1
+     bounds(2,1) = na
 
      ! create a place where to put the derivatives
-     CALL xc_dset_create(deriv_set, local_bounds=bo, error=error)
+     CALL xc_dset_create(deriv_set, local_bounds=bounds, error=error)
      ! create the place where to store the argument for the functionals
-     CALL xc_rho_set_create(rho_set,bo,rho_cutoff=xc_control%density_cut,&
+     CALL xc_rho_set_create(rho_set,bounds,rho_cutoff=xc_control%density_cut,&
             drho_cutoff=xc_control%gradient_cut,tau_cutoff=xc_control%tau_cut,&
             error=error)
      ! assesses the argument needed by the functionals
@@ -233,7 +237,22 @@ CONTAINS
         END IF
      END IF
 
+!    Distribute the atoms of this kind
+     num_pe = para_env%num_pe
+     mepos  = para_env%mepos
+     bo = get_limit( natom, num_pe, mepos )
+
      DO iat = 1,natom
+       iatom = atom_list(iat)
+       DO ispin = 1,nspins
+         rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef = 0.0_dp
+         rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef = 0.0_dp
+       END DO
+       rho_atom_set(iatom)%exc_h = 0.0_dp
+       rho_atom_set(iatom)%exc_s = 0.0_dp
+     END DO
+
+     DO iat = bo(1),bo(2) !1,natom
        iatom = atom_list(iat)
 
        rho_atom => rho_atom_set(iatom)
@@ -249,8 +268,6 @@ CONTAINS
                            rho_rad_s=r_s)
        END IF
 
-       rho_atom%exc_h = 0.0_dp
-       rho_atom%exc_s = 0.0_dp
          
        rtot = 0.0_dp
 
@@ -476,7 +493,16 @@ CONTAINS
 
    ENDDO ! ikind
 
-!   STOP 'exc'
+   natom = SIZE(rho_atom_set,1)
+   DO iatom = 1,natom
+     DO ispin = 1,nspins
+       CALL mp_sum(rho_atom_set(iatom)%ga_Vxc_gb_h(ispin)%r_coef,para_env%group)
+       CALL mp_sum(rho_atom_set(iatom)%ga_Vxc_gb_s(ispin)%r_coef,para_env%group)
+     END DO
+     CALL mp_sum(rho_atom_set(iatom)%exc_h,para_env%group)
+     CALL mp_sum(rho_atom_set(iatom)%exc_s,para_env%group)
+   END DO
+   CALL mp_sum(energy%exc1,para_env%group)
 
    CALL timestop(0.0_dp,handle)
  END SUBROUTINE calculate_vxc_atom

@@ -51,6 +51,7 @@ MODULE qs_rho0_ggrid
   USE l_utils,                         ONLY: l_info_type
   USE mathconstants,                   ONLY: dfac,fourpi,pi
   USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indco, &
                                              nco,ncoset,&
                                              nso,nsoset
@@ -593,7 +594,14 @@ MODULE qs_rho0_ggrid
       CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              lmax=lmax, maxso=maxso,&
                              nset=nset, npgf=npgf)
-                             
+                           
+!     Initialize the local KS integrals
+
+      DO iat = 1,nat
+        iatom = atom_list(iat)
+        ecoul_1c(iatom)%aVhsb_0s%r_coef = 0.0_dp
+      END DO
+  
       nch_ik = ncoset(l0_ikind)
       pab = 1.0_dp
 
@@ -725,7 +733,6 @@ MODULE qs_rho0_ggrid
           NULLIFY(aVhsb_0s)
 
           CALL  get_ecoul_1c(ecoul_1c,iatom=iatom,aVhsb_0s=aVhsb_0s)
-
           aVhsb_0s = 0.0_dp
           force_tmp(1:3) = 0.0_dp
 
@@ -807,6 +814,11 @@ MODULE qs_rho0_ggrid
 
       END DO  ! j
     END DO  ! ikind  
+
+    natom = SIZE(ecoul_1c,1)
+    DO iatom = 1,natom
+      CALL mp_sum(ecoul_1c(iatom)%aVhsb_0s%r_coef,para_env%group)
+    END DO
 
     CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
 

@@ -712,7 +712,10 @@ MODULE  hartree_local_3centers
       END DO  ! jkind
     END DO  ! ikind
 
+!   IF PARALLEL sum up the contributions to sum_ab_car coming from
+!   all the ab pairs, which are handled by different processors
     CALL mp_sum(energy_hartree_3c,para_env%group)
+    CALL mp_sum(sum_ab_car,para_env%group)
 
 
     IF(just_energy) GOTO 100
@@ -745,10 +748,6 @@ MODULE  hartree_local_3centers
          NULLIFY(aVh3c0b)
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=katom,aVh3c0b=aVh3c0b)
          IF(ispin==1) aVh3c0b = 0.0_dp
-
-!        IF PARALLEL sum up the contributions to sum_ab_car coming from
-!        ab pairs handled by different processors
-         CALL mp_sum(sum_ab_car(:,katom),para_env%group)
 
          sum_ab_sph = 0.0_dp
          DO lshell = 0,l0_kkind

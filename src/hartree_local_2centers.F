@@ -83,7 +83,7 @@ MODULE  hartree_local_2centers
  
 !******************************************************************************
 
-  SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
+    SUBROUTINE integrate_vhg0_g0(qs_env,energy_hartree_2c,just_energy,calculate_forces, &
                                tddft, p_env)
 
     REAL(kind=dp), INTENT(OUT)                 :: energy_hartree_2c
@@ -281,7 +281,10 @@ MODULE  hartree_local_2centers
 
     END DO  ! ikind
 
+!   *** IF PARALLEL sum up the contributions to aVh2c0b(iatom) coming from
+!   *** pair-interactions calculated on different processors
     CALL mp_sum(energy_hartree_2c,para_env%group)
+    CALL mp_sum(Isum_a_car,para_env%group)
 
     IF(just_energy) GOTO 100
 !   One center contributions from the 2-centers term
@@ -311,10 +314,6 @@ MODULE  hartree_local_2centers
 
        DO iat = 1,nat
          iatom = atom_list(iat)
-
-!        *** IF PARALLEL sum up the contributions to aVh2c0b(iatom) coming from
-!        *** pair-interactions calculated on different processors
-         CALL mp_sum(Isum_a_car(:,iatom),para_env%group)
 
          CALL get_ecoul_1c(ecoul_1c=ecoul_1c,iatom=iatom,aVh2c0b=aVh2c0b)
          aVh2c0b = 0.0_dp

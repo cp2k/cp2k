@@ -24,6 +24,7 @@ MODULE qs_gapw_densities
                                              get_atomic_kind
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_error_handling,               ONLY: cp_error_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE qs_charges_types,                ONLY: qs_charges_type
@@ -69,14 +70,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER         :: routine_name = "prepare_gapw_den"
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-                                 POINTER     :: atomic_kind_set
-    TYPE(atomic_kind_type),      POINTER     :: atom_kind
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_charges_type), POINTER           :: qs_charges
+                               POINTER       :: atomic_kind_set
+    TYPE(atomic_kind_type),    POINTER       :: atom_kind
+    TYPE(dft_control_type),    POINTER       :: dft_control
+    TYPE(qs_charges_type),     POINTER       :: qs_charges
     TYPE(grid_atom_type),      POINTER       :: grid_atom
-    TYPE(rho0_mpole_type),      POINTER      :: rho0_mpole
-    INTEGER                                  :: handle,ispin, ikind, natom, &
-                                                nkind, nspins
+    TYPE(cp_para_env_type),    POINTER       :: para_env
+    TYPE(rho0_mpole_type),     POINTER       :: rho0_mpole
+    INTEGER                                  :: handle,ispin, ikind, &
+                                                natom, nkind, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
     TYPE(harmonics_atom_type), POINTER       :: harmonics
@@ -94,6 +96,7 @@ CONTAINS
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
     NULLIFY(dft_control)
+    NULLIFY(para_env)
     NULLIFY(atom_list)
     NULLIFY(grid_atom)
     NULLIFY(rho0_mpole)
@@ -106,6 +109,7 @@ CONTAINS
     IF (PRESENT(tddft)) my_tddft = tddft
 
     CALL get_qs_env(qs_env=qs_env,dft_control=dft_control,&
+                    para_env=para_env,&
                     qs_charges=qs_charges,&
                     atomic_kind_set=atomic_kind_set,&
                     rho0_mpole=rho0_mpole,&
@@ -118,7 +122,7 @@ CONTAINS
        rho0_atom_set => p_env%local_rho_set%rho0_atom_set
     END IF
 
-    nkind = SIZE(atomic_kind_set)
+    nkind  = SIZE(atomic_kind_set,1)
     nspins = dft_control%nspins
 
     rho0_h_tot = 0.0_dp
@@ -134,7 +138,7 @@ CONTAINS
 
 !     Calculate rho1_h and rho1_s on the radial gris centered on the atomic position
       IF(paw_atom) &
-        CALL calculate_rho_atom(rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
+        CALL calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
                                 nspins,rho1_h_tot,rho1_s_tot)
 
 !     Calculate rho0_h and rho0_s on the radial gris centered on the atomic position
@@ -154,7 +158,6 @@ CONTAINS
 !   Put the rho0_soft on the global grid
     CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,rho0_mpole,tot_rs_int,error)
 
-!    WRITE(*,*)  -rho0_s_tot,  tot_rs_int,tot_rs_int/rho0_s_tot 
 
     IF(ABS(1.0_dp-ABS(tot_rs_int/rho0_s_tot)).GT.1.0E-6_dp) THEN
         WRITE(6,'(/,72("*"))')

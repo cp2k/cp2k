@@ -24,6 +24,7 @@ MODULE qs_rho_atom_methods
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type,&
                                              gapw_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp, dp_size, int_size
@@ -65,7 +66,7 @@ MODULE qs_rho_atom_methods
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: locate
+  USE util,                            ONLY: get_limit,locate
   USE whittaker,                       ONLY: whittaker_c0,&
                                              whittaker_ci
 
@@ -89,15 +90,16 @@ MODULE qs_rho_atom_methods
  CONTAINS
 
 ! *****************************************************************************
-  SUBROUTINE calculate_rho_atom(rho_atom_set,atom_kind,atom_list,grid_atom,natom,&
-                                nspins,tot_rho1_h,tot_rho1_s)
+  SUBROUTINE calculate_rho_atom(para_env,rho_atom_set,atom_kind,atom_list,&
+                                grid_atom,natom,nspins,tot_rho1_h,tot_rho1_s)
 
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     INTEGER, DIMENSION(:), INTENT(IN)        :: atom_list
     TYPE(grid_atom_type),  INTENT(IN)        :: grid_atom
-    INTEGER, INTENT(IN)                      :: natom,nspins
+    INTEGER, INTENT(IN)                      :: natom, nspins
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: tot_rho1_h,&
                                                 tot_rho1_s
 
@@ -109,7 +111,8 @@ MODULE qs_rho_atom_methods
       iso1_first, iso1_last, iso2, iso2_first, iso2_last, istat, &
       j, l, l_iso, l_sub, l_sum, lmax12, &
       lmin12, m1s, m2s, max_iso_not0, maxcg, maxco, maxl, maxso, &
-      n1s, n2s, nr, nset, size1, size2
+      mepos, n1s, n2s, nr, nset, num_pe, size1, size2
+    INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     REAL(dp)                                 :: c1, c2, rho_h, rho_s, &
                                                 rho1h_iat, rho1s_iat, &
@@ -132,39 +135,25 @@ MODULE qs_rho_atom_methods
 
     NULLIFY(orb_basis)
     NULLIFY(harmonics)
-
     NULLIFY(lmin,lmax,npgf,zet,my_CG,my_CG_dxyz,coeff,CPCH_sphere,CPCS_sphere)
 
     CALL get_atomic_kind(atomic_kind=atom_kind, orb_basis_set=orb_basis,&
                          harmonics=harmonics)
-
-! Set density coefficient to zero before the calculation
-    DO iat = 1,natom
-      iatom = atom_list(iat)
-      DO i = 1,nspins
-        rho_atom_set(iatom)%rho_rad_h(i)%r_coef = 0.0_dp
-        rho_atom_set(iatom)%rho_rad_s(i)%r_coef = 0.0_dp
-        rho_atom_set(iatom)%drho_rad_h(i)%r_coef = 0.0_dp
-        rho_atom_set(iatom)%drho_rad_s(i)%r_coef = 0.0_dp
-        DO j = 1,3
-          rho_atom_set(iatom)%rho_rad_h_d(j,i)%r_coef = 0.0_dp
-          rho_atom_set(iatom)%rho_rad_s_d(j,i)%r_coef = 0.0_dp 
-        END DO
-        rho_atom_set(iatom)%vrho_rad_h(i)%r_coef = 0.0_dp
-        rho_atom_set(iatom)%vrho_rad_s(i)%r_coef = 0.0_dp
-      ENDDO
-    ENDDO
 
     CALL get_gto_basis_set(gto_basis_set=orb_basis,lmax=lmax,lmin=lmin,&
                            maxco=maxco,maxl=maxl,npgf=npgf,nset=nset,zet=zet,&
                           maxso=maxso)
 
     max_iso_not0 = harmonics%max_iso_not0
-    maxcg = harmonics%maxcg
-    nr = grid_atom%nr
+    maxcg        = harmonics%maxcg
+    nr           = grid_atom%nr
+!   Distribute the atoms of this kind
+    num_pe = para_env%num_pe
+    mepos  = para_env%mepos
+    bo = get_limit( natom, num_pe, mepos )
 
-    my_CG => harmonics%my_CG
-    my_CG_dxyz => harmonics%my_CG_dxyz
+    my_CG        => harmonics%my_CG
+    my_CG_dxyz   => harmonics%my_CG_dxyz
 
     CALL reallocate(CPCH_sphere,1,nsoset(maxl),1,nsoset(maxl))
     CALL reallocate(CPCS_sphere,1,nsoset(maxl),1,nsoset(maxl))
@@ -270,7 +259,7 @@ MODULE qs_rho_atom_methods
                END DO
             END DO
 
-            DO iat = 1,natom
+            DO iat = bo(1),bo(2)
               iatom = atom_list(iat)
 
               DO i=1,nspins
@@ -346,30 +335,47 @@ MODULE qs_rho_atom_methods
       m1s = m1s+maxso
     ENDDO    ! iset1
 
-    DO i = 1,nspins
-      DO iat = 1,natom
-        rho1h_iat = 0.0_dp
-        rho1s_iat = 0.0_dp
-        iatom = atom_list(iat) 
-        DO iso = 1,max_iso_not0
-          rho_s = 0.0_dp
-          rho_h = 0.0_dp
-          DO ir = 1,nr
-            rho_h = rho_h + &
-                    rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir,iso)*&
-                    grid_atom%wr(ir)
-            rho_s = rho_s + &
-                    rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)*&
-                    grid_atom%wr(ir)
-          END DO  ! ir
-          rho1h_iat = rho1h_iat + rho_h*harmonics%slm_int(iso)
-          rho1s_iat = rho1s_iat + rho_s*harmonics%slm_int(iso)
-          tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
-          tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
-        END DO  ! iso
-        WRITE(*,'(A,2I4,2f20.10)') 'rho1 tot' , i, iatom, rho1h_iat, rho1s_iat
+
+    DO iat =  1,natom
+       iatom = atom_list(iat) 
+
+       DO i = 1,nspins
+
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_h(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_s(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%drho_rad_h(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%drho_rad_s(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%vrho_rad_h(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%vrho_rad_s(i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_h_d(1,i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_s_d(1,i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_h_d(2,i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_s_d(2,i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_h_d(3,i)%r_coef,para_env%group)
+          CALL mp_sum(rho_atom_set(iatom)%rho_rad_s_d(3,i)%r_coef,para_env%group)
+
+          rho1h_iat = 0.0_dp
+          rho1s_iat = 0.0_dp
+          DO iso = 1,max_iso_not0
+             rho_s = 0.0_dp
+             rho_h = 0.0_dp
+             DO ir = 1,nr
+                rho_h = rho_h + &
+                     rho_atom_set(iatom)%rho_rad_h(i)%r_coef(ir,iso)*&
+                     grid_atom%wr(ir)
+                rho_s = rho_s + &
+                     rho_atom_set(iatom)%rho_rad_s(i)%r_coef(ir,iso)*&
+                     grid_atom%wr(ir)
+             END DO  ! ir
+             rho1h_iat = rho1h_iat + rho_h*harmonics%slm_int(iso)
+             rho1s_iat = rho1s_iat + rho_s*harmonics%slm_int(iso)
+             tot_rho1_h(i) = tot_rho1_h(i) + rho_h*harmonics%slm_int(iso)
+             tot_rho1_s(i) = tot_rho1_s(i) + rho_s*harmonics%slm_int(iso)
+          END DO  ! iso
+
+       END DO  ! ispin
+
       END DO  ! iat
-    END DO  ! ispin
 
     DEALLOCATE(g1,g2,gg0,gg,dgg,vgg,done_vgg,erf_zet12,int1,int2,STAT=istat)
     IF (istat /= 0) THEN
@@ -395,7 +401,7 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "calculate_rho_atom_coeff"
 
-    INTEGER :: handle, i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, &
+    INTEGER :: handle, i, iab, iatom, ibc, icol, ikind, ilist, inode, irow, ispin, j, &
       jatom, jkind, katom, kkind, kneighbor, knode, last_jatom, last_katom, max_gau, max_nsgf, &
       maxsoc, natom, nat_kind, nkind, nlist, nnode, nnode_c, nsetc,  &
       nsgfa, nsgfb, nsoctot, nspins
@@ -470,7 +476,7 @@ MODULE qs_rho_atom_methods
     ALLOCATE (coef_aux_s(max_gau,max_gau,nspins))
 
     nkind = SIZE(atomic_kind_set)
-!   Inizialize to 0 the CPC coefficients
+!   Inizialize to 0 the CPC coefficients and the local density arrays
     DO ikind = 1 ,nkind
       atomic_kind => atomic_kind_set(ikind)
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -482,6 +488,16 @@ MODULE qs_rho_atom_methods
         DO ispin = 1, nspins
           rho_atom(iatom)%cpc_h(ispin)%r_coef = 0.0_dp
           rho_atom(iatom)%cpc_s(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%rho_rad_h(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%rho_rad_s(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%drho_rad_h(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%drho_rad_s(ispin)%r_coef = 0.0_dp
+          DO j = 1,3
+             rho_atom(iatom)%rho_rad_h_d(j,ispin)%r_coef = 0.0_dp
+             rho_atom(iatom)%rho_rad_s_d(j,ispin)%r_coef = 0.0_dp 
+          END DO
+          rho_atom(iatom)%vrho_rad_h(ispin)%r_coef = 0.0_dp
+          rho_atom(iatom)%vrho_rad_s(ispin)%r_coef = 0.0_dp
         ENDDO  ! ispin
       ENDDO  ! i
     END DO ! ikind
@@ -790,14 +806,15 @@ MODULE qs_rho_atom_methods
       ENDDO  ! jkind
     ENDDO ! ikind
 
-#ifdef PARALLEL
     DO iatom = 1,natom
+
        DO ispin = 1,nspins
-         mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
-         mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
+         CALL mp_sum(rho_atom(iatom)%cpc_h(ispin)%r_coef,qs_env%para_env%group)
+         CALL mp_sum(rho_atom(iatom)%cpc_s(ispin)%r_coef,qs_env%para_env%group)
        ENDDO
+
     END DO
-#endif
+
 
     DEALLOCATE (C_coeff_h_a)
     DEALLOCATE (C_coeff_s_a)
