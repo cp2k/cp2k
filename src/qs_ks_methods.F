@@ -249,31 +249,25 @@ CONTAINS
     INTEGER                                  :: handle, ispin, n_electrons, &
                                                 nspins, output_unit, stat
     LOGICAL                                  :: failure, gapw, ionode
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
-    TYPE(coeff_type), POINTER                :: rho_core,&
-                                                rho0_s_gs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
-    REAL(dp)                                 :: tot1_h, tot1_s
     TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! shorter for output
 
     failure=.FALSE.
-    NULLIFY(matrix_h,matrix_s,dft_control,atomic_kind_set,auxbas_pw_pool, pw_pools,&
-         pw_env,rho_core,rho0_s_gs,cell, logger, v_rspace_new, v_tau_rspace)
+    NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
+         pw_env, cell, logger, v_rspace_new, v_tau_rspace)
 
     !   -----------------------------------------------------------------------
 
@@ -288,15 +282,11 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
-         atomic_kind_set=atomic_kind_set,&
          matrix_h=matrix_h,&
          matrix_s=matrix_s,&
          pw_env=pw_env,&
          cell=cell,&
-         para_env=para_env,&
-         rho_core=rho_core,&
-         rho0_s_gs=rho0_s_gs,&
-         qs_charges=qs_charges)
+         para_env=para_env)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -313,12 +303,15 @@ CONTAINS
     ! gets the tmp grids
     IF (.NOT. failure) THEN
        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
-            pw_pools=pw_pools)
+                       pw_pools=pw_pools)
     END IF
     IF (.NOT.failure) THEN
-       CALL pw_pool_init_coeff(auxbas_pw_pool,v_hartree_gspace,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
+       CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
+                               use_data = COMPLEXDATA1D,&
+                               in_space = RECIPROCALSPACE, error=error)
+       CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace,&
+                               use_data = COMPLEXDATA1D,&
+                               in_space = RECIPROCALSPACE, error=error)
     END IF
 
 ! ***  Prepare densities for gapw ***
@@ -329,62 +322,9 @@ CONTAINS
 
 ! *** calculate the hartree potential on the pw density ***
     IF (.NOT. failure) THEN
-       CALL pw_pool_init_coeff(auxbas_pw_pool,rho_tot_gspace,&
-            use_data = COMPLEXDATA1D,&
-            in_space = RECIPROCALSPACE, error=error)
 
-       IF(gapw) THEN
-         CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-         CALL coeff_add(rho0_s_gs,rho%rho_g(1),rho_tot_gspace)
-       ELSE
-         CALL coeff_add(rho_core,rho%rho_g(1),rho_tot_gspace)
-       END IF
-       DO ispin=2,nspins
-          CALL coeff_sumup(rho%rho_g(ispin),rho_tot_gspace)
-       END DO
-       qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
-
-       IF (ionode.AND.logger%print_keys%total_densities) THEN
-          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-               nelectron=n_electrons)
-          n_electrons=n_electrons-dft_control%charge
-
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
-               "Total electronic density (r-space): ",&
-               SUM(rho%tot_rho_r),&
-               SUM(rho%tot_rho_r) + &
-               REAL(n_electrons,dp),&
-               "Total core charge density (r-space):",&
-               qs_charges%total_rho_core_rspace,&
-               qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
-          IF(gapw) THEN
-            tot1_h =  qs_charges%total_rho1_hard(1)
-            tot1_s =  qs_charges%total_rho1_soft(1)
-            DO ispin=2,nspins
-              tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
-              tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
-            END DO
-            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
-                "Hard and soft local densities (lebedev):",&
-                tot1_h, tot1_s
-            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
-               "Total charge density (r-space):      ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace,&
-               "Total Rho_soft + Rho0_soft (g-space):",&
-               qs_charges%total_rho_gspace
-          ELSE  
-            WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-               "Total charge density (r-space):     ",&
-               SUM(rho%tot_rho_r)+&
-               qs_charges%total_rho_core_rspace,&
-               "Total charge density (g-space):     ",&
-               qs_charges%total_rho_gspace
-          END IF
-
-       END IF
+       CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
+       IF (ionode) CALL print_densities(qs_env, rho_tot_gspace, rho)
 
        CALL init_pw_poisson_solver(cell%green,error=error)
        CALL calculate_hartree(rho_tot_gspace,energy%hartree,&
@@ -401,6 +341,9 @@ CONTAINS
        ENDIF
        CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,&
             error=error)
+
+       IF(gapw) CALL Vh_1c_gg_integrals(qs_env,energy)
+
 
 !      WRITE(*,*)  energy%hartree
 
@@ -424,13 +367,10 @@ CONTAINS
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, &
             calculate_forces=calculate_forces, &
             just_energy=just_energy, error=error)
+       IF (gapw) CALL calculate_vxc_atom(qs_env,error)
+
 
 ! ***  Single atom contributions ***
-       IF(gapw) THEN
-         CALL calculate_vxc_atom(qs_env,error)
-         CALL Vh_1c_gg_integrals(qs_env,energy)
-       ENDIF
-
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
@@ -440,11 +380,12 @@ CONTAINS
              ! copy the core ham into the ks matrix
              CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
           END DO
+
           IF (ASSOCIATED(v_rspace_new)) THEN
              DO ispin=1,nspins
-                v_rspace_new(ispin)%pw%cr3d =&
-                     v_rspace_new(ispin)%pw%pw_grid%dvol*&
-                     v_rspace_new(ispin)%pw%cr3d +&
+                v_rspace_new(ispin)%pw%cr3d  =&
+                     v_rspace_new(ispin)%pw%pw_grid%dvol * &
+                     v_rspace_new(ispin)%pw%cr3d + &
                      ks_env%v_hartree_rspace%pw%cr3d
 
                 ! add the part due to v_rspace
@@ -562,6 +503,116 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_ks_build_kohn_sham_matrix
+
+
+! *****************************************************************************
+
+  SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error)
+    IMPLICIT NONE
+    ! ARGUMENTS
+    TYPE(coeff_type), INTENT(OUT)            :: rho_tot_gspace
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    ! LOCALS
+    TYPE(coeff_type), POINTER                :: rho_core, rho0_s_gs
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    INTEGER                                  :: ispin
+    LOGICAL                                  :: failure
+    ! PARAMETERS
+    CHARACTER(*), PARAMETER :: routineN = "calc_rho_tot_gspace", &
+                               routineP = moduleN//'/'//routineN
+
+    NULLIFY (rho_core, rho0_s_gs)
+    CALL get_qs_env(qs_env=qs_env,&
+                    rho_core=rho_core,&
+                    rho0_s_gs=rho0_s_gs,&
+                    qs_charges=qs_charges)
+    
+    IF(qs_env%dft_control%qs_control%gapw) THEN
+       CPPrecondition(ASSOCIATED(rho0_s_gs), cp_failure_level, routineP, error, failure)
+       CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
+    ELSE
+       CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+    END IF
+    DO ispin=2, qs_env%dft_control%nspins
+       CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
+    END DO
+    qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
+
+  END SUBROUTINE calc_rho_tot_gspace
+
+! *****************************************************************************
+
+  SUBROUTINE print_densities(qs_env, rho_tot_gspace, rho, error)
+    ! ARGUMENTS
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(coeff_type), INTENT(IN)             :: rho_tot_gspace
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+    ! LOCALS
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(qs_charges_type), POINTER           :: qs_charges
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER                                  :: n_electrons, output_unit, ispin
+    REAL(dp)                                 :: tot1_h, tot1_s
+    LOGICAL                                  :: ionode
+
+    logger => cp_error_get_logger(error)
+
+    IF (logger%print_keys%total_densities) THEN 
+       output_unit = cp_logger_get_default_unit_nr(logger)
+
+       NULLIFY(qs_charges, atomic_kind_set)
+       CALL get_qs_env(qs_env=qs_env, &
+                       atomic_kind_set=atomic_kind_set, &
+                       qs_charges=qs_charges)
+       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                nelectron=n_electrons)
+       n_electrons = n_electrons - qs_env%dft_control%charge
+       
+       WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
+            "Total electronic density (r-space): ",&
+            SUM(rho%tot_rho_r),&
+            SUM(rho%tot_rho_r) + &
+            REAL(n_electrons,dp),&
+            "Total core charge density (r-space):",&
+            qs_charges%total_rho_core_rspace,&
+            qs_charges%total_rho_core_rspace - REAL(n_electrons,dp)
+       IF(qs_env%dft_control%qs_control%gapw) THEN
+          tot1_h =  qs_charges%total_rho1_hard(1)
+          tot1_s =  qs_charges%total_rho1_soft(1)
+          DO ispin=2,qs_env%dft_control%nspins
+             tot1_h = tot1_h + qs_charges%total_rho1_hard(ispin)
+             tot1_s = tot1_s + qs_charges%total_rho1_soft(ispin)
+          END DO
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T44,2F18.10))")&
+               "Hard and soft local densities (lebedev):",&
+               tot1_h, tot1_s
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               "Total charge density (r-space):      ",&
+               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               + qs_charges%total_rho_core_rspace,&
+               "Total Rho_soft + Rho0_soft (g-space):",&
+               qs_charges%total_rho_gspace
+       ELSE  
+          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Total charge density (r-space):     ",&
+               SUM(rho%tot_rho_r)+&
+               qs_charges%total_rho_core_rspace,&
+               "Total charge density (g-space):     ",&
+               qs_charges%total_rho_gspace
+       END IF
+
+    END IF
+       
+  END SUBROUTINE print_densities
+
 ! *****************************************************************************
 
 !!****f* qs_ks_methods/qs_ks_update_qs_env [1.0] *
@@ -667,6 +718,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env,&
         END IF
      END IF
   END IF
+
   IF (cp_debug.AND.debug_this_module) THEN
      IF (did_update) THEN
         CALL cp_log(logger,cp_note_level,routineP,&
