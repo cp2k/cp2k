@@ -299,7 +299,7 @@ def writeInCols(dLine,indentCol,maxCol,indentAtt,file):
     The '&' of the continuation line is at maxCol.
     indentAtt is the actual intent, and the new indent is returned"""
     strRe=re.compile(r"('[^'\n]*'|\"[^\"\n]*\")")
-    nonWordRe=re.compile(r"(\W)")
+    nonWordRe=re.compile(r"([^a-zA-Z0-9_.])")
     maxSize=maxCol-indentCol-1
     tol=min(maxSize/6,6)+indentCol
     for fragment in dLine:
