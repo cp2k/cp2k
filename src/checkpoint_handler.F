@@ -109,8 +109,8 @@ CONTAINS
           " sec"
         CALL compress(string2)
         WRITE (UNIT=output_unit,FMT="(/,T2,A)",ADVANCE="NO") TRIM(string2)
+        CALL m_flush(output_unit)
       END IF
-      CALL m_flush(output_unit)
       CALL mp_sync(group)
     END DO
 
