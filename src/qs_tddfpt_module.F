@@ -34,6 +34,7 @@ MODULE qs_tddfpt_module
                                    optimal_blacs_col_block_size, optimal_blacs_row_block_size
   USE cp_full_matrix,       ONLY : cp_full_matrix_type, cp_full_matrix_p_type, &
                                    cp_fm_create, cp_fm_release
+  USE cp_fm_utils,          ONLY : copy_fm_col_to_fm
   USE global_types,         ONLY : global_environment_type
   USE kinds,                ONLY : dbl
   USE qs_arpack,            ONLY : arpack_diag_n
@@ -49,7 +50,7 @@ MODULE qs_tddfpt_module
 
   IMPLICIT NONE
 
-  integer, parameter :: n_ev = 1 ! the number of eigenvalues to calculate
+  INTEGER, PARAMETER :: n_ev = 1 ! the number of eigenvalues to calculate
   LOGICAL, PARAMETER :: DEBUG_THIS_MODULE = .TRUE.
 
   PRIVATE
@@ -93,7 +94,7 @@ CONTAINS
     ! locals
     TYPE(qs_p_env_type)                    :: p_env
     TYPE(tddfpt_env_type)                  :: t_env
-    INTEGER                                :: i, n_spins, spin, stat
+    INTEGER                                :: i, n_spins, spin, stat, ev
     TYPE(op_tddfpt_type)                   :: op
     REAL(DBL), DIMENSION(:,:), POINTER     :: val_x, val_y
     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: v
@@ -111,7 +112,7 @@ CONTAINS
 
     n_spins = p_env%qs_env%dft_control%nspins
     
-    CALL setup_op_tddfpt(op, p_env, 'x', n_ev, glob_env)
+    CALL setup_op_tddfpt(op, p_env, 'x', 1, glob_env)
 
     self_consistency: DO
        
@@ -128,12 +129,16 @@ CONTAINS
           ! right eigenvectors
           op%mode = 'x'; op%spin = spin
           CALL arpack_diag_n(n_ev, val_x, v(spin)%matrix, glob_env, op)
-          ! copy v back to x
+          DO ev=1, n_ev
+             CALL copy_fm_col_to_fm(v(spin)%matrix, ev, t_env%x(ev)%spins(spin)%matrix)
+          END DO
 
           ! left eigenvectors
           op%mode = 'y'; op%spin = spin
           CALL arpack_diag_n(n_ev, val_y, v(spin)%matrix, glob_env, op)
-          ! copy v back to y
+          DO ev=1, n_ev
+             CALL copy_fm_col_to_fm(v(spin)%matrix, ev, t_env%y(ev)%spins(spin)%matrix)
+          END DO
           
           IF (DEBUG_THIS_MODULE) THEN
           ! compare the eigenvalues
@@ -169,7 +174,7 @@ CONTAINS
        CALL cp_fm_release(v(spin)%matrix)
     END DO
     DEALLOCATE(v, stat=stat)
-    if (stat/=0) CALL stop_memory(routineP, 'v')
+    IF (stat/=0) CALL stop_memory(routineP, 'v')
 
   END SUBROUTINE tddfpt_calculation
 
@@ -197,15 +202,15 @@ CONTAINS
     n_spins = p_env%qs_env%dft_control%nspins
 
     ALLOCATE(v(n_spins), stat=stat)
-    IF (stat/=0) CALL stop_memory(routineP, 'v and/or v_struc', n_spins)
+    IF (stat/=0) CALL stop_memory(routineP, 'v', n_spins)
 
     DO spin=1, n_spins
        v_rows = p_env%n_mo(spin) * p_env%n_ao(spin)
        v_cols = n_ev
-       call cp_fmstruct_create(v_struct, glob_env%para_env, glob_env%blacs_env, &
+       CALL cp_fmstruct_create(v_struct, glob_env%para_env, glob_env%blacs_env, &
             v_rows, v_cols, &
             optimal_blacs_row_block_size, optimal_blacs_col_block_size)
-       call cp_fm_create(v(spin)%matrix, v_struct, 'tddfpt temporary v matrix')
+       CALL cp_fm_create(v(spin)%matrix, v_struct, 'tddfpt temporary v matrix')
     
     END DO
 
@@ -236,7 +241,7 @@ CONTAINS
 
     CALL tddfpt_env_deallocate(t_env, glob_env)
 
-    ! clean p_env also?
+    IF (glob_env%ionode) WRITE (glob_env%scr,'(1X,A)') routineP//': free p_env also?'
     
     IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
 

@@ -103,8 +103,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER               :: routineN = "tddfpt_init", &
                                                  routineP = moduleN//"/"//routineN
     
-    ! do intializations
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": entered"
+    ! code
 
     CALL kpp1_init(kpp1_env, qs_env, ks_env, glob_env)
 
@@ -121,8 +120,6 @@ CONTAINS
 
     CALL tddfpt_env_allocate(t_env, p_env, n_ev, glob_env)
     CALL tddfpt_env_init(t_env, p_env, n_ev, glob_env)
-
-    IF (DEBUG_THIS_MODULE) WRITE(*,*) routineP//": finished"
 
   END SUBROUTINE tddfpt_init
 

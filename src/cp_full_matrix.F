@@ -446,6 +446,72 @@ CONTAINS
 
 ! *****************************************************************************
 
+!!****f* cp2k/m/s *
+!!
+!!   NAME
+!!     s
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   ARGUMENTS
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   MODIFICATION HISTORY
+!!     , TCH, created
+!!
+!!   SEE ALSO
+!!     
+!!
+!!****
+  SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha)
+    
+    implicit none
+
+    ! arguments
+    TYPE(cp_full_matrix_type), POINTER          :: matrix
+    REAL(wp), INTENT(OUT)                     :: alpha
+    INTEGER, INTENT(IN)                       :: icol_global,&
+                                                 irow_global
+
+    ! locals
+    INTEGER :: icol_local,ipcol,iprow,irow_local,mypcol,myprow,npcol,&
+               nprow
+    INTEGER, DIMENSION(9) :: desca
+    REAL(wp), DIMENSION(:,:), POINTER :: a
+    TYPE(cp_blacs_env_type), POINTER :: context
+
+    context => matrix%matrix_struct%context
+    myprow=context%mepos(1)
+    mypcol=context%mepos(2)
+    nprow=context%num_pe(1)
+    npcol=context%num_pe(2)
+
+#if defined(__SCALAPACK)
+
+    a => matrix%local_data
+    desca(:) = matrix%matrix_struct%descriptor(:)
+
+    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
+                 irow_local,icol_local,iprow,ipcol)
+
+    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
+      alpha = a(irow_local,icol_local)
+    ELSE
+      alpha = 0.0_wp
+    END IF
+
+#else
+    alpha = matrix%local_data(irow_global,icol_global)
+#endif
+
+  END SUBROUTINE cp_fm_get_element
+
+! *****************************************************************************
+
   SUBROUTINE cp_fm_set_element(matrix,irow_global,icol_global,alpha,error)
 
 !   Purpose: Set the BLACS matrix element (irow_global,icol_global) to alpha.

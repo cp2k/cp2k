@@ -266,11 +266,6 @@ SUBROUTINE arpack_diag_sy(vmatrix, &
      ENDIF
   ENDDO
 
-!TC  IF (info.LT.0) THEN
-!TC        WRITE(6,*) info
-!TC     CALL stop_program(routineP,"error in dsaupd",globenv) 
-!TC  ENDIF
-
   rvec = .TRUE.
   ierr = 0 
 

@@ -44,7 +44,7 @@ MODULE qs_tddfpt_types
   END TYPE real_2d_array_p_type
 
   TYPE fm_p_spins_p_type
-     TYPE(cp_full_matrix_p_type), dimension(:), pointer :: spins
+     TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: spins
   END TYPE fm_p_spins_p_type
 
 !!****s* qs_tddfpt_types
@@ -125,8 +125,6 @@ CONTAINS
 
 
   	! code
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
-
     t_env%n_ev = n_ev
 
     ! fill the c_plus and c_minus (x and y) with something meaningfull
@@ -139,8 +137,6 @@ CONTAINS
        CALL p_preortho(p_env, t_env%x(ev)%spins, glob_env)
        CALL p_preortho(p_env, t_env%y(ev)%spins, glob_env)
     END DO
-
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
 
   END SUBROUTINE tddfpt_env_init
 
@@ -185,25 +181,24 @@ CONTAINS
   
   
   	! code
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
-
     n_spins = p_env%qs_env%dft_control%nspins
 
     ALLOCATE(t_env%x(n_ev), t_env%y(n_ev), stat=stat)
-    if (stat/=0) call stop_memory(routineP, "t_env%x, t_env%y", n_ev)
+    IF (stat/=0) CALL stop_memory(routineP, "t_env%x, t_env%y", n_ev)
 
     ALLOCATE(t_env%eval_x(n_spins), t_env%eval_y(n_spins), stat=stat)
     IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x, t_env%eval_y", n_spins)
 
     DO ev=1, n_ev
        ALLOCATE(t_env%x(ev)%spins(n_spins), t_env%y(ev)%spins(n_spins), stat=stat)
-       if (stat/=0) call stop_memory(routineP, "t_env%x%spins, t_env%y%spins", n_spins)
+       IF (stat/=0) CALL stop_memory(routineP, "t_env%x%spins, t_env%y%spins", n_spins)
     END DO
     
     DO spin=1, n_spins
 
-       ALLOCATE(t_env%eval_x(spin)%values(n_ev, 2), &
-                t_env%eval_y(spin)%values(n_ev, 2), stat=stat)
+       ! arpack need one field more, hence the +1
+       ALLOCATE(t_env%eval_x(spin)%values(n_ev+1, 2), &
+                t_env%eval_y(spin)%values(n_ev+1, 2), stat=stat)
        IF (stat /= 0) CALL stop_memory(routineP, "t_env%eval_x%values, t_env%eval_y%values", &
                                        2*n_ev*dp_size)
        t_env%eval_x(spin)%values = 0.0_dbl
@@ -221,8 +216,6 @@ CONTAINS
        END DO
     END DO
   
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
-
   END SUBROUTINE tddfpt_env_allocate
 
 ! *****************************************************************************
@@ -262,8 +255,6 @@ CONTAINS
                                                  routineP = moduleN//'/'//routineN
   
   	! code
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
-
     n_spins = SIZE(t_env%x(1)%spins)
 
     CPAAssert(t_env%n_ev==SIZE(t_env%x))
@@ -302,8 +293,6 @@ CONTAINS
          CALL stop_memory(routineP, "t_env%x, t_env%y")
     NULLIFY(t_env%x)
     NULLIFY(t_env%y)
-
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
 
   END SUBROUTINE tddfpt_env_deallocate
 

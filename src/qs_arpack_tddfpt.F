@@ -28,14 +28,18 @@
 
 MODULE qs_arpack_tddfpt
   
-  USE cp_error_handling, ONLY : cp_simple_assert
-  USE cp_full_matrix, ONLY : cp_full_matrix_type
-  USE cp_log_handling, ONLY : cp_fatal_level, cp_to_string
-  USE global_types, ONLY : global_environment_type
-  USE kinds,        ONLY : dbl
-  USE qs_blacs,     ONLY : replicate_blacs_matrix, cp_fm_release
-  USE qs_p_types,   ONLY : qs_p_env_type
-  USE qs_p_utils,   ONLY : p_op_l1, p_op_l1_spin, p_op_l2
+  USE cp_error_handling,   ONLY : cp_simple_assert
+  USE cp_fm_utils,         ONLY : copy_rep_vec_to_fm, &
+                                  copy_fm_to_rep_vec
+  USE cp_full_matrix,      ONLY : cp_full_matrix_type, &
+                                  cp_fm_get_info
+  USE cp_log_handling,     ONLY : cp_fatal_level, cp_to_string
+  USE global_types,        ONLY : global_environment_type
+  USE kinds,               ONLY : dbl
+  USE qs_blacs,            ONLY : replicate_blacs_matrix, &
+                                  cp_fm_release
+  USE qs_p_types,          ONLY : qs_p_env_type
+  USE qs_p_utils,          ONLY : p_op_l1, p_op_l1_spin, p_op_l2
   USE sparse_matrix_types, ONLY : real_matrix_type, copy_sparse_to_full_matrix
 
   IMPLICIT NONE
@@ -88,34 +92,31 @@ CONTAINS
     TYPE(global_environment_type), INTENT(in) :: glob_env
   
   	! locals
-    logical                                   :: condition
-    real(dbl), dimension(:,:), pointer        :: k_p
-    integer                                   :: stat
-    type(cp_full_matrix_type), pointer        :: v, res
+    LOGICAL                                   :: condition
+    INTEGER                                   :: stat, row_global, col_global
+    TYPE(cp_full_matrix_type), POINTER        :: v, res
+    REAL(dbl), DIMENSION(:), POINTER          :: dummy_vec
     CHARACTER(len=*), PARAMETER               :: routineN='arpack_op_tddfpt',&
-                                                 routineP=moduleN//':'//routineN
+                                                 routineP=moduleN//'/'//routineN
 
-    integer :: m, n, lda
+    INTEGER :: m, n, lda
 
     ! code
-    IF (.NOT.DEBUG_THIS_MODULE) THEN
-    IF (glob_env%ionode) WRITE (glob_env%scr, '(A)') routineP//": Mock implementation"
-    END IF
-
     CPAAssert((0<op%spin).AND.(op%spin<=op%p_env%qs_env%dft_control%nspins))
     CPAAssert(SIZE(vin)==op%p_env%n_mo(op%spin)*op%p_env%n_ao(op%spin))
 
     ! allocate v and res
-    call replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, v, &
+    CALL replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, v, &
          routineP//": v matrix")
-    call replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, res, &
+    CALL replicate_blacs_matrix(op%p_env%psi0d(op%spin)%matrix, res, &
          routineP//": res matrix")
 
-    ! copy vector vin into v
+    CALL copy_rep_vec_to_fm(vin, v)
     
     CALL p_op_l1_spin(op%p_env, op%spin, v, res, glob_env)
+    !!!!!!!!! l2 part missing
 
-    ! copy res to vout
+    CALL copy_fm_to_rep_vec(res, vout)
 
     ! free v and res
     CALL cp_fm_release(v); NULLIFY(v)
@@ -162,16 +163,9 @@ CONTAINS
                                                  routineP=moduleN//':'//routineN
   
   	! code
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": entered"
-
-    IF (glob_env%ionode) THEN
-       WRITE (glob_env%scr, '(1X,A)') routineP//": Not yet implemented"
-    END IF
-  
     op%p_env => p_env
     op%mode = mode
-
-    IF (DEBUG_THIS_MODULE) WRITE (*,*) routineP,": finished"
+    op%spin = spin
 
   END SUBROUTINE setup_op_tddfpt
 
