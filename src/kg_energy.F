@@ -123,13 +123,6 @@ SUBROUTINE kg_energies ( kg_env, globenv )
   isos = 0
   iter = 0
 
-  IF (ionode) THEN
-     WRITE (UNIT=output_unit,&
-        FMT="(/,T3,A,T16,A,T49,A,T68,A,/,T3,A)")&
-        "Step","maxerr","Time","Convergence","Total energy",&
-         REPEAT("-",77)
-  END IF
-
   t1 = m_walltime()
 
   CALL get_kg_env(kg_env=kg_env,&
@@ -144,6 +137,13 @@ SUBROUTINE kg_energies ( kg_env, globenv )
   CALL init_energy_calculation(kg_env,globenv)
 
   CALL calc_c_gradients(kg_env,maxgrad,globenv)
+
+  IF (ionode) THEN
+     WRITE (UNIT=output_unit,&
+        FMT="(/,T3,A,T16,A,T49,A,T68,A,/,T3,A)")&
+        "Step","maxerr","Time","Convergence","Total energy",&
+         REPEAT("-",77)
+  END IF
 
 scf_loop: DO                      
 

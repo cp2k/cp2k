@@ -160,7 +160,12 @@ END SUBROUTINE kg_rho_create
     kg_rho%kgpol = dft_control % qs_control % polarization
     rel_cutoff = dft_control%qs_control%relative_cutoff
     cutoff => dft_control%qs_control%e_cutoff
-    ngrid_level = SIZE(cutoff)
+    IF ( dft_control%qs_control%method == "KG_GPW" ) THEN
+      ngrid_level = 1
+      CPPrecondition(MAXVAL(cutoff)==cutoff(1),cp_failure_level,routineP,error,failure)
+    ELSE
+      ngrid_level = SIZE(cutoff)
+    END IF
 
     CPPrecondition(ASSOCIATED(kg_rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(kg_rho%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -208,7 +213,7 @@ END SUBROUTINE kg_rho_create
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxlgto)
 
-    ! maxl+1 to allow for the forces
+      ! maxl+1 to allow for the forces
       CALL init_l_info(kg_rho%l_info,maxlgto+1,cmax)
 
       kg_rho%total_rho_core_rspace=0.0_dp
@@ -218,12 +223,13 @@ END SUBROUTINE kg_rho_create
       CALL allocate_kg_densities(kg_rho)
     END IF
 
-  CALL timestop(0.0_dp,handle)
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE kg_rho_setup              
-!!*** **********************************************************************
+
+! **************************************************************************
+
   SUBROUTINE init_grid ( kg_rho, kg_env, ngrid_level,error )
-
-
 
     TYPE(kg_rho_type), INTENT(INOUT)         :: kg_rho
     TYPE(kg_environment_type), INTENT(IN)    :: kg_env
@@ -248,7 +254,6 @@ END SUBROUTINE kg_rho_create
     TYPE(pw_grid_type), POINTER              :: pw_grid_loc
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
-! ,grid_info
 !   ---------------------------------------------------------------------------
 
     CALL timeset("init_grid","I","",handle)

@@ -23,6 +23,8 @@ MODULE kg_neighbor_lists
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE checkpoint_handler,              ONLY: write_checkpoint_information
+  USE cp_control_types,                ONLY: dft_control_type,&
+                                             qs_control_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
@@ -36,14 +38,17 @@ MODULE kg_neighbor_lists
                                              dp_size,&
                                              int_size
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: qs_environment_p_type
   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
   USE qs_neighbor_lists,               ONLY: build_gth_ppl_neighbor_lists,&
+                                             build_qs_neighbor_lists,&
                                              local_atoms_type,&
                                              write_neighbor_lists
   USE simulation_cell,                 ONLY: cell_type,&
                                              pbc,&
                                              real_to_scaled
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -66,19 +71,45 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_kg_neighbor_lists(kg_env,globenv)
-
-!   Purpose: Build all the required neighbor lists for kg.
-
-!   History: - 
-!            - Parallized version (copy from qs lists)
-
-!   ***************************************************************************
-
     TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
     TYPE(global_environment_type), &
       INTENT(IN)                             :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists"
+
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_control_type), POINTER           :: qs_control
+
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
+    CALL get_kg_env(kg_env=kg_env,&
+                    dft_control=dft_control)
+    qs_control => dft_control%qs_control
+
+    SELECT CASE (qs_control%method)
+    CASE ("KG_POL")
+      CALL build_kg_neighbor_lists1(kg_env,globenv)
+    CASE ("KG_NOPOL")
+      CALL build_kg_neighbor_lists1(kg_env,globenv)
+    CASE ("KG_GPW")
+      CALL build_kg_neighbor_lists2(kg_env,globenv)
+    CASE DEFAULT
+      CALL stop_program(routine_name,module_name,__LINE__,"method unknown")
+    END SELECT
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
+  END SUBROUTINE build_kg_neighbor_lists
+
+! *****************************************************************************
+
+  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv)
+
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists1"
 
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, maxatom, &
       maxatom_local, natom_a, natom_local_a, nkind, output_unit
@@ -299,18 +330,16 @@ CONTAINS
 
     END DO
 
-!   *** Build orbitalPPL operator overlap list ***
+!   *** Build orbital PPL operator overlap list ***
 
     IF (gth_potential_present.OR.elp_potential_present) THEN
 
-      IF (ANY(ppl_present)) THEN
+      IF (ANY(ppl_present).AND.ANY(orb_present)) THEN
 
         CALL build_gth_ppl_neighbor_lists(sac_ppl,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           orb_present,ppl_present,&
                                           orb_radius,ppl_radius)
-
-!       *** Put the generated neighbor lists into the QS environment ***
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl=sac_ppl)
 
@@ -319,12 +348,14 @@ CONTAINS
                                     "PPL NEIGHBOR LISTS")
         END IF
 
+      END IF
+
+      IF (ANY(ppl_present).AND.ANY(aux_present)) THEN
+
         CALL build_gth_ppl_neighbor_lists(sac_ppl_aux,atom,cell,r_skin,maxatom_local,&
                                           print_subcell_grid,output_unit,&
                                           aux_present,ppl_present,&
                                           aux_radius,ppl_radius)
-
-!       *** Put the generated neighbor lists into the QS environment ***
 
         CALL set_kg_env(kg_env=kg_env,sac_ppl_aux=sac_ppl_aux)
 
@@ -332,7 +363,6 @@ CONTAINS
           CALL write_neighbor_lists(sac_ppl_aux,particle_set,cell,globenv,&
                                     "PPL NEIGHBOR LISTS")
         END IF
-
 
       END IF
 
@@ -400,8 +430,50 @@ CONTAINS
 
     CALL write_checkpoint_information("leaving "//routine_name,globenv)
 
-  END SUBROUTINE build_kg_neighbor_lists
+  END SUBROUTINE build_kg_neighbor_lists1
+
+! *****************************************************************************
+
+  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv)
+
+    TYPE(kg_environment_type), INTENT(INOUT) :: kg_env
+    TYPE(global_environment_type), &
+      INTENT(IN)                             :: globenv
+
+    CHARACTER(LEN=*), PARAMETER :: routine_name = "build_kg_neighbor_lists2"
+
+    INTEGER                                  :: handle,isub
+    TYPE(qs_environment_p_type), DIMENSION(:), &
+      POINTER                                :: qs_env
+
+!   ---------------------------------------------------------------------------
+
+    CALL write_checkpoint_information("entering "//routine_name,globenv)
+
+    CALL timeset(routine_name,"I","",handle)
+
+    NULLIFY (qs_env)
+
+    CALL get_kg_env(kg_env=kg_env,&
+                    sub_qs_env=qs_env)
+
+    IF(ASSOCIATED(qs_env)) THEN
+      DO isub = 1, SIZE(qs_env)
+        CALL build_qs_neighbor_lists(qs_env(isub)%qs_env,globenv)
+      END DO
+    ELSE
+      CALL stop_program(routine_name,module_name,__LINE__,&
+            "sub_qs_env not defined")
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+    CALL write_checkpoint_information("leaving "//routine_name,globenv)
+
+  END SUBROUTINE build_kg_neighbor_lists2
 
 ! *****************************************************************************
 
 END MODULE kg_neighbor_lists
+
+! *****************************************************************************

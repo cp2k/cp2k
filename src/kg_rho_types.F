@@ -109,7 +109,7 @@ CONTAINS
     TYPE(kg_rho_type), POINTER               :: kg_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE allocate_kg_densities (MODULE kg_rho_types)"
+      routine = "allocate_kg_densities"
 
     INTEGER                                  :: auxbas, handle, igrid_level, &
                                                 istat, ngrid_level
@@ -208,7 +208,7 @@ END SUBROUTINE allocate_kg_densities
     TYPE(kg_rho_type), POINTER               :: kg_rho
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE deallocate_kg_densities (MODULE kg_rho)"
+      routine = "deallocate_kg_densities"
 
     INTEGER                                  :: auxbas, handle, igrid_level, &
                                                 istat, ngrid_level

@@ -1,8 +1,10 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 1999  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
+
 #include "cp_prep_globals.h"
+
 !!****** cp2k/kg_environment_types [1.0] *
 !!
 !!   NAME
@@ -71,6 +73,7 @@ MODULE kg_environment_types
                                              particle_list_release,&
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment_types,            ONLY: qs_environment_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type
   USE scf_control_types,               ONLY: scf_c_release,&
@@ -98,6 +101,7 @@ MODULE kg_environment_types
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sac_ppl_aux 
     TYPE(scf_control_type),POINTER                        :: scf_control
     TYPE(cp_subsystem_type), POINTER                      :: subsys
+    TYPE(qs_environment_p_type), DIMENSION(:), POINTER    :: sub_qs_env
   END TYPE kg_environment_type
 
 ! *** Public data types ***
@@ -119,7 +123,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_kg_env( kg_env, atomic_kind_set, cell,  &
+  SUBROUTINE get_kg_env( kg_env, atomic_kind_set, cell, sub_qs_env, &
                          dft_control,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,id_nr,para_env,&
@@ -137,6 +141,8 @@ CONTAINS
     TYPE(cell_type), OPTIONAL, POINTER       :: cell
     TYPE(dft_control_type), OPTIONAL, &
       POINTER                                :: dft_control
+    TYPE(qs_environment_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_qs_env
     TYPE(dyn_coeff_set_type), OPTIONAL, &
       POINTER                                :: dyn_coeff_set
     TYPE(kg_energy_type), OPTIONAL, POINTER  :: energy
@@ -184,6 +190,7 @@ CONTAINS
 
     IF (PRESENT(cell)) cell => kg_env%cell
     IF (PRESENT(dft_control)) dft_control => kg_env % dft_control
+    IF (PRESENT(sub_qs_env)) sub_qs_env => kg_env % sub_qs_env
     IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => kg_env % dyn_coeff_set
     IF (PRESENT(energy)) energy => kg_env%energy
     IF (PRESENT(force)) force => kg_env%force
@@ -247,11 +254,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_kg_env( kg_env, atomic_kind_set,  cell,  &
+  SUBROUTINE set_kg_env( kg_env,atomic_kind_set,cell,  &
                          dft_control,dyn_coeff_set,energy,force, &
                          local_particles,local_molecules,&
                          molecule_kind_set,molecule_set,&
-                         particle_set,rho,&
+                         sub_qs_env,particle_set,rho,&
                          sac_ppl,sac_ppl_aux,scf_control,subsys,error)
 
 
@@ -278,6 +285,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: molecule_set
+    TYPE(qs_environment_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: sub_qs_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(kg_rho_type), OPTIONAL, POINTER     :: rho
@@ -348,6 +357,9 @@ CONTAINS
                         atomic_kinds=atomic_kinds,&
                         error=error)
       CALL atomic_kind_list_release(atomic_kinds,error=error)
+    END IF
+    IF (PRESENT(sub_qs_env)) THEN
+       kg_env%sub_qs_env => sub_qs_env
     END IF
     IF (PRESENT(particle_set)) THEN
       CALL particle_list_create(particles,&

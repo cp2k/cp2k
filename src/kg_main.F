@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2003  CP2K developers group
+!   Copyright (C) 2001 - 2004  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****h* cp2k/kg_main [1.0] *
 !!
@@ -15,7 +15,7 @@
 !!   LITERATURE
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     jgh: Added new KG_GPW method [01.03.2004]
 !!
 !!*****
 !******************************************************************************
@@ -90,7 +90,6 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
 
@@ -98,16 +97,12 @@ CONTAINS
 
     IF ( globenv%ionode ) CALL kg_header ( globenv%scr )
 
-    logger => cp_error_get_logger(error)
-    CALL cp_log(logger,cp_note_level,routineP,"Create KG environment")
     CALL kg_env_create(kg_env,para_env=globenv%para_env,error=error)
     CALL cp_error_check(error,failure)
 
-    CALL cp_log(logger,cp_note_level,routineP,"Read input and database")
     IF (.NOT. failure) CALL kg_init( kg_env, globenv, error )
     CALL cp_error_check(error,failure)
 
-    CALL cp_log(logger,cp_note_level,routineP,"Create force environment")
     IF (.NOT. failure) CALL force_env_create(force_env, kg_env=kg_env, &
          globenv=globenv, error=error)
     CALL cp_error_check(error,failure)

@@ -478,11 +478,11 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
            ALLOCATE(force_env%dyn_coeff_set(1), stat=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            NULLIFY(force_env%dyn_coeff_set(1)%dyn_coeff_set)
-        CALL get_kg_env(force_env%kg_env,&
-             dyn_coeff_set=force_env%dyn_coeff_set(1)%dyn_coeff_set,&
-             error=error)
-        CALL dyn_coeff_set_retain(force_env%dyn_coeff_set(1)%dyn_coeff_set,&
-             error=error)
+           CALL get_kg_env(force_env%kg_env,&
+                    dyn_coeff_set=force_env%dyn_coeff_set(1)%dyn_coeff_set,&
+                    error=error)
+           CALL dyn_coeff_set_retain(force_env%dyn_coeff_set(1)%dyn_coeff_set,&
+                    error=error)
         END IF
 
      CASE(use_qs_force)
@@ -498,9 +498,10 @@ SUBROUTINE force_env_create(force_env,qs_env,kg_env,para_env,&
      END SELECT
      
   END IF
-END SUBROUTINE force_env_create
-!***************************************************************************
 
+END SUBROUTINE force_env_create
+
+!***************************************************************************
 !!****f* force_env_types/force_env_retain [1.0] *
 !!
 !!   NAME
@@ -1121,7 +1122,9 @@ SUBROUTINE force_env_read_variables(force_env, unit_nr, local, error)
      END DO
   END IF
 END SUBROUTINE force_env_read_variables
+
 !***************************************************************************
 
 END MODULE force_env_types
+
 !******************************************************************************
