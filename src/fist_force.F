@@ -270,7 +270,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES ..."
-     WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
+     WRITE(iw,'(3f15.9)')((fg_coulomb(j,i) ,j=1,3),i = 1, SIZE(particle_set))
   END IF
 
 !
@@ -291,7 +291,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   END IF
 
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: NONBONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
+     WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF
 
@@ -327,7 +327,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   END DO
 
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: (1) TOTAL FORCES..."
+     WRITE(iw,'(A)')" FIST:: (1) INTERNAL + ELECTROSTATIC BONDED + NONBONDED"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
 
@@ -354,7 +354,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   END IF
 
   IF (PM2) THEN
-     WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES..."
+     WRITE(iw,'(A)')" FIST:: (2) TOTAL FORCES (1) + ELECTROSTATIC FORCES"
      WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
   END IF  
 
@@ -435,7 +435,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
   IF (PM2) THEN
      WRITE(iw,'(A)')" FIST:: (3) TOTAL FORCES - THE END..."
-     WRITE(iw,'(3f15.9)')((f_total ( j, i ),j=1,3), i = 1, natoms)
+     WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, natoms)
      WRITE(iw,'(A,f15.9)')"Energy after FIST calculation.. exiting now ::",thermo%pot
   END IF  
 
