@@ -822,6 +822,8 @@ CONTAINS
     SELECT CASE (globenv%run_type)
     CASE ("GEOMETRY_OPTIMIZATION","GEO_OPT")
       globenv%run_type = "GEOMETRY OPTIMIZATION"
+    CASE ("MONTE_CARLO","MC")
+      globenv%run_type = "MONTE CARLO"
     CASE ("MOLECULAR_DYNAMICS","MD")
       globenv%run_type = "MOLECULAR DYNAMICS"
     CASE ("WAVEFUNCTION_OPTIMIZATION","WFN_OPT")

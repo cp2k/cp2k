@@ -155,6 +155,12 @@ OBJECTS_GENERIC =\
  machine.o\
  mathconstants.o\
  mathlib.o\
+ mc_control.o\
+ mc_ensembles.o\
+ mc_environment_types.o\
+ mc_misc.o\
+ mc_move_control.o\
+ mc_moves.o\
  md.o\
  md_conserved_quantities.o\
  md_energies.o\
@@ -243,6 +249,7 @@ OBJECTS_GENERIC =\
  qs_localization_methods.o\
  qs_main.o\
  qs_matrix_pools.o\
+ qs_mc.o\
  qs_mo_methods.o\
  qs_mo_types.o\
  qs_neighbor_list_types.o\

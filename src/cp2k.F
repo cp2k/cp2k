@@ -60,6 +60,7 @@ PROGRAM cp2k
   USE cp_error_handling, ONLY: cp_error_type, cp_a_l, cp_assert, cp_error_init, cp_error_dealloc_ref, cp_assertion_failed
   USE geo_opt, only: qs_geo_opt
   USE md_run, only: qs_mol_dyn
+  USE qs_mc,                           ONLY: qs_mon_car
   USE trajana_methods, ONLY: trajana
 
   IMPLICIT NONE
@@ -121,6 +122,8 @@ PROGRAM cp2k
      SELECT CASE (globenv%run_type)
      CASE ("GEOMETRY OPTIMIZATION")
         CALL qs_geo_opt(force_env,globenv,error=error)
+     CASE ("MONTE CARLO")
+        CALL qs_mon_car ( globenv, error=error )
      CASE ("MOLECULAR DYNAMICS")
         CALL qs_mol_dyn ( force_env, globenv, error=error )
      CASE ("WAVEFUNCTION OPTIMIZATION","ENERGY CALCULATION")
