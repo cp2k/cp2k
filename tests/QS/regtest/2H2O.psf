@@ -4,12 +4,12 @@ PSF
  Conversion from AMBER PARMTOP ::
  
       6 !NATOM
-      1 MOL        1  WAT  O    OW    -0.83400  16.00000      0
-      2 MOL        1  WAT  H1   HW     0.41700   1.00800      0
-      3 MOL        1  WAT  H2   HW     0.41700   1.00800      0
-      4 MOL        2  WAT  O    OW    -0.83400  16.00000      0
-      5 MOL        2  WAT  H1   HW     0.41700   1.00800      0
-      6 MOL        2  WAT  H2   HW     0.41700   1.00800      0
+      1 MOL1       1  WAT  O    OW    -0.83400  16.00000      0
+      2 MOL1       1  WAT  H1   HW     0.41700   1.00800      0
+      3 MOL1       1  WAT  H2   HW     0.41700   1.00800      0
+      4 MOL2       2  WAT  O    OW    -0.83400  16.00000      0
+      5 MOL2       2  WAT  H1   HW     0.41700   1.00800      0
+      6 MOL2       2  WAT  H2   HW     0.41700   1.00800      0
   
    6  !NBOND
       3      1      2      1      2      3      6      4
