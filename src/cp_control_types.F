@@ -288,7 +288,7 @@ SUBROUTINE mulliken_control_create(mulliken_restraint_control,error)
    mulliken_restraint_control%strength=0.1_dp
    mulliken_restraint_control%target=1.0_dp
    mulliken_restraint_control%natoms=0
-   mulliken_restraint_control%atoms=>NULL()
+   NULLIFY(mulliken_restraint_control%atoms)
 
 END SUBROUTINE mulliken_control_create
 
