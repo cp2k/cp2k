@@ -94,8 +94,7 @@ MODULE extended_system_types
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='md_environment_types'
-  INTEGER, SAVE, PRIVATE :: last_md_env_id
+  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='extended_systems_types'
 
 !  CONTAINS
 

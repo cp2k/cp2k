@@ -101,7 +101,7 @@ MODULE force_env_types
   PRIVATE
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='force_env_types'
-  INTEGER, SAVE, PRIVATE :: last_force_env_id
+  INTEGER, SAVE, PRIVATE :: last_force_env_id=0
 
   INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
        use_kg_force=503, use_pol_force=504

@@ -219,9 +219,9 @@ SUBROUTINE fft3d ( fsign, scale, n, zg, zg_out )
   LOGICAL :: fft_in_place
   INTEGER :: sign_fft, n1, n2, n3
 !
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_a_fw, plan_a_bw
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_b_fw, plan_b_bw
-  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_c_fw, plan_c_bw
+  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_a_fw=0, plan_a_bw=0
+  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_b_fw=0, plan_b_bw=0
+  INTEGER ( KIND = integer_pointer_kind ), SAVE :: plan_c_fw=0, plan_c_bw=0
   REAL ( dbl ) :: norm
 
   ! Just due to DEC... apsi

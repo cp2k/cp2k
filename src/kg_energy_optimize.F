@@ -52,9 +52,9 @@
 
 ! locals
   INTEGER :: i, itimes, ncoef, isos, nhist
-  INTEGER, SAVE :: ihist
+  INTEGER, SAVE :: ihist=0
   REAL(dbl) :: cons,fconv,tol, deltae
-  REAL (dbl), SAVE :: step
+  REAL (dbl), SAVE :: step=0.0_dbl
   REAL(dbl), DIMENSION(:), ALLOCATABLE :: cgrad              
   REAL(dbl), DIMENSION(:), ALLOCATABLE, SAVE ::  hess
   REAL(dbl), DIMENSION(:,:), ALLOCATABLE, SAVE :: c_hist,e_hist

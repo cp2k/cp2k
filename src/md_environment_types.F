@@ -91,7 +91,7 @@ MODULE md_environment_types
 ! *** Global parameters ***
 
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='md_environment_types'
-  INTEGER, SAVE, PRIVATE :: last_md_env_id
+  INTEGER, SAVE, PRIVATE :: last_md_env_id=0
 
 !!***
 ! *****************************************************************************
