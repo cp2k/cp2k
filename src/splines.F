@@ -2,34 +2,24 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/splines [1.0] *
+!!****h* cp2k/splines [1.0] *
 !!
 !!   NAME
 !!     splines
 !!
 !!   FUNCTION
+!!     routines for handling splines
 !!
 !!   AUTHOR
+!!     various
 !!
 !!   MODIFICATION HISTORY
-!!     none
+!!     2001-09-21-HAF added this doc entry and changed formatting
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE splines
-
-! routines for handling splines
-!   init_splinexy: allocates x and y vectors for splines
-!   init_spline:   generate table for spline (allocate spl%y2)
-!   spline:        return value of spline for given abscissa (optional:also y1)
-!   spline_1:      return value of 1. derivative of spline for given abscissa
-!   spline_int:    return value of integral on given interval of spline
-!   kill_spline:   destructor ( spl%x,y und/oder spl%y2)
-
-! NB: splines are always ``natural splines'', i.e. values of first
-!     derivative at the end-points cannot be specified
-!-----------------------------------------------------------------------------!
 
   USE kinds, ONLY : dbl
 
@@ -38,30 +28,87 @@ MODULE splines
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: spline_data, init_splinexy, init_spline, spline, spline_1, &
-       spline_int, kill_spline, splineh
+  PUBLIC :: spline_data      ! the data structure for splines
+  PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
+  PUBLIC :: init_spline      ! generate table for spline (allocates y2)
+  PUBLIC :: spline           ! return value of spline for given abscissa
+                             ! (optional:also y1)
+  PUBLIC :: spline_1         ! return value of 1. derivative of spline
+                             ! for given abscissa
+  PUBLIC :: spline_int       ! return value of integral on given interval
+                             ! of spline
+  PUBLIC :: kill_spline      ! destructor ( spl%x,y und/oder spl%y2)
+  PUBLIC :: splineh          ! return value of spline and 1. derivative
+                             ! without checks (fast routine for pair_potential)
+
+!******************************************************************************
+!!****
+!!****s* splines/spline_data [1.0] *
+!!
+!!   NAME
+!!     spline_data
+!!
+!!   FUNCTION
+!!     Data-structure that holds all needed information about
+!!     a specific spline interpolation.
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-19-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
 
   TYPE spline_data
-     REAL ( dbl ), POINTER :: x ( : ), y ( : )
-     REAL ( dbl ), POINTER :: y2 ( : )
-     INTEGER :: n, pos
-     REAL ( dbl ) :: h, invh, h26, h16
+     REAL ( dbl ), POINTER :: x  ( : )    ! the x values
+     REAL ( dbl ), POINTER :: y  ( : )    ! the function values y(x)
+     REAL ( dbl ), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
+     INTEGER               :: n           ! dimension of above arrays
+     INTEGER               :: pos         ! index for arrays for last access
+                                          ! not used if uniform increments
+     REAL ( dbl )          :: h           ! uniform increment of x if applicable
+     REAL ( dbl )          :: invh        ! inverse of h
+     REAL ( dbl )          :: h26         ! 1/6 * h**2 if uniform increments
+                                          ! 1/6 otherwise
+     REAL ( dbl )          :: x1          ! starting x value if uniform incr.
   END TYPE spline_data
 
-!!*****
 !******************************************************************************
+!!*****
 
 CONTAINS
 
 !******************************************************************************
-
+!!****m* splines/init_splinexy [1.0] *
+!!
+!!   NAME
+!!     init_splinexy
+!!
+!!   FUNCTION
+!!     allocates storage for function table to be interpolated
+!!     both x and y are allocated
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure to be initialized
+!!     nn  : integer number of datapoints, that the function table will hold
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-21-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
 SUBROUTINE init_splinexy ( spl, nn )
 
   IMPLICIT NONE
 
 ! Arguments
   TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  INTEGER, INTENT ( IN ) :: nn
+  INTEGER,              INTENT ( IN )    :: nn
 
 ! Locals
   INTEGER :: err
@@ -69,11 +116,13 @@ SUBROUTINE init_splinexy ( spl, nn )
 !------------------------------------------------------------------------------
 
   spl % n = nn
+
   IF ( ASSOCIATED ( spl % x ) ) THEN
      DEALLOCATE ( spl % x, STAT = err )
      IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x')
      NULLIFY ( spl % x )
   END IF
+
   IF ( ASSOCIATED ( spl % y ) ) THEN
      DEALLOCATE ( spl % y, STAT = err )
      IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y')
@@ -83,112 +132,187 @@ SUBROUTINE init_splinexy ( spl, nn )
   ALLOCATE ( spl % x ( 1:nn ), STAT = err )
   IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x', nn )
 
-  ALLOCATE ( spl%y(1:nn), STAT = err )
+  ALLOCATE ( spl % y ( 1:nn ), STAT = err )
   IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
 
 END SUBROUTINE init_splinexy
 
 !******************************************************************************
+!!****
+!!****m* splines/init_spline [1.0] *
+!!
+!!   NAME
+!!     init_spline
+!!
+!!   FUNCTION
+!!     allocates storage for y2 table 
+!!     calculates y2 table and other spline parameters
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure to be initialized
+!!                      spl%y() must hold the function values
+!!                      spl%x() must hold the absissa values in increasing
+!!                      order OR if dx (below) is given, spl%x(1) must hold
+!!                      the starting (left-most) point.
+!!     dx  : (OPTIONAL) if present, only x(1) need to be valid, all other
+!!                      x(i) are assumed to be x(1)+dx*(i-1)
+!!                      (spline evaluations will also be faster)
+!!     y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
+!!                      if not present, natural spline condition at this end
+!!                      (2-deriv == 0)
+!!     y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
+!!                      if not present, natural spline condition at this end
+!!                      (2-deriv == 0)
+!!
+!!   EXAMPLES
+!!     CALL init_spline(spline,dx=0.1_dbl)
+!!     CALL init_spline(spline,y1b=0.0_dbl)
+!!     CALL init_spline(spline,0.1_dbl,0.0_dbl,0.0_dbl)
+!!
+!!   NOTES
+!!     if dx is given, the x array will be used as y2 array instead of
+!!     allocating a new array. (y2 will become x, and x will be nullified)
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-21-HAF added this doc entry and changed formatting
+!!     2001-09-24-HAF changed interface and re-written
+!!
+!!   SOURCE
+!******************************************************************************
 
-!   endpt: 's': regular spacing
-!          'l': left; 'r': right; 'b': both = specify 1-deriv for
-!                                                 which endpoints
-
-SUBROUTINE init_spline ( spl, endpt, y1a, y1b )
+SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE (spline_data), INTENT ( INOUT ) :: spl
-  CHARACTER ( LEN = * ), INTENT ( IN ), OPTIONAL :: endpt
-  REAL ( dbl ), INTENT ( IN ), OPTIONAL :: y1a, y1b
+  TYPE (spline_data), INTENT ( INOUT )           :: spl
+  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: dx
+  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: y1a
+  REAL ( dbl ),       INTENT ( IN )   , OPTIONAL :: y1b
 
 ! Locals
-  INTEGER :: err, i, k
-  REAL ( dbl ) :: p, qn, sig, un, y1l, y1r
+  INTEGER               :: err, i, n
   REAL ( dbl ), POINTER :: ww ( : )
-  CHARACTER ( LEN = 8 ) :: ep
-  LOGICAL :: reg, lep, rep
+  REAL ( dbl )          :: s
+  REAL ( dbl )          :: p
 
 !------------------------------------------------------------------------------
 
-  IF ( .NOT. PRESENT ( endpt ) ) THEN
-     ep = ''
-  ELSE
-     ep = endpt
-  END IF
-
-  reg = (scan(ep,'sS')>0)
-  lep = (scan(ep,'lL')>0) .OR. (scan(ep,'bB')>0)
-  rep = (scan(ep,'rR')>0) .OR. (scan(ep,'bB')>0)
-  IF (lep) y1l = y1a
-  IF (rep .AND. .NOT. lep) y1r = y1a
-  IF (rep .AND. lep) y1r = y1b
-  IF ((lep .OR. rep) .AND. .NOT. PRESENT ( y1a)) &
-       CALL stop_program ( 'init_spline','first deriv. at end-point missing')
-  IF (lep .AND. rep .AND. .NOT. PRESENT ( y1b)) CALL stop_program( &
-       'init_spline','first deriv. at end-point missing')
-
-  spl%pos = 1
   IF ( ASSOCIATED ( spl%y2)) THEN
      DEALLOCATE (spl%y2,STAT=err)
      IF (err /= 0 ) CALL stop_memory ( 'init_spline','spl%y2')
      NULLIFY (spl%y2)
   END IF
-  ALLOCATE (spl%y2(1:spl%n),STAT=err)
-  IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'spl%y2', spl % n )
-  ALLOCATE (ww(1:spl%n),STAT=err)
-  IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
 
-  IF (lep) THEN
-     spl%y2(1) = -0.5_dbl
-     ww(1) = ( 3.0_dbl &
-          /(spl%x(2)-spl%x(1)))*((spl%y(2)-spl%y(1))/(spl%x(2)-spl% &
-          x(1))-y1l)
+  n = spl%n
+
+  IF (PRESENT(dx)) THEN
+     spl % x1   = spl%x(1)
+     spl % pos  = 1
+     spl % h    = dx
+     spl % invh = 1.0_dbl/dx
+     spl % h26  = dx**2 / 6.0_dbl
+     spl % y2  => spl % x
+     NULLIFY (spl%x)
+     ALLOCATE (ww(1:n),STAT=err)
+     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
+     IF (PRESENT(y1a)) THEN
+        spl % y2(1) = -0.5_dbl
+        ww(1) = 3.0_dbl * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
+     ELSE
+        spl % y2(1) = 0.0_dbl
+        ww(1)       = 0.0_dbl
+     END IF
+     DO i = 2, n - 1
+        s = 0.5
+        p = 0.5_dbl * spl%y2(i-1) + 2.0_dbl
+        spl%y2(i) = - 0.5_dbl / p
+        ww(i) = ( 3.0_dbl*( spl%y(i+1)-2.0_dbl*spl%y(i)+spl%y(i-1) )/(dx*dx) &
+                 - 0.5_dbl*ww(i-1) )/p
+     END DO
+     IF (PRESENT( y1b )) THEN
+        spl%y2(n) = ( 3.0_dbl * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
+                      0.5_dbl * ww(n-1) ) / ( 0.5_dbl * spl%y2(n-1) + 1.0_dbl )
+     ELSE
+        spl%y2(n) = 0.0_dbl
+     END IF
+     DO i = n-1, 1, -1
+        spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
+     END DO
+     DEALLOCATE (ww,STAT=err)
+     IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
   ELSE
-     spl%y2(1) = 0
-     ww(1) = 0.0_dbl
-  END IF
-
-  DO i = 2, spl%n - 1
-     sig = (spl%x(i)-spl%x(i-1))/(spl%x(i+1)-spl%x(i-1))
-     p = sig*spl%y2(i-1) + 2.0_dbl
-     spl%y2(i) = (sig-1.)/p
-     ww(i) = (6.0_dbl*((spl%y(i+1)-spl%y(i))/(spl%x(i+1)-spl%x(i))-(spl%y(i)- &
-          spl%y(i-1))/(spl%x(i)-spl%x(i-1)))/(spl%x(i+ &
-          1)-spl%x(i-1))-sig*ww(i-1))/p
-  END DO
-
-  IF ( rep ) THEN
-     qn = 0.5_dbl
-     un = ( 3.0_dbl &
-          /(spl%x(spl%n)-spl%x(spl%n-1)))*(y1r-(spl%y(spl%n)-spl%y(spl &
-          %n-1))/(spl%x(spl%n)-spl%x(spl%n-1)))
-  ELSE
-     qn = 0
-     un = 0
-  END IF
-
-  spl%y2(spl%n) = (un-qn*ww(spl%n-1))/(qn*spl%y2(spl%n-1)+1.)
-  DO k = spl%n - 1, 1, -1
-     spl%y2(k) = spl%y2(k)*spl%y2(k+1) + ww(k)
-  END DO
-
-  DEALLOCATE (ww,STAT=err)
-  IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
-
-  IF (reg) THEN
-     spl%h = (spl%x(spl%n)-spl%x(1))/(spl%n-1.)
-     spl%h16 = spl%h/6.
-     spl%h26 = spl%h**2/6.
-     spl%invh = 1/spl%h
-  ELSE
-     spl%h = 0
-     spl%invh = 0
+     ALLOCATE (spl%y2(1:n),STAT=err)
+     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'spl%y2', spl % n )
+     ALLOCATE (ww(1:n),STAT=err)
+     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
+     IF (PRESENT(y1a)) THEN
+        spl % y2(1) = -0.5_dbl
+        ww(1) = 3.0_dbl * ((spl%y(2)-spl%y(1))/(spl%x(2)-spl%x(1)) - y1a)/ &
+                (spl%x(2)-spl%x(1))
+     ELSE
+        spl % y2(1) = 0.0_dbl
+        ww(1)       = 0.0_dbl
+     END IF
+     DO i = 2, n - 1
+        s = ( spl%x(i) - spl%x(i-1) ) / ( spl%x(i+1) - spl%x(i-1) )
+        p = s * spl%y2(i-1) + 2.0_dbl
+        spl%y2(i) = (s - 1.0_dbl) / p
+        ww(i) = (6.0_dbl*( (spl%y(i+1)-spl%y(i)) / (spl%x(i+1)-spl%x(i)) - &
+                           (spl%y(i)-spl%y(i-1)) / (spl%x(i)-spl%x(i-1)) ) / &
+                         (spl%x(i+1) - spl%x(i-1)) - s*ww(i-1) )/p
+     END DO
+     IF (PRESENT( y1b )) THEN
+        spl%y2(n) = ( 3.0_dbl * (y1b - (spl%y(n)-spl%y(n-1)) / &
+                                       (spl%x(n)-spl%x(n-1)) ) / &
+                      (spl%x(n)-spl%x(n-1)) - 0.5_dbl * ww(n-1) ) / &
+                    ( 0.5_dbl * spl%y2(n-1) + 1.0_dbl )
+     ELSE
+        spl%y2(n) = 0.0_dbl
+     END IF
+     DO i = n-1, 1, -1
+        spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
+     END DO
+     DEALLOCATE (ww,STAT=err)
+     IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
+     spl % pos = 1
+     spl % h    = 0.0_dbl
+     spl % invh = 0.0_dbl
+     spl % h26  = 1.0_dbl / 6.0_dbl
+     spl % x1   = spl % x(1)
   END IF
 
 END SUBROUTINE init_spline
 
+!******************************************************************************
+!!****
+!!****i* splines/interv [1.0] *
+!!
+!!   NAME
+!!     interv
+!!
+!!   FUNCTION
+!!     calculates index to function table array for given absissa
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     xx  : absissa value to find nearest index for
+!!
+!!   OUTPUT
+!!     nearest index for function tables
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-24-HAF added this doc entry and changed formatting
+!!     2001-09-24-HAF re-written to use mixed binary-interpolation search
+!!                    if all else fails
+!!
+!!   SOURCE
 !******************************************************************************
 
 FUNCTION interv ( spl, xx )
@@ -197,16 +321,19 @@ FUNCTION interv ( spl, xx )
 
 ! Arguments
   TYPE ( spline_data ), INTENT ( IN ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: xx
+  REAL ( dbl ),         INTENT ( IN ) :: xx
+
+! Return value
+  INTEGER :: interv
 
 ! Locals
-  INTEGER :: interv
-  INTEGER :: khi, klo, i, p, n, k
+  INTEGER      :: khi, klo, i, p, n, k
+  REAL ( dbl ) :: xlo, xhi, xk
 
 !------------------------------------------------------------------------------
 
   IF (spl%h /= 0 ) THEN
-     i = (xx-spl%x(1))*spl%invh + 1
+     i = (xx-spl%x1)*spl%invh + 1
      IF (i<1 .OR. i>spl%n) CALL stop_program ( 'interv', &
           'illegal x-value passed to interv')
      interv = i
@@ -214,39 +341,69 @@ FUNCTION interv ( spl, xx )
   END IF
 
   p = spl%pos
-  IF (p>=spl%n) p = spl%n/2
+  IF ( (p >= spl%n) .OR. (p < 1) ) p = spl%n/2
   i = 0
   n = spl%n
 
 ! check if interval is close to previous interval
+!
+! How efficient is this? I would think in an MD simulation the xx
+! are pretty random since it is not usually the same distance the next
+! time step, but a different particle pair distance, etc... - HAF
+!
   IF ( xx < spl % x ( p + 1 ) ) THEN
      IF ( xx >= spl % x ( p ) ) THEN
-        i = spl%pos
-     ELSE IF ( p > 1 .AND. xx >= spl % x ( p - 1 ) ) THEN
+        i = p
+     ELSE IF ( (p > 1) .AND. (xx >= spl % x ( p - 1 )) ) THEN
         i = p - 1
      ELSE
         klo = 1
-        khi = p + 1
+        khi = p - 1
      END IF
-  ELSE IF ( p + 2 <= n .AND. xx < spl % x ( p + 2 ) ) THEN
+  ELSE IF ( (p + 2 <= n) .AND. (xx < spl % x ( p + 2 )) ) THEN
      i = p + 1
   ELSE
-     klo = p + 1
+     klo = p + 2
      khi = n
   END IF
 
-  IF ( i == 0 ) THEN ! perform binary search
-     IF ( xx < spl % x ( 1 ) .OR. xx > spl % x ( n ) ) &
+  IF ( i == 0 ) THEN ! perform general search (binary + interpolation)
+                     ! lots of other possibilities here though
+
+     IF ( (xx < spl % x ( 1 )) .OR. (xx > spl % x ( n )) ) &
           CALL stop_program ( 'interv', 'xx value out of spline-range' )
+
+     xlo = spl % x ( klo )
+     xhi = spl % x ( khi )
      DO WHILE ( khi - klo > 1 )
-        k = ( khi + klo ) / 2
-        IF ( spl % x ( k ) > xx ) THEN
+
+        ! linear interpolation prediction:
+        k = klo + (xx - xlo)*(khi-klo)/(xhi-xlo)
+        IF (spl % x(k) > xx) THEN
            khi = k
+           xhi = spl % x(k)
+        ELSE IF (spl % x(k+1) <= xx) THEN
+           klo = k+1
+           xlo = spl % x(k+1)
         ELSE
            klo = k
+           EXIT
+        END IF
+        IF ( khi - klo <= 1 ) EXIT
+
+        ! binary search:
+        k = ( khi + klo ) / 2
+        xk = spl % x ( k )
+        IF ( xk > xx ) THEN
+           khi = k
+           xhi = xk
+        ELSE
+           klo = k
+           xlo = xk
         END IF
      END DO
      i = klo
+
   END IF
 
   interv = i
@@ -254,48 +411,35 @@ FUNCTION interv ( spl, xx )
 END FUNCTION interv
 
 !******************************************************************************
-
-FUNCTION spline_slow ( spl, xx, y1 )
-
-  IMPLICIT NONE
-
-! Arguments
-  TYPE (spline_data), INTENT ( INOUT ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: xx
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: y1
-
-! Locals
-  REAL ( dbl ) :: spline_slow
-  INTEGER :: khi, klo
-  REAL ( dbl ) :: a, b, h, invh
-
-!------------------------------------------------------------------------------
-
-  spl%pos = interv(spl,xx)
-  klo = spl%pos
-  khi = spl%pos + 1
-
-  IF (spl%h /= 0 ) THEN
-     h = spl%h
-     invh = spl%invh
-  ELSE
-     h = spl%x(khi) - spl%x(klo)
-     invh = spl%invh
-     IF ( h == 0.0_dbl ) CALL stop_program ( 'spline', 'bad spl%x input' )
-  END IF
-
-  a = (spl%x(khi)-xx)*invh
-  b = 1 - a
-  spline_slow = a*spl%y(klo) + b*spl%y(khi) + ((a**3-a)*spl%y2(klo)+(b** &
-       3-b)*spl%y2(khi))*(h**2)/6.0_dbl
-  IF ( PRESENT ( y1 ) ) y1 = (spl%y(khi)-spl%y(klo))*invh + &
-       ((1.0_dbl-3*a**2)*spl%y2(klo)+(3*b**2-1.0_dbl)*spl%y2(khi))*h/6.0_dbl
-
-END FUNCTION spline_slow
-
+!!****
+!!****f* splines/spline [1.0] *
+!!
+!!   NAME
+!!     spline
+!!
+!!   FUNCTION
+!!     calculates the spline interpolated value at a given point
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     xx  : absissa value
+!!
+!!   OUTPUT
+!!     spline interpolated value at xx
+!!     OPTIONAL y1 : 1. derivative at xx
+!!     OPTIONAL y2 : 2. derivative at xx
+!!     OPTIONAL y3 : 3. derivative at xx
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-25-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
 !******************************************************************************
 
-FUNCTION spline ( spl, xx, y1 )
+FUNCTION spline ( spl, xx, y1, y2, y3 )
 
   IMPLICIT NONE
 
@@ -303,41 +447,85 @@ FUNCTION spline ( spl, xx, y1 )
   REAL ( dbl ) :: spline
 
 ! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: xx
-  REAL ( dbl ), INTENT ( OUT ), OPTIONAL :: y1
+  TYPE ( spline_data ), INTENT ( INOUT )         :: spl
+  REAL ( dbl ),         INTENT ( IN )            :: xx
+  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y1
+  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y2
+  REAL ( dbl ),         INTENT ( OUT ), OPTIONAL :: y3
 
 ! Locals
-  INTEGER :: khi, klo, i
-  REAL ( dbl ) :: a, b, h, invh, t, ylo, yhi, y2lo, y2hi, d, d0
+  INTEGER      :: i
+  REAL ( dbl ) :: h, invh, h26, a, b
+  REAL ( dbl ) :: ylo, yhi, y2lo, y2hi
 
 !------------------------------------------------------------------------------
 
-  h = spl % h
-  invh = spl%invh
-  IF (h /= 0 ) THEN
-!     d=xx-spl%x(1); i=INT(d*spl%invh); d0=REAL(i)*h; i=i+1
-     i = (xx-spl%x(1))*invh + 1
-     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'spline','illegal x-value')
+  if (spl % h /= 0.0_dbl) THEN
+     ! index calculation from interv for speed reasons duplicated in this
+     ! simple case:
+     i = (xx-spl%x1)*spl%invh + 1
+     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'spline', &
+          'illegal x-value passed to spline')
+     h    = spl % h
+     invh = spl%invh
+     h26  = spl%h26
+     a = (spl%x1-xx)*invh+i
   ELSE
+     ! general non-uniform case:
      i = interv(spl,xx)
-     spl%pos = 1
+     spl % pos = i
+     h = spl%x(i+1)-spl%x(i)
+     invh = 1.0_dbl/h
+     h26  = h*h*spl%h26
+     a = (spl%x(i+1)-xx)*invh
   END IF
-
-  a = (spl%x(i+1)-xx)*invh
-  b = 1 - a
-  t = -a*b
-!  b=(d-d0)*invh; a=1-b; t=-a*b
+  b = 1.0_dbl - a
   ylo = spl%y(i)
   yhi = spl%y(i+1)
   y2lo = spl%y2(i)
   y2hi = spl%y2(i+1)
-  spline = a*ylo + b*yhi + ((a+1)*y2lo+(b+1)*y2hi)*t*spl%h26
-  IF ( PRESENT ( y1)) y1 = (yhi-ylo)*invh + ((1.-3*a*a)*y2lo+(3*b*b-1.)* &
-       y2hi)*spl%h16
+  spline = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
+  IF ( PRESENT (y1) ) &
+    y1 = invh*( yhi - ylo + ( (1-3*a*a)*y2lo + (3*b*b-1)*y2hi ) * h26 )
+  IF ( PRESENT (y2) ) &
+    y2 = a*y2lo + b*y2hi
+  IF ( PRESENT (y3) ) &
+    y3 = invh * ( y2hi - y2lo )
+  RETURN
 
 END FUNCTION spline
 
+!******************************************************************************
+!!****
+!!****f* splines/splineh [1.0] *
+!!
+!!   NAME
+!!     splineh
+!!
+!!   FUNCTION
+!!     calculates the spline interpolated value at a given point
+!!     and the first derivative
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     xx  : absissa value
+!!
+!!   OUTPUT
+!!     spline interpolated value at xx
+!!     y1 : 1. derivative at xx
+!!
+!!   NOTES
+!!     the spline MUST have uniform x values and xx MUST be
+!!     in the interpolation interval. No checks are done to ensure
+!!     either condition.
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-25-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
 !******************************************************************************
 
 FUNCTION splineh ( spl, xx, y1 )
@@ -348,35 +536,56 @@ FUNCTION splineh ( spl, xx, y1 )
   REAL ( dbl ) :: splineh
 
 ! Arguments
-  TYPE (spline_data), INTENT ( IN ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: xx
-  REAL ( dbl ), INTENT ( OUT ) :: y1
+  TYPE (spline_data), INTENT ( IN )  :: spl
+  REAL ( dbl ),       INTENT ( IN )  :: xx
+  REAL ( dbl ),       INTENT ( OUT ) :: y1
 
 ! Locals
-  INTEGER :: khi, klo, i
-  REAL ( dbl ) :: a, b, h, invh, t, ylo, yhi, y2lo, y2hi, d, d0
+  INTEGER      :: i
+  REAL ( dbl ) :: a, b, h26, invh, ylo, yhi, y2lo, y2hi
 
 !------------------------------------------------------------------------------
 
 ! fast spline for pair potentials without checks
-  h = spl%h
+  h26 = spl%h26
   invh = spl%invh
-  d=xx-spl%x(1); i=INT(d*spl%invh); d0=REAL(i)*h; i=i+1
-  i = (xx-spl%x(1))*invh + 1
+  i = (xx-spl%x1)*invh + 1
 
-  a = (spl%x(i+1)-xx)*invh
+  a = (spl%x1-xx)*invh + i
   b = 1 - a
-  t = -a*b
-!    b=(d-d0)*invh; a=1-b; t=-a*b
   ylo = spl%y(i)
   yhi = spl%y(i+1)
   y2lo = spl%y2(i)
   y2hi = spl%y2(i+1)
-  splineh = a*ylo + b*yhi + ((a+1)*y2lo+(b+1)*y2hi)*t*spl%h26
-  y1 = (yhi-ylo)*invh + ((1.-3*a*a)*y2lo+(3*b*b-1.)*y2hi)*spl%h16
+  splineh = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
+  y1 = invh*((yhi-ylo) + ((1.-3*a*a)*y2lo+(3*b*b-1.)*y2hi)*h26)
 
 END FUNCTION splineh
 
+!******************************************************************************
+!!****
+!!****f* splines/spline_1 [1.0] *
+!!
+!!   NAME
+!!     spline_1
+!!
+!!   FUNCTION
+!!     calculates the 1. derivate of a spline at a given point
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     xx  : absissa value to find nearest index for
+!!
+!!   OUTPUT
+!!     spline_1 first derivate of the spline interpolation at xx
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-25-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
 !******************************************************************************
 
 FUNCTION spline_1 ( spl, xx )
@@ -388,31 +597,69 @@ FUNCTION spline_1 ( spl, xx )
 
 ! Arguments
   TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: xx
+  REAL ( dbl ),         INTENT ( IN )    :: xx
 
 ! Locals
-  INTEGER :: khi, klo
-  REAL ( dbl ) :: a, b, h
+  INTEGER      :: i
+  REAL ( dbl ) :: h, invh, h26, a, b
 
 !------------------------------------------------------------------------------
 
-  spl % pos = interv ( spl, xx )
-  klo = spl % pos
-  khi = spl % pos + 1
-
-  h = spl % x ( khi ) - spl % x ( klo )
-  IF ( h == 0.0_dbl ) CALL stop_program ( 'spline', 'bad spl%x input' )
-  a = ( spl % x ( khi ) - xx ) / h
+  if (spl % h /= 0.0_dbl) THEN
+     ! index calculation from interv for speed reasons duplicated in this
+     ! simple case:
+     i = (xx-spl%x1)*spl%invh + 1
+     IF (i<1 .OR. i>spl%n) CALL stop_program ( 'spline', &
+          'illegal x-value passed to spline')
+     h    = spl % h
+     invh = spl%invh
+     h26  = spl%h26
+     a = (spl%x1-xx)*invh+i
+  ELSE
+     ! general non-uniform case:
+     i = interv(spl,xx)
+     spl % pos = i
+     h = spl%x(i+1)-spl%x(i)
+     invh = 1.0_dbl/h
+     h26  = h*h*spl%h26
+     a = (spl%x(i+1)-xx)*invh
+  END IF
   b = 1.0_dbl - a
-  spline_1 = ( spl%y(khi)-spl%y(klo) ) / h &
-       + ( ( 1.0_dbl - 3.0_dbl * a ** 2 ) * spl % y2(klo) &
-       + ( 3.0_dbl * b ** 2 - 1.0_dbl ) * spl % y2(khi) ) * h / 6.0_dbl
+  spline_1 = invh * ( spl%y(i+1)-spl%y(i) + &
+                      ( (1-3*a*a)*spl%y2(i) + (3*b*b-1)*spl%y2(i+1) ) * h26 )
+  RETURN
 
 END FUNCTION spline_1
 
 !******************************************************************************
+!!****
+!!****i* splines/stamm [1.0] *
+!!
+!!   NAME
+!!     stamm
+!!
+!!   FUNCTION
+!!     calculates the value of the undetermined integral of a spline at
+!!     a given point for a given interval
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     p   : index of the spline interval to integrate
+!!     xx  : absissa value to find nearest index for
+!!
+!!   OUTPUT
+!!     value of the undetermined integral at xx for the interval p
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-25-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
 
-FUNCTION stamm ( spl, p, x )
+FUNCTION stamm ( spl, p, xx )
 
   IMPLICIT NONE
 
@@ -421,27 +668,61 @@ FUNCTION stamm ( spl, p, x )
 
 ! Arguments
   TYPE (spline_data), INTENT ( IN ) :: spl
-  INTEGER, INTENT ( IN ) :: p
-  REAL ( dbl ), INTENT ( IN ) :: x
+  INTEGER,            INTENT ( IN ) :: p
+  REAL ( dbl ),       INTENT ( IN ) :: xx
 
 ! Locals
-  REAL ( dbl ) :: a, b, aa, bb, h
+  REAL ( dbl ) :: a, b, aa, bb, h, h26
 
 !------------------------------------------------------------------------------
 
-  h = spl%x(p+1) - spl%x(p)
-  b = (x-spl%x(p))/h
+  h = spl%h
+  IF (h == 0.0_dbl) THEN
+     h = spl%x(p+1) - spl%x(p)
+     h26 = h*h*spl%h26
+     b = (xx-spl%x(p))/h
+  ELSE
+     h26 = spl%h26
+     b = (xx-spl%x1)*spl%invh - p + 1
+  END IF
   a = 1 - b
   aa = a**2
   bb = b**2
-  stamm = 0.5*h*(bb*spl%y(p+1)-aa*spl%y(p)) + h**3/12.*(aa*(1-0.5*aa)* &
-       spl%y2(p)-bb*(1-0.5*bb)*spl%y2(p+1))
+  stamm = 0.5*h*( bb*spl%y(p+1) - aa*spl%y(p) + &
+                  h26 * ( aa*(1-0.5*aa)*spl%y2(p) - &
+                          bb*(1-0.5*bb)*spl%y2(p+1) ) )
 
 END FUNCTION stamm
 
 !******************************************************************************
+!!****
+!!****f* splines/spline_int [1.0] *
+!!
+!!   NAME
+!!     spline_int
+!!
+!!   FUNCTION
+!!     calculates the integral of a spline for two given bounds
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl : spline_data structure
+!!     x0  : lower bound
+!!     x1  : upper bound
+!!
+!!   OUTPUT
+!!     the integrarl of the spline between x0 and x1
+!!     /int_{x0}^{x1} spline(x) dx
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-25-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
 
-FUNCTION spline_int(spl,x0,x1)
+FUNCTION spline_int( spl, x0, x1 )
 
   IMPLICIT NONE
 
@@ -450,10 +731,11 @@ FUNCTION spline_int(spl,x0,x1)
 
 ! Arguments
   TYPE (spline_data), INTENT ( INOUT ) :: spl
-  REAL ( dbl ), INTENT ( IN ) :: x0, x1
+  REAL ( dbl ),       INTENT ( IN )    :: x0
+  REAL ( dbl ),       INTENT ( IN )    :: x1
 
 ! Local
-  INTEGER :: j, pa, pb
+  INTEGER      :: j, pa, pb
   REAL ( dbl ) :: h, vorz, xa, xb, i1, i2
 
 !------------------------------------------------------------------------------
@@ -462,53 +744,111 @@ FUNCTION spline_int(spl,x0,x1)
   xa = MIN ( x0, x1 )
   xb = MAX ( x0, x1 )
   IF ( x0 > x1 ) vorz = -1.0_dbl
-  IF ( xa < spl % x ( 1 ) .OR. xb > spl % x ( spl % n ) ) &
-       CALL stop_program ( 'spline_int', 'illegal integration range' )
 
-  pa = interv ( spl, xa )
-  pb = interv ( spl, xb )
+  h = spl % h
+  if (h /= 0.0_dbl) THEN
 
-  IF ( pa == pb ) THEN
-     spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )
+     IF ( (xa < spl % x1) .OR. (xb > spl % x1 + (spl % n - 1) * h ) ) &
+        CALL stop_program ( 'spline_int', 'illegal integration range' )
+
+     ! index calculation from interv for speed reasons duplicated in this
+     ! simple case:
+     pa = (xa-spl%x1)*spl%invh + 1
+     pb = (xb-spl%x1)*spl%invh + 1
+
+     IF ( pa == pb ) THEN
+        spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )
+        RETURN
+     END IF
+
+     i1 = 0
+     i2 = 0
+
+     DO j = pa + 1, pb
+        i1 = i1 + spl%y(j)
+        i2 = i2 + spl%y2(j)
+     END DO
+
+     spline_int = vorz*(h*(i1-0.5*spl%h26*i2)+stamm(spl,pb,xb)-stamm(spl,pa,xa))
+
      RETURN
+
+  ELSE
+
+     ! general non-uniform case:
+
+     IF ( xa < spl % x ( 1 ) .OR. xb > spl % x ( spl % n ) ) &
+        CALL stop_program ( 'spline_int', 'illegal integration range' )
+
+     pa = interv ( spl, xa )
+     pb = interv ( spl, xb )
+
+     IF ( pa == pb ) THEN
+        spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )
+        RETURN
+     END IF
+
+     i1 = 0
+     i2 = 0
+
+     DO j = pa + 1, pb - 1
+        h = spl%x(j+1) - spl%x(j)
+        i1 = i1 + h    * ( spl%y(j)  + spl%y(j+1)  )
+        i2 = i2 + h**3 * ( spl%y2(j) + spl%y2(j+1) )
+     END DO
+
+     h = spl%x(pa+1) - spl%x(pa)
+     i1 = i1 + h*spl%y(pa+1)
+     i2 = i2 + h**3*spl%y2(pa+1)
+     h = spl%x(pb+1) - spl%x(pb)
+     i1 = i1 + h*spl%y(pb)
+     i2 = i2 + h**3*spl%y2(pb)
+
+     spline_int = vorz*(i1/2.-i2/24.+stamm(spl,pb,xb)-stamm(spl,pa,xa))
+
+     RETURN
+
   END IF
-
-  i1 = 0
-  i2 = 0
-  DO j = pa + 1, pb - 1
-     h = spl%x(j+1) - spl%x(j)
-     i1 = i1 + h*(spl%y(j)+spl%y(j+1))
-     i2 = i2 + h**3*(spl%y2(j)+spl%y2(j+1))
-  END DO
-  h = spl%x(pa+1) - spl%x(pa)
-  i1 = i1 + h*spl%y(pa+1)
-  i2 = i2 + h**3*spl%y2(pa+1)
-  h = spl%x(pb+1) - spl%x(pb)
-  i1 = i1 + h*spl%y(pb)
-  i2 = i2 + h**3*spl%y2(pb)
-
-  spline_int = vorz*(i1/2.-i2/24.+stamm(spl,pb,xb)-stamm(spl,pa,xa))
 
 END FUNCTION spline_int
 
 !******************************************************************************
-
-!   deallocate splines
-!   what=='a' or not present: deallocate all (spl%x, spl%y, spl%y2)
-!   what=='d': deallocate only data (spl%x, spl%y)
-!   what=='2': deallocate only table of 2. derivatives (spl%y2)
+!!****
+!!****m* splines/kill_spline [1.0] *
+!!
+!!   NAME
+!!     kill_spline
+!!
+!!   FUNCTION
+!!     deallocates (selected) storage of given spline data structure
+!!
+!!   AUTHOR
+!!     unknown
+!!
+!!   INPUTS
+!!     spl   : spline_data structure
+!!     what  : OPTIONAL what should be deallocated:
+!!                not present or 'a' : deallocate all (spl%x spl%y and spl%y2)
+!!                'd'                : deallocate only data (spl%x and spl%y)
+!!                '2'                : deallocate only 2. derivatives (spl%y2)
+!!
+!!   MODIFICATION HISTORY
+!!     2001-09-26-HAF added this doc entry and changed formatting
+!!
+!!   SOURCE
+!******************************************************************************
 
 SUBROUTINE kill_spline ( spl, what )
 
   IMPLICIT NONE
 
 ! Arguments
-  TYPE ( spline_data ), INTENT ( INOUT ) :: spl
-  CHARACTER, INTENT ( IN ), OPTIONAL :: what
+  TYPE ( spline_data ), INTENT ( INOUT )         :: spl
+  CHARACTER,            INTENT ( IN ),  OPTIONAL :: what
 
 ! Locals
   CHARACTER :: w
-  INTEGER :: err
+  INTEGER   :: err
 
 !------------------------------------------------------------------------------
 
@@ -519,6 +859,7 @@ SUBROUTINE kill_spline ( spl, what )
   END IF
 
   SELECT CASE ( w )
+
   CASE ( 'd', 'D' )
      IF ( ASSOCIATED ( spl%x)) THEN
         DEALLOCATE (spl%x,STAT=err)
@@ -554,10 +895,15 @@ SUBROUTINE kill_spline ( spl, what )
         IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%y2' )
         NULLIFY (spl%y2)
      END IF
+
+  CASE DEFAULT
+     CALL stop_program ( 'kill_spline', 'illegal deallocation option' )
+
   END SELECT
 
 END SUBROUTINE kill_spline
 
 !******************************************************************************
+!!****
 
 END MODULE splines

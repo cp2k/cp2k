@@ -248,7 +248,7 @@ SUBROUTINE spline_nonbond_control ( potparm, pstat, npoints, ewald_param )
            x2 = x2 + dx2
         END DO ! jx: loop over distance
 
-        CALL init_spline(spline_table(n),'s')
+        CALL init_spline(spline_table(n),dx=dx2)
 
      END DO ! j:  second atom type
   END DO ! i:  first atom type
