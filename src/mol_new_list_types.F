@@ -46,7 +46,8 @@ MODULE mol_new_list_types
                                              cp_warning_level
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE molecule_types_new,              ONLY: molecule_type
+  USE molecule_types_new,              ONLY: deallocate_molecule_set,&
+                                             molecule_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   IMPLICIT NONE
@@ -306,7 +307,7 @@ SUBROUTINE mol_new_list_release(list, error)
      IF (list%ref_count==0) THEN
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
-              DEALLOCATE(list%els,stat=stat)
+              CALL deallocate_molecule_set(list%els)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END IF
         END IF
@@ -323,9 +324,9 @@ END SUBROUTINE mol_new_list_release
 ! files are almost the same (multi-line use change it a bit)
 ! [template(el_typename,el_type,USE,deallocate_els_code)]
 ! ARGS:
-!  USE = "use molecule_types_new, only: molecule_type"
+!  USE = "use molecule_types_new, only: molecule_type, deallocate_molecule_set"
 !  deallocate_els_code = 
-!    "DEALLOCATE(list%els,stat=stat)
+!    "call deallocate_molecule_set(list%els)
 !                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"
 !  el_type = "type(molecule_type)"
 !  el_typename = "mol_new"

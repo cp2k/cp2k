@@ -308,6 +308,7 @@ SUBROUTINE mol_kind_list_release(list, error)
            IF (ASSOCIATED(list%els)) THEN
               DEALLOCATE(list%els,stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPAssertNoFail(.FALSE.,cp_warning_level,routineP,error)
            END IF
         END IF
         NULLIFY(list%els)
@@ -326,7 +327,8 @@ END SUBROUTINE mol_kind_list_release
 !  USE = "use molecule_types, only: molecule_type"
 !  deallocate_els_code = 
 !    "DEALLOCATE(list%els,stat=stat)
-!                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"
+!                   CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+!                   CPAssertNoFail(.false.,cp_warning_level,routineP,error)"
 !  el_type = "type(molecule_type)"
 !  el_typename = "mol_kind"
 

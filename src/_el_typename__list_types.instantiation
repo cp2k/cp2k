@@ -11,7 +11,8 @@
 'USE':"""use molecule_types, only: molecule_type""",
 'deallocate_els_code':
 """DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"""
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              CPAssertNoFail(.false.,cp_warning_level,routineP,error)"""
 },
 {'el_typename':'particle',
 'el_type':'type(particle_type)',
@@ -27,16 +28,15 @@
 },
 {'el_typename':'mol_new',
 'el_type':'type(molecule_type)',
-'USE':"""use molecule_types_new, only: molecule_type""",
+'USE':"""use molecule_types_new, only: molecule_type, deallocate_molecule_set""",
 'deallocate_els_code':
-"""DEALLOCATE(list%els,stat=stat)
+"""call deallocate_molecule_set(list%els)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"""
 },
 {'el_typename':'mol_kind_new',
 'el_type':'type(molecule_kind_type)',
-'USE':"""use molecule_kind_types, only: molecule_kind_type""",
+'USE':"""use molecule_kind_types, only: molecule_kind_type, deallocate_molecule_kind_set""",
 'deallocate_els_code':
-"""DEALLOCATE(list%els,stat=stat)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)"""
+"""call deallocate_molecule_kind_set(list%els)"""
 }
 ]

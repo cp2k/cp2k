@@ -187,7 +187,7 @@ CONTAINS
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_r_write(element, unit_nr, el_format, error)
-!!       Real(Kind=wp), Intent (IN):: element
+!!       Real(Kind=dp), Intent (IN):: element
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -248,7 +248,7 @@ END SUBROUTINE cp_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:):: array
+!!       Real(Kind=dp), Intent (IN), Dimension(:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -349,7 +349,7 @@ END SUBROUTINE cp_1d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_1d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
+!!       Real(Kind=dp), Dimension(:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -425,7 +425,7 @@ END SUBROUTINE cp_1d_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:):: array
+!!       Real(Kind=dp), Intent (IN), Dimension(:,:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -526,7 +526,7 @@ END SUBROUTINE cp_2d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_2d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:,:), Intent (IN):: array
+!!       Real(Kind=dp), Dimension(:,:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -594,7 +594,7 @@ END SUBROUTINE cp_2d_r_write
 !!       Character(Len=*), Intent (IN):: outputname
 !!       Character(Len=*), Intent (IN):: fromwhere
 !!       Integer, Intent (IN):: iter
-!!       Real(Kind=wp), Intent (IN), Dimension(:,:,:):: array
+!!       Real(Kind=dp), Intent (IN), Dimension(:,:,:):: array
 !!       Character(Len=*), Intent (IN), Optional:: comment, el_format
 !!       Logical, Intent (IN), Optional:: local
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -692,7 +692,7 @@ END SUBROUTINE cp_3d_r_output
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_3d_r_write(array, unit_nr, el_format, error)
-!!       Real(Kind=wp), Dimension(:,:,:), Intent (IN):: array
+!!       Real(Kind=dp), Dimension(:,:,:), Intent (IN):: array
 !!       Integer, Intent (IN):: unit_nr
 !!       Character(Len=*), Intent (IN), Optional:: el_format
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -765,9 +765,9 @@ END SUBROUTINE cp_3d_r_write
 !!
 !!   SYNOPSIS
 !!     Subroutine cp_1d_r_guarantee_size(array, n, init, error)
-!!       Real(Kind=wp), Dimension(:), Pointer:: array
+!!       Real(Kind=dp), Dimension(:), Pointer:: array
 !!       Integer, Intent (IN):: n
-!!       Real(Kind=wp), Intent (IN), Optional:: init
+!!       Real(Kind=dp), Intent (IN), Optional:: init
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_1d_r_guarantee_size
 !!
@@ -836,9 +836,9 @@ END SUBROUTINE cp_3d_r_write
 !!   SYNOPSIS
 !!     Subroutine cp_2d_r_guarantee_size(array, n_rows, n_cols, init,&
 !!         error)
-!!       Real(Kind=wp), Dimension(:,:), Pointer:: array
+!!       Real(Kind=dp), Dimension(:,:), Pointer:: array
 !!       Integer, Intent (IN):: n_rows, n_cols
-!!       Real(Kind=wp), Intent (IN), Optional:: init
+!!       Real(Kind=dp), Intent (IN), Optional:: init
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!     End Subroutine cp_2d_r_guarantee_size
 !!
@@ -910,8 +910,8 @@ END SUBROUTINE cp_3d_r_write
 !!   SYNOPSIS
 !!     Function cp_1d_r_bsearch(array, el, l_index, u_index, error)&
 !!         Result(res)
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: array
-!!       Real(Kind=wp), Intent (IN):: el
+!!       Real(Kind=dp), Dimension(:), Intent (IN):: array
+!!       Real(Kind=dp), Intent (IN):: el
 !!       Integer, Intent (IN), Optional:: l_index, u_index
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
 !!       Integer:: res

@@ -226,12 +226,12 @@ CONTAINS
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer:: para_env
 !!       Type(gopt_f_type), Pointer:: obj_funct
-!!       Real(Kind=wp), Dimension(:), Intent (IN):: x0
+!!       Real(Kind=dp), Dimension(:), Intent (IN):: x0
 !!       Integer, Intent (IN), Optional:: m, print_every, master,&
 !!         max_f_per_iter
-!!       Real(Kind=wp), Intent (IN), Optional:: wanted_projected_gradient,&
+!!       Real(Kind=dp), Intent (IN), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta
-!!       Real(Kind=wp), Intent (IN), Dimension(size(x0)), Optional::&
+!!       Real(Kind=dp), Intent (IN), Dimension(size(x0)), Optional::&
 !!         lower_bound, upper_bound
 !!       Integer, Intent (IN), Dimension(size(x0)), Optional::&
 !!         kind_of_bound
@@ -514,13 +514,13 @@ END SUBROUTINE cp_opt_gopt_release
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Type(cp_para_env_type), Pointer, Optional:: para_env
 !!       Type(gopt_f_type), Pointer, Optional:: obj_funct
-!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: x
+!!       Real(Kind=dp), Dimension(:), Pointer, Optional:: x
 !!       Integer, Intent (OUT), Optional:: m, print_every, n_var, n_iter,&
 !!         master, status, max_f_per_iter, id_nr
 !!       Logical, Intent (OUT), Optional:: is_master, at_end
-!!       Real(Kind=wp), Intent (OUT), Optional:: wanted_projected_gradient,&
+!!       Real(Kind=dp), Intent (OUT), Optional:: wanted_projected_gradient,&
 !!         wanted_relative_f_delta, actual_projected_gradient, last_f, f
-!!       Real(Kind=wp), Pointer, Dimension(:), Optional:: lower_bound,&
+!!       Real(Kind=dp), Pointer, Dimension(:), Optional:: lower_bound,&
 !!         upper_bound
 !!       Integer, Pointer, Dimension(:), Optional:: kind_of_bound
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -635,7 +635,7 @@ END SUBROUTINE cp_opt_gopt_release
 !!         projected_gradient, converged, error)
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(Kind=dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Type(cp_error_type), Optional, Intent (INOUT):: error
@@ -907,7 +907,7 @@ END SUBROUTINE cp_opt_gopt_release
 !!         projected_gradient, converged, error) Result(res)
 !!       Type(cp_lbfgs_opt_gopt_type), Pointer:: optimizer
 !!       Integer, Intent (OUT), Optional:: n_iter
-!!       Real(Kind=wp), Intent (OUT), Optional:: f, last_f,&
+!!       Real(Kind=dp), Intent (OUT), Optional:: f, last_f,&
 !!         projected_gradient
 !!       Logical, Intent (OUT), Optional:: converged
 !!       Logical:: res
