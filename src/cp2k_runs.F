@@ -262,7 +262,7 @@ CONTAINS
              CASE ( "MONTE CARLO" )
                 CALL qs_mon_car ( force_env, globenv, error=error )
              CASE ( "DEBUG" )
-                CALL fist_debug_control ( force_env, globenv )
+                CALL fist_debug_control ( force_env, globenv, error=error )
              END SELECT
              CALL force_env_release(force_env, error=error)
           ELSE IF(globenv%program_name=="KG") THEN

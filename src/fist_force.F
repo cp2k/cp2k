@@ -22,7 +22,20 @@
 !******************************************************************************
 
 MODULE fist_force
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_assertion_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_logger_type,&
+                                             cp_warning_level
+  USE cp_output_handling, ONLY: cp_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewalds, ONLY : ewald_evaluate, ewald_print
@@ -49,7 +62,10 @@ MODULE fist_force
   USE timings, ONLY : timeset, timestop
   USE virial_methods, ONLY : virial_evaluate
   USE virial_types, ONLY : virial_type
-
+  USE input_section_types, ONLY: section_type, section_create, &
+       section_add_keyword, section_add_subsection, section_release,&
+       section_describe_html, section_describe_index_html, section_vals_type,&
+       section_vals_get_subs_vals, section_vals_get, section_vals_val_get
   PRIVATE
   PUBLIC :: fist_force_control, debug_variables_type
 
@@ -90,7 +106,7 @@ MODULE fist_force
 !!   SOURCE
 !!******************************************************************************
 
-SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
+SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,error)
 
   IMPLICIT NONE
 
@@ -100,7 +116,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
   LOGICAL, INTENT ( IN ) :: box_change
   TYPE ( debug_variables_type ), INTENT ( INOUT ), OPTIONAL :: debug
-
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 ! Locals
   INTEGER :: id, i, ii, natoms, nnodes, handle, isos, n, nlocal_particles
   INTEGER :: ikind, iparticle_kind, nparticle_kind, nparticle_local, iparticle_local
@@ -131,6 +148,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   REAL (KIND=dp), DIMENSION ( :,: ), ALLOCATABLE :: f_nonbond
   LOGICAL,SAVE :: first_time=.true.
   LOGICAL                                  :: PM1, PM2, PM3, PM4
+  TYPE(section_vals_type), POINTER         :: fist_section, print_section
 
   CALL timeset ( 'FORCE','I',' ',handle )
   ! Print Debug Info
@@ -144,7 +162,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
   IF((globenv%ionode).AND.(globenv%print%level>1)) PM2= .TRUE.
   IF((globenv%ionode).AND.(globenv%print%level>2)) PM3= .TRUE.
   IF((globenv%ionode).AND.(globenv%print%level>3)) PM4= .TRUE.
-
+  NULLIFY(fist_section)
+  fist_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%MM",error=error)
 
 ! associcating local pointers
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
@@ -470,6 +489,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
      END SELECT
   END IF
 
+  ! print properties if requested
+  print_section => section_vals_get_subs_vals(fist_section,"PRINT",error=error)
+  CALL print_fist(print_section, atomic_kind_set, particle_set, cell, error)
+
 ! deallocating all local variables
   IF ( ALLOCATED ( fg_coulomb ) ) THEN
     DEALLOCATE ( fg_coulomb, STAT = isos )
@@ -487,6 +510,46 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug )
 
 END SUBROUTINE fist_force_control
 
+!******************************************************************************
+!!****** fist_force/fist_force_control [1.1] *
+!!
+!!   NAME
+!!    print_fist
+!!
+!!   FUNCTION
+!!     Print properties number according the requests in input file
+!!
+!!   AUTHOR
+!!     Teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!!******************************************************************************
+SUBROUTINE print_fist(print_section, atomic_kind_set, particle_set, cell, error)
+  IMPLICIT NONE
+  ! Arguments
+  TYPE(section_vals_type), POINTER         :: print_section
+  TYPE ( particle_type ), DIMENSION(:), POINTER :: particle_set 
+  TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set  
+  TYPE ( cell_type ), POINTER                :: cell
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  ! Local Variables
+  TYPE(cp_logger_type), POINTER :: logger
+  TYPE(section_vals_type), POINTER :: print_key
+
+  logger => cp_error_get_logger(error)
+  print_key => section_vals_get_subs_vals(print_section,"dipole",error=error)  
+  IF (cp_should_output(logger%iter_info,print_key,error=error).AND.&
+       logger%para_env%mepos==logger%para_env%source) THEN 
+!     CALL fist_dipole(atomic_kind_set, particle_set, cell, error)
+  END IF
+
+END SUBROUTINE print_fist
+  
 !******************************************************************************
 END MODULE fist_force
 !******************************************************************************

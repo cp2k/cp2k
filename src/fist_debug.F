@@ -19,7 +19,18 @@
 !******************************************************************************
 
 MODULE fist_debug
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_assertion_failed
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_logger_type,&
+                                             cp_warning_level
   USE atomic_kind_types,                        ONLY : atomic_kind_type
   USE distribution_1d_types,                    ONLY : distribution_1d_type
   USE ewald_environment_types,                  ONLY : ewald_environment_type,&
@@ -93,13 +104,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE  debug_control ( force_env, globenv )
+SUBROUTINE  debug_control ( force_env, globenv, error)
 
   IMPLICIT NONE
 ! Arguments
   TYPE ( force_env_type ), POINTER :: force_env
   TYPE ( global_environment_type ), INTENT ( IN ) :: globenv
-
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 ! Locals
   INTEGER ::  iatom, iw, iwf, ir, nbond, nbend, ntorsion, group
   INTEGER, DIMENSION ( 2 ) :: dum
@@ -205,7 +217,7 @@ SUBROUTINE  debug_control ( force_env, globenv )
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
-                            box_change=.FALSE., debug = dbg )
+                            box_change=.FALSE., debug = dbg, error=error )
 
   CALL mp_sum ( dbg % f_bond, group )
   CALL mp_sum ( dbg % f_bend, group )

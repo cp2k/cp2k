@@ -174,7 +174,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
-                                 force_env%globenv, my_box_change )
+                                 force_env%globenv, my_box_change, error=error)
     CASE ( use_qs_force )
        IF (.not.need_f) THEN
           CALL qs_energies(force_env%qs_env,force_env%globenv)
