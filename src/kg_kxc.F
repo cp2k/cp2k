@@ -23,13 +23,13 @@ MODULE kg_kxc
   USE cp_control_types,                ONLY: dft_control_type
   USE functionals
   USE kinds,                           ONLY: dbl
+  USE message_passing,                 ONLY: mp_sum
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE pw_types,                        ONLY: pw_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc,                              ONLY: xc_calculate_pw1
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
                                              xc_dset_create,&
                                              xc_dset_release
@@ -38,69 +38,18 @@ MODULE kg_kxc
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: calculate_kxc_potential
+  PUBLIC :: calculate_kxc_derivatives
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='kg_kxc'
-
-  INTERFACE calculate_kxc_potential
-    MODULE PROCEDURE calc_kxc_pot_kg,calc_kxc_pot_kgpol 
-  END INTERFACE
 
 !******************************************************************************
 
 CONTAINS
 
 !******************************************************************************
-!!****** kgkxc/calc_kxc_pot_kg [1.1] *
+!!****** kgkxc/calculate_kxc_derivatives [1.1] *
 !!
 !!   NAME
-!!     calc_kxc_pot_kg
-!!
-!!   FUNCTION
-!!     Calculates the Kinetic-XC energy and potential        
-!!
-!!   AUTHOR
-!!     gt         
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-
- SUBROUTINE calc_kxc_pot_kg (pw_pool, rho_r, rho_g, v_r, e_xc, dft_control )
-
-
-    TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g
-    TYPE(coeff_type), INTENT(inout)          :: v_r
-    REAL(dbl), INTENT(out)                   :: e_xc
-    TYPE(dft_control_type), INTENT(IN), &
-      TARGET                                 :: dft_control
-
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calc_kxc_pot_kg (MODULE kg_kxc)"
-
-    COMPLEX(dbl), DIMENSION(:), POINTER      :: rhog
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: rho, vxc
-
-!--------------------------------------------------------
-
-  e_xc = 0.0_dbl
-  rho => rho_r%pw%cr3d(:,:,:)
-  vxc => v_r%pw%cr3d(:,:,:)
-  rhog => rho_g%pw%cc(:)
-
-  CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
-       e_xc,dft_control,pw_pool)
- 
-  vxc (:,:,:) =  vxc(:,:,:) *rho_r%pw%pw_grid%dvol
-
- END SUBROUTINE calc_kxc_pot_kg
-
-!******************************************************************************
-!!****** kgkxc/calc_kxc_pot_kgpol [1.1] *
-!!
-!!   NAME
-!!     calc_kxc_pot_kgpol
+!!     calculate_kxc_derivatives
 !!
 !!   FUNCTION
 !!     Calculates the K-XC energy  and potential, and potentials associated
@@ -118,42 +67,52 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
- SUBROUTINE calc_kxc_pot_kgpol ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
-                           v2_r, e_xc, e1_xc, e2_xc, dft_control )
+ SUBROUTINE calculate_kxc_derivatives ( pw_pool,rho_r, rho_g, rhop_r, v_r, v1_r, &
+                           v2_r, e1_xc, e2_xc, dft_control,calculate_forces )
 
 
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r
-    TYPE(coeff_type), INTENT(inout)          :: v_r, v1_r, v2_r
-    REAL(dbl), INTENT(out)                   :: e_xc, e1_xc, e2_xc
+    TYPE(coeff_type), INTENT(in)             :: rho_r, rho_g, rhop_r, v_r
+    TYPE(coeff_type), INTENT(inout)          :: v1_r, v2_r
+    REAL(dbl), INTENT(out)                   :: e1_xc, e2_xc
     TYPE(dft_control_type), INTENT(IN), &
       TARGET                                 :: dft_control
+    LOGICAL, INTENT(in)                      :: calculate_forces
 
     CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE calc_kxc_pot_kgpol (MODULE kg_kxc)"
+      routine = "SUBROUTINE calc_kxc_derivatives (MODULE kg_kxc)"
 
-    REAL(dbl), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc, vxc
+    INTEGER                                  :: handle, order
+    REAL(dbl), DIMENSION(:, :, :), POINTER   :: v1xc, v2xc
 
 !--------------------------------------------------------
+  CALL timeset ( 'routine','I',' ',handle )
 
-  e_xc = 0.0_dbl
-  vxc => v_r%pw%cr3d(:,:,:)
   v1xc => v1_r%pw%cr3d(:,:,:)
   v2xc => v2_r%pw%cr3d(:,:,:)
 
-  CALL xc_calculate_pw1 (rho_r%pw,rho_g%pw,v_r%pw, &
-       e_xc,dft_control,pw_pool)
+  IF(calculate_forces) THEN
+    order=3
+  ELSE
+    order=2
+  END IF
 
   CALL xc_calculate_derivatives (rho_r%pw,rhop_r%pw,v_r%pw,v1_r%pw, &
-                             v2_r%pw, e1_xc, e2_xc, dft_control, pw_pool)
+                             v2_r%pw, e1_xc, e2_xc, order, dft_control, pw_pool)
  
-  e1_xc =  rho_r%pw%pw_grid%dvol*e1_xc      
-  e2_xc =  0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
-  vxc (:,:,:) =   vxc(:,:,:) *rho_r%pw%pw_grid%dvol
-  v1xc (:,:,:) =  v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
-  v2xc (:,:,:) =  0.5_dbl * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
+  IF ( rho_r%pw%pw_grid%para%mode == 1 ) THEN
+    CALL mp_sum ( e1_xc, rho_r%pw%pw_grid%para%group )
+    CALL mp_sum ( e2_xc, rho_r%pw%pw_grid%para%group )
+  END IF
 
- END SUBROUTINE calc_kxc_pot_kgpol
+  e2_xc =  0.5_dbl*rho_r%pw%pw_grid%dvol*e2_xc      
+
+  v1xc (:,:,:) =  v1xc(:,:,:) *rho_r%pw%pw_grid%dvol
+  IF (calculate_forces)THEN
+    v2xc (:,:,:) =  0.5_dbl * v2xc(:,:,:) *rho_r%pw%pw_grid%dvol
+  END IF
+  CALL timestop(0.0_dbl,handle)
+ END SUBROUTINE calculate_kxc_derivatives
 !******************************************************************************
 !!****** xc/xc_calculate_derivatives [1.0] *
 !!
@@ -165,20 +124,21 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control, pw_pool )
+SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,order,&
+                                      dft_control, pw_pool )
 
 
     TYPE(pw_type), INTENT(IN)                :: rho_r, rhop_r, v
     TYPE(pw_type), INTENT(INOUT)             :: v1, v2
     REAL(dbl), INTENT(out)                   :: e1, e2
+    INTEGER, intent(IN)                      :: order
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_calculate_derivatives', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, k, n(3), ntot, &
-                                                order, stat
+    INTEGER                                  :: i, ii, j, k, n(3), ntot, stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     INTEGER, DIMENSION(3, 3)                 :: nd
     LOGICAL                                  :: do_lsd, failure, spezgrid
@@ -218,8 +178,6 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control, pw
      END DO
   END IF
 
-  order = 3
-
 ! no gradient corrections are implemented for derivatives
   gradient_functionals = dft_control%xc_control%gradient_functionals
   do_lsd = (dft_control%nspins > 1)
@@ -241,14 +199,18 @@ SUBROUTINE xc_calculate_derivatives ( rho_r,rhop_r,v,v1,v2,e1,e2,dft_control, pw
            DO i = bo(1,1), bo(2,1)
               ii = ii + 1
               v1%cr3d(i,j,k) = derivative_set%data(ii,2)*rhop_r%cr3d(i,j,k)
-              v2%cr3d(i,j,k) = derivative_set%data(ii,3)*rhop_r%cr3d(i,j,k)
+              IF(order==3)THEN
+                 v2%cr3d(i,j,k) = derivative_set%data(ii,3)*rhop_r%cr3d(i,j,k)
+              END IF
            END DO
         END DO
      END DO
      DO k = bo(1,3), bo(2,3)
         DO j = bo(1,2), bo(2,2)
            DO i = bo(1,1), bo(2,1)
-              v2%cr3d(i,j,k) =v2%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
+              IF(order==3)THEN
+                 v2%cr3d(i,j,k) =v2%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
+              END IF
               e1= e1+ v%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
               e2= e2+ v1%cr3d(i,j,k)*rhop_r%cr3d(i,j,k)
            END DO
