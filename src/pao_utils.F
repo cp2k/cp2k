@@ -26,7 +26,8 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE pao_utils
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_message,&
                                              cp_error_type

@@ -23,7 +23,8 @@
 !******************************************************************************
 
 MODULE xc_functionals
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_error_type,&
                                              cp_unimplemented_error
   USE cp_log_handling,                 ONLY: cp_failure_level,&

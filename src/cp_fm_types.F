@@ -35,7 +35,8 @@ MODULE cp_fm_types
                                              cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -1062,16 +1063,18 @@ CONTAINS
     LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
-    LOGICAL :: failure, loc
+    LOGICAL :: failure, loc, my_long_description
     CHARACTER(len=*), PARAMETER :: routineN='cp_fm_write',&
          routineP=moduleN//':'//routineN
     INTEGER, SAVE :: uniquing_nr=0
     INTEGER :: iostat
     TYPE(cp_logger_type), POINTER :: logger
     TYPE(cp_para_env_type), POINTER :: para_env
-    failure=.FALSE.; loc=.FALSE.
+
+    failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
 
     IF (PRESENT(local)) loc=local
+    IF (PRESENT(long_description)) my_long_description=long_description
     logger=>cp_error_get_logger(error) 
     para_env=>logger%para_env
     IF (ASSOCIATED(matrix)) THEN
@@ -1084,9 +1087,9 @@ CONTAINS
                iostat=iostat) matrix%name
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " matrix_structure="
           CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=unit_nr,&
-               long_description=long_description,error=error)
+               long_description=my_long_description,error=error)
           WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ,"
-          IF (long_description) THEN
+          IF (my_long_description) THEN
              IF (loc) THEN
                 WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " local_data=("
                 CALL cp_2d_r_write(matrix%local_data,unit_nr=unit_nr,error=error)
@@ -1106,7 +1109,7 @@ CONTAINS
           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " }"
        END IF
 
-       IF (.NOT.loc .AND. long_description) THEN
+       IF (.NOT.loc .AND. my_long_description) THEN
           CALL cp_assert(ASSOCIATED(matrix%matrix_struct),&
                cp_warning_level,cp_assertion_failed,routineP,&
                "matrix context not associated "//&
@@ -1134,7 +1137,9 @@ CONTAINS
           END IF
        END IF
     ELSE
-       WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_fm_types>:*null*"
+       IF (loc .OR. para_env%mepos==para_env%source) THEN
+          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_fm_types>:*null*"
+       END IF
     END IF
   END SUBROUTINE cp_fm_write
 !***************************************************************************

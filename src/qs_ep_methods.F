@@ -34,7 +34,8 @@ MODULE qs_ep_methods
                                              set_atomic_kind
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_check,&
@@ -54,6 +55,7 @@ MODULE qs_ep_methods
   USE cp_fm_types,                     ONLY: cp_fm_write,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
+  USE cp_fm_vect,                      ONLY: cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -62,6 +64,7 @@ MODULE qs_ep_methods
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_env,                     ONLY: cp_para_env_from_globenv
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -135,6 +138,8 @@ MODULE qs_ep_methods
                                              p_proj_transfer_blacs_to_f,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
+  USE qs_p_types,                      ONLY: p_env_write,&
+                                             qs_p_env_type
   USE qs_p_utils,                      ONLY: p_env_create,&
                                              p_env_psi0_changed,&
                                              p_op_l1,&
@@ -206,7 +211,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   LOGICAL :: failure
   CHARACTER(len=*), PARAMETER :: routineN='qs_ep_calculation',&
         routineP=moduleN//':'//routineN
-  INTEGER :: isub, iatom, natoms, handle, stat
+  INTEGER :: isub, iatom, natoms, handle, stat, unit_nr
   TYPE(qs_p_projection_p_type), DIMENSION(2) :: sub_proj
   TYPE(particle_type), DIMENSION(:), POINTER :: particle_set
   TYPE(qs_ep_env_type), POINTER :: ep_env
@@ -223,6 +228,7 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
   failure=.FALSE.
   NULLIFY(particle_set,ep_env,sub_qs,psi1,L_psi1,ao_mo_fm_pools)
   logger => cp_error_get_logger(error)
+  unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
 
   CALL cp_log(logger,cp_note_level,routineP,&
        "Finishing initialization of qs_env")
@@ -263,6 +269,23 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
           error=error)
   END IF
 
+    IF (cp_debug .AND. debug_this_module) THEN
+       CALL cp_sm_output(logger=logger, &
+            outputName="ep_s", &
+            fromWhere=routineP, iter=0, &
+            matrix=ep_env%main_qs_env%s(1)%matrix,&
+            para_env=logger%para_env,error=error)
+
+       DO ispin=1,nspins
+          CALL cp_sm_output(logger=logger, &
+               outputName="ep_ks-"//cp_to_string(ispin), &
+            fromWhere=routineP, iter=0, &
+            matrix=ep_env%main_qs_env%k(ispin)%matrix,&
+            para_env=ep_env%main_qs_env%para_env,error=error)
+       END DO
+    END IF
+
+
   ! energy in subsystem with diag
   DO isub=1,SIZE(ep_env%sub_qs_env)
      CALL cp_log(logger,cp_note_level,routineP,&
@@ -279,6 +302,10 @@ SUBROUTINE qs_ep_calculation(qs_env,globenv, error)
 
   CALL p_env_psi0_changed(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
        Hrho_psi0d=ep_env%pi_Hrho_psi0d, error=error)
+
+  CALL p_env_write(ep_env%main_p_env,unit_nr=unit_nr,&
+            long_description=debug_this_module, local=.FALSE.,&
+            error=error)
 
   CALL p_postortho(p_env=ep_env%main_p_env,qs_env=ep_env%main_qs_env,&
           v=ep_env%pi_Hrho_psi0d, &
@@ -740,7 +767,7 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
            CALL get_qs_env(sub_qs_env(isub)%qs_env,c=sub_c,error=error)
            CALL get_mo_set(sub_c(ispin)%mo_set,eigenvectors=sub_orbitals,&
                 nmo=sub_nmo)
-           CPInvariant(start_col+sub_nmo<=nmo,cp_failure_level,routineP,error,failure)
+           CPInvariant(start_col+sub_nmo<nmo+2,cp_failure_level,routineP,error,failure)
            IF (cp_debug.and.debug_this_module) THEN
               logger => cp_error_get_logger(error)
               IF (logger%print_keys%perturb_psi0) THEN
@@ -765,12 +792,14 @@ SUBROUTINE ep_env_transfer_psi0(ep_env, error)
         logger => cp_error_get_logger(error)
         IF (logger%print_keys%perturb_psi0) THEN
            unit_nr=cp_logger_get_default_unit_nr(logger, local=.FALSE.)
-           CALL get_mo_set(ep_env%main_qs_env%c(ispin)%mo_set,&
-                eigenvectors=orbitals, nmo=nmo)
-           WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&
-                "Printing psi of main_qs_env spin=",ispin," nmo=",nmo
-           CALL cp_fm_write(orbitals,unit_nr,long_description=.TRUE.,&
-                local=.FALSE.,error=error)
+           DO ispin=1,nspins
+              CALL get_mo_set(ep_env%main_qs_env%c(ispin)%mo_set,&
+                   eigenvectors=orbitals, nmo=nmo)
+              WRITE (unit=unit_nr,fmt="(a,i4,a,i4)")&
+                   "Printing psi of main_qs_env spin=",ispin," nmo=",nmo
+              CALL cp_fm_write(orbitals,unit_nr,long_description=.TRUE.,&
+                   local=.FALSE.,error=error)
+           END DO
         END IF
      END IF
   END IF

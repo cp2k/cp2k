@@ -26,8 +26,9 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pao_bas_projection_types
-  USE cp_array_i_utils,                  ONLY: cp_1d_i_write
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_array_i_utils,                ONLY: cp_1d_i_write
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_debug,&
                                              cp_error_type
   USE cp_linked_list_int,              ONLY: cp_create,&

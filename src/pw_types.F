@@ -28,7 +28,8 @@
 !******************************************************************************
 
 MODULE pw_types
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -119,6 +120,15 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_allocate
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_allocate(pw, pw_grid, use_data, mass_flag)
+!!       Implicit None
+!!       Integer, Intent (IN):: use_data
+!!       Type(pw_grid_type), Intent (IN), Target:: pw_grid
+!!       Type(pw_type), Intent (INOUT), Target:: pw
+!!       Logical, Intent (IN), Optional:: mass_flag
+!!     End Subroutine pw_allocate
 !!
 !!   FUNCTION
 !!     Allocate a plane wave type variable
@@ -213,6 +223,12 @@ END SUBROUTINE pw_allocate
 !!   NAME
 !!     pw_deallocate
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_deallocate(pw)
+!!       Implicit None
+!!       Type(pw_type), Intent (INOUT):: pw
+!!     End Subroutine pw_deallocate
+!!
 !!   FUNCTION
 !!     Deallocate a plane wave type variable
 !!
@@ -265,6 +281,12 @@ END SUBROUTINE pw_deallocate
 !!
 !!   NAME
 !!     pw_zero
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_zero(pw)
+!!       Implicit None
+!!       Type(pw_type), Intent (INOUT):: pw
+!!     End Subroutine pw_zero
 !!
 !!   FUNCTION
 !!     Set values of a pw type to zero
@@ -320,6 +342,13 @@ END SUBROUTINE pw_zero
 !!
 !!   NAME
 !!     pw_copy
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_copy(pw1, pw2)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1
+!!       Type(pw_type), Intent (INOUT):: pw2
+!!     End Subroutine pw_copy
 !!
 !!   FUNCTION
 !!     copy a pw type variable
@@ -407,6 +436,13 @@ END SUBROUTINE pw_copy
 !!   NAME
 !!     pw_derive
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_derive(pw, n)
+!!       Implicit None
+!!       Type(pw_type), Intent (INOUT):: pw
+!!       Integer, Dimension(3), Intent (IN):: n
+!!     End Subroutine pw_derive
+!!
 !!   FUNCTION
 !!     Calculate the derivative of a plane wave vector
 !!
@@ -443,7 +479,7 @@ SUBROUTINE pw_derive ( pw, n )
 
   IF ( ANY ( n < 0 ) ) CALL stop_program ( "pw_derive", "n < 0" )
 
-  m = sum ( n )
+  m = SUM ( n )
   im = CMPLX ( 0._dbl, 1._dbl, dbl ) ** m
 
   flop = 0._dbl
@@ -499,6 +535,13 @@ END SUBROUTINE pw_derive
 !!
 !!   NAME
 !!     pw_transfer
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_transfer(pw1, pw2)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1
+!!       Type(pw_type), Intent (INOUT):: pw2
+!!     End Subroutine pw_transfer
 !!
 !!   FUNCTION
 !!     Generalize copy of pw types
@@ -566,6 +609,13 @@ END SUBROUTINE pw_transfer
 !!
 !!   NAME
 !!     pw_add
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_add(pw1, pw2, pw3)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1, pw2
+!!       Type(pw_type), Intent (INOUT):: pw3
+!!     End Subroutine pw_add
 !!
 !!   FUNCTION
 !!     pw3 = pw1 + pw2
@@ -660,6 +710,13 @@ END SUBROUTINE pw_add
 !!   NAME
 !!     pw_sumup_square
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_sumup_square(pw1, pw2)
+!!       Implicit None
+!!       Type(pw_type), Intent (INOUT):: pw1
+!!       Type(pw_type), Intent (IN):: pw2
+!!     End Subroutine pw_sumup_square
+!!
 !!   FUNCTION
 !!     pw1 = pw1 + pw2*pw2
 !!
@@ -736,6 +793,13 @@ END SUBROUTINE pw_sumup_square
 !!   NAME
 !!     pw_sumup
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_sumup(pw1, pw2)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1
+!!       Type(pw_type), Intent (INOUT):: pw2
+!!     End Subroutine pw_sumup
+!!
 !!   FUNCTION
 !!     pw2 = pw1 + pw2
 !!
@@ -797,6 +861,13 @@ END SUBROUTINE pw_sumup
 !!
 !!   NAME
 !!     pw_subtract
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_subtract(pw1, pw2, pw3)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1, pw2
+!!       Type(pw_type), Intent (INOUT):: pw3
+!!     End Subroutine pw_subtract
 !!
 !!   FUNCTION
 !!     pw3 = pw1 - pw2
@@ -861,6 +932,13 @@ END SUBROUTINE pw_subtract
 !!
 !!   NAME
 !!     pw_reduce
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_reduce(pw1, pw2)
+!!       Implicit None
+!!       Type(pw_type), Intent (IN):: pw1
+!!       Type(pw_type), Intent (INOUT):: pw2
+!!     End Subroutine pw_reduce
 !!
 !!   FUNCTION
 !!     pw2 = pw2 - pw1
@@ -1471,11 +1549,11 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_out => pw2 % cc3d
       CASE ( "FW_C3DC1D" )
         c_in => pw1 % cc3d
-        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
       CASE ( "FW_R3DC1D" )
-        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
         c_out = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
@@ -1484,18 +1562,18 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_out => pw2 % cc3d
       CASE ( "BW_C3DR3D" )
         c_in => pw1 % cc3d
-        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
       CASE ( "BW_C1DC3D" )
         c_out => pw2 % cc3d
-        IF ( test ) write ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
         CALL pw_scatter ( pw1, c_out )
       CASE ( "BW_C1DR3D" )
-        IF (.not. associated (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
+        IF (.NOT. ASSOCIATED (c_out)) ALLOCATE ( c_out( n(1), n(2), n(3) ), STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out", &
             pw1 % pw_grid % ngpts )
-        IF ( test ) write ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
+        IF ( test ) WRITE ( *,'(A)') "  PW_SCATTER : 3d -> 1d "
         CALL pw_scatter ( pw1, c_out )
     END SELECT
 
@@ -1517,21 +1595,21 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         !     nothing to do
       CASE ( "FW_C3DC1D" )
         !     gather results
-        IF ( test ) write ( *,'(A)') "  PW_GATHER : 3d -> 1d "
+        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
         CALL pw_gather ( pw2, c_out )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
       CASE ( "FW_R3DC1D" )
         !     gather results
-        IF ( test ) write ( *,'(A)') "  PW_GATHER : 3d -> 1d "
+        IF ( test ) WRITE ( *,'(A)') "  PW_GATHER : 3d -> 1d "
         CALL pw_gather ( pw2, c_out )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
-      Case ( "BW_C3DC3D" )
+      CASE ( "BW_C3DC3D" )
         !     nothing to do
       CASE ( "BW_C3DR3D" )
         !     use real part only
-        IF ( test ) write ( *,'(A)') "  REAL part "
+        IF ( test ) WRITE ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out, dbl )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
@@ -1539,7 +1617,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         !     nothing to do
       CASE ( "BW_C1DR3D" )
         !     use real part only
-        IF ( test ) write ( *,'(A)') "  REAL part "
+        IF ( test ) WRITE ( *,'(A)') "  REAL part "
         pw2 % cr3d = REAL ( c_out, dbl )
         DEALLOCATE ( c_out, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_out" )
@@ -1588,12 +1666,12 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         c_in = CMPLX ( pw1 % cr3d, 0._dbl, dbl )
       CASE ( "BW_C1DC3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            write ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+            WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
         CALL pw_scatter ( pw1, grays )
         c_in => pw2 % cc3d
       CASE ( "BW_C1DR3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            write ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
+            WRITE ( *,'(A)') "  PW_SCATTER : 2d -> 1d "
         CALL pw_scatter ( pw1, grays )
         nloc = pw2 % pw_grid % npts_local
         ALLOCATE ( c_in( nloc(1), nloc(2), nloc(3) ), STAT = ierr )
@@ -1620,11 +1698,11 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
                         "in parallel 3d FFT" )
       CASE ( "FW_C3DC1D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            write ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+            WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
         CALL pw_gather ( pw2, grays )
       CASE ( "FW_R3DC1D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            write ( *,'(A)') "  PW_GATHER : 2d -> 1d "
+            WRITE ( *,'(A)') "  PW_GATHER : 2d -> 1d "
         CALL pw_gather ( pw2, grays )
         DEALLOCATE ( c_in, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
@@ -1632,7 +1710,7 @@ SUBROUTINE fft_wrap_pw1pw2 ( pw1, pw2, debug )
         ! nothing to do
       CASE ( "BW_C1DR3D" )
         IF ( test .AND. pw1%pw_grid%para%group_head ) &
-            write ( *,'(A)') "  Real part "
+            WRITE ( *,'(A)') "  Real part "
         pw2 % cr3d = REAL ( c_in, dbl )
         DEALLOCATE ( c_in, STAT = ierr )
         IF ( ierr /= 0 ) CALL stop_memory ( "fft_wrap_pw1pw2", "c_in" )
@@ -1709,6 +1787,13 @@ END FUNCTION fftselect
 !!
 !!   NAME
 !!     pw_write
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_write(pw, unit_nr, error)
+!!       Type(pw_type), Intent (IN):: pw
+!!       Integer, Intent (IN):: unit_nr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_write
 !!
 !!   FUNCTION
 !!     writes a small description of the actual grid

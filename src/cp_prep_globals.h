@@ -3,7 +3,8 @@
 
 ! The following macros are here to facilitate the use of error handling 
 ! proposed in cp_error_handling.
-! they assume at least 'use cp_error_handling, only: cp_assert, cp_error_type'
+! they assume at least
+! 'use cp_error_handling, only: cp_assert, cp_a_l, cp_error_type'
 ! and 'use cp_log_handling, only: cp_to_string'
 ! They ere useful because they give a reference to the file and line
 ! number in the error message.
@@ -91,31 +92,31 @@ if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
 ! the test is not inlined (you have always a function call)
 
 #define CPPrecondition(cond,level,routineP,error,failure) \
-call cp_assert(cond,level,200,routineP,'PRECOND',error,failure)
+call cp_a_l(cond,level,routineP,__LINE__,error,failure)
 #define CPPostcondition(cond,level,routineP,error,failure) \
-call cp_assert(cond,level,-200,routineP,'POSTCOND',error,failure)
+call cp_a_l(cond,level,routineP,__LINE__,error,failure)
 #define CPInvariant(cond,level,routineP,error,failure) \
-call cp_assert(cond, level, -100,routineP,'INVARIANT',error,failure)
+call cp_a_l(cond, level,routineP,__LINE__,error,failure)
 #define CPAssert(cond,level,routineP,error,failure) \
-call cp_assert(cond,level,-300,routineP,'ASSERT',error,failure)
+call cp_a_l(cond,level,routineP,__LINE__,error,failure)
 #define CPErrorMessage(level,routineP,msg,error) \
 call cp_error_message(level,routineP,msg,error)
 #define CPPreconditionNoFail(cond,level,routineP,error) \
-call cp_assert(cond,level,200,routineP,'PRECOND',error)
+call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPPostconditionNoFail(cond,level,routineP,error) \
-call cp_assert(cond,level,-200,routineP,'POSTCOND',error)
+call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPInvariantNoFail(cond,level,routineP,error) \
-call cp_assert(cond, level, -100,routineP,'INVAR',error)
+call cp_a_l(cond, level,routineP,__LINE__,error)
 #define CPAssertNoFail(cond,level,routineP,error) \
-call cp_assert(cond,level,-300,routineP,'ASSERT',error)
+call cp_a_l(cond,level,routineP,__LINE__,error)
 #define CPPreconditionNoErr(cond, level, routine_name) \
-call cp_assert(cond, level, 200, routine_name ,"PRECOND")
+call cp_a_l(cond,level,routine_name,__LINE__)
 #define CPPostconditionNoErr(cond, level, routine_name) \
-call cp_assert(cond, level, -200, routine_name ,"POSTCOND")
+call cp_assert(cond, level, routine_name ,__LINE__)
 #define CPInvariantNoErr(cond,level,routineP) \
-call cp_assert(cond, level, -100,routineP,'INVAR')
+call cp_a_l(cond, level, routineP,__LINE__)
 #define CPAssertNoErr(cond,level,routineP) \
-call cp_assert(.false.,level,-300,routineP,'ASSERT')
+call cp_a_l(.false.,level,routineP,__LINE__)
 
 #endif
 

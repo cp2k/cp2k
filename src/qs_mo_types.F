@@ -36,7 +36,8 @@ MODULE qs_mo_types
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -161,35 +162,44 @@ MODULE qs_mo_types
 
 CONTAINS
 
-  !!****f* qs_mo_types/allocate_mo_set [1.0] *
-  !!
-  !!   NAME
-  !!     allocate_mo_set
-  !!
-  !!   FUNCTION
-  !!     allocate a mo set and partially initializes it (nao,nmo,nelectron
-  !!     are vaild).
-  !!     For the full initialization you need to call init_mo_set
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - mo_set: the mo_set to allocate
-  !!     - nao: number of atom orbitals
-  !!     - nmo: number of molecular orbitals
-  !!     - nelectrons: number of electrons
-  !!     - maxocc: maximum occupation of an orbital (LDA: 2, LSD:1)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Matthias Krack
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 splitted initialization in two phases [fawzi]
-  !!
-  !!*** *********************************************************************
+!!****f* qs_mo_types/allocate_mo_set [1.0] *
+!!
+!!   NAME
+!!     allocate_mo_set
+!!
+!!   SYNOPSIS
+!!     Subroutine allocate_mo_set(mo_set, nao, nmo, nelectron, maxocc,&
+!!         error)
+!!       Type(mo_set_type), Pointer:: mo_set
+!!       Real(Kind=wp), Intent (IN):: maxocc
+!!       Integer, Intent (IN):: nao, nelectron, nmo
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine allocate_mo_set
+!!
+!!   FUNCTION
+!!     allocate a mo set and partially initializes it (nao,nmo,nelectron
+!!     are vaild).
+!!     For the full initialization you need to call init_mo_set
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - mo_set: the mo_set to allocate
+!!     - nao: number of atom orbitals
+!!     - nmo: number of molecular orbitals
+!!     - nelectrons: number of electrons
+!!     - maxocc: maximum occupation of an orbital (LDA: 2, LSD:1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Matthias Krack
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 splitted initialization in two phases [fawzi]
+!!
+!!*** *********************************************************************
   SUBROUTINE allocate_mo_set(mo_set,nao,nmo,nelectron,maxocc, error)
 
 !   Purpose: Allocate a wavefunction data structure.
@@ -244,32 +254,39 @@ CONTAINS
 
 !****************************************************************************
 
-  !!****f* qs_mo_types/init_mo_set [1.0] *
-  !!
-  !!   NAME
-  !!     init_mo_set
-  !!
-  !!   FUNCTION
-  !!     initializes an allocated mo_set.
-  !!     eigenvalues, eigenvectors, occupation_numbers are valid only
-  !!     after this call.
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   INPUTS
-  !!     - mo_set: the mo_set to initialize
-  !!     - fm_pool: a pool out which you initialize the mo_set
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     11.2002 rewamped [fawzi]
-  !!
-  !!*** *********************************************************************
+!!****f* qs_mo_types/init_mo_set [1.0] *
+!!
+!!   NAME
+!!     init_mo_set
+!!
+!!   SYNOPSIS
+!!     Subroutine init_mo_set(mo_set, fm_pool, error)
+!!       Type(mo_set_type), Pointer:: mo_set
+!!       Type(cp_fm_pool_type), Pointer:: fm_pool
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine init_mo_set
+!!
+!!   FUNCTION
+!!     initializes an allocated mo_set.
+!!     eigenvalues, eigenvectors, occupation_numbers are valid only
+!!     after this call.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - mo_set: the mo_set to initialize
+!!     - fm_pool: a pool out which you initialize the mo_set
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     11.2002 rewamped [fawzi]
+!!
+!!*** *********************************************************************
   SUBROUTINE init_mo_set(mo_set, fm_pool, error)
     TYPE(mo_set_type), POINTER                   :: mo_set
     TYPE(cp_fm_pool_type), POINTER               :: fm_pool

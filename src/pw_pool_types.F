@@ -35,7 +35,8 @@
 MODULE pw_pool_types
   USE coefficient_types,               ONLY: PLANEWAVES,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -157,6 +158,13 @@ CONTAINS
 !!   NAME
 !!     pw_pool_create
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_create(pool, pw_grid_ptr, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(pw_grid_type), Pointer:: pw_grid_ptr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_create
+!!
 !!   FUNCTION
 !!     creates a pool for pw
 !!
@@ -205,6 +213,12 @@ CONTAINS
 !!   NAME
 !!     pw_pool_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_retain(pool, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_retain
+!!
 !!   FUNCTION
 !!     retains the pool (see cp2k/doc/ReferenceCounting.html)
 !!
@@ -245,6 +259,12 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_flush_cache
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_flush_cache(pool, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_flush_cache
 !!
 !!   FUNCTION
 !!     deallocates all the cached grids
@@ -315,6 +335,12 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_release
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_release(pool, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_release
 !!
 !!   FUNCTION
 !!     releases the given pool (see cp2k/doc/ReferenceCounting.html)
@@ -402,6 +428,17 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_pool_create_pw
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_create_pw(pool, pw, use_data, in_space, mass_flag,&
+!!         error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Integer, Intent (IN):: use_data
+!!       Integer, Intent (IN), Optional:: in_space
+!!       Logical, Intent (IN), Optional:: mass_flag
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Type(pw_type), Pointer:: pw
+!!     End Subroutine pw_pool_create_pw
 !!
 !!   FUNCTION
 !!     returns a pw, allocating it if none is in the pool
@@ -502,6 +539,13 @@ CONTAINS
 !!   NAME
 !!     pw_pool_give_back_pw
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_give_back_pw(pool, pw, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(pw_type), Pointer:: pw
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_give_back_pw
+!!
 !!   FUNCTION
 !!     returns the pw to the pool
 !!
@@ -582,6 +626,17 @@ CONTAINS
 !!   NAME
 !!     pw_pool_init_coeff
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_init_coeff(pool, coeff, use_data, in_space,&
+!!         mass_flag, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(coeff_type), Intent (OUT):: coeff
+!!       Integer, Intent (IN):: use_data
+!!       Logical, Intent (IN), Optional:: mass_flag
+!!       Integer, Intent (IN), Optional:: in_space
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_init_coeff
+!!
 !!   FUNCTION
 !!     initializes a coefficent with the corresponding grid type
 !!
@@ -634,6 +689,13 @@ END SUBROUTINE pw_pool_init_coeff
 !!   NAME
 !!     pw_pool_give_back_coeff
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pool_give_back_coeff(pool, coeff, error)
+!!       Type(pw_pool_type), Pointer:: pool
+!!       Type(coeff_type), Intent (INOUT):: coeff
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pool_give_back_coeff
+!!
 !!   FUNCTION
 !!     returns the pw part of the coeff to the pool
 !!
@@ -672,6 +734,17 @@ END SUBROUTINE pw_pool_give_back_coeff
 !!
 !!   NAME
 !!     pw_pools_init_coeffs
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pools_init_coeffs(pools, coeffs, use_data, mass_flag,&
+!!         in_space, error)
+!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(coeff_type), Dimension(:), Intent (OUT):: coeffs
+!!       Integer, Intent (IN):: use_data
+!!       Logical, Intent (IN), Optional:: mass_flag
+!!       Integer, Intent (IN), Optional:: in_space
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pools_init_coeffs
 !!
 !!   FUNCTION
 !!     initializes a multigrid structure of coeff
@@ -727,6 +800,13 @@ END SUBROUTINE pw_pools_init_coeffs
 !!   NAME
 !!     pw_pools_give_back_coeffs
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pools_give_back_coeffs(pools, coeffs, error)
+!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(coeff_type), Dimension(:), Intent (INOUT):: coeffs
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pools_give_back_coeffs
+!!
 !!   FUNCTION
 !!     returns the pw part of the coefficents into the pools
 !!
@@ -771,6 +851,13 @@ END SUBROUTINE pw_pools_give_back_coeffs
 !!
 !!   NAME
 !!     pw_pools_copy
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pools_copy(source_pools, target_pools, error)
+!!       Type(pw_pool_p_type), Dimension(:), Pointer:: source_pools,&
+!!         target_pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pools_copy
 !!
 !!   FUNCTION
 !!     copies a multigrid pool, the underlying pools are shared
@@ -820,6 +907,12 @@ END SUBROUTINE pw_pools_copy
 !!   NAME
 !!     pw_pools_dealloc
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_pools_dealloc(pools, error)
+!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pools_dealloc
+!!
 !!   FUNCTION
 !!     deallocates the given pools (releasing each of the underlying
 !!     pools)
@@ -864,6 +957,12 @@ END SUBROUTINE pw_pools_dealloc
 !!
 !!   NAME
 !!     pw_pools_flush_cache
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_pools_flush_cache(pools, error)
+!!       Type(pw_pool_p_type), Dimension(:), Pointer:: pools
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_pools_flush_cache
 !!
 !!   FUNCTION
 !!     deallocates all the cached grids

@@ -35,7 +35,8 @@ MODULE qs_p_utils
                                              cp_sp_create,&
                                              cp_sp_multiplies_blacs,&
                                              cp_sp_set_to
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -214,6 +215,7 @@ CONTAINS
        p_env%ref_count=1
        last_p_env_id=last_p_env_id+1
        p_env%id_nr=last_p_env_id
+       p_env%iter=0
 
        IF (PRESENT(kpp1_env)) THEN
           p_env%kpp1_env => kpp1_env
@@ -346,6 +348,8 @@ CONTAINS
     CPPrecondition(p_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
+       p_env%iter=p_env%iter+1
+
        CALL get_qs_env(qs_env,ao_mo_fm_pools=ao_mo_fm_pools,&
             c=c, S=S, para_env=para_env, ks_env=ks_env, p=p, error=error)
 

@@ -25,7 +25,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_charges_types
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -53,36 +54,36 @@ MODULE qs_charges_types
 !***
 !****************************************************************************
   
-  !!****s* qs_charges_types/qs_charges_type [1.0] *
-  !!
-  !!   NAME
-  !!     qs_charges_type
-  !!
-  !!   FUNCTION
-  !!     Container for information about total charges on the grids
-  !!
-  !!   NOTES
-  !!     this type is loosing the reason to exist...
-  !!
-  !!   ATTRIBUTES
-  !!     total_rho_core_rspace: total charge on the rho_core grid
-  !!     total_rho_rspace: total charge in the real space
-  !!     total_rho_gspace: total charge in the g space
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     10.2002 created [fawzi]
-  !!     11.2002 moved total_rho_elec_rspace to qs_rho_type
-  !!
-  !!   SOURCE
+!!****s* qs_charges_types/qs_charges_type [1.0] *
+!!
+!!   NAME
+!!     qs_charges_type
+!!
+!!   FUNCTION
+!!     Container for information about total charges on the grids
+!!
+!!   NOTES
+!!     this type is loosing the reason to exist...
+!!
+!!   ATTRIBUTES
+!!     total_rho_core_rspace: total charge on the rho_core grid
+!!     total_rho_rspace: total charge in the real space
+!!     total_rho_gspace: total charge in the g space
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!     11.2002 moved total_rho_elec_rspace to qs_rho_type
+!!
+!!   SOURCE
   !***************************************************************************
   TYPE qs_charges_type
      INTEGER :: ref_count
      REAL(kind=wp) :: total_rho_core_rspace, total_rho_gspace
   END TYPE qs_charges_type
-  !!***
+!!***
   !****************************************************************************
 
 CONTAINS
@@ -91,6 +92,16 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_charges_create
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_charges_create(qs_charges, nspins,&
+!!         total_rho_core_rspace, total_rho_gspace, error)
+!!       Type(qs_charges_type), Pointer:: qs_charges
+!!       Integer, Intent (IN):: nspins
+!!       Real(Kind=wp), Intent (IN), Optional:: total_rho_core_rspace,&
+!!         total_rho_gspace
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_charges_create
 !!
 !!   FUNCTION
 !!     creates a charges object
@@ -143,6 +154,12 @@ END SUBROUTINE qs_charges_create
 !!   NAME
 !!     qs_charges_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_charges_retain(qs_charges, error)
+!!       Type(qs_charges_type), Pointer:: qs_charges
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_charges_retain
+!!
 !!   FUNCTION
 !!     retains the given qs_charges (see cp2k/doc/ReferenceCounting.html)
 !!
@@ -182,6 +199,12 @@ END SUBROUTINE qs_charges_retain
 !!
 !!   NAME
 !!     qs_charges_release
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_charges_release(qs_charges, error)
+!!       Type(qs_charges_type), Pointer:: qs_charges
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_charges_release
 !!
 !!   FUNCTION
 !!     releases the charges object (see cp2k/doc/ReferenceCounting.html)

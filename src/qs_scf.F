@@ -62,7 +62,8 @@ MODULE qs_scf
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type,&
                                              cp_sp_multiplies_blacs
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
                                              cp_error_get_logger,&
@@ -398,20 +399,6 @@ CONTAINS
     CALL qs_ks_did_change(ks_env,qs_env,p_changed=.TRUE.,error=error)
 
     CALL pao_opt_create(pao_optimizer,pao_obj_f,qs_env,globenv,error)
-
-    IF (cp_debug .AND. debug_this_module) THEN
-       logger => cp_error_get_logger(error)
-       CALL cp_sm_output(logger=logger, &
-            outputName="scf_s", &
-            fromWhere=routine, iter=0, matrix=s(1)%matrix,&
-            para_env=globenv%para_env,error=error)
-       IF (pao) THEN
-          CALL cp_sm_output(logger=logger, &
-               outputName="scf_atomic_ortho",&
-               fromWhere=routine, iter=0,matrix=pao_env%atomic_ortho%sm,&
-               para_env=globenv%para_env, error=error)
-       END IF
-    END IF
 
     CALL get_qs_env(qs_env,p=p_rmpv, k=ks_rmpv,rho=rho)
     ks => ks_rmpv(1)

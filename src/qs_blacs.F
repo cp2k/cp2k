@@ -32,7 +32,8 @@ MODULE qs_blacs
                                              cp_blacs_env_retain,&
                                              end_blacs,&
                                              start_blacs
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
@@ -2251,6 +2252,16 @@ CONTAINS
 !!   NAME
 !!     add_blacs_to_block_diag_sm
 !!
+!!   SYNOPSIS
+!!     Subroutine add_blacs_to_block_diag_sm(source_m, target_m, para_env,&
+!!         d_struct, error)
+!!       Type(cp_full_matrix_type), Pointer:: source_m
+!!       Type(real_matrix_type), Intent (INOUT), Target:: target_m
+!!       Type(cp_para_env_type), Pointer:: para_env
+!!       Integer, Dimension(:), Pointer, Optional:: d_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine add_blacs_to_block_diag_sm
+!!
 !!   FUNCTION
 !!     add the diagonal blocs of a blacs matrix to a sparse matrix
 !!
@@ -2928,6 +2939,14 @@ CONTAINS
 !!
 !!   NAME
 !!     blacs_scale_and_d
+!!
+!!   SYNOPSIS
+!!     Subroutine blacs_scale_and_d(blacs_matrix, scale, diagonal_add,&
+!!         error)
+!!       Type(cp_full_matrix_type), Pointer:: blacs_matrix
+!!       Real(Kind=wp), Intent (IN), Optional:: scale, diagonal_add
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine blacs_scale_and_d
 !!
 !!   FUNCTION
 !!     scales a balcs matrix and adds a scalar to the diagonal elements.

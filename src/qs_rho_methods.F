@@ -27,7 +27,8 @@
 MODULE qs_rho_methods
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -105,6 +106,16 @@ CONTAINS
 !!   NAME
 !!     qs_rho_rebuild
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_rebuild(rho, qs_env, rho_ao_with_h_mstruct,&
+!!         rebuild_ao, rebuild_grids, error)
+!!       Type(qs_rho_type), Pointer:: rho
+!!       Type(qs_environment_type), Intent (INOUT), Target:: qs_env
+!!       Logical, Intent (IN), Optional:: rho_ao_with_h_mstruct, rebuild_ao,&
+!!         rebuild_grids
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_rebuild
+!!
 !!   FUNCTION
 !!     rebuilds rho (if necessary allocating and initializing it)
 !!
@@ -181,9 +192,9 @@ CONTAINS
         rho%updates_since_rebuild=-1
         rho%rebuild_each=5
         NULLIFY(rho%rho_r, rho%rho_g, rho%rho_ao, rho%tot_rho_r)
-        allocate(rho%tot_rho_r(nspins),stat=stat)
+        ALLOCATE(rho%tot_rho_r(nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        if (.not.failure) rho%tot_rho_r=0.0_wp
+        IF (.not.failure) rho%tot_rho_r=0.0_wp
      END IF
   END IF
 
@@ -258,6 +269,17 @@ END SUBROUTINE qs_rho_rebuild
 !!
 !!   NAME
 !!     qs_rho_update_rho
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_update_rho(rho_struct, rho_ao_new, qs_env, energy,&
+!!         rebuild, update_rho_ao, error)
+!!       Type(qs_rho_type), Pointer:: rho_struct
+!!       Type(qs_environment_type), Intent (IN):: qs_env
+!!       Type(real_matrix_p_type), Dimension(:), Intent (IN):: rho_ao_new
+!!       Logical, Intent (IN), Optional:: rebuild, update_rho_ao
+!!       Type(qs_energy_type), Pointer, Optional:: energy
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_update_rho
 !!
 !!   FUNCTION
 !!     updates rho_r and rho_g to the new (given) ao.
@@ -336,7 +358,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, rho_ao_new,qs_env,&
      ! decides if to rebuild or just update
      my_rebuild=rho_struct%updates_since_rebuild > rho_struct%rebuild_each
      IF (PRESENT(rebuild)) my_rebuild=rebuild
-     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid).or.&
+     IF (.NOT.(rho_struct%rho_ao_valid.AND.rho_struct%rho_r_valid).OR.&
           rho_struct%updates_since_rebuild==-1) THEN
         my_rebuild=.TRUE.
      END IF

@@ -28,7 +28,8 @@
 MODULE qs_rho_types
   USE coefficient_types,               ONLY: coeff_deallocate,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -128,7 +129,7 @@ MODULE qs_rho_types
           id_nr, &
           updates_since_rebuild, &
           rebuild_each
-     real(kind=wp), dimension(:), pointer :: tot_rho_r
+     REAL(kind=wp), DIMENSION(:), POINTER :: tot_rho_r
   END TYPE qs_rho_type
 !!***
 !****************************************************************************
@@ -139,6 +140,12 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_rho_retain
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_retain(rho_struct, error)
+!!       Type(qs_rho_type), Pointer:: rho_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_retain
 !!
 !!   FUNCTION
 !!     retains a rho_struct by increasing the reference count by one
@@ -180,6 +187,12 @@ CONTAINS
 !!
 !!   NAME
 !!     qs_rho_release
+!!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_release(rho_struct, error)
+!!       Type(qs_rho_type), Pointer:: rho_struct
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_release
 !!
 !!   FUNCTION
 !!     releases a rho_struct by decreasing the reference count by one
@@ -245,6 +258,15 @@ CONTAINS
 !!   NAME
 !!     qs_rho_did_change
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_did_change(rho_struct, rho_ao_valid, rho_r_valid,&
+!!         rho_g_valid, error)
+!!       Type(qs_rho_type), Pointer:: rho_struct
+!!       Logical, Intent (IN), Optional:: rho_ao_valid, rho_r_valid,&
+!!         rho_g_valid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_did_change
+!!
 !!   FUNCTION
 !!     this function should be called wehn something changes to update the
 !!     internal status 
@@ -298,6 +320,19 @@ CONTAINS
 !!   NAME
 !!     qs_rho_get
 !!
+!!   SYNOPSIS
+!!     Subroutine qs_rho_get(rho_struct, rho_ao, rho_r, rho_g, rho_ao_valid,&
+!!         rho_r_valid, rho_g_valid, rebuild_each, tot_rho_r, error)
+!!       Type(qs_rho_type), Pointer:: rho_struct
+!!       Type(real_matrix_p_type), Dimension(:), Pointer, Optional:: rho_ao
+!!       Type(coeff_type), Dimension(:), Pointer, Optional:: rho_g, rho_r
+!!       Logical, Intent (OUT), Optional:: rho_ao_valid, rho_g_valid,&
+!!         rho_r_valid
+!!       Integer, Intent (OUT), Optional:: rebuild_each
+!!       Real(Kind=wp), Dimension(:), Pointer, Optional:: tot_rho_r
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine qs_rho_get
+!!
 !!   FUNCTION
 !!     returns info about the density described by this object.
 !!     If some representation is not available an error is issued
@@ -324,7 +359,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER,OPTIONAL :: rho_g, rho_r
     LOGICAL, INTENT(out), OPTIONAL :: rho_ao_valid, rho_g_valid, rho_r_valid
     INTEGER, INTENT(out), OPTIONAL :: rebuild_each
-    real(kind=wp), dimension(:), pointer, optional :: tot_rho_r
+    REAL(kind=wp), DIMENSION(:), POINTER, OPTIONAL :: tot_rho_r
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
 
     LOGICAL :: failure
@@ -344,7 +379,7 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(rho_r)) THEN
-          IF (present(rho_r_valid).or.rho_struct%rho_r_valid) THEN
+          IF (PRESENT(rho_r_valid).or.rho_struct%rho_r_valid) THEN
              rho_r => rho_struct%rho_r
           ELSE
              CALL cp_unimplemented_error(routineP,"to do",error=error)
@@ -352,7 +387,7 @@ CONTAINS
           END IF
        END IF
        IF (PRESENT(rho_g)) THEN
-          IF (present(rho_g_valid).or.rho_struct%rho_g_valid) THEN
+          IF (PRESENT(rho_g_valid).or.rho_struct%rho_g_valid) THEN
              rho_g => rho_struct%rho_g
           ELSE
              CALL cp_unimplemented_error(routineP,"to do",error=error)
@@ -364,7 +399,7 @@ CONTAINS
        IF (PRESENT(rho_g_valid)) rho_g_valid=rho_struct%rho_g_valid
        IF (PRESENT(rebuild_each)) rebuild_each=rho_struct%rebuild_each
        ! give error if not valid?
-       if (present(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
+       IF (PRESENT(tot_rho_r)) tot_rho_r => rho_struct%tot_rho_r
     END IF
   END SUBROUTINE qs_rho_get
 !***************************************************************************

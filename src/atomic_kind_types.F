@@ -30,7 +30,8 @@ MODULE atomic_kind_types
                                              write_aux_basis_set,&
                                              write_gto_basis_set,&
                                              write_orb_basis_set
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

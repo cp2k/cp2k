@@ -26,19 +26,34 @@
 !!   SOURCE
 !****************************************************************************
 MODULE scf_control_types
-  USE cp_log_handling,   ONLY: cp_fatal_level, cp_failure_level,&
-       cp_warning_level, cp_note_level, cp_to_string, cp_log
-  USE cp_error_handling, ONLY: cp_debug, cp_error_type, cp_error_init,&
-       cp_error_dealloc_ref, cp_error_message, cp_assert,&
-       cp_assertion_failed, cp_internal_error, cp_unimplemented_error,&
-       cp_error_get_logger
-  USE kinds,             ONLY: wp=>dp
-  USE cp_para_types,     ONLY: cp_para_env_type
-  USE timings,           ONLY: timeset, timestop
-  USE qs_parser,         ONLY: close_file,&
-       open_file, finish_parser, read_object, start_parser,&
-       test_object
-  use global_types, only: global_environment_type
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_debug,&
+                                             cp_error_dealloc_ref,&
+                                             cp_error_get_logger,&
+                                             cp_error_init,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_internal_error,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_fatal_level,&
+                                             cp_log,&
+                                             cp_note_level,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: wp=>dp
+  USE qs_parser,                       ONLY: close_file,&
+                                             finish_parser,&
+                                             open_file,&
+                                             read_object,&
+                                             start_parser,&
+                                             test_object
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
   PRIVATE
 
@@ -114,6 +129,12 @@ CONTAINS
 !!   NAME
 !!     scf_c_create
 !!
+!!   SYNOPSIS
+!!     Subroutine scf_c_create(scf_control, error)
+!!       Type(scf_control_type), Pointer:: scf_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_c_create
+!!
 !!   FUNCTION
 !!     allocates and initializes an scf control object with the default values
 !!
@@ -180,6 +201,12 @@ CONTAINS
 !!   NAME
 !!     scf_c_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine scf_c_retain(scf_control, error)
+!!       Type(scf_control_type), Pointer:: scf_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_c_retain
+!!
 !!   FUNCTION
 !!     retains the given scf_control (see cp2k/doc/ReferenceCounting.html)
 !!
@@ -220,6 +247,12 @@ CONTAINS
 !!   NAME
 !!     scf_c_release
 !!
+!!   SYNOPSIS
+!!     Subroutine scf_c_release(scf_control, error)
+!!       Type(scf_control_type), Pointer:: scf_control
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_c_release
+!!
 !!   FUNCTION
 !!     releases the given scf_control (see cp2k/doc/ReferenceCounting.html)
 !!
@@ -245,7 +278,7 @@ CONTAINS
     LOGICAL :: failure
     CHARACTER(len=*), PARAMETER :: routineN='scf_c_release',&
          routineP=moduleN//':'//routineN
-    integer :: stat
+    INTEGER :: stat
     failure=.FALSE.
 
     IF (ASSOCIATED(scf_control)) THEN
@@ -264,6 +297,13 @@ CONTAINS
 !!
 !!   NAME
 !!     scf_c_read_parameters
+!!
+!!   SYNOPSIS
+!!     Subroutine scf_c_read_parameters(scf_control, globenv, error)
+!!       Type(scf_control_type), Pointer:: scf_control
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine scf_c_read_parameters
 !!
 !!   FUNCTION
 !!     reads the parameters of the scf section into the given scf_control
@@ -293,7 +333,7 @@ CONTAINS
          routineP=moduleN//':'//routineN
     CHARACTER(LEN=40) :: keyword
     LOGICAL           :: failure
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -365,6 +405,13 @@ CONTAINS
 !!   NAME
 !!     scf_c_write_parameters
 !!
+!!   SYNOPSIS
+!!     Subroutine scf_c_write_parameters(scf_control, globenv, error)
+!!       Type(scf_control_type), Pointer:: scf_control
+!!       Type(global_environment_type), Intent (IN):: globenv
+!!       Type(cp_error_type), Intent (INOUT), Optional:: error
+!!     End Subroutine scf_c_write_parameters
+!!
 !!   FUNCTION
 !!     writes out the scf parameters
 !!
@@ -389,11 +436,11 @@ CONTAINS
     TYPE(global_environment_type), INTENT(IN)    :: globenv
     TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
 
-    logical :: failure
+    LOGICAL :: failure
     CHARACTER(LEN=*), PARAMETER :: routineN='scf_c_write_parameters',&
          routineP=moduleN//':'//routineN
     INTEGER :: output_unit
-    failure=.false.
+    failure=.FALSE.
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)

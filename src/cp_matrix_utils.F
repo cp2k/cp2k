@@ -33,7 +33,8 @@ MODULE cp_matrix_utils
                                              cp_2d_r_output
   USE cp_b_matrix_structure,           ONLY: cp_b_distribution_type,&
                                              cp_b_matrix_struct_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

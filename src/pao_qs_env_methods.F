@@ -42,7 +42,8 @@ MODULE pao_qs_env_methods
                                              cp_sp_block_handle_type,&
                                              cp_sp_create,&
                                              cp_sp_release
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_debug,&
                                              cp_error_get_logger,&
                                              cp_error_message,&

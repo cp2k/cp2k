@@ -39,7 +39,8 @@ MODULE qs_environment_methods
                                              cp_sp_create,&
                                              cp_sp_multiplies_blacs,&
                                              cp_sp_set_to
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

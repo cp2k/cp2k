@@ -37,7 +37,8 @@ MODULE qs_integrate_potential
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_transform_space,&
                                              coeff_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -302,12 +303,12 @@ CONTAINS
     ELSE
       maxvnew = MAXVAL(ABS(v_rspace%pw%cr3d))
 #if defined(__parallel)
-      call mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
+      CALL mp_max(maxvnew,v_rspace%pw%pw_grid%para%group)
 #endif
       v_rspace%pw%cr3d = v_rspace%pw%cr3d - v_rspace_old%pw%cr3d
       maxvdiff = MAXVAL(ABS(v_rspace%pw%cr3d))
 #if defined(__parallel)
-      call mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
+      CALL mp_max(maxvdiff,v_rspace%pw%pw_grid%para%group)
 #endif
       vratio = maxvdiff/maxvnew
     END IF
@@ -331,16 +332,16 @@ CONTAINS
 
     END DO
 
-    allocate(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
-    if (istat.ne.0) then
+    ALLOCATE(rs_v(gridlevel_info%ngrid_levels),STAT=istat)
+    IF (istat.ne.0) THEN
         CALL stop_memory("integrate_potential","rs_v")
-    endif
+    ENDIF
     nsmax(:)=100
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
+       CALL rs_grid_setup(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw%pw_grid, &
             nsmax)
-       call rs_grid_allocate(rs_v(igrid_level))
-       call rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
+       CALL rs_grid_allocate(rs_v(igrid_level))
+       CALL rs_pw_transfer(rs_v(igrid_level),mgrid_rspace(igrid_level)%pw,&
                            "BACKWARD")
     ENDDO
 
@@ -469,12 +470,12 @@ CONTAINS
               CALL get_block_node(matrix=h%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
             ELSE
               CALL get_block_node(matrix=h%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=h_block)
+                                  BLOCK=h_block)
             END IF
 
 !           *** Check, if the atomic block has to be ***
@@ -489,12 +490,12 @@ CONTAINS
               CALL get_block_node(matrix=p%matrix,&
                                   block_row=iatom,&
                                   block_col=jatom,&
-                                  block=p_block)
+                                  BLOCK=p_block)
             ELSE
               CALL get_block_node(matrix=p%matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
-                                  block=p_block)
+                                  BLOCK=p_block)
             END IF
 
             rb(:) = ra(:) + rab(:)
@@ -643,7 +644,7 @@ CONTAINS
     END DO
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
-       call rs_grid_deallocate(rs_v(igrid_level))
+       CALL rs_grid_deallocate(rs_v(igrid_level))
     ENDDO
 
 !   *** Release work storage ***
@@ -714,12 +715,12 @@ CONTAINS
                 start,length,offset
     INTEGER  :: la_max_l,la_min_l,lb_min_l
 
-    INTEGER, pointer, dimension(:) :: ly_max,lz_max
-    REAL(wp), pointer :: pzyx(:), alpha(:,:)
-    integer, pointer :: ipzyx(:,:,:,:,:,:)
-    REAL(wp), pointer :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
-    REAL(wp), pointer :: dpx(:,:)
-    INTEGER, pointer, dimension(:)  :: sphere_bounds
+    INTEGER, POINTER, DIMENSION(:) :: ly_max,lz_max
+    REAL(wp), POINTER :: pzyx(:), alpha(:,:)
+    INTEGER, POINTER :: ipzyx(:,:,:,:,:,:)
+    REAL(wp), POINTER :: polz(:,:),dpz(:,:),poly(:,:),dpy(:,:),polx(:,:)
+    REAL(wp), POINTER :: dpx(:,:)
+    INTEGER, POINTER, DIMENSION(:)  :: sphere_bounds
     INTEGER :: cmax
 
 !   ---------------------------------------------------------------------------
@@ -784,7 +785,7 @@ CONTAINS
          DO ig=start,start+length
           map(ig,i) = ig+offset
          END DO
-         if (start+length.ge.ub_cube(i)) EXIT
+         IF (start+length.ge.ub_cube(i)) EXIT
          start=start+length+1
         END DO
     ENDDO
@@ -808,8 +809,8 @@ CONTAINS
       DO lxb=0,lb_max
        DO lya=0,la_max_l-lxa
        DO lyb=0,lb_max-lxb
-          DO lza=max(la_min_l-lxa-lya,0),la_max_l-lxa-lya
-          DO lzb=max(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
+          DO lza=MAX(la_min_l-lxa-lya,0),la_max_l-lxa-lya
+          DO lzb=MAX(lb_min_l-lxb-lyb,0),lb_max-lxb-lyb
              lxyz=lxyz+1
              polz(lxyz,ig)=dpz(lzb,lza)
           ENDDO
@@ -863,10 +864,10 @@ CONTAINS
         DO l=0,lxb
            alpha(lxa-l+lxb-k+1,lx)=alpha(lxa-l+lxb-k+1,lx)+ &
                              binomial_k_lxa*binomial_l_lxb*a*b
-           binomial_l_lxb=binomial_l_lxb*real(lxb-l,wp)/real(l+1,wp)
+           binomial_l_lxb=binomial_l_lxb*REAL(lxb-l,wp)/REAL(l+1,wp)
            b=b*(rp(1)-(ra(1)+rab(1)))
         ENDDO
-        binomial_k_lxa=binomial_k_lxa*real(lxa-k,wp)/real(k+1,wp)
+        binomial_k_lxa=binomial_k_lxa*REAL(lxa-k,wp)/REAL(k+1,wp)
         a=a*(rp(1)-ra(1))
        ENDDO
     ENDDO
@@ -884,14 +885,14 @@ CONTAINS
 
 !   *** do the loop over the grid
 
-    call integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
+    CALL integrate_core(polx(1,-cmax),poly(1,-cmax),polz(1,-cmax),grid(1,1,1),alpha(1,1), &
                         lx_max,lxy_max,lxyz_max,coef_max,cmax, &
                         ly_max(1),lz_max(1),gridbounds(1,1),map(-cmax,1),pzyx(1), &
                         la_min_l,la_max_l,lb_min_l,lb_max,sphere_bounds(1))
 
-    do i=1,lxyz_max
+    DO i=1,lxyz_max
        pzyx(i)=pzyx(i)*prefactor
-    enddo
+    ENDDO
 
 !   *** pzyx contains all the information needed to find the elements of hab
 !   *** and optionally of derivatives of these elements

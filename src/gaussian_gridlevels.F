@@ -4,7 +4,8 @@
 
 
   MODULE gaussian_gridlevels
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -61,25 +62,25 @@ CONTAINS
  
 SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   TYPE(gridlevel_info_type) :: gridlevel_info
-  type(global_environment_type), intent(in), target, optional :: globenv
+  TYPE(global_environment_type), INTENT(in), TARGET, OPTIONAL :: globenv
   TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
   CHARACTER(LEN=*), PARAMETER :: routine =&
        "SUBROUTINE destroy_gaussian_gridlevel (MODULE gaussian_gridlevels)"
   INTEGER :: i,istat, group
-  logical :: pw_grid_information, ionode
+  LOGICAL :: pw_grid_information, ionode
   TYPE(cp_logger_type), POINTER :: logger
 
-  nullify(logger)
-  if (present(globenv)) then
+  NULLIFY(logger)
+  IF (PRESENT(globenv)) THEN
      group=globenv%group
      ionode=globenv%ionode
      pw_grid_information=globenv%print%pw_grid_information
-  else
+  ELSE
      logger => cp_error_get_logger(error)
      group=logger%para_env%group
      pw_grid_information=logger%print_keys%pw_grid_information
      ionode=logger%para_env%source==logger%para_env%mepos
-  end if
+  END IF
 
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")

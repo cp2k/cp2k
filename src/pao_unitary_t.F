@@ -28,7 +28,8 @@
 MODULE pao_unitary_t
   USE cp_array_utils,                  ONLY: cp_1d_r_output,&
                                              cp_2d_r_output
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

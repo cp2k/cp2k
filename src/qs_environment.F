@@ -32,7 +32,8 @@ MODULE qs_environment
                                              write_gto_basis_sets
   USE checkpoint_handler,              ONLY: write_checkpoint_information
   USE cp_blacs_env,                    ONLY: cp_blacs_env_from_globenv
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

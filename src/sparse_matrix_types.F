@@ -23,31 +23,29 @@
 !******************************************************************************
 
 MODULE sparse_matrix_types
-
-  USE kinds, ONLY: int_size,&
-                   wp => dp,&
-                   wp_size => dp_size
-
-  USE cp_error_handling, ONLY: cp_assert,&
-                               cp_assertion_failed,&
-                               cp_error_get_logger,&
-                               cp_error_message,&
-                               cp_error_type,&
-                               cp_unimplemented_error
-  USE cp_log_handling,   ONLY: cp_failure_level,&
-                               cp_log,&
-                               cp_logger_get_unit_nr,&
-                               cp_logger_type,&
-                               cp_to_string,&
-                               cp_warning_level
-  USE cp_para_types,     ONLY: cp_para_env_type
-  USE global_types,      ONLY: global_environment_type
-  USE message_passing,   ONLY: mp_sum
-  USE termination,       ONLY: stop_memory,&
-                               stop_program
-  USE timings,           ONLY: timeset,&
-                               timestop
-
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
+                                             cp_assertion_failed,&
+                                             cp_error_get_logger,&
+                                             cp_error_message,&
+                                             cp_error_type,&
+                                             cp_unimplemented_error
+  USE cp_log_handling,                 ONLY: cp_failure_level,&
+                                             cp_log,&
+                                             cp_logger_get_unit_nr,&
+                                             cp_logger_type,&
+                                             cp_to_string,&
+                                             cp_warning_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type
+  USE kinds,                           ONLY: int_size,&
+                                             wp => dp,&
+                                             wp_size => dp_size
+  USE message_passing,                 ONLY: mp_sum
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   IMPLICIT NONE
 
   PRIVATE
@@ -60,7 +58,7 @@ MODULE sparse_matrix_types
     PRIVATE
     TYPE(real_block_node_type), POINTER :: next_block_node
     INTEGER                             :: block_col
-    REAL(wp), DIMENSION(:,:), POINTER   :: block
+    REAL(wp), DIMENSION(:,:), POINTER   :: BLOCK
   END TYPE real_block_node_type
 
   TYPE real_block_list_type
@@ -268,17 +266,17 @@ CONTAINS
 
              CALL get_block_node(block_node=block_node,&
                                  block_col=iblock_col,&
-                                 block=c_block)
+                                 BLOCK=c_block)
 
              CALL get_block_node(matrix=a,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
-                                 block=a_block)
+                                 BLOCK=a_block)
 
              CALL get_block_node(matrix=b,&
                                  block_row=iblock_row,&
                                  block_col=iblock_col,&
-                                 block=b_block)
+                                 BLOCK=b_block)
              
              c_block(:,:) = a_block(:,:) + b_block(:,:)
 
@@ -298,17 +296,17 @@ CONTAINS
 
             CALL get_block_node(block_node=block_node,&
                                 block_col=iblock_col,&
-                                block=c_block)
+                                BLOCK=c_block)
 
             CALL get_block_node(matrix=a,&
                                 block_row=iblock_row,&
                                 block_col=iblock_col,&
-                                block=a_block)
+                                BLOCK=a_block)
 
             CALL get_block_node(matrix=b,&
                                 block_row=iblock_row,&
                                 block_col=iblock_col,&
-                                block=b_block)
+                                BLOCK=b_block)
 
             c_block(:,:) = alpha*a_block(:,:) + beta*b_block(:,:)
 
@@ -324,7 +322,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,block)
+  SUBROUTINE add_real_matrix_block(matrix,block_row,block_col,BLOCK)
 
 !   Purpose: Allocate and initialize a new block node.
 
@@ -334,7 +332,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   *** Local parameters ***
 
@@ -367,15 +365,15 @@ CONTAINS
     END IF
     block_node%block(:,:) = 0.0_wp
 
-    IF (PRESENT(block)) THEN
-      IF (ASSOCIATED(block)) THEN
-        IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-          block_node%block(:,:) = block(:,:)
+    IF (PRESENT(BLOCK)) THEN
+      IF (ASSOCIATED(BLOCK)) THEN
+        IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+          block_node%block(:,:) = BLOCK(:,:)
         ELSE
           CALL stop_program(routine,"Incompatible block dimensions")
         END IF
       ELSE
-        block => block_node%block
+        BLOCK => block_node%block
       END IF
     END IF
 
@@ -431,9 +429,9 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
-        write(fileunit,*) iblock_row,iblock_col,maxval(abs(sparse_block))
+        WRITE(fileunit,*) iblock_row,iblock_col,MAXVAL(ABS(sparse_block))
 
         block_node => next_block_node(block_node)
 
@@ -451,18 +449,18 @@ CONTAINS
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     TYPE(global_environment_type), INTENT(IN)      :: globenv
 
-    integer iblock_row,iblock_col,ij
+    INTEGER iblock_row,iblock_col,ij
     ij=0
     DO iblock_row=1,sparse_matrix%nblock_row
       DO iblock_col=1,sparse_matrix%nblock_col
-         if (sparse_matrix%symmetry.eq."symmetric") then
-            if (iblock_col.lt.iblock_row) CYCLE
-         endif
+         IF (sparse_matrix%symmetry.eq."symmetric") THEN
+            IF (iblock_col.lt.iblock_row) CYCLE
+         ENDIF
          ij=ij+1
-         if (MOD(ij,globenv%num_pe).eq. globenv%mepos) then
+         IF (MOD(ij,globenv%num_pe).EQ. globenv%mepos) THEN
             CALL add_real_matrix_block(sparse_matrix, &
                  block_row=iblock_row,block_col=iblock_col)
-         endif
+         ENDIF
       END DO
     END DO
 
@@ -721,7 +719,7 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
         icol_block = 1
 
@@ -762,8 +760,8 @@ CONTAINS
     TYPE(real_matrix_type), POINTER   :: sparse_matrix
     REAL(wp), DIMENSION(:,:), POINTER :: rep_v_in,rep_v_out
     INTEGER, INTENT(IN)               :: ncol,nblock
-    TYPE(cp_para_env_type), pointer   :: para_env
-    integer, dimension(:,:), optional :: block_owner
+    TYPE(cp_para_env_type), POINTER   :: para_env
+    INTEGER, DIMENSION(:,:), OPTIONAL :: block_owner
 
 !   *** Local parameters ***
     CHARACTER(LEN=*), PARAMETER :: routine =&
@@ -775,7 +773,7 @@ CONTAINS
 
     INTEGER :: iblock_col,iblock_row,icol,icol_block,irow,irow_block,istat,&
                nrow,sbncol,sbnrow,  handle
-    logical :: owner, symmetric
+    LOGICAL :: owner, symmetric
     REAL(wp) :: flops
 
     REAL(wp), DIMENSION(:,:), POINTER :: sparse_block
@@ -788,18 +786,18 @@ CONTAINS
       CALL stop_program(routine,"The input matrix pointer is not associated")
     END IF
 
-    if (sparse_matrix%symmetry == "symmetric") then
-       symmetric=.true.
-    else
-       symmetric=.false.
-    end if
+    IF (sparse_matrix%symmetry == "symmetric") THEN
+       symmetric=.TRUE.
+    ELSE
+       symmetric=.FALSE.
+    END IF
 
-    if (symmetric .and. (sparse_matrix%nrow .ne. sparse_matrix%ncol)) then
+    IF (symmetric .AND. (sparse_matrix%nrow .NE. sparse_matrix%ncol)) THEN
        CALL stop_program(routine,"error nonsquare symmetric matrix")
-    end if
-    if (sparse_matrix%ncol .ne. size(rep_v_in,2)) then
+    END IF
+    IF (sparse_matrix%ncol .NE. SIZE(rep_v_in,2)) THEN
       CALL stop_program(routine,"n x n * n x k ?")
-    endif
+    ENDIF
 
     CALL dcopy(sparse_matrix%nrow*nblock,0.0_wp,0,rep_v_out,1)
 
@@ -816,14 +814,14 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
         
-        owner=.true.
-        if (present(block_owner)) then
+        owner=.TRUE.
+        IF (PRESENT(block_owner)) THEN
            owner = (block_owner(iblock_row,iblock_col)==para_env%mepos)
-        end if
+        END IF
         
-        if (owner) then
+        IF (owner) THEN
            ! write(17+para_env%mepos,*) maxval(abs(sparse_block))
            
            sbnrow=sparse_matrix%last_row(iblock_row)- &
@@ -839,7 +837,7 @@ CONTAINS
                 1.0_wp,rep_v_out(1,sparse_matrix%first_row(iblock_row)), &
                 nblock)
            
-           if (iblock_col .ne. iblock_row .and. symmetric) then
+           IF (iblock_col .NE. iblock_row .AND. symmetric) THEN
               
               flops=flops+2.0_wp*sbnrow*sbncol*ncol
               CALL DGEMM('N','N',ncol,sbncol,sbnrow,1.0_wp, &
@@ -848,8 +846,8 @@ CONTAINS
                    sparse_block(1,1),sbnrow, &
                    1.0_wp,rep_v_out(1,sparse_matrix%first_col(iblock_col)), &
                    nblock)
-           endif
-        end if
+           ENDIF
+        END IF
 
         block_node => next_block_node(block_node)
 
@@ -906,9 +904,9 @@ CONTAINS
       prefactor = 1.0_wp
     END IF
 
-    if (sparse_matrix%nrow .ne. sparse_matrix%ncol) then
+    IF (sparse_matrix%nrow .NE. sparse_matrix%ncol) THEN
       CALL stop_program(routine,"not allowed")
-    endif
+    ENDIF
     CALL timeset("sparse_plus_rep_rept","I","Gflops",handle)
     flops=0.0_wp
 
@@ -922,7 +920,7 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=sparse_block)
+                            BLOCK=sparse_block)
 
         icol=sparse_matrix%first_col(iblock_col)
         irow=sparse_matrix%first_row(iblock_row)
@@ -949,7 +947,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE copy_real_matrix(source,target)
+  SUBROUTINE copy_real_matrix(source,TARGET)
 
 !   Purpose: Copy the real matrix source to the existing real matrix target.
 
@@ -957,7 +955,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER :: source,target
+    TYPE(real_matrix_type), POINTER :: source,TARGET
 
 !   *** Local parameters ***
 
@@ -989,7 +987,7 @@ CONTAINS
 
 !   *** Check the association status of the target matrix ***
 
-    IF (ASSOCIATED(target)) THEN
+    IF (ASSOCIATED(TARGET)) THEN
 
       DO iblock_row=1,source%nblock_row
 
@@ -1275,7 +1273,7 @@ CONTAINS
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1306,8 +1304,8 @@ CONTAINS
       DO iblock_row=1,matrix%nblock_row
         block_node => first_block_node(matrix,iblock_row)
         DO WHILE (ASSOCIATED(block_node))
-          CALL get_block_node(block_node=block_node,block=block)
-          nelement_allocated = nelement_allocated + SIZE(block)
+          CALL get_block_node(block_node=block_node,BLOCK=BLOCK)
+          nelement_allocated = nelement_allocated + SIZE(BLOCK)
           block_node => next_block_node(block_node)
         END DO
       END DO
@@ -1317,7 +1315,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_real_block_node(block_node,block_col,block)
+  SUBROUTINE get_real_block_node(block_node,block_col,BLOCK)
 
 !   Purpose: Get block node data set.
 
@@ -1327,12 +1325,12 @@ CONTAINS
 
     TYPE(real_block_node_type), INTENT(IN)      :: block_node
     INTEGER, OPTIONAL, INTENT(OUT)              :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(block_col)) block_col = block_node%block_col
-    IF (PRESENT(block)) block => block_node%block
+    IF (PRESENT(BLOCK)) BLOCK => block_node%block
 
   END SUBROUTINE get_real_block_node
 
@@ -1340,7 +1338,7 @@ CONTAINS
 
   SUBROUTINE get_real_matrix_block(matrix,block_row,block_col,&
                                    first_row,last_row,first_col,last_col,&
-                                   block_node,block)
+                                   block_node,BLOCK)
 
 !   Purpose: Get block node data set.
 
@@ -1353,7 +1351,7 @@ CONTAINS
     INTEGER, INTENT(IN)                           :: block_col,block_row
     INTEGER, OPTIONAL, INTENT(OUT)                :: first_col,first_row,&
                                                      last_col,last_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER   :: BLOCK
 
 !   *** Local variables ***
 
@@ -1371,10 +1369,10 @@ CONTAINS
 
     IF (ASSOCIATED(current_block_node)) THEN
       IF (PRESENT(block_node)) block_node => current_block_node
-      IF (PRESENT(block)) block => current_block_node%block
+      IF (PRESENT(BLOCK)) BLOCK => current_block_node%block
     ELSE
       IF (PRESENT(block_node)) NULLIFY (block_node)
-      IF (PRESENT(block)) NULLIFY (block)
+      IF (PRESENT(BLOCK)) NULLIFY (BLOCK)
     END IF
 
   END SUBROUTINE get_real_matrix_block
@@ -1427,12 +1425,12 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=b_block)
+                            BLOCK=b_block)
 
         CALL get_block_node(matrix=a,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=a_block)
+                            BLOCK=a_block)
 
         IF (ASSOCIATED(a_block)) THEN
           a_block(:,:) = a_block(:,:) + b_block(:,:)
@@ -1440,7 +1438,7 @@ CONTAINS
           CALL add_real_matrix_block(matrix=a,&
                                      block_row=iblock_row,&
                                      block_col=iblock_col,&
-                                     block=b_block)
+                                     BLOCK=b_block)
         END IF
 
         block_node => block_node%next_block_node
@@ -1470,19 +1468,19 @@ CONTAINS
     TYPE(real_block_node_type), POINTER :: next_block_node
 
 !   ---------------------------------------------------------------------------
-    if (associated(block_node)) then
+    IF (ASSOCIATED(block_node)) THEN
        next_block_node => block_node%next_block_node
-    else
+    ELSE
        CALL stop_program("sparse_matrix_types:next_real_block_node",&
             "The block_node pointer a is not associated")
-       nullify(next_block_node)
-    end if
+       NULLIFY(next_block_node)
+    END IF
 
   END FUNCTION next_real_block_node
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,block)
+  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK)
 
 !   Purpose: Set block node data set.
 
@@ -1494,7 +1492,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER             :: matrix
     INTEGER, INTENT(IN)                         :: block_row
     INTEGER, OPTIONAL, INTENT(IN)               :: block_col
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER :: BLOCK
 
 !   *** Local parameters ***
 
@@ -1509,15 +1507,15 @@ CONTAINS
 
     IF (PRESENT(block_col)) block_node%block_col = block_col
 
-    IF (PRESENT(block)) THEN
+    IF (PRESENT(BLOCK)) THEN
 
       nrow = matrix%last_row(block_row) - matrix%first_row(block_row) + 1
       ncol = matrix%last_col(block_col) - matrix%first_col(block_col) + 1
 
-      IF (PRESENT(block)) THEN
-        IF (ASSOCIATED(block)) THEN
-          IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-            block_node%block(:,:) = block(:,:)
+      IF (PRESENT(BLOCK)) THEN
+        IF (ASSOCIATED(BLOCK)) THEN
+          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+            block_node%block(:,:) = BLOCK(:,:)
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -1532,7 +1530,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,block)
+  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK)
 
 !   Purpose: Allocate and initialize a new block node or update an existing
 !            block node.
@@ -1543,7 +1541,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER            :: matrix
     INTEGER, INTENT(IN)                        :: block_col,block_row
-    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: block
+    REAL(wp), DIMENSION(:,:), OPTIONAL, POINTER:: BLOCK
 
 !   *** Local parameters ***
 
@@ -1571,10 +1569,10 @@ CONTAINS
 
 !     *** Update the data set of an existing block node ***
 
-      IF (PRESENT(block)) THEN
-        IF (ASSOCIATED(block)) THEN
-          IF ((SIZE(block,1) == nrow).AND.(SIZE(block,2) == ncol)) THEN
-            block_node%block(:,:) = block(:,:)
+      IF (PRESENT(BLOCK)) THEN
+        IF (ASSOCIATED(BLOCK)) THEN
+          IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
+            block_node%block(:,:) = BLOCK(:,:)
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -1591,8 +1589,8 @@ CONTAINS
 
 !     *** Add a new block node ***
 
-      IF (PRESENT(block)) THEN
-        CALL add_block_node(matrix,block_row,block_col,block)
+      IF (PRESENT(BLOCK)) THEN
+        CALL add_block_node(matrix,block_row,block_col,BLOCK)
       ELSE
         CALL add_block_node(matrix,block_row,block_col)
       END IF
@@ -1603,7 +1601,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE replicate_real_matrix(source,target,target_name,allocate_blocks)
+  SUBROUTINE replicate_real_matrix(source,TARGET,target_name,allocate_blocks)
 
 !   Purpose: Replicate the existing matrix source. The replicated matrix is
 !            target with the name target_name.
@@ -1614,7 +1612,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER :: source,target
+    TYPE(real_matrix_type), POINTER :: source,TARGET
     CHARACTER(LEN=*), INTENT(IN)    :: target_name
     LOGICAL, OPTIONAL, INTENT(IN)   :: allocate_blocks
 
@@ -1630,7 +1628,7 @@ CONTAINS
     INTEGER :: iblock_col,iblock_row
     LOGICAL :: make_data_blocks
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1640,11 +1638,11 @@ CONTAINS
       CALL stop_program(routine,"The source matrix pointer is not associated")
     END IF
 
-    IF (ASSOCIATED(target)) CALL deallocate_matrix(target)
+    IF (ASSOCIATED(TARGET)) CALL deallocate_matrix(TARGET)
 
 !   *** Allocate a new matrix structure ***
 
-    CALL allocate_matrix(matrix=target,&
+    CALL allocate_matrix(matrix=TARGET,&
                          nrow=source%nrow,&
                          ncol=source%ncol,&
                          nblock_row=source%nblock_row,&
@@ -1674,12 +1672,12 @@ CONTAINS
 
           CALL get_block_node(block_node=block_node,&
                               block_col=iblock_col,&
-                              block=block)
+                              BLOCK=BLOCK)
 
-          CALL add_block_node(matrix=target,&
+          CALL add_block_node(matrix=TARGET,&
                               block_row=iblock_row,&
                               block_col=iblock_col,&
-                              block=block)
+                              BLOCK=BLOCK)
 
           block_node => next_block_node(block_node)
 
@@ -1693,7 +1691,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE replicate_real_matrix_structure(source,target,target_name,&
+  SUBROUTINE replicate_real_matrix_structure(source,TARGET,target_name,&
                                              target_symmetry)
 
 !   Purpose: Replicate the matrix structure of the existing matrix source. The
@@ -1704,7 +1702,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER        :: source,target
+    TYPE(real_matrix_type), POINTER        :: source,TARGET
     CHARACTER(LEN=*), INTENT(IN)           :: target_name
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: target_symmetry
 
@@ -1735,7 +1733,7 @@ CONTAINS
 
 !   *** Allocate a new matrix structure ***
 
-    CALL allocate_matrix(matrix=target,&
+    CALL allocate_matrix(matrix=TARGET,&
                          nrow=source%nrow,&
                          ncol=source%ncol,&
                          nblock_row=source%nblock_row,&
@@ -1758,7 +1756,7 @@ CONTAINS
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col)
 
-        CALL add_block_node(matrix=target,&
+        CALL add_block_node(matrix=TARGET,&
                             block_row=iblock_row,&
                             block_col=iblock_col)
 
@@ -1796,7 +1794,7 @@ CONTAINS
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1821,9 +1819,9 @@ CONTAINS
         DO WHILE (ASSOCIATED(block_node))
 
           CALL get_block_node(block_node=block_node,&
-                              block=block)
+                              BLOCK=BLOCK)
 
-          block(:,:) = alpha*block(:,:)
+          BLOCK(:,:) = alpha*BLOCK(:,:)
 
           block_node => block_node%next_block_node
 
@@ -1859,7 +1857,7 @@ CONTAINS
 
     INTEGER :: iblock_row
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1878,9 +1876,9 @@ CONTAINS
       DO WHILE (ASSOCIATED(block_node))
 
         CALL get_block_node(block_node=block_node,&
-                            block=block)
+                            BLOCK=BLOCK)
 
-        block(:,:) = value
+        BLOCK(:,:) = value
 
         block_node => block_node%next_block_node
 
@@ -1913,7 +1911,7 @@ CONTAINS
 
     INTEGER :: iblock_col,iblock_row,icol,irow
 
-    REAL(wp), DIMENSION(:,:), POINTER :: block
+    REAL(wp), DIMENSION(:,:), POINTER :: BLOCK
 
 !   ---------------------------------------------------------------------------
 
@@ -1933,12 +1931,12 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=block)
+                            BLOCK=BLOCK)
 
         IF (iblock_row == iblock_col) THEN
-          DO irow=1,SIZE(block,1)
-            DO icol=irow+1,SIZE(block,2)
-              block(icol,irow) = block(irow,icol)
+          DO irow=1,SIZE(BLOCK,1)
+            DO icol=irow+1,SIZE(BLOCK,2)
+              BLOCK(icol,irow) = BLOCK(irow,icol)
             END DO
           END DO
         END IF
@@ -1953,7 +1951,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE transfer_real_matrix(source,target)
+  SUBROUTINE transfer_real_matrix(source,TARGET)
 
 !   Purpose: Transfer source matrix to target matrix. Both matrices have the
 !            same structure.
@@ -1962,7 +1960,7 @@ CONTAINS
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER :: source,target
+    TYPE(real_matrix_type), POINTER :: source,TARGET
 
 !   *** Local parameters ***
 
@@ -1985,7 +1983,7 @@ CONTAINS
       CALL stop_program(routine,"The source matrix pointer is not associated")
     END IF
 
-    IF (.NOT.ASSOCIATED(target)) THEN
+    IF (.NOT.ASSOCIATED(TARGET)) THEN
       CALL stop_program(routine,"The target matrix pointer is not associated")
     END IF
 
@@ -1999,12 +1997,12 @@ CONTAINS
 
         CALL get_block_node(block_node=block_node,&
                             block_col=iblock_col,&
-                            block=source_block)
+                            BLOCK=source_block)
 
-        CALL get_block_node(matrix=target,&
+        CALL get_block_node(matrix=TARGET,&
                             block_row=iblock_row,&
                             block_col=iblock_col,&
-                            block=target_block)
+                            BLOCK=target_block)
 
         target_block(:,:) = source_block(:,:)
 

@@ -29,7 +29,8 @@ MODULE cp_fm_vect
                                              cp_blacs_env_from_globenv,&
                                              cp_blacs_env_release,&
                                              cp_blacs_env_retain
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -56,11 +57,13 @@ MODULE cp_fm_vect
                                              cp_fm_set_all,&
                                              cp_fm_set_element,&
                                              cp_fm_set_submatrix,&
+                                             cp_fm_write,&
                                              cp_full_matrix_p_type,&
                                              cp_full_matrix_type
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
+                                             cp_logger_type,&
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
@@ -79,7 +82,8 @@ MODULE cp_fm_vect
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cp_fm_vect'
 
-  PUBLIC :: cp_fm_vect_create2, cp_fm_vect_dealloc, cp_fm_vect_copy
+  PUBLIC :: cp_fm_vect_create2, cp_fm_vect_dealloc, cp_fm_vect_copy,&
+       cp_fm_vect_write
 !***
 !****************************************************************************
 CONTAINS
@@ -260,6 +264,81 @@ SUBROUTINE cp_fm_vect_copy(matrixes, copy, error)
      END DO
   END IF
 END SUBROUTINE cp_fm_vect_copy
+!***************************************************************************
+
+!!****f* cp_fm_vect/cp_fm_vect_write [1.0] *
+!!
+!!   NAME
+!!     cp_fm_vect_write
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_fm_vect_write(matrixes, unit_nr, long_description,&
+!!         local, error)
+!!       Type(cp_full_matrix_p_type), Dimension(:), Pointer:: matrixes
+!!       Integer, Intent (IN):: unit_nr
+!!       Logical, Optional, Intent (IN):: long_description, local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine cp_fm_vect_write
+!!
+!!   FUNCTION
+!!     writes an array of full matrixes to the given output unit
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - matrixes: the array of matrixes to output
+!!     - unit_nr: the unit where to output
+!!     - long_description: if a long description should be written
+!!       (defaults to false)
+!!     - local: if the unit is a local unit or a global unit 
+!!       (defaults to false, i.e. global)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE cp_fm_vect_write(matrixes, unit_nr, long_description,&
+       local, error)
+    TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: matrixes
+    INTEGER, INTENT(in) :: unit_nr
+    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  
+  LOGICAL :: failure, my_local, my_long_description, should_w
+  CHARACTER(len=*), PARAMETER :: routineN='cp_fm_vect_write',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: i
+  TYPE(cp_logger_type), POINTER :: logger
+
+  failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
+  logger => cp_error_get_logger(error)
+  
+  IF (PRESENT(local)) my_local=local
+  IF (PRESENT(long_description)) my_long_description=long_description
+  
+  should_w=my_local .OR. logger%para_env%mepos==logger%para_env%source
+
+  IF (ASSOCIATED(matrixes)) THEN
+     IF (should_w) WRITE (unit=unit_nr,fmt="(a)") '('
+     DO i=1,SIZE(matrixes)
+        CALL cp_fm_write(matrix=matrixes(i)%matrix, unit_nr=unit_nr,&
+             long_description=my_long_description,&
+             local=my_local, error=error)
+        IF (i/=SIZE(matrixes).and.should_w) WRITE(unit=unit_nr,fmt="(a)")','
+     END DO
+     IF (should_w) WRITE (unit=unit_nr,fmt="(a)") ')'
+  ELSE
+     IF (should_w) THEN
+        WRITE (unit=unit_nr,fmt="(a)") ' <cp_full_matrix_p array>:*null*'
+     END IF
+  END IF
+END SUBROUTINE cp_fm_vect_write
 !***************************************************************************
 
 END MODULE cp_fm_vect

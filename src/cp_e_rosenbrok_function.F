@@ -26,7 +26,8 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE cp_e_rosenbrok_function
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&

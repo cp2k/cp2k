@@ -39,7 +39,8 @@ MODULE qs_p_types
                                              cp_sp_create,&
                                              cp_sp_multiplies_blacs,&
                                              cp_sp_set_to
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -62,7 +63,8 @@ MODULE qs_p_types
                                              cp_full_matrix_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_copy,&
                                              cp_fm_vect_create2,&
-                                             cp_fm_vect_dealloc
+                                             cp_fm_vect_dealloc,&
+                                             cp_fm_vect_write
   USE cp_log_handling,                 ONLY: cp_failure_level,&
                                              cp_fatal_level,&
                                              cp_log,&
@@ -71,6 +73,7 @@ MODULE qs_p_types
                                              cp_note_level,&
                                              cp_to_string,&
                                              cp_warning_level
+  USE cp_matrix_utils,                 ONLY: cp_sm_output
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE dft_types,                       ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
@@ -80,6 +83,7 @@ MODULE qs_p_types
                                              mo_set_p_type,&
                                              mo_set_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             deallocate_matrix_set,&
                                              get_matrix_info,&
                                              real_matrix_p_type,&
                                              real_matrix_type
@@ -88,7 +92,7 @@ MODULE qs_p_types
   IMPLICIT NONE
   PRIVATE
   PUBLIC :: qs_p_env_type, qs_p_env_p_type, &
-       qs_kpp1_env_type, qs_kpp1_env_p_type
+       qs_kpp1_env_type, qs_kpp1_env_p_type, p_env_write
   PUBLIC :: p_env_retain, p_env_release, kpp1_release, kpp1_retain
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
@@ -125,13 +129,12 @@ MODULE qs_p_types
 
   TYPE qs_p_env_type
      LOGICAL :: s_mstruct_changed, orthogonal_orbitals
-     INTEGER :: id_nr, ref_count
-     TYPE(cp_block_matrix_p_type), DIMENSION(:), POINTER :: &
+     INTEGER :: id_nr, ref_count, iter
+     TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: &
           kpp1
      TYPE(cp_full_matrix_p_type), DIMENSION(:), POINTER :: m_epsilon,&
           psi0d, S_psi0
      TYPE(qs_kpp1_env_type), POINTER :: kpp1_env
-!     TYPE(qs_environment_type), POINTER :: qs_env
      INTEGER, DIMENSION(2) :: n_mo, & ! no of molecular orbitals
                               n_ao    ! no of basis functions
   END TYPE qs_p_env_type
@@ -338,7 +341,7 @@ END SUBROUTINE p_env_retain
           CALL cp_fm_vect_dealloc(p_env%S_psi0, error=error)
           CALL cp_fm_vect_dealloc(p_env%m_epsilon, error=error)
           CALL cp_fm_vect_dealloc(p_env%psi0d, error=error)
-          CALL cp_sp_array_dealloc(p_env%kpp1, error=error)
+          CALL deallocate_matrix_set(p_env%kpp1)
        END IF
     END IF
     NULLIFY(p_env)
@@ -454,6 +457,145 @@ END SUBROUTINE p_env_retain
        kpp1_env%ref_count=kpp1_env%ref_count+1
     END IF
   END SUBROUTINE kpp1_retain
+!***************************************************************************
+
+!!****f* qs_p_types/p_env_write [1.0] *
+!!
+!!   NAME
+!!     p_env_write
+!!
+!!   SYNOPSIS
+!!     Subroutine p_env_write(p_env, unit_nr, long_description, local,&
+!!         error)
+!!       Type(qs_p_env_type), Pointer:: p_env
+!!       Integer, Intent (IN):: unit_nr
+!!       Logical, Optional, Intent (IN):: long_description, local
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine p_env_write
+!!
+!!   FUNCTION
+!!     writes the content of the p_env to the given output unit
+!!
+!!   NOTES
+!!     remove all iostat checks??
+!!
+!!   ARGUMENTS
+!!     - p_env: the p_env to output
+!!     - unit_nr: the unit where to output
+!!     - long_description: if a long description should be written
+!!       (defaults to false)
+!!     - local: if the unit is a local unit or a global unit 
+!!       (defaults to false, i.e. global)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+  SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
+    TYPE(qs_p_env_type), POINTER :: p_env
+    INTEGER, INTENT(in) :: unit_nr
+    LOGICAL, OPTIONAL, INTENT(in) :: long_description, local
+    TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+    LOGICAL :: failure, my_local, my_long_description, should_w
+    CHARACTER(len=*), PARAMETER :: routineN='p_env_write',&
+         routineP=moduleN//':'//routineN
+    INTEGER, SAVE :: uniquing_nr=0
+    INTEGER :: iostat, i
+    TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_para_env_type), POINTER :: para_env
+
+    failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
+    iostat=0
+
+    IF (PRESENT(local)) my_local=local
+    IF (PRESENT(long_description)) my_long_description=long_description
+    logger=>cp_error_get_logger(error) 
+    para_env=>logger%para_env
+    should_w=my_local .OR. para_env%mepos==para_env%source
+
+    IF (ASSOCIATED(p_env)) THEN
+       IF (should_w) THEN
+          WRITE (unit=unit_nr,&
+               fmt="(' <p_env>:{ id_nr=',i10,' ref_count=',i10,',')",&
+               iostat=iostat) p_env%id_nr, p_env%ref_count
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          WRITE (unit=unit_nr,&
+               fmt="(' iter=',i10,', s_mstruct_changed=',l1,',')",&
+               iostat=iostat) p_env%iter,p_env%s_mstruct_changed
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          WRITE (unit=unit_nr,&
+               fmt="(' orthogonal_orbitals=',l1,',')",&
+               iostat=iostat) p_env%orthogonal_orbitals
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          WRITE (unit=unit_nr,&
+               fmt="(' n_mo=',2i10,', n_ao=',2i10,',')",&
+               iostat=iostat) p_env%n_mo, p_env%n_ao
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " m_epsilon="
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       END IF
+       CALL cp_fm_vect_write(p_env%m_epsilon,unit_nr=unit_nr,&
+            long_description=my_long_description, local=my_local,&
+            error=error)
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , psi0d="
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       CALL cp_fm_vect_write(p_env%psi0d,unit_nr=unit_nr,&
+            long_description=my_long_description, local=my_local,&
+            error=error)
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , S_psi0="
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       CALL cp_fm_vect_write(p_env%S_psi0,unit_nr=unit_nr,&
+            long_description=my_long_description, local=my_local,&
+            error=error)
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" , kpp1="
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       IF (ASSOCIATED(p_env%kpp1)) THEN
+          IF (my_long_description) THEN
+             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ("
+             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+             uniquing_nr=uniquing_nr+1
+             DO i=1,SIZE(p_env%kpp1)
+                CALL cp_sm_output(logger,&
+                     outputName="p_env"//cp_to_string(p_env%id_nr)//'kpp1-'//&
+                     cp_to_string(i),&
+                     fromWhere=routineP,iter=uniquing_nr,&
+                     matrix=p_env%kpp1(i)%matrix,&
+                     para_env=para_env, comment='kpp1 matrix',error=error)
+                IF (should_w.and.i/=SIZE(p_env%kpp1)) THEN
+                   WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" ,"
+                   CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+                END IF
+             END DO
+             IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat) " ),"
+             CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+          ELSE
+             IF (should_w) THEN
+                WRITE(unit=unit_nr, fmt="(a)") '*associated*,'
+             END IF
+          END IF
+       ELSE
+          WRITE(unit=unit_nr, fmt="(a)") '*null*,'
+       END IF
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" kpp1_env="
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+!FM       call kpp1_env_write(p_env%kpp1_env,unit_nr=unit_nr,&
+!FM            long_description=my_long_description, local=my_local,&
+!FM            error=error)
+       IF (should_w) WRITE(unit=unit_nr,fmt="(a)",iostat=iostat)" }"
+       CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+    ELSE
+       IF (should_w) THEN
+          WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <p_env>:*null*"
+          CPInvariantNoFail(iostat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+  END SUBROUTINE p_env_write
 !***************************************************************************
 
 END MODULE qs_p_types

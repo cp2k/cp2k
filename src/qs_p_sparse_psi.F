@@ -26,7 +26,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_p_sparse_psi
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -409,8 +410,8 @@ SUBROUTINE p_proj_transfer_blacs_to_f(p_proj, min_m, full_m,&
      blocksize=MIN(my_ncol,max_blocksize)
 
      CPPrecondition(my_ncol>=0,cp_failure_level,routineP,error,failure)
-     CPPrecondition(my_start_col_min+my_ncol<=ncol_min,cp_failure_level,routineP,error,failure)
-     CPPrecondition(my_start_col_full+my_ncol<=ncol_full,cp_failure_level,routineP,error,failure)
+     CPPrecondition(my_start_col_min+my_ncol<ncol_min+2,cp_failure_level,routineP,error,failure)
+     CPPrecondition(my_start_col_full+my_ncol<ncol_full+2,cp_failure_level,routineP,error,failure)
      CPPrecondition(nrow_min>=SIZE(p_proj%proj_indexes),cp_failure_level,routineP,error,failure)
 
      ALLOCATE(tmp_min(blocksize,nrow_min), tmp_full(blocksize,nrow_full),&

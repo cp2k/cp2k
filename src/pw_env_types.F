@@ -25,7 +25,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_env_types
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_debug,&
                                              cp_error_dealloc_ref,&
@@ -46,11 +47,11 @@ MODULE pw_env_types
                                              gridlevel_info_type,&
                                              init_gaussian_gridlevel
   USE global_types,                    ONLY: global_environment_type
+  USE greens_fn,                       ONLY: greens_function_type
   USE kinds,                           ONLY: wp=>dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              init_l_info,&
                                              l_info_type
-  USE greens_fn, ONLY: greens_function_type
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
   USE pw_grids,                        ONLY: pw_find_cutoff,&
@@ -77,31 +78,31 @@ MODULE pw_env_types
 !***
 !****************************************************************************
 
-  !!****s* m/pw_env_types [1.0] *
-  !!
-  !!   NAME
-  !!     pw_env_types
-  !!
-  !!   FUNCTION
-  !!     contained for different pw related things
-  !!
-  !!   NOTES
-  !!     -
-  !!
-  !!   ATTRIBUTES
-  !!     - pw_pools: pools for multigrids
-  !!     - gridlevel_info: gaussian gridlevel info
-  !!     - l_info: informations for l calc
-  !!     - cube_info: info on cube and max sphere size for multigrids
-  !!     - aux_bas: which multigrid is the auxiliar basis
-  !!
-  !!   AUTHOR
-  !!     Fawzi Mohamed
-  !!
-  !!   MODIFICATION HISTORY
-  !!     10.2002 created [fawzi]
-  !!
-  !!   SOURCE
+!!****s* m/pw_env_types [1.0] *
+!!
+!!   NAME
+!!     pw_env_types
+!!
+!!   FUNCTION
+!!     contained for different pw related things
+!!
+!!   NOTES
+!!     -
+!!
+!!   ATTRIBUTES
+!!     - pw_pools: pools for multigrids
+!!     - gridlevel_info: gaussian gridlevel info
+!!     - l_info: informations for l calc
+!!     - cube_info: info on cube and max sphere size for multigrids
+!!     - aux_bas: which multigrid is the auxiliar basis
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     10.2002 created [fawzi]
+!!
+!!   SOURCE
   !***************************************************************************
   TYPE pw_env_type
      INTEGER :: ref_count
@@ -111,7 +112,7 @@ MODULE pw_env_types
      TYPE(cube_info_type), DIMENSION(:), POINTER :: cube_info
      INTEGER :: auxbas_grid
   END TYPE pw_env_type
-  !!***
+!!***
   !****************************************************************************
 
 CONTAINS
@@ -120,6 +121,21 @@ CONTAINS
 !!
 !!   NAME
 !!     pw_env_get
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_env_get(pw_env, pw_pools, l_info, cube_info,&
+!!         gridlevel_info, auxbas_pw_pool, auxbas_cube_info, auxbas_grid,&
+!!         error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(pw_pool_p_type), Dimension(:), Pointer, Optional:: pw_pools
+!!       Type(l_info_type), Pointer, Optional:: l_info
+!!       Type(cube_info_type), Dimension(:), Pointer, Optional:: cube_info
+!!       Type(gridlevel_info_type), Pointer, Optional:: gridlevel_info
+!!       Type(pw_pool_type), Pointer, Optional:: auxbas_pw_pool
+!!       Type(cube_info_type), Pointer, Optional:: auxbas_cube_info
+!!       Integer, Intent (OUT), Optional:: auxbas_grid
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_get
 !!
 !!   FUNCTION
 !!     returns the various attributes of the pw env
@@ -181,6 +197,12 @@ END SUBROUTINE pw_env_get
 !!   NAME
 !!     pw_env_retain
 !!
+!!   SYNOPSIS
+!!     Subroutine pw_env_retain(pw_env, error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_retain
+!!
 !!   FUNCTION
 !!     retains the pw_env (see doc/ReferenceCounting.html)
 !!
@@ -220,6 +242,12 @@ END SUBROUTINE pw_env_retain
 !!
 !!   NAME
 !!     pw_env_release
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_env_release(pw_env, error)
+!!       Type(pw_env_type), Pointer:: pw_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine pw_env_release
 !!
 !!   FUNCTION
 !!     releases the given pw_env (see doc/ReferenceCounting.html)

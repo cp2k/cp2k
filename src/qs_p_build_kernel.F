@@ -37,7 +37,8 @@ MODULE qs_p_build_kernel
                                              coeff_zero
   USE cp_block_matrix,                 ONLY: cp_block_matrix_p_type,&
                                              cp_block_matrix_type
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_type,&

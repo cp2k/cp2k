@@ -59,7 +59,7 @@ MODULE cp_error_handling
        cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
        cp_invariant_failed, cp_assertion_failed, cp_unimplemented_error_nr
   ! public routines
-  PUBLIC :: cp_assert, cp_simple_assert, cp_unimplemented_error
+  PUBLIC :: cp_assert, cp_a_l, cp_simple_assert, cp_unimplemented_error
 
   PUBLIC :: cp_error_init, cp_error_dealloc_ref, cp_error_set,&
        cp_error_get, cp_error_reset, cp_error_get_level,&
@@ -982,6 +982,56 @@ SUBROUTINE cp_unimplemented_error(fromWhere, message, error, error_level)
           fromWhere, "UNIMPLEMENTED", error=error)
   END IF
 END SUBROUTINE cp_unimplemented_error
+!***************************************************************************
+
+!!****f* cp_error_handling/cp_a_l [1.0] *
+!!
+!!   NAME
+!!     cp_a_l
+!!
+!!   SYNOPSIS
+!!     Subroutine cp_a_l(condition, level, fromwhere, linenr, error,&
+!!         failure)
+!!       Logical, Intent (IN):: condition
+!!       Integer, Intent (IN):: level
+!!       Character(Len=*), Intent (IN):: fromwhere
+!!       Integer, Intent (IN):: linenr
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!       Logical, Optional, Intent (INOUT):: failure
+!!     End Subroutine cp_a_l
+!!
+!!   FUNCTION
+!!     assert with linenumber (to be used with the assertion macros
+!!     to keep the line short)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - from_
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     12.2002 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE cp_a_l(condition, level, fromWhere, lineNr, error,failure)
+  LOGICAL, INTENT(in) :: condition
+  INTEGER, INTENT(in) :: level
+  CHARACTER(len=*), INTENT(in) :: fromWhere
+  INTEGER, INTENT(in) :: lineNr
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+  LOGICAL, OPTIONAL, INTENT(inout) :: failure
+  
+  CALL cp_assert(condition,level=level,error_nr=cp_assertion_failed,&
+       fromWhere=fromWhere,&
+       message="condition FAILED at line "//ADJUSTL(cp_to_string(lineNr)),&
+       error=error, failure=failure)
+END SUBROUTINE cp_a_l
 !***************************************************************************
 
 !!****f* cp_error_handling/cp_error_check [1.0] *

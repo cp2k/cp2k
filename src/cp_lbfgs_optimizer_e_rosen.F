@@ -34,7 +34,8 @@
 MODULE cp_lbfgs_optimizer_e_rosen
   USE cp_e_rosenbrok_function,         ONLY: cp_e_rosenbrok_f_type,&
                                              cp_eval_at
-  USE cp_error_handling,               ONLY: cp_assert,&
+  USE cp_error_handling,               ONLY: cp_a_l,&
+                                             cp_assert,&
                                              cp_assertion_failed,&
                                              cp_error_get_logger,&
                                              cp_error_message,&
