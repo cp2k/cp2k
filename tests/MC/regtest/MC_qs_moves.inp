@@ -45,7 +45,7 @@
 
 &TOPOLOGY
  CONNECTIVITY PSF
- CONN_FILE topology_dump.psf
+ CONN_FILE topology_3.psf
 &END
 
 &SCF
