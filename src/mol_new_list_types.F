@@ -308,7 +308,6 @@ SUBROUTINE mol_new_list_release(list, error)
         IF (list%owns_els) THEN
            IF (ASSOCIATED(list%els)) THEN
               CALL deallocate_molecule_set(list%els)
-              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
            END IF
         END IF
         NULLIFY(list%els)
