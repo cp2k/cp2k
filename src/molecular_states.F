@@ -226,7 +226,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     DEALLOCATE ( evals,  STAT = isos )
     IF ( isos /= 0 ) CALL stop_memory ( "construct_molecular_states", &
                                         "eval", ns )
-
+    
     ! compute Eq. 6 from P. Hunt et al. (CPL 376, p. 68-74)
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ns, &
                              ncol_global=ncol_global, &
@@ -245,6 +245,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
        ENDDO
     ENDDO
     CALL cp_fm_release(D_igk)
+    CALL cp_fm_release(smo)
           
     IF ( globenv % print % cubes ) THEN
       DO i=1,ns
