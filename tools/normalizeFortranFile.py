@@ -187,8 +187,8 @@ def findWord(word,text):
     returns false)"""
     pos=text.find(word)
     while((pos>0 and (text[pos-1].isalnum() or
-                      (text[pos-1]=='_' and (pos==1 or text[pos-2].isalpha()))
-                      )) or
+                      (text[pos-1]=='_' or text[pos-1]=='%' and
+                       (pos==1 or text[pos-2].isalpha())) )) or
           (pos>=0 and pos+len(word)<len(text) and
            (text[pos+len(word)].isalnum() or text[pos+len(word)]=='_'))):
         pos=text.find(word,pos+1)
@@ -198,6 +198,7 @@ def enforceDeclDependecies(declarations):
     """enforces the dependencies between the vars
     and compacts the declarations, returns the variables needed by other variables"""
     idecl=0
+    ii=0
     while idecl<len(declarations):
         typeParam="".join(declarations[idecl]['attributes'])
         if declarations[idecl]['parameters']:
@@ -224,6 +225,9 @@ def enforceDeclDependecies(declarations):
             else:
                 for idecl2 in range(idecl+1,len(declarations)):
                     for ivar2 in range(len(declarations[idecl2]['vars'])):
+                        ii+=1
+                        if ii>10000:
+                            raise StandardError,"could not enforce all constraints"
                         m=varRe.match(declarations[idecl2]['vars'][ivar2])
                         if (ivar==0 and
                             findWord(m.group('var').lower(),typeParam)!=-1):
